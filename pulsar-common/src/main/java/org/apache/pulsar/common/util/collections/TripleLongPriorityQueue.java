@@ -56,7 +56,7 @@ public class TripleLongPriorityQueue implements AutoCloseable {
         this(DEFAULT_INITIAL_CAPACITY);
     }
 
-    public TripleLongPriorityQueue(int initialCapacity, float shrinkFactor) {
+    public TripleLongPriorityQueue(long initialCapacity, float shrinkFactor) {
         checkArgument(initialCapacity > 0);
         checkArgument(shrinkFactor > 0);
         this.array = new SegmentedLongArray(initialCapacity * ITEMS_COUNT);
@@ -184,7 +184,7 @@ public class TripleLongPriorityQueue implements AutoCloseable {
             }
 
             array.shrink(newCapacity);
-            this.shrinkThreshold = (long) (array.getCapacity() / ITEMS_COUNT * shrinkFactor);
+            this.shrinkThreshold = (long) (array.getCapacity() / (double) ITEMS_COUNT * shrinkFactor);
         }
     }
 
