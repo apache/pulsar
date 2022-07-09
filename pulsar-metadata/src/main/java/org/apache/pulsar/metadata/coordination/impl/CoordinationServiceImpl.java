@@ -48,6 +48,9 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 public class CoordinationServiceImpl implements CoordinationService {
 
     private static final Duration CLOSE_TIMEOUT = Duration.ofSeconds(10);
+
+    private static final int GET_NEXT_COUNTER_VALUE_RETRY_COUNT = 5;
+
     private final MetadataStoreExtended store;
 
     private final Map<Object, LockManager<?>> lockManagers = new ConcurrentHashMap<>();
@@ -96,6 +99,10 @@ public class CoordinationServiceImpl implements CoordinationService {
 
     @Override
     public CompletableFuture<Long> getNextCounterValue(String path) {
+        return this.getNextCounterValueWithRetry(path, GET_NEXT_COUNTER_VALUE_RETRY_COUNT);
+    }
+
+    private CompletableFuture<Long> getNextCounterValueInternal(String path) {
         return store.exists(path)
                 .thenCompose(exists -> {
                     if (exists) {
@@ -108,7 +115,7 @@ public class CoordinationServiceImpl implements CoordinationService {
                 });
     }
 
-    public CompletableFuture<Long> getNextCounterValueWithRetry(String path, int count) {
+    private CompletableFuture<Long> getNextCounterValueWithRetry(String path, int count) {
         CompletableFuture<Long> future = new CompletableFuture<>();
         getNextCounterValueWithRetryInternal(path, future, count);
         return future;
@@ -120,7 +127,7 @@ public class CoordinationServiceImpl implements CoordinationService {
             future.completeExceptionally(new MetadataStoreException("The number of retries has exhausted"));
             return;
         }
-        this.getNextCounterValue(path)
+        this.getNextCounterValueInternal(path)
                 .thenAccept(future::complete)
                 .exceptionally(ex -> {
                     if (ex.getCause() instanceof MetadataStoreException.BadVersionException) {
