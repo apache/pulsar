@@ -137,7 +137,7 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
 
     @Override
     public void close() throws Exception {
-        if (connection != null && !connection.getAutoCommit()) {
+        if (connection != null && jdbcSinkConfig.isUseTransactions()) {
             connection.commit();
         }
         if (insertStatement != null) {
@@ -262,7 +262,7 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
                             throw new IllegalArgumentException(msg);
                     }
                 }
-                if (!connection.getAutoCommit()) {
+                if (jdbcSinkConfig.isUseTransactions()) {
                     connection.commit();
                 }
                 swapList.forEach(Record::ack);
@@ -270,7 +270,7 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
                 log.error("Got exception ", e.getMessage(), e);
                 swapList.forEach(Record::fail);
                 try {
-                    if (!connection.getAutoCommit()) {
+                    if (jdbcSinkConfig.isUseTransactions()) {
                         connection.rollback();
                     }
                 } catch (Exception ex) {
