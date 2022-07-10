@@ -182,6 +182,7 @@ All the namespace metrics are labelled with the following labels:
 | pulsar_subscription_delayed | Gauge | The total message batches (entries) are delayed for dispatching. |
 | pulsar_storage_write_latency_le_* | Histogram | The entry rate of a namespace that the storage write latency is smaller with a given threshold.<br /> Available thresholds: <br /><ul><li>pulsar_storage_write_latency_le_0_5: <= 0.5ms </li><li>pulsar_storage_write_latency_le_1: <= 1ms</li><li>pulsar_storage_write_latency_le_5: <= 5ms</li><li>pulsar_storage_write_latency_le_10: <= 10ms</li><li>pulsar_storage_write_latency_le_20: <= 20ms</li><li>pulsar_storage_write_latency_le_50: <= 50ms</li><li>pulsar_storage_write_latency_le_100: <= 100ms</li><li>pulsar_storage_write_latency_le_200: <= 200ms</li><li>pulsar_storage_write_latency_le_1000: <= 1s</li><li>pulsar_storage_write_latency_le_overflow: > 1s</li></ul> |
 | pulsar_entry_size_le_* | Histogram | The entry rate of a namespace that the entry size is smaller with a given threshold.<br /> Available thresholds: <br /><ul><li>pulsar_entry_size_le_128: <= 128 bytes </li><li>pulsar_entry_size_le_512: <= 512 bytes</li><li>pulsar_entry_size_le_1_kb: <= 1 KB</li><li>pulsar_entry_size_le_2_kb: <= 2 KB</li><li>pulsar_entry_size_le_4_kb: <= 4 KB</li><li>pulsar_entry_size_le_16_kb: <= 16 KB</li><li>pulsar_entry_size_le_100_kb: <= 100 KB</li><li>pulsar_entry_size_le_1_mb: <= 1 MB</li><li>pulsar_entry_size_le_overflow: > 1 MB</li></ul> |
+| pulsar_delayed_delivery_tracker_memory_usage | GAUGE | The total memory size allocated by `InMemoryDelayedDeliveryTracker` of the namespace owned by this broker (in bytes). | 
 
 #### Replication metrics
 
@@ -245,6 +246,7 @@ All the topic metrics are labelled with the following labels:
 | pulsar_compaction_latency_le_* | Histogram | The compaction latency with given quantile. <br /> Available thresholds: <br /><ul><li>pulsar_compaction_latency_le_0_5: <= 0.5ms </li><li>pulsar_compaction_latency_le_1: <= 1ms</li><li>pulsar_compaction_latency_le_5: <= 5ms</li><li>pulsar_compaction_latency_le_10: <= 10ms</li><li>pulsar_compaction_latency_le_20: <= 20ms</li><li>pulsar_compaction_latency_le_50: <= 50ms</li><li>pulsar_compaction_latency_le_100: <= 100ms</li><li>pulsar_compaction_latency_le_200: <= 200ms</li><li>pulsar_compaction_latency_le_1000: <= 1s</li><li>pulsar_compaction_latency_le_overflow: > 1s</li></ul> |
 | pulsar_compaction_compacted_entries_count | Gauge | The total number of the compacted entries. |
 | pulsar_compaction_compacted_entries_size |Gauge  | The total size of the compacted entries. |
+| pulsar_delayed_delivery_tracker_memory_usage | GAUGE | The total memory size allocated by `InMemoryDelayedDeliveryTracker` of the topic owned by this broker (in bytes). |
 
 #### Replication metrics
 

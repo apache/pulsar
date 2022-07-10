@@ -1364,8 +1364,29 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         int totalChunks = 0;
         int chunkId = -1;
 
+        void initialize() {
+            msg = null;
+            msgs = null;
+            cmd = null;
+            callback = null;
+            rePopulate = null;
+            sequenceId = -1L;
+            createdAt = -1L;
+            firstSentAt = -1L;
+            lastSentAt = -1L;
+            highestSequenceId = -1L;
+            totalChunks = 0;
+            chunkId = -1;
+            uncompressedSize = 0;
+            retryCount = 0;
+            batchSizeByte = 0;
+            numMessagesInBatch = 1;
+            chunkedMessageCtx = null;
+        }
+
         static OpSendMsg create(MessageImpl<?> msg, ByteBufPair cmd, long sequenceId, SendCallback callback) {
             OpSendMsg op = RECYCLER.get();
+            op.initialize();
             op.msg = msg;
             op.cmd = cmd;
             op.callback = callback;
@@ -1377,6 +1398,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         static OpSendMsg create(List<MessageImpl<?>> msgs, ByteBufPair cmd, long sequenceId, SendCallback callback) {
             OpSendMsg op = RECYCLER.get();
+            op.initialize();
             op.msgs = msgs;
             op.cmd = cmd;
             op.callback = callback;
@@ -1392,6 +1414,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         static OpSendMsg create(List<MessageImpl<?>> msgs, ByteBufPair cmd, long lowestSequenceId,
                                 long highestSequenceId,  SendCallback callback) {
             OpSendMsg op = RECYCLER.get();
+            op.initialize();
             op.msgs = msgs;
             op.cmd = cmd;
             op.callback = callback;
@@ -1444,24 +1467,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
 
         void recycle() {
-            msg = null;
-            msgs = null;
-            cmd = null;
-            callback = null;
-            rePopulate = null;
-            sequenceId = -1L;
-            createdAt = -1L;
-            firstSentAt = -1L;
-            lastSentAt = -1L;
-            highestSequenceId = -1L;
-            totalChunks = 0;
-            chunkId = -1;
-            uncompressedSize = 0;
-            retryCount = 0;
-            batchSizeByte = 0;
-            numMessagesInBatch = 1;
             ReferenceCountUtil.safeRelease(chunkedMessageCtx);
-            chunkedMessageCtx = null;
+            initialize();
             recyclerHandle.recycle(this);
         }
 
