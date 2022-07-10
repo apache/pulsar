@@ -92,6 +92,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class PersistentDispatcherFailoverConsumerTest {
 
     private BrokerService brokerService;
@@ -287,7 +288,6 @@ public class PersistentDispatcherFailoverConsumerTest {
         assertEquals(isActive, change.isIsActive());
     }
 
-    @Test(groups = "broker")
     public void testConsumerGroupChangesWithOldNewConsumers() throws Exception {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
         PersistentSubscription sub = new PersistentSubscription(topic, "sub-1", cursorMock, false);
@@ -324,7 +324,6 @@ public class PersistentDispatcherFailoverConsumerTest {
         verify(channelCtx, times(1)).writeAndFlush(any(), any());
     }
 
-    @Test(groups = "quarantine")
     public void testAddRemoveConsumer() throws Exception {
         log.info("--- Starting PersistentDispatcherFailoverConsumerTest::testAddConsumer ---");
 
@@ -444,7 +443,6 @@ public class PersistentDispatcherFailoverConsumerTest {
         assertTrue(pdfc.canUnsubscribe(consumer1));
     }
 
-    @Test(groups = "quarantine")
     public void testAddRemoveConsumerNonPartitionedTopic() throws Exception {
         log.info("--- Starting PersistentDispatcherFailoverConsumerTest::testAddConsumer ---");
 
@@ -505,7 +503,6 @@ public class PersistentDispatcherFailoverConsumerTest {
         verify(consumer3, times(1)).notifyActiveConsumerChange(same(consumer2));
     }
 
-    @Test(groups = "broker")
     public void testMultipleDispatcherGetNextConsumerWithDifferentPriorityLevel() throws Exception {
 
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
@@ -550,7 +547,6 @@ public class PersistentDispatcherFailoverConsumerTest {
 
     }
 
-    @Test(groups = "broker")
     public void testFewBlockedConsumerSamePriority() throws Exception{
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
         PersistentDispatcherMultipleConsumers dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursorMock, null);
@@ -577,7 +573,6 @@ public class PersistentDispatcherFailoverConsumerTest {
         assertNull(getNextConsumer(dispatcher));
     }
 
-    @Test(groups = "broker")
     public void testFewBlockedConsumerDifferentPriority() throws Exception {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
         PersistentDispatcherMultipleConsumers dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursorMock, null);
@@ -631,7 +626,6 @@ public class PersistentDispatcherFailoverConsumerTest {
         assertNull(getNextConsumer(dispatcher));
     }
 
-    @Test(groups = "broker")
     public void testFewBlockedConsumerDifferentPriority2() throws Exception {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
         PersistentDispatcherMultipleConsumers dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursorMock, null);
