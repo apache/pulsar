@@ -57,9 +57,9 @@ import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 @Slf4j
 public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback, Closeable {
 
-    public static final int BATCHED_ENTRY_DATA_PREFIX_MAGIC_NUMBER = -100;
+    public static final short BATCHED_ENTRY_DATA_PREFIX_MAGIC_NUMBER = 0x0e01;
 
-    public static final int BATCHED_ENTRY_DATA_PREFIX_VERSION = 1;
+    public static final short BATCHED_ENTRY_DATA_PREFIX_VERSION = 1;
 
     /**
      * Enable or disabled the batch feature, will use Managed Ledger directly and without batching when disabled.
@@ -236,8 +236,8 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
     private void doFlush(){
         // Combine data.
         ByteBuf prefix = PulsarByteBufAllocator.DEFAULT.buffer(4);
-        prefix.writeChar(BATCHED_ENTRY_DATA_PREFIX_MAGIC_NUMBER);
-        prefix.writeChar(BATCHED_ENTRY_DATA_PREFIX_VERSION);
+        prefix.writeShort(BATCHED_ENTRY_DATA_PREFIX_MAGIC_NUMBER);
+        prefix.writeShort(BATCHED_ENTRY_DATA_PREFIX_VERSION);
         ByteBuf actualContent = this.dataSerializer.serialize(this.dataArray);
         ByteBuf pairByteBuf = Unpooled.wrappedUnmodifiableBuffer(prefix, actualContent);
         FlushContext<T> flushContext = FlushContext.newInstance(this.dataArray, this.asyncAddArgsList);
