@@ -104,7 +104,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     private String functionInstanceClassPath;
     private String downloadDirectory;
     private int gracePeriodSeconds;
-
+    private String pulsarWorkerUrl;
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private Timer changeConfigMapTimer;
@@ -206,6 +206,11 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
                 ? workerConfig.getPulsarServiceUrl() : factoryConfig.getPulsarServiceUrl();
         this.pulsarAdminUrl = StringUtils.isEmpty(factoryConfig.getPulsarAdminUrl())
                 ? workerConfig.getPulsarWebServiceUrl() : factoryConfig.getPulsarAdminUrl();
+        if (!isEmpty(factoryConfig.getPulsarWorkerUrl())) {
+            this.pulsarWorkerUrl = factoryConfig.getPulsarWorkerUrl();
+        } else {
+            this.pulsarWorkerUrl = this.pulsarAdminUrl;
+        }
         this.stateStorageServiceUri = workerConfig.getStateStorageServiceUrl();
         this.authConfig = authenticationConfig;
         log.info("KubernetesRuntimeFactory init authConfig:{}", authConfig);
@@ -333,7 +338,8 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             narExtractionDirectory,
             manifestCustomizer,
             functionInstanceClassPath,
-            downloadDirectory);
+            downloadDirectory,
+            pulsarWorkerUrl);
     }
 
     @Override

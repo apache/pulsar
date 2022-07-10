@@ -181,6 +181,8 @@ functionRuntimeFactoryConfigs:
 #    # setting the pulsar admin url that pulsar function should use to connect to pulsar
 #    # if it is not set, it will use the pulsar admin url configured in worker service
 #    pulsarAdminUrl:
+#    #
+#    pulsarWorkerUrl:
 #    # The flag indicates to install user code dependencies. (applied to python package)
 #    installUserCodeDependencies:
 #    # The repository that pulsar functions use to download python dependencies

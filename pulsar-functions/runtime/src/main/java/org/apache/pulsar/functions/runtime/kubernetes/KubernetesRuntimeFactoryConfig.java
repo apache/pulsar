@@ -88,6 +88,11 @@ public class KubernetesRuntimeFactoryConfig {
     )
     protected String pulsarAdminUrl;
     @FieldContext(
+            doc = "The pulsar admin url that pulsar functions should use to connect to pulsar."
+                    + " If it is not set, it will use the pulsar admin url configured in function worker."
+    )
+    protected String pulsarWorkerUrl;
+    @FieldContext(
         doc = "The flag indicates to install user code dependencies. (applied to python package)"
     )
     protected Boolean installUserCodeDependencies;

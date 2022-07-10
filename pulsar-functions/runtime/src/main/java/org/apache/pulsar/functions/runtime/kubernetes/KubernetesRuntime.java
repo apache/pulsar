@@ -158,6 +158,7 @@ public class KubernetesRuntime implements Runtime {
     private final Optional<KubernetesManifestCustomizer> manifestCustomizer;
     private String functionInstanceClassPath;
     private String downloadDirectory;
+    private String pulsarWorkerUrl;
 
     KubernetesRuntime(AppsV1Api appsClient,
                       CoreV1Api coreClient,
@@ -194,7 +195,8 @@ public class KubernetesRuntime implements Runtime {
                       String narExtractionDirectory,
                       Optional<KubernetesManifestCustomizer> manifestCustomizer,
                       String functionInstanceClassPath,
-                      String downloadDirectory) throws Exception {
+                      String downloadDirectory,
+                      String pulsarWorkerUrl) throws Exception {
         this.appsClient = appsClient;
         this.coreClient = coreClient;
         this.instanceConfig = instanceConfig;
@@ -210,6 +212,7 @@ public class KubernetesRuntime implements Runtime {
         this.downloadDirectory = StringUtils.isNotEmpty(downloadDirectory) ? downloadDirectory : this.pulsarRootDir; // for backward comp
         this.originalCodeFileName = this.downloadDirectory + "/" + originalCodeFileName;
         this.pulsarAdminUrl = pulsarAdminUrl;
+        this.pulsarWorkerUrl = pulsarWorkerUrl;
         this.secretsProviderConfigurator = secretsProviderConfigurator;
         this.percentMemoryPadding = percentMemoryPadding;
         this.cpuOverCommitRatio = cpuOverCommitRatio;
@@ -860,7 +863,7 @@ public class KubernetesRuntime implements Runtime {
                         "--auth-params",
                         authConfig.getClientAuthenticationParameters(),
                         "--admin-url",
-                        pulsarAdminUrl,
+                        pulsarWorkerUrl,
                         "functions",
                         "download",
                         "--tenant",
@@ -877,7 +880,7 @@ public class KubernetesRuntime implements Runtime {
         return Arrays.asList(
                 pulsarRootDir + configAdminCLI,
                 "--admin-url",
-                pulsarAdminUrl,
+                pulsarWorkerUrl,
                 "functions",
                 "download",
                 "--tenant",
@@ -903,7 +906,7 @@ public class KubernetesRuntime implements Runtime {
                     "--auth-params",
                     authConfig.getClientAuthenticationParameters(),
                     "--admin-url",
-                    pulsarAdminUrl,
+                    pulsarWorkerUrl,
                     "packages",
                     "download",
                     packageName,
@@ -915,7 +918,7 @@ public class KubernetesRuntime implements Runtime {
         return Arrays.asList(
             pulsarRootDir + configAdminCLI,
             "--admin-url",
-            pulsarAdminUrl,
+            pulsarWorkerUrl,
             "packages",
             "download",
             packageName,
