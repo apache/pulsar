@@ -402,8 +402,12 @@ public class PersistentDispatcherFailoverConsumerTest {
         consumers = pdfc.getConsumers();
         assertSame(pdfc.getActiveConsumer().consumerName(), consumer1.consumerName());
         assertEquals(3, consumers.size());
-        // not consumer group changes
-        assertNull(consumerChanges.poll());
+        change = consumerChanges.take();
+        verifyActiveConsumerChange(change, 0, false);
+        change = consumerChanges.take();
+        verifyActiveConsumerChange(change, 1, true);
+        change = consumerChanges.take();
+        verifyActiveConsumerChange(change, 1, true);
 
         // 8. Verify if we cannot unsubscribe when more than one consumer is connected
         assertFalse(pdfc.canUnsubscribe(consumer0));
@@ -414,11 +418,8 @@ public class PersistentDispatcherFailoverConsumerTest {
         assertSame(pdfc.getActiveConsumer().consumerName(), consumer1.consumerName());
         assertEquals(2, consumers.size());
 
-        // the remaining consumers will receive notifications
-        change = consumerChanges.take();
-        verifyActiveConsumerChange(change, 1, true);
-        change = consumerChanges.take();
-        verifyActiveConsumerChange(change, 1, true);
+        // not consumer group changes
+        assertNull(consumerChanges.poll());
 
         // 10. Attempt to remove already removed consumer
         String cause = "";
