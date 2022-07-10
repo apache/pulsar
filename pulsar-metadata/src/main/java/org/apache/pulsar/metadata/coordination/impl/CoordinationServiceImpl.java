@@ -99,10 +99,12 @@ public class CoordinationServiceImpl implements CoordinationService {
 
     @Override
     public CompletableFuture<Long> getNextCounterValue(String path) {
-        return this.getNextCounterValueWithRetry(path, GET_NEXT_COUNTER_VALUE_RETRY_COUNT);
+        CompletableFuture<Long> future = new CompletableFuture<>();
+        internalGetNextCounterValueWithRetry(path, future, GET_NEXT_COUNTER_VALUE_RETRY_COUNT);
+        return future;
     }
 
-    private CompletableFuture<Long> getNextCounterValueInternal(String path) {
+    private CompletableFuture<Long> internalGetNextCounterValue(String path) {
         return store.exists(path)
                 .thenCompose(exists -> {
                     if (exists) {
@@ -115,25 +117,19 @@ public class CoordinationServiceImpl implements CoordinationService {
                 });
     }
 
-    private CompletableFuture<Long> getNextCounterValueWithRetry(String path, int count) {
-        CompletableFuture<Long> future = new CompletableFuture<>();
-        getNextCounterValueWithRetryInternal(path, future, count);
-        return future;
-    }
-
-    private void getNextCounterValueWithRetryInternal(String path, CompletableFuture<Long> future, int count) {
+    private void internalGetNextCounterValueWithRetry(String path, CompletableFuture<Long> future, int count) {
         if (count == 0) {
             log.error("The number of retries has exhausted when get next counter value from path {}", path);
             future.completeExceptionally(new MetadataStoreException("The number of retries has exhausted"));
             return;
         }
-        this.getNextCounterValueInternal(path)
+        this.internalGetNextCounterValue(path)
                 .thenAccept(future::complete)
                 .exceptionally(ex -> {
                     if (ex.getCause() instanceof MetadataStoreException.BadVersionException) {
                         log.warn("Failed to get next counter value because of bad version. "
                                 + "Retry to get next counter value from path {}", path);
-                        getNextCounterValueWithRetryInternal(path, future, count - 1);
+                        internalGetNextCounterValueWithRetry(path, future, count - 1);
                     } else {
                         log.error("Failed to get next counter value from path {}", path, ex);
                         future.completeExceptionally(ex);
