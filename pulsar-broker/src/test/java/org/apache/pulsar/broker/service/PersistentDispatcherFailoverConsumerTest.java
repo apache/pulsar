@@ -320,7 +320,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         verify(channelCtx, times(1)).writeAndFlush(any(), any());
     }
 
-    @Test(groups = "broker")
+    @Test(groups = "quarantine")
     public void testAddRemoveConsumer() throws Exception {
         log.info("--- Starting PersistentDispatcherFailoverConsumerTest::testAddConsumer ---");
 
