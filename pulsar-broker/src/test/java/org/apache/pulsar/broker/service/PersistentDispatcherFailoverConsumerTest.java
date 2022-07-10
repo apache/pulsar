@@ -204,11 +204,15 @@ public class PersistentDispatcherFailoverConsumerTest {
             pulsar = null;
         }
 
-        executor.shutdown();
+        if (executor != null) {
+            executor.shutdown();
+        }
         if (eventLoopGroup != null) {
             eventLoopGroup.shutdownGracefully().get();
         }
-        store.close();
+        if (store != null) {
+            store.close();
+        }
     }
 
     void setupMLAsyncCallbackMocks() {
