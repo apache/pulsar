@@ -168,14 +168,14 @@ This example shows how to change the data of a MySQL table using the Pulsar Debe
 
      :::note
       
-       Currently, the destination topic (specified by the `destination-topic-name` option ) is a required configuration but it is not used for the Debezium connector to save data. The Debezium connector saves data in the following 4 types of topics:
+     Currently, the destination topic (specified by the `destination-topic-name` option ) is a required configuration but it is not used for the Debezium connector to save data. The Debezium connector saves data in the following 4 types of topics:
       
        - One topic named with the database server name ( `database.server.name`) for storing the database metadata messages, such as `public/default/database.server.name`.
        - One topic (`database.history.pulsar.topic`) for storing the database history information. The connector writes and recovers DDL statements on this topic.
        - One topic (`offset.storage.topic`) for storing the offset metadata messages. The connector saves the last successfully-committed offsets on this topic.
        - One per-table topic. The connector writes change events for all operations that occur in a table to a single Pulsar topic that is specific to that table.
       
-       If the automatic topic creation is disabled on your broker, you need to manually create the above 4 types of topics and the destination topic.
+     If the automatic topic creation is disabled on your broker, you need to manually create the above 4 types of topics and the destination topic.
 
      :::
 
@@ -313,7 +313,7 @@ This example shows how to change the data of a PostgreSQL table using the Pulsar
 
    * Use the **JSON** configuration file as shown previously. 
     
-       Make sure the nar file is available at `connectors/pulsar-io-debezium-postgres-@pulsar:version@.nar`.
+     Make sure the nar file is available at `connectors/pulsar-io-debezium-postgres-@pulsar:version@.nar`.
 
        ```bash
        
@@ -328,16 +328,16 @@ This example shows how to change the data of a PostgreSQL table using the Pulsar
        ```
 
      :::note
-      
-       Currently, the destination topic (specified by the `destination-topic-name` option ) is a required configuration but it is not used for the Debezium connector to save data. The Debezium connector saves data in the following 4 types of topics:
-      
-       - One topic named with the database server name ( `database.server.name`) for storing the database metadata messages, such as `public/default/database.server.name`.
+
+     Currently, the destination topic (specified by the `destination-topic-name` option ) is a required configuration but it is not used for the Debezium connector to save data. The Debezium connector saves data in the following 4 types of topics:
+
+       - One topic named with the database server name (`database.server.name`) for storing the database metadata messages, such as `public/default/database.server.name`.
        - One topic (`database.history.pulsar.topic`) for storing the database history information. The connector writes and recovers DDL statements on this topic.
        - One topic (`offset.storage.topic`) for storing the offset metadata messages. The connector saves the last successfully-committed offsets on this topic.
        - One per-table topic. The connector writes change events for all operations that occur in a table to a single Pulsar topic that is specific to that table.
-      
-       If the automatic topic creation is disabled on your broker, you need to manually create the above 4 types of topics and the destination topic.
 
+     If the automatic topic creation is disabled on your broker, you need to manually create the above 4 types of topics and the destination topic.
+     
      :::
 
    * Use the **YAML** configuration file as shown previously.
@@ -512,14 +512,14 @@ This example shows how to change the data of a MongoDB table using the Pulsar De
 
      :::note
       
-       Currently, the destination topic (specified by the `destination-topic-name` option ) is a required configuration but it is not used for the Debezium connector to save data. The Debezium connector saves data in the following 4 types of topics:
+     Currently, the destination topic (specified by the `destination-topic-name` option ) is a required configuration but it is not used for the Debezium connector to save data. The Debezium connector saves data in the following 4 types of topics:
       
        - One topic named with the database server name ( `database.server.name`) for storing the database metadata messages, such as `public/default/database.server.name`.
        - One topic (`database.history.pulsar.topic`) for storing the database history information. The connector writes and recovers DDL statements on this topic.
        - One topic (`offset.storage.topic`) for storing the offset metadata messages. The connector saves the last successfully-committed offsets on this topic.
        - One per-table topic. The connector writes change events for all operations that occur in a table to a single Pulsar topic that is specific to that table.
       
-       If the automatic topic creation is disabled on your broker, you need to manually create the above 4 types of topics and the destination topic.
+     If the automatic topic creation is disabled on your broker, you need to manually create the above 4 types of topics and the destination topic.
 
      :::
       
