@@ -81,7 +81,7 @@ public class TopicLookup extends TopicLookupBase {
     @Path("{topic-domain}/{tenant}/{namespace}/{topic}/bundle")
     @Produces(MediaType.APPLICATION_JSON)
     @ApiOperation(
-            value = "Get the namespace bundle which contains the given topic.",
+            value = "Get the namespace bundle which the given topic belongs to.",
             response = String.class
     )
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
