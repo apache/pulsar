@@ -34,4 +34,9 @@ public class PersistentDispatcherFailoverConsumerStreamingDispatcherTest extends
         super.setup();
         pulsar.getConfiguration().setStreamingDispatch(true);
     }
+
+    @Test
+    public void testVerification() {
+
+    }
 }
