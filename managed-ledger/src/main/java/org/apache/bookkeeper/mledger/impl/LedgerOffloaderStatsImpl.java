@@ -31,13 +31,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.naming.TopicName;
-@Slf4j
+
 public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Runnable {
     private static final String TOPIC_LABEL = "topic";
     private static final String NAMESPACE_LABEL = "namespace";
