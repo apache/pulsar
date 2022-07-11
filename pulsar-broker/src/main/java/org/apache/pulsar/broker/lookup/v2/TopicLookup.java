@@ -50,7 +50,7 @@ public class TopicLookup extends TopicLookupBase {
     @Path("{topic-domain}/{tenant}/{namespace}/{topic}")
     @Produces(MediaType.APPLICATION_JSON)
     @ApiOperation(
-            value = "Look up a topic from the current serving broker.",
+            value = "Get the owner broker of the given topic.",
             response = LookupData.class
     )
     @ApiResponses(value = { @ApiResponse(code = 307,
