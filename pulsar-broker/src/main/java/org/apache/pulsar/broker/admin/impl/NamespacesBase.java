@@ -2306,28 +2306,23 @@ public abstract class NamespacesBase extends AdminResource {
         return getNamespacePolicies(namespaceName).max_consumers_per_subscription;
     }
 
-    protected void internalSetMaxConsumersPerSubscription(Integer maxConsumersPerSubscription) {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_CONSUMERS, PolicyOperation.WRITE);
-        validatePoliciesReadOnlyAccess();
+    protected CompletableFuture<Void> internalSetMaxConsumersPerSubscription(Integer maxConsumersPerSubscription) {
 
-        try {
-            if (maxConsumersPerSubscription != null && maxConsumersPerSubscription < 0) {
-                throw new RestException(Status.PRECONDITION_FAILED,
-                        "maxConsumersPerSubscription must be 0 or more");
-            }
-            updatePolicies(namespaceName, policies -> {
-                policies.max_consumers_per_subscription = maxConsumersPerSubscription;
-                return policies;
-            });
-            log.info("[{}] Successfully updated maxConsumersPerSubscription configuration: namespace={}, value={}",
-                    clientAppId(), namespaceName, maxConsumersPerSubscription);
-        } catch (RestException pfe) {
-            throw pfe;
-        } catch (Exception e) {
-            log.error("[{}] Failed to update maxConsumersPerSubscription configuration for namespace {}",
-                    clientAppId(), namespaceName, e);
-            throw new RestException(e);
-        }
+        CompletableFuture<Void> ret;
+        ret = validateNamespacePolicyOperationAsync(namespaceName, PolicyName.MAX_CONSUMERS, PolicyOperation.WRITE)
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenCompose(__ -> {
+                    if (maxConsumersPerSubscription != null && maxConsumersPerSubscription < 0) {
+                        throw new RestException(Status.PRECONDITION_FAILED,
+                                "maxConsumersPerSubscription must be 0 or more");
+                    }
+                    return updatePoliciesAsync(namespaceName, policies -> {
+                        policies.max_consumers_per_subscription = maxConsumersPerSubscription;
+                        return policies;
+                    });
+
+                });
+        return ret;
     }
 
     protected Integer internalGetMaxUnackedMessagesPerConsumer() {
