@@ -40,7 +40,7 @@ $ bin/pulsar-client produce non-persistent://public/default/example-np-topic \
 
 ```
 
-> For a more thorough guide to non-persistent topics from an administrative perspective, see the [Non-persistent topics](admin-api-topics) guide.
+> For a more thorough guide to non-persistent topics from an administrative perspective, see the [Non-persistent topics](admin-api-topics.md) guide.
 
 ## Enabling
 

@@ -990,9 +990,26 @@ public class Commands {
         }
 
         if (batchSize >= 0) {
-          messageIdData.setBatchSize(batchSize);
+            messageIdData.setBatchSize(batchSize);
         }
 
+        return newAck(validationError, properties, txnIdLeastBits, txnIdMostBits, requestId, ack, cmd);
+    }
+
+    public static ByteBuf newAck(long consumerId, List<MessageIdData> messageIds, AckType ackType,
+                                 ValidationError validationError, Map<String, Long> properties, long txnIdLeastBits,
+                                 long txnIdMostBits, long requestId) {
+        BaseCommand cmd = localCmd(Type.ACK);
+        CommandAck ack = cmd.setAck()
+                .setConsumerId(consumerId)
+                .setAckType(ackType);
+        ack.addAllMessageIds(messageIds);
+
+        return newAck(validationError, properties, txnIdLeastBits, txnIdMostBits, requestId, ack, cmd);
+    }
+
+    private static ByteBuf newAck(ValidationError validationError, Map<String, Long> properties, long txnIdLeastBits,
+                                  long txnIdMostBits, long requestId, CommandAck ack, BaseCommand cmd) {
         if (validationError != null) {
             ack.setValidationError(validationError);
         }
@@ -1013,6 +1030,7 @@ public class Commands {
         }
         return serializeWithSize(cmd);
     }
+
 
     public static ByteBuf newAck(long consumerId, long ledgerId, long entryId, BitSetRecyclable ackSet, AckType ackType,
                                  ValidationError validationError, Map<String, Long> properties, long txnIdLeastBits,

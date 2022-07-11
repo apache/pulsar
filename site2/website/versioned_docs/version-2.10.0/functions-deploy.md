@@ -9,12 +9,12 @@ original_id: functions-deploy
 
 To deploy and manage Pulsar Functions, you need to have a Pulsar cluster running. There are several options for this:
 
-* You can run a [standalone cluster](getting-started-standalone) locally on your own machine.
-* You can deploy a Pulsar cluster on [Kubernetes](deploy-kubernetes.md), [Amazon Web Services](deploy-aws.md), [bare metal](deploy-bare-metal), DC/OS, and more.
+* You can run a [standalone cluster](getting-started-standalone.md) locally on your own machine.
+* You can deploy a Pulsar cluster on [Kubernetes](deploy-kubernetes.md), [Amazon Web Services](deploy-aws.md), [bare metal](deploy-bare-metal.md), DC/OS, and more.
 
 If you run a non-[standalone](reference-terminology.md#standalone) cluster, you need to obtain the service URL for the cluster. How you obtain the service URL depends on how you deploy your Pulsar cluster.
 
-If you want to deploy and trigger Python user-defined functions, you need to install [the pulsar python client](client-libraries-python) on all the machines running [functions workers](functions-worker).
+If you want to deploy and trigger Python user-defined functions, you need to install [the pulsar python client](client-libraries-python.md) on all the machines running [functions workers](functions-worker.md).
 
 ## Command-line interface
 
@@ -179,7 +179,7 @@ $ bin/pulsar-admin functions create \
 
 Package management enables version management and simplifies the upgrade and rollback processes for Functions, Sinks, and Sources. When you use the same function, sink and source in different namespaces, you can upload them to a common package management system.
 
-To use [Package management service](admin-api-packages), ensure that the package management service has been enabled in your cluster by setting the following properties in `broker.conf`.
+To use [Package management service](admin-api-packages.md), ensure that the package management service has been enabled in your cluster by setting the following properties in `broker.conf`.
 
 > Note: Package management service is not enabled by default.
 
