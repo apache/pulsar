@@ -207,19 +207,19 @@ This projects includes binary packages with the following licenses:
 The Apache Software License, Version 2.0
 
   * Jackson
-    - jackson-annotations-2.13.2.jar
-    - jackson-core-2.13.2.jar
-    - jackson-databind-2.13.2.1.jar
-    - jackson-dataformat-smile-2.13.2.jar
-    - jackson-datatype-guava-2.13.2.jar
-    - jackson-datatype-jdk8-2.13.2.jar
-    - jackson-datatype-joda-2.13.2.jar
-    - jackson-datatype-jsr310-2.13.2.jar
-    - jackson-dataformat-yaml-2.13.2.jar
-    - jackson-jaxrs-base-2.13.2.jar
-    - jackson-jaxrs-json-provider-2.13.2.jar
-    - jackson-module-jaxb-annotations-2.13.2.jar
-    - jackson-module-jsonSchema-2.13.2.jar
+    - jackson-annotations-2.13.3.jar
+    - jackson-core-2.13.3.jar
+    - jackson-databind-2.13.3.jar
+    - jackson-dataformat-smile-2.13.3.jar
+    - jackson-datatype-guava-2.13.3.jar
+    - jackson-datatype-jdk8-2.13.3.jar
+    - jackson-datatype-joda-2.13.3.jar
+    - jackson-datatype-jsr310-2.13.3.jar
+    - jackson-dataformat-yaml-2.13.3.jar
+    - jackson-jaxrs-base-2.13.3.jar
+    - jackson-jaxrs-json-provider-2.13.3.jar
+    - jackson-module-jaxb-annotations-2.13.3.jar
+    - jackson-module-jsonSchema-2.13.3.jar
  * Guava
     - guava-31.0.1-jre.jar
     - listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar
@@ -386,7 +386,7 @@ The Apache Software License, Version 2.0
     - javax.servlet-api-4.0.1.jar
     - javax.ws.rs-api-2.1.jar
   * JCommander
-    - jcommander-1.78.jar
+    - jcommander-1.82.jar
   * FindBugs JSR305
     - jsr305-3.0.2.jar
   * Objenesis
@@ -455,7 +455,7 @@ The Apache Software License, Version 2.0
   * Snappy
     - snappy-java-1.1.8.4.jar
   * Jackson
-    - jackson-module-parameter-names-2.13.2.jar
+    - jackson-module-parameter-names-2.13.3.jar
   * Java Assist
     - javassist-3.25.0-GA.jar
   * Java Native Access

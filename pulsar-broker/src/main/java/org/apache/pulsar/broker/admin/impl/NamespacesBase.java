@@ -2301,11 +2301,6 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected Integer internalGetMaxConsumersPerSubscription() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_CONSUMERS, PolicyOperation.READ);
-        return getNamespacePolicies(namespaceName).max_consumers_per_subscription;
-    }
-
     protected void internalSetMaxConsumersPerSubscription(Integer maxConsumersPerSubscription) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_CONSUMERS, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
