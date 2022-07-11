@@ -101,13 +101,6 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
     /** Bytes size of data in current batch. Will reset to 0 after each batched writes. **/
     private long bytesSize;
 
-    public TxnLogBufferedWriter(ManagedLedger managedLedger, OrderedExecutor orderedExecutor,
-                                ScheduledExecutorService scheduledExecutorService, DataSerializer<T> dataSerializer,
-                                boolean batchEnabled){
-        this(managedLedger, orderedExecutor, scheduledExecutorService, dataSerializer,
-                512, 1024 * 1024 * 4, 1, batchEnabled);
-    }
-
     /**
      * Constructor.
      * @param dataSerializer The serializer for the object which called by {@link #asyncAddData}.
@@ -154,6 +147,11 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
             managedLedger.asyncAddEntry(byteBuf, DisabledBatchCallback.INSTANCE, Triple.of(byteBuf, callback, ctx));
             return;
         }
+        if (dataSerializer.getSerializedSize(data) >= batchedWriteMaxSize){
+            doTrigFlush(true);
+            ByteBuf byteBuf = dataSerializer.serialize(data);
+            managedLedger.asyncAddEntry(byteBuf, DisabledBatchCallback.INSTANCE, Triple.of(byteBuf, callback, ctx));
+        }
         orderedExecutor.executeOrdered(managedLedger.getName(), () -> internalAsyncAddData(data, callback, ctx));
     }
 
@@ -172,7 +170,7 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
         // Calculate bytes-size.
         this.bytesSize += dataSerializer.getSerializedSize(data);
         // trig flush.
-        doTrigFlush();
+        doTrigFlush(false);
     }
 
     /***
@@ -211,11 +209,15 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
      * Trigger write to bookie once, If the conditions are not met, nothing will be done.
      */
     public void trigFlush(){
-        orderedExecutor.executeOrdered(managedLedger.getName(), this::doTrigFlush);
+        orderedExecutor.executeOrdered(managedLedger.getName(), () -> doTrigFlush(false));
     }
 
-    private void doTrigFlush(){
+    private void doTrigFlush(boolean force){
         if (asyncAddArgsList == null || asyncAddArgsList.isEmpty()) {
+            return;
+        }
+        if (force){
+            doFlush();
             return;
         }
         AsyncAddArgs firstAsyncAddArgs = asyncAddArgsList.get(0);
@@ -240,7 +242,7 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
         prefix.writeShort(BATCHED_ENTRY_DATA_PREFIX_VERSION);
         ByteBuf actualContent = this.dataSerializer.serialize(this.dataArray);
         ByteBuf pairByteBuf = Unpooled.wrappedUnmodifiableBuffer(prefix, actualContent);
-        FlushContext<T> flushContext = FlushContext.newInstance(this.dataArray, this.asyncAddArgsList);
+        FlushContext<T> flushContext = FlushContext.newInstance(this.asyncAddArgsList);
         // Clear buffers.
         this.dataArray = null;
         this.asyncAddArgsList = null;
@@ -361,23 +363,16 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
             this.handle = handle;
         }
 
-        public static <T> FlushContext newInstance(ArrayList<T> dataList,
-                                                   ArrayList<AsyncAddArgs> asyncAddArgsList){
+        public static <T> FlushContext newInstance(ArrayList<AsyncAddArgs> asyncAddArgsList){
             FlushContext flushContext = FLUSH_CONTEXT_RECYCLER.get();
-            flushContext.dataList = dataList;
             flushContext.asyncAddArgsList = asyncAddArgsList;
             return flushContext;
         }
 
         public void recycle(){
-            this.dataList = null;
             this.asyncAddArgsList = null;
             this.handle.recycle(this);
         }
-
-        /** Data array in current batch. **/
-        @Getter
-        private ArrayList<T> dataList;
 
         /** Callback parameters for current batch. **/
         private ArrayList<AsyncAddArgs> asyncAddArgsList;

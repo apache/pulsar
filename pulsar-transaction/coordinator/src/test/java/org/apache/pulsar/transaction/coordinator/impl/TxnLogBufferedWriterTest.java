@@ -101,7 +101,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
                                 byteBufBatchedEntryDataList.add(content);
                                 return content;
                             }
-                        }, true);
+                        }, 512, 1024 * 1024 * 4, 1, true);
         // Create callback.
         ArrayList<Integer> callbackCtxList = new ArrayList<>();
         LinkedHashMap<PositionImpl, ArrayList<Position>> callbackPositions =
@@ -214,7 +214,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
                             public ByteBuf serialize(ArrayList<ByteBuf> dataArray) {
                                 return null;
                             }
-                        }, false);
+                        }, 512, 1024 * 1024 * 4, 1, false);
         // Create callback.
         CompletableFuture<Triple<Position, ByteBuf, Object>> future = new CompletableFuture<>();
         AsyncCallbacks.AddEntryCallback callback = new AsyncCallbacks.AddEntryCallback(){
