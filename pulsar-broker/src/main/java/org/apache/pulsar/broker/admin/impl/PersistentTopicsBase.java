@@ -2136,22 +2136,9 @@ public class PersistentTopicsBase extends AdminResource {
                 }
                 return sub.resetCursor(timestamp);
             })
-            .thenRun(() -> log.info("[{}][{}] Reset cursor on subscription {} to time {}",
-                clientAppId(), topicName, subName, timestamp))
-            .exceptionally(ex -> {
-                Throwable t = (ex instanceof CompletionException ? ex.getCause() : ex);
-                log.warn("[{}][{}] Failed to reset cursor on subscription {} to time {}", clientAppId(), topicName,
-                    subName, timestamp, t);
-                if (t instanceof SubscriptionInvalidCursorPosition) {
-                    throw new RestException(Status.PRECONDITION_FAILED,
-                        "Unable to find position for timestamp specified: " + t.getMessage());
-                } else if (t instanceof SubscriptionBusyException) {
-                    throw new RestException(Status.PRECONDITION_FAILED,
-                        "Failed for Subscription Busy: " + t.getMessage());
-                } else {
-                    throw new RestException(t);
-                }
-            });
+            .thenRun(() ->
+                log.info("[{}][{}] Reset cursor on subscription {} to time {}",
+                    clientAppId(), topicName, subName, timestamp));
     }
 
     protected void internalCreateSubscription(AsyncResponse asyncResponse, String subscriptionName,
