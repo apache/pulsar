@@ -148,7 +148,7 @@ public class PulsarAdminTool {
         }
     }
 
-    public void setupCommands(Function<PulsarAdminBuilder, ? extends PulsarAdmin> adminFactory) {
+    protected void setupCommands(Function<PulsarAdminBuilder, ? extends PulsarAdmin> adminFactory) {
         try {
             adminBuilder.serviceHttpUrl(rootParams.serviceUrl);
             adminBuilder.authentication(rootParams.authPluginClassName, rootParams.authParams);

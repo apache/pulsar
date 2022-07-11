@@ -29,15 +29,25 @@ import org.testng.annotations.Test;
 public class JCommanderCompleterTest {
 
     @Test
-    public void test() throws Exception {
+    public void testCompletersAdmin() throws Exception {
         final AdminShell shell = new AdminShell(new Properties());
         shell.setupState(new Properties());
-        final List<Completer> completers = JCommanderCompleter.createCompletersForCommand("admin",
+        createAndCheckCompleters(shell, "admin");
+    }
+
+    @Test
+    public void testCompletersClient() throws Exception {
+        final AdminShell shell = new AdminShell(new Properties());
+        shell.setupState(new Properties());
+        createAndCheckCompleters(shell, "client");
+    }
+
+    private void createAndCheckCompleters(AdminShell shell, String mainCommand) {
+        final List<Completer> completers = JCommanderCompleter.createCompletersForCommand(mainCommand,
                 shell.getJCommander());
         assertFalse(completers.isEmpty());
         for (Completer completer : completers) {
             assertTrue(completer instanceof OptionStrictArgumentCompleter);
         }
     }
-
 }

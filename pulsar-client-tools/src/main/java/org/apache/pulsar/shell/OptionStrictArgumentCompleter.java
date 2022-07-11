@@ -37,15 +37,6 @@ import org.jline.reader.impl.completer.ArgumentCompleter;
 public class OptionStrictArgumentCompleter implements Completer {
 
     private final List<Completer> completers = new ArrayList<>();
-
-    private boolean strict = true;
-    private boolean strictCommand = true;
-
-    public List<Completer> getCompleters() {
-        return completers;
-    }
-
-
     /**
      * Create a new completer.
      *
@@ -55,11 +46,6 @@ public class OptionStrictArgumentCompleter implements Completer {
         Objects.requireNonNull(completers);
         this.completers.addAll(completers);
     }
-
-    public OptionStrictArgumentCompleter(final Completer... completers) {
-        this(Arrays.asList(completers));
-    }
-
 
     @Override
     public void complete(LineReader reader, ParsedLine line, List<Candidate> candidates) {
@@ -82,18 +68,15 @@ public class OptionStrictArgumentCompleter implements Completer {
 
         // ensure that all the previous completers are successful
         // before allowing this completer to pass (only if strict).
-        for (int i = strictCommand ? 0 : 1; strict && (i < line.wordIndex()); i++) {
+        for (int i = 0; i < line.wordIndex(); i++) {
             int idx = i >= completers.size() ? (completers.size() - 1) : i;
-            if (idx == 0 && !strictCommand) {
-                continue;
-            }
             Completer sub = completers.get(idx);
 
             List<? extends CharSequence> args = line.words();
             String arg = (args == null || i >= args.size()) ? "" : args.get(i).toString();
 
             List<Candidate> subCandidates = new LinkedList<>();
-            /**
+            /*
              * This is the part that differs from the original ArgumentCompleter.
              * It matches only if there's an actual option.
              * The implementation of OptionCompleter will return the same candidate even if it is
