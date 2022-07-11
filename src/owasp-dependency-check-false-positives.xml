@@ -158,4 +158,13 @@
     <sha1>1a754a5dd672218a2ac667d7ff2b28df7a5a240e</sha1>
     <cve>CVE-2022-25647</cve>
   </suppress>
+
+  <!-- 9.4.x is not affected https://github.com/eclipse/jetty.project/issues/8161#issuecomment-1178728623-->
+  <suppress>
+    <notes><![CDATA[
+   file name: jetty-io-9.4.48.v20220622.jar
+   ]]></notes>
+    <sha1>b09b55209d0a304e542f779750a01f6914dc55e7</sha1>
+    <vulnerabilityName>CVE-2022-2191</vulnerabilityName>
+  </suppress>
 </suppressions>
