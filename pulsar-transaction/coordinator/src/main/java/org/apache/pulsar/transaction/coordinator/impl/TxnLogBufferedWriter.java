@@ -244,7 +244,7 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
         ByteBuf pairByteBuf = Unpooled.wrappedUnmodifiableBuffer(prefix, actualContent);
         FlushContext<T> flushContext = FlushContext.newInstance(this.asyncAddArgsList);
         // Clear buffers.
-        this.dataArray = null;
+        this.dataArray.clear();
         this.asyncAddArgsList = null;
         this.bytesSize = 0;
         // Flush.
