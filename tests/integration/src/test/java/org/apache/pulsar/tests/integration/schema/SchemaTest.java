@@ -273,7 +273,7 @@ public class SchemaTest extends PulsarTestSuite {
 
     @Test
     public void testPrimitiveSchemaTypeCompatibilityCheck() {
-        List<Schema> schemas = new ArrayList<>();
+        List<Schema<?>> schemas = new ArrayList<>();
 
         schemas.add(Schema.STRING);
         schemas.add(Schema.INT8);

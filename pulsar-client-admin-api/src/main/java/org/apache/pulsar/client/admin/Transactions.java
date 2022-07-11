@@ -308,8 +308,7 @@ public interface Transactions {
     CompletableFuture<Void> scaleTransactionCoordinatorsAsync(int replicas);
 
     /**
-     * Check whether the position is in pending ack stats.
-     *
+     * Get the position stats in transaction pending ack.
      * @param topic the topic of checking position in pending ack state
      * @param subName the subscription name of this pending ack
      * @param ledgerId the ledger id of the message position.
@@ -317,11 +316,11 @@ public interface Transactions {
      * @param batchIndex the batch index of the message position, `null` means not batch message.
      * @return {@link PositionInPendingAckStats} a state identified whether the position state.
      */
-    PositionInPendingAckStats checkPositionInPendingAckState(String topic, String subName, Long ledgerId, Long entryId,
-                                                             Integer batchIndex) throws PulsarAdminException;
+    PositionInPendingAckStats getPositionStatsInPendingAck(String topic, String subName, Long ledgerId, Long entryId,
+                                                           Integer batchIndex) throws PulsarAdminException;
 
     /**
-     * Check whether the position is in pending ack stats.
+     * Get the position stats in transaction pending ack.
      *
      * @param topic the topic of checking position in pending ack state
      * @param subName the subscription name of this pending ack
@@ -330,7 +329,7 @@ public interface Transactions {
      * @param batchIndex the batch index of the message position, `null` means not batch message.
      * @return {@link PositionInPendingAckStats} a state identified whether the position state.
      */
-    CompletableFuture<PositionInPendingAckStats> checkPositionInPendingAckStateAsync(String topic, String subName,
-                                                                                     Long ledgerId, Long entryId,
-                                                                                     Integer batchIndex);
+    CompletableFuture<PositionInPendingAckStats> getPositionStatsInPendingAckAsync(String topic, String subName,
+                                                                                   Long ledgerId, Long entryId,
+                                                                                   Integer batchIndex);
 }
