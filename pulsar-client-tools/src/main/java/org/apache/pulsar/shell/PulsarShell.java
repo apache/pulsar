@@ -218,7 +218,7 @@ public class PulsarShell {
     }
 
     private interface CommandReader {
-        String readCommand() throws InterruptShellException;
+        List<String> readCommand() throws InterruptShellException;
     }
 
     private static class InterruptShellException extends RuntimeException {
@@ -258,6 +258,7 @@ public class PulsarShell {
 
         final InteractiveLineReader reader = readerBuilder.apply(providersMap);
         final Terminal terminal = terminalBuilder.apply(providersMap);
+        final Map<String, String> variables = System.getenv();
 
         CommandReader commandReader;
         CommandsInfo commandsInfo = null;
@@ -289,40 +290,43 @@ public class PulsarShell {
                 private int index = 0;
 
                 @Override
-                public String readCommand() {
+                public List<String> readCommand() {
                     if (index == lines.size()) {
                         throw new InterruptShellException();
                     }
-                    final String command = lines.get(index++).trim();
+                    String command = lines.get(index++).trim();
+                    final List<String> words = substituteVariables(reader.parseLine(command), variables);
+                    command = words.stream().collect(Collectors.joining(" "));
                     if (finalCommandsInfo != null) {
                         finalCommandsInfo.executingCommand = command;
                     } else {
                         output(String.format("[%d/%d] Executing %s", new Object[]{index,
                                 lines.size(), command}), terminal);
                     }
-                    return command;
+                    return words;
                 }
             };
         } else {
             commandReader = () -> {
                 try {
-                    return reader.readLine().trim();
+                    final String line = reader.readLine().trim();
+                    return substituteVariables(reader.parseLine(line), variables);
                 } catch (org.jline.reader.UserInterruptException userInterruptException) {
                     throw new InterruptShellException();
                 }
             };
         }
 
-        final Map<String, String> variables = System.getenv();
         Runtime.getRuntime().addShutdownHook(new Thread(() -> quit(terminal)));
         while (true) {
-            String line;
+            final List<String> words;
             try {
-                line = commandReader.readCommand();
+                words = commandReader.readCommand();
             } catch (InterruptShellException interruptShellException) {
                 exit(0);
                 return;
             }
+            final String line = words.stream().collect(Collectors.joining(" "));
             if (StringUtils.isBlank(line)) {
                 continue;
             }
@@ -330,8 +334,6 @@ public class PulsarShell {
                 exit(0);
                 return;
             }
-            final List<String> words = substituteVariables(reader.parseLine(line), variables);
-
             if (shellOptions.help) {
                 shellCommander.usage();
                 continue;
@@ -350,7 +352,8 @@ public class PulsarShell {
             } catch (Throwable t) {
                 t.printStackTrace(terminal.writer());
             } finally {
-                if (commandsInfo != null) {
+                final boolean willExitWithError = mainOptions.exitOnError && !commandOk;
+                if (commandsInfo != null && !willExitWithError) {
                     commandsInfo.executingCommand = null;
                     commandsInfo.executedCommands.add(new CommandsInfo.ExecutedCommandInfo(line, commandOk));
                     printExecutingCommands(terminal, commandsInfo, true);
@@ -365,7 +368,9 @@ public class PulsarShell {
         }
     }
 
-    private void printExecutingCommands(Terminal terminal, CommandsInfo commandsInfo, boolean printExecuted) {
+    private void printExecutingCommands(Terminal terminal,
+                                        CommandsInfo commandsInfo,
+                                        boolean printExecuted) {
         if (commandsInfo == null) {
             return;
         }
@@ -487,7 +492,7 @@ public class PulsarShell {
         return !StringUtils.isBlank(line) && !line.startsWith("#");
     }
 
-    private String getHostFromUrl(String url) {
+    private static String getHostFromUrl(String url) {
         if (url == null) {
             return null;
         }
