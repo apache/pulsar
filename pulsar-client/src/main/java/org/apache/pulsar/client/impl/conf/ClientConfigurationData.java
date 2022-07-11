@@ -19,25 +19,36 @@
 package org.apache.pulsar.client.impl.conf;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslProvider;
 import io.swagger.annotations.ApiModelProperty;
+import java.io.IOException;
 import java.io.Serializable;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.security.GeneralSecurityException;
 import java.time.Clock;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import javax.net.ssl.SSLContext;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationDataProvider;
+import org.apache.pulsar.client.api.KeyStoreParams;
 import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.apache.pulsar.client.util.Secret;
+import org.apache.pulsar.common.util.SecurityUtility;
+import org.apache.pulsar.common.util.keystoretls.KeyStoreSSLContext;
 
 /**
  * This is a simple holder of the client configuration values.
@@ -387,5 +398,65 @@ public class ClientConfigurationData implements Serializable, Cloneable {
 
     public String getSocks5ProxyPassword() {
         return Objects.nonNull(socks5ProxyPassword) ? socks5ProxyPassword : System.getProperty("socks5Proxy.password");
+    }
+
+    public SSLContext newKeyStoreSslContext() throws IOException, GeneralSecurityException {
+        AuthenticationDataProvider authData = getAuthentication().getAuthData();
+        KeyStoreParams params = authData.hasDataForTls() ? authData.getTlsKeyStoreParams() : null;
+        return KeyStoreSSLContext.createClientSslContext(
+                getSslProvider(),
+                params != null ? params.getKeyStoreType() : null,
+                params != null ? params.getKeyStorePath() : null,
+                params != null ? params.getKeyStorePassword() : null,
+                isTlsAllowInsecureConnection(),
+                getTlsTrustStoreType(),
+                getTlsTrustStorePath(),
+                getTlsTrustStorePassword(),
+                getTlsCiphers(),
+                getTlsProtocols());
+    }
+
+    public SslContext newSslContext(int autoCertRefreshTimeSeconds, ScheduledExecutorService delayer)
+            throws IOException, GeneralSecurityException {
+        AuthenticationDataProvider authData = getAuthentication().getAuthData();
+
+        SslProvider sslProvider = null;
+        if (StringUtils.isNotEmpty(this.getSslProvider())) {
+            sslProvider = SslProvider.valueOf(this.getSslProvider());
+        }
+
+        SslContext sslCtx = null;
+        if (authData.hasDataForTls()) {
+            if (authData.getTlsTrustStoreStream() == null) {
+                sslCtx = SecurityUtility.createAutoRefreshSslContextForClient(
+                        sslProvider,
+                        isTlsAllowInsecureConnection(),
+                        getTlsTrustCertsFilePath(),
+                        authData.getTlsCerificateFilePath(),
+                        authData.getTlsPrivateKeyFilePath(),
+                        null,
+                        autoCertRefreshTimeSeconds,
+                        delayer);
+            } else {
+                SecurityUtility.createNettySslContextForClient(
+                        sslProvider,
+                        isTlsAllowInsecureConnection(),
+                        authData.getTlsTrustStoreStream(),
+                        authData.getTlsCertificates(),
+                        authData.getTlsPrivateKey(),
+                        getTlsCiphers(),
+                        getTlsProtocols());
+            }
+        } else {
+            sslCtx = SecurityUtility.createNettySslContextForClient(
+                    sslProvider,
+                    isTlsAllowInsecureConnection(),
+                    getTlsTrustCertsFilePath(),
+                    getTlsCiphers(),
+                    getTlsProtocols()
+            );
+        }
+
+        return sslCtx;
     }
 }
