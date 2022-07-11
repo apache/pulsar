@@ -54,6 +54,7 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicStats;
@@ -645,4 +646,44 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         }
     }
 
+    @Test
+    public void testGetSubPatternTopicFilterTxnInternalTopic() throws Exception {
+        String topic = TopicName.get(TopicDomain.persistent.toString(),
+                NamespaceName.get(NAMESPACE1), "testGetSubPatternTopicFilterTxnInternalTopic").toString();
+
+        int partition = 3;
+        admin.topics().createPartitionedTopic(topic, partition);
+
+        String subscriptionName = "sub";
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .enableBatching(true)
+                .topic(topic).create();
+
+        // creat pending ack managedLedger
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .subscriptionName(subscriptionName)
+                .enableBatchIndexAcknowledgment(true)
+                .subscriptionType(SubscriptionType.Exclusive)
+                .isAckReceiptEnabled(true)
+                .topic(topic)
+                .subscribe();
+
+        for (int i = 0; i < partition; i++) {
+            producer.send("test");
+        }
+
+        for (int i = 0; i < partition; i++) {
+            Transaction transaction = pulsarClient.newTransaction()
+                    .withTransactionTimeout(5, TimeUnit.SECONDS)
+                    .build()
+                    .get();
+            consumer.acknowledgeAsync(consumer.receive().getMessageId(), transaction);
+            transaction.commit().get();
+        }
+        admin.namespaces().getTopics(NAMESPACE1).forEach(name ->
+                assertFalse(SystemTopicNames.isTransactionInternalName(TopicName.get(name))));
+    }
 }
