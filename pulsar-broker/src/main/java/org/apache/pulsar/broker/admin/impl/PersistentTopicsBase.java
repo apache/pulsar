@@ -2748,12 +2748,18 @@ public class PersistentTopicsBase extends AdminResource {
             future = CompletableFuture.completedFuture(null);
         }
 
-        return future.thenCompose(__ -> getPartitionedTopicMetadataAsync(topicName, authoritative, false))
-            .thenAccept(metadata -> {
-                if (!topicName.isPartitioned() && metadata.partitions > 0) {
-                    throw new RestException(Status.METHOD_NOT_ALLOWED,
-                        "Get message ID by timestamp on a partitioned topic is not allowed, "
-                            + "please try do it on specific topic partition");
+        return future.thenCompose(__ -> {
+                if (topicName.isPartitioned()) {
+                    return CompletableFuture.completedFuture(null);
+                } else {
+                    return getPartitionedTopicMetadataAsync(topicName, authoritative, false)
+                        .thenAccept(metadata -> {
+                            if (metadata.partitions > 0) {
+                                throw new RestException(Status.METHOD_NOT_ALLOWED,
+                                    "Get message ID by timestamp on a partitioned topic is not allowed, "
+                                        + "please try do it on specific topic partition");
+                            }
+                        });
                 }
             }).thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
             .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.PEEK_MESSAGES))
