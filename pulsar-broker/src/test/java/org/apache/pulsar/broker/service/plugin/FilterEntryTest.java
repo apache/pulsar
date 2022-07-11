@@ -48,7 +48,9 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.nar.NarClassLoader;
+import org.apache.pulsar.common.stats.AnaliseSubscriptionBacklogResult;
 import org.awaitility.Awaitility;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -68,6 +70,7 @@ public class FilterEntryTest extends BrokerTestBase {
         internalCleanup();
     }
 
+    @Test
     public void testFilter() throws Exception {
         Map<String, String> map = new HashMap<>();
         map.put("1","1");
@@ -76,6 +79,7 @@ public class FilterEntryTest extends BrokerTestBase {
         String subName = "sub";
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic)
                 .subscriptionProperties(map)
+                .isAckReceiptEnabled(true)
                 .subscriptionName(subName).subscribe();
         // mock entry filters
         PersistentSubscription subscription = (PersistentSubscription) pulsar.getBrokerService()
@@ -96,6 +100,8 @@ public class FilterEntryTest extends BrokerTestBase {
             producer.send("test");
         }
 
+        verifyBacklog(topic, subName, 10, 10, 10, 10, 0, 0, 0, 0);
+
         int counter = 0;
         while (true) {
             Message<String> message = consumer.receive(1, TimeUnit.SECONDS);
@@ -108,10 +114,28 @@ public class FilterEntryTest extends BrokerTestBase {
         }
         // All normal messages can be received
         assertEquals(10, counter);
+
+        verifyBacklog(topic, subName, 0, 0, 0, 0, 0, 0, 0, 0);
+
+        // stop the consumer
+        consumer.close();
+
         MessageIdImpl lastMsgId = null;
         for (int i = 0; i < 10; i++) {
             lastMsgId = (MessageIdImpl) producer.newMessage().property("REJECT", "").value("1").send();
         }
+
+        // analise the subscription and predict that
+        // 10 messages will be rejected by the filter
+        verifyBacklog(topic, subName, 10, 10, 0, 0, 10, 10, 0, 0);
+
+        consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .isAckReceiptEnabled(true)
+                .subscriptionProperties(map)
+                .subscriptionName(subName)
+                .subscribe();
+
         counter = 0;
         while (true) {
             Message<String> message = consumer.receive(1, TimeUnit.SECONDS);
@@ -124,6 +148,10 @@ public class FilterEntryTest extends BrokerTestBase {
         }
         // REJECT messages are filtered out
         assertEquals(0, counter);
+
+        // now the Filter acknoledged the messages on behalf of the Consumer
+        // backlog is now zero again
+        verifyBacklog(topic, subName, 0, 0, 0, 0, 0, 0, 0, 0);
 
         // All messages should be acked, check the MarkDeletedPosition
         assertNotNull(lastMsgId);
@@ -327,5 +355,26 @@ public class FilterEntryTest extends BrokerTestBase {
             resultConsume1.get(1, TimeUnit.MINUTES);
             resultConsume2.get(1, TimeUnit.MINUTES);
         }
+    }
+
+
+    private void verifyBacklog(String topic, String subscription,
+                               int numEntries, int numMessages,
+                               int numEntriesAccepted, int numMessagesAccepted,
+                               int numEntriesRejected, int numMessagesRejected,
+                               int numEntriesRescheduled, int numMessagesRescheduled
+                               ) throws Exception {
+        AnaliseSubscriptionBacklogResult a1
+                = admin.topics().analiseSubscriptionBacklog(topic, subscription);
+
+        Assert.assertEquals(numEntries, a1.getEntries());
+        Assert.assertEquals(numEntriesAccepted, a1.getFilterAcceptedEntries());
+        Assert.assertEquals(numEntriesRejected, a1.getFilterRejectedEntries());
+        Assert.assertEquals(numEntriesRescheduled, a1.getFilterRescheduledEntries());
+
+        Assert.assertEquals(numMessages, a1.getMessages());
+        Assert.assertEquals(numMessagesAccepted, a1.getFilterAcceptedMessages());
+        Assert.assertEquals(numMessagesRejected, a1.getFilterRejectedMessages());
+        Assert.assertEquals(numMessagesRescheduled, a1.getFilterRescheduledMessages());
     }
 }

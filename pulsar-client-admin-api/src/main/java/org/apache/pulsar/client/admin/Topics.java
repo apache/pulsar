@@ -46,6 +46,8 @@ import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.stats.AnaliseSubscriptionBacklogResult;
+
 /**
  * Admin interface for Topics management.
  */
@@ -2048,6 +2050,38 @@ public interface Topics {
     @Deprecated
     Map<BacklogQuota.BacklogQuotaType, BacklogQuota> getBacklogQuotaMap(String topic, boolean applied)
             throws PulsarAdminException;
+
+    /**
+     * Analise subscription backlog.
+     * This is a potentially expensive operation, as it requires
+     * to read the messages from storage.
+     * This function takes into consideration batch messages
+     * and also Subscription filters.
+     * @param topic
+     *            Topic name
+     * @param subscriptionName
+     *            the subscription
+     * @return an accurate analysis of the backlog
+     * @throws PulsarAdminException
+     *            Unexpected error
+     */
+    AnaliseSubscriptionBacklogResult analiseSubscriptionBacklog(String topic, String subscriptionName) throws PulsarAdminException;
+
+    /**
+     * Analise subscription backlog.
+     * This is a potentially expensive operation, as it requires
+     * to read the messages from storage.
+     * This function takes into consideration batch messages
+     * and also Subscription filters.
+     * @param topic
+     *            Topic name
+     * @param subscriptionName
+     *            the subscription
+     * @return an accurate analysis of the backlog
+     * @throws PulsarAdminException
+     *            Unexpected error
+     */
+    CompletableFuture<AnaliseSubscriptionBacklogResult> analiseSubscriptionBacklogAsync(String topic, String subscriptionName);
 
     /**
      * Get backlog size by a message ID.

@@ -17,7 +17,24 @@
  * under the License.
  */
 package org.apache.pulsar.broker.admin.impl;
-
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionCoordinatorAssign;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionInternalName;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -68,6 +85,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
+import org.apache.pulsar.broker.service.AnaliseBacklogResult;
 import org.apache.pulsar.broker.service.BrokerServiceException.AlreadyRunningException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionInvalidCursorPosition;
@@ -131,6 +149,7 @@ import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.policies.data.stats.PartitionedTopicStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.stats.AnaliseSubscriptionBacklogResult;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
@@ -1569,6 +1588,46 @@ public class PersistentTopicsBase extends AdminResource {
             });
     }
 
+    private void internalAnaliseSubscriptionBacklogForNonPartitionedTopic(AsyncResponse asyncResponse,
+                                                                          String subName,
+                                                                          boolean authoritative) {
+        validateTopicOwnershipAsync(topicName, authoritative)
+                .thenRun(() -> validateTopicOperation(topicName, TopicOperation.CONSUME))
+                .thenCompose(__ -> getTopicReferenceAsync(topicName))
+                .thenCompose(topic -> {
+                            Subscription sub = topic.getSubscription(subName);
+                            if (sub == null) {
+                                throw new RestException(Status.NOT_FOUND,
+                                        getSubNotFoundErrorMessage(topicName.toString(), subName));
+                            }
+                            return sub.analiseBacklog();
+                        })
+                .thenAccept((AnaliseBacklogResult rawResult) -> {
+
+                        AnaliseSubscriptionBacklogResult result = new AnaliseSubscriptionBacklogResult();
+                        result.setEntries(rawResult.getEntries());
+                        result.setMessages(rawResult.getMessages());
+
+                        result.setFilterAcceptedEntries(rawResult.getFilterAcceptedEntries());
+                        result.setFilterRejectedEntries(rawResult.getFilterRejectedEntries());
+                        result.setFilterRescheduledEntries(rawResult.getFilterRescheduledEntries());
+
+                        result.setFilterAcceptedMessages(rawResult.getFilterAcceptedMessages());
+                        result.setFilterRejectedMessages(rawResult.getFilterRejectedMessages());
+                        result.setFilterRescheduledMessages(rawResult.getFilterRescheduledMessages());
+                        log.info("result {}", result);
+                        asyncResponse.resume(result);
+                }).exceptionally(ex -> {
+                    Throwable cause = ex.getCause();
+                    // If the exception is not redirect exception we need to log it.
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to analise subscription backlog {} {}",
+                                clientAppId(), topicName, subName, cause);
+                    }
+                    asyncResponse.resume(new RestException(cause));
+                    return null;
+                });
+    }
     private void internalUpdateSubscriptionPropertiesForNonPartitionedTopic(AsyncResponse asyncResponse,
                                       String subName, Map<String, String> subscriptionProperties,
                                       boolean authoritative) {
@@ -2371,6 +2430,34 @@ public class PersistentTopicsBase extends AdminResource {
                     return null;
                 });
             }
+        }).exceptionally(ex -> {
+            // If the exception is not redirect exception we need to log it.
+            if (!isRedirectException(ex)) {
+                log.error("[{}] Failed to update subscription {} from topic {}",
+                        clientAppId(), subName, topicName, ex);
+            }
+            resumeAsyncResponseExceptionally(asyncResponse, ex);
+            return null;
+        });
+    }
+
+    protected void internalAnaliseSubscriptionBacklog(AsyncResponse asyncResponse, String subName,
+                                                      boolean authoritative) {
+        CompletableFuture<Void> future;
+        if (topicName.isGlobal()) {
+            future = validateGlobalNamespaceOwnershipAsync(namespaceName);
+        } else {
+            future = CompletableFuture.completedFuture(null);
+        }
+
+        future.thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative)).thenAccept(__ -> {
+            if (!topicName.isPartitioned() && getPartitionedTopicMetadata(topicName,
+                    authoritative, false).partitions > 0) {
+                throw new RestException(Status.METHOD_NOT_ALLOWED,
+                        "Get message ID by timestamp on a partitioned topic is not allowed, "
+                                + "please try do it on specific topic partition");
+            }
+            internalAnaliseSubscriptionBacklogForNonPartitionedTopic(asyncResponse, subName, authoritative);
         }).exceptionally(ex -> {
             // If the exception is not redirect exception we need to log it.
             if (!isRedirectException(ex)) {

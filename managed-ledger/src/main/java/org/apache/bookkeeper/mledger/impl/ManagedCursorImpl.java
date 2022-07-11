@@ -72,6 +72,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.FindEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.ScanCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.SkipEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -1035,6 +1036,25 @@ public class ManagedCursorImpl implements ManagedCursor {
     @Override
     public Position findNewestMatching(Predicate<Entry> condition) throws InterruptedException, ManagedLedgerException {
         return findNewestMatching(FindPositionConstraint.SearchActiveEntries, condition);
+    }
+
+    @Override
+    public CompletableFuture<Void> scan(Predicate<Entry> condition) {
+        PositionImpl startPosition = ledger.getNextValidPosition(markDeletePosition);
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        OpScan op = new OpScan(this, startPosition, condition, new ScanCallback() {
+            @Override
+            public void scanComplete(Position position, Object ctx) {
+                future.complete(null);
+            }
+
+            @Override
+            public void scanFailed(ManagedLedgerException exception, Optional<Position> failedReadPosition, Object ctx) {
+                future.completeExceptionally(exception);
+            }
+        }, null);
+        op.find();
+        return future;
     }
 
     @Override

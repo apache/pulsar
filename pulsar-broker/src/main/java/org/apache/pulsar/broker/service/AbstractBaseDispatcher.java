@@ -107,6 +107,16 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
     }
 
 
+    public EntryFilter.FilterResult runFiltersForEntry(Entry entry, MessageMetadata msgMetadata,
+                                                      Consumer consumer) {
+        if (CollectionUtils.isNotEmpty(entryFilters)) {
+            fillContext(filterContext, msgMetadata, subscription, consumer);
+            return getFilterResult(filterContext, entry, entryFilters);
+        } else {
+            return EntryFilter.FilterResult.ACCEPT;
+        }
+    }
+
     /**
      * Filter entries with prefetched message metadata range so that there is no need to peek metadata from Entry.
      *
@@ -134,20 +144,17 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
             final int metadataIndex = i + startOffset;
             final MessageMetadata msgMetadata = optMetadataArray.map(metadataArray -> metadataArray[metadataIndex])
                     .orElseGet(() -> Commands.peekMessageMetadata(metadataAndPayload, subscription.toString(), -1));
-            if (CollectionUtils.isNotEmpty(entryFilters)) {
-                fillContext(filterContext, msgMetadata, subscription, consumer);
-                EntryFilter.FilterResult filterResult = getFilterResult(filterContext, entry, entryFilters);
-                if (filterResult == EntryFilter.FilterResult.REJECT) {
-                    entriesToFiltered.add(entry.getPosition());
-                    entries.set(i, null);
-                    entry.release();
-                    continue;
-                } else if (filterResult == EntryFilter.FilterResult.RESCHEDULE) {
-                    entriesToRedeliver.add((PositionImpl) entry.getPosition());
-                    entries.set(i, null);
-                    entry.release();
-                    continue;
-                }
+            EntryFilter.FilterResult filterResult = runFiltersForEntry(entry, msgMetadata, consumer);
+            if (filterResult == EntryFilter.FilterResult.REJECT) {
+                entriesToFiltered.add(entry.getPosition());
+                entries.set(i, null);
+                entry.release();
+                continue;
+            } else if (filterResult == EntryFilter.FilterResult.RESCHEDULE) {
+                entriesToRedeliver.add((PositionImpl) entry.getPosition());
+                entries.set(i, null);
+                entry.release();
+                continue;
             }
             if (!isReplayRead && msgMetadata != null && msgMetadata.hasTxnidMostBits()
                     && msgMetadata.hasTxnidLeastBits()) {

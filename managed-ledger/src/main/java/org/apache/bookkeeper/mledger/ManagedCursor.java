@@ -502,6 +502,15 @@ public interface ManagedCursor {
      */
     Position findNewestMatching(Predicate<Entry> condition) throws InterruptedException, ManagedLedgerException;
 
+    /**
+     * Scan the cursor from the current position up to the end
+     * @param condition
+     * @throws InterruptedException
+     * @throws ManagedLedgerException
+     */
+    default CompletableFuture<Void> scan(Predicate<Entry> condition) {
+        return CompletableFuture.failedFuture(new UnsupportedOperationException());
+    }
 
     /**
      * Find the newest entry that matches the given predicate.

@@ -88,6 +88,7 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.stats.AnaliseSubscriptionBacklogResult;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.slf4j.Logger;
@@ -1660,6 +1661,34 @@ public class TopicsImpl extends BaseResource implements Topics {
         } catch (Exception e) {
             throw getApiException(e);
         }
+    }
+
+
+    @Override
+    public AnaliseSubscriptionBacklogResult analiseSubscriptionBacklog(String topic, String subscriptionName)
+            throws PulsarAdminException {
+        return sync(() -> analiseSubscriptionBacklogAsync(topic, subscriptionName));
+    }
+
+    @Override
+    public CompletableFuture<AnaliseSubscriptionBacklogResult> analiseSubscriptionBacklogAsync(String topic, String subscriptionName) {
+        TopicName topicName = validateTopic(topic);
+        String encodedSubName = Codec.encode(subscriptionName);
+        WebTarget path = topicPath(topicName, "subscription", encodedSubName, "analiseBacklog");
+
+        final CompletableFuture<AnaliseSubscriptionBacklogResult> future = new CompletableFuture<>();
+        asyncGetRequest(path, new InvocationCallback<AnaliseSubscriptionBacklogResult>() {
+            @Override
+            public void completed(AnaliseSubscriptionBacklogResult res) {
+                future.complete(res);
+            }
+
+            @Override
+            public void failed(Throwable throwable) {
+                future.completeExceptionally(getApiException(throwable.getCause()));
+            }
+        });
+        return future;
     }
 
     @Override

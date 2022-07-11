@@ -37,6 +37,7 @@ import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -50,6 +51,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
@@ -1830,6 +1832,29 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         assertNull(
                 c1.findNewestMatching(entry -> Arrays.equals(entry.getDataAndRelease(), "expired".getBytes(Encoding))));
+    }
+
+    @Test(timeOut = 20000)
+    void testScan() throws Exception {
+        ManagedLedger ledger = factory.open("my_test_ledger_scan");
+
+        ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
+
+        for (int i = 0; i < 10; i++) {
+            ledger.addEntry(("a" + i).getBytes(Encoding));
+        }
+
+        List<String> contents = new CopyOnWriteArrayList<>();
+        c1.scan((entry -> {
+            contents.add(new String(entry.getDataAndRelease(), StandardCharsets.UTF_8));
+            return true;
+        })).get();
+
+        for (int i = 0; i < 10; i++) {
+            assertEquals(contents.get(i), ("a" + i));
+        }
+        assertEquals(contents.size(), 10);
+
     }
 
     @Test(timeOut = 20000)

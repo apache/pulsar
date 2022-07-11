@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service.persistent;
 
 import static org.apache.pulsar.common.naming.SystemTopicNames.isEventSystemTopic;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Predicate;
 import com.google.common.base.MoreObjects;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -30,7 +31,9 @@ import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
+import io.netty.buffer.ByteBuf;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
@@ -51,7 +54,9 @@ import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
+import org.apache.pulsar.broker.service.AbstractBaseDispatcher;
 import org.apache.pulsar.broker.service.AbstractSubscription;
+import org.apache.pulsar.broker.service.AnaliseBacklogResult;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
@@ -60,8 +65,10 @@ import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionFence
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionInvalidCursorPosition;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
+import org.apache.pulsar.broker.service.RedeliveryTracker;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.plugin.EntryFilter;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandle;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleDisabled;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
@@ -70,6 +77,7 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
 import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.naming.TopicName;
@@ -77,6 +85,7 @@ import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.stats.PositionInPendingAckStats;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
@@ -510,6 +519,81 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         }
 
         return "Null";
+    }
+
+    @Override
+    public CompletableFuture<AnaliseBacklogResult> analiseBacklog() {
+
+        if (log.isDebugEnabled()) {
+            log.debug("[{}][{}] Starting to analise backlog", topicName, subName);
+        }
+
+        AtomicLong entries = new AtomicLong();
+        AtomicLong accepted = new AtomicLong();
+        AtomicLong rejected = new AtomicLong();
+        AtomicLong rescheduled = new AtomicLong();
+        AtomicLong messages = new AtomicLong();
+        AtomicLong acceptedMessages = new AtomicLong();
+        AtomicLong rejectedMessages = new AtomicLong();
+        AtomicLong rescheduledMessages = new AtomicLong();
+
+        Position currentPosition = cursor.getMarkDeletedPosition();
+
+        if (log.isDebugEnabled()) {
+            log.debug("[{}][{}] currentPosition {}", topicName, subName, currentPosition);
+        }
+        final AbstractBaseDispatcher abstractBaseDispatcher = dispatcher != null
+                ? (AbstractBaseDispatcher) dispatcher: new DummyDispatcherForFilters();
+
+        return cursor.scan(new Predicate<Entry>() {
+            @Override
+            public boolean apply(Entry entry) {
+                log.info("found {}", entry);
+
+                ByteBuf metadataAndPayload = entry.getDataBuffer();
+                MessageMetadata messageMetadata = Commands.peekMessageMetadata(metadataAndPayload, "", -1);
+                int numMessages = 1;
+                if (messageMetadata.hasNumMessagesInBatch()) {
+                    numMessages = messageMetadata.getNumMessagesInBatch();
+                }
+                EntryFilter.FilterResult filterResult = abstractBaseDispatcher
+                        .runFiltersForEntry(entry, messageMetadata, null);
+
+                if (filterResult == null) {
+                    filterResult = EntryFilter.FilterResult.ACCEPT;
+                }
+                switch (filterResult) {
+                    case REJECT:
+                        rejected.incrementAndGet();
+                        rejectedMessages.addAndGet(numMessages);
+                        break;
+                    case RESCHEDULE:
+                        rescheduled.incrementAndGet();
+                        rescheduledMessages.addAndGet(numMessages);
+                        break;
+                    default:
+                        accepted.incrementAndGet();
+                        acceptedMessages.addAndGet(numMessages);
+                        break;
+                }
+                entries.incrementAndGet();
+                messages.addAndGet(numMessages);
+
+                return true;
+            }
+        }).thenApply(___ -> {
+            AnaliseBacklogResult result = new AnaliseBacklogResult();
+            result.setEntries(entries.get());
+            result.setMessages(messages.get());
+            result.setFilterAcceptedEntries(accepted.get());
+            result.setFilterAcceptedMessages(acceptedMessages.get());
+            result.setFilterRejectedEntries(rejected.get());
+            result.setFilterRejectedMessages(rejectedMessages.get());
+            result.setFilterRescheduledEntries(rescheduled.get());
+            result.setFilterRescheduledMessages(rescheduledMessages.get());
+            return result;
+        });
+
     }
 
     @Override
@@ -1192,4 +1276,101 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentSubscription.class);
+
+    private class DummyDispatcherForFilters extends AbstractBaseDispatcher {
+        public DummyDispatcherForFilters() {
+            super(PersistentSubscription.this,
+                    PersistentSubscription.this.topic.getBrokerService().getPulsar().getConfig());
+        }
+
+        @Override
+        protected boolean isConsumersExceededOnSubscription() {
+            return false;
+        }
+
+        @Override
+        protected void reScheduleRead() {
+
+        }
+
+        @Override
+        public void addConsumer(Consumer consumer) throws BrokerServiceException {
+
+        }
+
+        @Override
+        public void removeConsumer(Consumer consumer) throws BrokerServiceException {
+
+        }
+
+        @Override
+        public void consumerFlow(Consumer consumer, int additionalNumberOfMessages) {
+
+        }
+
+        @Override
+        public boolean isConsumerConnected() {
+            return false;
+        }
+
+        @Override
+        public List<Consumer> getConsumers() {
+            return null;
+        }
+
+        @Override
+        public boolean canUnsubscribe(Consumer consumer) {
+            return false;
+        }
+
+        @Override
+        public CompletableFuture<Void> close() {
+            return null;
+        }
+
+        @Override
+        public boolean isClosed() {
+            return false;
+        }
+
+        @Override
+        public CompletableFuture<Void> disconnectActiveConsumers(boolean isResetCursor) {
+            return null;
+        }
+
+        @Override
+        public CompletableFuture<Void> disconnectAllConsumers(boolean isResetCursor) {
+            return null;
+        }
+
+        @Override
+        public void reset() {
+
+        }
+
+        @Override
+        public SubType getType() {
+            return null;
+        }
+
+        @Override
+        public void redeliverUnacknowledgedMessages(Consumer consumer, long consumerEpoch) {
+
+        }
+
+        @Override
+        public void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions) {
+
+        }
+
+        @Override
+        public void addUnAckedMessages(int unAckMessages) {
+
+        }
+
+        @Override
+        public RedeliveryTracker getRedeliveryTracker() {
+            return null;
+        }
+    }
 }

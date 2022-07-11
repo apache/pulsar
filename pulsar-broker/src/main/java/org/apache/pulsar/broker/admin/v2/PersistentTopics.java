@@ -1649,7 +1649,7 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @GET
     @Path("/{tenant}/{namespace}/{topic}/subscription/{subName}/properties")
-    @ApiOperation(value = "Replaces all the properties on the given subscription")
+    @ApiOperation(value = "Return all the properties on the given subscription")
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
@@ -1675,6 +1675,42 @@ public class PersistentTopics extends PersistentTopicsBase {
         try {
             validateTopicName(tenant, namespace, encodedTopic);
             internalGetSubscriptionProperties(asyncResponse, decode(encodedSubName),
+                    authoritative);
+        } catch (WebApplicationException wae) {
+            asyncResponse.resume(wae);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/subscription/{subName}/analiseBacklog")
+    @ApiOperation(value = "Analyses a subscription, by scanning all the unprocessed messages")
+    @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
+                    + "subscriber is not authorized to access this operation"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic/Subscription does not exist"),
+            @ApiResponse(code = 405, message = "Method Not Allowed"),
+            @ApiResponse(code = 500, message = "Internal server error"),
+            @ApiResponse(code = 503, message = "Failed to validate global cluster configuration")
+    })
+    public void analiseSubscriptionBacklog(
+            @Suspended final AsyncResponse asyncResponse,
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Subscription", required = true)
+            @PathParam("subName") String encodedSubName,
+            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        try {
+            validateTopicName(tenant, namespace, encodedTopic);
+            internalAnaliseSubscriptionBacklog(asyncResponse, decode(encodedSubName),
                     authoritative);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
