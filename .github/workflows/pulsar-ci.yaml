@@ -141,26 +141,26 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: Other
-            group: OTHER
-            timeout: 75
+#          - name: Other
+#            group: OTHER
+#            timeout: 75
           - name: Brokers - Broker Group 1
             group: BROKER_GROUP_1
-          - name: Brokers - Broker Group 2
-            group: BROKER_GROUP_2
-          - name: Brokers - Broker Group 3
-            group: BROKER_GROUP_3
-          - name: Brokers - Client Api
-            group: BROKER_CLIENT_API
-          - name: Brokers - Client Impl
-            group: BROKER_CLIENT_IMPL
-          - name: Brokers - Flaky
-            group: BROKER_FLAKY
-            timeout: 75
-          - name: Proxy
-            group: PROXY
-          - name: Pulsar IO
-            group: PULSAR_IO
+#          - name: Brokers - Broker Group 2
+#            group: BROKER_GROUP_2
+#          - name: Brokers - Broker Group 3
+#            group: BROKER_GROUP_3
+#          - name: Brokers - Client Api
+#            group: BROKER_CLIENT_API
+#          - name: Brokers - Client Impl
+#            group: BROKER_CLIENT_IMPL
+#          - name: Brokers - Flaky
+#            group: BROKER_FLAKY
+#            timeout: 75
+#          - name: Proxy
+#            group: PROXY
+#          - name: Pulsar IO
+#            group: PULSAR_IO
 
     steps:
       - name: checkout
