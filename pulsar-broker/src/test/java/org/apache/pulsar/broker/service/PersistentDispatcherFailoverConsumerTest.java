@@ -551,6 +551,7 @@ public class PersistentDispatcherFailoverConsumerTest {
 
     }
 
+    @Test
     public void testFewBlockedConsumerSamePriority() throws Exception{
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
         PersistentDispatcherMultipleConsumers dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursorMock, null);
@@ -656,7 +657,6 @@ public class PersistentDispatcherFailoverConsumerTest {
         assertNull(getNextConsumer(dispatcher));
     }
 
-    @Test
     @SuppressWarnings("unchecked")
     private Consumer getNextConsumer(PersistentDispatcherMultipleConsumers dispatcher) throws Exception {
 
