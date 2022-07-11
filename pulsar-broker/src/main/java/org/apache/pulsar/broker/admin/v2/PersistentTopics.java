@@ -1592,11 +1592,19 @@ public class PersistentTopics extends PersistentTopicsBase {
         internalResetCursorAsync(decode(encodedSubName), timestamp, authoritative)
             .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
             .exceptionally(ex -> {
-                if (!isRedirectException(ex)) {
+                Throwable t = FutureUtil.unwrapCompletionException(ex);
+                if (!isRedirectException(t)) {
                     log.error("[{}][{}] Failed to reset cursor on subscription {} to time {}",
-                        clientAppId(), topicName, encodedSubName, timestamp, ex);
+                        clientAppId(), topicName, encodedSubName, timestamp, t);
                 }
-                resumeAsyncResponseExceptionally(asyncResponse, ex);
+                if (t instanceof BrokerServiceException.SubscriptionInvalidCursorPosition) {
+                    t = new RestException(Response.Status.PRECONDITION_FAILED,
+                        "Unable to find position for timestamp specified: " + t.getMessage());
+                } else if (t instanceof BrokerServiceException.SubscriptionBusyException) {
+                    t = new RestException(Response.Status.PRECONDITION_FAILED,
+                        "Failed for Subscription Busy: " + t.getMessage());
+                }
+                resumeAsyncResponseExceptionally(asyncResponse, t);
                 return null;
             });
     }
