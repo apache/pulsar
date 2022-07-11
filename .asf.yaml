@@ -20,6 +20,12 @@
 github:
   description: "Apache Pulsar - distributed pub-sub messaging system"
   homepage: https://pulsar.apache.org/
+  notifications:
+    commits:      commits@pulsar.apache.org
+    issues:       commits@pulsar.apache.org
+    pullrequests: commits@pulsar.apache.org
+    discussions:  dev@pulsar.apache.org
+    jira_options: link label
   labels:
     - pulsar
     - pubsub
