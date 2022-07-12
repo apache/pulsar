@@ -1266,8 +1266,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 }
             }
 
-            log.info("[{}][{}] Creating producer. producerId={}, schema is {}", remoteAddress, topicName, producerId,
-                    schema == null ? "absent" : "present");
+            if (log.isDebugEnabled()) {
+                log.debug("[{}][{}] Creating producer. producerId={}, schema is {}", remoteAddress, topicName,
+                        producerId, schema == null ? "absent" : "present");
+            }
 
             service.getOrCreateTopic(topicName.toString()).thenCompose((Topic topic) -> {
                 // Before creating producer, check if backlog quota exceeded
@@ -2008,12 +2010,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     getBrokerService().pulsar().getNamespaceService().getListOfTopics(namespaceName, mode)
                         .thenAccept(topics -> {
                             boolean filterTopics = false;
-                            List<String> filteredTopics = topics;
+                            // filter transaction internal topic
+                            List<String> filteredTopics = TopicList.filterTransactionInternalName(topics);
 
                             if (enableSubscriptionPatternEvaluation && topicsPattern.isPresent()) {
                                 if (topicsPattern.get().length() <= maxSubscriptionPatternLength) {
                                     filterTopics = true;
-                                    filteredTopics = TopicList.filterTopics(topics, topicsPattern.get());
+                                    filteredTopics = TopicList.filterTopics(filteredTopics, topicsPattern.get());
                                 } else {
                                     log.info("[{}] Subscription pattern provided was longer than maximum {}.",
                                             remoteAddress, maxSubscriptionPatternLength);
@@ -2481,8 +2484,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             return topic.addSchema(schema);
         } else {
             return topic.hasSchema().thenCompose((hasSchema) -> {
-                log.info("[{}] {} configured with schema {}",
-                         remoteAddress, topic.getName(), hasSchema);
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] {} configured with schema {}", remoteAddress, topic.getName(), hasSchema);
+                }
                 CompletableFuture<SchemaVersion> result = new CompletableFuture<>();
                 if (hasSchema && (schemaValidationEnforced || topic.getSchemaValidationEnforced())) {
                     result.completeExceptionally(new IncompatibleSchemaException(

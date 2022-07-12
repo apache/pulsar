@@ -710,6 +710,23 @@
                 </apiSource>
                 <apiSource>
                   <springmvc>false</springmvc>
+                  <locations>org.apache.pulsar.broker.admin.v3.Transactions</locations>
+                  <schemes>http,https</schemes>
+                  <basePath>/admin/v3</basePath>
+                  <info>
+                    <title>Pulsar Transactions REST API</title>
+                    <version>v3</version>
+                    <description>This provides the REST API for Pulsar Transactions operations</description>
+                    <license>
+                      <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
+                      <name>Apache 2.0</name>
+                    </license>
+                  </info>
+                  <swaggerDirectory>${basedir}/target/docs</swaggerDirectory>
+                  <swaggerFileName>swaggertransactions</swaggerFileName>
+                </apiSource>
+                <apiSource>
+                  <springmvc>false</springmvc>
                   <locations>org.apache.pulsar.broker.admin.v3.Sources</locations>
                   <schemes>http,https</schemes>
                   <basePath>/admin/v3</basePath>

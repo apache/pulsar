@@ -410,13 +410,19 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Get the subscription expiration time for the namespace")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist") })
-    public Integer getSubscriptionExpirationTime(@PathParam("tenant") String tenant,
-            @PathParam("namespace") String namespace) {
-        validateAdminAccessForTenant(tenant);
+    public void getSubscriptionExpirationTime(@Suspended AsyncResponse asyncResponse,
+                                                 @PathParam("tenant") String tenant,
+                                                 @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-
-        Policies policies = getNamespacePolicies(namespaceName);
-        return policies.subscription_expiration_time_minutes;
+        validateAdminAccessForTenantAsync(tenant)
+                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+                .thenAccept(policies -> asyncResponse.resume(policies.subscription_expiration_time_minutes))
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to get subscription expiration time for namespace {}: {} ", clientAppId(),
+                            namespaceName, ex.getCause().getMessage(), ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @POST
@@ -425,13 +431,21 @@ public class Namespaces extends NamespacesBase {
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
             @ApiResponse(code = 412, message = "Invalid expiration time")})
-    public void setSubscriptionExpirationTime(@PathParam("tenant") String tenant,
+    public void setSubscriptionExpirationTime(@Suspended AsyncResponse asyncResponse,
+                                              @PathParam("tenant") String tenant,
                                               @PathParam("namespace") String namespace,
                                               @ApiParam(value =
                                                       "Expiration time in minutes for the specified namespace",
                                                       required = true) int expirationTime) {
         validateNamespaceName(tenant, namespace);
-        internalSetSubscriptionExpirationTime(expirationTime);
+        internalSetSubscriptionExpirationTimeAsync(expirationTime)
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to set subscription expiration time for namespace {}: {} ", clientAppId(),
+                            namespaceName, ex.getCause().getMessage(), ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @DELETE
@@ -439,10 +453,18 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Remove subscription expiration time for namespace")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist")})
-    public void removeSubscriptionExpirationTime(@PathParam("tenant") String tenant,
+    public void removeSubscriptionExpirationTime(@Suspended AsyncResponse asyncResponse,
+                                                 @PathParam("tenant") String tenant,
                                                  @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        internalSetSubscriptionExpirationTime(null);
+        internalSetSubscriptionExpirationTimeAsync(null)
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to remove subscription expiration time for namespace {}: {} ", clientAppId(),
+                            namespaceName, ex.getCause().getMessage(), ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET
@@ -663,16 +685,28 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or namespace doesn't exist"),
             @ApiResponse(code = 412, message = "Namespace is already unloaded or Namespace has bundles activated")})
-    public void unloadNamespace(@Suspended final AsyncResponse asyncResponse, @PathParam("tenant") String tenant,
-            @PathParam("namespace") String namespace) {
+    public void unloadNamespace(@Suspended final AsyncResponse asyncResponse,
+                                @PathParam("tenant") String tenant,
+                                @PathParam("namespace") String namespace) {
         try {
             validateNamespaceName(tenant, namespace);
-            internalUnloadNamespace(asyncResponse);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
-        } catch (Exception e) {
-            asyncResponse.resume(new RestException(e));
+            return;
         }
+        internalUnloadNamespaceAsync()
+                .thenAccept(__ -> {
+                    log.info("[{}] Successfully unloaded all the bundles in namespace {}", clientAppId(),
+                            namespaceName);
+                    asyncResponse.resume(Response.noContent().build());
+                })
+                .exceptionally(ex -> {
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to unload namespace {}", clientAppId(), namespaceName, ex);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @PUT
@@ -686,7 +720,19 @@ public class Namespaces extends NamespacesBase {
             @PathParam("bundle") String bundleRange,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateNamespaceName(tenant, namespace);
-        internalUnloadNamespaceBundle(asyncResponse, bundleRange, authoritative);
+        internalUnloadNamespaceBundleAsync(bundleRange, authoritative)
+                .thenAccept(__ -> {
+                    log.info("[{}] Successfully unloaded namespace bundle {}", clientAppId(), bundleRange);
+                    asyncResponse.resume(Response.noContent().build());
+                })
+                .exceptionally(ex -> {
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to unload namespace bundle {}/{}",
+                                clientAppId(), namespaceName, bundleRange, ex);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @PUT
@@ -1469,10 +1515,20 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Get maxConsumersPerSubscription config on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
-    public Integer getMaxConsumersPerSubscription(@PathParam("tenant") String tenant,
+    public void getMaxConsumersPerSubscription(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        return internalGetMaxConsumersPerSubscription();
+        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.MAX_CONSUMERS, PolicyOperation.READ)
+                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+                .thenAccept(polices -> asyncResponse.resume(polices.max_consumers_per_subscription))
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to get maxConsumersPerSubscription config on namespace {}: {} ",
+                            clientAppId(), namespaceName, ex.getCause().getMessage(), ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @POST

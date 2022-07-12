@@ -207,7 +207,7 @@ docker push ${image_repo_and_project}/pulsar:$tag
 Apache Pulsar is using [lombok](https://projectlombok.org/) so you have to ensure your IDE setup with
 required plugins.
 
-### Intellij
+### IntelliJ
 
 #### Configure Project JDK to Java 17 JDK
 
@@ -250,13 +250,13 @@ required plugins.
 
 4. Click **OK**.
 
-5. Install the lombok plugin in intellij.
+5. Install the lombok plugin in intelliJ.
 
 #### Configure code style
 
 1. Open Code Style Settings dialog box by going to **Settings** -> **Editor** -> **Code Style**.
 
-2. Click on the :gear: symbol -> **Import scheme** -> **Intellij IDEA code style XML**
+2. Click on the :gear: symbol -> **Import scheme** -> **IntelliJ IDEA code style XML**
 
 3. Pick the file `${pulsar_dir}/src/idea-code-style.xml`
 

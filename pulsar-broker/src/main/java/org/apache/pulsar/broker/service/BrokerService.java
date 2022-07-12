@@ -2319,7 +2319,37 @@ public class BrokerService implements Closeable {
         // add listener to notify topic subscriptionTypesEnabled changed.
         registerConfigurationListener("subscriptionTypesEnabled", this::updateBrokerSubscriptionTypesEnabled);
 
+        // add listener to notify partitioned topic defaultNumPartitions changed
+        registerConfigurationListener("defaultNumPartitions", defaultNumPartitions -> {
+            this.updateDefaultNumPartitions((int) defaultNumPartitions);
+        });
+
+        // add listener to notify partitioned topic maxNumPartitionsPerPartitionedTopic changed
+        registerConfigurationListener("maxNumPartitionsPerPartitionedTopic", maxNumPartitions -> {
+            this.updateMaxNumPartitionsPerPartitionedTopic((int) maxNumPartitions);
+        });
+
         // add more listeners here
+    }
+
+    private void updateDefaultNumPartitions(int numPartitions) {
+        int maxNumPartitions = pulsar.getConfiguration().getMaxNumPartitionsPerPartitionedTopic();
+        if (maxNumPartitions == 0 || maxNumPartitions > numPartitions) {
+            this.pulsar.getConfiguration().setDefaultNumPartitions(numPartitions);
+        } else {
+            this.pulsar.getConfiguration().setDefaultNumPartitions(maxNumPartitions);
+        }
+    }
+
+    private void updateMaxNumPartitionsPerPartitionedTopic(int maxNumPartitions) {
+        if (maxNumPartitions == 0) {
+            this.pulsar.getConfiguration().setMaxNumPartitionsPerPartitionedTopic(maxNumPartitions);
+            return;
+        }
+        if (this.pulsar.getConfiguration().getDefaultNumPartitions() > maxNumPartitions) {
+            this.pulsar.getConfiguration().setDefaultNumPartitions(maxNumPartitions);
+        }
+        this.pulsar.getConfiguration().setMaxNumPartitionsPerPartitionedTopic(maxNumPartitions);
     }
 
     private void updateBrokerDispatchThrottlingMaxRate() {
@@ -2384,9 +2414,7 @@ public class BrokerService implements Closeable {
             forEachTopic(topic -> {
                 if (topic instanceof AbstractTopic) {
                     ((AbstractTopic) topic).updateBrokerDispatchRate();
-                }
-                if (topic.getDispatchRateLimiter().isPresent()) {
-                    topic.getDispatchRateLimiter().get().updateDispatchRate();
+                    ((AbstractTopic) topic).updateDispatchRateLimiter();
                 }
             });
         });

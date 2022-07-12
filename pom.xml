@@ -134,8 +134,7 @@ flexible messaging model and an intuitive client API.</description>
     <log4j2.version>2.17.1</log4j2.version>
     <bouncycastle.version>1.69</bouncycastle.version>
     <bouncycastlefips.version>1.0.2</bouncycastlefips.version>
-    <jackson.version>2.13.2</jackson.version>
-    <jackson.databind.version>2.13.2.1</jackson.databind.version>
+    <jackson.version>2.13.3</jackson.version>
     <reflections.version>0.9.11</reflections.version>
     <swagger.version>1.6.2</swagger.version>
     <puppycrawl.checkstyle.version>8.37</puppycrawl.checkstyle.version>
@@ -186,7 +185,7 @@ flexible messaging model and an intuitive client API.</description>
     <kafka.confluent.avroserializer.version>5.3.0</kafka.confluent.avroserializer.version>
     <aircompressor.version>0.20</aircompressor.version>
     <asynchttpclient.version>2.12.1</asynchttpclient.version>
-    <jcommander.version>1.78</jcommander.version>
+    <jcommander.version>1.82</jcommander.version>
     <commons-lang3.version>3.11</commons-lang3.version>
     <commons-configuration.version>1.10</commons-configuration.version>
     <commons-io.version>2.8.0</commons-io.version>
@@ -289,6 +288,10 @@ flexible messaging model and an intuitive client API.</description>
           <exclusion>
             <groupId>io.netty</groupId>
             <artifactId>*</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>com.typesafe.netty</groupId>
+            <artifactId>netty-reactive-streams</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
@@ -796,11 +799,6 @@ flexible messaging model and an intuitive client API.</description>
         <version>${jackson.version}</version>
         <type>pom</type>
         <scope>import</scope>
-      </dependency>
-      <dependency>
-        <groupId>com.fasterxml.jackson.core</groupId>
-        <artifactId>jackson-databind</artifactId>
-        <version>${jackson.databind.version}</version>
       </dependency>
 
       <dependency>
@@ -2344,18 +2342,6 @@ flexible messaging model and an intuitive client API.</description>
           </plugin>
         </plugins>
       </reporting>
-    </profile>
-    <profile>
-      <id>mac-apple-silicon</id>
-      <activation>
-        <os>
-          <family>mac</family>
-          <arch>aarch64</arch>
-        </os>
-      </activation>
-      <properties>
-        <os.detected.classifier>osx-x86_64</os.detected.classifier>
-      </properties>
     </profile>
 
     <profile>

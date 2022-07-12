@@ -6,9 +6,9 @@ sidebar_label: "Bare metal"
 
 :::tip
 
-1. You can use single-cluster Pulsar installation in most use cases, such as experimenting with Pulsar or using Pulsar in a startup or in a single team. If you need to run a multi-cluster Pulsar instance, see the [guide](deploy-bare-metal-multi-cluster).
-2. If you want to use all built-in [Pulsar IO](io-overview.md) connectors, you need to download `apache-pulsar-io-connectors`package and install `apache-pulsar-io-connectors` under `connectors` directory in the pulsar directory on every broker node or on every function-worker node if you have run a separate cluster of function workers for [Pulsar Functions](functions-overview).
-3. If you want to use [Tiered Storage](concepts-tiered-storage.md) feature in your Pulsar deployment, you need to download `apache-pulsar-offloaders`package and install `apache-pulsar-offloaders` under `offloaders` directory in the Pulsar directory on every broker node. For more details of how to configure this feature, you can refer to the [Tiered storage cookbook](cookbooks-tiered-storage).
+1. You can use single-cluster Pulsar installation in most use cases, such as experimenting with Pulsar or using Pulsar in a startup or in a single team. If you need to run a multi-cluster Pulsar instance, see the [guide](deploy-bare-metal-multi-cluster.md).
+2. If you want to use all built-in [Pulsar IO](io-overview.md) connectors, you need to download `apache-pulsar-io-connectors`package and install `apache-pulsar-io-connectors` under `connectors` directory in the pulsar directory on every broker node or on every function-worker node if you have run a separate cluster of function workers for [Pulsar Functions](functions-overview.md).
+3. If you want to use [Tiered Storage](concepts-tiered-storage.md) feature in your Pulsar deployment, you need to download `apache-pulsar-offloaders`package and install `apache-pulsar-offloaders` under `offloaders` directory in the Pulsar directory on every broker node. For more details of how to configure this feature, you can refer to the [Tiered storage cookbook](cookbooks-tiered-storage.md).
 
 :::
 
@@ -122,7 +122,7 @@ The extracted directory contains the following subdirectories:
 
 Directory | Contains
 :---------|:--------
-`bin` |[command-line tools](reference-cli-tools) of Pulsar, such as [`pulsar`](reference-cli-tools.md#pulsar) and [`pulsar-admin`](/tools/pulsar-admin/)
+`bin` |[command-line tools](reference-cli-tools.md) of Pulsar, such as [`pulsar`](reference-cli-tools.md#pulsar) and [`pulsar-admin`](/tools/pulsar-admin/)
 `conf` | Configuration files for Pulsar, including for [broker configuration](reference-configuration.md#broker), [ZooKeeper configuration](reference-configuration.md#zookeeper), and more
 `data` | The data storage directory that ZooKeeper and BookKeeper use
 `lib` | The [JAR](https://en.wikipedia.org/wiki/JAR_(file_format)) files that Pulsar uses
@@ -287,9 +287,9 @@ Flag | Description
 `--metadata-store` | A "local" metadata store connection string for the cluster. This connection string only needs to include *one* machine in the ZooKeeper cluster.
 `--configuration-metadata-store` | The configuration metadata store connection string for the entire instance. As with the `--metadata-store` flag, this connection string only needs to include *one* machine in the ZooKeeper cluster.
 `--web-service-url` | The web service URL for the cluster, plus a port. This URL should be a standard DNS name. The default port is 8080 (you had better not use a different port).
-`--web-service-url-tls` | If you use [TLS](security-tls-transport), you also need to specify a TLS web service URL for the cluster. The default port is 8443 (you had better not use a different port).
+`--web-service-url-tls` | If you use [TLS](security-tls-transport.md), you also need to specify a TLS web service URL for the cluster. The default port is 8443 (you had better not use a different port).
 `--broker-service-url` | A broker service URL enabling interaction with the brokers in the cluster. This URL should not use the same DNS name as the web service URL but should use the `pulsar` scheme instead. The default port is 6650 (you had better not use a different port).
-`--broker-service-url-tls` | If you use [TLS](security-tls-transport), you also need to specify a TLS web service URL for the cluster as well as a TLS broker service URL for the brokers in the cluster. The default port is 6651 (you had better not use a different port).
+`--broker-service-url-tls` | If you use [TLS](security-tls-transport.md), you also need to specify a TLS web service URL for the cluster as well as a TLS broker service URL for the brokers in the cluster. The default port is 6651 (you had better not use a different port).
 
 
 > If you do not have a DNS server, you can use multi-host format in the service URL with the following settings:
@@ -429,7 +429,7 @@ webServicePortTls=8443
 
 ### Enable Pulsar Functions (optional)
 
-If you want to enable [Pulsar Functions](functions-overview), you can follow the instructions as below:
+If you want to enable [Pulsar Functions](functions-overview.md), you can follow the instructions as below:
 
 1. Edit `conf/broker.conf` to enable functions worker, by setting `functionsWorkerEnabled` to `true`.
 
@@ -447,7 +447,7 @@ If you want to enable [Pulsar Functions](functions-overview), you can follow the
    
    ```
 
-If you want to learn more options about deploying the functions worker, check out [Deploy and manage functions worker](functions-worker).
+If you want to learn more options about deploying the functions worker, check out [Deploy and manage functions worker](functions-worker.md).
 
 ### Start Brokers
 

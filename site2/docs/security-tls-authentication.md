@@ -6,9 +6,9 @@ sidebar_label: "Authentication using TLS"
 
 ## TLS authentication overview
 
-TLS authentication is an extension of [TLS transport encryption](security-tls-transport). Not only servers have keys and certs that the client uses to verify the identity of servers, clients also have keys and certs that the server uses to verify the identity of clients. You must have TLS transport encryption configured on your cluster before you can use TLS authentication. This guide assumes you already have TLS transport encryption configured.
+TLS authentication is an extension of [TLS transport encryption](security-tls-transport.md). Not only servers have keys and certs that the client uses to verify the identity of servers, clients also have keys and certs that the server uses to verify the identity of clients. You must have TLS transport encryption configured on your cluster before you can use TLS authentication. This guide assumes you already have TLS transport encryption configured.
 
-`Bouncy Castle Provider` provides TLS related cipher suites and algorithms in Pulsar. If you need [FIPS](https://www.bouncycastle.org/fips_faq.html) version of `Bouncy Castle Provider`, please reference [Bouncy Castle page](security-bouncy-castle).
+`Bouncy Castle Provider` provides TLS related cipher suites and algorithms in Pulsar. If you need [FIPS](https://www.bouncycastle.org/fips_faq.html) version of `Bouncy Castle Provider`, please reference [Bouncy Castle page](security-bouncy-castle.md).
 
 ### Create client certificates
 
@@ -102,7 +102,7 @@ brokerClientTrustCertsFilePath=/path/my-ca/certs/ca.cert.pem
 
 To configure proxies to authenticate clients, add the following parameters to `proxy.conf`, alongside [the configuration to enable tls transport](security-tls-transport.md#proxy-configuration):
 
-The proxy should have its own client key pair for connecting to brokers. You need to configure the role token for this key pair in the ``proxyRoles`` of the brokers. See the [authorization guide](security-authorization) for more details.
+The proxy should have its own client key pair for connecting to brokers. You need to configure the role token for this key pair in the ``proxyRoles`` of the brokers. See the [authorization guide](security-authorization.md) for more details.
 
 ```properties
 
