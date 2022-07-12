@@ -213,7 +213,7 @@ This example explains how to create a Kafka source connector in an on-premises c
    
    ```
 
-2. Reload all [built-in connectors](io-connectors).
+2. Reload all [built-in connectors](io-connectors.md).
 
    ```
    

@@ -5,7 +5,7 @@ sidebar_label: "Architecture"
 original_id: concepts-architecture-overview
 ---
 
-At the highest level, a Pulsar instance is composed of one or more Pulsar clusters. Clusters within an instance can [replicate](concepts-replication) data amongst themselves.
+At the highest level, a Pulsar instance is composed of one or more Pulsar clusters. Clusters within an instance can [replicate](concepts-replication.md) data amongst themselves.
 
 In a Pulsar cluster:
 
