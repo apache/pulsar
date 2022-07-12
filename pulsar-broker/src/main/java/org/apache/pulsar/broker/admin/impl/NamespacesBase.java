@@ -1527,11 +1527,11 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected DispatchRate internalGetReplicatorDispatchRate() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.REPLICATION_RATE, PolicyOperation.READ);
-
-        Policies policies = getNamespacePolicies(namespaceName);
-        return policies.replicatorDispatchRate.get(pulsar().getConfiguration().getClusterName());
+    protected CompletableFuture<DispatchRate> internalGetReplicatorDispatchRateAsync() {
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.REPLICATION_RATE, PolicyOperation.READ)
+                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+                .thenApply(
+                        policies -> policies.replicatorDispatchRate.get(pulsar().getConfiguration().getClusterName()));
     }
 
     protected void internalSetBacklogQuota(BacklogQuotaType backlogQuotaType, BacklogQuota backlogQuota) {
