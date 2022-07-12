@@ -3942,7 +3942,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             .exceptionally(ex -> {
                 Throwable t = FutureUtil.unwrapCompletionException(ex);
                 if (!isRedirectException(t)) {
-                    log.error("[{}] Failed to truncate topic {}", clientAppId(), topicName, ex);
+                    log.error("[{}] Failed to truncate topic {}", clientAppId(), topicName, t);
                 }
                 if (t instanceof PulsarAdminException.NotFoundException) {
                     t = new RestException(Response.Status.NOT_FOUND, t.getMessage());
