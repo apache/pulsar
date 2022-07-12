@@ -118,14 +118,14 @@ Java, Python, and Go SDKs provide access to a **context object** that can be use
 * The key, event time, properties, and partition key of a message.
 * The name of the topic that a message is sent to.
 * The names of all input topics as well as the output topic associated with the function.
-* The name of the class used for [SerDe](functions-develop-serde).
+* The name of the class used for [SerDe](functions-develop-serde.md).
 * The tenant and namespace associated with the function.
 * The ID of the function instance running the function.
 * The version of the function.
-* The [logger object](functions-develop-log) used by the function, which is used to create log messages.
-* Access to arbitrary [user configuration](functions-develop-user-defined-configs) values supplied via the CLI.
-* An interface for recording [metrics](functions-develop-metrics).
-* An interface for storing and retrieving state in [state storage](functions-develop-state).
+* The [logger object](functions-develop-log.md) used by the function, which is used to create log messages.
+* Access to arbitrary [user configuration](functions-develop-user-defined-configs.md) values supplied via the CLI.
+* An interface for recording [metrics](functions-develop-metrics.md).
+* An interface for storing and retrieving state in [state storage](functions-develop-state.md).
 * A function to publish new messages onto arbitrary topics.
 * A function to acknowledge the message being processed (if auto-ack is disabled).
 * (Java) get Pulsar admin client.
