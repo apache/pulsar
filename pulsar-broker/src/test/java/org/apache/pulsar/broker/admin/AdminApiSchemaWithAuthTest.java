@@ -18,9 +18,18 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertThrows;
+import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
+import java.util.Base64;
+import java.util.EnumSet;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import javax.crypto.SecretKey;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
@@ -30,6 +39,7 @@ import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
+import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
@@ -38,15 +48,6 @@ import org.mockito.Mockito;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-import javax.crypto.SecretKey;
-import java.util.Base64;
-import java.util.EnumSet;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertThrows;
-import static org.testng.Assert.assertTrue;
 /**
  * Unit tests for schema admin api.
  */
@@ -117,10 +118,12 @@ public class AdminApiSchemaWithAuthTest extends MockedPulsarServiceBaseTest {
 
         assertThrows(PulsarAdminException.class, () -> adminWithoutPermission.schemas().getSchemaInfo(topicName));
         SchemaInfo readSi = adminWithConsumePermission.schemas().getSchemaInfo(topicName);
+        ((SchemaInfoImpl)readSi).setTimestamp(0);
         assertEquals(readSi, si);
 
         assertThrows(PulsarAdminException.class, () -> adminWithoutPermission.schemas().getSchemaInfo(topicName, 0));
         readSi = adminWithConsumePermission.schemas().getSchemaInfo(topicName, 0);
+        ((SchemaInfoImpl)readSi).setTimestamp(0);
         assertEquals(readSi, si);
         List<SchemaInfo> allSchemas = adminWithConsumePermission.schemas().getAllSchemas(topicName);
         assertEquals(allSchemas.size(), 1);

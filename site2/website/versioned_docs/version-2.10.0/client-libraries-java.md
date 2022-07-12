@@ -1331,7 +1331,7 @@ tv.forEach((key, value) -> /*operations on all existing messages*/)
 
 ## Schema
 
-In Pulsar, all message data consists of byte arrays "under the hood." [Message schemas](schema-get-started) enable you to use other types of data when constructing and handling messages (from simple types like strings to more complex, application-specific types). If you construct, say, a [producer](#producer) without specifying a schema, then the producer can only produce messages of type `byte[]`. The following is an example.
+In Pulsar, all message data consists of byte arrays "under the hood." [Message schemas](schema-get-started.md) enable you to use other types of data when constructing and handling messages (from simple types like strings to more complex, application-specific types). If you construct, say, a [producer](#producer) without specifying a schema, then the producer can only produce messages of type `byte[]`. The following is an example.
 
 ```java
 
@@ -1515,7 +1515,7 @@ PulsarClient client = PulsarClient.builder()
 
 ### Oauth2
 
-The following example shows how to use [Oauth2](security-oauth2) as an authentication provider for the Pulsar Java client.
+The following example shows how to use [Oauth2](security-oauth2.md) as an authentication provider for the Pulsar Java client.
 
 You can use the factory method to configure authentication for Pulsar Java client.
 
