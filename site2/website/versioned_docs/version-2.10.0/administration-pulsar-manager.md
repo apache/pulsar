@@ -132,7 +132,7 @@ The request parameter in curl command:
 
 
 ### Configure the environment
-1. Login to the system, Visit http://localhost:9527 to login.  The current default account is  `admin/apachepulsar`
+1. Login to the system, Visit http://localhost:9527 to login. The current default account is  `admin/apachepulsar`
 
 2. Click "New Environment" button to add an environment.
 
@@ -146,7 +146,7 @@ The request parameter in curl command:
 
 When using binary packages for direct deployment, you can follow these steps.
 
-- Download and unzip the binary package, which is available on the [Pulsar Download](download) page.
+- Download and unzip the binary package, which is available on the [Pulsar Download](/download) page.
 
   ```bash
   
