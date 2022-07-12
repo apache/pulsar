@@ -102,7 +102,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
     protected final ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>> ledgers = new ConcurrentHashMap<>();
     protected final ConcurrentHashMap<String, PendingInitializeManagedLedger> pendingInitializeLedgers =
-            new ConcurrentHashMap<>();
+        new ConcurrentHashMap<>();
     private final EntryCacheManager entryCacheManager;
 
     private long lastStatTimestamp = System.nanoTime();
@@ -342,7 +342,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
     @Override
     public void asyncOpen(final String name, final ManagedLedgerConfig config, final OpenLedgerCallback callback,
-                          Supplier<Boolean> mlOwnershipChecker, final Object ctx) {
+            Supplier<Boolean> mlOwnershipChecker, final Object ctx) {
         if (closed) {
             callback.openLedgerFailed(new ManagedLedgerException.ManagedLedgerFactoryClosedException(), ctx);
             return;
@@ -370,7 +370,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                     long pendingMs = System.currentTimeMillis() - pendingLedger.createTimeMs;
                     if (pendingMs > TimeUnit.SECONDS.toMillis(config.getMetadataOperationsTimeoutSeconds())) {
                         log.warn("[{}] Managed ledger has been pending in initialize state more than {} milliseconds,"
-                                + " remove it from cache to retry ...", name, pendingMs);
+                            + " remove it from cache to retry ...", name, pendingMs);
                         ledgers.remove(name, existingFuture);
                         pendingInitializeLedgers.remove(name, pendingLedger);
                     }
@@ -470,7 +470,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
     @Override
     public void asyncOpenReadOnlyCursor(String managedLedgerName, Position startPosition, ManagedLedgerConfig config,
-                                        OpenReadOnlyCursorCallback callback, Object ctx) {
+            OpenReadOnlyCursorCallback callback, Object ctx) {
         if (closed) {
             callback.openReadOnlyCursorFailed(new ManagedLedgerException.ManagedLedgerFactoryClosedException(), ctx);
             return;
@@ -485,19 +485,19 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         roManagedLedger.initializeAndCreateCursor((PositionImpl) startPosition)
                 .thenAccept(roCursor -> callback.openReadOnlyCursorComplete(roCursor, ctx))
                 .exceptionally(ex -> {
-                    Throwable t = ex;
-                    if (t instanceof CompletionException) {
-                        t = ex.getCause();
-                    }
+            Throwable t = ex;
+            if (t instanceof CompletionException) {
+                t = ex.getCause();
+            }
 
-                    if (t instanceof ManagedLedgerException) {
-                        callback.openReadOnlyCursorFailed((ManagedLedgerException) t, ctx);
-                    } else {
-                        callback.openReadOnlyCursorFailed(new ManagedLedgerException(t), ctx);
-                    }
+            if (t instanceof ManagedLedgerException) {
+                callback.openReadOnlyCursorFailed((ManagedLedgerException) t, ctx);
+            } else {
+                callback.openReadOnlyCursorFailed(new ManagedLedgerException(t), ctx);
+            }
 
-                    return null;
-                });
+            return null;
+        });
     }
 
     void close(ManagedLedger ledger) {
@@ -695,117 +695,110 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     public void asyncGetManagedLedgerInfo(String name, ManagedLedgerInfoCallback callback, Object ctx) {
         store.getManagedLedgerInfo(name, false /* createIfMissing */,
                 new MetaStoreCallback<MLDataFormats.ManagedLedgerInfo>() {
+            @Override
+            public void operationComplete(MLDataFormats.ManagedLedgerInfo pbInfo, Stat stat) {
+                ManagedLedgerInfo info = new ManagedLedgerInfo();
+                info.version = stat.getVersion();
+                info.creationDate = DateFormatter.format(stat.getCreationTimestamp());
+                info.modificationDate = DateFormatter.format(stat.getModificationTimestamp());
+
+                info.ledgers = new ArrayList<>(pbInfo.getLedgerInfoCount());
+                if (pbInfo.hasTerminatedPosition()) {
+                    info.terminatedPosition = new PositionInfo();
+                    info.terminatedPosition.ledgerId = pbInfo.getTerminatedPosition().getLedgerId();
+                    info.terminatedPosition.entryId = pbInfo.getTerminatedPosition().getEntryId();
+                }
+
+                if (pbInfo.getPropertiesCount() > 0) {
+                    info.properties = Maps.newTreeMap();
+                    for (int i = 0; i < pbInfo.getPropertiesCount(); i++) {
+                        MLDataFormats.KeyValue property = pbInfo.getProperties(i);
+                        info.properties.put(property.getKey(), property.getValue());
+                    }
+                }
+
+                for (int i = 0; i < pbInfo.getLedgerInfoCount(); i++) {
+                    MLDataFormats.ManagedLedgerInfo.LedgerInfo pbLedgerInfo = pbInfo.getLedgerInfo(i);
+                    LedgerInfo ledgerInfo = new LedgerInfo();
+                    ledgerInfo.ledgerId = pbLedgerInfo.getLedgerId();
+                    ledgerInfo.entries = pbLedgerInfo.hasEntries() ? pbLedgerInfo.getEntries() : null;
+                    ledgerInfo.size = pbLedgerInfo.hasSize() ? pbLedgerInfo.getSize() : null;
+                    ledgerInfo.isOffloaded = pbLedgerInfo.hasOffloadContext();
+                    if (pbLedgerInfo.hasOffloadContext()) {
+                        MLDataFormats.OffloadContext offloadContext = pbLedgerInfo.getOffloadContext();
+                        UUID uuid = new UUID(offloadContext.getUidMsb(), offloadContext.getUidLsb());
+                        ledgerInfo.offloadedContextUuid = uuid.toString();
+                    }
+                    info.ledgers.add(ledgerInfo);
+                }
+
+                store.getCursors(name, new MetaStoreCallback<List<String>>() {
                     @Override
-                    public void operationComplete(MLDataFormats.ManagedLedgerInfo pbInfo, Stat stat) {
-                        ManagedLedgerInfo info = new ManagedLedgerInfo();
-                        info.version = stat.getVersion();
-                        info.creationDate = DateFormatter.format(stat.getCreationTimestamp());
-                        info.modificationDate = DateFormatter.format(stat.getModificationTimestamp());
+                    public void operationComplete(List<String> cursorsList, Stat stat) {
+                        // Get the info for each cursor
+                        info.cursors = new ConcurrentSkipListMap<>();
+                        List<CompletableFuture<Void>> cursorsFutures = new ArrayList<>();
 
-                        info.ledgers = new ArrayList<>(pbInfo.getLedgerInfoCount());
-                        if (pbInfo.hasTerminatedPosition()) {
-                            info.terminatedPosition = new PositionInfo();
-                            info.terminatedPosition.ledgerId = pbInfo.getTerminatedPosition().getLedgerId();
-                            info.terminatedPosition.entryId = pbInfo.getTerminatedPosition().getEntryId();
-                        }
+                        for (String cursorName : cursorsList) {
+                            CompletableFuture<Void> cursorFuture = new CompletableFuture<>();
+                            cursorsFutures.add(cursorFuture);
+                            store.asyncGetCursorInfo(name, cursorName,
+                                    new MetaStoreCallback<MLDataFormats.ManagedCursorInfo>() {
+                                        @Override
+                                        public void operationComplete(ManagedCursorInfo pbCursorInfo, Stat stat) {
+                                            CursorInfo cursorInfo = new CursorInfo();
+                                            cursorInfo.version = stat.getVersion();
+                                            cursorInfo.creationDate = DateFormatter.format(stat.getCreationTimestamp());
+                                            cursorInfo.modificationDate = DateFormatter
+                                                    .format(stat.getModificationTimestamp());
 
-                        if (pbInfo.getPropertiesCount() > 0) {
-                            info.properties = Maps.newTreeMap();
-                            for (int i = 0; i < pbInfo.getPropertiesCount(); i++) {
-                                MLDataFormats.KeyValue property = pbInfo.getProperties(i);
-                                info.properties.put(property.getKey(), property.getValue());
-                            }
-                        }
+                                            cursorInfo.cursorsLedgerId = pbCursorInfo.getCursorsLedgerId();
 
-                        for (int i = 0; i < pbInfo.getLedgerInfoCount(); i++) {
-                            MLDataFormats.ManagedLedgerInfo.LedgerInfo pbLedgerInfo = pbInfo.getLedgerInfo(i);
-                            LedgerInfo ledgerInfo = new LedgerInfo();
-                            ledgerInfo.ledgerId = pbLedgerInfo.getLedgerId();
-                            ledgerInfo.entries = pbLedgerInfo.hasEntries() ? pbLedgerInfo.getEntries() : null;
-                            ledgerInfo.size = pbLedgerInfo.hasSize() ? pbLedgerInfo.getSize() : null;
-                            ledgerInfo.isOffloaded = pbLedgerInfo.hasOffloadContext();
-                            if (pbLedgerInfo.hasOffloadContext()) {
-                                MLDataFormats.OffloadContext offloadContext = pbLedgerInfo.getOffloadContext();
-                                UUID uuid = new UUID(offloadContext.getUidMsb(), offloadContext.getUidLsb());
-                                ledgerInfo.offloadedContextUuid = uuid.toString();
-                            }
-                            info.ledgers.add(ledgerInfo);
-                        }
+                                            if (pbCursorInfo.hasMarkDeleteLedgerId()) {
+                                                cursorInfo.markDelete = new PositionInfo();
+                                                cursorInfo.markDelete.ledgerId = pbCursorInfo.getMarkDeleteLedgerId();
+                                                cursorInfo.markDelete.entryId = pbCursorInfo.getMarkDeleteEntryId();
+                                            }
 
-                        store.getCursors(name, new MetaStoreCallback<List<String>>() {
-                            @Override
-                            public void operationComplete(List<String> cursorsList, Stat stat) {
-                                // Get the info for each cursor
-                                info.cursors = new ConcurrentSkipListMap<>();
-                                List<CompletableFuture<Void>> cursorsFutures = new ArrayList<>();
-
-                                for (String cursorName : cursorsList) {
-                                    CompletableFuture<Void> cursorFuture = new CompletableFuture<>();
-                                    cursorsFutures.add(cursorFuture);
-                                    store.asyncGetCursorInfo(name, cursorName,
-                                            new MetaStoreCallback<MLDataFormats.ManagedCursorInfo>() {
-                                                @Override
-                                                public void operationComplete(ManagedCursorInfo pbCursorInfo, Stat stat) {
-                                                    CursorInfo cursorInfo = new CursorInfo();
-                                                    cursorInfo.version = stat.getVersion();
-                                                    cursorInfo.creationDate = DateFormatter.format(stat.getCreationTimestamp());
-                                                    cursorInfo.modificationDate = DateFormatter
-                                                            .format(stat.getModificationTimestamp());
-
-                                                    cursorInfo.cursorsLedgerId = pbCursorInfo.getCursorsLedgerId();
-
-                                                    if (pbCursorInfo.hasMarkDeleteLedgerId()) {
-                                                        cursorInfo.markDelete = new PositionInfo();
-                                                        cursorInfo.markDelete.ledgerId = pbCursorInfo.getMarkDeleteLedgerId();
-                                                        cursorInfo.markDelete.entryId = pbCursorInfo.getMarkDeleteEntryId();
-                                                    }
-
-                                                    if (pbCursorInfo.getPropertiesCount() > 0) {
-                                                        cursorInfo.properties = Maps.newTreeMap();
-                                                        for (int i = 0; i < pbCursorInfo.getPropertiesCount(); i++) {
-                                                            LongProperty property = pbCursorInfo.getProperties(i);
-                                                            cursorInfo.properties.put(property.getName(), property.getValue());
-                                                        }
-                                                    }
-
-                                                    if (pbCursorInfo.getIndividualDeletedMessagesCount() > 0) {
-                                                        cursorInfo.individualDeletedMessages = new ArrayList<>();
-                                                        for (int i = 0; i < pbCursorInfo
-                                                                .getIndividualDeletedMessagesCount(); i++) {
-                                                            MessageRange range = pbCursorInfo.getIndividualDeletedMessages(i);
-                                                            MessageRangeInfo rangeInfo = new MessageRangeInfo();
-                                                            rangeInfo.from.ledgerId = range.getLowerEndpoint().getLedgerId();
-                                                            rangeInfo.from.entryId = range.getLowerEndpoint().getEntryId();
-                                                            rangeInfo.to.ledgerId = range.getUpperEndpoint().getLedgerId();
-                                                            rangeInfo.to.entryId = range.getUpperEndpoint().getEntryId();
-                                                            cursorInfo.individualDeletedMessages.add(rangeInfo);
-                                                        }
-                                                    }
-
-                                                    info.cursors.put(cursorName, cursorInfo);
-                                                    cursorFuture.complete(null);
+                                            if (pbCursorInfo.getPropertiesCount() > 0) {
+                                                cursorInfo.properties = Maps.newTreeMap();
+                                                for (int i = 0; i < pbCursorInfo.getPropertiesCount(); i++) {
+                                                    LongProperty property = pbCursorInfo.getProperties(i);
+                                                    cursorInfo.properties.put(property.getName(), property.getValue());
                                                 }
+                                            }
 
-                                                @Override
-                                                public void operationFailed(MetaStoreException e) {
-                                                    cursorFuture.completeExceptionally(e);
+                                            if (pbCursorInfo.getIndividualDeletedMessagesCount() > 0) {
+                                                cursorInfo.individualDeletedMessages = new ArrayList<>();
+                                                for (int i = 0; i < pbCursorInfo
+                                                        .getIndividualDeletedMessagesCount(); i++) {
+                                                    MessageRange range = pbCursorInfo.getIndividualDeletedMessages(i);
+                                                    MessageRangeInfo rangeInfo = new MessageRangeInfo();
+                                                    rangeInfo.from.ledgerId = range.getLowerEndpoint().getLedgerId();
+                                                    rangeInfo.from.entryId = range.getLowerEndpoint().getEntryId();
+                                                    rangeInfo.to.ledgerId = range.getUpperEndpoint().getLedgerId();
+                                                    rangeInfo.to.entryId = range.getUpperEndpoint().getEntryId();
+                                                    cursorInfo.individualDeletedMessages.add(rangeInfo);
                                                 }
-                                            });
-                                }
+                                            }
 
-                                Futures.waitForAll(cursorsFutures).thenRun(() -> {
-                                    // Completed all the cursors info
-                                    callback.getInfoComplete(info, ctx);
-                                }).exceptionally((ex) -> {
-                                    callback.getInfoFailed(getManagedLedgerException(ex.getCause()), ctx);
-                                    return null;
-                                });
-                            }
+                                            info.cursors.put(cursorName, cursorInfo);
+                                            cursorFuture.complete(null);
+                                        }
 
-                            @Override
-                            public void operationFailed(MetaStoreException e) {
-                                callback.getInfoFailed(e, ctx);
-                            }
+                                        @Override
+                                        public void operationFailed(MetaStoreException e) {
+                                            cursorFuture.completeExceptionally(e);
+                                        }
+                                    });
+                        }
+
+                        Futures.waitForAll(cursorsFutures).thenRun(() -> {
+                            // Completed all the cursors info
+                            callback.getInfoComplete(info, ctx);
+                        }).exceptionally((ex) -> {
+                            callback.getInfoFailed(getManagedLedgerException(ex.getCause()), ctx);
+                            return null;
                         });
                     }
 
@@ -814,6 +807,13 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                         callback.getInfoFailed(e, ctx);
                     }
                 });
+            }
+
+            @Override
+            public void operationFailed(MetaStoreException e) {
+                callback.getInfoFailed(e, ctx);
+            }
+        });
     }
 
     @Override
@@ -890,11 +890,11 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     }
 
     private void deleteManagedLedgerData(BookKeeper bkc, String managedLedgerName, ManagedLedgerInfo info,
-                                         DeleteLedgerCallback callback, Object ctx) {
+            DeleteLedgerCallback callback, Object ctx) {
         Futures.waitForAll(info.ledgers.stream()
-                        .filter(li -> !li.isOffloaded)
-                        .map(li -> bkc.newDeleteLedgerOp().withLedgerId(li.ledgerId).execute())
-                        .collect(Collectors.toList()))
+                .filter(li -> !li.isOffloaded)
+                .map(li -> bkc.newDeleteLedgerOp().withLedgerId(li.ledgerId).execute())
+                .collect(Collectors.toList()))
                 .thenRun(() -> {
                     // Delete the metadata
                     store.removeManagedLedger(managedLedgerName, new MetaStoreCallback<Void>() {
@@ -935,7 +935,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
                 @Override
                 public void operationFailed(MetaStoreException e) {
-                    future.completeExceptionally(e);
+                   future.completeExceptionally(e);
                 }
             });
         });
