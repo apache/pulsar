@@ -1158,6 +1158,11 @@ public abstract class NamespacesBase extends AdminResource {
                         }));
     }
 
+    /**
+     * 内部拆分命名空间包
+     * asyncResponse: 异步response
+     */
+
     @SuppressWarnings("deprecation")
     protected void internalSplitNamespaceBundle(AsyncResponse asyncResponse, String bundleName, boolean authoritative,
                                                 boolean unload, String splitAlgorithmName, List<Long> splitBoundaries) {
@@ -1165,6 +1170,7 @@ public abstract class NamespacesBase extends AdminResource {
         checkNotNull(bundleName, "BundleRange should not be null");
         log.info("[{}] Split namespace bundle {}/{}", clientAppId(), namespaceName, bundleName);
 
+        // 检查要split的范围
         String bundleRange = getBundleRange(bundleName);
 
         Policies policies = getNamespacePolicies(namespaceName);
