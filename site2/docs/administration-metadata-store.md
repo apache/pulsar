@@ -4,7 +4,7 @@ title: Configure metadata store
 sidebar_label: "Configure metadata store"
 ---
 
-Pulsar metadata store maintains all the metadata, configuration and coordination of a Pulsar cluster, such as topic metadata, schema, broker load data, and so on. 
+Pulsar metadata store maintains all the metadata, configuration, and coordination of a Pulsar cluster, such as topic metadata, schema, broker load data, and so on. 
 
 The metadata store of each Pulsar instance should contain the following two components:
 * A local metadata store ensemble (`metadataStoreUrl`) that stores cluster-specific configuration and coordination, such as which brokers are responsible for which topics as well as ownership metadata, broker load reports, and BookKeeper ledger metadata.
