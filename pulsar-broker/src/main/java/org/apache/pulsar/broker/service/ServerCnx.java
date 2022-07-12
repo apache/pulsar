@@ -2016,7 +2016,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             if (enableSubscriptionPatternEvaluation && topicsPattern.isPresent()) {
                                 if (topicsPattern.get().length() <= maxSubscriptionPatternLength) {
                                     filterTopics = true;
-                                    filteredTopics = TopicList.filterTopics(topics, topicsPattern.get());
+                                    filteredTopics = TopicList.filterTopics(filteredTopics, topicsPattern.get());
                                 } else {
                                     log.info("[{}] Subscription pattern provided was longer than maximum {}.",
                                             remoteAddress, maxSubscriptionPatternLength);
