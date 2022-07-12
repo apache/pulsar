@@ -241,15 +241,13 @@ public class ServerCnxTest {
         if (channel != null) {
             channel.close();
         }
-        List<CompletableFuture<Void>> futures = new ArrayList<>();
-        futures.add(brokerService.closeAsync());
-        futures.add(pulsar.closeAsync());
-        futures.add(GracefulExecutorServicesShutdown.initiate()
+        brokerService.close();
+        pulsar.close();
+        GracefulExecutorServicesShutdown.initiate()
                 .timeout(Duration.ZERO)
                 .shutdown(executor)
-                .handle());
-        futures.add(EventLoopUtil.shutdownGracefully(eventLoopGroup));
-        FutureUtil.waitForAll(futures).get();
+                .handle().get();
+        EventLoopUtil.shutdownGracefully(eventLoopGroup).get();
         store.close();
     }
 

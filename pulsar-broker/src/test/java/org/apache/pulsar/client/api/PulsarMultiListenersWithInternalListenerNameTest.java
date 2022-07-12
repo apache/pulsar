@@ -196,14 +196,12 @@ public class PulsarMultiListenersWithInternalListenerNameTest extends MockedPuls
     @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
-        List<CompletableFuture<Void>> futures = new ArrayList<>();
-        futures.add(pulsar.closeAsync());
-        futures.add(GracefulExecutorServicesShutdown.initiate()
+        pulsar.close();
+        GracefulExecutorServicesShutdown.initiate()
                 .timeout(Duration.ZERO)
                 .shutdown(executorService)
-                .handle());
-        futures.add(EventLoopUtil.shutdownGracefully(eventExecutors));
-        FutureUtil.waitForAll(futures).get();
+                .handle().get();
+        EventLoopUtil.shutdownGracefully(eventExecutors).get();
         super.internalCleanup();
     }
 }

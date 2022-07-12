@@ -212,15 +212,13 @@ public class PersistentSubscriptionTest {
 
     @AfterMethod(alwaysRun = true)
     public void teardown() throws Exception {
-        List<CompletableFuture<Void>> futures = new ArrayList<>();
-        futures.add(brokerMock.closeAsync());
-        futures.add(pulsarMock.closeAsync());
-        futures.add(GracefulExecutorServicesShutdown.initiate()
+        brokerMock.close();
+        pulsarMock.close();
+        GracefulExecutorServicesShutdown.initiate()
                 .timeout(Duration.ZERO)
                 .shutdown(executor)
-                .handle());
-        futures.add(EventLoopUtil.shutdownGracefully(eventLoopGroup));
-        FutureUtil.waitForAll(futures).get();
+                .handle().get();
+        EventLoopUtil.shutdownGracefully(eventLoopGroup).get();
         store.close();
     }
 
