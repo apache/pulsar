@@ -3292,7 +3292,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     /**
-     * check cursor reset status
+     * check cursor reset status.
      *
      * @return true if the cursor reset in progress
      */
