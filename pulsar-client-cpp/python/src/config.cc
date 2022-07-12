@@ -96,13 +96,12 @@ static ReaderConfiguration& ReaderConfiguration_setCryptoKeyReader(ReaderConfigu
 class LoggerWrapper : public Logger, public CaptivePythonObjectMixin {
     const int _pythonLogLevel;
     const std::unique_ptr<Logger> _fallbackLogger;
-    const py::object _loggingModule;
 
     static constexpr int _getLogLevelValue(Level level) { return 10 + (level * 10); }
 
    public:
     LoggerWrapper(PyObject* pyLogger, int pythonLogLevel, Logger* fallbackLogger)
-        : CaptivePythonObjectMixin(pyLogger), _pythonLogLevel(pythonLogLevel), _fallbackLogger(fallbackLogger), _loggingModule(py::import("logging")) {}
+        : CaptivePythonObjectMixin(pyLogger), _pythonLogLevel(pythonLogLevel), _fallbackLogger(fallbackLogger) {}
 
     LoggerWrapper(const LoggerWrapper&) = delete;
     LoggerWrapper(LoggerWrapper&&) noexcept = delete;
@@ -117,8 +116,10 @@ class LoggerWrapper : public Logger, public CaptivePythonObjectMixin {
             _fallbackLogger->log(level, line, message);
         } else {
             PyGILState_STATE state = PyGILState_Ensure();
+            py::object loggerModule = py::import("logging");
+            py::object oldLogThreads = loggerModule.attr("logThreads");
             try {
-                _loggingModule.attr("logThreads") = py::object(0);
+                loggerModule.attr("logThreads") = py::object(false);
                 switch (level) {
                     case Logger::LEVEL_DEBUG:
                         py::call_method<void>(_captive, "debug", message.c_str());
@@ -133,8 +134,10 @@ class LoggerWrapper : public Logger, public CaptivePythonObjectMixin {
                         py::call_method<void>(_captive, "error", message.c_str());
                         break;
                 }
+                loggerModule.attr("logThreads") = oldLogThreads;
             } catch (const py::error_already_set& e) {
                 _fallbackLogger->log(level, line, message);
+                loggerModule.attr("logThreads") = oldLogThreads;
             }
             PyGILState_Release(state);
         }
