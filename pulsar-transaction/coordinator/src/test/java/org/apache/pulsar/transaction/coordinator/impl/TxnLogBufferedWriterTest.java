@@ -56,7 +56,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
 
     /**
      * Tests all operations from write to callback, including
-     * {@link TxnLogBufferedWriter#asyncAddData(Object, AsyncCallbacks.AddDataCallback, Object)}
+     * {@link TxnLogBufferedWriter#asyncAddData(Object, TxnLogBufferedWriter.AddDataCallback, Object)}
      * {@link TxnLogBufferedWriter#trigFlush()}
      * and so on.
      */
@@ -111,7 +111,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         ArrayList<Integer> callbackCtxList = new ArrayList<>();
         LinkedHashMap<PositionImpl, ArrayList<Position>> callbackPositions =
                 new LinkedHashMap<PositionImpl, ArrayList<Position>>();
-        AsyncCallbacks.AddDataCallback callback = new AsyncCallbacks.AddDataCallback(){
+        TxnLogBufferedWriter.AddDataCallback callback = new TxnLogBufferedWriter.AddDataCallback(){
             @Override
             public void addComplete(Position position, Object ctx) {
                 if (callbackCtxList.contains(Integer.valueOf(String.valueOf(ctx)))){
@@ -224,7 +224,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
                         }, 512, 1024 * 1024 * 4, 1, false);
         // Create callback.
         CompletableFuture<Pair<Position, Object>> future = new CompletableFuture<>();
-        AsyncCallbacks.AddDataCallback callback = new AsyncCallbacks.AddDataCallback(){
+        TxnLogBufferedWriter.AddDataCallback callback = new TxnLogBufferedWriter.AddDataCallback(){
             @Override
             public void addComplete(Position position, Object ctx) {
                 future.complete(Pair.of(position, ctx));
@@ -305,7 +305,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
 
         TxnLogBufferedWriter txnLogBufferedWriter = new TxnLogBufferedWriter<>(managedLedger, orderedExecutor,
                 scheduledExecutorService, serializer, 32, 1024 * 4, 100, true);
-        AsyncCallbacks.AddDataCallback callback = Mockito.mock(AsyncCallbacks.AddDataCallback.class);
+        TxnLogBufferedWriter.AddDataCallback callback = Mockito.mock(TxnLogBufferedWriter.AddDataCallback.class);
         // Test threshold: writeMaxDelayInMillis.
         txnLogBufferedWriter.asyncAddData(100, callback, 100);
         Thread.sleep(101);
