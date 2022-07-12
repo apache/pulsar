@@ -111,6 +111,23 @@ class LoggerWrapper : public Logger, public CaptivePythonObjectMixin {
     bool isEnabled(Level level) { return _getLogLevelValue(level) >= _pythonLogLevel; }
 
     void log(Level level, int line, const std::string& message) {
+        switch (level) {
+            case Logger::LEVEL_DEBUG:
+                log(level, line, "debug", message);
+                break;
+            case Logger::LEVEL_INFO:
+                log(level, line, "info", message);
+                break;
+            case Logger::LEVEL_WARN:
+                log(level, line, "warning", message);
+                break;
+            case Logger::LEVEL_ERROR:
+                log(level, line, "error", message);
+                break;
+        }
+    }
+   private:
+    void log(Level level, int line, const char* method, const std::string& message) {
         if (!Py_IsInitialized()) {
             // Python logger is unavailable - fallback to console logger
             _fallbackLogger->log(level, line, message);
@@ -118,22 +135,9 @@ class LoggerWrapper : public Logger, public CaptivePythonObjectMixin {
             PyGILState_STATE state = PyGILState_Ensure();
             py::object loggerModule = py::import("logging");
             py::object oldLogThreads = loggerModule.attr("logThreads");
+            loggerModule.attr("logThreads") = py::object(false);
             try {
-                loggerModule.attr("logThreads") = py::object(false);
-                switch (level) {
-                    case Logger::LEVEL_DEBUG:
-                        py::call_method<void>(_captive, "debug", message.c_str());
-                        break;
-                    case Logger::LEVEL_INFO:
-                        py::call_method<void>(_captive, "info", message.c_str());
-                        break;
-                    case Logger::LEVEL_WARN:
-                        py::call_method<void>(_captive, "warning", message.c_str());
-                        break;
-                    case Logger::LEVEL_ERROR:
-                        py::call_method<void>(_captive, "error", message.c_str());
-                        break;
-                }
+                py::call_method<void>(_captive, method, message.c_str());
                 loggerModule.attr("logThreads") = oldLogThreads;
             } catch (const py::error_already_set& e) {
                 _fallbackLogger->log(level, line, message);
