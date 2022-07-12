@@ -16,11 +16,11 @@ This tutorial guides you through every step of installing Pulsar locally.
 ### System requirements
 
 Currently, Pulsar is available for 64-bit **macOS**, **Linux**, and **Windows**. To use Pulsar, you need to install 64-bit JRE/JDK.
-For the runtime Java version, please refer to [Pulsar Runtime Java Version Recommendation](https://github.com/apache/pulsar/blob/master/README.md#pulsar-runtime-java-version-recommendation) according to your target Pulsar version.
+For the runtime Java version, see [Pulsar Runtime Java Version Recommendation](https://github.com/apache/pulsar/blob/master/README.md#pulsar-runtime-java-version-recommendation) according to your target Pulsar version.
 
 :::tip
 
-By default, Pulsar allocates 2G JVM heap memory to start. It can be changed in `conf/pulsar_env.sh` file under `PULSAR_MEM`. This is extra options passed into JVM. 
+By default, Pulsar allocates 2G JVM heap memory to start. It can be changed in `conf/pulsar_env.sh` file under `PULSAR_MEM`. This is an extra option passed into JVM. 
 
 :::
 
@@ -137,14 +137,14 @@ Directory | Contains
 
 :::tip
 
-If you want to use builtin connectors and tiered storage offloaders, you can install them according to the following instructions：
-* [Install builtin connectors (optional)](#install-builtin-connectors-optional)
+If you want to use built-in connectors and tiered storage offloaders, you can install them according to the following instructions：
+* [Install built-in connectors (optional)](#install-builtin-connectors-optional)
 * [Install tiered storage offloaders (optional)](#install-tiered-storage-offloaders-optional)
 Otherwise, skip this step and perform the next step [Start Pulsar standalone](#start-pulsar-standalone). Pulsar can be successfully installed without installing bulitin connectors and tiered storage offloaders.
 
 :::
 
-### Install builtin connectors (optional)
+### Install built-in connectors (optional)
 
 Since `2.1.0-incubating` release, Pulsar releases a separate binary distribution, containing all the `builtin` connectors.
 To enable those `builtin` connectors, you can download the connectors tarball release in one of the following ways:
@@ -163,7 +163,7 @@ To enable those `builtin` connectors, you can download the connectors tarball re
   
   ```
 
-After you download the nar file, copy the file to the `connectors` directory in the pulsar directory. 
+After you download the NAR file, copy the file to the `connectors` directory in the pulsar directory. 
 For example, if you download the `pulsar-io-aerospike-@pulsar:version@.nar` connector file, enter the following commands:
 
 ```bash
@@ -189,7 +189,7 @@ pulsar-io-aerospike-@pulsar:version@.nar
 :::tip
 
 - Since `2.2.0` release, Pulsar releases a separate binary distribution, containing the tiered storage offloaders.
-- To enable tiered storage feature, follow the instructions below; otherwise skip this section.
+- To enable the tiered storage feature, follow the instructions below; otherwise skip this section.
 
 :::
 
@@ -257,15 +257,13 @@ If you have started Pulsar successfully, you will see `INFO`-level log messages 
 
 :::tip
 
-* The service is running on your terminal, which is under your direct control. If you need to run other commands, open a new terminal window.  
+* The service is running on your terminal, which is under your direct control. If you need to run other commands, open a new terminal window. 
+* To run the service as a background process, you can use the `bin/pulsar-daemon start standalone` command. For more information, see [pulsar-daemon](/docs/en/reference-cli-tools/#pulsar-daemon).
+* To perform a health check, you can use the `bin/pulsar-admin brokers healthcheck` command. For more information, see [Pulsar-admin docs](/tools/pulsar-admin/).
+* When you start a local standalone cluster, a `public/default` [namespace](concepts-messaging.md#namespaces) is created automatically. The namespace is used for development purposes. All Pulsar topics are managed within namespaces. For more information, see [Topics](concepts-messaging.md#topics).
+* By default, there is no encryption, authentication, or authorization configured. Apache Pulsar can be accessed from a remote server without any authorization. See [Security Overview](security-overview.md) for how to secure your deployment. 
 
 :::
-
-You can also run the service as a background process using the `bin/pulsar-daemon start standalone` command. For more information, see [pulsar-daemon](/docs/en/reference-cli-tools/#pulsar-daemon).
-> 
-> * By default, there is no encryption, authentication, or authorization configured. Apache Pulsar can be accessed from remote server without any authorization. Please do check [Security Overview](security-overview.md) document to secure your deployment.
->
-> * When you start a local standalone cluster, a `public/default` [namespace](concepts-messaging.md#namespaces) is created automatically. The namespace is used for development purposes. All Pulsar topics are managed within namespaces. For more information, see [Topics](concepts-messaging.md#topics).
 
 ## Use Pulsar standalone
 
@@ -291,7 +289,7 @@ If the message has been successfully consumed, you will see a confirmation like 
 
 :::tip
 
-As you have noticed that we do not explicitly create the `my-topic` topic, to which we consume the message. When you consume a message to a topic that does not yet exist, Pulsar creates that topic for you automatically. Producing a message to a topic that does not exist will automatically create that topic for you as well.
+As you have noticed that we do not explicitly create the `my-topic` topic, to which we consume the message. When you consume a message on a topic that does not yet exist, Pulsar creates that topic for you automatically. Producing a message to a topic that does not exist will automatically create that topic for you as well.
 
 :::
 
