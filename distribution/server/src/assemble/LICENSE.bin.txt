@@ -309,17 +309,17 @@ pulsar-client-cpp/lib/checksum/crc32c_sw.cc
 This projects includes binary packages with the following licenses:
 
 The Apache Software License, Version 2.0
- * JCommander -- com.beust-jcommander-1.78.jar
+ * JCommander -- com.beust-jcommander-1.82.jar
  * High Performance Primitive Collections for Java -- com.carrotsearch-hppc-0.9.1.jar
  * Jackson
-     - com.fasterxml.jackson.core-jackson-annotations-2.13.2.jar
-     - com.fasterxml.jackson.core-jackson-core-2.13.2.jar
-     - com.fasterxml.jackson.core-jackson-databind-2.13.2.1.jar
-     - com.fasterxml.jackson.dataformat-jackson-dataformat-yaml-2.13.2.jar
-     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-base-2.13.2.jar
-     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-json-provider-2.13.2.jar
-     - com.fasterxml.jackson.module-jackson-module-jaxb-annotations-2.13.2.jar
-     - com.fasterxml.jackson.module-jackson-module-jsonSchema-2.13.2.jar
+     - com.fasterxml.jackson.core-jackson-annotations-2.13.3.jar
+     - com.fasterxml.jackson.core-jackson-core-2.13.3.jar
+     - com.fasterxml.jackson.core-jackson-databind-2.13.3.jar
+     - com.fasterxml.jackson.dataformat-jackson-dataformat-yaml-2.13.3.jar
+     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-base-2.13.3.jar
+     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-json-provider-2.13.3.jar
+     - com.fasterxml.jackson.module-jackson-module-jaxb-annotations-2.13.3.jar
+     - com.fasterxml.jackson.module-jackson-module-jsonSchema-2.13.3.jar
  * Caffeine -- com.github.ben-manes.caffeine-caffeine-2.9.1.jar
  * Conscrypt -- org.conscrypt-conscrypt-openjdk-uber-2.5.2.jar
  * Proto Google Common Protos -- com.google.api.grpc-proto-google-common-protos-2.0.1.jar

@@ -190,7 +190,7 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
             return false;
         }
 
-        PulsarContainer another = (PulsarContainer) o;
+        PulsarContainer<?> another = (PulsarContainer<?>) o;
         return getContainerId().equals(another.getContainerId())
             && super.equals(another);
     }

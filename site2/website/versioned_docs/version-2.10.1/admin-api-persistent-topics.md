@@ -5,4 +5,4 @@ sidebar_label: "Persistent topics"
 original_id: admin-api-persistent-topics
 ---
 
-For details of the content, refer to [manage topics](admin-api-topics).
+For details of the content, refer to [manage topics](admin-api-topics.md).

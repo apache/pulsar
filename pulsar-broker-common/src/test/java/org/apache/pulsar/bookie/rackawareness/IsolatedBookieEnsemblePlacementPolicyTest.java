@@ -327,7 +327,7 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
                 placementPolicyProperties2
         );
         Map<String, byte[]> customMetadata2 = new HashMap<>();
-        customMetadata2.put(EnsemblePlacementPolicyConfig.ENSEMBLE_PLACEMENT_POLICY_CONFIG, policyConfig.encode());
+        customMetadata2.put(EnsemblePlacementPolicyConfig.ENSEMBLE_PLACEMENT_POLICY_CONFIG, policyConfig2.encode());
         BookieId replaceBookie2 = isolationPolicy.replaceBookie(3, 3, 3, customMetadata2,
                 Arrays.asList(bookie1Id,bookie2Id,bookie3Id), bookie3Id, null).getResult();
         assertEquals(replaceBookie2, bookie4Id);
@@ -525,5 +525,63 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
         BookieId bookieId = isolationPolicy.replaceBookie(2, 1, 1, customMetadata,
             Arrays.asList(bookie1Id, bookie3Id), bookie3Id, null).getResult();
         assertEquals(bookieId, bookie2Id);
+    }
+
+    @Test
+    public void testDefaultIsolationPolicyNotCovered() throws Exception {
+        Map<String, Map<String, BookieInfo>> bookieMapping = new HashMap<>();
+        final String defaultIsolatedGroup = "Group1";
+        final String defaultSecondaryIsolatedGroup = "Group2";
+        final String customIsolatedGroup = "Group2";
+
+        Map<String, BookieInfo> Group1 = new HashMap<>();
+        Group1.put(BOOKIE1, BookieInfo.builder().rack("rack0").build());
+        Group1.put(BOOKIE2, BookieInfo.builder().rack("rack0").build());
+
+        Map<String, BookieInfo> Group2 = new HashMap<>();
+        Group2.put(BOOKIE3, BookieInfo.builder().rack("rack1").build());
+        Group2.put(BOOKIE4, BookieInfo.builder().rack("rack1").build());
+
+        Set<BookieId> BookieIdGroup1 = new HashSet<>();
+        BookieIdGroup1.add(new BookieSocketAddress(BOOKIE1).toBookieId());
+        BookieIdGroup1.add(new BookieSocketAddress(BOOKIE2).toBookieId());
+        Set<BookieId> BookieIdGroup2 = new HashSet<>();
+        BookieIdGroup2.add(new BookieSocketAddress(BOOKIE3).toBookieId());
+        BookieIdGroup2.add(new BookieSocketAddress(BOOKIE4).toBookieId());
+
+        bookieMapping.put(defaultIsolatedGroup, Group1);
+        bookieMapping.put(defaultSecondaryIsolatedGroup, Group2);
+
+        store.put(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, jsonMapper.writeValueAsBytes(bookieMapping),
+                Optional.empty()).join();
+
+        IsolatedBookieEnsemblePlacementPolicy isolationPolicy = new IsolatedBookieEnsemblePlacementPolicy();
+        ClientConfiguration bkClientConf = new ClientConfiguration();
+        bkClientConf.setProperty(BookieRackAffinityMapping.METADATA_STORE_INSTANCE, store);
+        bkClientConf.setProperty(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, defaultIsolatedGroup);
+        bkClientConf.setProperty(IsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS, defaultSecondaryIsolatedGroup);
+        isolationPolicy.initialize(bkClientConf, Optional.empty(), timer, SettableFeatureProvider.DISABLE_ALL,
+                NullStatsLogger.INSTANCE, BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
+        isolationPolicy.onClusterChanged(writableBookies, readOnlyBookies);
+
+        Map<String, Object> placementPolicyProperties = new HashMap<>();
+        placementPolicyProperties.put(
+                IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, customIsolatedGroup);
+        placementPolicyProperties.put(
+                IsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS, "");
+
+        EnsemblePlacementPolicyConfig policyConfig = new EnsemblePlacementPolicyConfig(
+                IsolatedBookieEnsemblePlacementPolicy.class,
+                placementPolicyProperties
+        );
+        Map<String, byte[]> customMetadata = new HashMap<>();
+        customMetadata.put(EnsemblePlacementPolicyConfig.ENSEMBLE_PLACEMENT_POLICY_CONFIG, policyConfig.encode());
+
+        List<BookieId> customBookieList = isolationPolicy
+                .newEnsemble(2, 2, 2, customMetadata, new HashSet<>()).getResult();
+        assertEquals(BookieIdGroup2.containsAll(customBookieList),true);
+        List<BookieId> defaultBookieList = isolationPolicy
+                .newEnsemble(2, 2, 2, Collections.emptyMap(), new HashSet<>()).getResult();
+        assertEquals(BookieIdGroup1.containsAll(defaultBookieList),true);
     }
 }

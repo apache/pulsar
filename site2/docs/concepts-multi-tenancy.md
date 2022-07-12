@@ -4,7 +4,7 @@ title: Multi Tenancy
 sidebar_label: "Multi Tenancy"
 ---
 
-Pulsar was created from the ground up as a multi-tenant system. To support multi-tenancy, Pulsar has a concept of tenants. Tenants can be spread across clusters and can each have their own [authentication and authorization](security-overview) scheme applied to them. They are also the administrative unit at which storage quotas, [message TTL](cookbooks-retention-expiry.md#time-to-live-ttl), and isolation policies can be managed.
+Pulsar was created from the ground up as a multi-tenant system. To support multi-tenancy, Pulsar has a concept of tenants. Tenants can be spread across clusters and can each have their own [authentication and authorization](security-overview.md) scheme applied to them. They are also the administrative unit at which storage quotas, [message TTL](cookbooks-retention-expiry.md#time-to-live-ttl), and isolation policies can be managed.
 
 The multi-tenant nature of Pulsar is reflected mostly visibly in topic URLs, which have this structure:
 
@@ -20,7 +20,7 @@ As you can see, the tenant is the most basic unit of categorization for topics (
 
 To each tenant in a Pulsar instance you can assign:
 
-* An [authorization](security-authorization) scheme
+* An [authorization](security-authorization.md) scheme
 * The set of [clusters](reference-terminology.md#cluster) to which the tenant's configuration applies
 
 ## Namespaces

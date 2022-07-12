@@ -64,7 +64,7 @@ alias echo='{ [[ $- =~ .*x.* ]] && trace_enabled=1 || trace_enabled=0; set +x; }
 
 # Test Groups  -- start --
 function test_group_broker_group_1() {
-  mvn_test -pl pulsar-broker -Dgroups='broker'
+  mvn_test -pl pulsar-broker -Dgroups='broker' -DtestReuseFork=true -DskipAfterFailureCount=1
 }
 
 function test_group_broker_group_2() {

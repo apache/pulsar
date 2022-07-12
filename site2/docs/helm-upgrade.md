@@ -19,7 +19,7 @@ You can retrieve your previous `--set` arguments cleanly, with `helm get values 
 To upgrade Apache Pulsar to a newer version, follow these steps:
 
 1. Check the change log for the specific version you would like to upgrade to.
-2. Go through [deployment documentation](helm-deploy) step by step.
+2. Go through [deployment documentation](helm-deploy.md) step by step.
 3. Extract your previous `--set` arguments with the following command.
 
    ```bash
