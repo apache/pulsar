@@ -454,7 +454,7 @@ This section demonstrates how to connect Pulsar to PostgreSQL.
 
 :::
 
->For more information, see [JDBC sink connector](io-jdbc-sink).
+>For more information, see [JDBC sink connector](io-jdbc-sink.md).
 
 
 ### Setup a PostgreSQL cluster
