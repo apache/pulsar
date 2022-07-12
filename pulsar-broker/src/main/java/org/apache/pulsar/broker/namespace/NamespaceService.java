@@ -32,6 +32,7 @@ import java.net.URI;
 import java.net.URL;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -87,6 +88,7 @@ import org.apache.pulsar.common.policies.data.BrokerAssignment;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
+import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
@@ -822,13 +824,34 @@ public class NamespaceService implements AutoCloseable {
         return unloadFuture;
     }
 
+    public Map<String, TopicStatsImpl> getTopicStats(NamespaceBundle bundle) {
+        ConcurrentOpenHashMap<String, Topic> topicMap = pulsar.getBrokerService().getMultiLayerTopicMap()
+        .computeIfAbsent(bundle.getNamespaceObject().toString(), k -> {
+            return ConcurrentOpenHashMap
+                    .<String, ConcurrentOpenHashMap<String, Topic>>newBuilder().build();
+        }).computeIfAbsent(bundle.toString(), k -> {
+            return ConcurrentOpenHashMap.<String, Topic>newBuilder().build();
+        });
+
+        Map<String, TopicStatsImpl> topicStatsMap = new HashMap<>();
+        topicMap.forEach((name, topic) -> {
+            topicStatsMap.put(name,
+                    topic.getStats(false, false, false));
+        });
+        return topicStatsMap;
+    }
+
     void splitAndOwnBundleOnceAndRetry(NamespaceBundle bundle,
                                        boolean unload,
                                        AtomicInteger counter,
                                        CompletableFuture<Void> completionFuture,
                                        NamespaceBundleSplitAlgorithm splitAlgorithm,
                                        List<Long> boundaries) {
-        BundleSplitOption bundleSplitOption = new BundleSplitOption(this, bundle, boundaries);
+        Map<String, TopicStatsImpl> topicStatsMap = getTopicStats(bundle);
+        BundleSplitOption bundleSplitOption = new BundleSplitOption(this, bundle, boundaries, topicStatsMap,
+                config.getLoadBalancerNamespaceBundleMaxMsgRate(),
+                config.getLoadBalancerNamespaceBundleMaxBandwidthMbytes(),
+                config.getFlowOrQpsDifferenceThresholdPercentage());
         splitAlgorithm.getSplitBoundary(bundleSplitOption).whenComplete((splitBoundaries, ex) -> {
             CompletableFuture<List<NamespaceBundle>> updateFuture = new CompletableFuture<>();
             if (ex == null) {

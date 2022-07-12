@@ -19,10 +19,12 @@
 package org.apache.pulsar.common.naming;
 
 import java.util.List;
+import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 
 @Getter
 @NoArgsConstructor
@@ -31,4 +33,8 @@ public class BundleSplitOption {
     private NamespaceService service;
     private NamespaceBundle bundle;
     private List<Long> positions;
+    private Map<String, TopicStatsImpl> topicStatsMap;
+    private int loadBalancerNamespaceBundleMaxMsgRate;
+    private int loadBalancerNamespaceBundleMaxBandwidthMbytes;
+    private int flowOrQpsDifferenceThresholdPercentage;
 }

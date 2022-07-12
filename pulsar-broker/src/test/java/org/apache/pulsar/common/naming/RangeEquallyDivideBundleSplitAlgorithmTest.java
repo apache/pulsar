@@ -37,7 +37,9 @@ public class RangeEquallyDivideBundleSplitAlgorithmTest {
         long correctResult = lowerRange + (upperRange - lowerRange) / 2;
         NamespaceBundle namespaceBundle = new NamespaceBundle(NamespaceName.SYSTEM_NAMESPACE, Range.range(lowerRange, BoundType.CLOSED, upperRange, BoundType.CLOSED),
                 Mockito.mock(NamespaceBundleFactory.class));
-        CompletableFuture<List<Long>> splitBoundary = rangeEquallyDivideBundleSplitAlgorithm.getSplitBoundary(new BundleSplitOption(null, namespaceBundle, null));
+        CompletableFuture<List<Long>> splitBoundary = rangeEquallyDivideBundleSplitAlgorithm
+                .getSplitBoundary(new BundleSplitOption(null, namespaceBundle, null, null,
+                        30000, 100, 10));
         List<Long> value = splitBoundary.join();
         Assert.assertEquals((long)value.get(0), correctResult);
     }
