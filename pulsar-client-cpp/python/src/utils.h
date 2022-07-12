@@ -98,13 +98,8 @@ class CaptivePythonObjectMixin {
         CaptivePythonObjectMixin(py::object captive) : CaptivePythonObjectMixin(captive.ptr()) {}
 
         ~CaptivePythonObjectMixin() {
-            std::cerr << "Destroying 1" << _captive << "\n";
-
             PyGILState_STATE state = PyGILState_Ensure();
-            std::cerr << "Destroying 1" << _captive << "\n";
-
             Py_XDECREF(_captive);
-            std::cerr << "Destroying 3" << _captive << "\n";
             PyGILState_Release(state);
         }
 };
