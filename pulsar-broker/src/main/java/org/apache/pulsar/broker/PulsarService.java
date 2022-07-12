@@ -444,7 +444,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                                     Duration.ofMillis(
                                             (long) (GRACEFUL_SHUTDOWN_TIMEOUT_RATIO_OF_TOTAL_TIMEOUT
                                                     * getConfiguration()
-                                                    .getBrokerShutdownTimeoutMs())));;
+                                                    .getBrokerShutdownTimeoutMs())));
 
 
             List<CompletableFuture<Void>> asyncCloseFutures = new ArrayList<>();

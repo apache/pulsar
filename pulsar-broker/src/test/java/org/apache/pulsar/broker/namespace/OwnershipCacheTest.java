@@ -115,10 +115,10 @@ public class OwnershipCacheTest {
     @AfterMethod(alwaysRun = true)
     public void teardown() throws Exception {
         executor.shutdownNow();
+        coordinationService.close();
         store.close();
         otherStore.close();
         zookeeperServer.close();
-        coordinationService.close();
     }
 
     @Test
