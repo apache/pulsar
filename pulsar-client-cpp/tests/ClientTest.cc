@@ -236,3 +236,35 @@ TEST(ClientTest, testReferenceCount) {
     ASSERT_EQ(readerWeakPtr.use_count(), 0);
     client.close();
 }
+
+TEST(ClientTest, testWrongListener) {
+    const std::string topic = "client-test-wrong-listener-" + std::to_string(time(nullptr));
+    auto httpCode = makePutRequest(
+        "http://localhost:8080/admin/v2/persistent/public/default/" + topic + "/partitions", "3");
+    LOG_INFO("create " << topic << ": " << httpCode);
+
+    Client client(lookupUrl, ClientConfiguration().setListenerName("test"));
+    Producer producer;
+    ASSERT_EQ(ResultServiceUnitNotReady, client.createProducer(topic, producer));
+    ASSERT_EQ(ResultProducerNotInitialized, producer.close());
+
+    Consumer consumer;
+    ASSERT_EQ(ResultServiceUnitNotReady, client.subscribe(topic, "sub", consumer));
+    ASSERT_EQ(ResultConsumerNotInitialized, consumer.close());
+
+    ASSERT_EQ(PulsarFriend::getProducers(client).size(), 0);
+    ASSERT_EQ(PulsarFriend::getConsumers(client).size(), 0);
+    ASSERT_EQ(ResultOk, client.close());
+
+    // The connection will be closed when the consumer failed, we must recreate the Client. Otherwise, the
+    // creation of Reader would fail with ResultConnectError.
+    client = Client(lookupUrl, ClientConfiguration().setListenerName("test"));
+
+    // Currently Reader can only read a non-partitioned topic in C++ client
+    Reader reader;
+    ASSERT_EQ(ResultServiceUnitNotReady,
+              client.createReader(topic + "-partition-0", MessageId::earliest(), {}, reader));
+    ASSERT_EQ(ResultConsumerNotInitialized, reader.close());
+    ASSERT_EQ(PulsarFriend::getConsumers(client).size(), 0);
+    ASSERT_EQ(ResultOk, client.close());
+}
