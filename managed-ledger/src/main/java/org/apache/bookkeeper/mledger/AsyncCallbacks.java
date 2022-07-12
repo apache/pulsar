@@ -70,6 +70,12 @@ public interface AsyncCallbacks {
         void addFailed(ManagedLedgerException exception, Object ctx);
     }
 
+    interface AddDataCallback {
+        void addComplete(Position position, Object ctx);
+
+        void addFailed(ManagedLedgerException exception, Object ctx);
+    }
+
     interface CloseCallback {
         void closeComplete(Object ctx);
 

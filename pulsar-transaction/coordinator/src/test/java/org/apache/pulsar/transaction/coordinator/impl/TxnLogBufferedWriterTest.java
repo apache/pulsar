@@ -41,7 +41,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.lang3.tuple.Triple;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.transaction.coordinator.test.MockedBookKeeperTestCase;
 import org.awaitility.Awaitility;
@@ -56,7 +56,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
 
     /**
      * Tests all operations from write to callback, including
-     * {@link TxnLogBufferedWriter#asyncAddData(Object, AsyncCallbacks.AddEntryCallback, Object)}
+     * {@link TxnLogBufferedWriter#asyncAddData(Object, AsyncCallbacks.AddDataCallback, Object)}
      * {@link TxnLogBufferedWriter#trigFlush()}
      * and so on.
      */
@@ -111,9 +111,9 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         ArrayList<Integer> callbackCtxList = new ArrayList<>();
         LinkedHashMap<PositionImpl, ArrayList<Position>> callbackPositions =
                 new LinkedHashMap<PositionImpl, ArrayList<Position>>();
-        AsyncCallbacks.AddEntryCallback callback = new AsyncCallbacks.AddEntryCallback(){
+        AsyncCallbacks.AddDataCallback callback = new AsyncCallbacks.AddDataCallback(){
             @Override
-            public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+            public void addComplete(Position position, Object ctx) {
                 if (callbackCtxList.contains(Integer.valueOf(String.valueOf(ctx)))){
                     return;
                 }
@@ -223,11 +223,11 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
                             }
                         }, 512, 1024 * 1024 * 4, 1, false);
         // Create callback.
-        CompletableFuture<Triple<Position, ByteBuf, Object>> future = new CompletableFuture<>();
-        AsyncCallbacks.AddEntryCallback callback = new AsyncCallbacks.AddEntryCallback(){
+        CompletableFuture<Pair<Position, Object>> future = new CompletableFuture<>();
+        AsyncCallbacks.AddDataCallback callback = new AsyncCallbacks.AddDataCallback(){
             @Override
-            public void addComplete(Position position, ByteBuf entryData, Object ctx) {
-                future.complete(Triple.of(position, entryData, ctx));
+            public void addComplete(Position position, Object ctx) {
+                future.complete(Pair.of(position, ctx));
             }
             @Override
             public void addFailed(ManagedLedgerException exception, Object ctx) {
@@ -239,16 +239,15 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         byteBuf.writeInt(1);
         txnLogBufferedWriter.asyncAddData(byteBuf, callback, 1);
         // Wait add finish.
-        Triple<Position, ByteBuf, Object> triple = future.get(2, TimeUnit.SECONDS);
+        Pair<Position, Object> pair = future.get(2, TimeUnit.SECONDS);
         // Assert callback ctx correct.
-        Assert.assertEquals(triple.getMiddle(), byteBuf);
-        Assert.assertEquals(triple.getRight(), 1);
+        Assert.assertEquals(pair.getRight(), 1);
         // Assert read entries correct.
         List<Entry> entries = managedCursor.readEntriesOrWait(1);
         Assert.assertEquals(entries.size(), 1);
         Entry entry = entries.get(0);
-        Assert.assertEquals(entry.getLedgerId(), triple.getLeft().getLedgerId());
-        Assert.assertEquals(entry.getEntryId(), triple.getLeft().getEntryId());
+        Assert.assertEquals(entry.getLedgerId(), pair.getLeft().getLedgerId());
+        Assert.assertEquals(entry.getEntryId(), pair.getLeft().getEntryId());
         Assert.assertEquals(entry.getDataBuffer().readInt(), 1);
         entry.release();
         // cleanup.
@@ -306,7 +305,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
 
         TxnLogBufferedWriter txnLogBufferedWriter = new TxnLogBufferedWriter<>(managedLedger, orderedExecutor,
                 scheduledExecutorService, serializer, 32, 1024 * 4, 100, true);
-        AsyncCallbacks.AddEntryCallback callback = Mockito.mock(AsyncCallbacks.AddEntryCallback.class);
+        AsyncCallbacks.AddDataCallback callback = Mockito.mock(AsyncCallbacks.AddDataCallback.class);
         // Test threshold: writeMaxDelayInMillis.
         txnLogBufferedWriter.asyncAddData(100, callback, 100);
         Thread.sleep(101);
