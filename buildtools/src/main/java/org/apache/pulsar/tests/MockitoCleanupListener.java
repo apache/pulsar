@@ -42,7 +42,7 @@ public class MockitoCleanupListener extends BetweenTestClassesListenerAdapter {
                 LOG.info("Cleaning up Mockito's ThreadSafeMockingProgress.MOCKING_PROGRESS_PROVIDER thread local state.");
                 MockitoThreadLocalStateCleaner.INSTANCE.cleanup();
             }
-            cleanupMockitoInline();
+            // cleanupMockitoInline();
         }
     }
 
