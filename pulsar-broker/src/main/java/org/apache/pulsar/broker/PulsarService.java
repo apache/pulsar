@@ -600,8 +600,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 Duration.ofMillis(Math.max(1L, getConfiguration().getBrokerShutdownTimeoutMs())),
                 shutdownExecutor, () -> FutureUtil.createTimeoutException("Timeout in close", getClass(), "close"));
         future.handle((v, t) -> {
-            LOG.info("Shutdown timed out after {} ms", getConfiguration().getBrokerShutdownTimeoutMs());
-            LOG.info(ThreadDumpUtil.buildThreadDiagnosticString());
+            if (t != null) {
+                LOG.info("Shutdown timed out after {} ms", getConfiguration().getBrokerShutdownTimeoutMs());
+                LOG.info(ThreadDumpUtil.buildThreadDiagnosticString());
+            }
             // shutdown the shutdown executor
             shutdownExecutor.shutdownNow();
             return null;
