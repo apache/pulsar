@@ -74,6 +74,41 @@ in the `bookkeeper.conf` configuration file.
 | bookie_flush | Gauge| The table flush latency of bookie memory. |
 | bookie_throttled_write_requests | Counter | The number of write requests to be throttled. |
 
+### Replication metrics
+
+| Name | Type | Description |
+|---|---|---|
+| auditor_NUM_UNDER_REPLICATED_LEDGERS | Summary | The distribution of num under_replicated ledgers on each auditor run. |
+| auditor_UNDER_REPLICATED_LEDGERS_TOTAL_SIZE | Summary | The distribution of under_replicated ledgers total size on each auditor run. |
+| auditor_URL_PUBLISH_TIME_FOR_LOST_BOOKIE | Summary | The latency distribution of publishing under replicated ledgers for lost bookies. |
+| auditor_BOOKIE_TO_LEDGERS_MAP_CREATION_TIME | Summary | The latency distribution of creating bookies-to-ledgers map. |
+| auditor_CHECK_ALL_LEDGERS_TIME | Summary | The latency distribution of checking all ledgers. |
+| auditor_PLACEMENT_POLICY_CHECK_TIME | Summary | The latency distribution of placementPolicy check. |
+| auditor_REPLICAS_CHECK_TIME | Summary | The latency distribution of replicas check. |
+| auditor_AUDIT_BOOKIES_TIME | Summary | The latency distribution of auditing all the bookies. |
+| auditor_NUM_LEDGERS_CHECKED | Counter | The number of ledgers checked by the auditor. |
+| auditor_NUM_FRAGMENTS_PER_LEDGER | Summary | The distribution of number of fragments per ledger. |
+| auditor_NUM_BOOKIES_PER_LEDGER | Summary | The distribution of number of bookies per ledger. |
+| auditor_NUM_BOOKIE_AUDITS_DELAYED | Counter | The number of bookie-audits delayed. |
+| auditor_NUM_DELAYED_BOOKIE_AUDITS_DELAYES_CANCELLED | Counter | The number of delayed-bookie-audits cancelled. |
+| auditor_NUM_LEDGERS_NOT_ADHERING_TO_PLACEMENT_POLICY | Gauge | Gauge for number of ledgers not adhering to placement policy found in placement policy check. |
+| auditor_NUM_LEDGERS_SOFTLY_ADHERING_TO_PLACEMENT_POLICY | Gauge | Gauge for number of ledgers softly adhering to placement policy found in placement policy check. |
+| auditor_NUM_UNDERREPLICATED_LEDGERS_ELAPSED_RECOVERY_GRACE_PERIOD | Gauge | Gauge for number of underreplicated ledgers elapsed recovery grace period. |
+| auditor_NUM_LEDGERS_HAVING_NO_REPLICA_OF_AN_ENTRY | Gauge | Gauge for number of ledgers having an entry with all the replicas missing. |
+| auditor_NUM_LEDGERS_HAVING_LESS_THAN_AQ_REPLICAS_OF_AN_ENTRY | Gauge | Gauge for number of ledgers having an entry with less than AQ number of replicas, this doesn't include ledgers counted towards numLedgersHavingNoReplicaOfAnEntry. |
+| auditor_NUM_LEDGERS_HAVING_LESS_THAN_WQ_REPLICAS_OF_AN_ENTRY | Gauge | Gauge for number of ledgers having an entry with less than WQ number of replicas, this doesn't include ledgers counted towards numLedgersHavingLessThanAQReplicasOfAnEntry. |
+| replication_worker_NUM_BYTES_READ | Summary | The distribution of size of entries read by the replicator. |
+| replication_worker_NUM_ENTRIES_READ | Counter | Number of entries read by the replicator. |
+| replication_worker_NUM_ENTRIES_WRITTEN | Counter | Number of entries written by the replicator. |
+| replication_worker_NUM_BYTES_WRITTEN | Summary | The distribution of size of entries written by the replicator. |
+| replication_worker_READ_DATA_LATENCY | Summary | The distribution of latency of read entries by the replicator. |
+| replication_worker_WRITE_DATA_LATENCY | Summary | The distribution of latency of write entries by the replicator. |
+| replication_worker_REPLICATE_EXCEPTION | Summary | Replication related exceptions. |
+| replication_worker_REREPLICATE_OP | Summary | Operation stats of re-replicating ledgers. |
+| replication_worker_NUM_FULL_OR_PARTIAL_LEDGERS_REPLICATED | Counter | The number of ledgers re-replicated. |
+| replication_worker_NUM_DEFER_LEDGER_LOCK_RELEASE_OF_FAILED_LEDGER | Counter | The number of defer-ledger-lock-releases of failed ledgers. |
+| replication_worker_NUM_ENTRIES_UNABLE_TO_READ_FOR_REPLICATION | Counter | The number of entries ReplicationWorker unable to read. |
+
 ## Broker
 
 The broker metrics are exposed under "/metrics" at port `8080`. You can change the port by updating `webServicePort` to a different port
@@ -90,6 +125,7 @@ The following metrics are available for broker:
   - [Server metrics](#server-metrics-1)
   - [Journal metrics](#journal-metrics)
   - [Storage metrics](#storage-metrics)
+  - [Replication metrics](#replication-metrics)
 - [Broker](#broker)
   - [Broker metrics](#broker-metrics)
   - [Namespace metrics](#namespace-metrics)
