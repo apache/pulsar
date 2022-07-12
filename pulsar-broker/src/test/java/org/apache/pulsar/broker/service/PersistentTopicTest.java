@@ -102,6 +102,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
+import org.apache.pulsar.broker.resources.TopicResources;
 import org.apache.pulsar.broker.service.persistent.CompactorSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherSingleActiveConsumer;
@@ -211,7 +212,9 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         store = new ZKMetadataStore(mockZk);
         PulsarResources pulsarResources = spyWithClassAndConstructorArgs(PulsarResources.class, store, store);
         NamespaceResources nsr = spyWithClassAndConstructorArgs(NamespaceResources.class, store, store, 30);
+        TopicResources tsr = spyWithClassAndConstructorArgs(TopicResources.class, store);
         doReturn(nsr).when(pulsarResources).getNamespaceResources();
+        doReturn(tsr).when(pulsarResources).getTopicResources();
         doReturn(pulsarResources).when(pulsar).getPulsarResources();
 
         doReturn(store).when(pulsar).getLocalMetadataStore();
@@ -238,6 +241,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         doReturn(nsSvc).when(pulsar).getNamespaceService();
         doReturn(true).when(nsSvc).isServiceUnitOwned(any());
         doReturn(true).when(nsSvc).isServiceUnitActive(any());
+        doReturn(CompletableFuture.completedFuture(true)).when(nsSvc).isServiceUnitActiveAsync(any());
         doReturn(CompletableFuture.completedFuture(true)).when(nsSvc).checkTopicOwnership(any());
 
         setupMLAsyncCallbackMocks();
@@ -1561,11 +1565,11 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         doAnswer(new Answer<Object>() {
             @Override
             public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-                ((OpenCursorCallback) invocationOnMock.getArguments()[3]).openCursorComplete(cursorMock, null);
+                ((OpenCursorCallback) invocationOnMock.getArguments()[4]).openCursorComplete(cursorMock, null);
                 return null;
             }
         }).when(ledgerMock).asyncOpenCursor(matches(".*success.*"), any(InitialPosition.class), any(Map.class),
-                any(OpenCursorCallback.class), any());
+                any(Map.class), any(OpenCursorCallback.class), any());
 
         doAnswer(new Answer<Object>() {
             @Override
@@ -2214,9 +2218,9 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
             return null;
         }).when(mockLedger).asyncDeleteCursor(matches(".*success.*"), any(DeleteCursorCallback.class), any());
         doAnswer((Answer<Object>) invocationOnMock -> {
-            ((OpenCursorCallback) invocationOnMock.getArguments()[3]).openCursorComplete(mockCursor, null);
+            ((OpenCursorCallback) invocationOnMock.getArguments()[4]).openCursorComplete(mockCursor, null);
             return null;
-        }).when(mockLedger).asyncOpenCursor(any(), any(), any(), any(), any());
+        }).when(mockLedger).asyncOpenCursor(any(), any(), any(), any(), any(), any());
         PersistentTopic topic = new PersistentTopic(successTopicName, mockLedger, brokerService);
 
         CommandSubscribe cmd = new CommandSubscribe()

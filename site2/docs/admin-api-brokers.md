@@ -29,7 +29,7 @@ Pulsar brokers consist of two components:
 
 * The `brokers` command of the [`pulsar-admin`](/tools/pulsar-admin/) tool
 * The `/admin/v2/brokers` endpoint of the admin {@inject: rest:REST:/} API
-* The `brokers` method of the `PulsarAdmin` object in the [Java API](client-libraries-java)
+* The `brokers` method of the `PulsarAdmin` object in the [Java API](client-libraries-java.md)
 
 In addition to being configurable when you start them up, brokers can also be [dynamically configured](#dynamic-broker-configuration).
 
@@ -39,22 +39,48 @@ In addition to being configurable when you start them up, brokers can also be [d
 
 ### List active brokers
 
-Fetch all available active brokers that are serving traffic.
+Fetch all available active brokers that are serving traffic for local cluster .
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
-  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"JAVA","value":"JAVA"}]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
+```shell
+$ pulsar-admin brokers list
+broker1.use.org.com:8080
+```
+
+</TabItem>
+<TabItem value="REST API">
+
+{@inject: endpoint|GET|/admin/v2/brokers|operation/getActiveBrokers?version=[[pulsar:version_number]]}
+
+
+</TabItem>
+<TabItem value="Java">
+
+```java
+admin.brokers().getActiveBrokers()
+```
+
+</TabItem>
+
+</Tabs>
+````
+
+Fetch all available active brokers that are serving traffic with cluster name.
+
+````mdx-code-block
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
 ```shell
 
 $ pulsar-admin brokers list use
-
-```
-
-```
-
 broker1.use.org.com:8080
 
 ```
@@ -65,7 +91,7 @@ broker1.use.org.com:8080
 {@inject: endpoint|GET|/admin/v2/brokers/:cluster|operation/getActiveBrokers?version=@pulsar:version_number@}
 
 </TabItem>
-<TabItem value="JAVA">
+<TabItem value="Java">
 
 ```java
 
@@ -83,19 +109,14 @@ admin.brokers().getActiveBrokers(clusterName)
 Fetch the information of the leader broker, for example, the service url.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
-  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"JAVA","value":"JAVA"}]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
 ```shell
 
 $ pulsar-admin brokers leader-broker
-
-```
-
-```
-
 BrokerInfo(serviceUrl=broker1.use.org.com:8080)
 
 ```
@@ -103,10 +124,10 @@ BrokerInfo(serviceUrl=broker1.use.org.com:8080)
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|GET|/admin/v2/brokers/leaderBroker?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v2/brokers/leaderBroker|operation/getLeaderBroker?version=@pulsar:version_number@}
 
 </TabItem>
-<TabItem value="JAVA">
+<TabItem value="Java">
 
 ```java
 
@@ -126,19 +147,15 @@ For the detail of the code above, see [here](https://github.com/apache/pulsar/bl
 It finds all namespaces which are owned and served by a given broker.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
-  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"JAVA","value":"JAVA"}]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
 ```shell
 
 $ pulsar-admin brokers namespaces use \
   --url broker1.use.org.com:8080
-
-```
-
-```json
 
 {
   "my-property/use/my-ns/0x00000000_0xffffffff": {
@@ -156,7 +173,7 @@ $ pulsar-admin brokers namespaces use \
 {@inject: endpoint|GET|/admin/v2/brokers/:cluster/:broker/ownedNamespaces|operation/getOwnedNamespaes?version=@pulsar:version_number@}
 
 </TabItem>
-<TabItem value="JAVA">
+<TabItem value="Java">
 
 ```java
 
@@ -181,9 +198,9 @@ But since all broker configuration in Pulsar is stored in ZooKeeper, configurati
 ### Update dynamic configuration
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
-  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"JAVA","value":"JAVA"}]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
 The [`update-dynamic-config`](/tools/pulsar-admin/) subcommand will update existing configuration. It takes two arguments: the name of the parameter and the new value using the `config` and `value` flag respectively. Here's an example for the [`brokerShutdownTimeoutMs`](reference-configuration.md#broker-brokerShutdownTimeoutMs) parameter:
@@ -200,7 +217,7 @@ $ pulsar-admin brokers update-dynamic-config --config brokerShutdownTimeoutMs --
 {@inject: endpoint|POST|/admin/v2/brokers/configuration/:configName/:configValue|operation/updateDynamicConfiguration?version=@pulsar:version_number@}
 
 </TabItem>
-<TabItem value="JAVA">
+<TabItem value="Java">
 
 ```java
 
@@ -217,9 +234,9 @@ admin.brokers().updateDynamicConfiguration(configName, configValue);
 
 Fetch a list of all potentially updatable configuration parameters.
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
-  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"JAVA","value":"JAVA"}]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
 ```shell
@@ -235,7 +252,7 @@ brokerShutdownTimeoutMs
 {@inject: endpoint|GET|/admin/v2/brokers/configuration|operation/getDynamicConfigurationName?version=@pulsar:version_number@}
 
 </TabItem>
-<TabItem value="JAVA">
+<TabItem value="Java">
 
 ```java
 
@@ -253,9 +270,9 @@ admin.brokers().getDynamicConfigurationNames();
 Fetch a list of all parameters that have been dynamically updated.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
-  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"JAVA","value":"JAVA"}]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
 ```shell
@@ -271,7 +288,7 @@ brokerShutdownTimeoutMs:100
 {@inject: endpoint|GET|/admin/v2/brokers/configuration/values|operation/getAllDynamicConfigurations?version=@pulsar:version_number@}
 
 </TabItem>
-<TabItem value="JAVA">
+<TabItem value="Java">
 
 ```java
 

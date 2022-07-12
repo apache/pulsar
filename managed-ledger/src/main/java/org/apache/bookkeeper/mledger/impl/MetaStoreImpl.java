@@ -214,8 +214,10 @@ public class MetaStoreImpl implements MetaStore {
     @Override
     public void asyncUpdateCursorInfo(String ledgerName, String cursorName, ManagedCursorInfo info, Stat stat,
             MetaStoreCallback<Void> callback) {
-        log.info("[{}] [{}] Updating cursor info ledgerId={} mark-delete={}:{}", ledgerName, cursorName,
-                info.getCursorsLedgerId(), info.getMarkDeleteLedgerId(), info.getMarkDeleteEntryId());
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] [{}] Updating cursor info ledgerId={} mark-delete={}:{}", ledgerName, cursorName,
+                    info.getCursorsLedgerId(), info.getMarkDeleteLedgerId(), info.getMarkDeleteEntryId());
+        }
 
         String path = PREFIX + ledgerName + "/" + cursorName;
         byte[] content = compressCursorInfo(info);

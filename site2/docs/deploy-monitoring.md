@@ -112,7 +112,7 @@ http://$FUNCTIONS_WORKER_ADDRESS:$WORKER_PORT/metrics:
 
 You can use Prometheus to collect all the metrics exposed for Pulsar components and set up [Grafana](https://grafana.com/) dashboards to display the metrics and monitor your Pulsar cluster. For details, refer to [Prometheus guide](https://prometheus.io/docs/introduction/getting_started/).
 
-When you run Pulsar on bare metal, you can provide the list of nodes to be probed. When you deploy Pulsar in a Kubernetes cluster, the monitoring is setup automatically. For details, refer to [Kubernetes instructions](helm-deploy). 
+When you run Pulsar on bare metal, you can provide the list of nodes to be probed. When you deploy Pulsar in a Kubernetes cluster, the monitoring is setup automatically. For details, refer to [Kubernetes instructions](helm-deploy.md). 
 
 ## Dashboards
 
@@ -120,7 +120,7 @@ When you collect time series statistics, the major problem is to make sure the n
 
 ### Pulsar per-topic dashboard
 
-The per-topic dashboard instructions are available at [Pulsar manager](administration-pulsar-manager).
+The per-topic dashboard instructions are available at [Pulsar manager](administration-pulsar-manager.md).
 
 ### Grafana
 
@@ -130,7 +130,7 @@ When you deploy Pulsar on Kubernetes with the Pulsar Helm Chart, a `pulsar-grafa
 
 The following are some Grafana dashboards examples:
 
-- [pulsar-grafana](/docs/en/deploy-monitoring/#grafana): a Grafana dashboard that displays metrics collected in Prometheus for Pulsar clusters running on Kubernetes.
+- [pulsar-grafana](deploy-monitoring.md#grafana): a Grafana dashboard that displays metrics collected in Prometheus for Pulsar clusters running on Kubernetes.
 - [apache-pulsar-grafana-dashboard](https://github.com/streamnative/apache-pulsar-grafana-dashboard): a collection of Grafana dashboard templates for different Pulsar components running on both Kubernetes and on-premise machines.
 
 ## Alerting rules

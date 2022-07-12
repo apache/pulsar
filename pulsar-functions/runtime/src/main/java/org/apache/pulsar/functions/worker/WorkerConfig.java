@@ -168,7 +168,8 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
             category = CATEGORY_WORKER,
             required = false,
             deprecated = true,
-            doc = "Configuration store connection string (as a comma-separated list)"
+            doc = "Configuration store connection string (as a comma-separated list). Deprecated in favor of "
+                    + "`configurationMetadataStoreUrl`"
     )
     @Deprecated
     private String configurationStoreServers;
@@ -241,7 +242,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private Boolean validateConnectorConfig = false;
     @FieldContext(
         category = CATEGORY_FUNCTIONS,
-        doc = "Should the builtin sources/sinks be uploaded for the externally managed runtimes?"
+        doc = "Should the builtin sources/sinks/functions be uploaded for the externally managed runtimes?"
     )
     private Boolean uploadBuiltinSinksSources = true;
     @FieldContext(

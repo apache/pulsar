@@ -207,19 +207,19 @@ This projects includes binary packages with the following licenses:
 The Apache Software License, Version 2.0
 
   * Jackson
-    - jackson-annotations-2.13.2.jar
-    - jackson-core-2.13.2.jar
-    - jackson-databind-2.13.2.1.jar
-    - jackson-dataformat-smile-2.13.2.jar
-    - jackson-datatype-guava-2.13.2.jar
-    - jackson-datatype-jdk8-2.13.2.jar
-    - jackson-datatype-joda-2.13.2.jar
-    - jackson-datatype-jsr310-2.13.2.jar
-    - jackson-dataformat-yaml-2.13.2.jar
-    - jackson-jaxrs-base-2.13.2.jar
-    - jackson-jaxrs-json-provider-2.13.2.jar
-    - jackson-module-jaxb-annotations-2.13.2.jar
-    - jackson-module-jsonSchema-2.13.2.jar
+    - jackson-annotations-2.13.3.jar
+    - jackson-core-2.13.3.jar
+    - jackson-databind-2.13.3.jar
+    - jackson-dataformat-smile-2.13.3.jar
+    - jackson-datatype-guava-2.13.3.jar
+    - jackson-datatype-jdk8-2.13.3.jar
+    - jackson-datatype-joda-2.13.3.jar
+    - jackson-datatype-jsr310-2.13.3.jar
+    - jackson-dataformat-yaml-2.13.3.jar
+    - jackson-jaxrs-base-2.13.3.jar
+    - jackson-jaxrs-json-provider-2.13.3.jar
+    - jackson-module-jaxb-annotations-2.13.3.jar
+    - jackson-module-jsonSchema-2.13.3.jar
  * Guava
     - guava-31.0.1-jre.jar
     - listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar
@@ -241,7 +241,7 @@ The Apache Software License, Version 2.0
     - netty-handler-proxy-4.1.77.Final.jar
     - netty-common-4.1.77.Final.jar
     - netty-handler-4.1.77.Final.jar
-    - netty-reactive-streams-2.0.4.jar
+    - netty-reactive-streams-2.0.6.jar
     - netty-resolver-4.1.77.Final.jar
     - netty-resolver-dns-4.1.77.Final.jar
     - netty-tcnative-boringssl-static-2.0.52.Final.jar
@@ -386,7 +386,7 @@ The Apache Software License, Version 2.0
     - javax.servlet-api-4.0.1.jar
     - javax.ws.rs-api-2.1.jar
   * JCommander
-    - jcommander-1.78.jar
+    - jcommander-1.82.jar
   * FindBugs JSR305
     - jsr305-3.0.2.jar
   * Objenesis
@@ -394,17 +394,18 @@ The Apache Software License, Version 2.0
   * Okio
     - okio-1.17.2.jar
   * Presto
-    - presto-array-332.jar
-    - presto-cli-332.jar
-    - presto-client-332.jar
-    - presto-geospatial-toolkit-332.jar
-    - presto-main-332.jar
-    - presto-matching-332.jar
-    - presto-memory-context-332.jar
-    - presto-parser-332.jar
-    - presto-plugin-toolkit-332.jar
-    - presto-spi-332.jar
-    - presto-record-decoder-332.jar
+    - presto-array-334.jar
+    - presto-cli-334.jar
+    - presto-client-334.jar
+    - presto-geospatial-toolkit-334.jar
+    - presto-main-334.jar
+    - presto-matching-334.jar
+    - presto-memory-context-334.jar
+    - presto-parser-334.jar
+    - presto-plugin-toolkit-334.jar
+    - presto-server-main-334.jar
+    - presto-spi-334.jar
+    - presto-record-decoder-334.jar
   * RocksDB JNI
     - rocksdbjni-6.10.2.jar
   * SnakeYAML
@@ -454,7 +455,7 @@ The Apache Software License, Version 2.0
   * Snappy
     - snappy-java-1.1.8.4.jar
   * Jackson
-    - jackson-module-parameter-names-2.13.2.jar
+    - jackson-module-parameter-names-2.13.3.jar
   * Java Assist
     - javassist-3.25.0-GA.jar
   * Java Native Access

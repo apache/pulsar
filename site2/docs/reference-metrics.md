@@ -27,7 +27,7 @@ The following types of metrics are available:
 
 The ZooKeeper metrics are exposed under "/metrics" at port `8000`. You can use a different port by configuring the `metricsProvider.httpPort` in conf/zookeeper.conf.
 
-ZooKeeper provides a New Metrics System since 3.6.0, more detailed metrics can refer [ZooKeeper Monitor Guide](https://zookeeper.apache.org/doc/r3.7.0/zookeeperMonitor.html).
+ZooKeeper provides a New Metrics System since 3.6.0. For more detailed metrics, refer to the [ZooKeeper Monitor Guide](https://zookeeper.apache.org/doc/r3.7.0/zookeeperMonitor.html).
 
 ## BookKeeper
 
@@ -172,6 +172,7 @@ All the namespace metrics are labelled with the following labels:
 | pulsar_rate_out | Gauge | The total message rate of the namespace going out from this broker (message per second). |
 | pulsar_throughput_in | Gauge | The total throughput of the namespace coming into this broker (byte per second). |
 | pulsar_throughput_out | Gauge | The total throughput of the namespace going out from this broker (byte per second). |
+| pulsar_consumer_msg_ack_rate | Gauge | The total message acknowledgment rate of the namespace owned by this broker (message per second). |
 | pulsar_storage_size | Gauge | The total storage size of the topics in this namespace owned by this broker (bytes). |
 | pulsar_storage_logical_size | Gauge | The storage size of topics in the namespace owned by the broker without replicas (in bytes). |
 | pulsar_storage_backlog_size | Gauge | The total backlog size of the topics of this namespace owned by this broker (in bytes). |
@@ -181,6 +182,7 @@ All the namespace metrics are labelled with the following labels:
 | pulsar_subscription_delayed | Gauge | The total message batches (entries) are delayed for dispatching. |
 | pulsar_storage_write_latency_le_* | Histogram | The entry rate of a namespace that the storage write latency is smaller with a given threshold.<br /> Available thresholds: <br /><ul><li>pulsar_storage_write_latency_le_0_5: <= 0.5ms </li><li>pulsar_storage_write_latency_le_1: <= 1ms</li><li>pulsar_storage_write_latency_le_5: <= 5ms</li><li>pulsar_storage_write_latency_le_10: <= 10ms</li><li>pulsar_storage_write_latency_le_20: <= 20ms</li><li>pulsar_storage_write_latency_le_50: <= 50ms</li><li>pulsar_storage_write_latency_le_100: <= 100ms</li><li>pulsar_storage_write_latency_le_200: <= 200ms</li><li>pulsar_storage_write_latency_le_1000: <= 1s</li><li>pulsar_storage_write_latency_le_overflow: > 1s</li></ul> |
 | pulsar_entry_size_le_* | Histogram | The entry rate of a namespace that the entry size is smaller with a given threshold.<br /> Available thresholds: <br /><ul><li>pulsar_entry_size_le_128: <= 128 bytes </li><li>pulsar_entry_size_le_512: <= 512 bytes</li><li>pulsar_entry_size_le_1_kb: <= 1 KB</li><li>pulsar_entry_size_le_2_kb: <= 2 KB</li><li>pulsar_entry_size_le_4_kb: <= 4 KB</li><li>pulsar_entry_size_le_16_kb: <= 16 KB</li><li>pulsar_entry_size_le_100_kb: <= 100 KB</li><li>pulsar_entry_size_le_1_mb: <= 1 MB</li><li>pulsar_entry_size_le_overflow: > 1 MB</li></ul> |
+| pulsar_delayed_delivery_tracker_memory_usage | GAUGE | The total memory size allocated by `InMemoryDelayedDeliveryTracker` of the namespace owned by this broker (in bytes). | 
 
 #### Replication metrics
 
@@ -220,6 +222,7 @@ All the topic metrics are labelled with the following labels:
 | pulsar_publish_rate_limit_times | Gauge | The number of times the publish rate limit is triggered. |
 | pulsar_throughput_in | Gauge | The total throughput of the topic coming into this broker (byte per second). |
 | pulsar_throughput_out | Gauge | The total throughput of the topic going out from this broker (byte per second). |
+| pulsar_consumer_msg_ack_rate | Gauge | The total message acknowledgment rate of the topic connected to this broker (message per second). |
 | pulsar_storage_size | Gauge | The total storage size of the topics in this topic owned by this broker (bytes). |
 | pulsar_storage_logical_size | Gauge | The storage size of topics in the namespace owned by the broker without replicas (in bytes). |
 | pulsar_storage_backlog_size | Gauge | The total backlog size of the topics of this topic owned by this broker (in bytes). |
@@ -243,6 +246,7 @@ All the topic metrics are labelled with the following labels:
 | pulsar_compaction_latency_le_* | Histogram | The compaction latency with given quantile. <br /> Available thresholds: <br /><ul><li>pulsar_compaction_latency_le_0_5: <= 0.5ms </li><li>pulsar_compaction_latency_le_1: <= 1ms</li><li>pulsar_compaction_latency_le_5: <= 5ms</li><li>pulsar_compaction_latency_le_10: <= 10ms</li><li>pulsar_compaction_latency_le_20: <= 20ms</li><li>pulsar_compaction_latency_le_50: <= 50ms</li><li>pulsar_compaction_latency_le_100: <= 100ms</li><li>pulsar_compaction_latency_le_200: <= 200ms</li><li>pulsar_compaction_latency_le_1000: <= 1s</li><li>pulsar_compaction_latency_le_overflow: > 1s</li></ul> |
 | pulsar_compaction_compacted_entries_count | Gauge | The total number of the compacted entries. |
 | pulsar_compaction_compacted_entries_size |Gauge  | The total size of the compacted entries. |
+| pulsar_delayed_delivery_tracker_memory_usage | GAUGE | The total memory size allocated by `InMemoryDelayedDeliveryTracker` of the topic owned by this broker (in bytes). |
 
 #### Replication metrics
 
@@ -393,6 +397,7 @@ All the subscription metrics are labelled with the following labels:
 | pulsar_subscription_blocked_on_unacked_messages | Gauge | Indicate whether a subscription is blocked on unacknowledged messages or not. <br /> <ul><li>1 means the subscription is blocked on waiting unacknowledged messages to be acked.</li><li>0 means the subscription is not blocked on waiting unacknowledged messages to be acked.</li></ul> |
 | pulsar_subscription_msg_rate_out | Gauge | The total message dispatch rate for a subscription (message per second). |
 | pulsar_subscription_msg_throughput_out | Gauge | The total message dispatch throughput for a subscription (byte per second). |
+| pulsar_subscription_msg_ack_rate | Gauge | The total message acknowledgment rate for a subscription (message per second). |
 
 ### Consumer metrics
 
@@ -610,7 +615,7 @@ Connector metrics contain **source** metrics and **sink** metrics.
 All the proxy metrics are labelled with the following labels:
 
 - *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you have configured in the `broker.conf` file.
-- *kubernetes_pod_name*: `kubernetes_pod_name=${kubernetes_pod_name}`. `${kubernetes_pod_name}` is the kubernetes pod name.
+- *kubernetes_pod_name*: `kubernetes_pod_name=${kubernetes_pod_name}`. `${kubernetes_pod_name}` is the Kubernetes pod name.
 
 | Name | Type | Description |
 |---|---|---|

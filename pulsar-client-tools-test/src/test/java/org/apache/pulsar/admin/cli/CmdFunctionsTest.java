@@ -78,13 +78,11 @@ public class CmdFunctionsTest {
     private static final String PACKAGE_GO_URL = "function://sample/ns1/godummyexamples@1";
     private static final String PACKAGE_PY_URL = "function://sample/ns1/pydummyexamples@1";
     private static final String PACKAGE_INVALID_URL = "functionsample.jar";
-    private static final String BUILTIN_NAR = "builtin://dummyexamples";
+    private static final String BUILTIN_NAR = "dummyexamples";
 
     private PulsarAdmin admin;
     private Functions functions;
     private CmdFunctions cmd;
-    private CmdSinks cmdSinks;
-    private CmdSources cmdSources;
 
     public static class DummyFunction implements Function<String, String> {
 
@@ -105,9 +103,6 @@ public class CmdFunctionsTest {
         when(admin.functions()).thenReturn(functions);
         when(admin.getServiceUrl()).thenReturn("http://localhost:1234");
         this.cmd = new CmdFunctions(() -> admin);
-        this.cmdSinks = new CmdSinks(() -> admin);
-        this.cmdSources = new CmdSources(() -> admin);
-
     }
 
 //    @Test
@@ -299,6 +294,7 @@ public class CmdFunctionsTest {
         assertEquals(FN_NAME, creater.getFunctionName());
         assertEquals(INPUT_TOPIC_NAME, creater.getInputs());
         assertEquals(OUTPUT_TOPIC_NAME, creater.getOutput());
+
         verify(functions, times(1)).createFunctionWithUrl(any(FunctionConfig.class), anyString());
     }
 
@@ -433,18 +429,31 @@ public class CmdFunctionsTest {
                 "--name", FN_NAME,
                 "--inputs", INPUT_TOPIC_NAME,
                 "--output", OUTPUT_TOPIC_NAME,
-                "--jar", BUILTIN_NAR,
+                "--function-type", BUILTIN_NAR,
                 "--tenant", "sample",
                 "--namespace", "ns1",
-                "--className", DummyFunction.class.getName(),
         });
-
         CreateFunction creater = cmd.getCreater();
 
         assertEquals(FN_NAME, creater.getFunctionName());
         assertEquals(INPUT_TOPIC_NAME, creater.getInputs());
         assertEquals(OUTPUT_TOPIC_NAME, creater.getOutput());
+        assertEquals("builtin://" + BUILTIN_NAR, creater.getFunctionConfig().getJar());
         verify(functions, times(1)).createFunction(any(FunctionConfig.class), anyString());
+    }
+
+    @Test
+    public void testCreateFunctionWithoutClassName() throws Exception {
+        cmd.run(new String[] {
+                "create",
+                "--name", FN_NAME,
+                "--inputs", INPUT_TOPIC_NAME,
+                "--output", OUTPUT_TOPIC_NAME,
+                "--jar", PACKAGE_URL,
+                "--tenant", "sample",
+                "--namespace", "ns1",
+        });
+        verify(functions, times(0)).createFunctionWithUrl(any(FunctionConfig.class), anyString());
     }
 
     @Test

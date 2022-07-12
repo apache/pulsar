@@ -375,8 +375,14 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         if (componentType == org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.SINK) {
             Thread.currentThread().setContextClassLoader(functionClassLoader);
         }
+        AbstractSinkRecord<?> sinkRecord;
+        if (output instanceof Record) {
+            sinkRecord = new OutputRecordSinkRecord<>(srcRecord, (Record) output);
+        } else {
+            sinkRecord = new SinkRecord<>(srcRecord, output);
+        }
         try {
-            this.sink.write(new SinkRecord<>(srcRecord, output));
+            this.sink.write(sinkRecord);
         } catch (Exception e) {
             log.info("Encountered exception in sink write: ", e);
             stats.incrSinkExceptions(e);

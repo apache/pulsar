@@ -48,7 +48,6 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.io.SinkConfig;
@@ -75,11 +74,10 @@ import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.utils.SinkConfigUtils;
 import org.apache.pulsar.functions.utils.SourceConfigUtils;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry;
+import org.apache.pulsar.functions.utils.functions.FunctionArchive;
 import org.apache.pulsar.functions.utils.functions.FunctionUtils;
-import org.apache.pulsar.functions.utils.functions.Functions;
 import org.apache.pulsar.functions.utils.io.Connector;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
-import org.apache.pulsar.functions.worker.WorkerConfig;
 
 @Slf4j
 public class LocalRunner implements AutoCloseable {
@@ -89,6 +87,7 @@ public class LocalRunner implements AutoCloseable {
     private final String narExtractionDirectory;
     private final File narExtractionDirectoryCreated;
     private final String connectorsDir;
+    private final String functionsDir;
     private final Thread shutdownHook;
     private final int instanceLivenessCheck;
     private ClassLoader userCodeClassLoader;
@@ -218,7 +217,8 @@ public class LocalRunner implements AutoCloseable {
                        boolean useTls, boolean tlsAllowInsecureConnection, boolean tlsHostNameVerificationEnabled,
                        String tlsTrustCertFilePath, int instanceIdOffset, RuntimeEnv runtimeEnv,
                        String secretsProviderClassName, String secretsProviderConfig, String narExtractionDirectory,
-                       String connectorsDirectory, Integer metricsPortStart, boolean exitOnError) {
+                       String connectorsDirectory, String functionsDirectory, Integer metricsPortStart,
+                       boolean exitOnError) {
         this.functionConfig = functionConfig;
         this.sourceConfig = sourceConfig;
         this.sinkConfig = sinkConfig;
@@ -242,15 +242,8 @@ public class LocalRunner implements AutoCloseable {
             this.narExtractionDirectoryCreated = createNarExtractionTempDirectory();
             this.narExtractionDirectory = this.narExtractionDirectoryCreated.getAbsolutePath();
         }
-        if (connectorsDirectory != null) {
-            this.connectorsDir = connectorsDirectory;
-        } else {
-            String pulsarHome = System.getenv("PULSAR_HOME");
-            if (pulsarHome == null) {
-                pulsarHome = Paths.get("").toAbsolutePath().toString();
-            }
-            this.connectorsDir = Paths.get(pulsarHome, "connectors").toString();
-        }
+        this.connectorsDir = connectorsDirectory != null ? connectorsDirectory : getPulsarDirectory("connectors");
+        this.functionsDir = functionsDirectory != null ? functionsDirectory : getPulsarDirectory("functions");
         this.metricsPortStart = metricsPortStart;
         this.exitOnError = exitOnError;
         this.instanceLivenessCheck = exitOnError ? 0 : 30000;
@@ -261,6 +254,14 @@ public class LocalRunner implements AutoCloseable {
                 log.warn("Encountered exception when closing localrunner", exception);
             }
         });
+    }
+
+    private static String getPulsarDirectory(String directory) {
+        String pulsarHome = System.getenv("PULSAR_HOME");
+        if (pulsarHome == null) {
+            pulsarHome = Paths.get("").toAbsolutePath().toString();
+        }
+        return Paths.get(pulsarHome, directory).toString();
     }
 
     private static File createNarExtractionTempDirectory() {
@@ -328,44 +329,54 @@ public class LocalRunner implements AutoCloseable {
                 throw new IllegalArgumentException("Pulsar Function local run already started!");
             }
             Runtime.getRuntime().addShutdownHook(shutdownHook);
-            Function.FunctionDetails functionDetails;
-            String userCodeFile = null;
+            Function.FunctionDetails functionDetails = null;
+            String userCodeFile;
             int parallelism;
             if (functionConfig != null) {
                 FunctionConfigUtils.inferMissingArguments(functionConfig, true);
                 parallelism = functionConfig.getParallelism();
                 if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
                     userCodeFile = functionConfig.getJar();
-
-                    boolean isBuiltin = !StringUtils.isEmpty(functionConfig.getJar())
-                            && functionConfig.getJar().startsWith(Utils.BUILTIN);
-                    if (isBuiltin) {
-                        WorkerConfig workerConfig =
-                                WorkerConfig.load(System.getenv("PULSAR_HOME") + "/conf/functions_worker.yml");
-                        Functions functions = FunctionUtils
-                                .searchForFunctions(System.getenv("PULSAR_HOME")
-                                        + workerConfig.getFunctionsDirectory().replaceFirst("^.", ""));
-                        String functionType = functionConfig.getJar().replaceFirst("^builtin://", "");
-                        userCodeFile = functions.getFunctions().get(functionType).toString();
-                    }
-
-                    if (Utils.isFunctionPackageUrlSupported(userCodeFile)) {
+                    ClassLoader builtInFunctionClassLoader = userCodeFile != null
+                            ? isBuiltInFunction(userCodeFile)
+                            : null;
+                    if (builtInFunctionClassLoader != null) {
+                        userCodeClassLoader = builtInFunctionClassLoader;
+                        functionDetails = FunctionConfigUtils.convert(
+                                functionConfig,
+                                FunctionConfigUtils.validateJavaFunction(functionConfig, builtInFunctionClassLoader));
+                    } else if (userCodeFile != null && Utils.isFunctionPackageUrlSupported(userCodeFile)) {
                         File file = FunctionCommon.extractFileFromPkgURL(userCodeFile);
-                        userCodeClassLoader = FunctionConfigUtils.validate(functionConfig, file);
+                        ClassLoader functionClassLoader = FunctionCommon.getClassLoaderFromPackage(
+                                Function.FunctionDetails.ComponentType.FUNCTION,
+                                functionConfig.getClassName(), file, narExtractionDirectory);
+                        functionDetails = FunctionConfigUtils.convert(
+                                functionConfig,
+                                FunctionConfigUtils.validateJavaFunction(functionConfig, functionClassLoader));
+                        userCodeClassLoader = functionClassLoader;
                         userCodeClassLoaderCreated = true;
                     } else if (userCodeFile != null) {
                         File file = new File(userCodeFile);
                         if (!file.exists()) {
                             throw new RuntimeException("User jar does not exist");
                         }
-                        userCodeClassLoader = FunctionConfigUtils.validate(functionConfig, file);
+                        ClassLoader functionClassLoader = FunctionCommon.getClassLoaderFromPackage(
+                                Function.FunctionDetails.ComponentType.FUNCTION,
+                                functionConfig.getClassName(), file, narExtractionDirectory);
+                        functionDetails = FunctionConfigUtils.convert(
+                                functionConfig,
+                                FunctionConfigUtils.validateJavaFunction(functionConfig, functionClassLoader));
+                        userCodeClassLoader = functionClassLoader;
                         userCodeClassLoaderCreated = true;
                     } else {
                         if (!(runtimeEnv == null || runtimeEnv == RuntimeEnv.THREAD)) {
                             throw new IllegalStateException("The jar property must be specified in FunctionConfig.");
                         }
-                        FunctionConfigUtils.validateJavaFunction(functionConfig, Thread.currentThread()
-                                .getContextClassLoader());
+                        functionDetails = FunctionConfigUtils.convert(
+                                functionConfig,
+                                FunctionConfigUtils.validateJavaFunction(
+                                        functionConfig,
+                                        Thread.currentThread().getContextClassLoader()));
                     }
                 } else if (functionConfig.getRuntime() == FunctionConfig.Runtime.GO) {
                     userCodeFile = functionConfig.getGo();
@@ -375,9 +386,11 @@ public class LocalRunner implements AutoCloseable {
                     throw new UnsupportedOperationException();
                 }
 
-                functionDetails = FunctionConfigUtils.convert(functionConfig,
-                        userCodeClassLoader != null ? userCodeClassLoader :
-                                Thread.currentThread().getContextClassLoader());
+                if (functionDetails == null) {
+                    functionDetails = FunctionConfigUtils.convert(functionConfig,
+                            userCodeClassLoader != null ? userCodeClassLoader :
+                                    Thread.currentThread().getContextClassLoader());
+                }
             } else if (sourceConfig != null) {
                 inferMissingArguments(sourceConfig);
                 userCodeFile = sourceConfig.getArchive();
@@ -590,7 +603,7 @@ public class LocalRunner implements AutoCloseable {
                 }
             }
         }, 30000, 30000);
-        java.lang.Runtime.getRuntime().addShutdownHook(new Thread(() -> statusCheckTimer.cancel()));
+        java.lang.Runtime.getRuntime().addShutdownHook(new Thread(statusCheckTimer::cancel));
     }
 
 
@@ -679,6 +692,20 @@ public class LocalRunner implements AutoCloseable {
         }
     }
 
+    private ClassLoader isBuiltInFunction(String functionType) throws IOException {
+        // Validate the connector type from the locally available connectors
+        TreeMap<String, FunctionArchive> functions = getFunctions();
+
+        String functionName = functionType.replaceFirst("^builtin://", "");
+        FunctionArchive function = functions.get(functionName);
+        if (function != null && function.getFunctionDefinition().getFunctionClass() != null) {
+            // Function type is a valid built-in type.
+            return function.getClassLoader();
+        } else {
+            return null;
+        }
+    }
+
     private ClassLoader isBuiltInSource(String sourceType) throws IOException {
         // Validate the connector type from the locally available connectors
         TreeMap<String, Connector> connectors = getConnectors();
@@ -705,6 +732,10 @@ public class LocalRunner implements AutoCloseable {
         } else {
             return null;
         }
+    }
+
+    private TreeMap<String, FunctionArchive> getFunctions() throws IOException {
+        return FunctionUtils.searchForFunctions(functionsDir);
     }
 
     private TreeMap<String, Connector> getConnectors() throws IOException {

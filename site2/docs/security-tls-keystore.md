@@ -6,7 +6,7 @@ sidebar_label: "Using TLS with KeyStore configure"
 
 ## Overview
 
-Apache Pulsar supports [TLS encryption](security-tls-transport.md) and [TLS authentication](security-tls-authentication) between clients and Apache Pulsar service. 
+Apache Pulsar supports [TLS encryption](security-tls-transport.md) and [TLS authentication](security-tls-authentication.md) between clients and Apache Pulsar service. 
 By default it uses PEM format file configuration. This page tries to describe use [KeyStore](https://en.wikipedia.org/wiki/Java_KeyStore) type configure for TLS.
 
 
@@ -230,7 +230,7 @@ For example:
 
 ## TLS authentication with KeyStore configure
 
-This similar to [TLS authentication with PEM type](security-tls-authentication)
+This similar to [TLS authentication with PEM type](security-tls-authentication.md)
 
 ### broker authentication config
 

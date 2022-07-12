@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.tests;
 
+import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,10 +37,22 @@ public class MockitoCleanupListener extends BetweenTestClassesListenerAdapter {
 
     @Override
     protected void onBetweenTestClasses(Class<?> endedTestClass, Class<?> startedTestClass) {
-        if (MOCKITO_CLEANUP_ENABLED && MockitoThreadLocalStateCleaner.INSTANCE.isEnabled()) {
-            LOG.info("Cleaning up Mockito's ThreadSafeMockingProgress.MOCKING_PROGRESS_PROVIDER thread local state.");
-            MockitoThreadLocalStateCleaner.INSTANCE.cleanup();
+        if (MOCKITO_CLEANUP_ENABLED) {
+            if (MockitoThreadLocalStateCleaner.INSTANCE.isEnabled()) {
+                LOG.info("Cleaning up Mockito's ThreadSafeMockingProgress.MOCKING_PROGRESS_PROVIDER thread local state.");
+                MockitoThreadLocalStateCleaner.INSTANCE.cleanup();
+            }
+            cleanupMockitoInline();
         }
+    }
+
+    /**
+     * Mockito-inline can leak mocked objects, we need to clean up the inline mocks after every test.
+     * See <a href="https://javadoc.io/doc/org.mockito/mockito-core/latest/org/mockito/Mockito.html#47"}>
+     *     mockito docs</a>.
+     */
+    private void cleanupMockitoInline() {
+        Mockito.framework().clearInlineMocks();
     }
 
 }

@@ -19,7 +19,7 @@
 package org.apache.pulsar.broker.service.nonpersistent;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static org.apache.bookkeeper.mledger.impl.EntryCacheManager.create;
+import static org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheManagerImpl.create;
 import static org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import com.carrotsearch.hppc.ObjectObjectHashMap;
@@ -38,7 +38,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
-import java.util.concurrent.atomic.LongAdder;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -106,9 +105,6 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
     private static final AtomicLongFieldUpdater<NonPersistentTopic> ENTRIES_ADDED_COUNTER_UPDATER =
             AtomicLongFieldUpdater.newUpdater(NonPersistentTopic.class, "entriesAddedCounter");
     private volatile long entriesAddedCounter = 0;
-
-    private final LongAdder bytesOutFromRemovedSubscriptions = new LongAdder();
-    private final LongAdder msgOutFromRemovedSubscriptions = new LongAdder();
 
     private static final FastThreadLocal<TopicStats> threadLocalTopicStats = new FastThreadLocal<TopicStats>() {
         @Override
@@ -717,6 +713,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
             double subMsgRateOut = 0;
             double subMsgThroughputOut = 0;
             double subMsgRateRedeliver = 0;
+            double subMsgAckRate = 0;
 
             // Start subscription name & consumers
             try {
@@ -731,6 +728,8 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
 
                     ConsumerStatsImpl consumerStats = consumer.getStats();
                     subMsgRateOut += consumerStats.msgRateOut;
+                    subMsgAckRate += consumerStats.messageAckRate;
+
                     subMsgThroughputOut += consumerStats.msgThroughputOut;
                     subMsgRateRedeliver += consumerStats.msgRateRedeliver;
 
@@ -745,6 +744,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                 topicStatsStream.writePair("msgBacklog", subscription.getNumberOfEntriesInBacklog(false));
                 topicStatsStream.writePair("msgRateExpired", subscription.getExpiredMessageRate());
                 topicStatsStream.writePair("msgRateOut", subMsgRateOut);
+                topicStatsStream.writePair("messageAckRate", subMsgAckRate);
                 topicStatsStream.writePair("msgThroughputOut", subMsgThroughputOut);
                 topicStatsStream.writePair("msgRateRedeliver", subMsgRateRedeliver);
                 topicStatsStream.writePair("type", subscription.getTypeString());

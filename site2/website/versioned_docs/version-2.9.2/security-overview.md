@@ -27,11 +27,11 @@ Apache Pulsar uses a [Authentication Provider](#authentication-providers) to est
 
 Currently Pulsar supports the following authentication providers:
 
-- [TLS Authentication](security-tls-authentication)
-- [Athenz](security-athenz)
-- [Kerberos](security-kerberos)
-- [JSON Web Token Authentication](security-jwt)
-- [OAuth 2.0 authentication](security-oauth2)
-- [HTTP basic authentication](security-basic-auth)
+- [TLS Authentication](security-tls-authentication.md)
+- [Athenz](security-athenz.md)
+- [Kerberos](security-kerberos.md)
+- [JSON Web Token Authentication](security-jwt.md)
+- [OAuth 2.0 authentication](security-oauth2.md)
+- [HTTP basic authentication](security-basic-auth.md)
 
 

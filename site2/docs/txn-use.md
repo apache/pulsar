@@ -40,7 +40,7 @@ This section provides an example of how to use the transaction API to send and r
      
      ```
 
-   * If you want to guarantee exactly-once semantics, you need to enable [message deduplication](cookbooks-deduplication).
+   * If you want to guarantee exactly-once semantics, you need to enable [message deduplication](cookbooks-deduplication.md).
    You can enable message deduplication at the broker level, the namespace level, or the topic level according to your needs.
    
 
@@ -69,12 +69,9 @@ This section provides an example of how to use the transaction API to send and r
    ```
    
    PulsarClient client = PulsarClient.builder()
-
-   .serviceUrl(“pulsar://localhost:6650”)
-
-   .enableTransaction(true)
-
-   .build();
+      .serviceUrl(“pulsar://localhost:6650”)
+      .enableTransaction(true)
+      .build();
    
    ```
 
@@ -96,12 +93,11 @@ Let’s walk through this example step by step.
 
 ```
 
-Consumer<byte[]> sinkConsumer = pulsarClient
+Consumer<byte[]> consumer = pulsarClient
     .newConsumer()
     .topic(transferTopic)
-    .subscriptionName("sink-topic")
-
-.subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+    .subscriptionName("transaction-sub")
+    .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
     .subscriptionType(SubscriptionType.Shared)
     .enableBatchIndexAcknowledgment(true) // enable batch index acknowledgement
     .subscribe();

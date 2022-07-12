@@ -270,7 +270,7 @@ For more information about implementation, see [PR-7300](https://github.com/apac
 
 ## More information
 
-- To download Apache Pulsar 2.6.1, click [download](https://pulsar.apache.org/en/download/).
+- To download Apache Pulsar 2.6.1, click [download](https://pulsar.apache.org/download/).
 - For more information about Apache Pulsar 2.6.1, see [2.6.1 release notes](https://pulsar.apache.org/release-notes/#2.6.1) and [2.6.1 PR list](https://github.com/apache/pulsar/pulls?q=is%3Apr+label%3Arelease%2F2.6.1+is%3Aclosed).
 
 If you have any questions or suggestions, contact us with mailing lists or slack.

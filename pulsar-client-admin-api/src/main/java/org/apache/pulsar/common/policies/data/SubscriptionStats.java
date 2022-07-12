@@ -40,6 +40,11 @@ public interface SubscriptionStats {
     /** Total rate of messages redelivered on this subscription (msg/s). */
     double getMsgRateRedeliver();
 
+    /**
+     * Total rate of message ack(msg/s).
+     */
+    double getMessageAckRate();
+
     /** Chunked message dispatch rate. */
     int getChunkedMessageRate();
 
@@ -61,10 +66,14 @@ public interface SubscriptionStats {
     /** Number of delayed messages currently being tracked. */
     long getMsgDelayed();
 
-    /** Number of unacknowledged messages for the subscription. */
+    /**
+     * Number of unacknowledged messages for the subscription, where an unacknowledged message is one that has been
+     * sent to a consumer but not yet acknowledged. Calculated by summing all {@link ConsumerStats#getUnackedMessages()}
+     * for this subscription. See {@link ConsumerStats#getUnackedMessages()} for additional details.
+     */
     long getUnackedMessages();
 
-    /** Whether this subscription is Exclusive or Shared or Failover. */
+    /** The subscription type as defined by {@link org.apache.pulsar.client.api.SubscriptionType}. */
     String getType();
 
     /** The name of the consumer that is active for single active consumer subscriptions i.e. failover or exclusive. */

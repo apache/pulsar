@@ -28,7 +28,7 @@ The following types of metrics are available:
 
 The ZooKeeper metrics are exposed under "/metrics" at port `8000`. You can use a different port by configuring the `metricsProvider.httpPort` in conf/zookeeper.conf.
 
-ZooKeeper provides a New Metrics System since 3.6.0, more detailed metrics can refer [ZooKeeper Monitor Guide](https://zookeeper.apache.org/doc/r3.7.0/zookeeperMonitor.html).
+ZooKeeper provides a New Metrics System since 3.6.0. For more detailed metrics, refer to the [ZooKeeper Monitor Guide](https://zookeeper.apache.org/doc/r3.7.0/zookeeperMonitor.html).
 
 ## BookKeeper
 
@@ -509,7 +509,7 @@ Connector metrics contain **source** metrics and **sink** metrics.
 All the proxy metrics are labelled with the following labels:
 
 - *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you have configured in the `broker.conf` file.
-- *kubernetes_pod_name*: `kubernetes_pod_name=${kubernetes_pod_name}`. `${kubernetes_pod_name}` is the kubernetes pod name.
+- *kubernetes_pod_name*: `kubernetes_pod_name=${kubernetes_pod_name}`. `${kubernetes_pod_name}` is the Kubernetes pod name.
 
 | Name | Type | Description |
 |---|---|---|

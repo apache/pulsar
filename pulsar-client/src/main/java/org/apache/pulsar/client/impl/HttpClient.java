@@ -137,6 +137,7 @@ public class HttpClient implements Closeable {
                 }
 
                 confBuilder.setUseInsecureTrustManager(conf.isTlsAllowInsecureConnection());
+                confBuilder.setDisableHttpsEndpointIdentificationAlgorithm(!conf.isTlsHostnameVerificationEnable());
             } catch (GeneralSecurityException e) {
                 throw new PulsarClientException.InvalidConfigurationException(e);
             } catch (Exception e) {
@@ -152,6 +153,10 @@ public class HttpClient implements Closeable {
 
     String getServiceUrl() {
         return this.serviceNameResolver.getServiceUrl();
+    }
+
+    public InetSocketAddress resolveHost() {
+        return serviceNameResolver.resolveHost();
     }
 
     void setServiceUrl(String serviceUrl) throws PulsarClientException {

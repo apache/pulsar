@@ -33,7 +33,7 @@ The chapters below demonstrate how to grant namespace-level permissions to users
 You can grant permissions to specific roles for lists of operations such as `produce` and `consume`.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
@@ -111,7 +111,7 @@ admin.namespaces().grantPermissionOnNamespace(namespace, role, getAuthActions(ac
 You can see which permissions have been granted to which roles in a namespace.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
@@ -154,7 +154,7 @@ admin.namespaces().getPermissions(namespace);
 You can revoke permissions from specific roles, which means that those roles will no longer have access to the specified namespace.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">

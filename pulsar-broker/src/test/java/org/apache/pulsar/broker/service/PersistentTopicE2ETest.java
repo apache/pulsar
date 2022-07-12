@@ -48,9 +48,9 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import org.apache.bookkeeper.mledger.ManagedCursor;
-import org.apache.bookkeeper.mledger.impl.EntryCacheImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.impl.cache.EntryCache;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.persistent.MessageRedeliveryController;
@@ -339,7 +339,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) topicRef.getManagedLedger();
         Field cacheField = ManagedLedgerImpl.class.getDeclaredField("entryCache");
         cacheField.setAccessible(true);
-        EntryCacheImpl entryCache = (EntryCacheImpl) cacheField.get(ledger);
+        EntryCache entryCache = (EntryCache) cacheField.get(ledger);
 
         /************* Validation on non-empty active-cursor **************/
         // (4) Get ActiveCursor : which is list of active subscription

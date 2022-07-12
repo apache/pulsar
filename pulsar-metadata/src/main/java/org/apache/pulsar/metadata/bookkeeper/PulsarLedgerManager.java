@@ -377,7 +377,7 @@ public class PulsarLedgerManager implements LedgerManager {
                     if (log.isDebugEnabled()) {
                         log.debug("Ledger metadata is changed for {} : {}.", ledgerId, result);
                     }
-                    scheduler.submit(() -> {
+                    scheduler.execute(() -> {
                         synchronized (listenerSet) {
                             for (BookkeeperInternalCallbacks.LedgerMetadataListener listener : listenerSet) {
                                 listener.onChanged(ledgerId, result);

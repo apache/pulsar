@@ -15,8 +15,8 @@ Messages are the basic "unit" of Pulsar. They're what producers publish to topic
 
 Component | Purpose
 :---------|:-------
-Value / data payload | The data carried by the message. All Pulsar messages carry raw bytes, although message data can also conform to data [schemas](concepts-schema-registry)
-Key | Messages can optionally be tagged with keys, which can be useful for things like [topic compaction](concepts-topic-compaction)
+Value / data payload | The data carried by the message. All Pulsar messages carry raw bytes, although message data can also conform to data [schemas](concepts-schema-registry.md)
+Key | Messages can optionally be tagged with keys, which can be useful for things like [topic compaction](concepts-topic-compaction.md)
 Properties | An optional key/value map of user-defined properties
 Producer name | The name of the producer that produced the message (producers are automatically given default names, but you can apply your own explicitly as well)
 Sequence ID | Each Pulsar message belongs to an ordered sequence on its topic. A message's sequence ID is its ordering in that sequence.

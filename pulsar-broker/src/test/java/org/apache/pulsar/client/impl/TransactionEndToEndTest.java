@@ -19,6 +19,10 @@
 package org.apache.pulsar.client.impl;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyObject;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
@@ -34,6 +38,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.util.concurrent.EventExecutor;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
@@ -1127,5 +1133,39 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         // then redeliver will not receive any message
         message = consumer.receive(3, TimeUnit.SECONDS);
         assertNull(message);
+    }
+
+    @Test
+    public void testSendTxnMessageTimeout() throws Exception {
+        String topic = NAMESPACE1 + "/testSendTxnMessageTimeout";
+        @Cleanup
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
+                .topic(topic)
+                .sendTimeout(1, TimeUnit.SECONDS)
+                .create();
+
+        Transaction transaction = pulsarClient.newTransaction().withTransactionTimeout(5, TimeUnit.SECONDS)
+                .build().get();
+
+        // mock cnx, send message can't receive response
+        ClientCnx cnx = mock(ClientCnx.class);
+        ChannelHandlerContext channelHandlerContext = mock(ChannelHandlerContext.class);
+        doReturn(channelHandlerContext).when(cnx).ctx();
+        EventExecutor eventExecutor = mock(EventExecutor.class);
+        doReturn(eventExecutor).when(channelHandlerContext).executor();
+        CompletableFuture<ProducerResponse> completableFuture = new CompletableFuture<>();
+        completableFuture.complete(new ProducerResponse("test", 1,
+                "1".getBytes(), Optional.of(30L)));
+        doReturn(completableFuture).when(cnx).sendRequestWithId(anyObject(), anyLong());
+        producer.getConnectionHandler().setClientCnx(cnx);
+
+
+        try {
+            // send message with txn use mock cnx, will not receive send response
+            producer.newMessage(transaction).value("Hello Pulsar!".getBytes()).send();
+            fail();
+        } catch (PulsarClientException ex) {
+            assertTrue(ex instanceof PulsarClientException.TimeoutException);
+        }
     }
 }
