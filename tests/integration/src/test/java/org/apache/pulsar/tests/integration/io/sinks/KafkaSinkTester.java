@@ -60,6 +60,7 @@ public class KafkaSinkTester extends SinkTester<KafkaContainer> {
         sinkConfig.put("topic", kafkaTopicName);
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     protected KafkaContainer createSinkService(PulsarCluster cluster) {
         return new KafkaContainer()

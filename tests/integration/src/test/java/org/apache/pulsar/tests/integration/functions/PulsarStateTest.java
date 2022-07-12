@@ -328,6 +328,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
         ensureSubscriptionCreated(inputTopicName, String.format("public/default/%s", functionName), inputTopicSchema);
     }
 
+    @SuppressWarnings("try")
     private <T> void ensureSubscriptionCreated(String inputTopicName,
                                                       String subscriptionName,
                                                       Schema<T> inputTopicSchema)
