@@ -252,6 +252,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             messagesFuture = consumer.receiveAsync().thenApply(Collections::singletonList);
         }
         messagesFuture.thenAcceptAsync(messages -> {
+            if (consumer.isDuringSeek()) {
+                receiveMessageFromConsumer(consumer, batchReceive);
+                return;
+            }
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] Receive message from sub consumer:{}",
                     topic, subscription, consumer.getTopic());

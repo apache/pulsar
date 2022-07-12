@@ -2778,6 +2778,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         return possibleSendToDeadLetterTopicMessages;
     }
 
+    protected boolean isDuringSeek() {
+        return duringSeek.get();
+    }
+
     private static final Logger log = LoggerFactory.getLogger(ConsumerImpl.class);
 
 }
