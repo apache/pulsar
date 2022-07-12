@@ -1882,6 +1882,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 if (isAuthorized) {
                     getBrokerService().pulsar().getNamespaceService().getListOfTopics(namespaceName, mode)
                         .thenAccept(topics -> {
+                            topics = topics.stream()
+                                    .filter(topic -> !PulsarService.isTransactionSystemTopic(TopicName.get(topic)))
+                                    .collect(Collectors.toList());
                             if (log.isDebugEnabled()) {
                                 log.debug(
                                         "[{}] Received CommandGetTopicsOfNamespace for namespace [//{}] by {}, size:{}",
