@@ -96,12 +96,16 @@ static ReaderConfiguration& ReaderConfiguration_setCryptoKeyReader(ReaderConfigu
 class LoggerWrapper : public Logger, public CaptivePythonObjectMixin {
     const int _pythonLogLevel;
     const std::unique_ptr<Logger> _fallbackLogger;
-
+    py::object _loggerModule;
     static constexpr int _getLogLevelValue(Level level) { return 10 + (level * 10); }
 
    public:
     LoggerWrapper(PyObject* pyLogger, int pythonLogLevel, Logger* fallbackLogger)
-        : CaptivePythonObjectMixin(pyLogger), _pythonLogLevel(pythonLogLevel), _fallbackLogger(fallbackLogger) {}
+        : CaptivePythonObjectMixin(pyLogger), _pythonLogLevel(pythonLogLevel), _fallbackLogger(fallbackLogger) {
+        PyGILState_STATE state = PyGILState_Ensure();
+        _loggerModule = py::import("logging");
+        PyGILState_Release(state);
+    }
 
     LoggerWrapper(const LoggerWrapper&) = delete;
     LoggerWrapper(LoggerWrapper&&) noexcept = delete;
@@ -133,15 +137,14 @@ class LoggerWrapper : public Logger, public CaptivePythonObjectMixin {
             _fallbackLogger->log(level, line, message);
         } else {
             PyGILState_STATE state = PyGILState_Ensure();
-            py::object loggerModule = py::import("logging");
-            py::object oldLogThreads = loggerModule.attr("logThreads");
-            loggerModule.attr("logThreads") = py::object(false);
+            py::object oldLogThreads = _loggerModule.attr("logThreads");
+            _loggerModule.attr("logThreads") = py::object(false);
             try {
                 py::call_method<void>(_captive, method, message.c_str());
-                loggerModule.attr("logThreads") = oldLogThreads;
+                _loggerModule.attr("logThreads") = oldLogThreads;
             } catch (const py::error_already_set& e) {
                 _fallbackLogger->log(level, line, message);
-                loggerModule.attr("logThreads") = oldLogThreads;
+                _loggerModule.attr("logThreads") = oldLogThreads;
             }
             PyGILState_Release(state);
         }
