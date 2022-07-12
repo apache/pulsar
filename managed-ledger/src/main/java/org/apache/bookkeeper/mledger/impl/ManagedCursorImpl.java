@@ -3290,4 +3290,13 @@ public class ManagedCursorImpl implements ManagedCursor {
     public ManagedLedgerConfig getConfig() {
         return config;
     }
+
+    /**
+     * check cursor reset status
+     *
+     * @return true if the cursor reset in progress
+     */
+    public boolean resetCursorInProgress() {
+        return RESET_CURSOR_IN_PROGRESS_UPDATER.get(this) == TRUE;
+    }
 }

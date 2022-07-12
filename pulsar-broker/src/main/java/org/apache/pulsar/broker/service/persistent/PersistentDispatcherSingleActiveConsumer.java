@@ -35,6 +35,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ConcurrentWaitCallbackException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.util.SafeRun;
 import org.apache.commons.lang3.tuple.Pair;
@@ -278,6 +279,11 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
             if (log.isDebugEnabled()) {
                 log.debug("[{}-{}] Ignoring flow control message since consumer is waiting for cursor to be rewinded",
                         name, consumer);
+            }
+        } else if (((ManagedCursorImpl) cursor).resetCursorInProgress()) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}-{}] Ignoring flow control message since cursor reset in progress - cursor {}",
+                        name, consumer, cursor.getName());
             }
         } else {
             if (log.isDebugEnabled()) {
