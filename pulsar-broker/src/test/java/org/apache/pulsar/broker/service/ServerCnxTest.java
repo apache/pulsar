@@ -119,6 +119,7 @@ import org.apache.pulsar.common.topics.TopicList;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
+import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.zookeeper.ZooKeeper;
@@ -247,11 +248,7 @@ public class ServerCnxTest {
                 .timeout(Duration.ZERO)
                 .shutdown(executor)
                 .handle());
-        final CompletableFuture<Void> eventLoopGroupCloseFuture = new CompletableFuture<>();
-        eventLoopGroup.shutdownGracefully().sync().addListener(f -> {
-            eventLoopGroupCloseFuture.complete(null);
-        });
-        futures.add(eventLoopGroupCloseFuture);
+        futures.add(EventLoopUtil.shutdownGracefully(eventLoopGroup));
         FutureUtil.waitForAll(futures).get();
         store.close();
     }

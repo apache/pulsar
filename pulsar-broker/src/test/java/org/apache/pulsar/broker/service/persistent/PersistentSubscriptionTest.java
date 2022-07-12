@@ -71,6 +71,7 @@ import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
+import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
@@ -218,11 +219,7 @@ public class PersistentSubscriptionTest {
                 .timeout(Duration.ZERO)
                 .shutdown(executor)
                 .handle());
-        final CompletableFuture<Void> eventLoopGroupCloseFuture = new CompletableFuture<>();
-        eventLoopGroup.shutdownGracefully().sync().addListener(f -> {
-            eventLoopGroupCloseFuture.complete(null);
-        });
-        futures.add(eventLoopGroupCloseFuture);
+        futures.add(EventLoopUtil.shutdownGracefully(eventLoopGroup));
         FutureUtil.waitForAll(futures).get();
         store.close();
     }

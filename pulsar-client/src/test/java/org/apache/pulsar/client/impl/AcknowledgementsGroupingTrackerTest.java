@@ -80,7 +80,7 @@ public class AcknowledgementsGroupingTrackerTest {
 
     @AfterClass(alwaysRun = true)
     public void teardown() throws Exception {
-        eventLoopGroup.shutdownGracefully().sync().get();
+        eventLoopGroup.shutdownGracefully().get();
     }
 
     @Test(dataProvider = "isNeedReceipt")

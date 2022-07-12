@@ -51,6 +51,7 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
+import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -201,11 +202,7 @@ public class PulsarMultiListenersWithInternalListenerNameTest extends MockedPuls
                 .timeout(Duration.ZERO)
                 .shutdown(executorService)
                 .handle());
-        final CompletableFuture<Void> eventLoopGroupCloseFuture = new CompletableFuture<>();
-        eventExecutors.shutdownGracefully().sync().addListener(f -> {
-            eventLoopGroupCloseFuture.complete(null);
-        });
-        futures.add(eventLoopGroupCloseFuture);
+        futures.add(EventLoopUtil.shutdownGracefully(eventExecutors));
         FutureUtil.waitForAll(futures).get();
         super.internalCleanup();
     }

@@ -18,14 +18,12 @@
  */
 package org.apache.pulsar.common.util;
 
-import io.netty.channel.EventLoopGroup;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
-import org.apache.pulsar.common.util.netty.NettyFutureUtil;
 
 /**
  * This a builder like class for providing a fluent API for graceful shutdown
@@ -44,11 +42,6 @@ import org.apache.pulsar.common.util.netty.NettyFutureUtil;
 public class GracefulExecutorServicesShutdown {
     private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(15);
     private static final Double DEFAULT_TERMINATION_TIMEOUT_RATIO = 0.1d;
-
-    private static final long GRACEFUL_SHUTDOWN_QUIET_PERIOD_MAX_MS = 5000L;
-    private static final double GRACEFUL_SHUTDOWN_QUIET_PERIOD_RATIO_OF_TOTAL_TIMEOUT = 0.25d;
-    public static final double GRACEFUL_SHUTDOWN_TIMEOUT_RATIO_OF_TOTAL_TIMEOUT = 0.5d;
-
     private final List<ExecutorService> executorServices = new ArrayList<>();
     private Duration timeout = DEFAULT_TIMEOUT;
     private Duration terminationTimeout;
@@ -121,16 +114,4 @@ public class GracefulExecutorServicesShutdown {
         return new GracefulExecutorServicesTerminationHandler(timeout, terminationTimeout,
                 executorServices).getFuture();
     }
-
-    public static CompletableFuture<Void> shutdownEventLoopGracefully(EventLoopGroup eventLoopGroup,
-                                                                      long brokerShutdownTimeoutMs) {
-        long quietPeriod = Math.min((long) (
-                        GRACEFUL_SHUTDOWN_QUIET_PERIOD_RATIO_OF_TOTAL_TIMEOUT * brokerShutdownTimeoutMs),
-                GRACEFUL_SHUTDOWN_QUIET_PERIOD_MAX_MS);
-        long timeout = (long) (GRACEFUL_SHUTDOWN_TIMEOUT_RATIO_OF_TOTAL_TIMEOUT * brokerShutdownTimeoutMs);
-        return NettyFutureUtil.toCompletableFutureVoid(
-                eventLoopGroup.shutdownGracefully(quietPeriod,
-                        timeout, TimeUnit.MILLISECONDS));
-    }
-
 }
