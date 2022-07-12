@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
+import static org.testng.Assert.assertEquals;
+import java.util.HashMap;
+import java.util.Map;
+
 import com.google.common.collect.Maps;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
@@ -25,11 +29,6 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
-import java.util.HashMap;
-import java.util.Map;
-
-import static org.testng.Assert.assertEquals;
 
 /**
  * Unit test {@link org.apache.pulsar.common.schema.SchemaInfo}.
@@ -40,6 +39,7 @@ public class SchemaInfoTest {
         + "  \"name\": \"INT32\",\n"
         + "  \"schema\": \"\",\n"
         + "  \"type\": \"INT32\",\n"
+        + "  \"timestamp\": 0,\n"
         + "  \"properties\": {}\n"
         + "}";
 
@@ -47,6 +47,7 @@ public class SchemaInfoTest {
         + "  \"name\": \"String\",\n"
         + "  \"schema\": \"\",\n"
         + "  \"type\": \"STRING\",\n"
+            + "  \"timestamp\": 0,\n"
         + "  \"properties\": {}\n"
         + "}";
 
@@ -64,6 +65,7 @@ public class SchemaInfoTest {
         + "    ]\n"
         + "  },\n"
         + "  \"type\": \"JSON\",\n"
+        + "  \"timestamp\": 0,\n"
         + "  \"properties\": {\n"
         + "    \"__alwaysAllowNull\": \"true\",\n"
         + "    \"__jsr310ConversionEnabled\": \"false\",\n"
@@ -136,6 +138,7 @@ public class SchemaInfoTest {
         + "    ]\n"
         + "  },\n"
         + "  \"type\": \"AVRO\",\n"
+        + "  \"timestamp\": 0,\n"
         + "  \"properties\": {\n"
         + "    \"__alwaysAllowNull\": \"false\",\n"
         + "    \"__jsr310ConversionEnabled\": \"false\",\n"
@@ -211,6 +214,7 @@ public class SchemaInfoTest {
         + "        ]\n"
         + "      },\n"
         + "      \"type\": \"AVRO\",\n"
+        + "      \"timestamp\": 0,\n"
         + "      \"properties\": {\n"
         + "        \"__alwaysAllowNull\": \"false\",\n"
         + "        \"__jsr310ConversionEnabled\": \"false\",\n"
@@ -233,6 +237,7 @@ public class SchemaInfoTest {
         + "        ]\n"
         + "      },\n"
         + "      \"type\": \"JSON\",\n"
+        + "      \"timestamp\": 0,\n"
         + "      \"properties\": {\n"
         + "        \"__alwaysAllowNull\": \"true\",\n"
         + "        \"__jsr310ConversionEnabled\": \"false\",\n"
@@ -243,6 +248,7 @@ public class SchemaInfoTest {
         + "    }\n"
         + "  },\n"
         + "  \"type\": \"KEY_VALUE\",\n"
+        + "  \"timestamp\": 0,\n"
         + "  \"properties\": {\n"
         + "    \"key.schema.name\": \"\",\n"
         + "    \"key.schema.properties\": \"{\\\"__alwaysAllowNull\\\":\\\"false\\\",\\\"__jsr310ConversionEnabled\\\":\\\"false\\\",\\\"foo1\\\":\\\"foo-value1\\\",\\\"foo2\\\":\\\"foo-value2\\\",\\\"foo3\\\":\\\"foo-value3\\\"}\",\n"
