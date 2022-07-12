@@ -1078,13 +1078,21 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Get backlog quota map on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
-    public Map<BacklogQuotaType, BacklogQuota> getBacklogQuotaMap(@PathParam("tenant") String tenant,
+    public void getBacklogQuotaMap(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        validateNamespacePolicyOperation(
-                NamespaceName.get(tenant, namespace), PolicyName.BACKLOG, PolicyOperation.READ);
-        Policies policies = getNamespacePolicies(namespaceName);
-        return policies.backlog_quota_map;
+        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.BACKLOG,
+                PolicyOperation.READ)
+                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+                .thenAccept(policies -> asyncResponse.resume(policies.backlog_quota_map))
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to get backlog quota map on namespace {}:{}", clientAppId(), namespaceName,
+                            ex.getCause().getMessage(), ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @POST
