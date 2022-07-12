@@ -19,6 +19,7 @@
 package org.apache.pulsar.transaction.coordinator.impl;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.PreferHeapByteBufAllocator;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.nio.charset.Charset;
@@ -39,10 +40,14 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.transaction.coordinator.test.MockedBookKeeperTestCase;
 import org.awaitility.Awaitility;
+import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -123,7 +128,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         };
         // Loop write data.  Holds variable dataArrayProvided just for release.
         List<ByteBuf> dataArrayProvided = new ArrayList<>();
-        int cmdAddExecutedCount = 100000;
+        int cmdAddExecutedCount = 5000;
         for (int i = 0; i < cmdAddExecutedCount; i++){
             ByteBuf byteBuf = PulsarByteBufAllocator.DEFAULT.buffer(8);
             byteBuf.writeInt(i);
@@ -131,7 +136,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
             txnLogBufferedWriter.asyncAddData(byteBuf, callback, i);
         }
         // Wait for all cmd-write finish.
-        Awaitility.await().atMost(20, TimeUnit.SECONDS).until(() -> callbackCtxList.size() == cmdAddExecutedCount);
+        Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> callbackCtxList.size() == cmdAddExecutedCount);
         // Release data provided.
         for (ByteBuf byteBuf : dataArrayProvided){
             byteBuf.release();
@@ -186,6 +191,8 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         // cleanup.
         txnLogBufferedWriter.close();
         managedLedger.close();
+        scheduledExecutorService.shutdown();
+        orderedExecutor.shutdown();
     }
 
     /**
@@ -247,5 +254,79 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         // cleanup.
         txnLogBufferedWriter.close();
         managedLedger.close();
+    }
+
+    /**
+     * Adjustable thresholds: trigger BookKeeper-write when reaching any one of the following conditions
+     *     Max size (bytes)
+     *     Max records count
+     *     Max delay time
+     * Tests these three thresholds.
+     */
+    @Test
+    public void testFlushThresholds() throws Exception{
+        // Create components.
+        ManagedLedger managedLedger = Mockito.mock(ManagedLedger.class);
+        Mockito.when(managedLedger.getName()).thenReturn("-");
+        OrderedExecutor orderedExecutor =  OrderedExecutor.newBuilder()
+                .numThreads(5).name("tx-brokers-topic-workers").build();
+        ScheduledExecutorService scheduledExecutorService =
+                Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-stats-updater"));
+        TxnLogBufferedWriter.DataSerializer<Integer> serializer = new TxnLogBufferedWriter.DataSerializer<Integer>(){
+            @Override
+            public int getSerializedSize(Integer data) {
+                return 4;
+            }
+            @Override
+            public ByteBuf serialize(Integer data) {
+                return null;
+            }
+            @Override
+            public ByteBuf serialize(ArrayList<Integer> dataArray) {
+                int sum = CollectionUtils.isEmpty(dataArray) ? 0 : dataArray.stream().reduce((a, b) -> a+b).get();
+                ByteBuf byteBuf = Unpooled.buffer(4);
+                byteBuf.writeInt(sum);
+                return byteBuf;
+            }
+        };
+        List<Integer> flushedDataList = new ArrayList<>();
+        Mockito.doAnswer(new Answer() {
+            @Override
+            public Object answer(InvocationOnMock invocation) throws Throwable {
+                ByteBuf byteBuf = (ByteBuf)invocation.getArguments()[0];
+                byteBuf.skipBytes(4);
+                flushedDataList.add(byteBuf.readInt());
+                AsyncCallbacks.AddEntryCallback callback =
+                        (AsyncCallbacks.AddEntryCallback) invocation.getArguments()[1];
+                callback.addComplete(PositionImpl.get(1,1), byteBuf,
+                        invocation.getArguments()[2]);
+                return null;
+            }
+        }).when(managedLedger).asyncAddEntry(Mockito.any(ByteBuf.class), Mockito.any(), Mockito.any());
+
+        TxnLogBufferedWriter txnLogBufferedWriter = new TxnLogBufferedWriter<>(managedLedger, orderedExecutor,
+                scheduledExecutorService, serializer, 32, 1024 * 4, 100, true);
+        AsyncCallbacks.AddEntryCallback callback = Mockito.mock(AsyncCallbacks.AddEntryCallback.class);
+        // Test threshold: writeMaxDelayInMillis.
+        txnLogBufferedWriter.asyncAddData(100, callback, 100);
+        Thread.sleep(101);
+        // Test threshold: batchedWriteMaxRecords.
+        for (int i = 0; i < 32; i++){
+            txnLogBufferedWriter.asyncAddData(1, callback, 1);
+        }
+        // Test threshold: batchedWriteMaxSize.
+        TxnLogBufferedWriter txnLogBufferedWriter2 = new TxnLogBufferedWriter<>(managedLedger, orderedExecutor,
+                scheduledExecutorService, serializer, 1024, 64 * 4, 100, true);
+        for (int i = 0; i < 64; i++){
+            txnLogBufferedWriter2.asyncAddData(1, callback, 1);
+        }
+        // Assert 3 flush.
+        Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> flushedDataList.size() == 3);
+        Assert.assertEquals(flushedDataList.get(0).intValue(), 100);
+        Assert.assertEquals(flushedDataList.get(1).intValue(), 32);
+        Assert.assertEquals(flushedDataList.get(2).intValue(), 64);
+        // clean up.
+        scheduledExecutorService.shutdown();
+        orderedExecutor.shutdown();
     }
 }

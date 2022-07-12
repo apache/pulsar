@@ -147,15 +147,17 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
             managedLedger.asyncAddEntry(byteBuf, DisabledBatchCallback.INSTANCE, Triple.of(byteBuf, callback, ctx));
             return;
         }
-        if (dataSerializer.getSerializedSize(data) >= batchedWriteMaxSize){
-            doTrigFlush(true);
-            ByteBuf byteBuf = dataSerializer.serialize(data);
-            managedLedger.asyncAddEntry(byteBuf, DisabledBatchCallback.INSTANCE, Triple.of(byteBuf, callback, ctx));
-        }
         orderedExecutor.executeOrdered(managedLedger.getName(), () -> internalAsyncAddData(data, callback, ctx));
     }
 
     private void internalAsyncAddData(T data, AsyncCallbacks.AddEntryCallback callback, Object ctx){
+        int len = dataSerializer.getSerializedSize(data);
+        if (len >= batchedWriteMaxSize){
+            doTrigFlush(true);
+            ByteBuf byteBuf = dataSerializer.serialize(data);
+            managedLedger.asyncAddEntry(byteBuf, DisabledBatchCallback.INSTANCE, Triple.of(byteBuf, callback, ctx));
+            return;
+        }
         // Add data.
         if (this.dataArray == null){
             this.dataArray = new ArrayList<>();
@@ -168,7 +170,7 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
         }
         this.asyncAddArgsList.add(asyncAddArgs);
         // Calculate bytes-size.
-        this.bytesSize += dataSerializer.getSerializedSize(data);
+        this.bytesSize += len;
         // trig flush.
         doTrigFlush(false);
     }
