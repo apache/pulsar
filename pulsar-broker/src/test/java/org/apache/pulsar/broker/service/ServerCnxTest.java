@@ -240,7 +240,6 @@ public class ServerCnxTest {
         if (channel != null) {
             channel.close();
         }
-        store.close();
         List<CompletableFuture<Void>> futures = new ArrayList<>();
         futures.add(brokerService.closeAsync());
         futures.add(pulsar.closeAsync());
@@ -254,6 +253,7 @@ public class ServerCnxTest {
         });
         futures.add(eventLoopGroupCloseFuture);
         FutureUtil.waitForAll(futures).get();
+        store.close();
     }
 
     @Test(timeOut = 30000)

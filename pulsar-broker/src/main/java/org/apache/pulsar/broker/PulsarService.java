@@ -438,7 +438,13 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             }
 
             GracefulExecutorServicesShutdown executorServicesShutdown =
-                    GracefulExecutorServicesShutdown.initiate();
+                    GracefulExecutorServicesShutdown
+                            .initiate()
+                            .timeout(
+                                    Duration.ofMillis(
+                                            (long) (GRACEFUL_SHUTDOWN_TIMEOUT_RATIO_OF_TOTAL_TIMEOUT
+                                                    * getConfiguration()
+                                                    .getBrokerShutdownTimeoutMs())));;
 
 
             List<CompletableFuture<Void>> asyncCloseFutures = new ArrayList<>();
@@ -545,12 +551,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             brokerClientSharedScheduledExecutorProvider.shutdownNow();
             brokerClientSharedTimer.stop();
 
-            final CompletableFuture<Void> ioEventLoopGroupCloseFuture = new CompletableFuture<>();
-            ioEventLoopGroup.shutdownGracefully().sync().addListener(f -> {
-                ioEventLoopGroupCloseFuture.complete(null);
-            });
-            asyncCloseFutures.add(ioEventLoopGroupCloseFuture);
-
+            long brokerShutdownTimeoutMs = getConfiguration().getBrokerShutdownTimeoutMs();
+            asyncCloseFutures.add(GracefulExecutorServicesShutdown
+                    .shutdownEventLoopGracefully(ioEventLoopGroup, brokerShutdownTimeoutMs));
 
             // add timeout handling for closing executors
             asyncCloseFutures.add(executorServicesShutdown.handle());

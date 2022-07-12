@@ -252,7 +252,6 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
     @AfterMethod(alwaysRun = true)
     public void teardown() throws Exception {
-        store.close();
         List<CompletableFuture<Void>> futures = new ArrayList<>();
         futures.add(brokerService.closeAsync());
         futures.add(pulsar.closeAsync());
@@ -266,6 +265,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         });
         futures.add(eventLoopGroupCloseFuture);
         FutureUtil.waitForAll(futures).get();
+        store.close();
     }
 
     @Test

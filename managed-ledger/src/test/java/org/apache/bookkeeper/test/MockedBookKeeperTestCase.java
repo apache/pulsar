@@ -98,10 +98,10 @@ public abstract class MockedBookKeeperTestCase {
         }
         try {
             LOG.info("@@@@@@@@@ stopping " + method);
-            metadataStore.close();
             factory.shutdownAsync().get(10, TimeUnit.SECONDS);
             factory = null;
             stopBookKeeper();
+            metadataStore.close();
             LOG.info("--------- stopped {}", method);
         } catch (Exception e) {
             LOG.error("tearDown Error", e);

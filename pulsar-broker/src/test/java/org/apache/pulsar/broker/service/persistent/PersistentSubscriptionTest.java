@@ -211,7 +211,6 @@ public class PersistentSubscriptionTest {
 
     @AfterMethod(alwaysRun = true)
     public void teardown() throws Exception {
-        store.close();
         List<CompletableFuture<Void>> futures = new ArrayList<>();
         futures.add(brokerMock.closeAsync());
         futures.add(pulsarMock.closeAsync());
@@ -225,6 +224,7 @@ public class PersistentSubscriptionTest {
         });
         futures.add(eventLoopGroupCloseFuture);
         FutureUtil.waitForAll(futures).get();
+        store.close();
     }
 
     @Test
