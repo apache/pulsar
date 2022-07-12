@@ -4947,15 +4947,7 @@ public class PersistentTopicsBase extends AdminResource {
                             return FutureUtil.failedFuture(new RestException(e));
                         }
                     }
-                    return FutureUtil.waitForAll(futures).handle((result, exception) -> {
-                        if (exception != null) {
-                            Throwable th = exception.getCause();
-                            if (th instanceof NotFoundException) {
-                                throw new RestException(Status.NOT_FOUND, th.getMessage());
-                            }
-                        }
-                        return null;
-                    });
+                    return FutureUtil.waitForAll(futures);
                 } else {
                     return internalTruncateNonPartitionedTopicAsync(authoritative);
                 }

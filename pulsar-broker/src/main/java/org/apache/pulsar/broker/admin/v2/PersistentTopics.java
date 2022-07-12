@@ -45,9 +45,11 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.pulsar.broker.admin.impl.PersistentTopicsBase;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.ResetCursorData;
@@ -3938,10 +3940,14 @@ public class PersistentTopics extends PersistentTopicsBase {
         internalTruncateTopicAsync(authoritative)
             .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
             .exceptionally(ex -> {
-                if (!isRedirectException(ex)) {
+                Throwable t = FutureUtil.unwrapCompletionException(ex);
+                if (!isRedirectException(t)) {
                     log.error("[{}] Failed to truncate topic {}", clientAppId(), topicName, ex);
                 }
-                resumeAsyncResponseExceptionally(asyncResponse, ex);
+                if (t instanceof PulsarAdminException.NotFoundException) {
+                    t = new RestException(Response.Status.NOT_FOUND, t.getMessage());
+                }
+                resumeAsyncResponseExceptionally(asyncResponse, t);
                 return null;
             });
     }
