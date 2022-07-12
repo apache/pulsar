@@ -2065,7 +2065,8 @@ public interface Topics {
      * @throws PulsarAdminException
      *            Unexpected error
      */
-    AnaliseSubscriptionBacklogResult analiseSubscriptionBacklog(String topic, String subscriptionName) throws PulsarAdminException;
+    AnaliseSubscriptionBacklogResult analiseSubscriptionBacklog(String topic, String subscriptionName)
+            throws PulsarAdminException;
 
     /**
      * Analise subscription backlog.
@@ -2081,7 +2082,8 @@ public interface Topics {
      * @throws PulsarAdminException
      *            Unexpected error
      */
-    CompletableFuture<AnaliseSubscriptionBacklogResult> analiseSubscriptionBacklogAsync(String topic, String subscriptionName);
+    CompletableFuture<AnaliseSubscriptionBacklogResult> analiseSubscriptionBacklogAsync(String topic,
+                                                                                        String subscriptionName);
 
     /**
      * Get backlog size by a message ID.
