@@ -19,8 +19,6 @@
 package org.apache.pulsar.common.util.collections;
 
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import lombok.Cleanup;
 import org.testng.annotations.Test;
