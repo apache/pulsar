@@ -36,6 +36,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.collections4.map.LinkedMap;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
@@ -646,4 +647,59 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         }
     }
 
+    @Test
+    public void testGetSubPatternTopicFilterTxnInternalTopic() throws Exception {
+        String topic = TopicName.get(TopicDomain.persistent.toString(),
+                NamespaceName.get(NAMESPACE1), "testGetSubPatternTopicFilterTxnInternalTopic").toString();
+
+        int partition = 3;
+        admin.topics().createPartitionedTopic(topic, partition);
+
+        String subscriptionName = "sub";
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .enableBatching(false)
+                .topic(topic).create();
+
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .subscriptionName(subscriptionName)
+                .subscriptionType(SubscriptionType.Shared)
+                .topic(topic)
+                .subscribe();
+
+        for (int i = 0; i < partition; i++) {
+            producer.send("test");
+        }
+
+        // creat pending ack managedLedger
+        for (int i = 0; i < partition; i++) {
+            Transaction transaction = pulsarClient.newTransaction()
+                    .withTransactionTimeout(5, TimeUnit.SECONDS)
+                    .build()
+                    .get();
+            consumer.acknowledgeAsync(consumer.receive().getMessageId(), transaction);
+            transaction.commit().get();
+        }
+
+        consumer.close();
+
+        @Cleanup
+        Consumer<String> patternConsumer = pulsarClient.newConsumer(Schema.STRING)
+                .subscriptionName("patternSub")
+                .subscriptionType(SubscriptionType.Shared)
+                .topicsPattern("persistent://" + NAMESPACE1 + "/.*")
+                .subscribe();
+
+        for (int i = 0; i < partition; i++) {
+            producer.send("test" + i);
+        }
+
+        // can use pattern sub consume
+        for (int i = 0; i < partition; i++) {
+            patternConsumer.acknowledgeAsync(patternConsumer.receive().getMessageId());
+        }
+        patternConsumer.close();
+        producer.close();
+    }
 }
