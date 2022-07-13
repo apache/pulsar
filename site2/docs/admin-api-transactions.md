@@ -42,7 +42,7 @@ $ pulsar-admin transactions slow-transactions \
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|GET|/admin/v3/transactions/slowTransactions/:timeout/?coordinatorId=:coordinatorId|operation/getSlowTransactions?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v3/transactions/slowTransactions/:timeout|operation/getSlowTransactions?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java">
@@ -299,7 +299,7 @@ $ pulsar-admin transactions coordinator-stats \
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|GET|/admin/v3/transactions/coordinatorStats?coordinatorId=1|operation/getCoordinatorStats?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v3/transactions/coordinatorStats|operation/getCoordinatorStats?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java">
@@ -356,7 +356,7 @@ $ pulsar-admin transactions coordinator-internal-stats \
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|GET|/admin/v3/transactions/coordinatorInternalStats/:coordinatorId?metadata=true|operation/getCoordinatorInternalStats?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v3/transactions/coordinatorInternalStats/:coordinatorId|operation/getCoordinatorInternalStats?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java">
@@ -454,7 +454,7 @@ $ pulsar-admin transactions pending-ack-stats \
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|GET|/admin/v3/transactions/pendingAckStats/:tenant/:namespace:/:topic:/:subName?lowWaterMarks=true|operation/getPendingAckStats?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v3/transactions/pendingAckStats/:tenant/:namespace:/:topic:/:subName|operation/getPendingAckStats?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java">
@@ -511,7 +511,7 @@ $ pulsar-admin transactions pending-ack-internal-stats \
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|GET|/admin/v3/transactions/pendingAckInternalStats/:tenant/:namespace:/:topic:/:subName?metadata=true|operation/getPendingAckInternalStats?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v3/transactions/pendingAckInternalStats/:tenant/:namespace:/:topic:/:subName|operation/getPendingAckInternalStats?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java">
@@ -674,7 +674,7 @@ $ pulsar-admin transactions transaction-buffer-stats \
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|GET|/admin/v3/transactions/transactionBufferStats/:tenant/:namespace:/:topic:/:subName?lowWaterMarks=true|operation/getTransactionBufferStats?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v3/transactions/transactionBufferStats/:tenant/:namespace:/:topic:/:subName|operation/getTransactionBufferStats?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java">
