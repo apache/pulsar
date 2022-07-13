@@ -126,7 +126,7 @@ public class LeastResourceUsageWithWeight implements ModularLoadManagerStrategy 
     public Optional<String> selectBroker(Set<String> candidates, BundleData bundleToAssign, LoadData loadData,
                                          ServiceConfiguration conf) {
         if (candidates.isEmpty()) {
-            log.error("There are no available brokers as candidates at this point for bundle: {}", bundleToAssign);
+            log.info("There are no available brokers as candidates at this point for bundle: {}", bundleToAssign);
             return Optional.empty();
         }
 
