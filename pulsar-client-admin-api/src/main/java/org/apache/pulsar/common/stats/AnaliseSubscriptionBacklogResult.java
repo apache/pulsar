@@ -35,4 +35,6 @@ public class AnaliseSubscriptionBacklogResult {
     private long filterAcceptedMessages;
     private long filterRescheduledMessages;
 
+    private boolean aborted;
+
 }

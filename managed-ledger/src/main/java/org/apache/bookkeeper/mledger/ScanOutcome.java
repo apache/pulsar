@@ -19,7 +19,7 @@
 package org.apache.bookkeeper.mledger;
 
 /**
- * Outcome of a Scan operation
+ * Outcome of a Scan operation.
  */
 public enum ScanOutcome {
     /**

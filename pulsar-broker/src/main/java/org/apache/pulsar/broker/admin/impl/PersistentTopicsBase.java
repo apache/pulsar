@@ -75,6 +75,7 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
+import org.apache.bookkeeper.mledger.ScanOutcome;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerOfflineBacklog;
@@ -1615,7 +1616,9 @@ public class PersistentTopicsBase extends AdminResource {
                         result.setFilterAcceptedMessages(rawResult.getFilterAcceptedMessages());
                         result.setFilterRejectedMessages(rawResult.getFilterRejectedMessages());
                         result.setFilterRescheduledMessages(rawResult.getFilterRescheduledMessages());
-                        log.info("result {}", result);
+                        result.setAborted(rawResult.getScanOutcome() != ScanOutcome.COMPLETED);
+                        log.info("[{}] analiseBacklog topic {} subscription {} result {}", clientAppId(), subName,
+                            topicName, result);
                         asyncResponse.resume(result);
                 }).exceptionally(ex -> {
                     Throwable cause = ex.getCause();

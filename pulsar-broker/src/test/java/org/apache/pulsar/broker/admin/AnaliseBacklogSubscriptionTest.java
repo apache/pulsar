@@ -38,9 +38,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
 
 @Test(groups = "broker-admin")
 public class AnaliseBacklogSubscriptionTest extends ProducerConsumerBase {

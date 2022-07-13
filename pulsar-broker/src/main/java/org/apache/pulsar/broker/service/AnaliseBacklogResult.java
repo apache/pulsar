@@ -19,8 +19,11 @@
 package org.apache.pulsar.broker.service;
 
 import lombok.Data;
+import lombok.ToString;
+import org.apache.bookkeeper.mledger.ScanOutcome;
 
 @Data
+@ToString
 public final class AnaliseBacklogResult {
 
     private long entries;
@@ -33,5 +36,7 @@ public final class AnaliseBacklogResult {
     private long filterRejectedMessages;
     private long filterAcceptedMessages;
     private long filterRescheduledMessages;
+
+    private ScanOutcome scanOutcome;
 
 }

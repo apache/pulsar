@@ -20,8 +20,9 @@ package org.apache.pulsar.broker.service.persistent;
 
 import static org.apache.pulsar.common.naming.SystemTopicNames.isEventSystemTopic;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Predicate;
 import com.google.common.base.MoreObjects;
+import com.google.common.base.Predicate;
+import io.netty.buffer.ByteBuf;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -33,7 +34,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
-import io.netty.buffer.ByteBuf;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
@@ -47,6 +47,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ConcurrentFindCursorPositionException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.InvalidCursorPositionException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.ScanOutcome;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -524,6 +525,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
     @Override
     public CompletableFuture<AnaliseBacklogResult> analiseBacklog() {
 
+        long start = System.currentTimeMillis();
         if (log.isDebugEnabled()) {
             log.debug("[{}][{}] Starting to analise backlog", topicName, subName);
         }
@@ -540,17 +542,21 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         Position currentPosition = cursor.getMarkDeletedPosition();
 
         if (log.isDebugEnabled()) {
-            log.debug("[{}][{}] currentPosition {}", topicName, subName, currentPosition);
+            log.debug("[{}][{}] currentPosition {}",
+                    topicName, subName, currentPosition);
         }
         final AbstractBaseDispatcher abstractBaseDispatcher = dispatcher != null
-                ? (AbstractBaseDispatcher) dispatcher: new DummyDispatcherForFilters();
+                ? (AbstractBaseDispatcher) dispatcher : new DummyDispatcherForFilters();
         // we put some hard limits on the scan, in order to prevent denial of services
-        long maxEntries = topic.getBrokerService().getPulsar().getConfiguration().getSubscriptionBacklogScanMaxEntries();
-        long timeOutMs = topic.getBrokerService().getPulsar().getConfiguration().getSubscriptionBacklogScanMaxTimeMs();
+        ServiceConfiguration configuration = topic.getBrokerService().getPulsar().getConfiguration();
+        long maxEntries = configuration.getSubscriptionBacklogScanMaxEntries();
+        long timeOutMs = configuration.getSubscriptionBacklogScanMaxTimeMs();
         return cursor.scan(new Predicate<Entry>() {
             @Override
             public boolean apply(Entry entry) {
-                log.info("found {}", entry);
+                if (log.isDebugEnabled()) {
+                    log.debug("found {}", entry);
+                }
 
                 ByteBuf metadataAndPayload = entry.getDataBuffer();
                 MessageMetadata messageMetadata = Commands.peekMessageMetadata(metadataAndPayload, "", -1);
@@ -583,7 +589,8 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
 
                 return true;
             }
-        }, maxEntries, timeOutMs).thenApply(___ -> {
+        }, maxEntries, timeOutMs).thenApply((ScanOutcome outcome) -> {
+            long end = System.currentTimeMillis();
             AnaliseBacklogResult result = new AnaliseBacklogResult();
             result.setEntries(entries.get());
             result.setMessages(messages.get());
@@ -593,6 +600,12 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
             result.setFilterRejectedMessages(rejectedMessages.get());
             result.setFilterRescheduledEntries(rescheduled.get());
             result.setFilterRescheduledMessages(rescheduledMessages.get());
+            // sometimes we abort the execution due to a timeout or
+            // when we reach a maximum number of entries
+            result.setScanOutcome(outcome);
+            log.info(
+                    "[{}][{}] scan took {} ms - {}",
+                    topicName, subName, end, result);
             return result;
         });
 

@@ -1671,7 +1671,8 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public CompletableFuture<AnaliseSubscriptionBacklogResult> analiseSubscriptionBacklogAsync(String topic, String subscriptionName) {
+    public CompletableFuture<AnaliseSubscriptionBacklogResult> analiseSubscriptionBacklogAsync(String topic,
+                                                                                String subscriptionName) {
         TopicName topicName = validateTopic(topic);
         String encodedSubName = Codec.encode(subscriptionName);
         WebTarget path = topicPath(topicName, "subscription", encodedSubName, "analiseBacklog");
