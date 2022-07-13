@@ -1612,7 +1612,7 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @PUT
     @Path("/{tenant}/{namespace}/{topic}/subscription/{subName}/properties")
-    @ApiOperation(value = "Replaces all the properties on the given subscription")
+    @ApiOperation(value = "Replace all the properties on the given subscription")
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"
@@ -1685,7 +1685,7 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @GET
     @Path("/{tenant}/{namespace}/{topic}/subscription/{subName}/analiseBacklog")
-    @ApiOperation(value = "Analyses a subscription, by scanning all the unprocessed messages")
+    @ApiOperation(value = "Analyse a subscription, by scanning all the unprocessed messages")
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or"

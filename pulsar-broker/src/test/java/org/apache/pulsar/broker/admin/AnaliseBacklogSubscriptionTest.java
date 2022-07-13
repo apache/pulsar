@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.admin;
 
 import com.google.common.collect.Lists;
 import lombok.Cleanup;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -38,6 +39,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertThrows;
 
 @Test(groups = "broker-admin")
 public class AnaliseBacklogSubscriptionTest extends ProducerConsumerBase {
@@ -164,6 +167,27 @@ public class AnaliseBacklogSubscriptionTest extends ProducerConsumerBase {
         assertEquals(0, analiseSubscriptionBacklogResult.getFilterRejectedMessages());
 
         assertEquals(0, analiseSubscriptionBacklogResult.getFilterRescheduledMessages());
+        assertFalse(analiseSubscriptionBacklogResult.isAborted());
+    }
+
+
+    @Test
+    public void partitionedTopicNotAllowed() throws Exception {
+        String topic = "persistent://my-property/my-ns/my-partitioned-topic";
+        String subName = "sub-1";
+        admin.topics().createPartitionedTopic(topic, 2);
+        admin.topics().createSubscription(topic, subName, MessageId.latest);
+        assertEquals(admin.topics().getSubscriptions(topic), Lists.newArrayList("sub-1"));
+
+        // you cannot use this feature on a partitioned topic
+        assertThrows(PulsarAdminException.NotAllowedException.class, () -> {
+            admin.topics().analiseSubscriptionBacklog(topic, "sub-1");
+        });
+
+        // you can access single partitions
+        AnaliseSubscriptionBacklogResult analiseSubscriptionBacklogResult
+                = admin.topics().analiseSubscriptionBacklog(topic + "-partition-0", "sub-1");
+        assertEquals(0, analiseSubscriptionBacklogResult.getEntries());
     }
 
 }

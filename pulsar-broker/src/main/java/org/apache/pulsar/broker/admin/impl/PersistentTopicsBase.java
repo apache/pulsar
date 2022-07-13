@@ -2457,14 +2457,14 @@ public class PersistentTopicsBase extends AdminResource {
             if (!topicName.isPartitioned() && getPartitionedTopicMetadata(topicName,
                     authoritative, false).partitions > 0) {
                 throw new RestException(Status.METHOD_NOT_ALLOWED,
-                        "Get message ID by timestamp on a partitioned topic is not allowed, "
+                        "Analise backlog on a partitioned topic is not allowed, "
                                 + "please try do it on specific topic partition");
             }
             internalAnaliseSubscriptionBacklogForNonPartitionedTopic(asyncResponse, subName, authoritative);
         }).exceptionally(ex -> {
             // If the exception is not redirect exception we need to log it.
             if (!isRedirectException(ex)) {
-                log.error("[{}] Failed to update subscription {} from topic {}",
+                log.error("[{}] Failed to analise back log of subscription {} from topic {}",
                         clientAppId(), subName, topicName, ex);
             }
             resumeAsyncResponseExceptionally(asyncResponse, ex);

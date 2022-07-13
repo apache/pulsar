@@ -79,6 +79,7 @@ class OpScan implements ReadEntryCallback {
                 log.error("[{}] user exception", cursor, err);
                 callback.scanFailed(ManagedLedgerException.getManagedLedgerException(err),
                         Optional.ofNullable(searchPosition), OpScan.this.ctx);
+                return;
             }
             if (exit) {
                 // user code requested to stop our scan

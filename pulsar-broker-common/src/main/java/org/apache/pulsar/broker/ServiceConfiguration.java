@@ -630,7 +630,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_POLICIES,
             doc = "Maximum number of entries to process while scanning a subscription to calculate the accurate backlog"
     )
-    private long subscriptionBacklogScanMaxEntries = 100_000;
+    private long subscriptionBacklogScanMaxEntries = 10_000;
     @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "How long to delete inactive subscriptions from last consuming."

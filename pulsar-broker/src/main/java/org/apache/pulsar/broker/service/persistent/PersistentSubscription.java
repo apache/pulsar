@@ -605,7 +605,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
             result.setScanOutcome(outcome);
             log.info(
                     "[{}][{}] scan took {} ms - {}",
-                    topicName, subName, end, result);
+                    topicName, subName, end - start, result);
             return result;
         });
 
