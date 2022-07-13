@@ -511,9 +511,11 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ManagedCursor cursor = ledger.openCursor("c1");
         ledger.addEntry("dummy-entry-1".getBytes(Encoding));
         List<Entry> entries = cursor.readEntries(100);
-
-        stopBookKeeper();
         assertEquals(entries.size(), 1);
+        cursor.markDelete(entries.get(0).getPosition());
+        ledger.addEntry("dummy-entry-2".getBytes(Encoding));
+        entries = cursor.readEntries(100);
+        stopBookKeeper();
 
         // Mark-delete should succeed if BK is down
         cursor.markDelete(entries.get(0).getPosition());
@@ -1332,9 +1334,11 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
 
         bkc.failAfter(4, BKException.Code.MetadataVersionException);
-
+        ledger = factory2.open("my_test_ledger");
+        ManagedCursor cursor = ledger.openCursor("c1");
+        Position position = ledger.addEntry("test".getBytes());
         try {
-            ledger = factory2.open("my_test_ledger");
+            cursor.markDelete(position);
             fail("should have failed");
         } catch (ManagedLedgerException e) {
             // ok
@@ -3256,6 +3260,11 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         deleteBatchIndex(cursor, positions[3], 10, Lists.newArrayList(new IntRange().setStart(0).setEnd(9)));
         deleteBatchIndex(cursor, positions[4], 10, Lists.newArrayList(new IntRange().setStart(0).setEnd(9)));
 
+        ManagedCursor finalCursor = cursor;
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(finalCursor.getMarkDeletedPosition(), positions[4]);
+        });
+
         cursor.close();
         ledger.close();
         ledger = factory.open("test_batch_indexes_deletion_persistent", managedLedgerConfig);
@@ -3527,10 +3536,11 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             positions.add(ledger1.addEntry(new byte[1024]));
         }
 
+        c1.markDelete(positions.get(0));
+        Thread.sleep(3000);
         // Simulate BK write error
         bkc.failNow(BKException.Code.NotEnoughBookiesException);
         metadataStore.setAlwaysFail(new MetadataStoreException.BadVersionException(""));
-
         try {
             c1.markDelete(positions.get(positions.size() - 1));
             fail("should have failed");
@@ -3688,6 +3698,10 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         cursor.delete(positions.get(0));
 
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(cursor.getMarkDeletedPosition(), positions.get(0));
+        });
+
         long initialLedgerId = cursor.getCursorLedger();
 
         metadataStore.triggerSessionEvent(SessionEvent.SessionLost);
@@ -3695,6 +3709,10 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         for (int i = 1; i < 10; i++) {
             cursor.delete(positions.get(i));
         }
+
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(cursor.getMarkDeletedPosition(), positions.get(positions.size() - 1));
+        });
 
         assertEquals(cursor.getCursorLedger(), initialLedgerId);
 
@@ -3793,6 +3811,21 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         });
         cursor1.close();
         ledger.close();
+    }
+
+    @Test
+    public void testLazyCursorLedgerCreationForSubscriptionCreation() throws Exception {
+        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory .open("testLazyCursorLedgerCreation", managedLedgerConfig);
+        Position p1 = ledger.addEntry("test".getBytes());
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test");
+        assertEquals(cursor.getMarkDeletedPosition(), p1);
+        ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        ledger = (ManagedLedgerImpl) factory2.open("testLazyCursorLedgerCreation", managedLedgerConfig);
+        assertNotNull(ledger.getCursors().get("test"));
+        ManagedCursorImpl cursor1 = (ManagedCursorImpl) ledger.openCursor("test");
+        assertEquals(cursor1.getMarkDeletedPosition(), p1);
+        factory2.shutdown();
     }
 
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorTest.class);

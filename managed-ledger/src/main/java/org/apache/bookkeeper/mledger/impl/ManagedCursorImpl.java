@@ -646,8 +646,18 @@ public class ManagedCursorImpl implements ManagedCursor {
             log.debug("[{}] Consumer {} cursor initialized with counters: consumed {} mdPos {} rdPos {}",
                     ledger.getName(), name, messagesConsumedCounter, markDeletePosition, readPosition);
         }
-
-        callback.operationComplete();
+        persistPositionMetaStore(cursorLedger != null ? cursorLedger.getId() : -1L, position, properties,
+                new MetaStoreCallback<>() {
+                    @Override
+                    public void operationComplete(Void result, Stat stat) {
+                        STATE_UPDATER.set(ManagedCursorImpl.this, State.NoLedger);
+                        callback.operationComplete();
+                    }
+                    @Override
+                    public void operationFailed(MetaStoreException e) {
+                        callback.operationFailed(e);
+                    }
+        }, false);
     }
 
     @Override
