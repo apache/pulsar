@@ -21,7 +21,7 @@ package org.apache.pulsar.broker.loadbalance;
 import java.util.Optional;
 import java.util.Set;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.loadbalance.impl.LeastLongTermMessageRate;
+import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.policies.data.loadbalancer.BundleData;
 
 /**
@@ -49,15 +49,17 @@ public interface ModularLoadManagerStrategy {
     /**
      * Create a placement strategy using the configuration.
      *
+     * @param conf ServiceConfiguration to use.
      * @return A placement strategy from the given configurations.
      */
-    static ModularLoadManagerStrategy create() {
+    static ModularLoadManagerStrategy create(final ServiceConfiguration conf) {
         try {
-            // Only one strategy at the moment.
-            return new LeastLongTermMessageRate();
+            return Reflections.createInstance(conf.getLoadBalancerLoadPlacementStrategy(),
+                    ModularLoadManagerStrategy.class, Thread.currentThread().getContextClassLoader());
         } catch (Exception e) {
-            // Ignore
+            throw new RuntimeException(
+                    "Could not load LoadBalancerLoadPlacementStrategy:" + conf.getLoadBalancerLoadPlacementStrategy(),
+                    e);
         }
-        return new LeastLongTermMessageRate();
     }
 }

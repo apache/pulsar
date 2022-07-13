@@ -386,7 +386,13 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                                 put(opPut.getPath(), opPut.getData(), Optional.of(-1L)).thenAccept(
                                                 s -> future.complete(s))
                                         .exceptionally(ex -> {
-                                            future.completeExceptionally(MetadataStoreException.wrap(ex.getCause()));
+                                            if (ex.getCause() instanceof BadVersionException) {
+                                                // The z-node exist now, let's overwrite it
+                                                internalStorePut(opPut);
+                                            } else {
+                                                future.completeExceptionally(
+                                                        MetadataStoreException.wrap(ex.getCause()));
+                                            }
                                             return null;
                                         });
                             }

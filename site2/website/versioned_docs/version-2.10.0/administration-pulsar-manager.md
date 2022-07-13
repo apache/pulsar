@@ -9,7 +9,7 @@ Pulsar Manager is a web-based GUI management and monitoring tool that helps admi
 
 :::note
 
-If you are monitoring your current stats with [Pulsar dashboard](administration-dashboard), we recommend you use Pulsar Manager instead. Pulsar dashboard is deprecated.
+If you are monitoring your current stats with [Pulsar dashboard](administration-dashboard.md), we recommend you use Pulsar Manager instead. Pulsar dashboard is deprecated.
 
 :::
 
@@ -87,7 +87,7 @@ jwt.broker.secret.key=file:///path/broker-secret.key
 •	`jwt.broker.public.key`: configure this option if you use the PUBLIC mode.  
 •	`jwt.broker.private.key`: configure this option if you use the PRIVATE mode.  
 •	`jwt.broker.secret.key`: configure this option if you use the SECRET mode.  
-For more information, see [Token Authentication Admin of Pulsar](security-token-admin).
+For more information, see [Token Authentication Admin of Pulsar](security-token-admin.md).
 
 Docker command to add profile and key files mount.
 
@@ -132,7 +132,7 @@ The request parameter in curl command:
 
 
 ### Configure the environment
-1. Login to the system, Visit http://localhost:9527 to login.  The current default account is  `admin/apachepulsar`
+1. Login to the system, Visit http://localhost:9527 to login. The current default account is  `admin/apachepulsar`
 
 2. Click "New Environment" button to add an environment.
 
@@ -146,7 +146,7 @@ The request parameter in curl command:
 
 When using binary packages for direct deployment, you can follow these steps.
 
-- Download and unzip the binary package, which is available on the [Pulsar Download](download) page.
+- Download and unzip the binary package, which is available on the [Pulsar Download](/download) page.
 
   ```bash
   

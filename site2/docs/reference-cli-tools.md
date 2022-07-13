@@ -809,7 +809,7 @@ Options
 
 ### `transaction`
 
-Run a transaction. For more information, see [Pulsar transactions](txn-why).
+Run a transaction. For more information, see [Pulsar transactions](txn-why.md).
 
 **Usage**
 

@@ -16,7 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-/**
- * Common partitioning.
- */
-package org.apache.pulsar.common.partition;
+package org.apache.pulsar.common.util;
+
+
+import lombok.Getter;
+import lombok.Setter;
+
+@Getter
+@Setter
+public class RecoverTimeRecord {
+
+    private long recoverStartTime;
+
+    private long recoverEndTime;
+}

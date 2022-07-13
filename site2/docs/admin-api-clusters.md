@@ -88,7 +88,7 @@ When provision a new cluster, you need to initialize that cluster's [metadata](c
 * The web service URL for the cluster
 * A broker service URL enabling interaction with the [brokers](reference-terminology.md#broker) in the cluster
 
-You must initialize cluster metadata *before* starting up any [brokers](admin-api-brokers) that will belong to the cluster.
+You must initialize cluster metadata *before* starting up any [brokers](admin-api-brokers.md) that will belong to the cluster.
 
 > **No cluster metadata initialization through the REST API or the Java admin API**
 >
@@ -112,11 +112,11 @@ bin/pulsar initialize-cluster-metadata \
 
 ```
 
-You'll need to use `--*-tls` flags only if you're using [TLS authentication](security-tls-authentication) in your instance.
+You'll need to use `--*-tls` flags only if you're using [TLS authentication](security-tls-authentication.md) in your instance.
 
 ### Get configuration
 
-You can fetch the [configuration](reference-configuration) for an existing cluster at any time.
+You can fetch the [configuration](reference-configuration.md) for an existing cluster at any time.
 
 ````mdx-code-block
 <Tabs groupId="api-choice"

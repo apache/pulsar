@@ -12,6 +12,6 @@ One way to alleviate this cost is to use Tiered Storage. With tiered storage, ol
 
 > Data written to BookKeeper is replicated to 3 physical machines by default. However, once a segment is sealed in BookKeeper it becomes immutable and can be copied to long term storage. Long term storage can achieve cost savings by using mechanisms such as [Reed-Solomon error correction](https://en.wikipedia.org/wiki/Reed%E2%80%93Solomon_error_correction) to require fewer physical copies of data.
 
-Pulsar currently supports S3, Google Cloud Storage (GCS), and filesystem for [long term store](cookbooks-tiered-storage). Offloading to long term storage triggered via a Rest API or command line interface. The user passes in the amount of topic data they wish to retain on BookKeeper, and the broker will copy the backlog data to long term storage. The original data will then be deleted from BookKeeper after a configured delay (4 hours by default).
+Pulsar currently supports S3, Google Cloud Storage (GCS), and filesystem for [long term store](cookbooks-tiered-storage.md). Offloading to long term storage triggered via a Rest API or command line interface. The user passes in the amount of topic data they wish to retain on BookKeeper, and the broker will copy the backlog data to long term storage. The original data will then be deleted from BookKeeper after a configured delay (4 hours by default).
 
-> For a guide for setting up tiered storage, see the [Tiered storage cookbook](cookbooks-tiered-storage).
+> For a guide for setting up tiered storage, see the [Tiered storage cookbook](cookbooks-tiered-storage.md).

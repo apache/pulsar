@@ -24,6 +24,7 @@ import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.common.naming.TopicVersion;
 import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
@@ -84,7 +85,7 @@ public class AdminMultiHostTest extends TestRetrySupport {
         throws InterruptedException, ExecutionException, TimeoutException {
         FutureTask<Boolean> futureTask = new FutureTask<>(() -> {
             while (admin.brokers().getActiveBrokers(clusterName).size() != expectBrokers) {
-                admin.brokers().healthcheck();
+                admin.brokers().healthcheck(TopicVersion.V1);
                 TimeUnit.MILLISECONDS.sleep(1000);
             }
             return true;

@@ -1047,10 +1047,9 @@ public class NamespaceService implements AutoCloseable {
                 .thenCompose(ownershipCache::checkOwnershipAsync);
     }
 
-    public void removeOwnedServiceUnit(NamespaceBundle nsBundle) throws Exception {
-        ownershipCache.removeOwnership(nsBundle).get(
-                pulsar.getConfiguration().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
-        bundleFactory.invalidateBundleCache(nsBundle.getNamespaceObject());
+    public CompletableFuture<Void> removeOwnedServiceUnitAsync(NamespaceBundle nsBundle) {
+        return ownershipCache.removeOwnership(nsBundle)
+                .thenRun(() -> bundleFactory.invalidateBundleCache(nsBundle.getNamespaceObject()));
     }
 
     protected void onNamespaceBundleOwned(NamespaceBundle bundle) {
