@@ -1855,7 +1855,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        internalGetMessageIdByTimestamp(timestamp, authoritative)
+        internalGetMessageIdByTimestampAsync(timestamp, authoritative)
                 .thenAccept(messageId -> {
                     if (messageId == null) {
                         asyncResponse.resume(new RestException(Response.Status.NOT_FOUND, "Message ID not found"));
@@ -1864,8 +1864,10 @@ public class PersistentTopics extends PersistentTopicsBase {
                     }
                 })
                 .exceptionally(ex -> {
-                    log.error("[{}] Failed to get message ID by timestamp {} from {}",
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to get message ID by timestamp {} from {}",
                             clientAppId(), timestamp, topicName, ex);
+                    }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
