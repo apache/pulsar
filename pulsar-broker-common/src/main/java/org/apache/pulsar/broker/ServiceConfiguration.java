@@ -2404,14 +2404,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_POLICIES,
-        doc = "Default message retention time, less than 0 means never expire. "
-                + "Default is 0, which is to trim ledgers through slowest consumer ledger."
+        doc = "Default message retention time. The default value is 0, which means the data is removed after all the "
+                + "subscriptions are consumed. Value less than 0 means messages never expire."
     )
     private int defaultRetentionTimeInMinutes = 0;
     @FieldContext(
         category = CATEGORY_POLICIES,
-        doc = "Default retention size, less than 0 means no infinite size quota. "
-                + "Default is 0, which is to trim ledgers through slowest consumer ledger."
+        doc = "Default retention size. The default value is 0, which means the data is removed after all the "
+                + "subscriptions are consumed. Value less than 0 means no infinite size quota."
     )
     private int defaultRetentionSizeInMB = 0;
     @FieldContext(
