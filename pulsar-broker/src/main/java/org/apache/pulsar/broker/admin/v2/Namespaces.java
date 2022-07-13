@@ -1032,8 +1032,8 @@ public class Namespaces extends NamespacesBase {
         validateNamespaceName(tenant, namespace);
         internalGetReplicatorDispatchRateAsync().thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
-                    log.error("[{}] Failed to get replicator dispatch-rate configured for the namespace {}: {}",
-                            clientAppId(), namespaceName, ex.getCause().getMessage(), ex);
+                    log.error("[{}] Failed to get replicator dispatch-rate configured for the namespace {}",
+                            clientAppId(), namespaceName, ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
