@@ -59,7 +59,7 @@ public class PrometheusMetricsGeneratorUtils {
             Collector.MetricFamilySamples metricFamily = metricFamilySamples.nextElement();
 
             // Write type of metric
-            stream.write("# TYPE ").write(metricFamily.name + getTypeNameSuffix(metricFamily.type)).write(' ')
+            stream.write("# TYPE ").write(metricFamily.name).write(getTypeNameSuffix(metricFamily.type)).write(' ')
                     .write(getTypeStr(metricFamily.type)).write('\n');
 
             for (int i = 0; i < metricFamily.samples.size(); i++) {
