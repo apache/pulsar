@@ -26,7 +26,6 @@ import lombok.experimental.Accessors;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
-import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.config.validation.ConfigValidationAnnotations;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
@@ -52,8 +51,6 @@ import static org.testng.Assert.expectThrows;
  * Unit test of {@link SinkConfigUtilsTest}.
  */
 public class SinkConfigUtilsTest {
-
-    private ConnectorDefinition defn;
 
     @Data
     @Accessors(chain = true)
@@ -94,7 +91,7 @@ public class SinkConfigUtilsTest {
         sinkConfig.setRetainKeyOrdering(false);
         sinkConfig.setAutoAck(true);
         sinkConfig.setCleanupSubscription(false);
-        sinkConfig.setTimeoutMs(2000l);
+        sinkConfig.setTimeoutMs(2000L);
         sinkConfig.setRuntimeFlags("-DKerberos");
         sinkConfig.setCleanupSubscription(true);
 
@@ -341,7 +338,7 @@ public class SinkConfigUtilsTest {
         SinkConfig mergedConfig = SinkConfigUtils.validateUpdate(sinkConfig, newSinkConfig);
         assertEquals(
                 mergedConfig.getParallelism(),
-                new Integer(101)
+                Integer.valueOf(101)
         );
         mergedConfig.setParallelism(sinkConfig.getParallelism());
         assertEquals(
@@ -355,8 +352,8 @@ public class SinkConfigUtilsTest {
         SinkConfig sinkConfig = createSinkConfig();
         Resources resources = new Resources();
         resources.setCpu(0.3);
-        resources.setRam(1232l);
-        resources.setDisk(123456l);
+        resources.setRam(1232L);
+        resources.setDisk(123456L);
         SinkConfig newSinkConfig = createUpdatedSinkConfig("resources", resources);
         SinkConfig mergedConfig = SinkConfigUtils.validateUpdate(sinkConfig, newSinkConfig);
         assertEquals(
@@ -373,11 +370,11 @@ public class SinkConfigUtilsTest {
     @Test
     public void testMergeDifferentTimeout() {
         SinkConfig sinkConfig = createSinkConfig();
-        SinkConfig newSinkConfig = createUpdatedSinkConfig("timeoutMs", 102l);
+        SinkConfig newSinkConfig = createUpdatedSinkConfig("timeoutMs", 102L);
         SinkConfig mergedConfig = SinkConfigUtils.validateUpdate(sinkConfig, newSinkConfig);
         assertEquals(
                 mergedConfig.getTimeoutMs(),
-                new Long(102l)
+                Long.valueOf(102L)
         );
         mergedConfig.setTimeoutMs(sinkConfig.getTimeoutMs());
         assertEquals(
@@ -415,7 +412,7 @@ public class SinkConfigUtilsTest {
     }
 
     @Test
-    public void testValidateConfig() throws IOException {
+    public void testValidateConfig() {
         SinkConfig sinkConfig = createSinkConfig();
 
         // Good config
@@ -444,7 +441,7 @@ public class SinkConfigUtilsTest {
         sinkConfig.setRetainKeyOrdering(false);
         sinkConfig.setConfigs(new HashMap<>());
         sinkConfig.setAutoAck(true);
-        sinkConfig.setTimeoutMs(2000l);
+        sinkConfig.setTimeoutMs(2000L);
         sinkConfig.setCleanupSubscription(true);
         sinkConfig.setArchive("DummyArchive.nar");
         sinkConfig.setCleanupSubscription(true);

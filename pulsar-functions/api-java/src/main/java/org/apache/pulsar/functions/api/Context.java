@@ -130,6 +130,7 @@ public interface Context extends BaseContext {
      * @return A future that completes when the framework is done publishing the message
      * @deprecated in favor of using {@link #newOutputMessage(String, Schema)}
      */
+    @Deprecated
     <X> CompletableFuture<Void> publish(String topicName, X object, String schemaOrSerdeClassName);
 
     /**
@@ -140,6 +141,7 @@ public interface Context extends BaseContext {
      * @return A future that completes when the framework is done publishing the message
      * @deprecated in favor of using {@link #newOutputMessage(String, Schema)}
      */
+    @Deprecated
     <X> CompletableFuture<Void> publish(String topicName, X object);
 
     /**

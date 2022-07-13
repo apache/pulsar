@@ -85,7 +85,7 @@ We use [Minikube](https://minikube.sigs.k8s.io/docs/start/) in this quick start 
    
    ```
 
-3. Run the script `prepare_helm_release.sh` to create secrets required for installing the Apache Pulsar Helm chart. The username `pulsar` and password `pulsar` are used for logging into the Grafana dashboard and Pulsar Manager.
+3. Run the script `prepare_helm_release.sh` to create the secrets required for installing the Apache Pulsar Helm chart. The username `pulsar` and password `pulsar` are used for logging into the Grafana dashboard and Pulsar Manager.
 
    :::note
 
@@ -183,6 +183,12 @@ We use [Minikube](https://minikube.sigs.k8s.io/docs/start/) in this quick start 
    kubectl exec -it -n pulsar pulsar-mini-toolset-0 -- /bin/bash
    
    ```
+
+   :::tip
+
+   To perform a health check, you can use the `bin/pulsar-admin brokers healthcheck` command. For more information, see [Pulsar-admin docs](/tools/pulsar-admin/).
+
+   :::
 
 2. In the `toolset` container, create a tenant named `apache`.
 
@@ -422,12 +428,12 @@ Then you can proceed with the following steps:
 
 3. In Pulsar Manager UI, you can create an environment. 
 
-   - Click `New Environment` button in the top-left corner.
-   - Type `pulsar-mini` for the field `Environment Name` in the popup window.
-   - Type `http://pulsar-mini-broker:8080` for the field `Service URL` in the popup window.
-   - Click `Confirm` button in the popup window.
+   - Click **New Environment** in the upper-left corner.
+   - Type `pulsar-mini` for the field `Environment Name` in the pop-up window.
+   - Type `http://pulsar-mini-broker:8080` for the field `Service URL` in the pop-up window.
+   - Click **Confirm** in the pop-up window.
 
-4. After successfully creating an environment, you are redirected to the `tenants` page of that environment. Then you can create `tenants`, `namespaces` and `topics` using the Pulsar Manager.
+4. After successfully creating an environment, you are redirected to the `tenants` page of that environment. Then you can create `tenants`, `namespaces`, and `topics` using the Pulsar Manager.
 
 ## Step 5: Use Prometheus and Grafana to monitor cluster
 

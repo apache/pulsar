@@ -84,7 +84,7 @@ public class PulsarCluster {
     @Getter
     private final String clusterName;
     private final Network network;
-    private final ZKContainer zkContainer;
+    private final ZKContainer<?> zkContainer;
     private final CSContainer csContainer;
     private final boolean sharedCsContainer;
     private final Map<String, BKContainer> bookieContainers;
