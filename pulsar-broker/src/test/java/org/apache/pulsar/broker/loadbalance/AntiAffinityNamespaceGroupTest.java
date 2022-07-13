@@ -288,6 +288,15 @@ public class AntiAffinityNamespaceGroupTest {
         LoadManagerShared.filterAntiAffinityGroupOwnedBrokers(pulsar1, assignedNamespace, candidate,
                 brokerToNamespaceToBundleRange, brokerToDomainMap);
         assertEquals(candidate.size(), 4);
+
+        // check another namespace-1 bundle can get correct broker
+        // for namespace-1 bundle only domain-1 brokers are available and broker-3 already owns namespace-3 bundle
+        candidate.addAll(brokers);
+        assignedNamespace = namespace + "1" + bundle;
+        LoadManagerShared.filterAntiAffinityGroupOwnedBrokers(pulsar1, assignedNamespace, candidate,
+                brokerToNamespaceToBundleRange, brokerToDomainMap);
+        assertEquals(candidate.size(), 1);
+        candidate.forEach(broker -> assertEquals(brokerToDomainMap.get(broker), "domain-1"));
     }
 
     /**
@@ -503,6 +512,20 @@ public class AntiAffinityNamespaceGroupTest {
                 pulsar1, brokerToNamespaceToBundleRange, candidate);
         assertFalse(shouldUnload);
 
+        // check another namespace-0 bundle can get another broker to unload
+        // test1: only one broker satisfy namespace-0, should not unload.
+        shouldUnload = LoadManagerShared.shouldAntiAffinityNamespaceUnload(namespace + "0", bundle, currentBroker,
+                pulsar1, brokerToNamespaceToBundleRange, candidate);
+        assertFalse(shouldUnload);
+
+        //test2: broker-0 and broker-3 owned bundle are namespace-0, the bundle can unload to broker-0.
+        brokers.add("broker-3");
+        candidate.add("broker-3");
+        // add ns-0 to broker-3
+        selectBrokerForNamespace(brokerToNamespaceToBundleRange, "broker-3", namespace + "0", assignedNamespace);
+        shouldUnload = LoadManagerShared.shouldAntiAffinityNamespaceUnload(namespace + "0", bundle, currentBroker,
+                pulsar1, brokerToNamespaceToBundleRange, candidate);
+        assertTrue(shouldUnload);
     }
 
     /**

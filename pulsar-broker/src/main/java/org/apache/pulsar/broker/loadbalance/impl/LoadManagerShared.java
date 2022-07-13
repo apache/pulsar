@@ -447,8 +447,10 @@ public class LoadManagerShared {
                             .thenAccept(nsPolicies -> {
                         if (nsPolicies.isPresent()
                                 && antiAffinityGroup.equalsIgnoreCase(nsPolicies.get().namespaceAntiAffinityGroup)) {
-                            brokerToAntiAffinityNamespaceCount.compute(broker,
+                            if (!ns.equals(namespaceName)) {
+                                brokerToAntiAffinityNamespaceCount.compute(broker,
                                     (brokerName, count) -> count == null ? 1 : count + 1);
+                            }
                         }
                         future.complete(null);
                     }).exceptionally(ex -> {
@@ -500,14 +502,17 @@ public class LoadManagerShared {
                 int nsCount = brokerNamespaceCount.getOrDefault(broker, 0);
                 if (currentBroker.equals(broker)) {
                     currentBrokerNsCount = nsCount;
-                }
-                if (leastNsCount > nsCount) {
+                } else if (leastNsCount > nsCount) {
+                    // Avoid currentBrokerNsCount cover the leastNsCount ,because we should
+                    // check currentBrokerNsCount = leastNsCount case, in this case can trigger the bundle unload.
                     leastNsCount = nsCount;
                 }
             }
             // check if there is any other broker has less number of ns
             if (leastNsCount == 0 || currentBrokerNsCount > leastNsCount) {
                 return true;
+            } else if (currentBrokerNsCount < leastNsCount) {
+                return false;
             }
             // check if all the brokers having same number of ns-count then broker can't unload
             int leastNsOwnerBrokers = 0;
