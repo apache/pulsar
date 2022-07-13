@@ -42,6 +42,7 @@ import lombok.Cleanup;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-naming")
@@ -70,6 +71,8 @@ public class ServiceConfigurationTest {
         assertEquals(config.getMaxMessagePublishBufferSizeInMB(), -1);
         assertEquals(config.getManagedLedgerDataReadPriority(), "bookkeeper-first");
         assertEquals(config.getBacklogQuotaDefaultLimitGB(), 0.05);
+        OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl.create(config.getProperties());
+        assertEquals(offloadPolicies.getManagedLedgerOffloadedReadPriority().getValue(), "bookkeeper-first");
     }
 
     @Test
@@ -236,5 +239,21 @@ public class ServiceConfigurationTest {
             }
         }
 
+    }
+
+    @Test
+    public void testBookKeeperClientIoThreads() throws Exception {
+        try (FileInputStream stream = new FileInputStream("../conf/broker.conf")) {
+            final ServiceConfiguration fileConfig = PulsarConfigurationLoader.create(stream, ServiceConfiguration.class);
+            assertFalse(fileConfig.isBookkeeperClientSeparatedIoThreadsEnabled());
+            assertEquals(fileConfig.getBookkeeperClientNumIoThreads(), Runtime.getRuntime().availableProcessors() * 2);
+        }
+        String confFile = "bookkeeperClientNumIoThreads=1\n" +
+                "bookkeeperClientSeparatedIoThreadsEnabled=true\n";
+        try (InputStream stream = new ByteArrayInputStream(confFile.getBytes())) {
+            final ServiceConfiguration conf = PulsarConfigurationLoader.create(stream, ServiceConfiguration.class);
+            assertTrue(conf.isBookkeeperClientSeparatedIoThreadsEnabled());
+            assertEquals(conf.getBookkeeperClientNumIoThreads(), 1);
+        }
     }
 }

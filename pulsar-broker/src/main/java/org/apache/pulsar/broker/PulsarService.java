@@ -91,6 +91,7 @@ import org.apache.pulsar.broker.loadbalance.LoadReportUpdaterTask;
 import org.apache.pulsar.broker.loadbalance.LoadResourceQuotaUpdaterTask;
 import org.apache.pulsar.broker.loadbalance.LoadSheddingTask;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
+import org.apache.pulsar.broker.lookup.v1.TopicLookup;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.protocol.ProtocolHandlers;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroupService;
@@ -98,6 +99,7 @@ import org.apache.pulsar.broker.resourcegroup.ResourceUsageTopicTransportManager
 import org.apache.pulsar.broker.resourcegroup.ResourceUsageTransportManager;
 import org.apache.pulsar.broker.resources.ClusterResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
+import org.apache.pulsar.broker.rest.Topics;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.GracefulExecutorServicesShutdown;
 import org.apache.pulsar.broker.service.SystemTopicBaseTxnBufferSnapshotService;
@@ -130,6 +132,7 @@ import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 import org.apache.pulsar.client.internal.PropertiesUtils;
 import org.apache.pulsar.client.util.ExecutorProvider;
+import org.apache.pulsar.client.util.ScheduledExecutorProvider;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.configuration.VipStatus;
@@ -234,6 +237,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     protected final EventLoopGroup ioEventLoopGroup;
     private final ExecutorProvider brokerClientSharedInternalExecutorProvider;
     private final ExecutorProvider brokerClientSharedExternalExecutorProvider;
+    private final ScheduledExecutorProvider brokerClientSharedScheduledExecutorProvider;
     private final Timer brokerClientSharedTimer;
 
     private MetricsGenerator metricsGenerator;
@@ -335,6 +339,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         // since an instance is required, a single threaded shared instance is used for all broker client instances
         this.brokerClientSharedExternalExecutorProvider =
                 new ExecutorProvider(1, "broker-client-shared-external-executor");
+        this.brokerClientSharedScheduledExecutorProvider =
+                new ScheduledExecutorProvider(1, "broker-client-shared-scheduled-executor");
         this.brokerClientSharedTimer =
                 new HashedWheelTimer(new DefaultThreadFactory("broker-client-shared-timer"), 1, TimeUnit.MILLISECONDS);
 
@@ -541,6 +547,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             brokerClientSharedExternalExecutorProvider.shutdownNow();
             brokerClientSharedInternalExecutorProvider.shutdownNow();
+            brokerClientSharedScheduledExecutorProvider.shutdownNow();
             brokerClientSharedTimer.stop();
             ioEventLoopGroup.shutdownGracefully();
 
@@ -725,7 +732,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             schemaStorage = createAndStartSchemaStorage();
             schemaRegistryService = SchemaRegistryService.create(
-                    schemaStorage, config.getSchemaRegistryCompatibilityCheckers());
+                    schemaStorage, config.getSchemaRegistryCompatibilityCheckers(), this.executor);
 
             this.defaultOffloader = createManagedLedgerOffloader(
                     OffloadPoliciesImpl.create(this.getConfiguration().getProperties()));
@@ -882,21 +889,21 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             // Ensure the VIP status is only visible when the broker is fully initialized
             return state == State.Started;
         });
+
         // Add admin rest resources
-        webService.addRestResources("/",
-                VipStatus.class.getPackage().getName(), false, vipAttributeMap);
-        webService.addRestResources("/",
-                "org.apache.pulsar.broker.web", false, attributeMap);
+        webService.addRestResource("/",
+                false, vipAttributeMap, VipStatus.class);
         webService.addRestResources("/admin",
-                "org.apache.pulsar.broker.admin.v1", true, attributeMap);
+                true, attributeMap, "org.apache.pulsar.broker.admin.v1");
         webService.addRestResources("/admin/v2",
-                "org.apache.pulsar.broker.admin.v2", true, attributeMap);
+                true, attributeMap, "org.apache.pulsar.broker.admin.v2");
         webService.addRestResources("/admin/v3",
-                "org.apache.pulsar.broker.admin.v3", true, attributeMap);
-        webService.addRestResources("/lookup",
-                "org.apache.pulsar.broker.lookup", true, attributeMap);
-        webService.addRestResources("/topics",
-                            "org.apache.pulsar.broker.rest", true, attributeMap);
+                true, attributeMap, "org.apache.pulsar.broker.admin.v3");
+        webService.addRestResource("/lookup",
+                true, attributeMap, TopicLookup.class,
+                org.apache.pulsar.broker.lookup.v2.TopicLookup.class);
+        webService.addRestResource("/topics",
+                true, attributeMap, Topics.class);
 
         // Add metrics servlet
         webService.addServlet("/metrics",
@@ -1396,6 +1403,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 .timer(brokerClientSharedTimer)
                 .internalExecutorProvider(brokerClientSharedInternalExecutorProvider)
                 .externalExecutorProvider(brokerClientSharedExternalExecutorProvider)
+                .scheduledExecutorProvider(brokerClientSharedScheduledExecutorProvider)
                 .build();
     }
 
@@ -1416,12 +1424,13 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 ClientConfigurationData conf =
                         ConfigurationDataUtils.loadData(overrides, initialConf, ClientConfigurationData.class);
 
-                conf.setServiceUrl(this.getConfiguration().isTlsEnabled()
-                                ? this.brokerServiceUrlTls : this.brokerServiceUrl);
-                conf.setTlsAllowInsecureConnection(this.getConfiguration().isTlsAllowInsecureConnection());
-                conf.setTlsTrustCertsFilePath(this.getConfiguration().getTlsCertificateFilePath());
+                boolean tlsEnabled = this.getConfiguration().isBrokerClientTlsEnabled();
+                conf.setServiceUrl(tlsEnabled ? this.brokerServiceUrlTls : this.brokerServiceUrl);
 
-                if (this.getConfiguration().isBrokerClientTlsEnabled()) {
+                if (tlsEnabled) {
+                    conf.setTlsCiphers(this.getConfiguration().getBrokerClientTlsCiphers());
+                    conf.setTlsProtocols(this.getConfiguration().getBrokerClientTlsProtocols());
+                    conf.setTlsAllowInsecureConnection(this.getConfiguration().isTlsAllowInsecureConnection());
                     if (this.getConfiguration().isBrokerClientTlsEnabledWithKeyStore()) {
                         conf.setUseKeyStoreTls(true);
                         conf.setTlsTrustStoreType(this.getConfiguration().getBrokerClientTlsTrustStoreType());

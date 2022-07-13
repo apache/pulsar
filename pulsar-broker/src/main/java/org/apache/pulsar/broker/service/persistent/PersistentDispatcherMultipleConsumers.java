@@ -24,12 +24,15 @@ import com.google.common.collect.Range;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.stream.Stream;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -47,7 +50,6 @@ import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.EntryBatchIndexesAcks;
 import org.apache.pulsar.broker.service.EntryBatchSizes;
-import org.apache.pulsar.broker.service.EntryWrapper;
 import org.apache.pulsar.broker.service.InMemoryRedeliveryTracker;
 import org.apache.pulsar.broker.service.RedeliveryTracker;
 import org.apache.pulsar.broker.service.RedeliveryTrackerDisabled;
@@ -59,6 +61,7 @@ import org.apache.pulsar.broker.transaction.exception.buffer.TransactionBufferEx
 import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.Codec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -104,6 +107,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             AtomicIntegerFieldUpdater.newUpdater(PersistentDispatcherMultipleConsumers.class,
                     "blockedDispatcherOnUnackedMsgs");
     protected Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
+
+    private AtomicBoolean isRescheduleReadInProgress = new AtomicBoolean(false);
 
     protected enum ReadType {
         Normal, Replay
@@ -154,7 +159,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         }
 
         consumerList.add(consumer);
-        consumerList.sort(Comparator.comparingInt(Consumer::getPriorityLevel));
+        if (consumerList.size() > 1
+                && consumer.getPriorityLevel() < consumerList.get(consumerList.size() - 2).getPriorityLevel()) {
+            consumerList.sort(Comparator.comparingInt(Consumer::getPriorityLevel));
+        }
         consumerSet.add(consumer);
     }
 
@@ -289,8 +297,17 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     @Override
     protected void reScheduleRead() {
-        topic.getBrokerService().executor().schedule(() -> readMoreEntries(), MESSAGE_RATE_BACKOFF_MS,
-                TimeUnit.MILLISECONDS);
+        if (isRescheduleReadInProgress.compareAndSet(false, true)) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] [{}] Reschedule message read in {} ms", topic.getName(), name, MESSAGE_RATE_BACKOFF_MS);
+            }
+            topic.getBrokerService().executor().schedule(
+                    () -> {
+                        isRescheduleReadInProgress.set(false);
+                        readMoreEntries();
+                        },
+                    MESSAGE_RATE_BACKOFF_MS, TimeUnit.MILLISECONDS);
+        }
     }
 
     // left pair is messagesToRead, right pair is bytesToRead
@@ -512,8 +529,13 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             readMoreEntries();
             return;
         }
-        EntryWrapper[] entryWrappers = new EntryWrapper[entries.size()];
-        int remainingMessages = updateEntryWrapperWithMetadata(entryWrappers, entries);
+        final MessageMetadata[] metadataArray = entries.stream()
+                .map(entry -> Commands.peekAndCopyMessageMetadata(entry.getDataBuffer(), subscription.toString(), -1))
+                .toArray(MessageMetadata[]::new);
+        int remainingMessages = Stream.of(metadataArray).filter(Objects::nonNull)
+                .map(MessageMetadata::getNumMessagesInBatch)
+                .reduce(0, Integer::sum);
+
         int start = 0;
         long totalMessagesSent = 0;
         long totalBytesSent = 0;
@@ -550,48 +572,40 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                     serviceConfig.getDispatcherMaxRoundRobinBatchSize());
             messagesForC = Math.max(messagesForC / avgBatchSizePerMsg, 1);
 
-            if (messagesForC > 0) {
-                int end = Math.min(start + messagesForC, entries.size());
-                // remove positions first from replay list first : sendMessages recycles entries
-                if (readType == ReadType.Replay) {
-                    entries.subList(start, end).forEach(entry -> {
-                        redeliveryMessages.remove(entry.getLedgerId(), entry.getEntryId());
-                    });
-                }
+            int end = Math.min(start + messagesForC, entries.size());
+            List<Entry> entriesForThisConsumer = entries.subList(start, end);
 
-                SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
-                List<Entry> entriesForThisConsumer = entries.subList(start, end);
-
-                EntryBatchSizes batchSizes = EntryBatchSizes.get(entriesForThisConsumer.size());
-                EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(entriesForThisConsumer.size());
-                totalEntries += filterEntriesForConsumer(Optional.ofNullable(entryWrappers), start,
-                        entriesForThisConsumer, batchSizes, sendMessageInfo, batchIndexesAcks, cursor,
-                        readType == ReadType.Replay, c);
-
-                c.sendMessages(entriesForThisConsumer, batchSizes, batchIndexesAcks, sendMessageInfo.getTotalMessages(),
-                        sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(), redeliveryTracker);
-
-                int msgSent = sendMessageInfo.getTotalMessages();
-                remainingMessages -= msgSent;
-                start += messagesForC;
-                entriesToDispatch -= messagesForC;
-                TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this,
-                        -(msgSent - batchIndexesAcks.getTotalAckedIndexCount()));
-                if (log.isDebugEnabled()){
-                    log.debug("[{}] Added -({} minus {}) permits to TOTAL_AVAILABLE_PERMITS_UPDATER in "
-                                    + "PersistentDispatcherMultipleConsumers",
-                            name, msgSent, batchIndexesAcks.getTotalAckedIndexCount());
-                }
-                totalMessagesSent += sendMessageInfo.getTotalMessages();
-                totalBytesSent += sendMessageInfo.getTotalBytes();
+            // remove positions first from replay list first : sendMessages recycles entries
+            if (readType == ReadType.Replay) {
+                entriesForThisConsumer.forEach(entry -> {
+                    redeliveryMessages.remove(entry.getLedgerId(), entry.getEntryId());
+                });
             }
-        }
 
-        // release entry-wrapper
-        for (EntryWrapper entry : entryWrappers) {
-            if (entry != null) {
-                entry.recycle();
+            SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
+
+            EntryBatchSizes batchSizes = EntryBatchSizes.get(entriesForThisConsumer.size());
+            EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(entriesForThisConsumer.size());
+            totalEntries += filterEntriesForConsumer(Optional.of(metadataArray), start,
+                    entriesForThisConsumer, batchSizes, sendMessageInfo, batchIndexesAcks, cursor,
+                    readType == ReadType.Replay, c);
+
+            c.sendMessages(entriesForThisConsumer, batchSizes, batchIndexesAcks, sendMessageInfo.getTotalMessages(),
+                    sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(), redeliveryTracker);
+
+            int msgSent = sendMessageInfo.getTotalMessages();
+            remainingMessages -= msgSent;
+            start += messagesForC;
+            entriesToDispatch -= messagesForC;
+            TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this,
+                    -(msgSent - batchIndexesAcks.getTotalAckedIndexCount()));
+            if (log.isDebugEnabled()){
+                log.debug("[{}] Added -({} minus {}) permits to TOTAL_AVAILABLE_PERMITS_UPDATER in "
+                                + "PersistentDispatcherMultipleConsumers",
+                        name, msgSent, batchIndexesAcks.getTotalAckedIndexCount());
             }
+            totalMessagesSent += sendMessageInfo.getTotalMessages();
+            totalBytesSent += sendMessageInfo.getTotalBytes();
         }
 
         // acquire message-dispatch permits for already delivered messages

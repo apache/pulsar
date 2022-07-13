@@ -45,6 +45,11 @@ public class ConsumerStatsImpl implements ConsumerStats {
     /** Total rate of messages redelivered by this consumer (msg/s). */
     public double msgRateRedeliver;
 
+    /**
+     * Total rate of message ack(msg/s).
+     */
+    public double messageAckRate;
+
     /** The total rate of chunked messages delivered to this consumer. */
     public double chunkedMessageRate;
 
@@ -54,7 +59,13 @@ public class ConsumerStatsImpl implements ConsumerStats {
     /** Number of available message permits for the consumer. */
     public int availablePermits;
 
-    /** Number of unacknowledged messages for the consumer. */
+    /**
+     * Number of unacknowledged messages for the consumer, where an unacknowledged message is one that has been
+     * sent to the consumer but not yet acknowledged. This field is only meaningful when using a
+     * {@link org.apache.pulsar.client.api.SubscriptionType} that tracks individual message acknowledgement, like
+     * {@link org.apache.pulsar.client.api.SubscriptionType#Shared} or
+     * {@link org.apache.pulsar.client.api.SubscriptionType#Key_Shared}.
+     */
     public int unackedMessages;
 
     /** Number of average messages per entry for the consumer consumed. */
@@ -103,6 +114,7 @@ public class ConsumerStatsImpl implements ConsumerStats {
     public ConsumerStatsImpl add(ConsumerStatsImpl stats) {
         Objects.requireNonNull(stats);
         this.msgRateOut += stats.msgRateOut;
+        this.messageAckRate += stats.messageAckRate;
         this.msgThroughputOut += stats.msgThroughputOut;
         this.bytesOutCounter += stats.bytesOutCounter;
         this.msgOutCounter += stats.msgOutCounter;

@@ -98,7 +98,8 @@ public class ProxyConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
         deprecated = true,
-        doc = "Configuration store connection string (as a comma-separated list)"
+        doc = "Configuration store connection string (as a comma-separated list). Deprecated in favor of "
+                + "`configurationMetadataStoreUrl`"
     )
     @Deprecated
     private String configurationStoreServers;
@@ -236,6 +237,11 @@ public class ProxyConfiguration implements PulsarConfiguration {
     @FieldContext(category = CATEGORY_SERVER,
             doc = "Enable or disable the proxy protocol.")
     private boolean haProxyProtocolEnabled;
+
+    @FieldContext(category = CATEGORY_SERVER,
+            doc = "Enables zero-copy transport of data across network interfaces using the spice. "
+                    + "Zero copy mode cannot be used when TLS is enabled or when proxyLogLevel is > 0.")
+    private boolean proxyZeroCopyModeEnabled = true;
 
     @FieldContext(
         category = CATEGORY_SERVER,

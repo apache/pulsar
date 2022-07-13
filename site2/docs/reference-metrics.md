@@ -27,7 +27,7 @@ The following types of metrics are available:
 
 The ZooKeeper metrics are exposed under "/metrics" at port `8000`. You can use a different port by configuring the `metricsProvider.httpPort` in conf/zookeeper.conf.
 
-ZooKeeper provides a New Metrics System since 3.6.0, more detailed metrics can refer [ZooKeeper Monitor Guide](https://zookeeper.apache.org/doc/r3.7.0/zookeeperMonitor.html).
+ZooKeeper provides a New Metrics System since 3.6.0. For more detailed metrics, refer to the [ZooKeeper Monitor Guide](https://zookeeper.apache.org/doc/r3.7.0/zookeeperMonitor.html).
 
 ## BookKeeper
 
@@ -74,6 +74,41 @@ in the `bookkeeper.conf` configuration file.
 | bookie_flush | Gauge| The table flush latency of bookie memory. |
 | bookie_throttled_write_requests | Counter | The number of write requests to be throttled. |
 
+### Replication metrics
+
+| Name | Type | Description |
+|---|---|---|
+| auditor_NUM_UNDER_REPLICATED_LEDGERS | Summary | The distribution of num under_replicated ledgers on each auditor run. |
+| auditor_UNDER_REPLICATED_LEDGERS_TOTAL_SIZE | Summary | The distribution of under_replicated ledgers total size on each auditor run. |
+| auditor_URL_PUBLISH_TIME_FOR_LOST_BOOKIE | Summary | The latency distribution of publishing under replicated ledgers for lost bookies. |
+| auditor_BOOKIE_TO_LEDGERS_MAP_CREATION_TIME | Summary | The latency distribution of creating bookies-to-ledgers map. |
+| auditor_CHECK_ALL_LEDGERS_TIME | Summary | The latency distribution of checking all ledgers. |
+| auditor_PLACEMENT_POLICY_CHECK_TIME | Summary | The latency distribution of placementPolicy check. |
+| auditor_REPLICAS_CHECK_TIME | Summary | The latency distribution of replicas check. |
+| auditor_AUDIT_BOOKIES_TIME | Summary | The latency distribution of auditing all the bookies. |
+| auditor_NUM_LEDGERS_CHECKED | Counter | The number of ledgers checked by the auditor. |
+| auditor_NUM_FRAGMENTS_PER_LEDGER | Summary | The distribution of number of fragments per ledger. |
+| auditor_NUM_BOOKIES_PER_LEDGER | Summary | The distribution of number of bookies per ledger. |
+| auditor_NUM_BOOKIE_AUDITS_DELAYED | Counter | The number of bookie-audits delayed. |
+| auditor_NUM_DELAYED_BOOKIE_AUDITS_DELAYES_CANCELLED | Counter | The number of delayed-bookie-audits cancelled. |
+| auditor_NUM_LEDGERS_NOT_ADHERING_TO_PLACEMENT_POLICY | Gauge | Gauge for number of ledgers not adhering to placement policy found in placement policy check. |
+| auditor_NUM_LEDGERS_SOFTLY_ADHERING_TO_PLACEMENT_POLICY | Gauge | Gauge for number of ledgers softly adhering to placement policy found in placement policy check. |
+| auditor_NUM_UNDERREPLICATED_LEDGERS_ELAPSED_RECOVERY_GRACE_PERIOD | Gauge | Gauge for number of underreplicated ledgers elapsed recovery grace period. |
+| auditor_NUM_LEDGERS_HAVING_NO_REPLICA_OF_AN_ENTRY | Gauge | Gauge for number of ledgers having an entry with all the replicas missing. |
+| auditor_NUM_LEDGERS_HAVING_LESS_THAN_AQ_REPLICAS_OF_AN_ENTRY | Gauge | Gauge for number of ledgers having an entry with less than AQ number of replicas, this doesn't include ledgers counted towards numLedgersHavingNoReplicaOfAnEntry. |
+| auditor_NUM_LEDGERS_HAVING_LESS_THAN_WQ_REPLICAS_OF_AN_ENTRY | Gauge | Gauge for number of ledgers having an entry with less than WQ number of replicas, this doesn't include ledgers counted towards numLedgersHavingLessThanAQReplicasOfAnEntry. |
+| replication_worker_NUM_BYTES_READ | Summary | The distribution of size of entries read by the replicator. |
+| replication_worker_NUM_ENTRIES_READ | Counter | Number of entries read by the replicator. |
+| replication_worker_NUM_ENTRIES_WRITTEN | Counter | Number of entries written by the replicator. |
+| replication_worker_NUM_BYTES_WRITTEN | Summary | The distribution of size of entries written by the replicator. |
+| replication_worker_READ_DATA_LATENCY | Summary | The distribution of latency of read entries by the replicator. |
+| replication_worker_WRITE_DATA_LATENCY | Summary | The distribution of latency of write entries by the replicator. |
+| replication_worker_REPLICATE_EXCEPTION | Summary | Replication related exceptions. |
+| replication_worker_REREPLICATE_OP | Summary | Operation stats of re-replicating ledgers. |
+| replication_worker_NUM_FULL_OR_PARTIAL_LEDGERS_REPLICATED | Counter | The number of ledgers re-replicated. |
+| replication_worker_NUM_DEFER_LEDGER_LOCK_RELEASE_OF_FAILED_LEDGER | Counter | The number of defer-ledger-lock-releases of failed ledgers. |
+| replication_worker_NUM_ENTRIES_UNABLE_TO_READ_FOR_REPLICATION | Counter | The number of entries ReplicationWorker unable to read. |
+
 ## Broker
 
 The broker metrics are exposed under "/metrics" at port `8080`. You can change the port by updating `webServicePort` to a different port
@@ -90,6 +125,7 @@ The following metrics are available for broker:
   - [Server metrics](#server-metrics-1)
   - [Journal metrics](#journal-metrics)
   - [Storage metrics](#storage-metrics)
+  - [Replication metrics](#replication-metrics)
 - [Broker](#broker)
   - [Broker metrics](#broker-metrics)
   - [Namespace metrics](#namespace-metrics)
@@ -172,6 +208,7 @@ All the namespace metrics are labelled with the following labels:
 | pulsar_rate_out | Gauge | The total message rate of the namespace going out from this broker (message per second). |
 | pulsar_throughput_in | Gauge | The total throughput of the namespace coming into this broker (byte per second). |
 | pulsar_throughput_out | Gauge | The total throughput of the namespace going out from this broker (byte per second). |
+| pulsar_consumer_msg_ack_rate | Gauge | The total message acknowledgment rate of the namespace owned by this broker (message per second). |
 | pulsar_storage_size | Gauge | The total storage size of the topics in this namespace owned by this broker (bytes). |
 | pulsar_storage_logical_size | Gauge | The storage size of topics in the namespace owned by the broker without replicas (in bytes). |
 | pulsar_storage_backlog_size | Gauge | The total backlog size of the topics of this namespace owned by this broker (in bytes). |
@@ -181,6 +218,7 @@ All the namespace metrics are labelled with the following labels:
 | pulsar_subscription_delayed | Gauge | The total message batches (entries) are delayed for dispatching. |
 | pulsar_storage_write_latency_le_* | Histogram | The entry rate of a namespace that the storage write latency is smaller with a given threshold.<br /> Available thresholds: <br /><ul><li>pulsar_storage_write_latency_le_0_5: <= 0.5ms </li><li>pulsar_storage_write_latency_le_1: <= 1ms</li><li>pulsar_storage_write_latency_le_5: <= 5ms</li><li>pulsar_storage_write_latency_le_10: <= 10ms</li><li>pulsar_storage_write_latency_le_20: <= 20ms</li><li>pulsar_storage_write_latency_le_50: <= 50ms</li><li>pulsar_storage_write_latency_le_100: <= 100ms</li><li>pulsar_storage_write_latency_le_200: <= 200ms</li><li>pulsar_storage_write_latency_le_1000: <= 1s</li><li>pulsar_storage_write_latency_le_overflow: > 1s</li></ul> |
 | pulsar_entry_size_le_* | Histogram | The entry rate of a namespace that the entry size is smaller with a given threshold.<br /> Available thresholds: <br /><ul><li>pulsar_entry_size_le_128: <= 128 bytes </li><li>pulsar_entry_size_le_512: <= 512 bytes</li><li>pulsar_entry_size_le_1_kb: <= 1 KB</li><li>pulsar_entry_size_le_2_kb: <= 2 KB</li><li>pulsar_entry_size_le_4_kb: <= 4 KB</li><li>pulsar_entry_size_le_16_kb: <= 16 KB</li><li>pulsar_entry_size_le_100_kb: <= 100 KB</li><li>pulsar_entry_size_le_1_mb: <= 1 MB</li><li>pulsar_entry_size_le_overflow: > 1 MB</li></ul> |
+| pulsar_delayed_delivery_tracker_memory_usage | GAUGE | The total memory size allocated by `InMemoryDelayedDeliveryTracker` of the namespace owned by this broker (in bytes). | 
 
 #### Replication metrics
 
@@ -220,6 +258,7 @@ All the topic metrics are labelled with the following labels:
 | pulsar_publish_rate_limit_times | Gauge | The number of times the publish rate limit is triggered. |
 | pulsar_throughput_in | Gauge | The total throughput of the topic coming into this broker (byte per second). |
 | pulsar_throughput_out | Gauge | The total throughput of the topic going out from this broker (byte per second). |
+| pulsar_consumer_msg_ack_rate | Gauge | The total message acknowledgment rate of the topic connected to this broker (message per second). |
 | pulsar_storage_size | Gauge | The total storage size of the topics in this topic owned by this broker (bytes). |
 | pulsar_storage_logical_size | Gauge | The storage size of topics in the namespace owned by the broker without replicas (in bytes). |
 | pulsar_storage_backlog_size | Gauge | The total backlog size of the topics of this topic owned by this broker (in bytes). |
@@ -243,6 +282,7 @@ All the topic metrics are labelled with the following labels:
 | pulsar_compaction_latency_le_* | Histogram | The compaction latency with given quantile. <br /> Available thresholds: <br /><ul><li>pulsar_compaction_latency_le_0_5: <= 0.5ms </li><li>pulsar_compaction_latency_le_1: <= 1ms</li><li>pulsar_compaction_latency_le_5: <= 5ms</li><li>pulsar_compaction_latency_le_10: <= 10ms</li><li>pulsar_compaction_latency_le_20: <= 20ms</li><li>pulsar_compaction_latency_le_50: <= 50ms</li><li>pulsar_compaction_latency_le_100: <= 100ms</li><li>pulsar_compaction_latency_le_200: <= 200ms</li><li>pulsar_compaction_latency_le_1000: <= 1s</li><li>pulsar_compaction_latency_le_overflow: > 1s</li></ul> |
 | pulsar_compaction_compacted_entries_count | Gauge | The total number of the compacted entries. |
 | pulsar_compaction_compacted_entries_size |Gauge  | The total size of the compacted entries. |
+| pulsar_delayed_delivery_tracker_memory_usage | GAUGE | The total memory size allocated by `InMemoryDelayedDeliveryTracker` of the topic owned by this broker (in bytes). |
 
 #### Replication metrics
 
@@ -393,6 +433,7 @@ All the subscription metrics are labelled with the following labels:
 | pulsar_subscription_blocked_on_unacked_messages | Gauge | Indicate whether a subscription is blocked on unacknowledged messages or not. <br /> <ul><li>1 means the subscription is blocked on waiting unacknowledged messages to be acked.</li><li>0 means the subscription is not blocked on waiting unacknowledged messages to be acked.</li></ul> |
 | pulsar_subscription_msg_rate_out | Gauge | The total message dispatch rate for a subscription (message per second). |
 | pulsar_subscription_msg_throughput_out | Gauge | The total message dispatch throughput for a subscription (byte per second). |
+| pulsar_subscription_msg_ack_rate | Gauge | The total message acknowledgment rate for a subscription (message per second). |
 
 ### Consumer metrics
 
@@ -610,7 +651,7 @@ Connector metrics contain **source** metrics and **sink** metrics.
 All the proxy metrics are labelled with the following labels:
 
 - *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you have configured in the `broker.conf` file.
-- *kubernetes_pod_name*: `kubernetes_pod_name=${kubernetes_pod_name}`. `${kubernetes_pod_name}` is the kubernetes pod name.
+- *kubernetes_pod_name*: `kubernetes_pod_name=${kubernetes_pod_name}`. `${kubernetes_pod_name}` is the Kubernetes pod name.
 
 | Name | Type | Description |
 |---|---|---|

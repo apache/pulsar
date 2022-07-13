@@ -73,7 +73,7 @@ Before 2.4.2, it's not possible to delete topics when there is a regex consumer 
 
 ## Reference
 
-Download Pulsar 2.4.2 [here](https://pulsar.apache.org/en/download/). 
+Download Pulsar 2.4.2 [here](https://pulsar.apache.org/download/). 
 
 If you have any questions or suggestions, contact us with mailing lists or slack. 
 - [users@pulsar.apache.org](mailto:users@pulsar.apache.org) 

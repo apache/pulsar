@@ -48,6 +48,7 @@ import org.apache.pulsar.client.admin.Bookies;
 import org.apache.pulsar.client.admin.BrokerStats;
 import org.apache.pulsar.client.admin.Brokers;
 import org.apache.pulsar.client.admin.Clusters;
+import org.apache.pulsar.client.admin.ListNamespaceTopicsOptions;
 import org.apache.pulsar.client.admin.ListTopicsOptions;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.Lookup;
@@ -344,7 +345,7 @@ public class PulsarAdminToolTest {
         verify(mockNamespaces).getNamespaces("myprop", "clust");
 
         namespaces.run(split("topics myprop/clust/ns1"));
-        verify(mockNamespaces).getTopics("myprop/clust/ns1");
+        verify(mockNamespaces).getTopics("myprop/clust/ns1", ListNamespaceTopicsOptions.builder().build());
 
         namespaces.run(split("policies myprop/clust/ns1"));
         verify(mockNamespaces).getPolicies("myprop/clust/ns1");
@@ -1439,7 +1440,8 @@ public class PulsarAdminToolTest {
         verify(mockTopics).getInternalInfo("persistent://myprop/clust/ns1/ds1");
 
         cmdTopics.run(split("partitioned-stats persistent://myprop/clust/ns1/ds1 --per-partition"));
-        verify(mockTopics).getPartitionedStats("persistent://myprop/clust/ns1/ds1", true, false, false);
+        verify(mockTopics).getPartitionedStats("persistent://myprop/clust/ns1/ds1",
+                true, false, false, false);
 
         cmdTopics.run(split("partitioned-stats-internal persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getPartitionedInternalStats("persistent://myprop/clust/ns1/ds1");
@@ -1493,6 +1495,10 @@ public class PulsarAdminToolTest {
         cmdTopics = new CmdTopics(() -> admin);
         cmdTopics.run(split("update-subscription-properties persistent://myprop/clust/ns1/ds1 -s sub1 --clear"));
         verify(mockTopics).updateSubscriptionProperties("persistent://myprop/clust/ns1/ds1", "sub1", new HashMap<>());
+
+        cmdTopics = new CmdTopics(() -> admin);
+        cmdTopics.run(split("get-subscription-properties persistent://myprop/clust/ns1/ds1 -s sub1"));
+        verify(mockTopics).getSubscriptionProperties("persistent://myprop/clust/ns1/ds1", "sub1");
 
         cmdTopics = new CmdTopics(() -> admin);
         props = new HashMap<>();
@@ -2152,12 +2158,12 @@ public class PulsarAdminToolTest {
         verify(transactions).getSlowTransactions(3600000, TimeUnit.MILLISECONDS);
 
         cmdTransactions = new CmdTransactions(() -> admin);
-        cmdTransactions.run(split("transaction-buffer-stats -t test"));
-        verify(transactions).getTransactionBufferStats("test");
+        cmdTransactions.run(split("transaction-buffer-stats -t test -l"));
+        verify(transactions).getTransactionBufferStats("test", true);
 
         cmdTransactions = new CmdTransactions(() -> admin);
-        cmdTransactions.run(split("pending-ack-stats -t test -s test"));
-        verify(transactions).getPendingAckStats("test", "test");
+        cmdTransactions.run(split("pending-ack-stats -t test -s test -l"));
+        verify(transactions).getPendingAckStats("test", "test", true);
 
         cmdTransactions = new CmdTransactions(() -> admin);
         cmdTransactions.run(split("pending-ack-internal-stats -t test -s test"));
@@ -2166,6 +2172,10 @@ public class PulsarAdminToolTest {
         cmdTransactions = new CmdTransactions(() -> admin);
         cmdTransactions.run(split("scale-transactionCoordinators -r 3"));
         verify(transactions).scaleTransactionCoordinators(3);
+
+        cmdTransactions = new CmdTransactions(() -> admin);
+        cmdTransactions.run(split("position-stats-in-pending-ack -t test -s test -l 1 -e 1 -b 1"));
+        verify(transactions).getPositionStatsInPendingAck("test", "test", 1L, 1L, 1);
     }
 
     @Test

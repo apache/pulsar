@@ -29,7 +29,7 @@ Pulsar brokers consist of two components:
 
 * The `brokers` command of the [`pulsar-admin`](/tools/pulsar-admin/) tool
 * The `/admin/v2/brokers` endpoint of the admin {@inject: rest:REST:/} API
-* The `brokers` method of the `PulsarAdmin` object in the [Java API](client-libraries-java)
+* The `brokers` method of the `PulsarAdmin` object in the [Java API](client-libraries-java.md)
 
 In addition to being configurable when you start them up, brokers can also be [dynamically configured](#dynamic-broker-configuration).
 
@@ -39,7 +39,38 @@ In addition to being configurable when you start them up, brokers can also be [d
 
 ### List active brokers
 
-Fetch all available active brokers that are serving traffic.
+Fetch all available active brokers that are serving traffic for local cluster .
+
+````mdx-code-block
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
+```shell
+$ pulsar-admin brokers list
+broker1.use.org.com:8080
+```
+
+</TabItem>
+<TabItem value="REST API">
+
+{@inject: endpoint|GET|/admin/v2/brokers|operation/getActiveBrokers?version=[[pulsar:version_number]]}
+
+
+</TabItem>
+<TabItem value="Java">
+
+```java
+admin.brokers().getActiveBrokers()
+```
+
+</TabItem>
+
+</Tabs>
+````
+
+Fetch all available active brokers that are serving traffic with cluster name.
 
 ````mdx-code-block
 <Tabs groupId="api-choice"
@@ -50,11 +81,6 @@ Fetch all available active brokers that are serving traffic.
 ```shell
 
 $ pulsar-admin brokers list use
-
-```
-
-```
-
 broker1.use.org.com:8080
 
 ```
@@ -91,11 +117,6 @@ Fetch the information of the leader broker, for example, the service url.
 ```shell
 
 $ pulsar-admin brokers leader-broker
-
-```
-
-```
-
 BrokerInfo(serviceUrl=broker1.use.org.com:8080)
 
 ```
@@ -103,7 +124,7 @@ BrokerInfo(serviceUrl=broker1.use.org.com:8080)
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|GET|/admin/v2/brokers/leaderBroker?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v2/brokers/leaderBroker|operation/getLeaderBroker?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java">
@@ -135,10 +156,6 @@ It finds all namespaces which are owned and served by a given broker.
 
 $ pulsar-admin brokers namespaces use \
   --url broker1.use.org.com:8080
-
-```
-
-```json
 
 {
   "my-property/use/my-ns/0x00000000_0xffffffff": {

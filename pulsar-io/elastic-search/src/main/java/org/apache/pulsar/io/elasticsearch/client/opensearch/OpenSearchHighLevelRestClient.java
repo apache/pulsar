@@ -56,6 +56,7 @@ import org.opensearch.common.unit.ByteSizeUnit;
 import org.opensearch.common.unit.ByteSizeValue;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.common.xcontent.XContentType;
+import org.opensearch.index.query.QueryBuilder;
 import org.opensearch.index.query.QueryBuilders;
 import org.opensearch.search.builder.SearchSourceBuilder;
 
@@ -261,13 +262,32 @@ public class OpenSearchHighLevelRestClient extends RestClient implements BulkPro
         return search(indexName).getHits().getTotalHits().value;
     }
 
+    @Override
+    public long totalHits(String indexName, String query) throws IOException {
+        return search(indexName, query).getHits().getTotalHits().value;
+    }
+
     @VisibleForTesting
     public SearchResponse search(String indexName) throws IOException {
+        return search(indexName, "*:*");
+    }
+
+    @VisibleForTesting
+    public SearchResponse search(String indexName, String query) throws IOException {
         client.indices().refresh(new RefreshRequest(indexName), RequestOptions.DEFAULT);
+        QueryBuilder queryBuilder;
+        if ("*:*".equals(query)) {
+            queryBuilder = QueryBuilders.matchAllQuery();
+        } else {
+            final String[] split = query.split(":");
+            final String name = split[0];
+            final String text = split[1];
+            queryBuilder = QueryBuilders.matchQuery(name, text);
+        }
         return client.search(
                 new SearchRequest()
                         .indices(indexName)
-                        .source(new SearchSourceBuilder().query(QueryBuilders.matchAllQuery())),
+                        .source(new SearchSourceBuilder().query(queryBuilder))  ,
                 RequestOptions.DEFAULT);
     }
     @Override

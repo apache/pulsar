@@ -19,7 +19,7 @@ The deployment method shown in this guide relies on [YAML](http://yaml.org/) def
 * A two-bookie BookKeeper cluster
 * A three-node ZooKeeper cluster
 * A three-broker Pulsar cluster
-* A [monitoring stack](#) consisting of [Prometheus](https://prometheus.io/), [Grafana](https://grafana.com), and the [Pulsar dashboard](administration-dashboard)
+* A [monitoring stack](#) consisting of [Prometheus](https://prometheus.io/), [Grafana](https://grafana.com), and the [Pulsar dashboard](administration-dashboard.md)
 * A [pod](https://kubernetes.io/docs/concepts/workloads/pods/pod/) from which you can run administrative commands using the [`pulsar-admin`](reference-pulsar-admin) CLI tool
 
 ## Setup
@@ -427,9 +427,9 @@ If the IP address for the proxy were, for example, 35.12.13.198, you could conne
 
 You can find client documentation for:
 
-* [Java](client-libraries-java)
-* [Python](client-libraries-python)
-* [C++](client-libraries-cpp)
+* [Java](client-libraries-java.md)
+* [Python](client-libraries-python.md)
+* [C++](client-libraries-cpp.md)
 
 
 ## Deploying Pulsar components (helm)

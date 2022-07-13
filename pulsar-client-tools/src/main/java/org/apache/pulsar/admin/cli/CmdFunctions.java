@@ -198,6 +198,8 @@ public class CmdFunctions extends CmdBase {
         protected String deprecatedClassName;
         @Parameter(names = "--classname", description = "The class name of a Pulsar Function")
         protected String className;
+        @Parameter(names = { "-t", "--function-type" }, description = "The built-in Pulsar Function type")
+        protected String functionType;
         @Parameter(names = "--jar", description = "Path to the JAR file for the function "
                 + "(if the function is written in Java). It also supports URL path [http/https/file "
                 + "(file protocol assumes that file already exists on worker host)/function "
@@ -619,8 +621,18 @@ public class CmdFunctions extends CmdBase {
                 functionConfig.setDeadLetterTopic(deadLetterTopic);
             }
 
+            if (jarFile != null && functionType != null) {
+                throw new ParameterException("Cannot specify both jar and function-type");
+            }
+
             if (null != jarFile) {
                 functionConfig.setJar(jarFile);
+            }
+
+            if (functionType != null) {
+                functionConfig.setJar("builtin://" + functionType);
+            } else if (functionConfig.getFunctionType() != null) {
+                functionConfig.setJar("builtin://" + functionConfig.getFunctionType());
             }
 
             if (null != pyFile) {
@@ -645,13 +657,17 @@ public class CmdFunctions extends CmdBase {
 
         protected void validateFunctionConfigs(FunctionConfig functionConfig) {
             // go doesn't need className
-            if (functionConfig.getPy() != null || functionConfig.getJar() != null) {
+            if (functionConfig.getPy() != null
+                    || (functionConfig.getJar() != null && !functionConfig.getJar().startsWith("builtin://"))) {
                 if (StringUtils.isEmpty(functionConfig.getClassName())) {
                     throw new ParameterException("No Function Classname specified");
                 }
             }
             if (StringUtils.isEmpty(functionConfig.getName())) {
                 org.apache.pulsar.common.functions.Utils.inferMissingFunctionName(functionConfig);
+            }
+            if (StringUtils.isEmpty(functionConfig.getName())) {
+                throw new IllegalArgumentException("No Function name specified");
             }
             if (StringUtils.isEmpty(functionConfig.getTenant())) {
                 org.apache.pulsar.common.functions.Utils.inferMissingTenant(functionConfig);
@@ -960,12 +976,11 @@ public class CmdFunctions extends CmdBase {
 
         @Override
         protected void validateFunctionConfigs(FunctionConfig functionConfig) {
-            if (StringUtils.isEmpty(functionConfig.getClassName())) {
-                if (StringUtils.isEmpty(functionConfig.getName())) {
-                    throw new ParameterException("Function Name not provided");
-                }
-            } else if (StringUtils.isEmpty(functionConfig.getName())) {
+            if (StringUtils.isEmpty(functionConfig.getName())) {
                 org.apache.pulsar.common.functions.Utils.inferMissingFunctionName(functionConfig);
+            }
+            if (StringUtils.isEmpty(functionConfig.getName())) {
+                throw new ParameterException("Function Name not provided");
             }
             if (StringUtils.isEmpty(functionConfig.getTenant())) {
                 org.apache.pulsar.common.functions.Utils.inferMissingTenant(functionConfig);

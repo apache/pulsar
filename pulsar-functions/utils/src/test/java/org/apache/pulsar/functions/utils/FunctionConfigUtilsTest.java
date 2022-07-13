@@ -76,7 +76,7 @@ public class FunctionConfigUtilsTest {
         functionConfig.setForwardSourceMessageProperty(true);
         functionConfig.setUserConfig(new HashMap<>());
         functionConfig.setAutoAck(true);
-        functionConfig.setTimeoutMs(2000l);
+        functionConfig.setTimeoutMs(2000L);
         functionConfig.setRuntimeFlags("-DKerberos");
         ProducerConfig producerConfig = new ProducerConfig();
         producerConfig.setMaxPendingMessages(100);
@@ -84,7 +84,7 @@ public class FunctionConfigUtilsTest {
         producerConfig.setUseThreadLocalProducers(true);
         producerConfig.setBatchBuilder("DEFAULT");
         functionConfig.setProducerConfig(producerConfig);
-        Function.FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig, null);
+        Function.FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig, (ClassLoader) null);
         FunctionConfig convertedConfig = FunctionConfigUtils.convertFromDetails(functionDetails);
 
         // add default resources
@@ -117,7 +117,7 @@ public class FunctionConfigUtilsTest {
         functionConfig.setForwardSourceMessageProperty(true);
         functionConfig.setUserConfig(new HashMap<>());
         functionConfig.setAutoAck(true);
-        functionConfig.setTimeoutMs(2000l);
+        functionConfig.setTimeoutMs(2000L);
         functionConfig.setWindowConfig(new WindowConfig().setWindowLengthCount(10));
         ProducerConfig producerConfig = new ProducerConfig();
         producerConfig.setMaxPendingMessages(100);
@@ -125,7 +125,7 @@ public class FunctionConfigUtilsTest {
         producerConfig.setUseThreadLocalProducers(true);
         producerConfig.setBatchBuilder("KEY_BASED");
         functionConfig.setProducerConfig(producerConfig);
-        Function.FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig, null);
+        Function.FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig, (ClassLoader) null);
         FunctionConfig convertedConfig = FunctionConfigUtils.convertFromDetails(functionDetails);
 
         // add default resources
@@ -322,7 +322,7 @@ public class FunctionConfigUtilsTest {
         FunctionConfig mergedConfig = FunctionConfigUtils.validateUpdate(functionConfig, newFunctionConfig);
         assertEquals(
                 mergedConfig.getMaxMessageRetries(),
-                new Integer(10)
+                Integer.valueOf(10)
         );
         mergedConfig.setMaxMessageRetries(functionConfig.getMaxMessageRetries());
         assertEquals(
@@ -361,7 +361,7 @@ public class FunctionConfigUtilsTest {
         FunctionConfig mergedConfig = FunctionConfigUtils.validateUpdate(functionConfig, newFunctionConfig);
         assertEquals(
                 mergedConfig.getParallelism(),
-                new Integer(101)
+                Integer.valueOf(101)
         );
         mergedConfig.setParallelism(functionConfig.getParallelism());
         assertEquals(
@@ -375,8 +375,8 @@ public class FunctionConfigUtilsTest {
         FunctionConfig functionConfig = createFunctionConfig();
         Resources resources = new Resources();
         resources.setCpu(0.3);
-        resources.setRam(1232l);
-        resources.setDisk(123456l);
+        resources.setRam(1232L);
+        resources.setDisk(123456L);
         FunctionConfig newFunctionConfig = createUpdatedFunctionConfig("resources", resources);
         FunctionConfig mergedConfig = FunctionConfigUtils.validateUpdate(functionConfig, newFunctionConfig);
         assertEquals(
@@ -395,7 +395,7 @@ public class FunctionConfigUtilsTest {
         FunctionConfig functionConfig = createFunctionConfig();
         WindowConfig windowConfig = new WindowConfig();
         windowConfig.setSlidingIntervalCount(123);
-        windowConfig.setSlidingIntervalDurationMs(123l);
+        windowConfig.setSlidingIntervalDurationMs(123L);
         FunctionConfig newFunctionConfig = createUpdatedFunctionConfig("windowConfig", windowConfig);
         FunctionConfig mergedConfig = FunctionConfigUtils.validateUpdate(functionConfig, newFunctionConfig);
         assertEquals(
@@ -412,11 +412,11 @@ public class FunctionConfigUtilsTest {
     @Test
     public void testMergeDifferentTimeout() {
         FunctionConfig functionConfig = createFunctionConfig();
-        FunctionConfig newFunctionConfig = createUpdatedFunctionConfig("timeoutMs", 102l);
+        FunctionConfig newFunctionConfig = createUpdatedFunctionConfig("timeoutMs", 102L);
         FunctionConfig mergedConfig = FunctionConfigUtils.validateUpdate(functionConfig, newFunctionConfig);
         assertEquals(
                 mergedConfig.getTimeoutMs(),
-                new Long(102l)
+                Long.valueOf(102L)
         );
         mergedConfig.setTimeoutMs(functionConfig.getTimeoutMs());
         assertEquals(
@@ -462,7 +462,7 @@ public class FunctionConfigUtilsTest {
         functionConfig.setForwardSourceMessageProperty(false);
         functionConfig.setUserConfig(new HashMap<>());
         functionConfig.setAutoAck(true);
-        functionConfig.setTimeoutMs(2000l);
+        functionConfig.setTimeoutMs(2000L);
         functionConfig.setWindowConfig(new WindowConfig().setWindowLengthCount(10));
         functionConfig.setCleanupSubscription(true);
         functionConfig.setRuntimeFlags("-Dfoo=bar");
@@ -584,7 +584,7 @@ public class FunctionConfigUtilsTest {
     @Test
     public void testPoolMessages() {
         FunctionConfig functionConfig = createFunctionConfig();
-        Function.FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig, null);
+        Function.FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig, (ClassLoader) null);
         assertFalse(functionDetails.getSource().getInputSpecsMap().get("test-input").getPoolMessages());
         FunctionConfig convertedConfig = FunctionConfigUtils.convertFromDetails(functionDetails);
         assertFalse(convertedConfig.getInputSpecs().get("test-input").isPoolMessages());
@@ -594,7 +594,7 @@ public class FunctionConfigUtilsTest {
                 .poolMessages(true).build());
         functionConfig.setInputSpecs(inputSpecs);
 
-        functionDetails = FunctionConfigUtils.convert(functionConfig, null);
+        functionDetails = FunctionConfigUtils.convert(functionConfig, (ClassLoader) null);
         assertTrue(functionDetails.getSource().getInputSpecsMap().get("test-input").getPoolMessages());
 
         convertedConfig = FunctionConfigUtils.convertFromDetails(functionDetails);
