@@ -23,6 +23,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyObject;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
@@ -37,7 +38,10 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.DefaultEventLoop;
 import io.netty.util.concurrent.EventExecutor;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
@@ -1080,7 +1084,10 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
         // mock cnx, send message can't receive response
         ClientCnx cnx = mock(ClientCnx.class);
+        Channel channel = mock(Channel.class);
+        doReturn(spy(DefaultEventLoop.class)).when(channel).eventLoop();
         ChannelHandlerContext channelHandlerContext = mock(ChannelHandlerContext.class);
+        doReturn(channel).when(channelHandlerContext).channel();
         doReturn(channelHandlerContext).when(cnx).ctx();
         EventExecutor eventExecutor = mock(EventExecutor.class);
         doReturn(eventExecutor).when(channelHandlerContext).executor();
