@@ -164,7 +164,7 @@ tenant/namespace/name
 FQFNs enable you to create multiple functions with the same name provided that they are in different namespaces.
 
 ## Supported languages
-Currently, you can write Pulsar Functions in Java, Python, and Go. For details, refer to [Develop Pulsar Functions](functions-develop).
+Currently, you can write Pulsar Functions in Java, Python, and Go. For details, refer to [Develop Pulsar Functions](functions-develop.md).
 
 ## Processing guarantees
 Pulsar Functions provide three different messaging semantics that you can apply to any function.

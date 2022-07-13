@@ -45,7 +45,7 @@ For the latest and complete information about `pulsar-perf`, including commands,
   
   ```
 
-  From the above test data, you can get the throughput statistics and the write latency statistics. The aggregated statistics is printed when the Pulsar Perf is stopped. You can press **Ctrl**+**C** to stop the Pulsar Perf. After the Pulsar Perf is stopped, the [HdrHistogram](http://hdrhistogram.github.io/HdrHistogram/) formatted test result appears under your directory. The document looks like `perf-producer-1589370810837.hgrm`. You can also check the test result through [HdrHistogram Plotter](https://hdrhistogram.github.io/HdrHistogram/plotFiles.html). For details about how to check the test result through [HdrHistogram Plotter](https://hdrhistogram.github.io/HdrHistogram/plotFiles.html), see [HdrHistogram Plotter](#hdrhistogram-plotter).
+  From the above test data, you can get the throughput statistics and the write latency statistics. The aggregated statistics are printed when the Pulsar Perf is stopped. You can press **Ctrl**+**C** to stop the Pulsar Perf. If you specify a filename with the `--histogram-file` parameter, a file with the [HdrHistogram](http://hdrhistogram.github.io/HdrHistogram/) formatted test result appears under your directory after Pulsar Perf is stopped. You can also check the test result through [HdrHistogram Plotter](https://hdrhistogram.github.io/HdrHistogram/plotFiles.html). For details about how to check the test result through [HdrHistogram Plotter](https://hdrhistogram.github.io/HdrHistogram/plotFiles.html), see [HdrHistogram Plotter](#hdrhistogram-plotter).
 
 - This example shows how the Pulsar Perf produces messages with `transaction` option.
 
@@ -153,7 +153,7 @@ For the latest and complete information about `pulsar-perf`, including commands,
 
 ## Transactions
 
-This section shows how Pulsar Perf runs transactions. For more information, see [Pulsar transactions](txn-why).
+This section shows how Pulsar Perf runs transactions. For more information, see [Pulsar transactions](txn-why.md).
 
 ### Use transaction
 
