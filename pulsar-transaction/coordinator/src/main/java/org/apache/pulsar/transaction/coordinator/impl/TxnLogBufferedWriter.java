@@ -144,6 +144,7 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
             this.scheduledFuture = this.scheduledExecutorService.scheduleAtFixedRate(this::trigFlush,
                     batchedWriteMaxDelayInMillis, batchedWriteMaxDelayInMillis, TimeUnit.MICROSECONDS);
         }
+        this.state = State.RUNNING;
     }
 
     /**
