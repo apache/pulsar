@@ -544,7 +544,9 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         }
         final AbstractBaseDispatcher abstractBaseDispatcher = dispatcher != null
                 ? (AbstractBaseDispatcher) dispatcher: new DummyDispatcherForFilters();
-
+        // we put some hard limits on the scan, in order to prevent denial of services
+        long maxEntries = topic.getBrokerService().getPulsar().getConfiguration().getSubscriptionBacklogScanMaxEntries();
+        long timeOutMs = topic.getBrokerService().getPulsar().getConfiguration().getSubscriptionBacklogScanMaxTimeMs();
         return cursor.scan(new Predicate<Entry>() {
             @Override
             public boolean apply(Entry entry) {
@@ -581,7 +583,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
 
                 return true;
             }
-        }).thenApply(___ -> {
+        }, maxEntries, timeOutMs).thenApply(___ -> {
             AnaliseBacklogResult result = new AnaliseBacklogResult();
             result.setEntries(entries.get());
             result.setMessages(messages.get());

@@ -125,7 +125,7 @@ public interface AsyncCallbacks {
     }
 
     interface ScanCallback {
-        void scanComplete(Position position, Object ctx);
+        void scanComplete(Position position, ScanOutcome scanOutcome, Object ctx);
 
         void scanFailed(ManagedLedgerException exception, Optional<Position> failedReadPosition, Object ctx);
     }

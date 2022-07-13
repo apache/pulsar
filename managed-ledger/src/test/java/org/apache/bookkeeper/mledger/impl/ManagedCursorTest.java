@@ -86,12 +86,14 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.ScanOutcome;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.VoidCallback;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
@@ -1845,15 +1847,45 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         }
 
         List<String> contents = new CopyOnWriteArrayList<>();
-        c1.scan((entry -> {
-            contents.add(new String(entry.getDataAndRelease(), StandardCharsets.UTF_8));
+        assertEquals(ScanOutcome.COMPLETED, c1.scan((entry -> {
+            contents.add(new String(entry.getData(), StandardCharsets.UTF_8));
             return true;
-        })).get();
+        }), Long.MAX_VALUE, Long.MAX_VALUE).get());
 
         for (int i = 0; i < 10; i++) {
             assertEquals(contents.get(i), ("a" + i));
         }
         assertEquals(contents.size(), 10);
+
+        assertEquals(ScanOutcome.USER_INTERRUPTED, c1.scan((entry -> {
+            return false;
+        }), Long.MAX_VALUE, Long.MAX_VALUE).get());
+
+        // max entries
+        assertEquals(ScanOutcome.ABORTED, c1.scan((entry -> {
+            return true;
+        }), 1, Long.MAX_VALUE).get());
+
+        // timeout
+        assertEquals(ScanOutcome.ABORTED, c1.scan((entry -> {
+            try {
+                Thread.sleep(2000);
+            } catch (InterruptedException ie){
+            }
+            return true;
+        }), Long.MAX_VALUE, 1000).get());
+
+        // user code exception
+        AtomicReference<Throwable> error = new AtomicReference<>();
+        c1.scan((entry -> {
+            throw new RuntimeException("dummy!");
+        }), Long.MAX_VALUE, Long.MAX_VALUE).handle((___, err) -> {
+            error.set(err);
+            return null;
+        }).get();
+        assertTrue(error.get() instanceof ManagedLedgerException);
+        assertTrue(error.get().getCause() instanceof RuntimeException);
+        assertEquals(error.get().getCause().getMessage(), "dummy!");
 
     }
 

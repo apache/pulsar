@@ -84,6 +84,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorAlreadyClosedE
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.ScanOutcome;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.PositionBound;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
@@ -1039,13 +1040,13 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     @Override
-    public CompletableFuture<Void> scan(Predicate<Entry> condition) {
+    public CompletableFuture<ScanOutcome> scan(Predicate<Entry> condition, long maxEntries, long timeOutMs) {
         PositionImpl startPosition = ledger.getNextValidPosition(markDeletePosition);
-        CompletableFuture<Void> future = new CompletableFuture<>();
+        CompletableFuture<ScanOutcome> future = new CompletableFuture<>();
         OpScan op = new OpScan(this, startPosition, condition, new ScanCallback() {
             @Override
-            public void scanComplete(Position position, Object ctx) {
-                future.complete(null);
+            public void scanComplete(Position position, ScanOutcome scanOutcome, Object ctx) {
+                future.complete(scanOutcome);
             }
 
             @Override
@@ -1053,7 +1054,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                                    Optional<Position> failedReadPosition, Object ctx) {
                 future.completeExceptionally(exception);
             }
-        }, null);
+        }, null, maxEntries, timeOutMs);
         op.find();
         return future;
     }

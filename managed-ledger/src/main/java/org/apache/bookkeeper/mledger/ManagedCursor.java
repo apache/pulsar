@@ -504,11 +504,14 @@ public interface ManagedCursor {
 
     /**
      * Scan the cursor from the current position up to the end.
+     * Please note that this is an expensive operation
      * @param condition
+     * @param maxEntries maximum number of entries to scan
+     * @param timeOutMs maximum time to spend on this operation
      * @throws InterruptedException
      * @throws ManagedLedgerException
      */
-    default CompletableFuture<Void> scan(Predicate<Entry> condition) {
+    default CompletableFuture<ScanOutcome> scan(Predicate<Entry> condition, long maxEntries, long timeOutMs) {
         return CompletableFuture.failedFuture(new UnsupportedOperationException());
     }
 
