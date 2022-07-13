@@ -39,37 +39,6 @@ In addition to being configurable when you start them up, brokers can also be [d
 
 ### List active brokers
 
-Fetch all available active brokers that are serving traffic for local cluster .
-
-````mdx-code-block
-<Tabs groupId="api-choice"
-  defaultValue="pulsar-admin"
-  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
-<TabItem value="pulsar-admin">
-
-```shell
-$ pulsar-admin brokers list
-broker1.use.org.com:8080
-```
-
-</TabItem>
-<TabItem value="REST API">
-
-{@inject: endpoint|GET|/admin/v2/brokers|operation/getActiveBrokers?version=[[pulsar:version_number]]}
-
-
-</TabItem>
-<TabItem value="Java">
-
-```java
-admin.brokers().getActiveBrokers()
-```
-
-</TabItem>
-
-</Tabs>
-````
-
 Fetch all available active brokers that are serving traffic with cluster name.
 
 ````mdx-code-block
