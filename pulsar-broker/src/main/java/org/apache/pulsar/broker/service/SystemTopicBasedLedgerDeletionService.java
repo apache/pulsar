@@ -95,14 +95,7 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
 
     private OpStatsLogger deleteOffloadLedgerOpLogger;
 
-    private final LoadingCache<String, TreeSet<Long>> ledgersCache = Caffeine.newBuilder()
-            .expireAfterWrite(10, TimeUnit.MINUTES)
-            .build(new CacheLoader<>() {
-                @Override
-                public @Nullable TreeSet<Long> load(@NonNull String key) throws Exception {
-                    return fetchInUseLedgerIds(key);
-                }
-            });
+    private final LoadingCache<String, TreeSet<Long>> ledgersCache;
 
     private final BookKeeper bookKeeper;
 
@@ -122,6 +115,14 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
         this.bookKeeper = pulsarService.getBookKeeperClient();
         this.serviceConfiguration = serviceConfiguration;
         this.ledgerDeletionParallelism = serviceConfiguration.getLedgerDeletionParallelismOfTwoPhaseDeletion();
+        this.ledgersCache = Caffeine.newBuilder()
+                .expireAfterWrite(serviceConfiguration.getReconsumeLaterSecondsOfTwoPhaseDeletion(), TimeUnit.SECONDS)
+                .build(new CacheLoader<>() {
+                    @Override
+                    public @Nullable TreeSet<Long> load(@NonNull String key) throws Exception {
+                        return fetchInUseLedgerIds(key);
+                    }
+                });
     }
 
     private SystemTopicClient<PendingDeleteLedgerInfo> getLedgerDeletionTopicClient() throws PulsarClientException {
@@ -132,14 +133,17 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
             throw new PulsarClientException.InvalidTopicNameException(
                     "Can't create SystemTopicBasedLedgerDeletionService, " + "because the topicName is null!");
         }
-        return namespaceEventsSystemTopicFactory.createLedgerDeletionSystemTopicClient(ledgerDeletionSystemTopic);
+        return namespaceEventsSystemTopicFactory.createLedgerDeletionSystemTopicClient(ledgerDeletionSystemTopic,
+                serviceConfiguration.getSendDelaySecondsOfTwoPhaseDeletion(),
+                serviceConfiguration.getReconsumeLaterSecondsOfTwoPhaseDeletion());
     }
 
     @Override
     public void start() throws PulsarClientException, PulsarAdminException {
         this.ledgerDeletionTopicClient = getLedgerDeletionTopicClient();
         initStatsLogger();
-        initSystemTopic();
+        initLedgerDeletionSystemTopic();
+        initLedgerDeletionArchiveSystemTopic();
     }
 
     private void initStatsLogger() {
@@ -156,7 +160,7 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
         this.deleteOffloadLedgerOpLogger = statsLogger.getOpStatsLogger("delete_offload_ledger");
     }
 
-    private void initSystemTopic() {
+    private void initLedgerDeletionSystemTopic() {
         this.pulsarAdmin.topics()
                 .createPartitionedTopicAsync(SystemTopicNames.LEDGER_DELETION_TOPIC.getPartitionedTopicName(),
                         ledgerDeletionParallelism)
@@ -164,7 +168,7 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
                     if (e != null && !(e instanceof PulsarAdminException.ConflictException)) {
                         log.error("Initial system topic "
                                 + SystemTopicNames.LEDGER_DELETION_TOPIC.getPartitionedTopicName() + "failed.", e);
-                        initSystemTopic();
+                        initLedgerDeletionSystemTopic();
                         return;
                     }
                     initReaderFuture();
@@ -172,10 +176,27 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
                 });
     }
 
+    private void initLedgerDeletionArchiveSystemTopic() {
+        pulsarAdmin.topics().createNonPartitionedTopicAsync(
+                        SystemTopicNames.LEDGER_DELETION_ARCHIVE_TOPIC.getPartitionedTopicName())
+                .whenComplete((res, e) -> {
+                    if (e != null && !(e instanceof PulsarAdminException.ConflictException)) {
+                        log.error("Initial system topic "
+                                        + SystemTopicNames.LEDGER_DELETION_ARCHIVE_TOPIC.getPartitionedTopicName() +
+                                        "failed.",
+                                e);
+                        initLedgerDeletionArchiveSystemTopic();
+                    }
+                });
+    }
+
     private void readMorePendingDeleteLedger(LedgerDeletionSystemTopicClient.PendingDeleteLedgerReader reader) {
         reader.readNextAsync().whenComplete((msg, ex) -> {
             if (ex == null) {
-                deleteLedger(reader, msg);
+                deleteLedger(reader, msg).exceptionally(e -> {
+                    log.warn("Delete ledger {} failed.", msg, e);
+                    return null;
+                });
                 readMorePendingDeleteLedger(reader);
             } else {
                 Throwable cause = FutureUtil.unwrapCompletionException(ex);
@@ -250,6 +271,7 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
         if (readerFuture != null && !readerFuture.isCompletedExceptionally()) {
             return readerFuture.thenCompose(SystemTopicClient.Reader::closeAsync);
         }
+        ledgersCache.invalidateAll();
         return CompletableFuture.completedFuture(null);
     }
 
@@ -264,7 +286,10 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
                         reader.ackMessageAsync(message);
                         return;
                     }
-                    reader.reconsumeLaterAsync(message);
+                    reader.reconsumeLaterAsync(message).exceptionally(ex -> {
+                        log.warn("Reconsume pending delete ledger {} later failed.", message, ex);
+                        return null;
+                    });
                 });
             } else if (LedgerType.OFFLOAD_LEDGER == pendingDeleteLedger.getLedgerType()) {
                 return asyncDeleteOffloadedLedger(pendingDeleteLedger.getTopicName(),
@@ -273,7 +298,10 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
                         reader.ackMessageAsync(message);
                         return;
                     }
-                    reader.reconsumeLaterAsync(message);
+                    reader.reconsumeLaterAsync(message).exceptionally(ex -> {
+                        log.warn("Reconsume pending delete ledger {} later failed.", message, ex);
+                        return null;
+                    });
                 });
             }
             reader.ackMessageAsync(message);
@@ -433,10 +461,6 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
         String bucket = metadata.get(METADATA_FIELD_BUCKET);
         String region = metadata.get(METADATA_FIELD_REGION);
         String endpoint = metadata.get(METADATA_FIELD_ENDPOINT);
-        if (StringUtils.isBlank(driverName) || StringUtils.isBlank(bucket) || StringUtils.isBlank(region)
-                || StringUtils.isBlank(endpoint)) {
-            throw new IllegalArgumentException("Failed get offload policies param from ledgerInfo failed.");
-        }
         return OffloadPoliciesImpl.create(driverName, bucket, region, endpoint);
     }
 

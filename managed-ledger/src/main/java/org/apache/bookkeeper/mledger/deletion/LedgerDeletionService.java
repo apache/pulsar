@@ -32,24 +32,25 @@ public interface LedgerDeletionService {
 
     /**
      *
-     * @param topicName
-     * @param ledgerId
-     * @param context
-     * @param component
-     * @param type
-     * @param checkLedgerStillInUse
+     * @param topicName topicName
+     * @param ledgerId ledgerId
+     * @param context ledgerInfo
+     * @param component managed_ledger, managed_cursor, schema_storage
+     * @param type ledger, offload_ledger
+     * @param checkLedgerStillInUse check the ledger is still in use. some situation can delete directly
      * @return
      */
     CompletableFuture<?> appendPendingDeleteLedger(String topicName, long ledgerId, LedgerInfo context,
                                                    LedgerComponent component,
                                                    LedgerType type, boolean checkLedgerStillInUse);
 
+    /**
+     * Close.
+     */
     void close() throws Exception;
 
     /**
-     * Async close managedTrash, it will persist trash data to meta store.
-     *
-     * @return
+     * Async close.
      */
     CompletableFuture<?> asyncClose();
 

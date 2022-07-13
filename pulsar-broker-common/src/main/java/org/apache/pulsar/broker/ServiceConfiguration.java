@@ -2525,9 +2525,24 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_SERVER,
             doc = "Ledger deletion parallelism. Create partitioned system topic with this value when "
-                    + "twoPhaseDeletionEnabled is true."
+                    + "twoPhaseDeletionEnabled is true. (Default 4)"
     )
     private int ledgerDeletionParallelismOfTwoPhaseDeletion = 4;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "When delete ledger of two phase deletion, it will send PendingDeleteLedgerInfo to system topic,"
+                    + " send it delay according this value. (Default 60s)"
+    )
+    private int sendDelaySecondsOfTwoPhaseDeletion = 60;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "When delete ledger of two phase deletion, it will start consumer to subscribe system topic,"
+                    + " when consume PendingDeleteLedgerInfo failed, will reconsume later according this value."
+                    + " (Default 600s)"
+    )
+    private int reconsumeLaterSecondsOfTwoPhaseDeletion = 600;
 
     @FieldContext(
             category = CATEGORY_STORAGE_ML,

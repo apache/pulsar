@@ -51,9 +51,11 @@ public class NamespaceEventsSystemTopicFactory {
         return new TransactionBufferSystemTopicClient(client, topicName, transactionBufferSnapshotService);
     }
 
-    public LedgerDeletionSystemTopicClient createLedgerDeletionSystemTopicClient(TopicName topicName) {
+    public LedgerDeletionSystemTopicClient createLedgerDeletionSystemTopicClient(TopicName topicName,
+                                                                                 int sendDelaySeconds,
+                                                                                 int reconsumeLaterSeconds) {
         log.info("Create ledger deletion client, topicName: {}", topicName.toString());
-        return new LedgerDeletionSystemTopicClient(client, topicName);
+        return new LedgerDeletionSystemTopicClient(client, topicName, sendDelaySeconds, reconsumeLaterSeconds);
     }
 
     public static TopicName getSystemTopicName(NamespaceName namespaceName, EventType eventType) {

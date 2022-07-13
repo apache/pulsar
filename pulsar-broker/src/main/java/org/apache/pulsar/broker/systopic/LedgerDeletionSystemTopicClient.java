@@ -45,8 +45,15 @@ import org.slf4j.LoggerFactory;
  */
 public class LedgerDeletionSystemTopicClient extends SystemTopicClientBase<PendingDeleteLedgerInfo> {
 
-    public LedgerDeletionSystemTopicClient(PulsarClient client, TopicName topicName) {
+    private final int sendDelaySeconds;
+
+    private final int reconsumeLaterSeconds;
+
+    public LedgerDeletionSystemTopicClient(PulsarClient client, TopicName topicName, int sendDelaySeconds,
+                                           int reconsumeLaterSeconds) {
         super(client, topicName);
+        this.sendDelaySeconds = sendDelaySeconds;
+        this.reconsumeLaterSeconds = reconsumeLaterSeconds;
     }
 
     @Override
@@ -58,8 +65,9 @@ public class LedgerDeletionSystemTopicClient extends SystemTopicClientBase<Pendi
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] A new writer is created", topicName);
                     }
-                    return CompletableFuture.completedFuture(new PendingDeleteLedgerWriter(producer,
-                            LedgerDeletionSystemTopicClient.this));
+                    return CompletableFuture.completedFuture(
+                            new PendingDeleteLedgerWriter(producer, LedgerDeletionSystemTopicClient.this,
+                                    sendDelaySeconds));
                 });
     }
 
@@ -78,8 +86,9 @@ public class LedgerDeletionSystemTopicClient extends SystemTopicClientBase<Pendi
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] A new reader is created", topicName);
                     }
-                    return CompletableFuture.completedFuture(new PendingDeleteLedgerReader(consumer,
-                            LedgerDeletionSystemTopicClient.this));
+                    return CompletableFuture.completedFuture(
+                            new PendingDeleteLedgerReader(consumer, LedgerDeletionSystemTopicClient.this,
+                                    reconsumeLaterSeconds));
                 });
     }
 
@@ -87,17 +96,21 @@ public class LedgerDeletionSystemTopicClient extends SystemTopicClientBase<Pendi
 
         private final Producer<PendingDeleteLedgerInfo> producer;
         private final SystemTopicClient<PendingDeleteLedgerInfo> systemTopicClient;
-        private final int sendDelayMinutes = 1;
+        private final int sendDelaySeconds;
 
-        private PendingDeleteLedgerWriter(Producer<PendingDeleteLedgerInfo> producer, SystemTopicClient<PendingDeleteLedgerInfo> systemTopicClient) {
+        private PendingDeleteLedgerWriter(Producer<PendingDeleteLedgerInfo> producer,
+                                          SystemTopicClient<PendingDeleteLedgerInfo> systemTopicClient,
+                                          int sendDelaySeconds) {
             this.producer = producer;
             this.systemTopicClient = systemTopicClient;
+            this.sendDelaySeconds = sendDelaySeconds;
         }
 
         @Override
         public MessageId write(PendingDeleteLedgerInfo pendingDeleteLedgerInfo) throws PulsarClientException {
             TypedMessageBuilder<PendingDeleteLedgerInfo> builder =
-                    producer.newMessage().value(pendingDeleteLedgerInfo).deliverAfter(sendDelayMinutes, TimeUnit.MINUTES);
+                    producer.newMessage().value(pendingDeleteLedgerInfo)
+                            .deliverAfter(sendDelaySeconds, TimeUnit.SECONDS);
             return builder.send();
         }
 
@@ -133,12 +146,14 @@ public class LedgerDeletionSystemTopicClient extends SystemTopicClientBase<Pendi
 
         private final Consumer<PendingDeleteLedgerInfo> consumer;
         private final LedgerDeletionSystemTopicClient systemTopic;
-        private final int reconsumeLaterMin = 10;
+        private final int reconsumeLaterSeconds;
 
         private PendingDeleteLedgerReader(Consumer<PendingDeleteLedgerInfo> consumer,
-                                          LedgerDeletionSystemTopicClient systemTopic) {
+                                          LedgerDeletionSystemTopicClient systemTopic,
+                                          int reconsumeLaterSeconds) {
             this.consumer = consumer;
             this.systemTopic = systemTopic;
+            this.reconsumeLaterSeconds = reconsumeLaterSeconds;
         }
 
         @Override
@@ -192,7 +207,7 @@ public class LedgerDeletionSystemTopicClient extends SystemTopicClientBase<Pendi
         }
 
         public CompletableFuture<Void> reconsumeLaterAsync(Message<PendingDeleteLedgerInfo> message) {
-            return this.consumer.reconsumeLaterAsync(message, reconsumeLaterMin, TimeUnit.MINUTES);
+            return this.consumer.reconsumeLaterAsync(message, reconsumeLaterSeconds, TimeUnit.SECONDS);
         }
 
         @Override
