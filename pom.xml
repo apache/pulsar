@@ -126,7 +126,7 @@ flexible messaging model and an intuitive client API.</description>
     <conscrypt.version>2.5.2</conscrypt.version>
     <jersey.version>2.34</jersey.version>
     <athenz.version>1.10.50</athenz.version>
-    <prometheus.version>0.5.0</prometheus.version>
+    <prometheus.version>0.15.0</prometheus.version>
     <vertx.version>3.9.8</vertx.version>
     <rocksdb.version>6.29.4.1</rocksdb.version>
     <slf4j.version>1.7.32</slf4j.version>
@@ -179,7 +179,7 @@ flexible messaging model and an intuitive client API.</description>
     <hbase.version>2.4.9</hbase.version>
     <guava.version>31.0.1-jre</guava.version>
     <jcip.version>1.0</jcip.version>
-    <prometheus-jmx.version>0.14.0</prometheus-jmx.version>
+    <prometheus-jmx.version>0.16.1</prometheus-jmx.version>
     <confluent.version>7.0.1</confluent.version>
     <kafka.confluent.schemaregistryclient.version>5.3.0</kafka.confluent.schemaregistryclient.version>
     <kafka.confluent.avroserializer.version>5.3.0</kafka.confluent.avroserializer.version>
