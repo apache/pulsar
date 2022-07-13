@@ -337,8 +337,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         assertEquals(asyncRequests(ctx -> namespaces.getPermissions(ctx, this.testTenant, this.testLocalCluster,
                 this.testLocalNamespaces.get(0).getLocalName())), expectedPolicies.auth_policies.getNamespaceAuthentication());
 
-        namespaces.grantPermissionOnNamespace(this.testTenant, this.testLocalCluster,
-                this.testLocalNamespaces.get(0).getLocalName(), "my-role", EnumSet.of(AuthAction.produce));
+        asyncRequests(ctx -> namespaces.grantPermissionOnNamespace(ctx, this.testTenant, this.testLocalCluster,
+                this.testLocalNamespaces.get(0).getLocalName(), "my-role", EnumSet.of(AuthAction.produce)));
 
         expectedPolicies.auth_policies.getNamespaceAuthentication().put("my-role", EnumSet.of(AuthAction.produce));
         assertEquals(asyncRequests(ctx -> namespaces.getPolicies(ctx, this.testTenant, this.testLocalCluster,
@@ -346,16 +346,16 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         assertEquals(asyncRequests(ctx -> namespaces.getPermissions(ctx, this.testTenant, this.testLocalCluster,
                 this.testLocalNamespaces.get(0).getLocalName())), expectedPolicies.auth_policies.getNamespaceAuthentication());
 
-        namespaces.grantPermissionOnNamespace(this.testTenant, this.testLocalCluster,
-                this.testLocalNamespaces.get(0).getLocalName(), "other-role", EnumSet.of(AuthAction.consume));
+        asyncRequests(ctx -> namespaces.grantPermissionOnNamespace(ctx, this.testTenant, this.testLocalCluster,
+                this.testLocalNamespaces.get(0).getLocalName(), "other-role", EnumSet.of(AuthAction.consume)));
         expectedPolicies.auth_policies.getNamespaceAuthentication().put("other-role", EnumSet.of(AuthAction.consume));
         assertEquals(asyncRequests(ctx -> namespaces.getPolicies(ctx, this.testTenant, this.testLocalCluster,
                 this.testLocalNamespaces.get(0).getLocalName())), expectedPolicies);
         assertEquals(asyncRequests(ctx -> namespaces.getPermissions(ctx, this.testTenant, this.testLocalCluster,
                 this.testLocalNamespaces.get(0).getLocalName())), expectedPolicies.auth_policies.getNamespaceAuthentication());
 
-        namespaces.revokePermissionsOnNamespace(this.testTenant, this.testLocalCluster,
-                this.testLocalNamespaces.get(0).getLocalName(), "my-role");
+        asyncRequests(ctx -> namespaces.revokePermissionsOnNamespace(ctx, this.testTenant, this.testLocalCluster,
+                this.testLocalNamespaces.get(0).getLocalName(), "my-role"));
         expectedPolicies.auth_policies.getNamespaceAuthentication().remove("my-role");
         assertEquals(asyncRequests(ctx -> namespaces.getPolicies(ctx, this.testTenant, this.testLocalCluster,
                 this.testLocalNamespaces.get(0).getLocalName())), expectedPolicies);
@@ -378,16 +378,17 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         }
 
         try {
-            namespaces.grantPermissionOnNamespace(this.testTenant, this.testLocalCluster, "non-existing-namespace-1",
-                    "my-role", EnumSet.of(AuthAction.produce));
+            asyncRequests(ctx -> namespaces.grantPermissionOnNamespace(ctx, this.testTenant, this.testLocalCluster,
+                    "non-existing-namespace-1",
+                    "my-role", EnumSet.of(AuthAction.produce)));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.NOT_FOUND.getStatusCode());
         }
 
         try {
-            namespaces.revokePermissionsOnNamespace(this.testTenant, this.testLocalCluster,
-                    "non-existing-namespace-1", "my-role");
+            asyncRequests(ctx -> namespaces.revokePermissionsOnNamespace(ctx, this.testTenant, this.testLocalCluster,
+                    "non-existing-namespace-1", "my-role"));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.NOT_FOUND.getStatusCode());
@@ -432,8 +433,9 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 return true;
             });
         try {
-            namespaces.grantPermissionOnNamespace(testNs.getTenant(), testNs.getCluster(), testNs.getLocalName(),
-                    "other-role", EnumSet.of(AuthAction.consume));
+            asyncRequests(ctx -> namespaces.grantPermissionOnNamespace(ctx, testNs.getTenant(), testNs.getCluster(),
+                    testNs.getLocalName(),
+                    "other-role", EnumSet.of(AuthAction.consume)));
             fail("should have failed");
         } catch (RestException e) {
             // Ok
@@ -447,8 +449,9 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 return true;
             });
         try {
-            namespaces.grantPermissionOnNamespace(testNs.getTenant(), testNs.getCluster(), testNs.getLocalName(),
-                    "other-role", EnumSet.of(AuthAction.consume));
+            asyncRequests(ctx -> namespaces.grantPermissionOnNamespace(ctx, testNs.getTenant(), testNs.getCluster(),
+                    testNs.getLocalName(),
+                    "other-role", EnumSet.of(AuthAction.consume)));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.CONFLICT.getStatusCode());
@@ -462,8 +465,9 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 return true;
             });
         try {
-            namespaces.revokePermissionsOnNamespace(testNs.getTenant(), testNs.getCluster(), testNs.getLocalName(),
-                    "other-role");
+            asyncRequests(ctx -> namespaces.revokePermissionsOnNamespace(ctx, testNs.getTenant(), testNs.getCluster(),
+                    testNs.getLocalName(),
+                    "other-role"));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.CONFLICT.getStatusCode());
@@ -477,8 +481,9 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 return true;
             });
         try {
-            namespaces.revokePermissionsOnNamespace(testNs.getTenant(), testNs.getCluster(), testNs.getLocalName(),
-                    "other-role");
+            asyncRequests(ctx -> namespaces.revokePermissionsOnNamespace(ctx, testNs.getTenant(), testNs.getCluster(),
+                    testNs.getLocalName(),
+                    "other-role"));
             fail("should have failed");
         } catch (RestException e) {
             // Ok

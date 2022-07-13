@@ -615,12 +615,12 @@ void ClientImpl::shutdown() {
     LOG_DEBUG("ioExecutorProvider_ is closed");
 
     timeoutProcessor.tik();
-    listenerExecutorProvider_->close();
+    listenerExecutorProvider_->close(timeoutProcessor.getLeftTimeout());
     timeoutProcessor.tok();
     LOG_DEBUG("listenerExecutorProvider_ is closed");
 
     timeoutProcessor.tik();
-    partitionListenerExecutorProvider_->close();
+    partitionListenerExecutorProvider_->close(timeoutProcessor.getLeftTimeout());
     timeoutProcessor.tok();
     LOG_DEBUG("partitionListenerExecutorProvider_ is closed");
 }
