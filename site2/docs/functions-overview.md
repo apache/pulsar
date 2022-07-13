@@ -27,7 +27,7 @@ A function receives messages from one or more **input topics**. Each time messag
 2. Applies a customized processing logic to the messages and:
     a) writes output messages to an **output topic** in Pulsar
     b) writes logs to a **log topic** if it is configured (for debugging purposes)
-    c) writes [state](functions-develop-state) to BookKeeper (if it is configured) 
+    c) writes [state](functions-develop-state.md) to BookKeeper (if it is configured) 
 
 
 You can write functions in Java, Python, and Go. For example, you can use Pulsar Functions to set up the following processing chain:

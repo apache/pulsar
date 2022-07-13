@@ -122,7 +122,7 @@ The extracted directory contains the following subdirectories:
 
 Directory | Contains
 :---------|:--------
-`bin` |[command-line tools](reference-cli-tools) of Pulsar, such as [`pulsar`](reference-cli-tools.md#pulsar) and [`pulsar-admin`](/tools/pulsar-admin/)
+`bin` |[command-line tools](reference-cli-tools.md) of Pulsar, such as [`pulsar`](reference-cli-tools.md#pulsar) and [`pulsar-admin`](/tools/pulsar-admin/)
 `conf` | Configuration files for Pulsar, including for [broker configuration](reference-configuration.md#broker), [ZooKeeper configuration](reference-configuration.md#zookeeper), and more
 `data` | The data storage directory that ZooKeeper and BookKeeper use
 `lib` | The [JAR](https://en.wikipedia.org/wiki/JAR_(file_format)) files that Pulsar uses
@@ -447,7 +447,7 @@ If you want to enable [Pulsar Functions](functions-overview.md), you can follow 
    
    ```
 
-If you want to learn more options about deploying the functions worker, check out [Deploy and manage functions worker](functions-worker).
+If you want to learn more options about deploying the functions worker, check out [Deploy and manage functions worker](functions-worker.md).
 
 ### Start Brokers
 
