@@ -35,6 +35,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import io.netty.channel.ChannelHandlerContext;
@@ -1064,6 +1065,74 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             Assert.assertTrue(e.getCause() instanceof TransactionCoordinatorClientException
                     .InvalidTxnStatusException);
         }
+    }
+
+    @Test
+    public void testCumulativeAckRedeliverMessages() throws Exception {
+        String topic = NAMESPACE1 + "/testCumulativeAckRedeliverMessages";
+
+        int count = 5;
+        int transactionCumulativeAck = 3;
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName("test")
+                .subscribe();
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .create();
+
+        // send 5 messages
+        for (int i = 0; i < count; i++) {
+            producer.send((i + "").getBytes(UTF_8));
+        }
+
+        Transaction transaction = getTxn();
+        Transaction invalidTransaction = getTxn();
+
+        Message<byte[]> message = null;
+        for (int i = 0; i < transactionCumulativeAck; i++) {
+            message = consumer.receive();
+        }
+
+        // receive transaction in order
+        assertEquals(message.getValue(), (transactionCumulativeAck - 1 + "").getBytes(UTF_8));
+
+        // ack the last message
+        consumer.acknowledgeCumulativeAsync(message.getMessageId(), transaction).get();
+
+        // another ack will throw TransactionConflictException
+        try {
+            consumer.acknowledgeCumulativeAsync(message.getMessageId(), invalidTransaction).get();
+            fail();
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof PulsarClientException.TransactionConflictException);
+            // abort transaction then redeliver messages
+            transaction.abort().get();
+            // consumer redeliver messages
+            consumer.redeliverUnacknowledgedMessages();
+        }
+
+        // receive the rest of the message
+        for (int i = 0; i < count; i++) {
+            message = consumer.receive();
+        }
+
+        Transaction commitTransaction = getTxn();
+
+        // receive the first message
+        assertEquals(message.getValue(), (count - 1 + "").getBytes(UTF_8));
+        // ack the end of the message
+        consumer.acknowledgeCumulativeAsync(message.getMessageId(), commitTransaction).get();
+
+        commitTransaction.commit().get();
+
+        // then redeliver will not receive any message
+        message = consumer.receive(3, TimeUnit.SECONDS);
+        assertNull(message);
     }
 
     @Test
