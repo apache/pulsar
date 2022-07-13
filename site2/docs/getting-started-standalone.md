@@ -33,19 +33,7 @@ Broker is only supported on 64-bit JVM.
 #### Install JDK on M1
 In the current version, Pulsar uses a BookKeeper version which in turn uses RocksDB. RocksDB is compiled to work on x86 architecture and not ARM. Therefore, Pulsar can only work with x86 JDK. This is planned to be fixed in future versions of Pulsar.
 
-One of the ways to easily install an x86 JDK is to use [SDKMan](http://sdkman.io) as outlined in the following steps:
-
-1. Install [SDKMan](http://sdkman.io).
-
-* Method 1: follow instructions on the SDKMan website.
-
-* Method 2: if you have [Homebrew](https://brew.sh) installed, enter the following command.
-
-```shell
-
-brew install sdkman
-
-```
+One of the ways to easily install an x86 JDK is to use [SDKMan](http://sdkman.io). Follow instructions on the SDKMan website.
 
 2. Turn on Rosetta2 compatibility for SDKMan by editing `~/.sdkman/etc/config` and changing the following property from `false` to `true`.
 
