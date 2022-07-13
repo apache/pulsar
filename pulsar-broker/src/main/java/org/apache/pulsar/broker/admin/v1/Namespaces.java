@@ -1016,11 +1016,19 @@ public class Namespaces extends NamespacesBase {
             + "in dispatch-rate yet")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
         @ApiResponse(code = 404, message = "Namespace does not exist") })
-    public DispatchRate getReplicatorDispatchRate(@PathParam("tenant") String tenant,
-                                                    @PathParam("cluster") String cluster,
-                                                    @PathParam("namespace") String namespace) {
+    public void getReplicatorDispatchRate(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, cluster, namespace);
-        return internalGetReplicatorDispatchRate();
+        internalGetReplicatorDispatchRateAsync().thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to get replicator dispatch-rate configured for the namespace {}",
+                            clientAppId(), namespaceName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET
