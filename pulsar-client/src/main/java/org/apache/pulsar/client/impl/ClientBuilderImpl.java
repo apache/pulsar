@@ -351,4 +351,16 @@ public class ClientBuilderImpl implements ClientBuilder {
         conf.setSocks5ProxyPassword(socks5ProxyPassword);
         return this;
     }
+
+    @Override
+    public ClientBuilder originalPrincipal(String originalPrincipal) {
+        conf.setOriginalPrincipal(originalPrincipal);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder originalAuthentication(Authentication originalAuthentication) {
+        conf.setOriginalAuthentication(originalAuthentication);
+        return this;
+    }
 }

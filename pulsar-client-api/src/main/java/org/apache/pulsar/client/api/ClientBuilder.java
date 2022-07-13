@@ -566,4 +566,20 @@ public interface ClientBuilder extends Serializable, Cloneable {
      * @return
      */
     ClientBuilder socks5ProxyPassword(String socks5ProxyPassword);
+
+    /**
+     * When using the client as a proxy service, client can support the original principal.
+     *
+     * @param originalPrincipal
+     * @return the client builder instance
+     */
+    ClientBuilder originalPrincipal(String originalPrincipal);
+
+    /**
+     * When using the client as a proxy service, client can support the original authentication.
+     *
+     * @param originalAuthenticationData
+     * @return the client builder instance
+     */
+    ClientBuilder originalAuthentication(Authentication originalAuthenticationData);
 }

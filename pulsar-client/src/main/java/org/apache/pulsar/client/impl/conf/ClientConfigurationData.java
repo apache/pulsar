@@ -328,6 +328,20 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     @Secret
     private String socks5ProxyPassword;
 
+    @ApiModelProperty(
+            name = "originalPrincipal",
+            value = "Set the original principal."
+    )
+    @JsonIgnore
+    private String originalPrincipal;
+
+    @ApiModelProperty(
+            name = "originalAuthenticationData",
+            value = "Set the original authentication."
+    )
+    @JsonIgnore
+    private Authentication originalAuthentication;
+
     public Authentication getAuthentication() {
         if (authentication == null) {
             this.authentication = AuthenticationDisabled.INSTANCE;

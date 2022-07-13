@@ -172,6 +172,9 @@ public class ClientCnx extends PulsarHandler {
     private TransactionBufferHandler transactionBufferHandler;
     private boolean supportsTopicWatchers;
 
+    private final String originalPrincipal;
+    private final Authentication originalAuthentication;
+
     enum State {
         None, SentConnectFrame, Ready, Failed, Connecting
     }
@@ -229,6 +232,8 @@ public class ClientCnx extends PulsarHandler {
         this.operationTimeoutMs = conf.getOperationTimeoutMs();
         this.state = State.None;
         this.protocolVersion = protocolVersion;
+        this.originalPrincipal = conf.getOriginalPrincipal();
+        this.originalAuthentication = conf.getOriginalAuthentication();
     }
 
     @Override
@@ -269,8 +274,17 @@ public class ClientCnx extends PulsarHandler {
         // and return authData to server.
         authenticationDataProvider = authentication.getAuthData(remoteHostName);
         AuthData authData = authenticationDataProvider.authenticate(AuthData.INIT_AUTH_DATA);
+
+        AuthData originalAuthData = null;
+        String originalAuthMethod = null;
+        if (originalAuthentication != null) {
+            originalAuthData = originalAuthentication.getAuthData(remoteHostName)
+                    .authenticate(AuthData.INIT_AUTH_DATA);
+            originalAuthMethod = originalAuthentication.getAuthMethodName();
+        }
         return Commands.newConnect(authentication.getAuthMethodName(), authData, this.protocolVersion,
-                PulsarVersion.getVersion(), proxyToTargetBrokerAddress, null, null, null);
+                PulsarVersion.getVersion(), proxyToTargetBrokerAddress, originalPrincipal, originalAuthData,
+                originalAuthMethod);
     }
 
     @Override
