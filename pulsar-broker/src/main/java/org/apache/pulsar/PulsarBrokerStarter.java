@@ -62,13 +62,10 @@ import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.service.WorkerServiceLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.bridge.SLF4JBridgeHandler;
 
 public class PulsarBrokerStarter {
 
     private static ServiceConfiguration loadConfig(String configFile) throws Exception {
-        SLF4JBridgeHandler.removeHandlersForRootLogger();
-        SLF4JBridgeHandler.install();
         try (InputStream inputStream = new FileInputStream(configFile)) {
             ServiceConfiguration config = create(inputStream, ServiceConfiguration.class);
             // it validates provided configuration is completed
