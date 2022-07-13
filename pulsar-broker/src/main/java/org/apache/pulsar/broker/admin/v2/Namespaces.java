@@ -1088,8 +1088,7 @@ public class Namespaces extends NamespacesBase {
                 .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
                 .thenAccept(policies -> asyncResponse.resume(policies.backlog_quota_map))
                 .exceptionally(ex -> {
-                    log.error("[{}] Failed to get backlog quota map on namespace {}:{}", clientAppId(), namespaceName,
-                            ex.getCause().getMessage(), ex);
+                    log.error("[{}] Failed to get backlog quota map on namespace {}", clientAppId(), namespaceName, ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
