@@ -839,14 +839,17 @@ public class Namespaces extends NamespacesBase {
                 })
                 .exceptionally(ex -> {
                     if (!isRedirectException(ex)) {
-                        if (ex.getCause() instanceof IllegalArgumentException) {
-                            log.error("[{}] Failed to split namespace bundle {}/{} due to {}", clientAppId(),
-                                    namespaceName, bundleRange, ex.getMessage());
-                            asyncResponse.resume(new RestException(Response.Status.PRECONDITION_FAILED,
-                                    "Split bundle failed due to invalid request"));
-                        } else {
-                            resumeAsyncResponseExceptionally(asyncResponse, ex);
-                        }
+                        log.error("[{}] Failed to split namespace bundle {}/{} due to {}",
+                                clientAppId(), namespaceName, bundleRange, ex.getMessage());
+                    }
+                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                    if (realCause instanceof IllegalArgumentException) {
+                        log.error("[{}] Failed to split namespace bundle {}/{} due to {}",
+                                clientAppId(), namespaceName, bundleRange, ex.getMessage());
+                        asyncResponse.resume(new RestException(Response.Status.PRECONDITION_FAILED,
+                                "Split bundle failed due to invalid request"));
+                    } else {
+                        resumeAsyncResponseExceptionally(asyncResponse, ex);
                     }
                     return null;
                 });
