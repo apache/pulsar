@@ -24,6 +24,8 @@ import io.netty.util.Recycler;
 import java.io.Closeable;
 import java.util.ArrayList;
 import java.util.Objects;
+import java.util.UUID;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -61,6 +63,9 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
 
     public static final short BATCHED_ENTRY_DATA_PREFIX_VERSION = 1;
 
+    private static final ManagedLedgerException BUFFERED_WRITER_CLOSED_EXCEPTION =
+            new ManagedLedgerException("Transaction log buffered write has closed");
+
     /**
      * Enable or disabled the batch feature, will use Managed Ledger directly and without batching when disabled.
      */
@@ -69,6 +74,9 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
     private final ManagedLedger managedLedger;
 
     private final OrderedExecutor orderedExecutor;
+
+    /** All write operation will be executed on single thread. **/
+    private final ExecutorService singleThreadExecutorForWrite;
 
     private final ScheduledExecutorService scheduledExecutorService;
 
@@ -88,18 +96,21 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
     private final int batchedWriteMaxSize;
 
     /** Maximum delay for writing to bookie for the earliest request in the batch. **/
-    private final int writeMaxDelayInMillis;
+    private final int batchedWriteMaxDelayInMillis;
 
     /** Data cached in the current batch. Will reset to null after each batched writes. **/
     private ArrayList<T> dataArray;
 
     /**
-     * Parameters of {@link #asyncAddData} cached in the current batch. Will reset to null after each batched writes.
+     * Parameters of {@link #asyncAddData} cached in the current batch. Will create a new one after each batched writes.
      */
-    private ArrayList<AsyncAddArgs> asyncAddArgsList;
+    private FlushContext<AsyncAddArgs> flushContext;
 
     /** Bytes size of data in current batch. Will reset to 0 after each batched writes. **/
     private long bytesSize;
+
+    /** The main purpose of state maintenance is to prevent written after close. **/
+    private volatile State state;
 
     /**
      * Constructor.
@@ -108,26 +119,30 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
      *                               Bookie writes.
      * @param batchedWriteMaxSize Caches “write requests” for a certain size of request data, if reach this threshold,
      *                           will trig Bookie writes.
-     * @param writeMaxDelayInMillis Maximum delay for writing to bookie for the earliest request in the batch.
+     * @param batchedWriteMaxDelayInMillis Maximum delay for writing to bookie for the earliest request in the batch.
      * @param batchEnabled Enable or disabled the batch feature, will use Managed Ledger directly and without batching
      *                    when disabled.
      */
     public TxnLogBufferedWriter(ManagedLedger managedLedger, OrderedExecutor orderedExecutor,
                                 ScheduledExecutorService scheduledExecutorService, DataSerializer<T> dataSerializer,
-                                int batchedWriteMaxRecords, int batchedWriteMaxSize, int writeMaxDelayInMillis,
+                                int batchedWriteMaxRecords, int batchedWriteMaxSize, int batchedWriteMaxDelayInMillis,
                                 boolean batchEnabled){
         this.batchEnabled = batchEnabled;
         this.managedLedger = managedLedger;
         this.orderedExecutor = orderedExecutor;
+        this.singleThreadExecutorForWrite = orderedExecutor.chooseThread(
+                managedLedger.getName() == null ? UUID.randomUUID().toString() : managedLedger.getName());
         this.scheduledExecutorService = scheduledExecutorService;
         this.dataSerializer = dataSerializer;
         this.batchedWriteMaxRecords = batchedWriteMaxRecords;
         this.batchedWriteMaxSize = batchedWriteMaxSize;
-        this.writeMaxDelayInMillis = writeMaxDelayInMillis;
+        this.batchedWriteMaxDelayInMillis = batchedWriteMaxDelayInMillis;
+        this.flushContext = FlushContext.newInstance();
+        this.dataArray = new ArrayList<>();
         // scheduler task.
         if (batchEnabled) {
             this.scheduledFuture = this.scheduledExecutorService.scheduleAtFixedRate(this::trigFlush,
-                    writeMaxDelayInMillis, writeMaxDelayInMillis, TimeUnit.MICROSECONDS);
+                    batchedWriteMaxDelayInMillis, batchedWriteMaxDelayInMillis, TimeUnit.MICROSECONDS);
         }
     }
 
@@ -141,33 +156,33 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
      * @throws ManagedLedgerException
      */
     public void asyncAddData(T data, AddDataCallback callback, Object ctx){
+        if (state == State.CLOSING || state == State.CLOSED){
+            callback.addFailed(BUFFERED_WRITER_CLOSED_EXCEPTION, ctx);
+            return;
+        }
         if (!batchEnabled){
             ByteBuf byteBuf = dataSerializer.serialize(data);
             managedLedger.asyncAddEntry(byteBuf, DisabledBatchCallback.INSTANCE, Triple.of(byteBuf, callback, ctx));
             return;
         }
-        orderedExecutor.executeOrdered(managedLedger.getName(), () -> internalAsyncAddData(data, callback, ctx));
+        singleThreadExecutorForWrite.execute(() -> internalAsyncAddData(data, callback, ctx));
     }
 
     private void internalAsyncAddData(T data, AddDataCallback callback, Object ctx){
         int len = dataSerializer.getSerializedSize(data);
         if (len >= batchedWriteMaxSize){
-            doTrigFlush(true);
+            if (!flushContext.asyncAddArgsList.isEmpty()) {
+                doTrigFlush(true);
+            }
             ByteBuf byteBuf = dataSerializer.serialize(data);
             managedLedger.asyncAddEntry(byteBuf, DisabledBatchCallback.INSTANCE, Triple.of(byteBuf, callback, ctx));
             return;
         }
         // Add data.
-        if (this.dataArray == null){
-            this.dataArray = new ArrayList<>();
-        }
         this.dataArray.add(data);
         // Add callback info.
         AsyncAddArgs asyncAddArgs = AsyncAddArgs.newInstance(callback, ctx, System.currentTimeMillis());
-        if (this.asyncAddArgsList == null){
-            this.asyncAddArgsList = new ArrayList<>();
-        }
-        this.asyncAddArgsList.add(asyncAddArgs);
+        this.flushContext.asyncAddArgsList.add(asyncAddArgs);
         // Calculate bytes-size.
         this.bytesSize += len;
         // trig flush.
@@ -210,23 +225,23 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
      * Trigger write to bookie once, If the conditions are not met, nothing will be done.
      */
     public void trigFlush(){
-        orderedExecutor.executeOrdered(managedLedger.getName(), () -> doTrigFlush(false));
+        singleThreadExecutorForWrite.execute(() -> doTrigFlush(false));
     }
 
     private void doTrigFlush(boolean force){
-        if (asyncAddArgsList == null || asyncAddArgsList.isEmpty()) {
+        if (flushContext.asyncAddArgsList.isEmpty()) {
             return;
         }
         if (force){
             doFlush();
             return;
         }
-        AsyncAddArgs firstAsyncAddArgs = asyncAddArgsList.get(0);
-        if (System.currentTimeMillis() - firstAsyncAddArgs.addedTime > writeMaxDelayInMillis){
+        AsyncAddArgs firstAsyncAddArgs = flushContext.asyncAddArgsList.get(0);
+        if (System.currentTimeMillis() - firstAsyncAddArgs.addedTime > batchedWriteMaxDelayInMillis){
             doFlush();
             return;
         }
-        if (this.asyncAddArgsList.size() >= batchedWriteMaxRecords){
+        if (this.flushContext.asyncAddArgsList.size() >= batchedWriteMaxRecords){
             doFlush();
             return;
         }
@@ -243,13 +258,12 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
         prefix.writeShort(BATCHED_ENTRY_DATA_PREFIX_VERSION);
         ByteBuf actualContent = this.dataSerializer.serialize(this.dataArray);
         ByteBuf pairByteBuf = Unpooled.wrappedUnmodifiableBuffer(prefix, actualContent);
-        FlushContext<T> flushContext = FlushContext.newInstance(this.asyncAddArgsList);
-        // Clear buffers.
-        this.dataArray.clear();
-        this.asyncAddArgsList = null;
-        this.bytesSize = 0;
         // Flush.
         managedLedger.asyncAddEntry(pairByteBuf, this, flushContext);
+        // Clear buffers.
+        this.dataArray.clear();
+        this.flushContext = FlushContext.newInstance();
+        this.bytesSize = 0;
     }
 
     /**
@@ -266,11 +280,11 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
                 bitSetRecyclable.set(batchIndex);
                 long[] ackSet = bitSetRecyclable.toLongArray();
                 bitSetRecyclable.recycle();
-                final TxnBatchedPositionImpl txBatchedPosition = new TxnBatchedPositionImpl(position, batchSize,
+                final TxnBatchedPositionImpl txnBatchedPosition = new TxnBatchedPositionImpl(position, batchSize,
                         batchIndex, ackSet);
                 // Because this task already running at ordered task, so just "run".
                 SafeRunnable.safeRun(() -> {
-                    asyncAddArgs.callback.addComplete(txBatchedPosition, asyncAddArgs.ctx);
+                    asyncAddArgs.callback.addComplete(txnBatchedPosition, asyncAddArgs.ctx);
                 }).run();
             }
         } finally {
@@ -301,9 +315,16 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
      */
     @Override
     public void close() {
+        this.state = State.CLOSING;
+        singleThreadExecutorForWrite.execute(() -> {
+            if (!flushContext.asyncAddArgsList.isEmpty()) {
+                doTrigFlush(true);
+            }
+        });
         if (this.scheduledFuture != null) {
             this.scheduledFuture.cancel(false);
         }
+        this.state = State.CLOSED;
     }
 
     /***
@@ -335,12 +356,15 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
         private final Recycler.Handle<AsyncAddArgs> handle;
 
         /** Argument for {@link #asyncAddData(Object, AddDataCallback, Object)}. **/
+        @Getter
         private AddDataCallback callback;
 
         /** Argument for {@link #asyncAddData(Object, AddDataCallback, Object)}. **/
+        @Getter
         private Object ctx;
 
         /** Time of executed {@link #asyncAddData(Object, AddDataCallback, Object)}. **/
+        @Getter
         private long addedTime;
 
     }
@@ -360,23 +384,29 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
 
         private final Recycler.Handle<FlushContext> handle;
 
+        /** Callback parameters for current batch. **/
+        private ArrayList<AsyncAddArgs> asyncAddArgsList;
+
         public FlushContext(Recycler.Handle<FlushContext> handle){
             this.handle = handle;
+            this.asyncAddArgsList = new ArrayList<>(8);
         }
 
-        public static <T> FlushContext newInstance(ArrayList<AsyncAddArgs> asyncAddArgsList){
+        public static <T> FlushContext newInstance(){
             FlushContext flushContext = FLUSH_CONTEXT_RECYCLER.get();
-            flushContext.asyncAddArgsList = asyncAddArgsList;
+            return flushContext;
+        }
+
+        public static <T> FlushContext newInstance(int asyncAddArgsListInitialCapacity){
+            FlushContext flushContext = FLUSH_CONTEXT_RECYCLER.get();
+            flushContext.asyncAddArgsList.ensureCapacity(asyncAddArgsListInitialCapacity);
             return flushContext;
         }
 
         public void recycle(){
-            this.asyncAddArgsList = null;
+            this.asyncAddArgsList.clear();
             this.handle.recycle(this);
         }
-
-        /** Callback parameters for current batch. **/
-        private ArrayList<AsyncAddArgs> asyncAddArgsList;
     }
 
     /***
@@ -420,6 +450,12 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
         void addComplete(Position position, Object context);
 
         void addFailed(ManagedLedgerException exception, Object ctx);
+    }
+
+    public enum State{
+        RUNNING,
+        CLOSING,
+        CLOSED;
     }
 
     /***

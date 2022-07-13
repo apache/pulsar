@@ -203,9 +203,11 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         // Create components.
         ManagedLedger managedLedger = factory.open("tx_test_ledger");
         ManagedCursor managedCursor = managedLedger.openCursor("tx_test_cursor");
+        OrderedExecutor orderedExecutor =  OrderedExecutor.newBuilder()
+                .numThreads(5).name("tx-brokers-topic-workers").build();
         // Create TxLogBufferedWriter.
         TxnLogBufferedWriter txnLogBufferedWriter =
-                new TxnLogBufferedWriter<ByteBuf>(managedLedger, null, null,
+                new TxnLogBufferedWriter<ByteBuf>(managedLedger, orderedExecutor, null,
                         new TxnLogBufferedWriter.DataSerializer<ByteBuf>() {
                             @Override
                             public int getSerializedSize(ByteBuf byteBuf) {
@@ -319,11 +321,19 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         for (int i = 0; i < 64; i++){
             txnLogBufferedWriter2.asyncAddData(1, callback, 1);
         }
-        // Assert 3 flush.
-        Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> flushedDataList.size() == 3);
+        // Test threshold: close.
+        txnLogBufferedWriter.asyncAddData(1, callback, 1);
+        txnLogBufferedWriter2.asyncAddData(1, callback, 1);
+        txnLogBufferedWriter2.asyncAddData(1, callback, 1);
+        txnLogBufferedWriter.close();
+        txnLogBufferedWriter2.close();
+        // Assert 4 flush.
+        Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> flushedDataList.size() == 5);
         Assert.assertEquals(flushedDataList.get(0).intValue(), 100);
         Assert.assertEquals(flushedDataList.get(1).intValue(), 32);
         Assert.assertEquals(flushedDataList.get(2).intValue(), 64);
+        Assert.assertEquals(flushedDataList.get(3).intValue(), 1);
+        Assert.assertEquals(flushedDataList.get(4).intValue(), 2);
         // clean up.
         scheduledExecutorService.shutdown();
         orderedExecutor.shutdown();
