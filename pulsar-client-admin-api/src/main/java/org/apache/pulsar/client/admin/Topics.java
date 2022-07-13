@@ -1304,11 +1304,11 @@ public interface Topics {
      *
      */
     PartitionedTopicStats getPartitionedStats(String topic, boolean perPartition, boolean getPreciseBacklog,
-                                              boolean subscriptionBacklogSize)
+                                              boolean subscriptionBacklogSize, boolean getEarliestTimeInBacklog)
             throws PulsarAdminException;
 
     default PartitionedTopicStats getPartitionedStats(String topic, boolean perPartition) throws PulsarAdminException {
-        return getPartitionedStats(topic, perPartition, false, false);
+        return getPartitionedStats(topic, perPartition, false, false, false);
     }
 
     /**
@@ -1325,10 +1325,11 @@ public interface Topics {
      * @return a future that can be used to track when the partitioned topic statistics are returned
      */
     CompletableFuture<PartitionedTopicStats> getPartitionedStatsAsync(
-            String topic, boolean perPartition, boolean getPreciseBacklog, boolean subscriptionBacklogSize);
+            String topic, boolean perPartition, boolean getPreciseBacklog, boolean subscriptionBacklogSize,
+            boolean getEarliestTimeInBacklog);
 
     default CompletableFuture<PartitionedTopicStats> getPartitionedStatsAsync(String topic, boolean perPartition) {
-        return getPartitionedStatsAsync(topic, perPartition, false, false);
+        return getPartitionedStatsAsync(topic, perPartition, false, false, false);
     }
 
     /**

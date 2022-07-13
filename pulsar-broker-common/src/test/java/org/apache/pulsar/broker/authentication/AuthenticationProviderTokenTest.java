@@ -659,6 +659,8 @@ public class AuthenticationProviderTokenTest {
     }
 
 
+    // Deprecation warning suppressed as this test targets deprecated methods
+    @SuppressWarnings("deprecation")
     @Test
     public void testExpiringToken() throws Exception {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);

@@ -351,7 +351,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "Key value pair properties for the topic metadata")
             Map<String, String> properties) {
@@ -382,7 +382,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("applied") @DefaultValue("false") boolean applied,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
@@ -403,7 +403,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
             @ApiParam(value = "Offload policies for the specified topic") OffloadPoliciesImpl offloadPolicies) {
@@ -427,7 +427,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
@@ -451,7 +451,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("applied") @DefaultValue("false") boolean applied,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
@@ -473,7 +473,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "Max unacked messages on consumer policies for the specified topic")
                     Integer maxUnackedNum) {
@@ -497,7 +497,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
@@ -520,7 +520,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
@@ -548,7 +548,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Interval to take deduplication snapshot for the specified topic")
                     Integer interval,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
@@ -570,7 +570,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
@@ -594,7 +594,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("applied") @DefaultValue("false") boolean applied,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
@@ -614,7 +614,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
             @ApiParam(value = "inactive topic policies for the specified topic")
@@ -639,7 +639,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
@@ -663,7 +663,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("applied") @DefaultValue("false") boolean applied,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
@@ -686,7 +686,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "Max unacked messages on subscription policies for the specified topic")
                     Integer maxUnackedNum) {
@@ -713,7 +713,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         validateTopicPolicyOperation(topicName, PolicyName.MAX_UNACKED, PolicyOperation.WRITE);
@@ -738,7 +738,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
             @QueryParam("applied") @DefaultValue("false") boolean applied,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
@@ -761,7 +761,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "Delayed delivery policies for the specified topic")
                     DelayedDeliveryPolicies deliveryPolicies) {
@@ -789,7 +789,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         validatePoliciesReadOnlyAccess();
@@ -842,7 +842,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("updateLocalTopicOnly") @DefaultValue("false") boolean updateLocalTopicOnly,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("force") @DefaultValue("false") boolean force,
             @ApiParam(value = "The number of partitions for the topic",
@@ -913,7 +913,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "Is check configuration required to automatically create topic")
             @QueryParam("checkAllowAutoCreation") @DefaultValue("false") boolean checkAllowAutoCreation) {
@@ -949,7 +949,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validatePersistentTopicName(tenant, namespace, encodedTopic);
         internalGetPropertiesAsync(authoritative)
@@ -987,7 +987,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Stop all producer/consumer/replicator and delete topic forcefully",
                     defaultValue = "false", type = "boolean")
             @QueryParam("force") @DefaultValue("false") boolean force,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
             validatePartitionedTopicName(tenant, namespace, encodedTopic);
@@ -1018,7 +1018,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
             validateTopicName(tenant, namespace, encodedTopic);
@@ -1054,7 +1054,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Stop all producer/consumer/replicator and delete topic forcefully",
                     defaultValue = "false", type = "boolean")
             @QueryParam("force") @DefaultValue("false") boolean force,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         internalDeleteTopicAsync(authoritative, force)
@@ -1096,7 +1096,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
             validateTopicName(tenant, namespace, encodedTopic);
@@ -1127,7 +1127,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "If return precise backlog or imprecise backlog")
             @QueryParam("getPreciseBacklog") @DefaultValue("false") boolean getPreciseBacklog,
@@ -1168,7 +1168,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("metadata") @DefaultValue("false") boolean metadata) {
         validateTopicName(tenant, namespace, encodedTopic);
@@ -1198,7 +1198,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Specify the namespace", required = true)
             @PathParam("namespace") String namespace,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic")
@@ -1229,7 +1229,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Get per partition stats")
             @QueryParam("perPartition") @DefaultValue("true") boolean perPartition,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "If return precise backlog or imprecise backlog")
             @QueryParam("getPreciseBacklog") @DefaultValue("false") boolean getPreciseBacklog,
@@ -1268,7 +1268,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
             validateTopicName(tenant, namespace, encodedTopic);
@@ -1307,7 +1307,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Disconnect and close all consumers and delete subscription forcefully",
                     defaultValue = "false", type = "boolean")
             @QueryParam("force") @DefaultValue("false") boolean force,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
             validateTopicName(tenant, namespace, encodedTopic);
@@ -1344,7 +1344,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Name of subscription")
             @PathParam("subName") String encodedSubName,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
             validateTopicName(tenant, namespace, encodedTopic);
@@ -1380,7 +1380,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("subName") String encodedSubName,
             @ApiParam(value = "The number of messages to skip", defaultValue = "0")
             @PathParam("numMessages") int numMessages,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
             validateTopicName(tenant, namespace, encodedTopic);
@@ -1416,7 +1416,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("subName") String encodedSubName,
             @ApiParam(value = "Expires beyond the specified number of seconds", defaultValue = "0")
             @PathParam("expireTimeInSeconds") int expireTimeInSeconds,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
             validateTopicName(tenant, namespace, encodedTopic);
@@ -1451,7 +1451,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Subscription to be Expiry messages on")
             @PathParam("subName") String encodedSubName,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(name = "messageId", value = "messageId to reset back to (ledgerId:entryId)")
             ResetCursorData resetCursorData) {
@@ -1491,7 +1491,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Expires beyond the specified number of seconds", defaultValue = "0")
             @PathParam("expireTimeInSeconds") int expireTimeInSeconds,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
             validateTopicName(tenant, namespace, encodedTopic);
@@ -1527,7 +1527,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String topic,
             @ApiParam(value = "Subscription to create position on", required = true)
             @PathParam("subscriptionName") String encodedSubName,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(name = "messageId", value = "messageId where to create the subscription. "
                     + "It can be 'latest', 'earliest' or (ledgerId:entryId)",
@@ -1586,7 +1586,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("subName") String encodedSubName,
             @ApiParam(value = "the timestamp to reset back")
             @PathParam("timestamp") long timestamp,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
             validateTopicName(tenant, namespace, encodedTopic);
@@ -1622,7 +1622,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Subscription to update", required = true)
             @PathParam("subName") String encodedSubName,
             @ApiParam(value = "The new properties") Map<String, String> subscriptionProperties,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
             validateTopicName(tenant, namespace, encodedTopic);
@@ -1658,7 +1658,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Subscription", required = true)
             @PathParam("subName") String encodedSubName,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
             validateTopicName(tenant, namespace, encodedTopic);
@@ -1695,7 +1695,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(name = "subName", value = "Subscription to reset position on", required = true)
             @PathParam("subName") String encodedSubName,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(name = "messageId", value = "messageId to reset back to (ledgerId:entryId)")
                     ResetCursorData resetCursorData) {
@@ -1735,7 +1735,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("subName") String encodedSubName,
             @ApiParam(value = "The number of messages (default 1)", defaultValue = "1")
             @PathParam("messagePosition") int messagePosition,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         internalPeekNthMessageAsync(decode(encodedSubName), messagePosition, authoritative)
@@ -1777,7 +1777,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("initialPosition") String initialPosition,
             @ApiParam(value = "The position of messages (default 1)", defaultValue = "1")
             @QueryParam("messagePosition") long messagePosition,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         internalExamineMessageAsync(initialPosition, messagePosition, authoritative)
@@ -1817,7 +1817,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("ledgerId") long ledgerId,
             @ApiParam(value = "The entry id", required = true)
             @PathParam("entryId") long entryId,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
             validateTopicName(tenant, namespace, encodedTopic);
@@ -1852,10 +1852,10 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Specify the timestamp", required = true)
             @PathParam("timestamp") long timestamp,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        internalGetMessageIdByTimestamp(timestamp, authoritative)
+        internalGetMessageIdByTimestampAsync(timestamp, authoritative)
                 .thenAccept(messageId -> {
                     if (messageId == null) {
                         asyncResponse.resume(new RestException(Response.Status.NOT_FOUND, "Message ID not found"));
@@ -1864,8 +1864,10 @@ public class PersistentTopics extends PersistentTopicsBase {
                     }
                 })
                 .exceptionally(ex -> {
-                    log.error("[{}] Failed to get message ID by timestamp {} from {}",
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to get message ID by timestamp {} from {}",
                             clientAppId(), timestamp, topicName, ex);
+                    }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
@@ -1886,7 +1888,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         internalGetBacklogAsync(authoritative)
@@ -1922,7 +1924,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative, MessageIdImpl messageId) {
         validateTopicName(tenant, namespace, encodedTopic);
         internalGetBacklogSizeByMessageId(asyncResponse, messageId, authoritative);
@@ -1941,7 +1943,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("applied") @DefaultValue("false") boolean applied,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal) {
         validateTopicName(tenant, namespace, encodedTopic);
@@ -1968,7 +1970,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @Suspended final AsyncResponse asyncResponse,
             @PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
             @QueryParam("backlogQuotaType") BacklogQuotaType backlogQuotaType, BacklogQuotaImpl backlogQuota) {
@@ -1994,7 +1996,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("backlogQuotaType") BacklogQuotaType backlogQuotaType,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal) {
         validateTopicName(tenant, namespace, encodedTopic);
@@ -2019,7 +2021,8 @@ public class PersistentTopics extends PersistentTopicsBase {
                               @PathParam("namespace") String namespace,
                               @PathParam("topic") @Encoded String encodedTopic,
                               @QueryParam("applied") @DefaultValue("false") boolean applied,
-                              @ApiParam(value = "Is authentication required to perform this operation")
+                              @ApiParam(value = "Whether leader broker redirected this call to this broker. "
+                                      + "For internal use.")
                               @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
@@ -2051,7 +2054,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @Suspended final AsyncResponse asyncResponse,
             @PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "List of replication clusters", required = true) List<String> clusterIds) {
         validateTopicName(tenant, namespace, encodedTopic);
@@ -2076,7 +2079,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("backlogQuotaType") BacklogQuotaType backlogQuotaType,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
@@ -2101,7 +2104,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("applied") @DefaultValue("false") boolean applied,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
@@ -2138,7 +2141,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "TTL in seconds for the specified namespace", required = true)
             @QueryParam("messageTTL") Integer messageTTL,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
@@ -2164,7 +2167,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
@@ -2191,7 +2194,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("applied") @DefaultValue("false") boolean applied,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
@@ -2215,8 +2218,8 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "DeduplicationEnabled policies for the specified topic")
                     Boolean enabled) {
@@ -2242,7 +2245,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
@@ -2269,7 +2272,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
             @QueryParam("applied") @DefaultValue("false") boolean applied,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
@@ -2294,7 +2297,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
             @ApiParam(value = "Retention policies for the specified namespace") RetentionPolicies retention) {
@@ -2331,8 +2334,8 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
@@ -2364,7 +2367,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("applied") @DefaultValue("false") boolean applied,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
@@ -2389,7 +2392,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
             @ApiParam(value = "Bookkeeper persistence policies for specified topic")
@@ -2428,7 +2431,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
@@ -2459,7 +2462,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
@@ -2486,7 +2489,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "The max subscriptions of the topic") int maxSubscriptionsPerTopic) {
         validateTopicName(tenant, namespace, encodedTopic);
@@ -2517,7 +2520,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
@@ -2547,7 +2550,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
             @QueryParam("applied") @DefaultValue("false") boolean applied,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
@@ -2573,7 +2576,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "Replicator dispatch rate of the topic") DispatchRateImpl dispatchRate) {
         validateTopicName(tenant, namespace, encodedTopic);
@@ -2604,7 +2607,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
@@ -2634,7 +2637,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("applied") @DefaultValue("false") boolean applied,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
@@ -2659,7 +2662,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
             @ApiParam(value = "The max producers of the topic") int maxProducers) {
@@ -2693,7 +2696,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
@@ -2725,7 +2728,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
             @QueryParam("applied") @DefaultValue("false") boolean applied,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
@@ -2751,7 +2754,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "The max consumers of the topic") int maxConsumers) {
         validateTopicName(tenant, namespace, encodedTopic);
@@ -2784,7 +2787,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
@@ -2815,7 +2818,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
@@ -2843,7 +2846,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "The max message size of the topic") int maxMessageSize) {
         validateTopicName(tenant, namespace, encodedTopic);
@@ -2878,7 +2881,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
@@ -2920,7 +2923,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validatePersistentTopicName(tenant, namespace, encodedTopic);
         internalTerminateAsync(authoritative)
@@ -2954,7 +2957,8 @@ public class PersistentTopics extends PersistentTopicsBase {
                                           @PathParam("namespace") String namespace,
                                           @ApiParam(value = "Specify topic name", required = true)
                                           @PathParam("topic") @Encoded String encodedTopic,
-                                          @ApiParam(value = "Is authentication required to perform this operation")
+                                          @ApiParam(value = "Whether leader broker redirected this call to this broker."
+                                                  + " For internal use.")
                                           @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         internalTerminatePartitionedTopic(asyncResponse, authoritative);
@@ -2982,7 +2986,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
             validateTopicName(tenant, namespace, encodedTopic);
@@ -3015,7 +3019,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         internalCompactionStatusAsync(authoritative)
@@ -3053,7 +3057,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
                                MessageIdImpl messageId) {
         try {
@@ -3090,7 +3094,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
             validateTopicName(tenant, namespace, encodedTopic);
@@ -3123,7 +3127,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
             validateTopicName(tenant, namespace, encodedTopic);
@@ -3147,7 +3151,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("applied") @DefaultValue("false") boolean applied,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
@@ -3171,7 +3175,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
             @ApiParam(value = "Dispatch rate for the specified topic") DispatchRateImpl dispatchRate) {
@@ -3209,7 +3213,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
@@ -3242,7 +3246,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("applied") @DefaultValue("false") boolean applied,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
@@ -3267,7 +3271,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
             @ApiParam(value = "Subscription message dispatch rate for the specified topic")
@@ -3306,7 +3310,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
@@ -3340,7 +3344,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("subName") @Encoded String encodedSubscriptionName,
             @QueryParam("applied") @DefaultValue("false") boolean applied,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
@@ -3367,7 +3371,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @PathParam("subName") @Encoded String encodedSubscriptionName,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
             @ApiParam(value = "Subscription message dispatch rate for the specified topic")
@@ -3408,7 +3412,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @PathParam("subName") @Encoded String encodedSubscriptionName,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
@@ -3440,7 +3444,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("applied") @DefaultValue("false") boolean applied,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
@@ -3464,7 +3468,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
             @ApiParam(value = "Dispatch rate for the specified topic") long compactionThreshold) {
@@ -3502,7 +3506,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
@@ -3534,7 +3538,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
@@ -3561,7 +3565,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "Dispatch rate for the specified topic") int maxConsumersPerSubscription) {
         validateTopicName(tenant, namespace, encodedTopic);
@@ -3598,7 +3602,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
@@ -3631,7 +3635,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
@@ -3657,7 +3661,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "Dispatch rate for the specified topic") PublishRate publishRate) {
         validateTopicName(tenant, namespace, encodedTopic);
@@ -3695,7 +3699,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
@@ -3727,8 +3731,8 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
@@ -3755,8 +3759,8 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "Enable sub types for the specified topic")
             Set<SubscriptionType> subscriptionTypesEnabled) {
@@ -3793,8 +3797,8 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
@@ -3826,7 +3830,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("applied") @DefaultValue("false") boolean applied,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
@@ -3851,7 +3855,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "Subscribe rate for the specified topic") SubscribeRate subscribeRate) {
         validateTopicName(tenant, namespace, encodedTopic);
@@ -3889,6 +3893,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "Subscribe rate for the specified topic") SubscribeRate subscribeRate) {
         validateTopicName(tenant, namespace, encodedTopic);
@@ -3929,7 +3934,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative){
         validateTopicName(tenant, namespace, encodedTopic);
         internalTruncateTopic(asyncResponse, authoritative);
@@ -3959,7 +3964,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Name of subscription", required = true)
             @PathParam("subName") String encodedSubName,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "Whether to enable replicated subscription", required = true)
             boolean enabled) {
@@ -3992,7 +3997,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Name of subscription", required = true)
             @PathParam("subName") String encodedSubName,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         internalGetReplicatedSubscriptionStatus(asyncResponse, decode(encodedSubName), authoritative);
@@ -4015,7 +4020,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("applied") @DefaultValue("false") boolean applied,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
 
@@ -4044,7 +4049,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "Strategy used to check the compatibility of new schema")
                     SchemaCompatibilityStrategy strategy) {
@@ -4084,7 +4089,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "Strategy used to check the compatibility of new schema")
                     SchemaCompatibilityStrategy strategy) {
@@ -4121,7 +4126,8 @@ public class PersistentTopics extends PersistentTopicsBase {
                                             @ApiParam(value = "Specify topic name", required = true)
                                             @PathParam("topic") @Encoded String encodedTopic,
                                             @QueryParam("applied") @DefaultValue("false") boolean applied,
-                                            @ApiParam(value = "Is authentication required to perform this operation")
+                                            @ApiParam(value = "Whether leader broker redirected this call to this "
+                                                    + "broker. For internal use.")
                                             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
@@ -4146,7 +4152,8 @@ public class PersistentTopics extends PersistentTopicsBase {
                                             @PathParam("namespace") String namespace,
                                             @ApiParam(value = "Specify topic name", required = true)
                                             @PathParam("topic") @Encoded String encodedTopic,
-                                            @ApiParam(value = "Is authentication required to perform this operation")
+                                            @ApiParam(value = "Whether leader broker redirected this call to this "
+                                                    + "broker. For internal use.")
                                             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
                                             @ApiParam(required = true) boolean schemaValidationEnforced) {
         validateTopicName(tenant, namespace, encodedTopic);

@@ -252,6 +252,7 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 | authenticationRefreshCheckSeconds | Interval of time for checking for expired authentication credentials | 60 |
 |authorizationEnabled|  Enforce authorization |false|
 |superUserRoles|  Role names that are treated as “super-user”, meaning they will be able to do all admin operations and publish/consume from all topics ||
+| proxyRoles | Role names that are treated as "proxy roles". If the broker receives a request from a proxy role, it demands to authenticate its client role. Note that client role and proxy role cannot use the same name. | |
 |brokerClientAuthenticationPlugin|  Authentication settings of the broker itself. Used when the broker connects to other brokers, either in same or other clusters  ||
 |brokerClientAuthenticationParameters|||
 |athenzDomainNames| Supported Athenz provider domain names(comma separated) for authentication  ||
@@ -605,7 +606,7 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 | systemTopicEnabled | Enable/Disable system topics. | false |
 | topicLevelPoliciesEnabled | Enable or disable topic level policies. Topic level policies depends on the system topic. Please enable the system topic first. | false |
 | topicFencingTimeoutSeconds | If a topic remains fenced for a certain time period (in seconds), it is closed forcefully. If set to 0 or a negative number, the fenced topic is not closed. | 0 |
-| proxyRoles | Role names that are treated as "proxy roles". If the broker sees a request with role as proxyRoles, it demands to see a valid original principal. | |
+| proxyRoles | Role names that are treated as "proxy roles". If the broker receives a request from a proxy role, it demands to authenticate its client role. Note that client role and proxy role cannot use the same name. | |
 |authenticationEnabled| Enable authentication for the broker. |false|
 |authenticationProviders| A comma-separated list of class names for authentication providers. |false|
 |authorizationEnabled|  Enforce authorization in brokers. |false|
