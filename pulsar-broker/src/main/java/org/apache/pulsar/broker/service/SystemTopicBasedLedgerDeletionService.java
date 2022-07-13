@@ -457,11 +457,16 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
 
     private OffloadPoliciesImpl buildOffloadPolicies(LedgerInfo ledgerInfo) throws IllegalArgumentException {
         String driverName = OffloadUtils.getOffloadDriverName(ledgerInfo, "");
-        Map<String, String> metadata = OffloadUtils.getOffloadDriverMetadata(ledgerInfo, Collections.emptyMap());
-        String bucket = metadata.get(METADATA_FIELD_BUCKET);
-        String region = metadata.get(METADATA_FIELD_REGION);
-        String endpoint = metadata.get(METADATA_FIELD_ENDPOINT);
-        return OffloadPoliciesImpl.create(driverName, bucket, region, endpoint);
+        if (FILE_SYSTEM_DRIVER.equals(driverName)) {
+            // TODO: 2022/7/13 Filesystem offloader params needs more info
+            return null;
+        } else {
+            Map<String, String> metadata = OffloadUtils.getOffloadDriverMetadata(ledgerInfo, Collections.emptyMap());
+            String bucket = metadata.get(METADATA_FIELD_BUCKET);
+            String region = metadata.get(METADATA_FIELD_REGION);
+            String endpoint = metadata.get(METADATA_FIELD_ENDPOINT);
+            return OffloadPoliciesImpl.create(driverName, bucket, region, endpoint);
+        }
     }
 
     //TieredStorageConfiguration.METADATA_FIELD_BUCKET
@@ -470,6 +475,8 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
     private static final String METADATA_FIELD_REGION = "region";
     //TieredStorageConfiguration.METADATA_FIELD_ENDPOINT
     private static final String METADATA_FIELD_ENDPOINT = "serviceEndpoint";
+    //OffloadPoliciesImpl.DRIVER_NAMES[3]
+    private static final String FILE_SYSTEM_DRIVER = "filesystem";
 
 
 }
