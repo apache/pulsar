@@ -503,7 +503,7 @@ public interface ManagedCursor {
     Position findNewestMatching(Predicate<Entry> condition) throws InterruptedException, ManagedLedgerException;
 
     /**
-     * Scan the cursor from the current position up to the end
+     * Scan the cursor from the current position up to the end.
      * @param condition
      * @throws InterruptedException
      * @throws ManagedLedgerException

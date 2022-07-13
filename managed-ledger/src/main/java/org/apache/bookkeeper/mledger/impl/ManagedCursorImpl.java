@@ -1049,7 +1049,8 @@ public class ManagedCursorImpl implements ManagedCursor {
             }
 
             @Override
-            public void scanFailed(ManagedLedgerException exception, Optional<Position> failedReadPosition, Object ctx) {
+            public void scanFailed(ManagedLedgerException exception,
+                                   Optional<Position> failedReadPosition, Object ctx) {
                 future.completeExceptionally(exception);
             }
         }, null);

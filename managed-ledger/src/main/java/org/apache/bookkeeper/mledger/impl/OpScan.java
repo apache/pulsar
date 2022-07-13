@@ -26,8 +26,6 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.PositionBound;
-
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
@@ -43,7 +41,8 @@ class OpScan implements ReadEntryCallback {
     PositionImpl searchPosition;
     Position lastMatchedPosition = null;
 
-    public OpScan(ManagedCursorImpl cursor, PositionImpl startPosition, Predicate<Entry> condition, ScanCallback callback, Object ctx) {
+    public OpScan(ManagedCursorImpl cursor, PositionImpl startPosition, Predicate<Entry> condition,
+                  ScanCallback callback, Object ctx) {
         this.cursor = cursor;
         this.ledger = cursor.ledger;
         this.startPosition = startPosition;
