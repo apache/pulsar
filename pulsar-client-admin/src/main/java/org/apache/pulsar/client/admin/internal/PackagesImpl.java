@@ -179,7 +179,7 @@ public class PackagesImpl extends ComponentResource implements Packages {
                     try {
                         os.close();
                     } catch (IOException e) {
-                        future.completeExceptionally(getApiException(e));
+                        future.completeExceptionally(getApiException(throwable));
                     }
                 })
                 .thenAccept(status -> {
