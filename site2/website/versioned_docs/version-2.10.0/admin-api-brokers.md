@@ -40,7 +40,7 @@ In addition to being configurable when you start them up, brokers can also be [d
 
 ### List active brokers
 
-Fetch all available active brokers that are serving traffic.
+Fetch all available active brokers that are serving traffic with cluster name.
 
 ````mdx-code-block
 <Tabs 
