@@ -523,6 +523,7 @@ public class BacklogQuotaManagerTest {
                         .limitTime(TIME_TO_CHECK_BACKLOG_QUOTA)
                         .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
                         .build(), BacklogQuota.BacklogQuotaType.message_age);
+        config.setPreciseTimeBasedBacklogQuotaCheck(true);
         PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
                 .build();
 
