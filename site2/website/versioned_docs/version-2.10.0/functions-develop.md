@@ -1292,7 +1292,7 @@ func metricRecorderFunction(ctx context.Context, in []byte) error {
 
 ## Security
 
-If you want to enable security on Pulsar Functions, first you should enable security on [Functions Workers](functions-worker). For more details, refer to [Security settings](functions-worker.md#security-settings).
+If you want to enable security on Pulsar Functions, first you should enable security on [Functions Workers](functions-worker.md). For more details, refer to [Security settings](functions-worker.md#security-settings).
 
 Pulsar Functions can support the following providers:
 

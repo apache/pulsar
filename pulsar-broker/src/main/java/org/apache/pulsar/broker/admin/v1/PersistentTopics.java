@@ -234,7 +234,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateNamespaceName(tenant, cluster, namespace);
         validateTopicName(tenant, cluster, namespace, encodedTopic);
@@ -280,7 +280,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("updateLocalTopicOnly") @DefaultValue("false") boolean updateLocalTopicOnly,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("force") @DefaultValue("false") boolean force,
             int numPartitions) {
@@ -643,7 +643,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Subscription to be Expiry messages on")
             @PathParam("subName") String encodedSubName,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(name = "messageId", value = "messageId to reset back to (ledgerId:entryId)")
                     ResetCursorData resetCursorData) {
@@ -1008,7 +1008,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
             validateTopicName(tenant, cluster, namespace, encodedTopic);
@@ -1043,7 +1043,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Name of subscription", required = true)
             @PathParam("subName") String encodedSubName,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "Whether to enable replicated subscription", required = true)
             boolean enabled) {
@@ -1078,7 +1078,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Name of subscription", required = true)
             @PathParam("subName") String encodedSubName,
-            @ApiParam(value = "Is authentication required to perform this operation")
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, cluster, namespace, encodedTopic);
         internalGetReplicatedSubscriptionStatus(asyncResponse, decode(encodedSubName), authoritative);

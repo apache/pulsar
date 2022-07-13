@@ -32,6 +32,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.ConcurrentWaitCallbackException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -352,6 +353,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
             if (log.isDebugEnabled()) {
                 log.debug("[{}-{}] Schedule read of {} messages", name, consumer, messagesToRead);
             }
+
             synchronized (this) {
                 havePendingRead = true;
                 if (consumer.readCompacted()) {
@@ -480,6 +482,12 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         ReadEntriesCtx readEntriesCtx = (ReadEntriesCtx) ctx;
         Consumer c = readEntriesCtx.getConsumer();
         readEntriesCtx.recycle();
+
+        if (exception instanceof ConcurrentWaitCallbackException) {
+            // At most one pending read request is allowed when there are no more entries, we should not trigger more
+            // read operations in this case and just wait the existing read operation completes.
+            return;
+        }
 
         long waitTimeMillis = readFailureBackoff.next();
 
