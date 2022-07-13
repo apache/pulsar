@@ -13,9 +13,9 @@ Pulsar's **Tiered Storage** feature allows older backlog data to be moved from B
 
   :::tip
 
-  - For more information about how to use the AWS S3 offloader with Pulsar, see [here](tiered-storage-aws).
+  - For more information about how to use the AWS S3 offloader with Pulsar, see [here](tiered-storage-aws.md).
   
-  - For more information about how to use the GCS offloader with Pulsar, see [here](tiered-storage-gcs).
+  - For more information about how to use the GCS offloader with Pulsar, see [here](tiered-storage-gcs.md).
 
   :::
 
@@ -25,7 +25,7 @@ Pulsar's **Tiered Storage** feature allows older backlog data to be moved from B
 
   :::tip
 
-  For more information about how to use the filesystem offloader with Pulsar, see [here](tiered-storage-filesystem).
+  For more information about how to use the filesystem offloader with Pulsar, see [here](tiered-storage-filesystem.md).
 
   :::
 

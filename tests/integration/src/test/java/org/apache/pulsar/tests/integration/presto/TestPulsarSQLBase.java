@@ -56,7 +56,7 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
     protected void pulsarSQLBasicTest(TopicName topic,
                                       boolean isBatch,
                                       boolean useNsOffloadPolices,
-                                      Schema schema,
+                                      Schema<?> schema,
                                       CompressionType compressionType) throws Exception {
         log.info("Pulsar SQL basic test. topic: {}", topic);
 
@@ -133,7 +133,7 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
     protected int prepareData(TopicName topicName,
                               boolean isBatch,
                               boolean useNsOffloadPolices,
-                              Schema schema,
+                              Schema<?> schema,
                               CompressionType compressionType) throws Exception {
         throw new Exception("Unsupported operation prepareData.");
     }
@@ -159,11 +159,11 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
         );
     }
 
-    protected void validateContent(int messageNum, String[] contentArr, Schema schema) throws Exception {
+    protected void validateContent(int messageNum, String[] contentArr, Schema<?> schema) throws Exception {
         throw new Exception("Unsupported operation validateContent.");
     }
 
-    private void validateData(TopicName topicName, int messageNum, Schema schema) throws Exception {
+    private void validateData(TopicName topicName, int messageNum, Schema<?> schema) throws Exception {
         String namespace = topicName.getNamespace();
         String topic = topicName.getLocalName();
 

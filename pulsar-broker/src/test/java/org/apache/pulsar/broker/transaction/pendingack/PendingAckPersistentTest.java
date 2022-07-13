@@ -54,6 +54,7 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicStats;
@@ -645,4 +646,61 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         }
     }
 
+    @Test
+    public void testGetSubPatternTopicFilterTxnInternalTopic() throws Exception {
+        String topic = TopicName.get(TopicDomain.persistent.toString(),
+                NamespaceName.get(NAMESPACE1), "testGetSubPatternTopicFilterTxnInternalTopic").toString();
+
+        int partition = 3;
+        admin.topics().createPartitionedTopic(topic, partition);
+
+        String subscriptionName = "sub";
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .enableBatching(false)
+                .topic(topic).create();
+
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .subscriptionName(subscriptionName)
+                .subscriptionType(SubscriptionType.Shared)
+                .topic(topic)
+                .subscribe();
+
+        for (int i = 0; i < partition; i++) {
+            producer.send("test");
+        }
+
+        // creat pending ack managedLedger
+        for (int i = 0; i < partition; i++) {
+            Transaction transaction = pulsarClient.newTransaction()
+                    .withTransactionTimeout(5, TimeUnit.SECONDS)
+                    .build()
+                    .get();
+            consumer.acknowledgeAsync(consumer.receive().getMessageId(), transaction);
+            transaction.commit().get();
+        }
+
+        consumer.close();
+        admin.namespaces().getTopics(NAMESPACE1).forEach(name ->
+                assertFalse(SystemTopicNames.isTransactionInternalName(TopicName.get(name))));
+
+        @Cleanup
+        Consumer<String> patternConsumer = pulsarClient.newConsumer(Schema.STRING)
+                .subscriptionName("patternSub")
+                .subscriptionType(SubscriptionType.Shared)
+                .topicsPattern("persistent://" + NAMESPACE1 + "/.*")
+                .subscribe();
+
+        for (int i = 0; i < partition; i++) {
+            producer.send("test" + i);
+        }
+
+        // can use pattern sub consume
+        for (int i = 0; i < partition; i++) {
+            patternConsumer.acknowledgeAsync(patternConsumer.receive().getMessageId());
+        }
+        patternConsumer.close();
+        producer.close();
+    }
 }

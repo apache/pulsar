@@ -312,14 +312,14 @@ The Apache Software License, Version 2.0
  * JCommander -- com.beust-jcommander-1.82.jar
  * High Performance Primitive Collections for Java -- com.carrotsearch-hppc-0.9.1.jar
  * Jackson
-     - com.fasterxml.jackson.core-jackson-annotations-2.13.2.jar
-     - com.fasterxml.jackson.core-jackson-core-2.13.2.jar
-     - com.fasterxml.jackson.core-jackson-databind-2.13.2.1.jar
-     - com.fasterxml.jackson.dataformat-jackson-dataformat-yaml-2.13.2.jar
-     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-base-2.13.2.jar
-     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-json-provider-2.13.2.jar
-     - com.fasterxml.jackson.module-jackson-module-jaxb-annotations-2.13.2.jar
-     - com.fasterxml.jackson.module-jackson-module-jsonSchema-2.13.2.jar
+     - com.fasterxml.jackson.core-jackson-annotations-2.13.3.jar
+     - com.fasterxml.jackson.core-jackson-core-2.13.3.jar
+     - com.fasterxml.jackson.core-jackson-databind-2.13.3.jar
+     - com.fasterxml.jackson.dataformat-jackson-dataformat-yaml-2.13.3.jar
+     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-base-2.13.3.jar
+     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-json-provider-2.13.3.jar
+     - com.fasterxml.jackson.module-jackson-module-jaxb-annotations-2.13.3.jar
+     - com.fasterxml.jackson.module-jackson-module-jsonSchema-2.13.3.jar
  * Caffeine -- com.github.ben-manes.caffeine-caffeine-2.9.1.jar
  * Conscrypt -- org.conscrypt-conscrypt-openjdk-uber-2.5.2.jar
  * Proto Google Common Protos -- com.google.api.grpc-proto-google-common-protos-2.0.1.jar
@@ -429,25 +429,25 @@ The Apache Software License, Version 2.0
     - org.asynchttpclient-async-http-client-2.12.1.jar
     - org.asynchttpclient-async-http-client-netty-utils-2.12.1.jar
  * Jetty
-    - org.eclipse.jetty-jetty-client-9.4.44.v20210927.jar
-    - org.eclipse.jetty-jetty-continuation-9.4.44.v20210927.jar
-    - org.eclipse.jetty-jetty-http-9.4.44.v20210927.jar
-    - org.eclipse.jetty-jetty-io-9.4.44.v20210927.jar
-    - org.eclipse.jetty-jetty-proxy-9.4.44.v20210927.jar
-    - org.eclipse.jetty-jetty-security-9.4.44.v20210927.jar
-    - org.eclipse.jetty-jetty-server-9.4.44.v20210927.jar
-    - org.eclipse.jetty-jetty-servlet-9.4.44.v20210927.jar
-    - org.eclipse.jetty-jetty-servlets-9.4.44.v20210927.jar
-    - org.eclipse.jetty-jetty-util-9.4.44.v20210927.jar
-    - org.eclipse.jetty-jetty-util-ajax-9.4.44.v20210927.jar
-    - org.eclipse.jetty.websocket-javax-websocket-client-impl-9.4.44.v20210927.jar
-    - org.eclipse.jetty.websocket-websocket-api-9.4.44.v20210927.jar
-    - org.eclipse.jetty.websocket-websocket-client-9.4.44.v20210927.jar
-    - org.eclipse.jetty.websocket-websocket-common-9.4.44.v20210927.jar
-    - org.eclipse.jetty.websocket-websocket-server-9.4.44.v20210927.jar
-    - org.eclipse.jetty.websocket-websocket-servlet-9.4.44.v20210927.jar
-    - org.eclipse.jetty-jetty-alpn-conscrypt-server-9.4.44.v20210927.jar
-    - org.eclipse.jetty-jetty-alpn-server-9.4.44.v20210927.jar
+    - org.eclipse.jetty-jetty-client-9.4.48.v20220622.jar
+    - org.eclipse.jetty-jetty-continuation-9.4.48.v20220622.jar
+    - org.eclipse.jetty-jetty-http-9.4.48.v20220622.jar
+    - org.eclipse.jetty-jetty-io-9.4.48.v20220622.jar
+    - org.eclipse.jetty-jetty-proxy-9.4.48.v20220622.jar
+    - org.eclipse.jetty-jetty-security-9.4.48.v20220622.jar
+    - org.eclipse.jetty-jetty-server-9.4.48.v20220622.jar
+    - org.eclipse.jetty-jetty-servlet-9.4.48.v20220622.jar
+    - org.eclipse.jetty-jetty-servlets-9.4.48.v20220622.jar
+    - org.eclipse.jetty-jetty-util-9.4.48.v20220622.jar
+    - org.eclipse.jetty-jetty-util-ajax-9.4.48.v20220622.jar
+    - org.eclipse.jetty.websocket-javax-websocket-client-impl-9.4.48.v20220622.jar
+    - org.eclipse.jetty.websocket-websocket-api-9.4.48.v20220622.jar
+    - org.eclipse.jetty.websocket-websocket-client-9.4.48.v20220622.jar
+    - org.eclipse.jetty.websocket-websocket-common-9.4.48.v20220622.jar
+    - org.eclipse.jetty.websocket-websocket-server-9.4.48.v20220622.jar
+    - org.eclipse.jetty.websocket-websocket-servlet-9.4.48.v20220622.jar
+    - org.eclipse.jetty-jetty-alpn-conscrypt-server-9.4.48.v20220622.jar
+    - org.eclipse.jetty-jetty-alpn-server-9.4.48.v20220622.jar
  * SnakeYaml -- org.yaml-snakeyaml-1.30.jar
  * RocksDB - org.rocksdb-rocksdbjni-6.29.4.1.jar
  * Google Error Prone Annotations - com.google.errorprone-error_prone_annotations-2.5.1.jar
