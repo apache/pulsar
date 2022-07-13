@@ -946,7 +946,7 @@ public class PulsarFunctionLocalRunTest {
                 assertFalse(metrics.isEmpty());
                 PulsarFunctionTestUtils.Metric m = metrics.get("pulsar_sink_sink_exceptions_total");
                 if (m == null) {
-                    m = metrics.get("pulsar_sink_sink_exceptions_total_1min");
+                    m = metrics.get("pulsar_sink_sink_exceptions_1min_total");
                 }
                 assertEquals(m.value, 0);
             }

@@ -107,7 +107,7 @@ public class ProxyPrometheusMetricsTest extends MockedPulsarServiceBaseTest {
         Multimap<String, Metric> metrics = parseMetrics(response);
 
         // Check that ProxyService metrics are present
-        List<Metric> cm = (List<Metric>) metrics.get("pulsar_proxy_binary_bytes");
+        List<Metric> cm = (List<Metric>) metrics.get("pulsar_proxy_binary_bytes_total");
         assertEquals(cm.size(), 1);
         assertEquals(cm.get(0).tags.get("cluster"), TEST_CLUSTER);
 
@@ -117,7 +117,7 @@ public class ProxyPrometheusMetricsTest extends MockedPulsarServiceBaseTest {
         assertEquals(cm2.get(0).tags.get("label1"), "xyz");
 
         // Check that PrometheusRawMetricsProvider metrics are present
-        List<Metric> cm3 = (List<Metric>) metrics.get("test_counter");
+        List<Metric> cm3 = (List<Metric>) metrics.get("test_counter_total");
         assertEquals(cm3.size(), 1);
         assertEquals(cm3.get(0).tags.get("cluster"), TEST_CLUSTER);
     }

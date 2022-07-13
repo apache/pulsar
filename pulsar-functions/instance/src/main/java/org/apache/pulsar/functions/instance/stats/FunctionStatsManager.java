@@ -52,13 +52,13 @@ public class FunctionStatsManager extends ComponentStatsManager{
     public static final String LAST_INVOCATION = "last_invocation";
     public static final String RECEIVED_TOTAL = "received_total";
 
-    public static final String PROCESSED_SUCCESSFULLY_TOTAL_1min = "processed_successfully_total_1min";
-    public static final String SYSTEM_EXCEPTIONS_TOTAL_1min = "system_exceptions_total_1min";
-    public static final String USER_EXCEPTIONS_TOTAL_1min = "user_exceptions_total_1min";
-    public static final String SOURCE_EXCEPTIONS_TOTAL_1min = "source_exceptions_total_1min";
-    public static final String SINK_EXCEPTIONS_TOTAL_1min = "sink_exceptions_total_1min";
+    public static final String PROCESSED_SUCCESSFULLY_TOTAL_1min = "processed_successfully_1min";
+    public static final String SYSTEM_EXCEPTIONS_TOTAL_1min = "system_exceptions_1min";
+    public static final String USER_EXCEPTIONS_TOTAL_1min = "user_exceptions_1min";
+    public static final String SOURCE_EXCEPTIONS_TOTAL_1min = "source_exceptions_1min";
+    public static final String SINK_EXCEPTIONS_TOTAL_1min = "sink_exceptions_1min";
     public static final String PROCESS_LATENCY_MS_1min = "process_latency_ms_1min";
-    public static final String RECEIVED_TOTAL_1min = "received_total_1min";
+    public static final String RECEIVED_TOTAL_1min = "received_1min";
 
     /** Declare Prometheus stats **/
 
