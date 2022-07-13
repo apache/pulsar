@@ -28,12 +28,6 @@ MVN_TEST_OPTIONS='mvn -B -ntp -DskipSourceReleaseAssembly=true -DskipBuildDistri
 
 function mvn_test() {
   (
-    RETRY="${SCRIPT_DIR}/retry.sh"
-    # skip wrapping with retry.sh script if next parameter is "--no-retry"
-    if [[ "$1" == "--no-retry" ]]; then
-      RETRY=""
-      shift
-    fi
     local clean_arg=""
     if [[ "$1" == "--clean" ]]; then
         clean_arg="clean"
@@ -47,7 +41,7 @@ function mvn_test() {
     echo "::group::Run tests for " "$@"
     # use "verify" instead of "test" to workaround MDEP-187 issue in pulsar-functions-worker and pulsar-broker projects with the maven-dependency-plugin's copy goal
     # Error message was "Artifact has not been packaged yet. When used on reactor artifact, copy should be executed after packaging: see MDEP-187"
-    $RETRY $MVN_TEST_OPTIONS $clean_arg $TARGET "$@" "${COMMANDLINE_ARGS[@]}"
+    $MVN_TEST_OPTIONS $clean_arg $TARGET "$@" "${COMMANDLINE_ARGS[@]}"
     echo "::endgroup::"
     set +x
     "$SCRIPT_DIR/pulsar_ci_tool.sh" move_test_reports
@@ -115,7 +109,7 @@ function print_testng_failures() {
 function test_group_broker_flaky() {
   echo "::endgroup::"
   echo "::group::Running quarantined tests"
-  mvn_test --no-retry -pl pulsar-broker -Dgroups='quarantine' -DexcludedGroups='' -DfailIfNoTests=false \
+  mvn_test -pl pulsar-broker -Dgroups='quarantine' -DexcludedGroups='' -DfailIfNoTests=false \
     -DtestForkCount=2 ||
     print_testng_failures pulsar-broker/target/surefire-reports/testng-failed.xml "Quarantined test failure in" "Quarantined test failures"
   echo "::endgroup::"
@@ -155,7 +149,7 @@ function test_group_other() {
     perl -0777 -p -e 's/\n(\S)/,$1/g')
   if [ -n "${modules_with_quarantined_tests}" ]; then
     echo "::group::Running quarantined tests outside of pulsar-broker & pulsar-proxy (if any)"
-    mvn_test --no-retry -pl "${modules_with_quarantined_tests}" test -Dgroups='quarantine' -DexcludedGroups='' \
+    mvn_test -pl "${modules_with_quarantined_tests}" test -Dgroups='quarantine' -DexcludedGroups='' \
       -DfailIfNoTests=false || \
         echo "::warning::There were test failures in the 'quarantine' test group."
     echo "::endgroup::"
