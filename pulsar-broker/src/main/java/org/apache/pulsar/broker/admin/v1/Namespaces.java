@@ -915,7 +915,7 @@ public class Namespaces extends NamespacesBase {
                 })
                 .exceptionally(ex -> {
                     if (!isRedirectException(ex)) {
-                        log.error("[{}] Failed to split namespace bundle {}/{} due to {}",
+                        log.error("[{}] Failed to split namespace bundle {}/{},
                                 clientAppId(), namespaceName, bundleRange, ex);
                     }
                     Throwable realCause = FutureUtil.unwrapCompletionException(ex);
