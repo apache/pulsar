@@ -2798,6 +2798,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private Set<String> additionalServlets = new TreeSet<>();
 
+    /**
+     * @deprecated Use {@link #getSubscriptionTypesEnabled()} instead
+     */
+    @Deprecated
     public boolean isSubscriptionKeySharedEnable() {
         return subscriptionKeySharedEnable && subscriptionTypesEnabled.contains("Key_Shared");
     }
