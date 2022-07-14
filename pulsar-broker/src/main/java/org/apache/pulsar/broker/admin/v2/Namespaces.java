@@ -745,7 +745,7 @@ public class Namespaces extends NamespacesBase {
                 .thenAccept(policies -> asyncResponse.resume(policies.bundles))
                 .exceptionally(ex -> {
                     log.error("[{}] Failed to get bundle data for namespace {}", clientAppId(),
-                            namespaceName, ex.getCause().getMessage(), ex);
+                            namespaceName, ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
