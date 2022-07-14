@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import javax.servlet.DispatcherType;
+import lombok.Getter;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -74,6 +75,9 @@ public class WebService implements AutoCloseable {
     private final ServerConnector httpsConnector;
     private final FilterInitializer filterInitializer;
     private JettyStatisticsCollector jettyStatisticsCollector;
+
+    @Getter
+    private DynamicSkipUnknownPropertyHandler sharedJsonMapperProvider = new DynamicSkipUnknownPropertyHandler();
 
     public WebService(PulsarService pulsar) throws PulsarServerException {
         this.handlers = Lists.newArrayList();
@@ -150,26 +154,31 @@ public class WebService implements AutoCloseable {
     }
 
     public void addRestResources(String basePath, boolean requiresAuthentication, Map<String, Object> attributeMap,
-                                 String... javaPackages) {
+                                 boolean useSharedJsonMapperProvider, String... javaPackages) {
         ResourceConfig config = new ResourceConfig();
         for (String javaPackage : javaPackages) {
             config.packages(false, javaPackage);
         }
-        addResourceServlet(basePath, requiresAuthentication, attributeMap, config);
+        addResourceServlet(basePath, requiresAuthentication, attributeMap, config, useSharedJsonMapperProvider);
     }
 
     public void addRestResource(String basePath, boolean requiresAuthentication, Map<String, Object> attributeMap,
-                                Class<?>... resourceClasses) {
+                                boolean useSharedJsonMapperProvider, Class<?>... resourceClasses) {
         ResourceConfig config = new ResourceConfig();
         for (Class<?> resourceClass : resourceClasses) {
             config.register(resourceClass);
         }
-        addResourceServlet(basePath, requiresAuthentication, attributeMap, config);
+        addResourceServlet(basePath, requiresAuthentication, attributeMap, config, useSharedJsonMapperProvider);
     }
 
     private void addResourceServlet(String basePath, boolean requiresAuthentication, Map<String, Object> attributeMap,
-                                    ResourceConfig config) {
-        config.register(JsonMapperProvider.class);
+                                    ResourceConfig config, boolean useSharedJsonMapperProvider) {
+        if (useSharedJsonMapperProvider){
+            JsonMapperProvider jsonMapperProvider = new JsonMapperProvider(sharedJsonMapperProvider);
+            config.register(jsonMapperProvider);
+        } else {
+            config.register(JsonMapperProvider.class);
+        }
         config.register(MultiPartFeature.class);
         ServletHolder servletHolder = new ServletHolder(new ServletContainer(config));
         servletHolder.setAsyncSupported(true);
