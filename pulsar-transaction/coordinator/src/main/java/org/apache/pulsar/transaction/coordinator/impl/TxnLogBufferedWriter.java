@@ -279,9 +279,12 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
                 final TxnBatchedPositionImpl txnBatchedPosition = new TxnBatchedPositionImpl(position, batchSize,
                         batchIndex, ackSet);
                 // Because this task already running at ordered task, so just "run".
-                SafeRunnable.safeRun(() -> {
+                try {
                     asyncAddArgs.callback.addComplete(txnBatchedPosition, asyncAddArgs.ctx);
-                }).run();
+                } catch (Exception e){
+                    log.error("After writing to the transaction batched log complete, the callback failed."
+                            + " managedLedger: " + managedLedger.getName(), e);
+                }
             }
         } finally {
             entryData.release();
