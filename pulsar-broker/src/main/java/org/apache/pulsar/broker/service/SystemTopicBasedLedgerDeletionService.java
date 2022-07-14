@@ -281,7 +281,7 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
         if (isToDeleteLedger(pendingDeleteLedger)) {
             if (LedgerType.LEDGER == pendingDeleteLedger.getLedgerType()) {
                 return asyncDeleteLedger(pendingDeleteLedger.getTopicName(),
-                        pendingDeleteLedger.getContext().getLedgerId()).whenComplete((res, e) -> {
+                        pendingDeleteLedger.getLedgerId()).whenComplete((res, e) -> {
                     if (e == null) {
                         reader.ackMessageAsync(message);
                         return;
@@ -310,7 +310,7 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
         }
         if (log.isDebugEnabled()) {
             log.debug("[{}] ledger {} still in use, delete it later.", pendingDeleteLedger.getTopicName(),
-                    pendingDeleteLedger.getContext().getLedgerId());
+                    pendingDeleteLedger.getLedgerId());
         }
         return reader.reconsumeLaterAsync(message);
     }
@@ -330,7 +330,7 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
         if (pendingDeleteLedger.getLedgerId() > ledgerIds.last()) {
             return false;
         }
-        return !ledgerIds.contains(pendingDeleteLedger.getContext().getLedgerId());
+        return !ledgerIds.contains(pendingDeleteLedger.getLedgerId());
     }
 
     private TreeSet<Long> getLedgerIds(PendingDeleteLedgerInfo pendingDeleteLedger) throws PulsarAdminException {
