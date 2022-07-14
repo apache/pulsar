@@ -439,7 +439,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         // 2. Create consumer, this should success, but with empty sub-consumser internal
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
             .topicsPattern(pattern)
-            .patternAutoDiscoveryPeriod(2, TimeUnit.SECONDS)
+            .patternAutoDiscoveryPeriod(2)
             .subscriptionName(subscriptionName)
             .subscriptionType(SubscriptionType.Shared)
             .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
@@ -468,6 +468,11 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
             .enableBatching(false)
             .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition)
             .create();
+
+        List<String> topicNames = Lists.newArrayList(topicName1, topicName2, topicName3);
+        NamespaceService nss = pulsar.getNamespaceService();
+        doReturn(CompletableFuture.completedFuture(topicNames)).when(nss)
+                .getListOfPersistentTopics(NamespaceName.get("my-property/my-ns"));
 
         // 5. call recheckTopics to subscribe each added topics above
         log.debug("recheck topics change");
@@ -544,7 +549,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
             .topicsPattern(pattern)
-            .patternAutoDiscoveryPeriod(2, TimeUnit.SECONDS)
+            .patternAutoDiscoveryPeriod(2)
             .subscriptionName(subscriptionName)
             .subscriptionType(SubscriptionType.Shared)
             .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
@@ -584,6 +589,11 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
             .enableBatching(false)
             .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition)
             .create();
+
+        List<String> topicNames = Lists.newArrayList(topicName1, topicName2, topicName3, topicName4);
+        NamespaceService nss = pulsar.getNamespaceService();
+        doReturn(CompletableFuture.completedFuture(topicNames)).when(nss)
+                .getListOfPersistentTopics(NamespaceName.get("my-property/my-ns"));
 
         // 7. call recheckTopics to subscribe each added topics above, verify topics number: 10=1+2+3+4
         log.debug("recheck topics change");
