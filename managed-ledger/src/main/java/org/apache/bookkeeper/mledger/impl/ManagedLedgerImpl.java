@@ -117,6 +117,9 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsExcep
 import org.apache.bookkeeper.mledger.ManagedLedgerMXBean;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.WaitingEntryCallBack;
+import org.apache.bookkeeper.mledger.deletion.LedgerComponent;
+import org.apache.bookkeeper.mledger.deletion.LedgerDeletionService;
+import org.apache.bookkeeper.mledger.deletion.LedgerType;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.VoidCallback;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.impl.cache.EntryCache;
@@ -127,9 +130,6 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.NestedPositionInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.OffloadContext;
-import org.apache.bookkeeper.mledger.deletion.LedgerDeletionService;
-import org.apache.bookkeeper.mledger.deletion.LedgerComponent;
-import org.apache.bookkeeper.mledger.deletion.LedgerType;
 import org.apache.bookkeeper.mledger.util.CallbackMutex;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.bookkeeper.net.BookieId;
@@ -2664,8 +2664,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                                            Collection<Long> deletableOffloadedLedgerIds) {
         List<CompletableFuture<?>> futures = new ArrayList<>();
         for (Long ledgerId : deletableLedgerIds) {
-            futures.add(ledgerDeletionService.appendPendingDeleteLedger(name, ledgerId, null, LedgerComponent.MANAGED_LEDGER,
-                    LedgerType.LEDGER, true));
+            futures.add(ledgerDeletionService.appendPendingDeleteLedger(name, ledgerId, null,
+                    LedgerComponent.MANAGED_LEDGER, LedgerType.LEDGER, true));
         }
         for (Long ledgerId : deletableOffloadedLedgerIds) {
             futures.add(
@@ -3090,8 +3090,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                     if (exception != null) {
                                         log.error("[{}] Failed to offload data for the ledgerId {}",
                                                 name, ledgerId, exception);
-                                        if (ledgerDeletionService instanceof
-                                                LedgerDeletionService.LedgerDeletionServiceDisable) {
+                                        if (ledgerDeletionService
+                                                instanceof LedgerDeletionService.LedgerDeletionServiceDisable) {
                                             cleanupOffloaded(ledgerId, uuid, driverName, driverMetadata,
                                                     "Metastore failure");
                                         } else {
@@ -3232,9 +3232,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                     "Previous failed offload");
                         } else {
                             ledgerDeletionService.appendPendingDeleteLedger(name, ledgerId, oldInfo,
-                                    LedgerComponent.MANAGED_LEDGER, LedgerType.OFFLOAD_LEDGER, false)
+                                            LedgerComponent.MANAGED_LEDGER, LedgerType.OFFLOAD_LEDGER, false)
                                     .exceptionally(e -> {
-                                        log.warn("[{}]-{} Failed to append pending delete ledger.", this.name, ledgerId);
+                                        log.warn("[{}]-{} Failed to append pending delete ledger.", this.name,
+                                                ledgerId);
                                         return null;
                                     });
                         }
@@ -3915,8 +3916,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     if (ledgerDeletionService instanceof LedgerDeletionService.LedgerDeletionServiceDisable) {
                         asyncDeleteLedger(lh.getId(), DEFAULT_LEDGER_DELETE_RETRIES);
                     } else {
-                        ledgerDeletionService.appendPendingDeleteLedger(name, lh.getId(), null, LedgerComponent.MANAGED_LEDGER,
-                                LedgerType.LEDGER, false).exceptionally(e -> {
+                        ledgerDeletionService.appendPendingDeleteLedger(name, lh.getId(), null,
+                                LedgerComponent.MANAGED_LEDGER, LedgerType.LEDGER, false).exceptionally(e -> {
                             log.warn("[{}]-{} Failed to append pending delete ledger.", this.name, lh.getId());
                             return null;
                         });
