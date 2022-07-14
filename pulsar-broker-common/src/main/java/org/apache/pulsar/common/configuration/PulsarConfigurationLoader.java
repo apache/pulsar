@@ -91,7 +91,7 @@ public class PulsarConfigurationLoader {
     public static <T extends PulsarConfiguration> T create(Properties properties,
             Class<? extends PulsarConfiguration> clazz) throws IOException, IllegalArgumentException {
         requireNonNull(properties);
-        T configuration = null;
+        T configuration;
         try {
             configuration = (T) clazz.getDeclaredConstructor().newInstance();
             configuration.setProperties(properties);

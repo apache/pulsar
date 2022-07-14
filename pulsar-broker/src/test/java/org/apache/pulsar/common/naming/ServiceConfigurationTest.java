@@ -256,4 +256,13 @@ public class ServiceConfigurationTest {
             assertEquals(conf.getBookkeeperClientNumIoThreads(), 1);
         }
     }
+
+    @Test
+    public void testSubscriptionTypesEnableWins() throws Exception {
+        final Properties properties = new Properties();
+        properties.setProperty("subscriptionKeySharedEnable", "true");
+        properties.setProperty("subscriptionTypesEnabled", "Exclusive,Shared,Failover");
+        final ServiceConfiguration conf = PulsarConfigurationLoader.create(properties, ServiceConfiguration.class);
+        assertFalse(conf.isSubscriptionKeySharedEnable());
+    }
 }
