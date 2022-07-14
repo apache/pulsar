@@ -156,7 +156,8 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
         }
         if (!batchEnabled){
             ByteBuf byteBuf = dataSerializer.serialize(data);
-            managedLedger.asyncAddEntry(byteBuf, DisabledBatchCallback.INSTANCE, Triple.of(byteBuf, callback, ctx));
+            managedLedger.asyncAddEntry(byteBuf, DisabledBatchCallback.INSTANCE,
+                    AsyncAddArgs.newInstance(callback, ctx, System.currentTimeMillis(), byteBuf));
             return;
         }
         singleThreadExecutorForWrite.execute(() -> internalAsyncAddData(data, callback, ctx));
@@ -342,11 +343,26 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
             }
         };
 
+        /**
+         * This constructor is used only when batch is enabled.
+         */
         private static AsyncAddArgs newInstance(AddDataCallback callback, Object ctx, long addedTime){
             AsyncAddArgs asyncAddArgs = ASYNC_ADD_ARGS_RECYCLER.get();
             asyncAddArgs.callback = callback;
             asyncAddArgs.ctx = ctx;
             asyncAddArgs.addedTime = addedTime;
+            return asyncAddArgs;
+        }
+
+        /**
+         * This constructor is used only when batch is disabled, and has {@param byteBuf} more than the
+         * {@link AsyncAddArgs#newInstance(AddDataCallback, Object, long)} constructor. The {@param byteBuf} will be
+         * released during callback. see {@link AsyncAddArgs#recycle()}.
+         * @param byteBuf produced by {@link DataSerializer#serialize(Object)}
+         */
+        private static AsyncAddArgs newInstance(AddDataCallback callback, Object ctx, long addedTime, ByteBuf byteBuf){
+            AsyncAddArgs asyncAddArgs = newInstance(callback, ctx, addedTime);
+            asyncAddArgs.byteBuf = byteBuf;
             return asyncAddArgs;
         }
 
@@ -368,10 +384,19 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
         @Getter
         private long addedTime;
 
+        /**
+         * When turning off the Batch feature, we need to release the byteBuf produced by
+         * {@link DataSerializer#serialize(Object)}. Only carry the ByteBuf objects, no other use.
+         */
+        private ByteBuf byteBuf;
+
         public void recycle(){
             this.callback = null;
             this.ctx = null;
             this.addedTime = 0;
+            if (this.byteBuf != null){
+                this.byteBuf.release();
+            }
             this.handle.recycle(this);
         }
     }
@@ -447,18 +472,22 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
 
         @Override
         public void addComplete(Position position, ByteBuf entryData, Object ctx) {
-            Triple<ByteBuf, AddDataCallback, Object> triple =
-                    (Triple<ByteBuf, AddDataCallback, Object>) ctx;
-            triple.getLeft().release();
-            triple.getMiddle().addComplete(position, triple.getRight());
+            AsyncAddArgs asyncAddArgs = (AsyncAddArgs) ctx;
+            try {
+                asyncAddArgs.callback.addComplete(position, asyncAddArgs.ctx);
+            } finally {
+                asyncAddArgs.recycle();
+            }
         }
 
         @Override
         public void addFailed(ManagedLedgerException exception, Object ctx) {
-            Triple<ByteBuf, AddDataCallback, Object> triple =
-                    (Triple<ByteBuf, AddDataCallback, Object>) ctx;
-            triple.getLeft().release();
-            triple.getMiddle().addFailed(exception, triple.getRight());
+            AsyncAddArgs asyncAddArgs = (AsyncAddArgs) ctx;
+            try {
+                asyncAddArgs.callback.addFailed(exception, asyncAddArgs.ctx);
+            } finally {
+                asyncAddArgs.recycle();
+            }
         }
     }
 }
