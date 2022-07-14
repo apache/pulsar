@@ -606,6 +606,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             Assert.assertNull(message);
 
             abortTxn.abort().get();
+            consumer.redeliverUnacknowledgedMessages();
             Transaction commitTxn = getTxn();
             for (int i = 0; i < messageCnt; i++) {
                 message = consumer.receive(1, TimeUnit.SECONDS);
