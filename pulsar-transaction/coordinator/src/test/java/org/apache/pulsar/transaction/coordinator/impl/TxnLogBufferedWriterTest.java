@@ -205,7 +205,8 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
                 + new Random().nextInt(writeCmdExecuteCount / 4 + 1) - 1;
         for (int i = 0; i < writeCmdExecuteCount; i++){
             txnLogBufferedWriter.asyncAddData(i, callback, i);
-            if (i == 0){
+            // Ensure flush at least once before close buffered writer.
+            if (closeBufferedWriter && i == 0){
                 txnLogBufferedWriter.trigFlush(true);
             }
             if (closeBufferedWriter && bufferedWriteCloseAtIndex == i){
