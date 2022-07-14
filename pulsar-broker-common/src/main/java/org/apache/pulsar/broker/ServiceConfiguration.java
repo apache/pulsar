@@ -1026,7 +1026,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_SERVER,
             doc = "Time in milliseconds to delay the new delivery of a message when an EntryFilter returns RESCHEDULE."
     )
-    private int dispatcherEntryFilterRescheduledMessagedDelay = 1000;
+    private int dispatcherEntryFilterRescheduledMessageDelay = 1000;
 
     @FieldContext(
         dynamic = true,

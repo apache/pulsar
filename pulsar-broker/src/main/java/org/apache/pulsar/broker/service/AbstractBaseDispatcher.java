@@ -223,7 +223,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
                         // simulate the Consumer rejected the message
                         subscription
                                 .redeliverUnacknowledgedMessages(consumer, entriesToRedeliver);
-                    }, serviceConfig.getDispatcherEntryFilterRescheduledMessagedDelay(), TimeUnit.MILLISECONDS);
+                    }, serviceConfig.getDispatcherEntryFilterRescheduledMessageDelay(), TimeUnit.MILLISECONDS);
 
         }
 
