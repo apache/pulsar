@@ -916,7 +916,7 @@ public class Namespaces extends NamespacesBase {
                 .exceptionally(ex -> {
                     if (!isRedirectException(ex)) {
                         log.error("[{}] Failed to split namespace bundle {}/{} due to {}",
-                                clientAppId(), namespaceName, bundleRange, ex.getMessage());
+                                clientAppId(), namespaceName, bundleRange, ex);
                     }
                     Throwable realCause = FutureUtil.unwrapCompletionException(ex);
                     if (realCause instanceof IllegalArgumentException) {
