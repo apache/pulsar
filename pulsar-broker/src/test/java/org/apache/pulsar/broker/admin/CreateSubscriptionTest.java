@@ -32,6 +32,9 @@ import java.util.concurrent.TimeUnit;
 import java.io.IOException;
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.core.Response.Status;
+
+import lombok.Cleanup;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.http.HttpResponse;
@@ -46,9 +49,11 @@ import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
@@ -63,6 +68,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-admin")
+@Slf4j
 public class CreateSubscriptionTest extends ProducerConsumerBase {
 
     @BeforeMethod
@@ -479,5 +485,35 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).get();
         ManagedLedgerImpl ml = (ManagedLedgerImpl)(topicRef.getManagedLedger());
         assertEquals(ml.getWaitingCursorsCount(), 0);
+    }
+
+
+    @Test
+    public void test() throws Exception {
+        String topic = "persistent://my-property/my-ns/my-topic";
+
+        @Cleanup
+        Consumer<byte[]> c = pulsarClient.newConsumer().topic(topic)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscriptionName("test")
+                .messageListener(new MessageListener<byte[]>() {
+                    @Override
+                    public void received(Consumer<byte[]> consumer, Message<byte[]> msg) {
+                        log.info("received {}", msg.getMessageId());
+                        consumer.acknowledgeAsync(msg);
+                    }
+                })
+                .subscribe();
+
+        @Cleanup
+        Producer<byte[]> p1 = pulsarClient.newProducer().topic(topic)
+                .blockIfQueueFull(true)
+                .create();
+        for (int i = 0; i < Integer.MAX_VALUE; i++) {
+            p1.send(new byte[100]);
+            Thread.sleep(1000);
+        }
+        p1.flush();
     }
 }

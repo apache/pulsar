@@ -20,6 +20,7 @@ package org.apache.bookkeeper.mledger.impl;
 
 import com.google.common.base.Predicate;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.extern.slf4j.Slf4j;
@@ -48,7 +49,7 @@ class OpScan implements ReadEntryCallback {
 
     public OpScan(ManagedCursorImpl cursor, PositionImpl startPosition, Predicate<Entry> condition,
                   ScanCallback callback, Object ctx, long maxEntries, long timeOutMs) {
-        this.cursor = cursor;
+        this.cursor = Objects.requireNonNull(cursor);
         this.ledger = cursor.ledger;
         this.startPosition = startPosition;
         this.callback = callback;
@@ -71,10 +72,13 @@ class OpScan implements ReadEntryCallback {
         if (!entries.isEmpty()) {
             boolean exit = false;
             try {
-                if (!condition.apply(entry)) {
-                  exit = true;
+                try {
+                    if (!condition.apply(entry)) {
+                        exit = true;
+                    }
+                } finally {
+                    entry.release();
                 }
-                entry.release();
             } catch (Throwable err) {
                 log.error("[{}] user exception", cursor, err);
                 callback.scanFailed(ManagedLedgerException.getManagedLedgerException(err),
@@ -116,7 +120,7 @@ class OpScan implements ReadEntryCallback {
             callback.scanComplete(lastMatchedPosition, ScanOutcome.ABORTED, OpScan.this.ctx);
             return;
         }
-        if (cursor != null ? cursor.hasMoreEntries(searchPosition) : ledger.hasMoreEntries(searchPosition)) {
+        if (cursor.hasMoreEntries(searchPosition)) {
             ledger.asyncReadEntry(searchPosition, this, null);
         } else {
             callback.scanComplete(lastMatchedPosition, ScanOutcome.COMPLETED, OpScan.this.ctx);
