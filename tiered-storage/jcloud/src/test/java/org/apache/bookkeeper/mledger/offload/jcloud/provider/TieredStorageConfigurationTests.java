@@ -89,8 +89,8 @@ public class TieredStorageConfigurationTests {
         
         assertEquals(config.getRegion(), "us-east-1");
         assertEquals(config.getBucket(), "test bucket");
-        assertEquals(config.getMaxBlockSizeInBytes(), new Integer(1));
-        assertEquals(config.getReadBufferSizeInBytes(), new Integer(500));
+        assertEquals(config.getMaxBlockSizeInBytes(), Integer.valueOf(1));
+        assertEquals(config.getReadBufferSizeInBytes(), Integer.valueOf(500));
         assertEquals(config.getServiceEndpoint(), "http://some-url:9093");
     }
     
@@ -99,7 +99,7 @@ public class TieredStorageConfigurationTests {
      */
     @Test
     public final void awsS3BackwardCompatiblePropertiesTest() {
-        Map<String, String> map = new HashMap<String,String>(); 
+        Map<String, String> map = new HashMap<>();
         map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.AWS_S3.getDriver());
         map.put(BC_S3_BUCKET, "test bucket");
         map.put(BC_S3_ENDPOINT, "http://some-url:9093");
@@ -110,8 +110,8 @@ public class TieredStorageConfigurationTests {
         
         assertEquals(config.getRegion(), "test region");
         assertEquals(config.getBucket(), "test bucket");
-        assertEquals(config.getMaxBlockSizeInBytes(), new Integer(12));
-        assertEquals(config.getReadBufferSizeInBytes(), new Integer(500));
+        assertEquals(config.getMaxBlockSizeInBytes(), Integer.valueOf(12));
+        assertEquals(config.getReadBufferSizeInBytes(), Integer.valueOf(500));
         assertEquals(config.getServiceEndpoint(), "http://some-url:9093");
     }
 
@@ -187,8 +187,8 @@ public class TieredStorageConfigurationTests {
         
         assertEquals(config.getRegion(), "us-east-1");
         assertEquals(config.getBucket(), "test bucket");
-        assertEquals(config.getMaxBlockSizeInBytes(), new Integer(1));
-        assertEquals(config.getReadBufferSizeInBytes(), new Integer(500));
+        assertEquals(config.getMaxBlockSizeInBytes(), Integer.valueOf(1));
+        assertEquals(config.getReadBufferSizeInBytes(), Integer.valueOf(500));
     }
     
     /**
@@ -206,8 +206,8 @@ public class TieredStorageConfigurationTests {
         
         assertEquals(config.getRegion(), "test region");
         assertEquals(config.getBucket(), "test bucket");
-        assertEquals(config.getMaxBlockSizeInBytes(), new Integer(12));
-        assertEquals(config.getReadBufferSizeInBytes(), new Integer(500));
+        assertEquals(config.getMaxBlockSizeInBytes(), Integer.valueOf(12));
+        assertEquals(config.getReadBufferSizeInBytes(), Integer.valueOf(500));
     }
 
     @Test

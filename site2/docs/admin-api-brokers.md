@@ -39,31 +39,6 @@ In addition to being configurable when you start them up, brokers can also be [d
 
 ### List active brokers
 
-Fetch all available active brokers that are serving traffic for local cluster .
-
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
-
-```shell
-$ pulsar-admin brokers list
-```
-
-```
-broker1.use.org.com:8080
-```
-
-<!--REST API-->
-
-{@inject: endpoint|GET|/admin/v2/brokers|operation/getActiveBrokers?version=[[pulsar:version_number]]}
-
-<!--JAVA-->
-
-```java
-admin.brokers().getActiveBrokers()
-```
-
-<!--END_DOCUSAURUS_CODE_TABS-->
-
 Fetch all available active brokers that are serving traffic with cluster name.
 
 ````mdx-code-block
@@ -75,11 +50,6 @@ Fetch all available active brokers that are serving traffic with cluster name.
 ```shell
 
 $ pulsar-admin brokers list use
-
-```
-
-```
-
 broker1.use.org.com:8080
 
 ```
@@ -116,11 +86,6 @@ Fetch the information of the leader broker, for example, the service url.
 ```shell
 
 $ pulsar-admin brokers leader-broker
-
-```
-
-```
-
 BrokerInfo(serviceUrl=broker1.use.org.com:8080)
 
 ```
@@ -160,10 +125,6 @@ It finds all namespaces which are owned and served by a given broker.
 
 $ pulsar-admin brokers namespaces use \
   --url broker1.use.org.com:8080
-
-```
-
-```json
 
 {
   "my-property/use/my-ns/0x00000000_0xffffffff": {

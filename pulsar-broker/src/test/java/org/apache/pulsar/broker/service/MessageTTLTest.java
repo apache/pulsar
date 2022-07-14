@@ -26,16 +26,20 @@ import static org.testng.Assert.assertNotNull;
 import com.google.common.collect.Lists;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.CursorStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
@@ -83,6 +87,8 @@ public class MessageTTLTest extends BrokerTestBase {
             sendFutureList.add(producer.sendAsync(message));
         }
         FutureUtil.waitForAll(sendFutureList).get();
+        MessageIdImpl firstMessageId = (MessageIdImpl) sendFutureList.get(0).get();
+        MessageIdImpl lastMessageId = (MessageIdImpl) sendFutureList.get(sendFutureList.size() - 1).get();
         producer.close();
         // unload a reload the topic
         // this action created a new ledger
@@ -94,19 +100,20 @@ public class MessageTTLTest extends BrokerTestBase {
         PersistentTopicInternalStats internalStatsBeforeExpire = admin.topics().getInternalStats(topicName);
         CursorStats statsBeforeExpire = internalStatsBeforeExpire.cursors.get(subscriptionName);
         log.info("markDeletePosition before expire {}", statsBeforeExpire.markDeletePosition);
-        assertEquals(statsBeforeExpire.markDeletePosition, PositionImpl.get(3, -1).toString());
+        assertEquals(statsBeforeExpire.markDeletePosition,
+                PositionImpl.get(firstMessageId.getLedgerId(), -1).toString());
 
-        // wall clock time, we have to make the message to be considered "expired"
-        Thread.sleep(this.conf.getTtlDurationDefaultInSeconds() * 2000L);
-        log.info("***** run message expiry now");
-        this.runMessageExpiryCheck();
-
-        // verify that the markDeletePosition was moved forward, and exacly to the last message
-        PersistentTopicInternalStats internalStatsAfterExpire = admin.topics().getInternalStats(topicName);
-        CursorStats statsAfterExpire = internalStatsAfterExpire.cursors.get(subscriptionName);
-        log.info("markDeletePosition after expire {}", statsAfterExpire.markDeletePosition);
-        assertEquals(statsAfterExpire.markDeletePosition, PositionImpl.get(3, numMsgs - 1 ).toString());
-
+        Awaitility.await().timeout(30, TimeUnit.SECONDS)
+                .pollDelay(3, TimeUnit.SECONDS).untilAsserted(() -> {
+            this.runMessageExpiryCheck();
+            log.info("***** run message expiry now");
+            // verify that the markDeletePosition was moved forward, and exacly to the last message
+            PersistentTopicInternalStats internalStatsAfterExpire = admin.topics().getInternalStats(topicName);
+            CursorStats statsAfterExpire = internalStatsAfterExpire.cursors.get(subscriptionName);
+            log.info("markDeletePosition after expire {}", statsAfterExpire.markDeletePosition);
+            assertEquals(statsAfterExpire.markDeletePosition, PositionImpl.get(lastMessageId.getLedgerId(),
+                    lastMessageId.getEntryId() ).toString());
+        });
     }
 
     @Test

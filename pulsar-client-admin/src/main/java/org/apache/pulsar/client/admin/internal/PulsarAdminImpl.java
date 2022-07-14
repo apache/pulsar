@@ -65,7 +65,6 @@ import org.glassfish.jersey.jackson.JacksonFeature;
 import org.glassfish.jersey.media.multipart.MultiPartFeature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.bridge.SLF4JBridgeHandler;
 
 /**
  * Pulsar client admin API client.
@@ -113,24 +112,6 @@ public class PulsarAdminImpl implements PulsarAdmin {
     private final TimeUnit readTimeoutUnit;
     private final int requestTimeout;
     private final TimeUnit requestTimeoutUnit;
-
-    static {
-        /**
-         * The presence of slf4j-jdk14.jar, that is the jul binding for SLF4J, will force SLF4J calls to be delegated to
-         * jul. On the other hand, the presence of jul-to-slf4j.jar, plus the installation of SLF4JBridgeHandler, by
-         * invoking "SLF4JBridgeHandler.install()" will route jul records to SLF4J. Thus, if both jar are present
-         * simultaneously (and SLF4JBridgeHandler is installed), slf4j calls will be delegated to jul and jul records
-         * will be routed to SLF4J, resulting in an endless loop. We avoid this loop by detecting if slf4j-jdk14 is used
-         * in the client class path. If slf4j-jdk14 is found, we don't use the slf4j bridge.
-         */
-        try {
-            Class.forName("org.slf4j.impl.JDK14LoggerFactory");
-        } catch (Exception ex) {
-            // Setup the bridge for java.util.logging to SLF4J
-            SLF4JBridgeHandler.removeHandlersForRootLogger();
-            SLF4JBridgeHandler.install();
-        }
-    }
 
     public PulsarAdminImpl(String serviceUrl, ClientConfigurationData clientConfigData) throws PulsarClientException {
         this(serviceUrl, clientConfigData, DEFAULT_CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS,

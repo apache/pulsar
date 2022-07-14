@@ -74,6 +74,41 @@ in the `bookkeeper.conf` configuration file.
 | bookie_flush | Gauge| The table flush latency of bookie memory. |
 | bookie_throttled_write_requests | Counter | The number of write requests to be throttled. |
 
+### Replication metrics
+
+| Name | Type | Description |
+|---|---|---|
+| auditor_NUM_UNDER_REPLICATED_LEDGERS | Summary | The distribution of num under_replicated ledgers on each auditor run. |
+| auditor_UNDER_REPLICATED_LEDGERS_TOTAL_SIZE | Summary | The distribution of under_replicated ledgers total size on each auditor run. |
+| auditor_URL_PUBLISH_TIME_FOR_LOST_BOOKIE | Summary | The latency distribution of publishing under replicated ledgers for lost bookies. |
+| auditor_BOOKIE_TO_LEDGERS_MAP_CREATION_TIME | Summary | The latency distribution of creating bookies-to-ledgers map. |
+| auditor_CHECK_ALL_LEDGERS_TIME | Summary | The latency distribution of checking all ledgers. |
+| auditor_PLACEMENT_POLICY_CHECK_TIME | Summary | The latency distribution of placementPolicy check. |
+| auditor_REPLICAS_CHECK_TIME | Summary | The latency distribution of replicas check. |
+| auditor_AUDIT_BOOKIES_TIME | Summary | The latency distribution of auditing all the bookies. |
+| auditor_NUM_LEDGERS_CHECKED | Counter | The number of ledgers checked by the auditor. |
+| auditor_NUM_FRAGMENTS_PER_LEDGER | Summary | The distribution of number of fragments per ledger. |
+| auditor_NUM_BOOKIES_PER_LEDGER | Summary | The distribution of number of bookies per ledger. |
+| auditor_NUM_BOOKIE_AUDITS_DELAYED | Counter | The number of bookie-audits delayed. |
+| auditor_NUM_DELAYED_BOOKIE_AUDITS_DELAYES_CANCELLED | Counter | The number of delayed-bookie-audits cancelled. |
+| auditor_NUM_LEDGERS_NOT_ADHERING_TO_PLACEMENT_POLICY | Gauge | Gauge for number of ledgers not adhering to placement policy found in placement policy check. |
+| auditor_NUM_LEDGERS_SOFTLY_ADHERING_TO_PLACEMENT_POLICY | Gauge | Gauge for number of ledgers softly adhering to placement policy found in placement policy check. |
+| auditor_NUM_UNDERREPLICATED_LEDGERS_ELAPSED_RECOVERY_GRACE_PERIOD | Gauge | Gauge for number of underreplicated ledgers elapsed recovery grace period. |
+| auditor_NUM_LEDGERS_HAVING_NO_REPLICA_OF_AN_ENTRY | Gauge | Gauge for number of ledgers having an entry with all the replicas missing. |
+| auditor_NUM_LEDGERS_HAVING_LESS_THAN_AQ_REPLICAS_OF_AN_ENTRY | Gauge | Gauge for number of ledgers having an entry with less than AQ number of replicas, this doesn't include ledgers counted towards numLedgersHavingNoReplicaOfAnEntry. |
+| auditor_NUM_LEDGERS_HAVING_LESS_THAN_WQ_REPLICAS_OF_AN_ENTRY | Gauge | Gauge for number of ledgers having an entry with less than WQ number of replicas, this doesn't include ledgers counted towards numLedgersHavingLessThanAQReplicasOfAnEntry. |
+| replication_worker_NUM_BYTES_READ | Summary | The distribution of size of entries read by the replicator. |
+| replication_worker_NUM_ENTRIES_READ | Counter | Number of entries read by the replicator. |
+| replication_worker_NUM_ENTRIES_WRITTEN | Counter | Number of entries written by the replicator. |
+| replication_worker_NUM_BYTES_WRITTEN | Summary | The distribution of size of entries written by the replicator. |
+| replication_worker_READ_DATA_LATENCY | Summary | The distribution of latency of read entries by the replicator. |
+| replication_worker_WRITE_DATA_LATENCY | Summary | The distribution of latency of write entries by the replicator. |
+| replication_worker_REPLICATE_EXCEPTION | Summary | Replication related exceptions. |
+| replication_worker_REREPLICATE_OP | Summary | Operation stats of re-replicating ledgers. |
+| replication_worker_NUM_FULL_OR_PARTIAL_LEDGERS_REPLICATED | Counter | The number of ledgers re-replicated. |
+| replication_worker_NUM_DEFER_LEDGER_LOCK_RELEASE_OF_FAILED_LEDGER | Counter | The number of defer-ledger-lock-releases of failed ledgers. |
+| replication_worker_NUM_ENTRIES_UNABLE_TO_READ_FOR_REPLICATION | Counter | The number of entries ReplicationWorker unable to read. |
+
 ## Broker
 
 The broker metrics are exposed under "/metrics" at port `8080`. You can change the port by updating `webServicePort` to a different port
@@ -90,6 +125,7 @@ The following metrics are available for broker:
   - [Server metrics](#server-metrics-1)
   - [Journal metrics](#journal-metrics)
   - [Storage metrics](#storage-metrics)
+  - [Replication metrics](#replication-metrics)
 - [Broker](#broker)
   - [Broker metrics](#broker-metrics)
   - [Namespace metrics](#namespace-metrics)
@@ -443,7 +479,7 @@ All the token metrics are labelled with the following labels:
 
 | Name | Type | Description |
 |---|---|---|
-| pulsar_expired_token_count | Counter | The number of expired tokens in Pulsar. |
+| pulsar_expired_token_total | Counter | The number of expired tokens in Pulsar. |
 | pulsar_expiring_token_minutes | Histogram | The remaining time of expiring tokens in minutes. |
 
 ### Authentication metrics
@@ -453,12 +489,12 @@ All the authentication metrics are labelled with the following labels:
 - *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you have configured in the `broker.conf` file.
 - *provider_name*: `provider_name=${provider_name}`. `${provider_name}` is the class name of the authentication provider.
 - *auth_method*: `auth_method=${auth_method}`. `${auth_method}` is the authentication method of the authentication provider.
-- *reason*: `reason=${reason}`. `${reason}` is the reason for failing authentication operation. (This label is only for `pulsar_authentication_failures_count`.)
+- *reason*: `reason=${reason}`. `${reason}` is the reason for failing authentication operation. (This label is only for `pulsar_authentication_failures_total`.)
 
 | Name | Type | Description |
 |---|---|---|
-| pulsar_authentication_success_count| Counter | The number of successful authentication operations. |
-| pulsar_authentication_failures_count | Counter | The number of failing authentication operations. |
+| pulsar_authentication_success_total| Counter | The number of successful authentication operations. |
+| pulsar_authentication_failures_total | Counter | The number of failing authentication operations. |
 
 ### Jetty metrics
 
@@ -555,16 +591,16 @@ All the Pulsar Functions metrics are labelled with the following labels:
 | Name | Type | Description |
 |---|---|---|
 | pulsar_function_processed_successfully_total | Counter | The total number of messages processed successfully. |
-| pulsar_function_processed_successfully_total_1min | Counter | The total number of messages processed successfully in the last 1 minute. |
+| pulsar_function_processed_successfully_1min_total | Counter | The total number of messages processed successfully in the last 1 minute. |
 | pulsar_function_system_exceptions_total | Counter | The total number of system exceptions. |
-| pulsar_function_system_exceptions_total_1min | Counter | The total number of system exceptions in the last 1 minute. |
+| pulsar_function_system_exceptions_1min_total | Counter | The total number of system exceptions in the last 1 minute. |
 | pulsar_function_user_exceptions_total | Counter | The total number of user exceptions. |
-| pulsar_function_user_exceptions_total_1min | Counter | The total number of user exceptions in the last 1 minute. |
+| pulsar_function_user_exceptions_1min_total | Counter | The total number of user exceptions in the last 1 minute. |
 | pulsar_function_process_latency_ms | Summary | The process latency in milliseconds. |
 | pulsar_function_process_latency_ms_1min | Summary | The process latency in milliseconds in the last 1 minute. |
 | pulsar_function_last_invocation | Gauge | The timestamp of the last invocation of the function. |
 | pulsar_function_received_total | Counter | The total number of messages received from source. |
-| pulsar_function_received_total_1min | Counter | The total number of messages received from source in the last 1 minute. |
+| pulsar_function_received_1min_total | Counter | The total number of messages received from source in the last 1 minute. |
 pulsar_function_user_metric_ | Summary|The user-defined metrics.
 
 ## Connectors
@@ -581,16 +617,16 @@ Connector metrics contain **source** metrics and **sink** metrics.
   | Name | Type | Description |
   |---|---|---|
   pulsar_source_written_total|Counter|The total number of records written to a Pulsar topic.
-  pulsar_source_written_total_1min|Counter|The total number of records written to a Pulsar topic in the last 1 minute.
+  pulsar_source_written_1min_total|Counter|The total number of records written to a Pulsar topic in the last 1 minute.
   pulsar_source_received_total|Counter|The total number of records received from source.
-  pulsar_source_received_total_1min|Counter|The total number of records received from source in the last 1 minute.
+  pulsar_source_received_1min_total|Counter|The total number of records received from source in the last 1 minute.
   pulsar_source_last_invocation|Gauge|The timestamp of the last invocation of the source.
   pulsar_source_source_exception|Gauge|The exception from a source.
   pulsar_source_source_exceptions_total|Counter|The total number of source exceptions.
-  pulsar_source_source_exceptions_total_1min |Counter|The total number of source exceptions in the last 1 minute.
+  pulsar_source_source_exceptions_1min_total |Counter|The total number of source exceptions in the last 1 minute.
   pulsar_source_system_exception|Gauge|The exception from system code.
   pulsar_source_system_exceptions_total|Counter|The total number of system exceptions.
-  pulsar_source_system_exceptions_total_1min|Counter|The total number of system exceptions in the last 1 minute.
+  pulsar_source_system_exceptions_1min_total|Counter|The total number of system exceptions in the last 1 minute.
   pulsar_source_user_metric_ | Summary|The user-defined metrics.
 
 - **Sink** metrics
@@ -598,16 +634,16 @@ Connector metrics contain **source** metrics and **sink** metrics.
   | Name | Type | Description |
   |---|---|---|
   pulsar_sink_written_total|Counter| The total number of records processed by a sink.
-  pulsar_sink_written_total_1min|Counter| The total number of records processed by a sink in the last 1 minute.
-  pulsar_sink_received_total_1min|Counter| The total number of messages that a sink has received from Pulsar topics in the last 1 minute.
+  pulsar_sink_written_1min_total|Counter| The total number of records processed by a sink in the last 1 minute.
+  pulsar_sink_received_1min_total|Counter| The total number of messages that a sink has received from Pulsar topics in the last 1 minute.
   pulsar_sink_received_total|Counter| The total number of records that a sink has received from Pulsar topics.
   pulsar_sink_last_invocation|Gauge|The timestamp of the last invocation of the sink.
   pulsar_sink_sink_exception|Gauge|The exception from a sink.
   pulsar_sink_sink_exceptions_total|Counter|The total number of sink exceptions.
-  pulsar_sink_sink_exceptions_total_1min |Counter|The total number of sink exceptions in the last 1 minute.
+  pulsar_sink_sink_exceptions_1min_total |Counter|The total number of sink exceptions in the last 1 minute.
   pulsar_sink_system_exception|Gauge|The exception from system code.
   pulsar_sink_system_exceptions_total|Counter|The total number of system exceptions.
-  pulsar_sink_system_exceptions_total_1min|Counter|The total number of system exceptions in the last 1 minute.
+  pulsar_sink_system_exceptions_1min_total|Counter|The total number of system exceptions in the last 1 minute.
   pulsar_sink_user_metric_ | Summary|The user-defined metrics.
 
 ## Proxy

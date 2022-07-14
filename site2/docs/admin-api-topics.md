@@ -1066,9 +1066,9 @@ admin.topics().resetCursor(topic, subName, timestamp);
 </Tabs>
 ````
 
-### Lookup of topic
+### Look up topic's owner broker
 
-You can locate the broker URL which is serving the given topic in the following ways.
+You can locate the owner broker of the given topic in the following ways.
 
 ````mdx-code-block
 <Tabs groupId="api-choice"
@@ -1105,9 +1105,9 @@ admin.lookup().lookupDestination(topic);
 </Tabs>
 ````
 
-### Lookup of partitioned topic
+### Look up partitioned topic's owner broker
 
-You can locate the broker URL of each partitioned topic which is serving the given topic in the following ways.
+You can locate the owner broker of the given partitioned topic in the following ways.
 
 ````mdx-code-block
 <Tabs groupId="api-choice"
@@ -1155,7 +1155,7 @@ $ pulsar-admin topics partitioned-lookup \
 
 ### Get bundle
 
-You can check the range of the bundle which contains given topic in the following ways.
+You can get the range of the bundle that the given topic belongs to in the following ways.
 
 ````mdx-code-block
 <Tabs groupId="api-choice"
