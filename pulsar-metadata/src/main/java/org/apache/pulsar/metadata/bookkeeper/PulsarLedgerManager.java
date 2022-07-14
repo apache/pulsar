@@ -161,6 +161,7 @@ public class PulsarLedgerManager implements LedgerManager {
                             log.debug("No such ledger: {} at path {}", ledgerId, ledgerPath);
                         }
                         promise.completeExceptionally(new BKException.BKNoSuchLedgerExistsOnMetadataServerException());
+                        return;
                     }
 
                     Stat stat = optRes.get().getStat();
