@@ -170,7 +170,8 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
                 doTrigFlush(true);
             }
             ByteBuf byteBuf = dataSerializer.serialize(data);
-            managedLedger.asyncAddEntry(byteBuf, DisabledBatchCallback.INSTANCE, Triple.of(byteBuf, callback, ctx));
+            managedLedger.asyncAddEntry(byteBuf, DisabledBatchCallback.INSTANCE,
+                    AsyncAddArgs.newInstance(callback, ctx, System.currentTimeMillis(), byteBuf));
             return;
         }
         // Add data.
