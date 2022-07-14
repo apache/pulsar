@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAGE_RATE_BACKOFF_MS;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
@@ -524,10 +525,19 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             log.debug("[{}] Distributing {} messages to {} consumers", name, entries.size(), consumerList.size());
         }
 
-        sendMessagesToConsumers(readType, entries);
+        if (serviceConfig.isDispatcherDispatchMessagesInSubscriptionThread()) {
+            // dispatch messages to a separate thread, but still in order for this subscription
+            // sendMessagesToConsumers is responsible for running broker-side filters
+            // that may be quite expensive
+            topic.getBrokerService().getTopicOrderedExecutor()
+                    .executeOrdered(name,
+                            safeRun(() -> sendMessagesToConsumers(readType, entries)));
+        } else {
+            sendMessagesToConsumers(readType, entries));
+        }
     }
 
-    protected void sendMessagesToConsumers(ReadType readType, List<Entry> entries) {
+    protected synchronized void sendMessagesToConsumers(ReadType readType, List<Entry> entries) {
 
         if (needTrimAckedMessages()) {
             cursor.trimDeletedEntries(entries);
