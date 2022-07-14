@@ -50,7 +50,6 @@ import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.bookkeeper.util.MathUtils;
 import org.apache.commons.configuration.Configuration;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -182,8 +181,8 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
                 .whenComplete((res, e) -> {
                     if (e != null && !(e instanceof PulsarAdminException.ConflictException)) {
                         log.error("Initial system topic "
-                                        + SystemTopicNames.LEDGER_DELETION_ARCHIVE_TOPIC.getPartitionedTopicName() +
-                                        "failed.",
+                                        + SystemTopicNames.LEDGER_DELETION_ARCHIVE_TOPIC.getPartitionedTopicName()
+                                        + "failed.",
                                 e);
                         initLedgerDeletionArchiveSystemTopic();
                     }
@@ -410,13 +409,8 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
     private CompletableFuture<?> asyncDeleteOffloadedLedger(String topicName, LedgerInfo ledgerInfo) {
         CompletableFuture<Void> future = new CompletableFuture<>();
         final long startTime = MathUtils.nowInNano();
-        OffloadPoliciesImpl offloadPolicies;
-        try {
-            offloadPolicies = buildOffloadPolicies(ledgerInfo);
-        } catch (IllegalArgumentException e) {
-            future.completeExceptionally(e);
-            return future;
-        }
+
+        OffloadPoliciesImpl offloadPolicies = buildOffloadPolicies(ledgerInfo);
 
         LedgerOffloader ledgerOffloader = offloaderMap.get(offloadPolicies);
         if (ledgerOffloader == null) {
@@ -464,7 +458,7 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
         return future;
     }
 
-    private OffloadPoliciesImpl buildOffloadPolicies(LedgerInfo ledgerInfo) throws IllegalArgumentException {
+    private OffloadPoliciesImpl buildOffloadPolicies(LedgerInfo ledgerInfo) {
         String driverName = OffloadUtils.getOffloadDriverName(ledgerInfo, "");
         if (FILE_SYSTEM_DRIVER.equals(driverName)) {
             // TODO: 2022/7/13 Filesystem offloader params needs more info

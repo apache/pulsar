@@ -73,11 +73,11 @@ public class LedgerDeletionSystemTopicClient extends SystemTopicClientBase<Pendi
 
     @Override
     protected CompletableFuture<Reader<PendingDeleteLedgerInfo>> newReaderAsyncInternal() {
-        // TODO: 2022/7/7 死信队列发消息batch情况
         return client.newConsumer(Schema.AVRO(PendingDeleteLedgerInfo.class))
                 .topic(topicName.toString())
                 .subscriptionName("ledger-deletion-worker")
                 .subscriptionType(SubscriptionType.Shared)
+                .enableRetry(true)
                 .deadLetterPolicy(DeadLetterPolicy.builder()
                         .deadLetterTopic(SystemTopicNames.LEDGER_DELETION_ARCHIVE_TOPIC.getPartitionedTopicName())
                         .maxRedeliverCount(10).build())
