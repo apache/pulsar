@@ -533,7 +533,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                     .executeOrdered(name,
                             safeRun(() -> sendMessagesToConsumers(readType, entries)));
         } else {
-            sendMessagesToConsumers(readType, entries));
+            sendMessagesToConsumers(readType, entries);
         }
     }
 
