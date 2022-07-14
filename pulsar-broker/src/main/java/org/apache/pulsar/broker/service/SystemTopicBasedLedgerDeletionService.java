@@ -283,7 +283,10 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
                 return asyncDeleteLedger(pendingDeleteLedger.getTopicName(),
                         pendingDeleteLedger.getLedgerId()).whenComplete((res, e) -> {
                     if (e == null) {
-                        reader.ackMessageAsync(message);
+                        reader.ackMessageAsync(message).exceptionally(ex -> {
+                            log.warn("Ack pending delete ledger {} failed.", message, ex);
+                            return null;
+                        });
                         return;
                     }
                     reader.reconsumeLaterAsync(message).exceptionally(ex -> {
@@ -295,7 +298,10 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
                 return asyncDeleteOffloadedLedger(pendingDeleteLedger.getTopicName(),
                         pendingDeleteLedger.getContext()).whenComplete((res, e) -> {
                     if (e == null) {
-                        reader.ackMessageAsync(message);
+                        reader.ackMessageAsync(message).exceptionally(ex -> {
+                            log.warn("Ack pending delete ledger {} failed.", message, ex);
+                            return null;
+                        });
                         return;
                     }
                     reader.reconsumeLaterAsync(message).exceptionally(ex -> {
@@ -304,7 +310,10 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
                     });
                 });
             }
-            reader.ackMessageAsync(message);
+            reader.ackMessageAsync(message).exceptionally(ex -> {
+                log.warn("Ack pending delete ledger {} failed.", message, ex);
+                return null;
+            });
             return FutureUtil.failedFuture(
                     new InvalidParameterException("Received pending delete ledger message with invalid ledger type."));
         }
