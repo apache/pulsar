@@ -20,7 +20,6 @@ package org.apache.pulsar.client.admin.internal;
 
 import com.google.gson.Gson;
 import java.io.File;
-import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -29,7 +28,6 @@ import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
@@ -67,19 +65,8 @@ public class PackagesImpl extends ComponentResource implements Packages {
     @Override
     public CompletableFuture<PackageMetadata> getMetadataAsync(String packageName) {
         WebTarget path = packages.path(PackageName.get(packageName).toRestPath() + "/metadata");
-        final CompletableFuture<PackageMetadata> future = new CompletableFuture<>();
-        asyncGetRequest(path, new InvocationCallback<PackageMetadata>() {
-            @Override
-            public void completed(PackageMetadata metadata) {
-                future.complete(metadata);
-            }
-
-            @Override
-            public void failed(Throwable throwable) {
-                future.completeExceptionally(getApiException(throwable.getCause()));
-            }
-        });
-        return future;    }
+        return asyncGetRequest(path, new UnaryGetCallback<PackageMetadata>() {});
+    }
 
     @Override
     public void updateMetadata(String packageName, PackageMetadata metadata) throws PulsarAdminException {
@@ -135,32 +122,17 @@ public class PackagesImpl extends ComponentResource implements Packages {
     @Override
     public CompletableFuture<Void> downloadAsync(String packageName, String path) {
         WebTarget webTarget = packages.path(PackageName.get(packageName).toRestPath());
-        final CompletableFuture<Void> future = new CompletableFuture<>();
-        asyncGetRequest(webTarget, new InvocationCallback<Response>(){
-            @Override
-            public void completed(Response response) {
-                if (response.getStatus() == Response.Status.OK.getStatusCode()) {
+        return asyncGetRequest(webTarget, new GetCallback<Response, Void>(
+                processOkResponse(response -> {
                     try (InputStream inputStream = response.readEntity(InputStream.class)) {
                         Path destinyPath = Paths.get(path);
                         if (destinyPath.getParent() != null) {
                             Files.createDirectories(destinyPath.getParent());
                         }
                         Files.copy(inputStream, destinyPath, StandardCopyOption.REPLACE_EXISTING);
-                        future.complete(null);
-                    } catch (IOException e) {
-                        future.completeExceptionally(e);
+                        return null;
                     }
-                } else {
-                    future.completeExceptionally(getApiException(response));
-                }
-            }
-
-            @Override
-            public void failed(Throwable throwable) {
-                future.completeExceptionally(throwable);
-            }
-        });
-        return future;
+                })) {});
     }
 
     @Override
@@ -186,19 +158,7 @@ public class PackagesImpl extends ComponentResource implements Packages {
         PackageName name = PackageName.get(packageName);
         WebTarget path = packages.path(String.format("%s/%s/%s/%s",
             name.getPkgType().toString(), name.getTenant(), name.getNamespace(), name.getName()));
-        final CompletableFuture<List<String>> future = new CompletableFuture<>();
-        asyncGetRequest(path, new InvocationCallback<List<String>>() {
-            @Override
-            public void completed(List<String> strings) {
-                future.complete(strings);
-            }
-
-            @Override
-            public void failed(Throwable throwable) {
-                future.completeExceptionally(getApiException(throwable.getCause()));
-            }
-        });
-        return future;
+        return asyncGetRequest(path, new UnaryGetCallback<List<String>>() {});
     }
 
     @Override
@@ -208,19 +168,7 @@ public class PackagesImpl extends ComponentResource implements Packages {
 
     @Override
     public CompletableFuture<List<String>> listPackagesAsync(String type, String namespace) {
-        WebTarget path = packages.path(type + "/" + NamespaceName.get(namespace).toString());
-        final CompletableFuture<List<String>> future = new CompletableFuture<>();
-        asyncGetRequest(path, new InvocationCallback<List<String>>() {
-            @Override
-            public void completed(List<String> strings) {
-                future.complete(strings);
-            }
-
-            @Override
-            public void failed(Throwable throwable) {
-                future.completeExceptionally(getApiException(throwable.getCause()));
-            }
-        });
-        return future;
+        WebTarget path = packages.path(type + "/" + NamespaceName.get(namespace));
+        return asyncGetRequest(path, new UnaryGetCallback<List<String>>() {});
     }
 }

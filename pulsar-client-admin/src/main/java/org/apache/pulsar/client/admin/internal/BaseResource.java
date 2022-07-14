@@ -33,9 +33,12 @@ import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.Invocation.Builder;
 import javax.ws.rs.client.InvocationCallback;
+import javax.ws.rs.client.ResponseProcessingException;
 import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import lombok.RequiredArgsConstructor;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConnectException;
@@ -173,12 +176,13 @@ public abstract class BaseResource {
         return future;
     }
 
-    public <T> void asyncGetRequest(final WebTarget target, InvocationCallback<T> callback) {
+    public <T, R> CompletableFuture<R> asyncGetRequest(final WebTarget target, final GetCallback<T, R> callback) {
         try {
             request(target).async().get(callback);
         } catch (PulsarAdminException cae) {
             callback.failed(cae);
         }
+        return callback.future;
     }
 
     public CompletableFuture<Void> asyncDeleteRequest(final WebTarget target) {
@@ -211,8 +215,10 @@ public abstract class BaseResource {
         }
     }
 
-    public PulsarAdminException getApiException(Throwable e) {
-        if (e instanceof PulsarAdminException) {
+    public static PulsarAdminException getApiException(Throwable e) {
+        if (e instanceof ResponseProcessingException) {
+            return getApiException(e.getCause());
+        } else if (e instanceof PulsarAdminException) {
             return (PulsarAdminException) e;
         } else if (e instanceof ServiceUnavailableException) {
             if (e.getCause() instanceof java.net.ConnectException) {
@@ -261,7 +267,7 @@ public abstract class BaseResource {
         }
     }
 
-    public PulsarAdminException getApiException(Response response) {
+    public static PulsarAdminException getApiException(Response response) {
         if (response.getStatus() == Response.Status.OK.getStatusCode()) {
             return null;
         }
@@ -313,4 +319,62 @@ public abstract class BaseResource {
             throw PulsarAdminException.wrap(getApiException(e));
         }
     }
+
+    protected <T> Processor<Response, T> processOkResponse(GenericType<T> genericType) {
+        return processOkResponse(response -> response.readEntity(genericType));
+    }
+
+    protected <T> Processor<Response, T> processOkResponse(Class<T> entityType) {
+        return processOkResponse(response -> response.readEntity(entityType));
+    }
+
+    protected <T> Processor<Response, T> processOkResponse(Processor<Response, T> processor) {
+        return response -> {
+            if (response.getStatus() != Response.Status.OK.getStatusCode()) {
+                throw getApiException(response);
+            } else {
+                return processor.process(response);
+            }
+        };
+    }
+
+    interface Processor<T, R> {
+        R process(T t) throws Exception;
+    }
+
+    interface UnaryProcessor<T> extends Processor<T, T> {
+        static <T> UnaryProcessor<T> identity() {
+            return t -> t;
+        }
+    }
+
+    @RequiredArgsConstructor
+    public abstract static class GetCallback<T, R> implements InvocationCallback<T> {
+        private final CompletableFuture<R> future = new CompletableFuture<>();
+        private final Processor<T, R> processor;
+
+        @Override
+        public void completed(T t) {
+            try {
+                future.complete(processor.process(t));
+            } catch (Exception e) {
+                failed(e);
+            }
+        }
+
+        @Override
+        public void failed(Throwable throwable) {
+            future.completeExceptionally(getApiException(throwable));
+        }
+    }
+
+    public abstract static class UnaryGetCallback<T> extends GetCallback<T, T> {
+        public UnaryGetCallback(Processor<T, T> processor) {
+            super(processor);
+        }
+
+        public UnaryGetCallback() {
+            this(UnaryProcessor.identity());
+        }
+     }
 }

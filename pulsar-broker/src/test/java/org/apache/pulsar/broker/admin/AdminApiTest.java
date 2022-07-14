@@ -57,7 +57,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.Response.Status;
 import lombok.Builder;
@@ -82,6 +81,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
+import org.apache.pulsar.client.admin.internal.BaseResource.UnaryGetCallback;
 import org.apache.pulsar.client.admin.internal.LookupImpl;
 import org.apache.pulsar.client.admin.internal.TenantsImpl;
 import org.apache.pulsar.client.admin.internal.TopicsImpl;
@@ -2820,36 +2820,14 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         WebTarget persistentTopics = (WebTarget) field.get(persistent);
 
         // (1) Get PartitionedMetadata : with Url and Uri encoding
-        final CompletableFuture<PartitionedTopicMetadata> urlEncodedPartitionedMetadata = new CompletableFuture<>();
         // (a) Url encoding
-        persistent.asyncGetRequest(
-                persistentTopics.path("persistent").path(ns1).path(urlEncodedTopic).path("partitions"),
-                new InvocationCallback<PartitionedTopicMetadata>() {
-                    @Override
-                    public void completed(PartitionedTopicMetadata response) {
-                        urlEncodedPartitionedMetadata.complete(response);
-                    }
-
-                    @Override
-                    public void failed(Throwable e) {
-                        urlEncodedPartitionedMetadata.completeExceptionally(e);
-                    }
-                });
-        final CompletableFuture<PartitionedTopicMetadata> uriEncodedPartitionedMetadata = new CompletableFuture<>();
+        final CompletableFuture<PartitionedTopicMetadata> urlEncodedPartitionedMetadata = persistent
+                .asyncGetRequest(persistentTopics.path("persistent").path(ns1).path(urlEncodedTopic).path("partitions"),
+                        new UnaryGetCallback<>() {});
         // (b) Uri encoding
-        persistent.asyncGetRequest(
-                persistentTopics.path("persistent").path(ns1).path(uriEncodedTopic).path("partitions"),
-                new InvocationCallback<PartitionedTopicMetadata>() {
-                    @Override
-                    public void completed(PartitionedTopicMetadata response) {
-                        uriEncodedPartitionedMetadata.complete(response);
-                    }
-
-                    @Override
-                    public void failed(Throwable e) {
-                        uriEncodedPartitionedMetadata.completeExceptionally(e);
-                    }
-                });
+        final CompletableFuture<PartitionedTopicMetadata> uriEncodedPartitionedMetadata = persistent
+                .asyncGetRequest(persistentTopics.path("persistent").path(ns1).path(uriEncodedTopic).path("partitions"),
+                        new UnaryGetCallback<>() {});
         assertEquals(urlEncodedPartitionedMetadata.get().partitions, numOfPartitions);
         assertEquals(urlEncodedPartitionedMetadata.get().partitions, (uriEncodedPartitionedMetadata.get().partitions));
 
@@ -2874,35 +2852,14 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(numOfPartitions, lookupDataList.keySet().size());
 
         // (3) Get Topic Stats
-        final CompletableFuture<TopicStats> urlStats = new CompletableFuture<>();
         // (a) Url encoding
-        persistent.asyncGetRequest(persistentTopics.path("persistent").path(ns1).path(urlEncodedTopic + "-partition-1").path("stats"),
-                new InvocationCallback<TopicStats>() {
-                    @Override
-                    public void completed(TopicStats response) {
-                        urlStats.complete(response);
-                    }
-
-                    @Override
-                    public void failed(Throwable e) {
-                        urlStats.completeExceptionally(e);
-                    }
-                });
+        final CompletableFuture<TopicStats> urlStats = persistent
+                .asyncGetRequest(persistentTopics.path("persistent").path(ns1).path(urlEncodedTopic + "-partition-1").path("stats"),
+                        new UnaryGetCallback<>() {});
         // (b) Uri encoding
-        final CompletableFuture<TopicStats> uriStats = new CompletableFuture<>();
-        persistent.asyncGetRequest(
-                persistentTopics.path("persistent").path(ns1).path(uriEncodedTopic + "-partition-1").path("stats"),
-                new InvocationCallback<TopicStats>() {
-                    @Override
-                    public void completed(TopicStats response) {
-                        uriStats.complete(response);
-                    }
-
-                    @Override
-                    public void failed(Throwable e) {
-                        uriStats.completeExceptionally(e);
-                    }
-                });
+        final CompletableFuture<TopicStats> uriStats = persistent
+                .asyncGetRequest(persistentTopics.path("persistent").path(ns1).path(uriEncodedTopic + "-partition-1").path("stats"),
+                        new UnaryGetCallback<>() {});
         assertEquals(urlStats.get().getSubscriptions().size(), 1);
         assertEquals(uriStats.get().getSubscriptions().size(), 1);
     }

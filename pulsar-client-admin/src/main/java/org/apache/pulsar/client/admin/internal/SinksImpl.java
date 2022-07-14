@@ -25,7 +25,6 @@ import java.io.File;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.MediaType;
@@ -41,6 +40,7 @@ import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.policies.data.SinkStatus;
+import org.apache.pulsar.common.policies.data.SinkStatus.SinkInstanceStatus.SinkInstanceStatusData;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.RequestBuilder;
@@ -68,28 +68,14 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
 
     @Override
     public CompletableFuture<List<String>> listSinksAsync(String tenant, String namespace) {
-        final CompletableFuture<List<String>> future = new CompletableFuture<>();
-        if (!validateNamespace(tenant, namespace, future)) {
-            return future;
+        try {
+            validateNamespace(tenant, namespace);
+        } catch (PulsarAdminException e) {
+            return failedFuture(e);
         }
         WebTarget path = sink.path(tenant).path(namespace);
-        asyncGetRequest(path,
-                new InvocationCallback<Response>() {
-                    @Override
-                    public void completed(Response response) {
-                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
-                            future.completeExceptionally(getApiException(response));
-                        } else {
-                            future.complete(response.readEntity(new GenericType<List<String>>() {}));
-                        }
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new GetCallback<Response, List<String>>(
+                processOkResponse(new GenericType<List<String>>() {})) {});
     }
 
     @Override
@@ -99,28 +85,13 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
 
     @Override
     public CompletableFuture<SinkConfig> getSinkAsync(String tenant, String namespace, String sinkName) {
-        final CompletableFuture<SinkConfig> future = new CompletableFuture<>();
-        if (!validateSinkName(tenant, namespace, sinkName, future)) {
-            return future;
+        try {
+            validateSinkName(tenant, namespace, sinkName);
+        } catch (PulsarAdminException e) {
+            return failedFuture(e);
         }
         WebTarget path = sink.path(tenant).path(namespace).path(sinkName);
-        asyncGetRequest(path,
-                new InvocationCallback<Response>() {
-                    @Override
-                    public void completed(Response response) {
-                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
-                            future.completeExceptionally(getApiException(response));
-                        } else {
-                            future.complete(response.readEntity(SinkConfig.class));
-                        }
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new GetCallback<Response, SinkConfig>(processOkResponse(SinkConfig.class)) {});
     }
 
     @Override
@@ -131,63 +102,32 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
 
     @Override
     public CompletableFuture<SinkStatus> getSinkStatusAsync(String tenant, String namespace, String sinkName) {
-        final CompletableFuture<SinkStatus> future = new CompletableFuture<>();
-        if (!validateSinkName(tenant, namespace, sinkName, future)) {
-            return future;
+        try {
+            validateSinkName(tenant, namespace, sinkName);
+        } catch (PulsarAdminException e) {
+            return failedFuture(e);
         }
         WebTarget path = sink.path(tenant).path(namespace).path(sinkName).path("status");
-        asyncGetRequest(path,
-                new InvocationCallback<Response>() {
-                    @Override
-                    public void completed(Response response) {
-                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
-                            future.completeExceptionally(getApiException(response));
-                        } else {
-                            future.complete(response.readEntity(SinkStatus.class));
-                        }
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new GetCallback<Response, SinkStatus>(processOkResponse(SinkStatus.class)) {});
     }
 
     @Override
-    public SinkStatus.SinkInstanceStatus.SinkInstanceStatusData getSinkStatus(
+    public SinkInstanceStatusData getSinkStatus(
             String tenant, String namespace, String sinkName, int id) throws PulsarAdminException {
         return sync(() -> getSinkStatusAsync(tenant, namespace, sinkName, id));
     }
 
     @Override
-    public CompletableFuture<SinkStatus.SinkInstanceStatus.SinkInstanceStatusData> getSinkStatusAsync(
+    public CompletableFuture<SinkInstanceStatusData> getSinkStatusAsync(
             String tenant, String namespace, String sinkName, int id) {
-        final CompletableFuture<SinkStatus.SinkInstanceStatus.SinkInstanceStatusData> future =
-                new CompletableFuture<>();
-        if (!validateSinkName(tenant, namespace, sinkName, future)) {
-            return future;
+        try {
+            validateSinkName(tenant, namespace, sinkName);
+        } catch (PulsarAdminException e) {
+            return failedFuture(e);
         }
         WebTarget path = sink.path(tenant).path(namespace).path(sinkName).path(Integer.toString(id)).path("status");
-        asyncGetRequest(path,
-                new InvocationCallback<Response>() {
-                    @Override
-                    public void completed(Response response) {
-                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
-                            future.completeExceptionally(getApiException(response));
-                        } else {
-                            future.complete(response.readEntity(
-                                    SinkStatus.SinkInstanceStatus.SinkInstanceStatusData.class));
-                        }
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new GetCallback<Response, SinkInstanceStatusData>(
+                processOkResponse(SinkInstanceStatusData.class)) {});
     }
 
     @Override
@@ -197,9 +137,10 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
 
     @Override
     public CompletableFuture<Void> createSinkAsync(SinkConfig sinkConfig, String fileName) {
-        final CompletableFuture<Void> future = new CompletableFuture<>();
-        if (!validateSinkName(sinkConfig.getTenant(), sinkConfig.getNamespace(), sinkConfig.getName(), future)) {
-            return future;
+        try {
+            validateSinkName(sinkConfig.getTenant(), sinkConfig.getNamespace(), sinkConfig.getName());
+        } catch (PulsarAdminException e) {
+            return failedFuture(e);
         }
         try {
             RequestBuilder builder =
@@ -212,6 +153,7 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
                 // If the function code is built in, we don't need to submit here
                 builder.addBodyPart(new FilePart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM));
             }
+            CompletableFuture<Void> future = new CompletableFuture<>();
             asyncHttpClient.executeRequest(addAuthHeaders(sink, builder).build())
                     .toCompletableFuture()
                     .thenAccept(response -> {
@@ -228,10 +170,10 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
                         future.completeExceptionally(getApiException(throwable));
                         return null;
                     });
+            return future;
         } catch (Exception e) {
-            future.completeExceptionally(getApiException(e));
+            return failedFuture(e);
         }
-        return future;
     }
 
     @Override
@@ -246,10 +188,10 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
         mp.bodyPart(new FormDataBodyPart("sinkConfig",
                 new Gson().toJson(sinkConfig),
                 MediaType.APPLICATION_JSON_TYPE));
-        CompletableFuture<Void> validationFuture = new CompletableFuture<>();
-        if (!validateSinkName(sinkConfig.getTenant(), sinkConfig.getNamespace(),
-                sinkConfig.getName(), validationFuture)) {
-            return validationFuture;
+        try {
+            validateSinkName(sinkConfig.getTenant(), sinkConfig.getNamespace(), sinkConfig.getName());
+        } catch (PulsarAdminException e) {
+            return failedFuture(e);
         }
         WebTarget path = sink.path(sinkConfig.getTenant()).path(sinkConfig.getNamespace()).path(sinkConfig.getName());
         return asyncPostRequest(path, Entity.entity(mp, MediaType.MULTIPART_FORM_DATA));
@@ -261,12 +203,13 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
     }
 
     @Override
-    public CompletableFuture<Void> deleteSinkAsync(String tenant, String namespace, String function) {
-        CompletableFuture<Void> validationFuture = new CompletableFuture<>();
-        if (!validateSinkName(tenant, namespace, function, validationFuture)) {
-            return validationFuture;
+    public CompletableFuture<Void> deleteSinkAsync(String tenant, String namespace, String sinkName) {
+        try {
+            validateSinkName(tenant, namespace, sinkName);
+        } catch (PulsarAdminException e) {
+            return failedFuture(e);
         }
-        WebTarget path = sink.path(tenant).path(namespace).path(function);
+        WebTarget path = sink.path(tenant).path(namespace).path(sinkName);
         return asyncDeleteRequest(path);
     }
 
@@ -279,9 +222,10 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
     @Override
     public CompletableFuture<Void> updateSinkAsync(
             SinkConfig sinkConfig, String fileName, UpdateOptions updateOptions) {
-        final CompletableFuture<Void> future = new CompletableFuture<>();
-        if (!validateSinkName(sinkConfig.getTenant(), sinkConfig.getNamespace(), sinkConfig.getName(), future)) {
-            return future;
+        try {
+            validateSinkName(sinkConfig.getTenant(), sinkConfig.getNamespace(), sinkConfig.getName());
+        } catch (PulsarAdminException e) {
+            return failedFuture(e);
         }
         try {
             RequestBuilder builder =
@@ -301,6 +245,7 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
                 // If the function code is built in, we don't need to submit here
                 builder.addBodyPart(new FilePart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM));
             }
+            CompletableFuture<Void> future = new CompletableFuture<>();
             asyncHttpClient.executeRequest(addAuthHeaders(sink, builder).build())
                     .toCompletableFuture()
                     .thenAccept(response -> {
@@ -317,10 +262,10 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
                         future.completeExceptionally(getApiException(throwable));
                         return null;
                     });
+            return future;
         } catch (Exception e) {
-            future.completeExceptionally(getApiException(e));
+            return failedFuture(e);
         }
-        return future;
     }
 
     @Override
@@ -342,9 +287,10 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
     @Override
     public CompletableFuture<Void> updateSinkWithUrlAsync(
             SinkConfig sinkConfig, String pkgUrl, UpdateOptions updateOptions) {
-        final CompletableFuture<Void> future = new CompletableFuture<>();
-        if (!validateSinkName(sinkConfig.getTenant(), sinkConfig.getNamespace(), sinkConfig.getName(), future)) {
-            return future;
+        try {
+            validateSinkName(sinkConfig.getTenant(), sinkConfig.getNamespace(), sinkConfig.getName());
+        } catch (PulsarAdminException e) {
+            return failedFuture(e);
         }
         try {
             final FormDataMultiPart mp = new FormDataMultiPart();
@@ -364,9 +310,8 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
                     .path(sinkConfig.getName());
             return asyncPutRequest(path, Entity.entity(mp, MediaType.MULTIPART_FORM_DATA));
         } catch (Exception e) {
-            future.completeExceptionally(getApiException(e));
+            return failedFuture(e);
         }
-        return future;
     }
 
     @Override
@@ -387,28 +332,30 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
 
     @Override
     public CompletableFuture<Void> restartSinkAsync(
-            String tenant, String namespace, String functionName, int instanceId) {
-        CompletableFuture<Void> validationFuture = new CompletableFuture<>();
-        if (!validateSinkName(tenant, namespace, functionName, validationFuture)) {
-            return validationFuture;
+            String tenant, String namespace, String sinkName, int instanceId) {
+        try {
+            validateSinkName(tenant, namespace, sinkName);
+        } catch (PulsarAdminException e) {
+            return failedFuture(e);
         }
-        WebTarget path = sink.path(tenant).path(namespace).path(functionName).path(Integer.toString(instanceId))
+        WebTarget path = sink.path(tenant).path(namespace).path(sinkName).path(Integer.toString(instanceId))
                 .path("restart");
         return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
     }
 
     @Override
-    public void restartSink(String tenant, String namespace, String functionName) throws PulsarAdminException {
-        sync(() -> restartSinkAsync(tenant, namespace, functionName));
+    public void restartSink(String tenant, String namespace, String sinkName) throws PulsarAdminException {
+        sync(() -> restartSinkAsync(tenant, namespace, sinkName));
     }
 
     @Override
-    public CompletableFuture<Void> restartSinkAsync(String tenant, String namespace, String functionName) {
-        CompletableFuture<Void> validationFuture = new CompletableFuture<>();
-        if (!validateSinkName(tenant, namespace, functionName, validationFuture)) {
-            return validationFuture;
+    public CompletableFuture<Void> restartSinkAsync(String tenant, String namespace, String sinkName) {
+        try {
+            validateSinkName(tenant, namespace, sinkName);
+        } catch (PulsarAdminException e) {
+            return failedFuture(e);
         }
-        WebTarget path = sink.path(tenant).path(namespace).path(functionName).path("restart");
+        WebTarget path = sink.path(tenant).path(namespace).path(sinkName).path("restart");
         return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
     }
 
@@ -420,9 +367,10 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
 
     @Override
     public CompletableFuture<Void> stopSinkAsync(String tenant, String namespace, String sinkName, int instanceId) {
-        CompletableFuture<Void> validationFuture = new CompletableFuture<>();
-        if (!validateSinkName(tenant, namespace, sinkName, validationFuture)) {
-            return validationFuture;
+        try {
+            validateSinkName(tenant, namespace, sinkName);
+        } catch (PulsarAdminException e) {
+            return failedFuture(e);
         }
         WebTarget path = sink.path(tenant).path(namespace).path(sinkName).path(Integer.toString(instanceId))
                 .path("stop");
@@ -436,9 +384,10 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
 
     @Override
     public CompletableFuture<Void> stopSinkAsync(String tenant, String namespace, String sinkName) {
-        CompletableFuture<Void> validationFuture = new CompletableFuture<>();
-        if (!validateSinkName(tenant, namespace, sinkName, validationFuture)) {
-            return validationFuture;
+        try {
+            validateSinkName(tenant, namespace, sinkName);
+        } catch (PulsarAdminException e) {
+            return failedFuture(e);
         }
         WebTarget path = sink.path(tenant).path(namespace).path(sinkName).path("stop");
         return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
@@ -452,9 +401,10 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
 
     @Override
     public CompletableFuture<Void> startSinkAsync(String tenant, String namespace, String sinkName, int instanceId) {
-        CompletableFuture<Void> validationFuture = new CompletableFuture<>();
-        if (!validateSinkName(tenant, namespace, sinkName, validationFuture)) {
-            return validationFuture;
+        try {
+            validateSinkName(tenant, namespace, sinkName);
+        } catch (PulsarAdminException e) {
+            return failedFuture(e);
         }
         WebTarget path = sink.path(tenant).path(namespace).path(sinkName).path(Integer.toString(instanceId))
                 .path("start");
@@ -468,9 +418,10 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
 
     @Override
     public CompletableFuture<Void> startSinkAsync(String tenant, String namespace, String sinkName) {
-        CompletableFuture<Void> validationFuture = new CompletableFuture<>();
-        if (!validateSinkName(tenant, namespace, sinkName, validationFuture)) {
-            return validationFuture;
+        try {
+            validateSinkName(tenant, namespace, sinkName);
+        } catch (PulsarAdminException e) {
+            return failedFuture(e);
         }
         WebTarget path = sink.path(tenant).path(namespace).path(sinkName).path("start");
         return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
@@ -478,36 +429,19 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
 
     @Override
     public List<ConnectorDefinition> getBuiltInSinks() throws PulsarAdminException {
-        return sync(() -> getBuiltInSinksAsync());
+        return sync(this::getBuiltInSinksAsync);
     }
 
     @Override
     public CompletableFuture<List<ConnectorDefinition>> getBuiltInSinksAsync() {
         WebTarget path = sink.path("builtinsinks");
-        final CompletableFuture<List<ConnectorDefinition>> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Response>() {
-                    @Override
-                    public void completed(Response response) {
-                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
-                            future.completeExceptionally(getApiException(response));
-                        } else {
-                            future.complete(response.readEntity(
-                                    new GenericType<List<ConnectorDefinition>>() {}));
-                        }
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new GetCallback<Response, List<ConnectorDefinition>>(
+                processOkResponse(new GenericType<List<ConnectorDefinition>>() {})) {});
     }
 
     @Override
     public void reloadBuiltInSinks() throws PulsarAdminException {
-        sync(() -> reloadBuiltInSinksAsync());
+        sync(this::reloadBuiltInSinksAsync);
     }
 
     @Override
@@ -516,28 +450,24 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
         return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
     }
 
-    private static boolean validateNamespace(String tenant, String namespace, CompletableFuture<?> future) {
+    private static void validateNamespace(String tenant, String namespace) throws PulsarAdminException {
         if (StringUtils.isBlank(tenant)) {
-            future.completeExceptionally(new PulsarAdminException("tenant is required"));
-            return false;
+            throw new PulsarAdminException("tenant is required");
+        } else if (StringUtils.isBlank(namespace)) {
+            throw new PulsarAdminException("namespace is required");
         }
-        if (StringUtils.isBlank(namespace)) {
-            future.completeExceptionally(new PulsarAdminException("namespace is required"));
-            return false;
-        }
-        return true;
     }
 
-    private static boolean validateSinkName(String tenant, String namespace,
-                                          String sinkName, CompletableFuture<?> future) {
-        if (!validateNamespace(tenant, namespace, future)) {
-            return false;
-        }
+    private static void validateSinkName(String tenant, String namespace, String sinkName) throws PulsarAdminException {
+        validateNamespace(tenant, namespace);
         if (StringUtils.isBlank(sinkName)) {
-            future.completeExceptionally(new PulsarAdminException("sink name is required"));
-            return false;
+            throw new PulsarAdminException("sink name is required");
         }
-        return true;
     }
 
+    private <T> CompletableFuture<T> failedFuture(Exception e) {
+        CompletableFuture<T> future = new CompletableFuture<>();
+        future.completeExceptionally(getApiException(e));
+        return future;
+    }
 }

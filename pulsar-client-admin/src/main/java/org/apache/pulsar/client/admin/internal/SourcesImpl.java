@@ -25,7 +25,6 @@ import java.io.File;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.MediaType;
@@ -40,6 +39,7 @@ import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.policies.data.SourceStatus;
+import org.apache.pulsar.common.policies.data.SourceStatus.SourceInstanceStatus.SourceInstanceStatusData;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.RequestBuilder;
@@ -68,24 +68,8 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
     @Override
     public CompletableFuture<List<String>> listSourcesAsync(String tenant, String namespace) {
         WebTarget path = source.path(tenant).path(namespace);
-        final CompletableFuture<List<String>> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Response>() {
-                    @Override
-                    public void completed(Response response) {
-                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
-                            future.completeExceptionally(getApiException(response));
-                        } else {
-                            future.complete(response.readEntity(new GenericType<List<String>>() {}));
-                        }
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new GetCallback<Response, List<String>>(
+                processOkResponse(new GenericType<List<String>>() {})) {});
     }
 
     @Override
@@ -96,24 +80,7 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
     @Override
     public CompletableFuture<SourceConfig> getSourceAsync(String tenant, String namespace, String sourceName) {
         WebTarget path = source.path(tenant).path(namespace).path(sourceName);
-        final CompletableFuture<SourceConfig> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Response>() {
-                    @Override
-                    public void completed(Response response) {
-                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
-                            future.completeExceptionally(getApiException(response));
-                        } else {
-                            future.complete(response.readEntity(SourceConfig.class));
-                        }
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new GetCallback<Response, SourceConfig>(processOkResponse(SourceConfig.class)) {});
     }
 
     @Override
@@ -125,56 +92,21 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
     @Override
     public CompletableFuture<SourceStatus> getSourceStatusAsync(String tenant, String namespace, String sourceName) {
         WebTarget path = source.path(tenant).path(namespace).path(sourceName).path("status");
-        final CompletableFuture<SourceStatus> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Response>() {
-                    @Override
-                    public void completed(Response response) {
-                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
-                            future.completeExceptionally(getApiException(response));
-                        } else {
-                            future.complete(response.readEntity(SourceStatus.class));
-                        }
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new GetCallback<Response, SourceStatus>(processOkResponse(SourceStatus.class)) {});
     }
 
     @Override
-    public SourceStatus.SourceInstanceStatus.SourceInstanceStatusData getSourceStatus(
+    public SourceInstanceStatusData getSourceStatus(
             String tenant, String namespace, String sourceName, int id) throws PulsarAdminException {
         return sync(() -> getSourceStatusAsync(tenant, namespace, sourceName, id));
     }
 
     @Override
-    public CompletableFuture<SourceStatus.SourceInstanceStatus.SourceInstanceStatusData> getSourceStatusAsync(
+    public CompletableFuture<SourceInstanceStatusData> getSourceStatusAsync(
             String tenant, String namespace, String sourceName, int id) {
         WebTarget path = source.path(tenant).path(namespace).path(sourceName).path(Integer.toString(id)).path("status");
-        final CompletableFuture<SourceStatus.SourceInstanceStatus.SourceInstanceStatusData> future =
-                new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Response>() {
-                    @Override
-                    public void completed(Response response) {
-                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
-                            future.completeExceptionally(getApiException(response));
-                        } else {
-                            future.complete(response.readEntity(
-                                    SourceStatus.SourceInstanceStatus.SourceInstanceStatusData.class));
-                        }
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new GetCallback<Response, SourceInstanceStatusData>(
+                processOkResponse(SourceInstanceStatusData.class)) {});
     }
 
     @Override
@@ -425,36 +357,19 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
 
     @Override
     public List<ConnectorDefinition> getBuiltInSources() throws PulsarAdminException {
-        return sync(() -> getBuiltInSourcesAsync());
+        return sync(this::getBuiltInSourcesAsync);
     }
 
     @Override
     public CompletableFuture<List<ConnectorDefinition>> getBuiltInSourcesAsync() {
         WebTarget path = source.path("builtinsources");
-        final CompletableFuture<List<ConnectorDefinition>> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Response>() {
-                    @Override
-                    public void completed(Response response) {
-                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
-                            future.completeExceptionally(getApiException(response));
-                        } else {
-                            future.complete(response.readEntity(
-                                    new GenericType<List<ConnectorDefinition>>() {}));
-                        }
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new GetCallback<Response, List<ConnectorDefinition>>(
+                processOkResponse(new GenericType<List<ConnectorDefinition>>() {})) {});
     }
 
     @Override
     public void reloadBuiltInSources() throws PulsarAdminException {
-        sync(() -> reloadBuiltInSourcesAsync());
+        sync(this::reloadBuiltInSourcesAsync);
     }
 
     @Override

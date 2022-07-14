@@ -47,7 +47,6 @@ import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
-import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
@@ -78,20 +77,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public CompletableFuture<List<String>> getNamespacesAsync(String tenant) {
         WebTarget path = adminV2Namespaces.path(tenant);
-        final CompletableFuture<List<String>> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<List<String>>() {
-                    @Override
-                    public void completed(List<String> namespaces) {
-                        future.complete(namespaces);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new UnaryGetCallback<List<String>>() {});
     }
 
     @Override
@@ -101,21 +87,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     public CompletableFuture<List<String>> getNamespacesAsync(String tenant, String cluster) {
         WebTarget path = adminNamespaces.path(tenant).path(cluster);
-        final CompletableFuture<List<String>> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<List<String>>() {
-
-                    @Override
-                    public void completed(List<String> namespaces) {
-                        future.complete(namespaces);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new UnaryGetCallback<List<String>>() {});
     }
 
     @Override
@@ -133,20 +105,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         NamespaceName ns = NamespaceName.get(namespace);
         String action = "bundles";
         WebTarget path = namespacePath(ns, action);
-        final CompletableFuture<BundlesData> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<BundlesData>() {
-                    @Override
-                    public void completed(BundlesData bundles) {
-                        future.complete(bundles);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new UnaryGetCallback<BundlesData>() {});
     }
 
     @Override
@@ -154,20 +113,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         NamespaceName ns = NamespaceName.get(namespace);
         String action = ns.isV2() ? "topics" : "destinations";
         WebTarget path = namespacePath(ns, action);
-        final CompletableFuture<List<String>> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<List<String>>() {
-                    @Override
-                    public void completed(List<String> topics) {
-                        future.complete(topics);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new UnaryGetCallback<List<String>>() {});
     }
 
     @Override
@@ -184,20 +130,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         path = path
                 .queryParam("mode", options.getMode())
                 .queryParam("includeSystemTopic", options.isIncludeSystemTopic());
-        final CompletableFuture<List<String>> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<List<String>>() {
-                    @Override
-                    public void completed(List<String> topics) {
-                        future.complete(topics);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new UnaryGetCallback<List<String>>() {});
     }
 
     @Override
@@ -209,20 +142,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public CompletableFuture<Policies> getPoliciesAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns);
-        final CompletableFuture<Policies> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Policies>() {
-                    @Override
-                    public void completed(Policies policies) {
-                        future.complete(policies);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new UnaryGetCallback<Policies>() {});
     }
 
     @Override
@@ -361,20 +281,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public CompletableFuture<Map<String, Set<AuthAction>>> getPermissionsAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "permissions");
-        final CompletableFuture<Map<String, Set<AuthAction>>> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Map<String, Set<AuthAction>>>() {
-                    @Override
-                    public void completed(Map<String, Set<AuthAction>> permissions) {
-                        future.complete(permissions);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new UnaryGetCallback<Map<String, Set<AuthAction>>>() {});
     }
 
     @Override
@@ -412,20 +319,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public CompletableFuture<Map<String, Set<String>>> getPermissionOnSubscriptionAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "permissions", "subscription");
-        final CompletableFuture<Map<String, Set<String>>> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Map<String, Set<String>>>() {
-                    @Override
-                    public void completed(Map<String, Set<String>> permissions) {
-                        future.complete(permissions);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new UnaryGetCallback<Map<String, Set<String>>>() {});
     }
 
     @Override
@@ -465,20 +359,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public CompletableFuture<List<String>> getNamespaceReplicationClustersAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "replication");
-        final CompletableFuture<List<String>> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<List<String>>() {
-                    @Override
-                    public void completed(List<String> clusters) {
-                        future.complete(clusters);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new UnaryGetCallback<List<String>>() {});
     }
 
     @Override
@@ -502,20 +383,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public CompletableFuture<Integer> getNamespaceMessageTTLAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "messageTTL");
-        final CompletableFuture<Integer> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Integer>() {
-                    @Override
-                    public void completed(Integer ttl) {
-                        future.complete(ttl);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new UnaryGetCallback<Integer>() {});
     }
 
     @Override
@@ -551,19 +419,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public CompletableFuture<Integer> getSubscriptionExpirationTimeAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "subscriptionExpirationTime");
-        final CompletableFuture<Integer> future = new CompletableFuture<>();
-        asyncGetRequest(path, new InvocationCallback<Integer>() {
-            @Override
-            public void completed(Integer expirationTime) {
-                future.complete(expirationTime);
-            }
-
-            @Override
-            public void failed(Throwable throwable) {
-                future.completeExceptionally(getApiException(throwable.getCause()));
-            }
-        });
-        return future;
+        return asyncGetRequest(path, new UnaryGetCallback<Integer>() {});
     }
 
     @Override
@@ -614,20 +470,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public CompletableFuture<String> getNamespaceAntiAffinityGroupAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "antiAffinity");
-        final CompletableFuture<String> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<String>() {
-                    @Override
-                    public void completed(String s) {
-                        future.complete(s);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new UnaryGetCallback<String>() {});
     }
 
     @Override
@@ -641,20 +484,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
             String tenant, String cluster, String namespaceAntiAffinityGroup) {
         WebTarget path = adminNamespaces.path(cluster)
                 .path("antiAffinity").path(namespaceAntiAffinityGroup).queryParam("property", tenant);
-        final CompletableFuture<List<String>> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<List<String>>() {
-                    @Override
-                    public void completed(List<String> antiNamespaces) {
-                        future.complete(antiNamespaces);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new UnaryGetCallback<List<String>>() {});
     }
 
     @Override
@@ -690,20 +520,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public CompletableFuture<Boolean> getDeduplicationStatusAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "deduplication");
-        final CompletableFuture<Boolean> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Boolean>() {
-                    @Override
-                    public void completed(Boolean enabled) {
-                        future.complete(enabled);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new UnaryGetCallback<Boolean>() {});
     }
 
     @Override
@@ -741,20 +558,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public CompletableFuture<AutoTopicCreationOverride> getAutoTopicCreationAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "autoTopicCreation");
-        final CompletableFuture<AutoTopicCreationOverride> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<AutoTopicCreationOverride>() {
-                    @Override
-                    public void completed(AutoTopicCreationOverride autoTopicCreationOverride) {
-                        future.complete(autoTopicCreationOverride);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new UnaryGetCallback<AutoTopicCreationOverride>() {});
     }
 
     @Override
@@ -792,20 +596,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public CompletableFuture<AutoSubscriptionCreationOverride> getAutoSubscriptionCreationAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "autoSubscriptionCreation");
-        final CompletableFuture<AutoSubscriptionCreationOverride> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<AutoSubscriptionCreationOverride>() {
-                    @Override
-                    public void completed(AutoSubscriptionCreationOverride autoSubscriptionCreation) {
-                        future.complete(autoSubscriptionCreation);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new UnaryGetCallback<AutoSubscriptionCreationOverride>() {});
     }
 
 
@@ -832,20 +623,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public CompletableFuture<Set<SubscriptionType>> getSubscriptionTypesEnabledAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "subscriptionTypesEnabled");
-        final CompletableFuture<Set<SubscriptionType>> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Set<SubscriptionType>>() {
-                    @Override
-                    public void completed(Set<SubscriptionType> subscriptionTypesEnabled) {
-                        future.complete(subscriptionTypesEnabled);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new UnaryGetCallback<Set<SubscriptionType>>() {});
     }
 
     @Override
@@ -881,20 +659,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public CompletableFuture<Map<BacklogQuotaType, BacklogQuota>> getBacklogQuotaMapAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "backlogQuotaMap");
-        final CompletableFuture<Map<BacklogQuotaType, BacklogQuota>> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Map<BacklogQuotaType, BacklogQuota>>() {
-                    @Override
-                    public void completed(Map<BacklogQuotaType, BacklogQuota> quotaMap) {
-                        future.complete(quotaMap);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new UnaryGetCallback<Map<BacklogQuotaType, BacklogQuota>>() {});
     }
 
     @Override
@@ -998,20 +763,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public CompletableFuture<BookieAffinityGroupData> getBookieAffinityGroupAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "persistence", "bookieAffinity");
-        final CompletableFuture<BookieAffinityGroupData> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<BookieAffinityGroupData>() {
-                    @Override
-                    public void completed(BookieAffinityGroupData bookieAffinityGroupData) {
-                        future.complete(bookieAffinityGroupData);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new UnaryGetCallback<BookieAffinityGroupData>() {});
     }
 
     @Override
@@ -1023,20 +775,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public CompletableFuture<PersistencePolicies> getPersistenceAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "persistence");
-        final CompletableFuture<PersistencePolicies> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<PersistencePolicies>() {
-                    @Override
-                    public void completed(PersistencePolicies persistencePolicies) {
-                        future.complete(persistencePolicies);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new UnaryGetCallback<PersistencePolicies>() {});
     }
 
     @Override
@@ -1072,20 +811,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public CompletableFuture<RetentionPolicies> getRetentionAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "retention");
-        final CompletableFuture<RetentionPolicies> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<RetentionPolicies>() {
-                    @Override
-                    public void completed(RetentionPolicies retentionPolicies) {
-                        future.complete(retentionPolicies);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new UnaryGetCallback<RetentionPolicies>() {});
     }
 
     @Override
@@ -1109,20 +835,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public CompletableFuture<String> getReplicationConfigVersionAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "configversion");
-        final CompletableFuture<String> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<String>() {
-                    @Override
-                    public void completed(String s) {
-                        future.complete(s);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new UnaryGetCallback<String>() {});
     }
 
     @Override
@@ -1185,20 +898,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         if (topics != null && topics.size() > 0) {
             path = path.queryParam("topics", topics.stream().map(Codec::encode).toArray());
         }
-        final CompletableFuture<TopicHashPositions> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<TopicHashPositions>() {
-                    @Override
-                    public void completed(TopicHashPositions topicHashPositions) {
-                        future.complete(topicHashPositions);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new UnaryGetCallback<TopicHashPositions>() {});
     }
 
     @Override
@@ -1234,20 +934,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public CompletableFuture<PublishRate> getPublishRateAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "publishRate");
-        final CompletableFuture<PublishRate> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<PublishRate>() {
-                    @Override
-                    public void completed(PublishRate publishRate) {
-                        future.complete(publishRate);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new UnaryGetCallback<PublishRate>() {});
     }
 
     @Override
@@ -1283,20 +970,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public CompletableFuture<DispatchRate> getDispatchRateAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "dispatchRate");
-        final CompletableFuture<DispatchRate> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<DispatchRate>() {
-                    @Override
-                    public void completed(DispatchRate dispatchRate) {
-                        future.complete(dispatchRate);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new UnaryGetCallback<DispatchRate>() {});
     }
 
     @Override
@@ -1332,20 +1006,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public CompletableFuture<SubscribeRate> getSubscribeRateAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "subscribeRate");
-        final CompletableFuture<SubscribeRate> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<SubscribeRate>() {
-                    @Override
-                    public void completed(SubscribeRate subscribeRate) {
-                        future.complete(subscribeRate);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new UnaryGetCallback<SubscribeRate>() {});
     }
 
     @Override
@@ -1382,20 +1043,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public CompletableFuture<DispatchRate> getSubscriptionDispatchRateAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "subscriptionDispatchRate");
-        final CompletableFuture<DispatchRate> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<DispatchRate>() {
-                    @Override
-                    public void completed(DispatchRate dispatchRate) {
-                        future.complete(dispatchRate);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new UnaryGetCallback<DispatchRate>() {});
     }
 
     @Override
@@ -1431,20 +1079,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public CompletableFuture<DispatchRate> getReplicatorDispatchRateAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "replicatorDispatchRate");
-        final CompletableFuture<DispatchRate> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<DispatchRate>() {
-                    @Override
-                    public void completed(DispatchRate dispatchRate) {
-                        future.complete(dispatchRate);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new UnaryGetCallback<DispatchRate>() {});
     }
 
     @Override
@@ -1547,20 +1182,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public CompletableFuture<SubscriptionAuthMode> getSubscriptionAuthModeAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "subscriptionAuthMode");
-        final CompletableFuture<SubscriptionAuthMode> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<SubscriptionAuthMode>() {
-                    @Override
-                    public void completed(SubscriptionAuthMode subscriptionAuthMode) {
-                        future.complete(subscriptionAuthMode);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new UnaryGetCallback<SubscriptionAuthMode>() {});
     }
 
     @Override
@@ -1584,20 +1206,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public CompletableFuture<Boolean> getEncryptionRequiredStatusAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "encryptionRequired");
-        final CompletableFuture<Boolean> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Boolean>() {
-                    @Override
-                    public void completed(Boolean enabled) {
-                        future.complete(enabled);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new UnaryGetCallback<Boolean>() {});
     }
 
     @Override
@@ -1609,20 +1218,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public CompletableFuture<DelayedDeliveryPolicies> getDelayedDeliveryAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "delayedDelivery");
-        final CompletableFuture<DelayedDeliveryPolicies> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<DelayedDeliveryPolicies>() {
-                    @Override
-                    public void completed(DelayedDeliveryPolicies delayedDeliveryPolicies) {
-                        future.complete(delayedDeliveryPolicies);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new UnaryGetCallback<DelayedDeliveryPolicies>() {});
     }
 
     @Override
@@ -1660,19 +1256,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public CompletableFuture<InactiveTopicPolicies> getInactiveTopicPoliciesAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "inactiveTopicPolicies");
-        final CompletableFuture<InactiveTopicPolicies> future = new CompletableFuture<>();
-        asyncGetRequest(path, new InvocationCallback<InactiveTopicPolicies>() {
-                    @Override
-                    public void completed(InactiveTopicPolicies inactiveTopicPolicies) {
-                        future.complete(inactiveTopicPolicies);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new UnaryGetCallback<InactiveTopicPolicies>() {});
     }
 
     @Override
@@ -1698,20 +1282,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public CompletableFuture<Integer> getDeduplicationSnapshotIntervalAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "deduplicationSnapshotInterval");
-        final CompletableFuture<Integer> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Integer>() {
-                    @Override
-                    public void completed(Integer interval) {
-                        future.complete(interval);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new UnaryGetCallback<Integer>() {});
     }
 
     @Override
@@ -1745,20 +1316,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public CompletableFuture<Integer> getMaxSubscriptionsPerTopicAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "maxSubscriptionsPerTopic");
-        final CompletableFuture<Integer> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Integer>() {
-                    @Override
-                    public void completed(Integer maxSubscriptionsPerTopic) {
-                        future.complete(maxSubscriptionsPerTopic);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new UnaryGetCallback<Integer>() {});
     }
 
     @Override
@@ -1795,20 +1353,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public CompletableFuture<Integer> getMaxProducersPerTopicAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "maxProducersPerTopic");
-        final CompletableFuture<Integer> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Integer>() {
-                    @Override
-                    public void completed(Integer max) {
-                        future.complete(max);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new UnaryGetCallback<Integer>() {});
     }
 
     @Override
@@ -1844,20 +1389,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public CompletableFuture<Integer> getMaxConsumersPerTopicAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "maxConsumersPerTopic");
-        final CompletableFuture<Integer> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Integer>() {
-                    @Override
-                    public void completed(Integer max) {
-                        future.complete(max);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new UnaryGetCallback<Integer>() {});
     }
 
     @Override
@@ -1893,20 +1425,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public CompletableFuture<Integer> getMaxConsumersPerSubscriptionAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "maxConsumersPerSubscription");
-        final CompletableFuture<Integer> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Integer>() {
-                    @Override
-                    public void completed(Integer max) {
-                        future.complete(max);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new UnaryGetCallback<Integer>() {});
     }
 
     @Override
@@ -1946,20 +1465,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public CompletableFuture<Integer> getMaxUnackedMessagesPerConsumerAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "maxUnackedMessagesPerConsumer");
-        final CompletableFuture<Integer> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Integer>() {
-                    @Override
-                    public void completed(Integer max) {
-                        future.complete(max);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new UnaryGetCallback<Integer>() {});
     }
 
     @Override
@@ -1997,20 +1503,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public CompletableFuture<Integer> getMaxUnackedMessagesPerSubscriptionAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "maxUnackedMessagesPerSubscription");
-        final CompletableFuture<Integer> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Integer>() {
-                    @Override
-                    public void completed(Integer max) {
-                        future.complete(max);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new UnaryGetCallback<Integer>() {});
     }
 
     @Override
@@ -2050,20 +1543,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public CompletableFuture<Long> getCompactionThresholdAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "compactionThreshold");
-        final CompletableFuture<Long> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Long>() {
-                    @Override
-                    public void completed(Long threshold) {
-                        future.complete(threshold);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new UnaryGetCallback<Long>() {});
     }
 
     @Override
@@ -2099,20 +1579,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public CompletableFuture<Long> getOffloadThresholdAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "offloadThreshold");
-        final CompletableFuture<Long> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Long>() {
-                    @Override
-                    public void completed(Long threshold) {
-                        future.complete(threshold);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new UnaryGetCallback<Long>() {});
     }
 
     @Override
@@ -2136,20 +1603,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public CompletableFuture<Long> getOffloadDeleteLagMsAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "offloadDeletionLagMs");
-        final CompletableFuture<Long> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Long>() {
-                    @Override
-                    public void completed(Long lag) {
-                        future.complete(lag);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new UnaryGetCallback<Long>() {});
     }
 
     @Override
@@ -2224,20 +1678,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "schemaValidationEnforced");
         path = path.queryParam("applied", applied);
-        final CompletableFuture<Boolean> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Boolean>() {
-                    @Override
-                    public void completed(Boolean enforced) {
-                        future.complete(enforced);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new UnaryGetCallback<Boolean>() {});
     }
 
     @Override
@@ -2263,20 +1704,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public CompletableFuture<SchemaCompatibilityStrategy> getSchemaCompatibilityStrategyAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "schemaCompatibilityStrategy");
-        final CompletableFuture<SchemaCompatibilityStrategy> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<SchemaCompatibilityStrategy>() {
-                    @Override
-                    public void completed(SchemaCompatibilityStrategy schemaCompatibilityStrategy) {
-                        future.complete(schemaCompatibilityStrategy);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new UnaryGetCallback<SchemaCompatibilityStrategy>() {});
     }
 
     @Override
@@ -2302,20 +1730,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public CompletableFuture<Boolean> getIsAllowAutoUpdateSchemaAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "isAllowAutoUpdateSchema");
-        final CompletableFuture<Boolean> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Boolean>() {
-                    @Override
-                    public void completed(Boolean allowAutoUpdate) {
-                        future.complete(allowAutoUpdate);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new UnaryGetCallback<Boolean>() {});
     }
 
     @Override
@@ -2365,20 +1780,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public CompletableFuture<OffloadPolicies> getOffloadPoliciesAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "offloadPolicies");
-        final CompletableFuture<OffloadPolicies> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<OffloadPoliciesImpl>() {
-                    @Override
-                    public void completed(OffloadPoliciesImpl offloadPolicies) {
-                        future.complete(offloadPolicies);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new UnaryGetCallback<OffloadPolicies>() {});
     }
 
     @Override
@@ -2390,20 +1792,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public CompletableFuture<Integer> getMaxTopicsPerNamespaceAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "maxTopicsPerNamespace");
-        final CompletableFuture<Integer> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Integer>() {
-                    @Override
-                    public void completed(Integer maxTopicsPerNamespace) {
-                        future.complete(maxTopicsPerNamespace);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new UnaryGetCallback<Integer>() {});
     }
 
     @Override
@@ -2462,20 +1851,9 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public CompletableFuture<String> getPropertyAsync(String namespace, String key) {
         NamespaceName ns = NamespaceName.get(namespace);
-        final CompletableFuture<String> future = new CompletableFuture<>();
         WebTarget path = namespacePath(ns, "property", key);
-        asyncGetRequest(path, new InvocationCallback<String>() {
-            @Override
-            public void completed(String value) {
-                future.complete(StringUtils.isEmpty(value) ? null : value);
-            }
-
-            @Override
-            public void failed(Throwable throwable) {
-                future.completeExceptionally(getApiException(throwable.getCause()));
-            }
-        });
-        return future;
+        return asyncGetRequest(path, new UnaryGetCallback<String>(
+                value -> StringUtils.isEmpty(value) ? null : value) {});
     }
 
     @Override
@@ -2486,40 +1864,15 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public CompletableFuture<Map<String, String>> getPropertiesAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
-        final CompletableFuture<Map<String, String>> future = new CompletableFuture<>();
         WebTarget path = namespacePath(ns, "properties");
-        asyncGetRequest(path, new InvocationCallback<Map<String, String>>() {
-            @Override
-            public void completed(Map<String, String> value) {
-                future.complete(value);
-            }
-
-            @Override
-            public void failed(Throwable throwable) {
-                future.completeExceptionally(getApiException(throwable.getCause()));
-            }
-        });
-        return future;
+        return asyncGetRequest(path, new UnaryGetCallback<Map<String, String>>() {});
     }
 
     @Override
     public CompletableFuture<String> getNamespaceResourceGroupAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "resourcegroup");
-        final CompletableFuture<String> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<String>() {
-                    @Override
-                    public void completed(String rgName) {
-                        future.complete(rgName);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new UnaryGetCallback<String>() {});
     }
 
     @Override
