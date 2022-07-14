@@ -820,7 +820,7 @@ public class Namespaces extends NamespacesBase {
                 .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
                 .thenAccept(policies -> asyncResponse.resume(policies.bundles))
                 .exceptionally(ex -> {
-                    log.error("[{}] Failed to get bundle data for namespace {}: {} ", clientAppId(),
+                    log.error("[{}] Failed to get bundle data for namespace {} ", clientAppId(),
                             namespaceName, ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
