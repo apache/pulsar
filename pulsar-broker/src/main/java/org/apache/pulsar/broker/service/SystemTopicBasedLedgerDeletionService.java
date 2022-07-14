@@ -24,7 +24,9 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.google.common.collect.Maps;
 import java.security.InvalidParameterException;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
 import java.util.UUID;
@@ -158,20 +160,36 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
         this.deleteOffloadLedgerOpLogger = statsLogger.getOpStatsLogger("delete_offload_ledger");
     }
 
-    private void initLedgerDeletionSystemTopic() {
+    private CompletableFuture<Void> initSystemTopic(String topicName, int partition) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        doCreateSystemTopic(future, topicName, partition);
+        return future;
+    }
+
+    private void doCreateSystemTopic(CompletableFuture<Void> future, String topicName, int partition) {
         this.pulsarAdmin.topics()
-                .createPartitionedTopicAsync(SystemTopicNames.LEDGER_DELETION_TOPIC.getPartitionedTopicName(),
-                        ledgerDeletionParallelism)
-                .whenComplete((res, e) -> {
+                .createPartitionedTopicAsync(topicName, partition).whenComplete((res, e) -> {
                     if (e != null && !(e instanceof PulsarAdminException.ConflictException)) {
-                        log.error("Initial system topic "
-                                + SystemTopicNames.LEDGER_DELETION_TOPIC.getPartitionedTopicName() + "failed.", e);
-                        initLedgerDeletionSystemTopic();
+                        log.error("Initial system topic " + topicName + "failed.", e);
+                        doCreateSystemTopic(future, topicName, partition);
                         return;
                     }
-                    initReaderFuture();
-                    initWriterFuture();
+                    future.complete(null);
                 });
+    }
+
+    private void initLedgerDeletionSystemTopic() {
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
+
+        futures.add(initSystemTopic(SystemTopicNames.LEDGER_DELETION_TOPIC.getPartitionedTopicName(),
+                this.ledgerDeletionParallelism));
+        futures.add(initSystemTopic(SystemTopicNames.LEDGER_DELETION_RETRY_TOPIC.getPartitionedTopicName(), 1));
+        futures.add(initSystemTopic(SystemTopicNames.LEDGER_DELETION_DLQ_TOPIC.getPartitionedTopicName(), 1));
+
+        FutureUtil.waitForAll(futures).whenComplete((res, e) -> {
+            initReaderFuture();
+            initWriterFuture();
+        });
     }
 
     private void readMorePendingDeleteLedger(LedgerDeletionSystemTopicClient.PendingDeleteLedgerReader reader) {

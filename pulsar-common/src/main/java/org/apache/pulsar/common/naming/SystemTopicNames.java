@@ -64,6 +64,12 @@ public class SystemTopicNames {
     public static final TopicName LEDGER_DELETION_TOPIC = TopicName.get(TopicDomain.persistent.value(),
             NamespaceName.SYSTEM_NAMESPACE, LEDGER_DELETION);
 
+    public static final TopicName LEDGER_DELETION_RETRY_TOPIC = TopicName.get(TopicDomain.persistent.value(),
+            NamespaceName.SYSTEM_NAMESPACE, LEDGER_DELETION + "-RETRY");
+
+    public static final TopicName LEDGER_DELETION_DLQ_TOPIC = TopicName.get(TopicDomain.persistent.value(),
+            NamespaceName.SYSTEM_NAMESPACE, LEDGER_DELETION + "-DLQ");
+
     public static boolean isEventSystemTopic(TopicName topicName) {
         return EVENTS_TOPIC_NAMES.contains(TopicName.get(topicName.getPartitionedTopicName()).getLocalName());
     }

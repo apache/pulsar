@@ -78,7 +78,10 @@ public class LedgerDeletionSystemTopicClient extends SystemTopicClientBase<Pendi
                 .subscriptionName("ledger-deletion-worker")
                 .subscriptionType(SubscriptionType.Shared)
                 .enableRetry(true)
-                .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(10).build())
+                .deadLetterPolicy(DeadLetterPolicy.builder()
+                        .retryLetterTopic(SystemTopicNames.LEDGER_DELETION_RETRY_TOPIC.getPartitionedTopicName())
+                        .deadLetterTopic(SystemTopicNames.LEDGER_DELETION_DLQ_TOPIC.getPartitionedTopicName())
+                        .maxRedeliverCount(10).build())
                 .subscribeAsync()
                 .thenCompose(consumer -> {
                     if (log.isDebugEnabled()) {
