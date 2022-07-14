@@ -25,6 +25,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -155,8 +156,10 @@ public class ProducerSemaphoreTest extends ProducerConsumerBase {
                 MessageImpl<byte[]> msg = MessageImpl.create(metadata, ByteBuffer.wrap(new byte[0]), Schema.BYTES, null);
                 futures.add(producer.sendAsync(msg));
             }
-            Assert.assertEquals(producer.getSemaphore().get().availablePermits(), 0);
-            Assert.assertFalse(producer.isErrorStat());
+            Awaitility.await().untilAsserted(() -> {
+                Assert.assertEquals(producer.getSemaphore().get().availablePermits(), 0);
+                Assert.assertFalse(producer.isErrorStat());
+            });
             try {
                 MessageMetadata metadata = new MessageMetadata()
                         .setNumMessagesInBatch(10);
@@ -177,15 +180,19 @@ public class ProducerSemaphoreTest extends ProducerConsumerBase {
         futures.clear();
 
         // Test that when we fill the queue with normal messages, we get an error
-        Assert.assertEquals(producer.getSemaphore().get().availablePermits(), pendingQueueSize);
-        Assert.assertFalse(producer.isErrorStat());
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertEquals(producer.getSemaphore().get().availablePermits(), pendingQueueSize);
+            Assert.assertFalse(producer.isErrorStat());
+        });
         producer.getClientCnx().channel().config().setAutoRead(false);
         try {
             for (int i = 0; i < pendingQueueSize; i++) {
                 futures.add(producer.newMessage().value(("Semaphore-test-" + i).getBytes()).sendAsync());
             }
-            Assert.assertEquals(producer.getSemaphore().get().availablePermits(), 0);
-            Assert.assertFalse(producer.isErrorStat());
+            Awaitility.await().untilAsserted(() -> {
+                Assert.assertEquals(producer.getSemaphore().get().availablePermits(), 0);
+                Assert.assertFalse(producer.isErrorStat());
+            });
 
             try {
                 producer.newMessage().value(("Semaphore-test-Q-full").getBytes()).sendAsync().get();
@@ -200,7 +207,9 @@ public class ProducerSemaphoreTest extends ProducerConsumerBase {
             producer.getClientCnx().channel().config().setAutoRead(true);
         }
         FutureUtil.waitForAll(futures).get();
-        Assert.assertEquals(producer.getSemaphore().get().availablePermits(), pendingQueueSize);
-        Assert.assertFalse(producer.isErrorStat());
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertEquals(producer.getSemaphore().get().availablePermits(), pendingQueueSize);
+            Assert.assertFalse(producer.isErrorStat());
+        });
     }
 }
