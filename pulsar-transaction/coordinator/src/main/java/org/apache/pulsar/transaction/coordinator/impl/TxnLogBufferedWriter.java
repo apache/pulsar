@@ -486,12 +486,6 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
             return FLUSH_CONTEXT_RECYCLER.get();
         }
 
-        private static FlushContext newInstance(int asyncAddArgsListInitialCapacity){
-            FlushContext flushContext = FLUSH_CONTEXT_RECYCLER.get();
-            flushContext.asyncAddArgsList.ensureCapacity(asyncAddArgsListInitialCapacity);
-            return flushContext;
-        }
-
         public void recycle(){
             for (AsyncAddArgs asyncAddArgs : this.asyncAddArgsList){
                 asyncAddArgs.recycle();
