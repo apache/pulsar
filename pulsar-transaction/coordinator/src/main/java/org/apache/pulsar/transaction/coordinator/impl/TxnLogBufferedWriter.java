@@ -19,7 +19,6 @@
 package org.apache.pulsar.transaction.coordinator.impl;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 import io.netty.util.Recycler;
 import java.io.Closeable;
 import java.util.ArrayList;

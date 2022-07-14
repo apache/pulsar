@@ -42,6 +42,8 @@ import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 @Slf4j
 public class RecycleFixedCompositeByteBuf extends AbstractReferenceCountedByteBuf {
 
+    private static final ByteBuf[] EMPTY = { Unpooled.EMPTY_BUFFER };
+
     private static final Recycler<RecycleFixedCompositeByteBuf> RECYCLER =
             new Recycler<RecycleFixedCompositeByteBuf>() {
                 @Override
@@ -61,7 +63,7 @@ public class RecycleFixedCompositeByteBuf extends AbstractReferenceCountedByteBu
 
     public static RecycleFixedCompositeByteBuf newInstance(ByteBuf...buffers){
         RecycleFixedCompositeByteBuf byteBuf = RECYCLER.get();
-        // reset for reuse.
+        // reset attributes for reuse.
         byteBuf.maxCapacity(Integer.MAX_VALUE);
         byteBuf.resetRefCnt();
         byteBuf.readerIndex(0);
@@ -701,14 +703,14 @@ public class RecycleFixedCompositeByteBuf extends AbstractReferenceCountedByteBu
                 component.recycle();
             }
         }
-        buffers = null;
-        this.nioBufferCount = 0;
+        this.buffers = EMPTY;
+        this.order = ByteOrder.BIG_ENDIAN;
+        this.nioBufferCount = 1;
+        this.allocator = PulsarByteBufAllocator.DEFAULT;
+        this.direct = Unpooled.EMPTY_BUFFER.isDirect();
         readerIndex(0);
         writerIndex(0);
         this.capacity = 0;
-        this.allocator = null;
-        this.order = null;
-        this.direct = false;
         recyclerHandle.recycle(this);
     }
 
