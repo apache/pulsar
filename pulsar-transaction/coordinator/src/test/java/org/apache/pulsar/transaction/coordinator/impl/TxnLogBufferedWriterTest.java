@@ -87,6 +87,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         // Bookie error.
         provider[7] = new Object[]{512, 1024 * 1024, 1, true, 2000, 2, 4, true};
         provider[8] = new Object[]{512, 1024 * 1024, 100, true, 20000, 5, 4, true};
+        // TODO 执行过程中关闭 Bookie.
         return provider;
     }
 

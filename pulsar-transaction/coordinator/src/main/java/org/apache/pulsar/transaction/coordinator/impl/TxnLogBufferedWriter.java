@@ -37,6 +37,7 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
+import org.apache.pulsar.common.bytebuf.RecycleFixedCompositeByteBuf;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 
 /***
@@ -251,7 +252,8 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
         prefix.writeShort(BATCHED_ENTRY_DATA_PREFIX_MAGIC_NUMBER);
         prefix.writeShort(BATCHED_ENTRY_DATA_PREFIX_VERSION);
         ByteBuf actualContent = this.dataSerializer.serialize(this.dataArray);
-        ByteBuf pairByteBuf = Unpooled.wrappedUnmodifiableBuffer(prefix, actualContent);
+        // TODO recycle pairByteBuf.
+        ByteBuf pairByteBuf = RecycleFixedCompositeByteBuf.newInstance(prefix, actualContent);
         // We need to release this pairByteBuf after Managed ledger async add callback. Just holds by FlushContext.
         this.flushContext.byteBuf = pairByteBuf;
         // Flush.
