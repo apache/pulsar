@@ -104,7 +104,7 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
     private long bytesSize;
 
     /** The main purpose of state maintenance is to prevent written after close. **/
-    private volatile State state;
+    private State state;
 
     /**
      * Constructor.
@@ -149,10 +149,6 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
      * @throws ManagedLedgerException
      */
     public void asyncAddData(T data, AddDataCallback callback, Object ctx){
-        if (state == State.CLOSING || state == State.CLOSED){
-            callback.addFailed(BUFFERED_WRITER_CLOSED_EXCEPTION, ctx);
-            return;
-        }
         if (!batchEnabled){
             ByteBuf byteBuf = dataSerializer.serialize(data);
             managedLedger.asyncAddEntry(byteBuf, DisabledBatchCallback.INSTANCE,
@@ -163,6 +159,10 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
     }
 
     private void internalAsyncAddData(T data, AddDataCallback callback, Object ctx){
+        if (state == State.CLOSING || state == State.CLOSED){
+            callback.addFailed(BUFFERED_WRITER_CLOSED_EXCEPTION, ctx);
+            return;
+        }
         int len = dataSerializer.getSerializedSize(data);
         if (len >= batchedWriteMaxSize){
             if (!flushContext.asyncAddArgsList.isEmpty()) {
@@ -252,8 +252,10 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
         prefix.writeShort(BATCHED_ENTRY_DATA_PREFIX_VERSION);
         ByteBuf actualContent = this.dataSerializer.serialize(this.dataArray);
         ByteBuf pairByteBuf = Unpooled.wrappedUnmodifiableBuffer(prefix, actualContent);
+        // We need to release this pairByteBuf after Managed ledger async add callback. Just holds by FlushContext.
+        this.flushContext.byteBuf = pairByteBuf;
         // Flush.
-        managedLedger.asyncAddEntry(pairByteBuf, this, flushContext);
+        managedLedger.asyncAddEntry(pairByteBuf, this, this.flushContext);
         // Clear buffers.
         this.dataArray.clear();
         this.flushContext = FlushContext.newInstance();
@@ -285,7 +287,6 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
                 }
             }
         } finally {
-            entryData.release();
             flushContext.recycle();
         }
     }
@@ -317,16 +318,17 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
      */
     @Override
     public void close() {
-        this.state = State.CLOSING;
         singleThreadExecutorForWrite.execute(() -> {
+            if (state == State.CLOSED){
+                return;
+            }
+            this.state = State.CLOSING;
             if (!flushContext.asyncAddArgsList.isEmpty()) {
                 doTrigFlush(true);
             }
-        });
-        if (this.scheduledFuture != null) {
             this.scheduledFuture.cancel(false);
-        }
-        this.state = State.CLOSED;
+            this.state = State.CLOSED;
+        });
     }
 
     /***
@@ -419,6 +421,13 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
         /** Callback parameters for current batch. **/
         private final ArrayList<AsyncAddArgs> asyncAddArgsList;
 
+        /**
+         * If turning on the Batch feature, we need to release the byteBuf produced by
+         * {@link DataSerializer#serialize(ArrayList)} when Managed ledger async add callback.
+         * Only carry the ByteBuf objects, no other use.
+         */
+        private ByteBuf byteBuf;
+
         private FlushContext(Recycler.Handle<FlushContext> handle){
             this.handle = handle;
             this.asyncAddArgsList = new ArrayList<>(8);
@@ -437,6 +446,10 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
         public void recycle(){
             for (AsyncAddArgs asyncAddArgs : this.asyncAddArgsList){
                 asyncAddArgs.recycle();
+            }
+            if (byteBuf != null){
+                byteBuf.release();
+                byteBuf = null;
             }
             this.asyncAddArgsList.clear();
             this.handle.recycle(this);
