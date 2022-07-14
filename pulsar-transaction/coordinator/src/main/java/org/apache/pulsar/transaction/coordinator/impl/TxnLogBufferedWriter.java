@@ -302,7 +302,12 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
             for (int i = 0; i < flushContext.asyncAddArgsList.size(); i++) {
                 final AsyncAddArgs asyncAddArgs = flushContext.asyncAddArgsList.get(i);
                 // Because this task already running at ordered task, so just "run".
-                SafeRunnable.safeRun(() -> asyncAddArgs.callback.addFailed(exception, asyncAddArgs.ctx)).run();
+                try {
+                    asyncAddArgs.callback.addFailed(exception, asyncAddArgs.ctx);
+                } catch (Exception e){
+                    log.error("After writing to the transaction batched log failure, the callback executed also failed."
+                            + " managedLedger: " + managedLedger.getName(), e);
+                }
             }
         } finally {
             flushContext.recycle();
