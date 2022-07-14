@@ -174,6 +174,14 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
         // create subscription in r1
         createReplicatedSubscription(client1, topicName, subscriptionName, true);
 
+        // Validate that no snapshots are created before messages are published
+        Thread.sleep(2 * config1.getReplicatedSubscriptionsSnapshotFrequencyMillis());
+        PersistentTopic t1 = (PersistentTopic) pulsar1.getBrokerService()
+                .getTopic(topicName, false).get().get();
+        ReplicatedSubscriptionsController rsc1 = t1.getReplicatedSubscriptionController().get();
+        // no snapshot should have been created before any messages are published
+        assertTrue(rsc1.getLastCompletedSnapshotId().isEmpty());
+
         @Cleanup
         PulsarClient client2 = PulsarClient.builder()
                 .serviceUrl(url2.toString())
@@ -197,9 +205,6 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
         Thread.sleep(2 * config1.getReplicatedSubscriptionsSnapshotFrequencyMillis());
 
         // In R1
-        PersistentTopic t1 = (PersistentTopic) pulsar1.getBrokerService()
-                .getTopic(topicName, false).get().get();
-        ReplicatedSubscriptionsController rsc1 = t1.getReplicatedSubscriptionController().get();
         Position p1 = t1.getLastPosition();
         String snapshot1 = rsc1.getLastCompletedSnapshotId().get();
 
