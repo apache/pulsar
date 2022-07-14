@@ -142,7 +142,6 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
         this.ledgerDeletionTopicClient = getLedgerDeletionTopicClient();
         initStatsLogger();
         initLedgerDeletionSystemTopic();
-        initLedgerDeletionArchiveSystemTopic();
     }
 
     private void initStatsLogger() {
@@ -172,20 +171,6 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
                     }
                     initReaderFuture();
                     initWriterFuture();
-                });
-    }
-
-    private void initLedgerDeletionArchiveSystemTopic() {
-        pulsarAdmin.topics().createNonPartitionedTopicAsync(
-                        SystemTopicNames.LEDGER_DELETION_ARCHIVE_TOPIC.getPartitionedTopicName())
-                .whenComplete((res, e) -> {
-                    if (e != null && !(e instanceof PulsarAdminException.ConflictException)) {
-                        log.error("Initial system topic "
-                                        + SystemTopicNames.LEDGER_DELETION_ARCHIVE_TOPIC.getPartitionedTopicName()
-                                        + "failed.",
-                                e);
-                        initLedgerDeletionArchiveSystemTopic();
-                    }
                 });
     }
 
