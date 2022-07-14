@@ -32,6 +32,7 @@ public class SystemTopicNames {
      */
     public static final String NAMESPACE_EVENTS_LOCAL_NAME = "__change_events";
 
+    public static final String LEDGER_DELETION = "__ledger_deletion";
 
     /**
      * Local topic name for the transaction buffer snapshot.
@@ -48,7 +49,7 @@ public class SystemTopicNames {
      */
     public static final Set<String> EVENTS_TOPIC_NAMES =
             Collections.unmodifiableSet(
-                    Sets.newHashSet(NAMESPACE_EVENTS_LOCAL_NAME, TRANSACTION_BUFFER_SNAPSHOT));
+                    Sets.newHashSet(NAMESPACE_EVENTS_LOCAL_NAME, TRANSACTION_BUFFER_SNAPSHOT, LEDGER_DELETION));
 
 
     public static final TopicName TRANSACTION_COORDINATOR_ASSIGN = TopicName.get(TopicDomain.persistent.value(),
@@ -61,7 +62,7 @@ public class SystemTopicNames {
             NamespaceName.SYSTEM_NAMESPACE, "resource-usage");
 
     public static final TopicName LEDGER_DELETION_TOPIC = TopicName.get(TopicDomain.persistent.value(),
-            NamespaceName.SYSTEM_NAMESPACE, "__ledger_deletion");
+            NamespaceName.SYSTEM_NAMESPACE, LEDGER_DELETION);
 
     public static boolean isEventSystemTopic(TopicName topicName) {
         return EVENTS_TOPIC_NAMES.contains(TopicName.get(topicName.getPartitionedTopicName()).getLocalName());

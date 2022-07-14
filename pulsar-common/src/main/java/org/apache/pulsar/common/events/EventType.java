@@ -33,7 +33,9 @@ public enum EventType {
      */
     TRANSACTION_BUFFER_SNAPSHOT,
 
-
+    /**
+     * Ledger deletion events.
+     */
     LEDGER_DELETION
 
 
