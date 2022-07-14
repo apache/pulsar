@@ -104,7 +104,7 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
     private long bytesSize;
 
     /** The main purpose of state maintenance is to prevent written after close. **/
-    private State state;
+    private volatile State state;
 
     /**
      * Constructor.
@@ -140,7 +140,9 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
     }
 
     /**
-     * Append a new entry to the end of a managed ledger. All writes will be performed in the same thread.
+     * Append a new entry to the end of a managed ledger. All writes will be performed in the same thread. Callbacks are
+     * executed in strict write order，but after {@link #close()}, callbacks that fail by state check will execute
+     * earlier, and successful callbacks will not be affected.
      * @param data data entry to be persisted.
      * @param callback Will call {@link AddDataCallback#addComplete(Position, Object)} when
      *                 add complete.
@@ -150,6 +152,10 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
      */
     public void asyncAddData(T data, AddDataCallback callback, Object ctx){
         if (!batchEnabled){
+            if (state == State.CLOSING || state == State.CLOSED){
+                callback.addFailed(BUFFERED_WRITER_CLOSED_EXCEPTION, ctx);
+                return;
+            }
             ByteBuf byteBuf = dataSerializer.serialize(data);
             managedLedger.asyncAddEntry(byteBuf, DisabledBatchCallback.INSTANCE,
                     AsyncAddArgs.newInstance(callback, ctx, System.currentTimeMillis(), byteBuf));
@@ -251,7 +257,6 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
         prefix.writeShort(BATCHED_ENTRY_DATA_PREFIX_MAGIC_NUMBER);
         prefix.writeShort(BATCHED_ENTRY_DATA_PREFIX_VERSION);
         ByteBuf actualContent = this.dataSerializer.serialize(this.dataArray);
-        // TODO recycle pairByteBuf.
         ByteBuf pairByteBuf = RecycleFixedCompositeByteBuf.newInstance(prefix, actualContent);
         // We need to release this pairByteBuf after Managed ledger async add callback. Just holds by FlushContext.
         this.flushContext.byteBuf = pairByteBuf;
@@ -319,6 +324,10 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
      */
     @Override
     public void close() {
+        if (!batchEnabled){
+            this.state = State.CLOSED;
+            return;
+        }
         singleThreadExecutorForWrite.execute(() -> {
             if (state == State.CLOSED){
                 return;
@@ -327,8 +336,13 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
             if (!flushContext.asyncAddArgsList.isEmpty()) {
                 doTrigFlush(true);
             }
-            this.scheduledFuture.cancel(false);
-            this.state = State.CLOSED;
+            if (scheduledFuture != null && !scheduledFuture.isCancelled() && !scheduledFuture.isDone()) {
+                if (this.scheduledFuture.cancel(false)){
+                    this.state = State.CLOSED;
+                }
+            }
+            log.error("Transaction log buffered write cancel task that schedule at fixed rate trig flush failure. The"
+                    + " state will stay at CLOSING. managedLedger: " + managedLedger.getName());
         });
     }
 
