@@ -439,7 +439,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         // 2. Create consumer, this should success, but with empty sub-consumser internal
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
             .topicsPattern(pattern)
-            .patternAutoDiscoveryPeriod(2)
+            .patternAutoDiscoveryPeriod(2, TimeUnit.SECONDS)
             .subscriptionName(subscriptionName)
             .subscriptionType(SubscriptionType.Shared)
             .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
@@ -473,13 +473,14 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         log.debug("recheck topics change");
         PatternMultiTopicsConsumerImpl<byte[]> consumer1 = ((PatternMultiTopicsConsumerImpl<byte[]>) consumer);
         consumer1.run(consumer1.getRecheckPatternTimeout());
-        Thread.sleep(100);
 
         // 6. verify consumer get methods, to get number of partitions and topics, value 6=1+2+3.
-        assertSame(pattern, ((PatternMultiTopicsConsumerImpl<?>) consumer).getPattern());
-        assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitions().size(), 6);
-        assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getConsumers().size(), 6);
-        assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitionedTopics().size(), 2);
+        Awaitility.await().untilAsserted(() -> {
+            assertSame(pattern, ((PatternMultiTopicsConsumerImpl<?>) consumer).getPattern());
+            assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitions().size(), 6);
+            assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getConsumers().size(), 6);
+            assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitionedTopics().size(), 2);
+        });
 
 
         // 7. produce data
@@ -543,7 +544,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
             .topicsPattern(pattern)
-            .patternAutoDiscoveryPeriod(2)
+            .patternAutoDiscoveryPeriod(2, TimeUnit.SECONDS)
             .subscriptionName(subscriptionName)
             .subscriptionType(SubscriptionType.Shared)
             .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
