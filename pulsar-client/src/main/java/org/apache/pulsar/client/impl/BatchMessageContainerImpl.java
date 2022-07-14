@@ -197,6 +197,26 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
 
     @Override
     public OpSendMsg createOpSendMsg() throws IOException {
+        if (!producer.conf.isBatchingSingleMessage() && messages.size() == 1) {
+            MessageImpl<?> msg = messages.get(0);
+            messageMetadata = msg.getMessageBuilder();
+            ByteBuf encryptedPayload = producer.encryptMessage(
+                messageMetadata,
+                producer.applyCompression(msg.getDataBuffer()));
+            if (encryptedPayload.readableBytes() > ClientCnx.getMaxMessageSize()) {
+                discard(new PulsarClientException.InvalidMessageException(
+                    "Message size is bigger than " + ClientCnx.getMaxMessageSize() + " bytes"));
+                return null;
+            }
+            ByteBufPair cmd = producer.sendMessage(producer.producerId, messageMetadata.getSequenceId(),
+                1, messageMetadata, encryptedPayload);
+            final OpSendMsg op;
+            op = OpSendMsg.create(msg, cmd, messageMetadata.getSequenceId(), firstCallback);
+            op.setNumMessagesInBatch(1);
+            op.setBatchSizeByte(encryptedPayload.readableBytes());
+            return op;
+        }
+
         ByteBuf encryptedPayload = producer.encryptMessage(messageMetadata, getCompressedBatchMetadataAndPayload());
         if (encryptedPayload.readableBytes() > ClientCnx.getMaxMessageSize()) {
             producer.semaphoreRelease(messages.size());
