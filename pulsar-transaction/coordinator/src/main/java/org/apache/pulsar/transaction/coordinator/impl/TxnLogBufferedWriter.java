@@ -27,6 +27,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import lombok.Getter;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
@@ -35,6 +36,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.bytebuf.RecycleFixedCompositeByteBuf;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
@@ -105,6 +107,10 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
 
     /** The main purpose of state maintenance is to prevent written after close. **/
     private volatile State state;
+    private static final AtomicReferenceFieldUpdater<TxnLogBufferedWriter, TxnLogBufferedWriter.State> STATE_UPDATER =
+            AtomicReferenceFieldUpdater
+                    .newUpdater(TxnLogBufferedWriter.class, TxnLogBufferedWriter.State.class, "state");
+
 
     /**
      * Constructor.
@@ -133,7 +139,7 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
         this.dataArray = new ArrayList<>();
         // scheduler task.
         if (batchEnabled) {
-            this.scheduledFuture = scheduledExecutorService.scheduleAtFixedRate(this::trigFlush,
+            this.scheduledFuture = scheduledExecutorService.scheduleAtFixedRate(() -> trigFlush(false),
                     batchedWriteMaxDelayInMillis, batchedWriteMaxDelayInMillis, TimeUnit.MICROSECONDS);
         }
         this.state = State.OPEN;
@@ -225,8 +231,8 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
     /**
      * Trigger write to bookie once, If the conditions are not met, nothing will be done.
      */
-    public void trigFlush(){
-        singleThreadExecutorForWrite.execute(() -> doTrigFlush(false));
+    public void trigFlush(final boolean force){
+        singleThreadExecutorForWrite.execute(() -> doTrigFlush(force));
     }
 
     private void doTrigFlush(boolean force){
@@ -261,8 +267,12 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
         // We need to release this pairByteBuf after Managed ledger async add callback. Just holds by FlushContext.
         this.flushContext.byteBuf = pairByteBuf;
         // Flush.
-        managedLedger.asyncAddEntry(pairByteBuf, this, this.flushContext);
-        // Clear buffers.
+        if (State.CLOSING == state || State.CLOSED == state){
+            failureCallbackByContextAndRecycle(flushContext, BUFFERED_WRITER_CLOSED_EXCEPTION);
+        } else {
+            managedLedger.asyncAddEntry(pairByteBuf, this, this.flushContext);
+        }
+        // Clear buffers.ok
         this.dataArray.clear();
         this.flushContext = FlushContext.newInstance();
         this.bytesSize = 0;
@@ -303,47 +313,71 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
     @Override
     public void addFailed(ManagedLedgerException exception, Object ctx) {
         final FlushContext flushContext = (FlushContext) ctx;
-        try {
-            for (int i = 0; i < flushContext.asyncAddArgsList.size(); i++) {
-                final AsyncAddArgs asyncAddArgs = flushContext.asyncAddArgsList.get(i);
-                // Because this task already running at ordered task, so just "run".
-                try {
-                    asyncAddArgs.callback.addFailed(exception, asyncAddArgs.ctx);
-                } catch (Exception e){
-                    log.error("After writing to the transaction batched log failure, the callback executed also failed."
-                            + " managedLedger: " + managedLedger.getName(), e);
+        failureCallbackByContextAndRecycle(flushContext, exception);
+    }
+
+    /**
+     * Cancel pending tasks and release resources.
+     */
+    @Override
+    public void close() {
+        // If disabled batch feature, there is no closing state.
+        if (!batchEnabled) {
+            STATE_UPDATER.compareAndSet(this, State.OPEN, State.CLOSED);
+            return;
+        }
+        // Prevent the reentrant.
+        if (!STATE_UPDATER.compareAndSet(this, State.OPEN, State.CLOSING)){
+            // Other thread also calling "close()".
+            return;
+        }
+        // Cancel pending tasks and release resources.
+        singleThreadExecutorForWrite.execute(() -> {
+            if (state == State.CLOSED){
+                return;
+            }
+            // Failure callback to pending request.
+            // If some request has been flushed, Bookie triggers the callback.
+            failureCallbackByContextAndRecycle(this.flushContext, BUFFERED_WRITER_CLOSED_EXCEPTION);
+            // Cancel task that schedule at fixed rate trig flush.
+            if (scheduledFuture != null && !scheduledFuture.isCancelled() && !scheduledFuture.isDone()) {
+                if (this.scheduledFuture.cancel(false)){
+                    this.state = State.CLOSED;
                 }
+            }
+            // Cancel task failure, The state will stay at CLOSING.
+            log.error("Cancel task that schedule at fixed rate trig flush failure. The state will stay at CLOSING."
+                    + " managedLedger: " + managedLedger.getName());
+        });
+    }
+
+    private void failureCallbackByContextAndRecycle(FlushContext flushContext, ManagedLedgerException ex){
+        if (flushContext == null || CollectionUtils.isEmpty(flushContext.asyncAddArgsList)){
+            return;
+        }
+        try {
+            for (AsyncAddArgs asyncAddArgs : flushContext.asyncAddArgsList) {
+                failureCallbackByArgs(asyncAddArgs, ex, false);
             }
         } finally {
             flushContext.recycle();
         }
     }
 
-    /**
-     * Release resources and executing tasks.
-     */
-    @Override
-    public void close() {
-        if (!batchEnabled){
-            this.state = State.CLOSED;
+    private void failureCallbackByArgs(AsyncAddArgs asyncAddArgs, ManagedLedgerException ex, final boolean recycle){
+        if (asyncAddArgs == null) {
             return;
         }
-        singleThreadExecutorForWrite.execute(() -> {
-            if (state == State.CLOSED){
-                return;
+        try {
+            asyncAddArgs.callback.addFailed(ex, asyncAddArgs.ctx);
+        } catch (Exception e){
+            log.error("After writing to the transaction batched log failure, the callback executed also"
+                    + " failed. managedLedger: " + managedLedger.getName(), e);
+        } finally {
+            if (recycle) {
+                asyncAddArgs.recycle();
             }
-            this.state = State.CLOSING;
-            if (!flushContext.asyncAddArgsList.isEmpty()) {
-                doTrigFlush(true);
-            }
-            if (scheduledFuture != null && !scheduledFuture.isCancelled() && !scheduledFuture.isDone()) {
-                if (this.scheduledFuture.cancel(false)){
-                    this.state = State.CLOSED;
-                }
-            }
-            log.error("Transaction log buffered write cancel task that schedule at fixed rate trig flush failure. The"
-                    + " state will stay at CLOSING. managedLedger: " + managedLedger.getName());
-        });
+        }
     }
 
     /***

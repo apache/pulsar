@@ -32,6 +32,7 @@ import java.util.Random;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BKException;
@@ -177,9 +178,11 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         ArrayList<Integer> contextArrayOfCallback = new ArrayList<>();
         ArrayList<ManagedLedgerException> exceptionArrayOfCallback = new ArrayList<>();
         LinkedHashMap<PositionImpl, ArrayList<Position>> positionsOfCallback = new LinkedHashMap<>();
+        AtomicBoolean anyFlushCompleted = new AtomicBoolean();
         TxnLogBufferedWriter.AddDataCallback callback = new TxnLogBufferedWriter.AddDataCallback(){
             @Override
             public void addComplete(Position position, Object ctx) {
+                anyFlushCompleted.set(true);
                 if (contextArrayOfCallback.contains(Integer.valueOf(String.valueOf(ctx)))){
                     return;
                 }
@@ -202,7 +205,12 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
                 + new Random().nextInt(writeCmdExecuteCount / 4 + 1) - 1;
         for (int i = 0; i < writeCmdExecuteCount; i++){
             txnLogBufferedWriter.asyncAddData(i, callback, i);
+            if (i == 0){
+                txnLogBufferedWriter.trigFlush(true);
+            }
             if (closeBufferedWriter && bufferedWriteCloseAtIndex == i){
+                // Wait for any complete callback, avoid unstable.
+                Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> anyFlushCompleted.get());
                 txnLogBufferedWriter.close();
             }
         }
@@ -386,19 +394,11 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         for (int i = 0; i < 64; i++){
             txnLogBufferedWriter2.asyncAddData(1, callback, 1);
         }
-        // Test threshold: close.
-        txnLogBufferedWriter.asyncAddData(1, callback, 1);
-        txnLogBufferedWriter2.asyncAddData(1, callback, 1);
-        txnLogBufferedWriter2.asyncAddData(1, callback, 1);
-        txnLogBufferedWriter.close();
-        txnLogBufferedWriter2.close();
         // Assert 4 flush.
-        Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> dataArrayFlushedToBookie.size() == 5);
+        Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> dataArrayFlushedToBookie.size() == 3);
         Assert.assertEquals(dataArrayFlushedToBookie.get(0).intValue(), 100);
         Assert.assertEquals(dataArrayFlushedToBookie.get(1).intValue(), 32);
         Assert.assertEquals(dataArrayFlushedToBookie.get(2).intValue(), 64);
-        Assert.assertEquals(dataArrayFlushedToBookie.get(3).intValue(), 1);
-        Assert.assertEquals(dataArrayFlushedToBookie.get(4).intValue(), 2);
         // Assert all resources released
         dataSerializer.assertAllByteBufHasBeenReleased();
         // clean up.
