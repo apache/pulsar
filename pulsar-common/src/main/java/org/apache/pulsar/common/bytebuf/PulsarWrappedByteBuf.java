@@ -32,6 +32,12 @@ import java.nio.channels.GatheringByteChannel;
 import java.nio.channels.ScatteringByteChannel;
 import java.nio.charset.Charset;
 
+/***
+ * Diff with "io.netty.buffer.WrappedByteBuf":
+ *   1. Open modifier to public.
+ *   2. No override method `isAccessible`. Why not override ? Because method `isAccessible` is no more access than
+ *      `protected`.
+ */
 public class PulsarWrappedByteBuf extends ByteBuf {
 
     protected ByteBuf buf;

@@ -39,6 +39,11 @@ import java.util.Collections;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 
+/***
+ * Diff with "io.netty.buffer.FixedCompositeByteBuf":
+ *   1. Support recycle.
+ *   2. Support {@link Component} recycle.
+ */
 @Slf4j
 public class RecycleFixedCompositeByteBuf extends AbstractReferenceCountedByteBuf {
 
