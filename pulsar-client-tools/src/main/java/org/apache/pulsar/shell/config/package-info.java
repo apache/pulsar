@@ -16,28 +16,4 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.shell;
-
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
-
-import java.util.List;
-import java.util.Properties;
-import org.jline.reader.Completer;
-import org.testng.annotations.Test;
-
-public class JCommanderCompleterTest {
-
-    @Test
-    public void test() throws Exception {
-        final AdminShell shell = new AdminShell(new Properties());
-        shell.setupState(new Properties());
-        final List<Completer> completers = JCommanderCompleter.createCompletersForCommand("admin",
-                shell.getJCommander(), null);
-        assertFalse(completers.isEmpty());
-        for (Completer completer : completers) {
-            assertTrue(completer instanceof OptionStrictArgumentCompleter);
-        }
-    }
-
-}
+package org.apache.pulsar.shell.config;

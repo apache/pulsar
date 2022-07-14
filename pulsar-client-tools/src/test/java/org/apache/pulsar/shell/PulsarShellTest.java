@@ -188,7 +188,7 @@ public class PulsarShellTest {
         final String shellFile = Thread.currentThread()
                 .getContextClassLoader().getResource("test-shell-file-error").getFile();
 
-        final TestPulsarShell testPulsarShell = new TestPulsarShell(new String[]{"-f", shellFile, "-e"},
+        final TestPulsarShell testPulsarShell = new TestPulsarShell(new String[]{"-f", shellFile, "--fail-on-error"},
                 props, pulsarAdminBuilder);
         try {
             testPulsarShell.run((a) -> linereader, (a) -> terminal);

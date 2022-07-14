@@ -16,28 +16,38 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.shell;
+package org.apache.pulsar.shell.config;
 
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
-
+import java.io.IOException;
 import java.util.List;
-import java.util.Properties;
-import org.jline.reader.Completer;
-import org.testng.annotations.Test;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-public class JCommanderCompleterTest {
+/**
+ * Shell configurations store layer.
+ */
+public interface ConfigStore {
 
-    @Test
-    public void test() throws Exception {
-        final AdminShell shell = new AdminShell(new Properties());
-        shell.setupState(new Properties());
-        final List<Completer> completers = JCommanderCompleter.createCompletersForCommand("admin",
-                shell.getJCommander(), null);
-        assertFalse(completers.isEmpty());
-        for (Completer completer : completers) {
-            assertTrue(completer instanceof OptionStrictArgumentCompleter);
-        }
+    String DEFAULT_CONFIG = "default";
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    class ConfigEntry {
+        String name;
+        String value;
     }
 
+
+    void putConfig(ConfigEntry entry) throws IOException;
+
+    ConfigEntry getConfig(String name) throws IOException;
+
+    void deleteConfig(String name) throws IOException;
+
+    List<ConfigEntry> listConfigs() throws IOException;
+
+    void setLastUsed(String name) throws IOException;
+
+    ConfigEntry getLastUsed() throws IOException;
 }
