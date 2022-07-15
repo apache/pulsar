@@ -100,6 +100,7 @@ import org.awaitility.Awaitility;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -112,6 +113,7 @@ import org.testng.annotations.Test;
 @PrepareForTest({
         OpReadEntry.class
 })
+@PowerMockIgnore({"org.apache.logging.log4j.*"})
 public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @ObjectFactory
