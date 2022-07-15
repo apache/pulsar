@@ -2283,7 +2283,7 @@ public class Namespaces extends NamespacesBase {
 
     @DELETE
     @Path("/{tenant}/{namespace}/properties")
-    @ApiOperation(value = "Get property value for a given key on a namespace.")
+    @ApiOperation(value = "Clear properties on a given namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or namespace doesn't exist"), })
     public void clearProperties(
