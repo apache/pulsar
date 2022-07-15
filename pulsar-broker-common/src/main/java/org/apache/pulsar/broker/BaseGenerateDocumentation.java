@@ -95,7 +95,8 @@ public abstract class BaseGenerateDocumentation {
             }
             field.setAccessible(true);
             sb.append("| ").append(field.getName()).append(" | ");
-            sb.append(fieldContext.doc().replace("\n", "<br>")).append(" | ");
+            sb.append(fieldContext.doc().replace(">", "\\>")
+                    .replace("\n", "<br />")).append(" | ");
             sb.append(field.get(obj)).append(" | ");
             sb.append(fieldContext.dynamic()).append(" | ");
             sb.append(fieldContext.category()).append(" | ");
@@ -120,7 +121,8 @@ public abstract class BaseGenerateDocumentation {
             field.setAccessible(true);
             String name = StringUtils.isBlank(fieldContext.name()) ? field.getName() : fieldContext.name();
             sb.append("| ").append(name).append(" | ");
-            sb.append(fieldContext.value().replace("\n", "<br>")).append(" | ");
+            sb.append(fieldContext.value().replace(">", "\\>")
+                    .replace("\n", "<br />")).append(" | ");
             sb.append(field.get(obj)).append(" | ");
             sb.append("\n");
         }
