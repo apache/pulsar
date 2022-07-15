@@ -30,6 +30,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
@@ -110,6 +111,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     protected Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
 
     private AtomicBoolean isRescheduleReadInProgress = new AtomicBoolean(false);
+    private final ExecutorService dispatchMessagesThread;
 
     protected enum ReadType {
         Normal, Replay
@@ -127,6 +129,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         this.lastIndividualDeletedRangeFromCursorRecovery = cursor.getLastIndividualDeletedRange();
         this.name = topic.getName() + " / " + Codec.decode(cursor.getName());
         this.topic = topic;
+        this.dispatchMessagesThread = topic.getBrokerService().getTopicOrderedExecutor().chooseThread();
         this.redeliveryMessages = new MessageRedeliveryController(allowOutOfOrderDelivery);
         this.redeliveryTracker = this.serviceConfig.isSubscriptionRedeliveryTrackerEnabled()
                 ? new InMemoryRedeliveryTracker()
@@ -529,9 +532,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             // dispatch messages to a separate thread, but still in order for this subscription
             // sendMessagesToConsumers is responsible for running broker-side filters
             // that may be quite expensive
-            topic.getBrokerService().getTopicOrderedExecutor()
-                    .executeOrdered(name,
-                            safeRun(() -> sendMessagesToConsumers(readType, entries)));
+            dispatchMessagesThread.execute(safeRun(() -> sendMessagesToConsumers(readType, entries)));
         } else {
             sendMessagesToConsumers(readType, entries);
         }
