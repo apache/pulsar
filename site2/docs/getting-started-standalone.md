@@ -90,7 +90,7 @@ To get started with Pulsar, download a binary tarball release in one of the foll
 
   ```shell
   
-  $ wget pulsar:binary_release_url
+  wget pulsar:binary_release_url
   
   ```
 
@@ -98,8 +98,8 @@ After you download the tarball, untar it and use the `cd` command to navigate to
 
 ```bash
 
-$ tar xvfz apache-pulsar-@pulsar:version@-bin.tar.gz
-$ cd apache-pulsar-@pulsar:version@
+tar xvfz apache-pulsar-@pulsar:version@-bin.tar.gz
+cd apache-pulsar-@pulsar:version@
 
 ```
 
@@ -147,7 +147,7 @@ To enable those `builtin` connectors, you can download the connectors tarball re
 
   ```shell
   
-  $ wget pulsar:connector_release_url/{connector}-@pulsar:version@.nar
+  wget pulsar:connector_release_url/{connector}-@pulsar:version@.nar
   
   ```
 
@@ -156,10 +156,13 @@ For example, if you download the `pulsar-io-aerospike-@pulsar:version@.nar` conn
 
 ```bash
 
-$ mkdir connectors
-$ mv pulsar-io-aerospike-@pulsar:version@.nar connectors
+mkdir connectors
+mv pulsar-io-aerospike-@pulsar:version@.nar connectors
 
-$ ls connectors
+ls connectors
+```
+
+```
 pulsar-io-aerospike-@pulsar:version@.nar
 ...
 
@@ -193,7 +196,7 @@ To get started with [tiered storage offloaders](concepts-tiered-storage.md), you
 
   ```shell
   
-  $ wget pulsar:offloader_release_url
+  wget pulsar:offloader_release_url
   
   ```
 
@@ -202,14 +205,17 @@ in the pulsar directory:
 
 ```bash
 
-$ tar xvfz apache-pulsar-offloaders-@pulsar:version@-bin.tar.gz
+tar xvfz apache-pulsar-offloaders-@pulsar:version@-bin.tar.gz
 
-// you will find a directory named `apache-pulsar-offloaders-@pulsar:version@` in the pulsar directory
-// then copy the offloaders
+# you will find a directory named `apache-pulsar-offloaders-@pulsar:version@` in the pulsar directory
+# then copy the offloaders
 
-$ mv apache-pulsar-offloaders-@pulsar:version@/offloaders offloaders
+mv apache-pulsar-offloaders-@pulsar:version@/offloaders offloaders
 
-$ ls offloaders
+ls offloaders
+```
+
+```
 tiered-storage-jcloud-@pulsar:version@.nar
 
 ```
@@ -229,13 +235,13 @@ Once you have an up-to-date local copy of the release, you can start a local clu
 
 ```bash
 
-$ bin/pulsar standalone
+bin/pulsar standalone
 
 ```
 
 If you have started Pulsar successfully, you will see `INFO`-level log messages like this:
 
-```bash
+```
 
 21:59:29.327 [DLM-/stream/storage-OrderedScheduler-3-0] INFO  org.apache.bookkeeper.stream.storage.impl.sc.StorageContainerImpl - Successfully started storage container (0).
 21:59:34.576 [main] INFO  org.apache.pulsar.broker.authentication.AuthenticationService - Authentication is disabled
@@ -263,7 +269,7 @@ The following command consumes a message with the subscription name `first-subsc
 
 ```bash
 
-$ bin/pulsar-client consume my-topic -s "first-subscription"
+bin/pulsar-client consume my-topic -s "first-subscription"
 
 ```
 
@@ -287,7 +293,7 @@ The following command produces a message saying `hello-pulsar` to the `my-topic`
 
 ```bash
 
-$ bin/pulsar-client produce my-topic --messages "hello-pulsar"
+bin/pulsar-client produce my-topic --messages "hello-pulsar"
 
 ```
 
