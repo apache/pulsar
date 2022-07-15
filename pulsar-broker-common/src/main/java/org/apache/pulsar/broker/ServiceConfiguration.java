@@ -2679,7 +2679,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_SERVER,
             doc = "If enabled the feature that transaction log batch, this attribute means maximum wait time(in millis)"
-                    + " for the first record in a batch, default 1."
+                    + " for the first record in a batch, default 1 millisecond."
     )
     private int transactionLogBatchedWriteMaxDelayInMillis = 1;
 
@@ -2710,7 +2710,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_SERVER,
             doc = "If enabled the feature that transaction pending ack log batch, this attribute means maximum wait"
-                    + " time(in millis) for the first record in a batch, default 1."
+                    + " time(in millis) for the first record in a batch, default 1 millisecond."
     )
     private int transactionPendingAckBatchedWriteMaxDelayInMillis = 1;
 
