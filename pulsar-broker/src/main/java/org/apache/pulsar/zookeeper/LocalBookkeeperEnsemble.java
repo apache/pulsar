@@ -16,7 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-/**
+
+/*
  * This file is derived from LocalBookkeeperEnsemble from Apache BookKeeper
  * http://bookkeeper.apache.org
  */

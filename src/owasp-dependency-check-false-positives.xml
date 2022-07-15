@@ -28,11 +28,6 @@
     <cpe>cpe:/a:apache:http_server</cpe>
   </suppress>
   <suppress>
-    <notes>pulsar-zookeeper-utils gets mixed with zookeeper.</notes>
-    <gav regex="true">org\.apache\.pulsar:.*</gav>
-    <cpe>cpe:/a:apache:zookeeper</cpe>
-  </suppress>
-  <suppress>
     <notes>pulsar-package-bookkeeper-storage gets mixed with bookkeeper.</notes>
     <gav regex="true">org\.apache\.pulsar:.*</gav>
     <cpe>cpe:/a:apache:bookkeeper</cpe>
