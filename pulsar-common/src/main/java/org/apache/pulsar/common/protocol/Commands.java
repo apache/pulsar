@@ -86,6 +86,7 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.CommandTcClientConnectResponse;
+import org.apache.pulsar.common.api.proto.CommandTopicMigrated.ResourceType;
 import org.apache.pulsar.common.api.proto.FeatureFlags;
 import org.apache.pulsar.common.api.proto.IntRange;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
@@ -736,6 +737,16 @@ public class Commands {
         BaseCommand cmd = localCmd(Type.REACHED_END_OF_TOPIC);
         cmd.setReachedEndOfTopic()
             .setConsumerId(consumerId);
+        return serializeWithSize(cmd);
+    }
+
+    public static ByteBuf newTopicMigrated(ResourceType type, long resourceId, String brokerUrl, String brokerUrlTls) {
+        BaseCommand cmd = localCmd(Type.TOPIC_MIGRATED);
+        cmd.setTopicMigrated()
+            .setResourceType(type)
+            .setResourceId(resourceId)
+            .setBrokerServiceUrl(brokerUrl)
+            .setBrokerServiceUrlTls(brokerUrlTls);
         return serializeWithSize(cmd);
     }
 

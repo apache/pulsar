@@ -73,6 +73,7 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.ClusterData.ClusterUrl;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.CursorStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -106,6 +107,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
             AtomicLongFieldUpdater.newUpdater(NonPersistentTopic.class, "entriesAddedCounter");
     private volatile long entriesAddedCounter = 0;
 
+    private volatile boolean migrated = false;
     private static final FastThreadLocal<TopicStats> threadLocalTopicStats = new FastThreadLocal<TopicStats>() {
         @Override
         protected TopicStats initialValue() {
@@ -153,10 +155,18 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
         registerTopicPolicyListener();
     }
 
+    private CompletableFuture<Void> updateClusterMigrated() {
+        return getMigratedClusterUrlAsync(brokerService.getPulsar()).thenAccept(url -> migrated = url.isPresent());
+    }
+
+    private Optional<ClusterUrl> getClusterMigrationUrl() {
+        return getMigratedClusterUrl(brokerService.getPulsar());
+    }
+
     public CompletableFuture<Void> initialize() {
         return brokerService.pulsar().getPulsarResources().getNamespaceResources()
                 .getPoliciesAsync(TopicName.get(topic).getNamespaceObject())
-                .thenAccept(optPolicies -> {
+                .thenCompose(optPolicies -> {
                     if (!optPolicies.isPresent()) {
                         log.warn("[{}] Policies not present and isEncryptionRequired will be set to false", topic);
                         isEncryptionRequired = false;
@@ -168,6 +178,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                     }
                     updatePublishDispatcher();
                     updateResourceGroupLimiter(optPolicies);
+                    return updateClusterMigrated();
                 });
     }
 
@@ -273,7 +284,6 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
         return brokerService.checkTopicNsOwnership(getName()).thenCompose(__ -> {
             final CompletableFuture<Consumer> future = new CompletableFuture<>();
 
-
             if (hasBatchMessagePublished && !cnx.isBatchMessageCompatibleVersion()) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Consumer doesn't support batch-message {}", topic, subscriptionName);
@@ -313,6 +323,9 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
             Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName,
                     false, cnx, cnx.getAuthRole(), metadata, readCompacted, keySharedMeta,
                     MessageId.latest, DEFAULT_CONSUMER_EPOCH);
+            if (isMigrated()) {
+                consumer.topicMigrated(getClusterMigrationUrl());
+            }
 
             addConsumerToSubscription(subscription, consumer).thenRun(() -> {
                 if (!cnx.isActive()) {
@@ -926,6 +939,23 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
     }
 
     @Override
+    public CompletableFuture<Void> checkClusterMigration() {
+        Optional<ClusterUrl> url = getClusterMigrationUrl();
+        if (url.isPresent()) {
+            this.migrated = true;
+            producers.forEach((__, producer) -> {
+                producer.topicMigrated(url);
+            });
+            subscriptions.forEach((__, sub) -> {
+                sub.getConsumers().forEach((consumer) -> {
+                    consumer.topicMigrated(url);
+                });
+            });
+        }
+        return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
     public void checkGC() {
         if (!isDeleteWhileInactive()) {
             // This topic is not included in GC
@@ -1162,6 +1192,12 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
 
     protected boolean isTerminated() {
         return false;
+    }
+
+
+    @Override
+    protected boolean isMigrated() {
+        return this.migrated;
     }
 
     @Override

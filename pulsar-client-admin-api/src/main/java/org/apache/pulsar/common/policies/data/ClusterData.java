@@ -19,6 +19,9 @@
 package org.apache.pulsar.common.policies.data;
 
 import java.util.LinkedHashSet;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.apache.pulsar.client.admin.utils.ReflectionUtils;
 import org.apache.pulsar.client.api.ProxyProtocol;
 
@@ -57,6 +60,10 @@ public interface ClusterData {
 
     String getListenerName();
 
+    boolean isMigrated();
+
+    ClusterUrl getMigratedClusterUrl();
+
     interface Builder {
         Builder serviceUrl(String serviceUrl);
 
@@ -92,6 +99,10 @@ public interface ClusterData {
 
         Builder listenerName(String listenerName);
 
+        Builder migrated(boolean migrated);
+
+        Builder migratedClusterUrl(ClusterUrl migratedClusterUrl);
+
         ClusterData build();
     }
 
@@ -99,5 +110,17 @@ public interface ClusterData {
 
     static Builder builder() {
         return ReflectionUtils.newBuilder("org.apache.pulsar.common.policies.data.ClusterDataImpl");
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    class ClusterUrl {
+        String brokerServiceUrl;
+        String brokerServiceUrlTls;
+
+        public boolean isEmpty() {
+            return brokerServiceUrl == null && brokerServiceUrlTls == null;
+        }
     }
 }

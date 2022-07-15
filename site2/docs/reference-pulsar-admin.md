@@ -321,6 +321,24 @@ Options
 |`--url`|service-url||
 |`--url-secure`|service-url for secure connection||
 
+### `update cluster migration`
+Update the configuration for a cluster
+
+Usage
+
+```bash
+pulsar-admin clusters update-cluster-migration cluster-name options
+```
+
+Options
+
+|Flag|Description|Default|
+|---|---|---|
+|`--migrated`|Is cluster migrated.||
+|`--broker-url`|New cluster URL for the broker service.||
+|`--broker-url-secure`|New cluster service URL for a secure connection||
+|`--url`|service-url||
+|`--url-secure`|service-url for secure connection||
 
 ### `delete`
 Deletes an existing cluster

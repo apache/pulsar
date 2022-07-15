@@ -50,6 +50,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -241,6 +242,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     protected static final int DEFAULT_LEDGER_DELETE_RETRIES = 3;
     protected static final int DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC = 60;
+    private static final String MIGRATION_STATE_PROPERTY = "migrated";
 
     public enum State {
         None, // Uninitialized
@@ -268,6 +270,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private static final AtomicReferenceFieldUpdater<ManagedLedgerImpl, State> STATE_UPDATER =
             AtomicReferenceFieldUpdater.newUpdater(ManagedLedgerImpl.class, State.class, "state");
     protected volatile State state = null;
+    private volatile boolean migrated = false;
 
     @Getter
     private final OrderedScheduler scheduledExecutor;
@@ -343,7 +346,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         // Get the next rollover time. Add a random value upto 5% to avoid rollover multiple ledgers at the same time
         this.maximumRolloverTimeMs = getMaximumRolloverTimeMs(config);
         this.mlOwnershipChecker = mlOwnershipChecker;
-        this.propertiesMap = new HashMap();
+        this.propertiesMap = new ConcurrentHashMap<>();
         this.inactiveLedgerRollOverTimeMs = config.getInactiveLedgerRollOverTimeMs();
         if (config.getManagedLedgerInterceptor() != null) {
             this.managedLedgerInterceptor = config.getManagedLedgerInterceptor();
@@ -367,7 +370,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     lastConfirmedEntry = new PositionImpl(mlInfo.getTerminatedPosition());
                     log.info("[{}] Recovering managed ledger terminated at {}", name, lastConfirmedEntry);
                 }
-
                 for (LedgerInfo ls : mlInfo.getLedgerInfoList()) {
                     ledgers.put(ls.getLedgerId(), ls);
                 }
@@ -379,6 +381,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         propertiesMap.put(property.getKey(), property.getValue());
                     }
                 }
+                migrated = mlInfo.hasTerminatedPosition() && propertiesMap.containsKey(MIGRATION_STATE_PROPERTY);
                 if (managedLedgerInterceptor != null) {
                     managedLedgerInterceptor.onManagedLedgerPropertiesInitialize(propertiesMap);
                 }
@@ -1271,6 +1274,27 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
+    public CompletableFuture<Position> asyncMigrate() {
+        propertiesMap.put(MIGRATION_STATE_PROPERTY, Boolean.TRUE.toString());
+        CompletableFuture<Position> result = new CompletableFuture<>();
+        asyncTerminate(new TerminateCallback() {
+
+            @Override
+            public void terminateComplete(Position lastCommittedPosition, Object ctx) {
+                migrated = true;
+                log.info("[{}] topic successfully terminated and migrated at {}", name, lastCommittedPosition);
+                result.complete(lastCommittedPosition);
+            }
+
+            @Override
+            public void terminateFailed(ManagedLedgerException exception, Object ctx) {
+                log.info("[{}] topic failed to terminate and migrate ", name, exception);
+                result.completeExceptionally(exception);
+            }
+        }, null);
+        return result;
+    }
+
     @Override
     public synchronized void asyncTerminate(TerminateCallback callback, Object ctx) {
         if (state == State.Fenced) {
@@ -1361,6 +1385,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     @Override
     public boolean isTerminated() {
         return state == State.Terminated;
+    }
+
+    @Override
+    public boolean isMigrated() {
+        return migrated;
     }
 
     @Override
