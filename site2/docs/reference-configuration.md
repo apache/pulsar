@@ -10,7 +10,7 @@ sidebar_label: "Pulsar configuration"
 You can manage Pulsar configuration by configuration files in the [`conf`](https://github.com/apache/pulsar/tree/master/conf) directory of a Pulsar [installation](getting-started-standalone.md).
 
 - [BookKeeper](#bookkeeper)
-- [Broker](#broker)
+- [Broker](./reference-configuration-broker.md)
 - [Client](#client)
 - [Log4j](#log4j)
 - [Log4j shell](#log4j-shell)
