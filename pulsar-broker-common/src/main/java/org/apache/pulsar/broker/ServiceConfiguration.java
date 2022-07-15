@@ -2810,9 +2810,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     public String getMetadataStoreUrl() {
         if (StringUtils.isNotBlank(metadataStoreUrl)) {
             return metadataStoreUrl;
-        } else {
+        } else if (StringUtils.isNotBlank(zookeeperServers)) {
             // Fallback to old setting
             return ZKMetadataStore.ZK_SCHEME_IDENTIFIER + zookeeperServers;
+        } else {
+            return "";
         }
     }
 
