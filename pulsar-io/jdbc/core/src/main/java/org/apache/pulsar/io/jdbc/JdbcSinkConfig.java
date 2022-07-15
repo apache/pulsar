@@ -86,6 +86,35 @@ public class JdbcSinkConfig implements Serializable {
     )
     private int batchSize = 200;
 
+    @FieldDoc(
+            required = false,
+            defaultValue = "INSERT",
+            help = "If it is configured as UPSERT, the sink will use upsert semantics rather than "
+                    + "plain INSERT/UPDATE statements. Upsert semantics refer to atomically adding a new row or "
+                    + "updating the existing row if there is a primary key constraint violation, "
+                    + "which provides idempotence."
+    )
+    private InsertMode insertMode = InsertMode.INSERT;
+
+    @FieldDoc(
+            required = false,
+            defaultValue = "FAIL",
+            help = "How to handle records with null values, possible options are DELETE or FAIL."
+    )
+    private NullValueAction nullValueAction = NullValueAction.FAIL;
+
+    public enum InsertMode {
+        INSERT,
+        UPSERT,
+        UPDATE;
+    }
+
+    public enum NullValueAction {
+        FAIL,
+        DELETE
+    }
+
+
     public static JdbcSinkConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         return mapper.readValue(new File(yamlFile), JdbcSinkConfig.class);

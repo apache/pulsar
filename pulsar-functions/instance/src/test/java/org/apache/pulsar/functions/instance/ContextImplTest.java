@@ -151,6 +151,13 @@ public class ContextImplTest {
     }
 
     @Test
+    public void testGetSourceConfig() {
+        SinkContext sourceContext = context;
+        SinkConfig sinkConfig = sourceContext.getSinkConfig();
+        Assert.assertNotNull(sinkConfig);
+    }
+
+    @Test
     public void testIncrCounterStateEnabled() throws Exception {
         context.defaultStateStore = mock(BKStateStoreImpl.class);
         context.incrCounterAsync("test-key", 10L);

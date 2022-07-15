@@ -245,8 +245,7 @@ public class CmdProduce {
         int numMessagesSent = 0;
         int returnCode = 0;
 
-        try {
-            PulsarClient client = clientBuilder.build();
+        try (PulsarClient client = clientBuilder.build()){
             Schema<?> schema = buildSchema(this.keySchema, this.valueSchema, this.keyValueEncodingType);
             ProducerBuilder<?> producerBuilder = client.newProducer(schema).topic(topic);
             if (this.chunkingAllowed) {
@@ -259,59 +258,59 @@ public class CmdProduce {
                 producerBuilder.addEncryptionKey(this.encKeyName);
                 producerBuilder.defaultCryptoKeyReader(this.encKeyValue);
             }
-            Producer<?> producer = producerBuilder.create();
+            try (Producer<?> producer = producerBuilder.create();) {
 
-            List<byte[]> messageBodies = generateMessageBodies(this.messages, this.messageFileNames);
-            RateLimiter limiter = (this.publishRate > 0) ? RateLimiter.create(this.publishRate) : null;
+                List<byte[]> messageBodies = generateMessageBodies(this.messages, this.messageFileNames);
+                RateLimiter limiter = (this.publishRate > 0) ? RateLimiter.create(this.publishRate) : null;
 
-            Map<String, String> kvMap = new HashMap<>();
-            for (String property : properties) {
-                String [] kv = property.split("=");
-                kvMap.put(kv[0], kv[1]);
-            }
+                Map<String, String> kvMap = new HashMap<>();
+                for (String property : properties) {
+                    String[] kv = property.split("=");
+                    kvMap.put(kv[0], kv[1]);
+                }
 
-            for (int i = 0; i < this.numTimesProduce; i++) {
-                for (byte[] content : messageBodies) {
-                    if (limiter != null) {
-                        limiter.acquire();
+                for (int i = 0; i < this.numTimesProduce; i++) {
+                    for (byte[] content : messageBodies) {
+                        if (limiter != null) {
+                            limiter.acquire();
+                        }
+
+                        TypedMessageBuilder message = producer.newMessage();
+
+                        if (!kvMap.isEmpty()) {
+                            message.properties(kvMap);
+                        }
+
+                        switch (keyValueEncodingType) {
+                            case KEY_VALUE_ENCODING_TYPE_NOT_SET:
+                                if (key != null && !key.isEmpty()) {
+                                    message.key(key);
+                                }
+                                message.value(content);
+                                break;
+                            case KEY_VALUE_ENCODING_TYPE_SEPARATED:
+                            case KEY_VALUE_ENCODING_TYPE_INLINE:
+                                KeyValue kv = new KeyValue<>(
+                                        // TODO: support AVRO encoded key
+                                        key != null ? key.getBytes(StandardCharsets.UTF_8) : null,
+                                        content);
+                                message.value(kv);
+                                break;
+                            default:
+                                throw new IllegalStateException();
+                        }
+
+                        if (disableReplication) {
+                            message.disableReplication();
+                        }
+
+                        message.send();
+
+
+                        numMessagesSent++;
                     }
-
-                    TypedMessageBuilder message = producer.newMessage();
-
-                    if (!kvMap.isEmpty()) {
-                        message.properties(kvMap);
-                    }
-
-                    switch (keyValueEncodingType) {
-                        case KEY_VALUE_ENCODING_TYPE_NOT_SET:
-                            if (key != null && !key.isEmpty()) {
-                                message.key(key);
-                            }
-                            message.value(content);
-                            break;
-                        case KEY_VALUE_ENCODING_TYPE_SEPARATED:
-                        case KEY_VALUE_ENCODING_TYPE_INLINE:
-                            KeyValue kv = new KeyValue<>(
-                                    // TODO: support AVRO encoded key
-                                    key != null ? key.getBytes(StandardCharsets.UTF_8) : null,
-                                    content);
-                            message.value(kv);
-                            break;
-                        default:
-                            throw new IllegalStateException();
-                    }
-
-                    if (disableReplication) {
-                        message.disableReplication();
-                    }
-
-                    message.send();
-
-
-                    numMessagesSent++;
                 }
             }
-            client.close();
         } catch (Exception e) {
             LOG.error("Error while producing messages");
             LOG.error(e.getMessage(), e);

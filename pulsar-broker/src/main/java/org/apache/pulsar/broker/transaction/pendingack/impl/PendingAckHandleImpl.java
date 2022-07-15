@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.transaction.pendingack.impl;
 import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.andAckSet;
 import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.compareToWithAckSet;
 import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.isAckSetOverlap;
-import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -528,9 +527,10 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                         if (cumulativeAckOfTransaction.getKey().equals(txnId)) {
                             cumulativeAckOfTransaction = null;
                         }
-                        //TODO: pendingAck handle next pr will fix
-                        persistentSubscription.redeliverUnacknowledgedMessages(consumer, DEFAULT_CONSUMER_EPOCH);
                         abortFuture.complete(null);
+
+                        // in cumulative ack with transaction, don't depend on server redeliver message,
+                        // it will cause the messages to be out of order
                     }).exceptionally(e -> {
                         log.error("[{}] Transaction pending ack store abort txnId : [{}] fail!",
                                 topicName, txnId, e);

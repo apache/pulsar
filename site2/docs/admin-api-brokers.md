@@ -10,15 +10,17 @@ import TabItem from '@theme/TabItem';
 ````
 
 
-> **Important**
->
-> This page only shows **some frequently used operations**.
->
-> - For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more information, see [Pulsar admin doc](/tools/pulsar-admin/).
-> 
-> - For the latest and complete information about `REST API`, including parameters, responses, samples, and more, see {@inject: rest:REST:/} API doc.
-> 
-> - For the latest and complete information about `Java admin API`, including classes, methods, descriptions, and more, see [Java admin API doc](/api/admin/).
+:::tip
+
+ This page only shows **some frequently used operations**.
+
+ - For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more information, see [Pulsar admin doc](/tools/pulsar-admin/).
+ 
+ - For the latest and complete information about `REST API`, including parameters, responses, samples, and more, see {@inject: rest:REST:/} API doc.
+ 
+ - For the latest and complete information about `Java admin API`, including classes, methods, descriptions, and more, see [Java admin API doc](/api/admin/).
+
+:::
 
 Pulsar brokers consist of two components:
 
@@ -38,37 +40,6 @@ In addition to being configurable when you start them up, brokers can also be [d
 ## Brokers resources
 
 ### List active brokers
-
-Fetch all available active brokers that are serving traffic for local cluster .
-
-````mdx-code-block
-<Tabs groupId="api-choice"
-  defaultValue="pulsar-admin"
-  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
-<TabItem value="pulsar-admin">
-
-```shell
-$ pulsar-admin brokers list
-broker1.use.org.com:8080
-```
-
-</TabItem>
-<TabItem value="REST API">
-
-{@inject: endpoint|GET|/admin/v2/brokers|operation/getActiveBrokers?version=[[pulsar:version_number]]}
-
-
-</TabItem>
-<TabItem value="Java">
-
-```java
-admin.brokers().getActiveBrokers()
-```
-
-</TabItem>
-
-</Tabs>
-````
 
 Fetch all available active brokers that are serving traffic with cluster name.
 

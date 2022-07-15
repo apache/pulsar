@@ -23,8 +23,6 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.common.stats.JvmMetrics.getJvmDirectMemoryUsed;
-import static org.slf4j.bridge.SLF4JBridgeHandler.install;
-import static org.slf4j.bridge.SLF4JBridgeHandler.removeHandlersForRootLogger;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.google.common.annotations.VisibleForTesting;
@@ -107,11 +105,6 @@ public class ProxyServiceStarter {
 
     public ProxyServiceStarter(String[] args) throws Exception {
         try {
-
-            // setup handlers
-            removeHandlersForRootLogger();
-            install();
-
             DateFormat dateFormat = new SimpleDateFormat(
                 FixedDateFormat.FixedFormat.ISO8601_OFFSET_DATE_TIME_HHMM.getPattern());
             Thread.setDefaultUncaughtExceptionHandler((thread, exception) -> {
