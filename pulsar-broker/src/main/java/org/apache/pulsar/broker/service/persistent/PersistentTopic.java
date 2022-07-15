@@ -2195,6 +2195,15 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             CompletableFuture<Void> replCloseFuture = new CompletableFuture<>();
 
             if (TopicName.get(topic).isGlobal()) {
+                // topics with remote (replication) producer should be skipped
+                if (hasRemoteProducers()) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Global topic has connected remote producers. Not a candidate for GC",
+                                topic);
+                    }
+                    return;
+                }
+
                 // For global namespace, close repl producers first.
                 // Once all repl producers are closed, we can delete the topic,
                 // provided no remote producers connected to the broker.
@@ -2203,18 +2212,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         maxInactiveDurationInSec);
                 }
                 closeReplProducersIfNoBacklog().thenRun(() -> {
-                    if (hasRemoteProducers()) {
-                        if (log.isDebugEnabled()) {
-                            log.debug("[{}] Global topic has connected remote producers. Not a candidate for GC",
-                                    topic);
-                        }
-                        replCloseFuture
-                                .completeExceptionally(new TopicBusyException("Topic has connected remote producers"));
-                    } else {
-                        log.info("[{}] Global topic inactive for {} seconds, closed repl producers", topic,
-                            maxInactiveDurationInSec);
-                        replCloseFuture.complete(null);
-                    }
+                    log.info("[{}] Global topic inactive for {} seconds, closed repl producers", topic,
+                        maxInactiveDurationInSec);
+                    replCloseFuture.complete(null);
                 }).exceptionally(e -> {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] Global topic has replication backlog. Not a candidate for GC", topic);
