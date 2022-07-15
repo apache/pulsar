@@ -154,8 +154,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
                 entry.release();
                 individualAcknowledgeMessageIfNeeded(pos, Collections.emptyMap());
                 continue;
-            } else if (msgMetadata.hasDeliverAtTime()
-                    && trackDelayedDelivery(entry.getLedgerId(), entry.getEntryId(), msgMetadata)) {
+            } else if (trackDelayedDelivery(entry.getLedgerId(), entry.getEntryId(), msgMetadata)) {
                 // The message is marked for delayed delivery. Ignore for now.
                 entries.set(i, null);
                 entry.release();
