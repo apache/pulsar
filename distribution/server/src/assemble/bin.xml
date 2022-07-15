@@ -24,6 +24,7 @@
   <id>bin</id>
   <formats>
     <format>tar.gz</format>
+    <format>dir</format>
   </formats>
   <includeBaseDirectory>true</includeBaseDirectory>
   <moduleSets>
