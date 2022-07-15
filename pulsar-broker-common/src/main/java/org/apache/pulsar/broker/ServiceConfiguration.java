@@ -2796,6 +2796,67 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private Set<String> additionalServlets = new TreeSet<>();
 
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            dynamic = true,
+            doc = "Provide a mechanism allowing the Transaction Log Store to aggregate multiple records into a batched"
+                    + " record and persist into a single BK entry. This will make Pulsar transactions work more"
+                    + " efficiently, aka batched log. see: https://github.com/apache/pulsar/issues/15370. Default false"
+    )
+    private boolean transactionLogBatchedWriteEnabled = false;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "If enabled the feature that transaction log batch, this attribute means maximum log records count"
+                    + " in a batch, default 512."
+    )
+    private int transactionLogBatchedWriteMaxRecords = 512;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "If enabled the feature that transaction log batch, this attribute means bytes size in a"
+                    + " batch, default 4m."
+    )
+    private int transactionLogBatchedWriteMaxSize = 1024 * 1024 * 4;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "If enabled the feature that transaction log batch, this attribute means maximum wait time(in millis)"
+                    + " for the first record in a batch, default 1."
+    )
+    private int transactionLogBatchedWriteMaxDelayInMillis = 1;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            dynamic = true,
+            doc = "Provide a mechanism allowing the transaction pending ack Log Store to aggregate multiple records"
+                    + " into a batched record and persist into a single BK entry. This will make Pulsar transactions"
+                    + " work more efficiently, aka batched log. see: https://github.com/apache/pulsar/issues/15370."
+                    + " Default false."
+    )
+    private boolean transactionPendingAckBatchedWriteEnabled = false;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "If enabled the feature that transaction log batch, this attribute means maximum log records count"
+                    + " in a batch, default 512."
+    )
+    private int transactionPendingAckBatchedWriteMaxRecords = 512;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "If enabled the feature that transaction pending ack log batch, this attribute means bytes size in"
+                    + " a batch, default 4m."
+    )
+    private int transactionPendingAckBatchedWriteMaxSize = 1024 * 1024 * 4;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "If enabled the feature that transaction pending ack log batch, this attribute means maximum wait"
+                    + " time(in millis) for the first record in a batch, default 1."
+    )
+    private int transactionPendingAckBatchedWriteMaxDelayInMillis = 1;
+
     public String getMetadataStoreUrl() {
         if (StringUtils.isNotBlank(metadataStoreUrl)) {
             return metadataStoreUrl;
