@@ -29,7 +29,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.service.AbstractSubscription;
-import org.apache.pulsar.broker.service.AnaliseBacklogResult;
+import org.apache.pulsar.broker.service.AnalyzeBacklogResult;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
@@ -514,10 +514,10 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
     }
 
     @Override
-    public CompletableFuture<AnaliseBacklogResult> analiseBacklog() {
-        CompletableFuture<AnaliseBacklogResult> completableFuture = new CompletableFuture<>();
+    public CompletableFuture<AnalyzeBacklogResult> analyzeBacklog() {
+        CompletableFuture<AnalyzeBacklogResult> completableFuture = new CompletableFuture<>();
         completableFuture.completeExceptionally(
-                new Exception("Unsupported operation analiseBacklog for NonPersistentSubscription"));
+                new Exception("Unsupported operation analyzeBacklog for NonPersistentSubscription"));
         return completableFuture;
     }
 

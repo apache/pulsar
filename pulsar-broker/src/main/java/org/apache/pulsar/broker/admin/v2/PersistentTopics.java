@@ -1684,7 +1684,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     }
 
     @GET
-    @Path("/{tenant}/{namespace}/{topic}/subscription/{subName}/analiseBacklog")
+    @Path("/{tenant}/{namespace}/{topic}/subscription/{subName}/analyzeBacklog")
     @ApiOperation(value = "Analyse a subscription, by scanning all the unprocessed messages")
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
@@ -1696,7 +1696,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Failed to validate global cluster configuration")
     })
-    public void analiseSubscriptionBacklog(
+    public void analyzeSubscriptionBacklog(
             @Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
@@ -1710,7 +1710,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
             validateTopicName(tenant, namespace, encodedTopic);
-            internalAnaliseSubscriptionBacklog(asyncResponse, decode(encodedSubName),
+            internalAnalyzeSubscriptionBacklog(asyncResponse, decode(encodedSubName),
                     authoritative);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);

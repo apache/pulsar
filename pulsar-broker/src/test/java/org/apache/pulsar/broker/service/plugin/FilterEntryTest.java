@@ -48,7 +48,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.nar.NarClassLoader;
-import org.apache.pulsar.common.stats.AnaliseSubscriptionBacklogResult;
+import org.apache.pulsar.common.stats.AnalyzeSubscriptionBacklogResult;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -125,7 +125,7 @@ public class FilterEntryTest extends BrokerTestBase {
             lastMsgId = (MessageIdImpl) producer.newMessage().property("REJECT", "").value("1").send();
         }
 
-        // analise the subscription and predict that
+        // analyze the subscription and predict that
         // 10 messages will be rejected by the filter
         verifyBacklog(topic, subName, 10, 10, 0, 0, 10, 10, 0, 0);
 
@@ -364,8 +364,8 @@ public class FilterEntryTest extends BrokerTestBase {
                                int numEntriesRejected, int numMessagesRejected,
                                int numEntriesRescheduled, int numMessagesRescheduled
                                ) throws Exception {
-        AnaliseSubscriptionBacklogResult a1
-                = admin.topics().analiseSubscriptionBacklog(topic, subscription);
+        AnalyzeSubscriptionBacklogResult a1
+                = admin.topics().analyzeSubscriptionBacklog(topic, subscription);
 
         Assert.assertEquals(numEntries, a1.getEntries());
         Assert.assertEquals(numEntriesAccepted, a1.getFilterAcceptedEntries());

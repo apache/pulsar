@@ -24,7 +24,7 @@ import org.apache.bookkeeper.mledger.ScanOutcome;
 
 @Data
 @ToString
-public final class AnaliseBacklogResult {
+public final class AnalyzeBacklogResult {
 
     private long entries;
     private long messages;

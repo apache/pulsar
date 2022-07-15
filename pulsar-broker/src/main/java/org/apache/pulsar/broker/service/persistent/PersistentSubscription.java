@@ -57,7 +57,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.service.AbstractBaseDispatcher;
 import org.apache.pulsar.broker.service.AbstractSubscription;
-import org.apache.pulsar.broker.service.AnaliseBacklogResult;
+import org.apache.pulsar.broker.service.AnalyzeBacklogResult;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
@@ -523,11 +523,11 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
     }
 
     @Override
-    public CompletableFuture<AnaliseBacklogResult> analiseBacklog() {
+    public CompletableFuture<AnalyzeBacklogResult> analyzeBacklog() {
 
         long start = System.currentTimeMillis();
         if (log.isDebugEnabled()) {
-            log.debug("[{}][{}] Starting to analise backlog", topicName, subName);
+            log.debug("[{}][{}] Starting to analyze backlog", topicName, subName);
         }
 
         AtomicLong entries = new AtomicLong();
@@ -591,7 +591,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
             }
         }, maxEntries, timeOutMs).thenApply((ScanOutcome outcome) -> {
             long end = System.currentTimeMillis();
-            AnaliseBacklogResult result = new AnaliseBacklogResult();
+            AnalyzeBacklogResult result = new AnalyzeBacklogResult();
             result.setEntries(entries.get());
             result.setMessages(messages.get());
             result.setFilterAcceptedEntries(accepted.get());

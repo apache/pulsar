@@ -86,7 +86,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
-import org.apache.pulsar.broker.service.AnaliseBacklogResult;
+import org.apache.pulsar.broker.service.AnalyzeBacklogResult;
 import org.apache.pulsar.broker.service.BrokerServiceException.AlreadyRunningException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionInvalidCursorPosition;
@@ -150,7 +150,7 @@ import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.policies.data.stats.PartitionedTopicStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.protocol.Commands;
-import org.apache.pulsar.common.stats.AnaliseSubscriptionBacklogResult;
+import org.apache.pulsar.common.stats.AnalyzeSubscriptionBacklogResult;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
@@ -1589,7 +1589,7 @@ public class PersistentTopicsBase extends AdminResource {
             });
     }
 
-    private void internalAnaliseSubscriptionBacklogForNonPartitionedTopic(AsyncResponse asyncResponse,
+    private void internalAnalyzeSubscriptionBacklogForNonPartitionedTopic(AsyncResponse asyncResponse,
                                                                           String subName,
                                                                           boolean authoritative) {
         validateTopicOwnershipAsync(topicName, authoritative)
@@ -1601,11 +1601,11 @@ public class PersistentTopicsBase extends AdminResource {
                                 throw new RestException(Status.NOT_FOUND,
                                         getSubNotFoundErrorMessage(topicName.toString(), subName));
                             }
-                            return sub.analiseBacklog();
+                            return sub.analyzeBacklog();
                         })
-                .thenAccept((AnaliseBacklogResult rawResult) -> {
+                .thenAccept((AnalyzeBacklogResult rawResult) -> {
 
-                        AnaliseSubscriptionBacklogResult result = new AnaliseSubscriptionBacklogResult();
+                        AnalyzeSubscriptionBacklogResult result = new AnalyzeSubscriptionBacklogResult();
                         result.setEntries(rawResult.getEntries());
                         result.setMessages(rawResult.getMessages());
 
@@ -1617,14 +1617,14 @@ public class PersistentTopicsBase extends AdminResource {
                         result.setFilterRejectedMessages(rawResult.getFilterRejectedMessages());
                         result.setFilterRescheduledMessages(rawResult.getFilterRescheduledMessages());
                         result.setAborted(rawResult.getScanOutcome() != ScanOutcome.COMPLETED);
-                        log.info("[{}] analiseBacklog topic {} subscription {} result {}", clientAppId(), subName,
+                        log.info("[{}] analyzeBacklog topic {} subscription {} result {}", clientAppId(), subName,
                             topicName, result);
                         asyncResponse.resume(result);
                 }).exceptionally(ex -> {
                     Throwable cause = ex.getCause();
                     // If the exception is not redirect exception we need to log it.
                     if (!isRedirectException(ex)) {
-                        log.error("[{}] Failed to analise subscription backlog {} {}",
+                        log.error("[{}] Failed to analyze subscription backlog {} {}",
                                 clientAppId(), topicName, subName, cause);
                     }
                     asyncResponse.resume(new RestException(cause));
@@ -2444,7 +2444,7 @@ public class PersistentTopicsBase extends AdminResource {
         });
     }
 
-    protected void internalAnaliseSubscriptionBacklog(AsyncResponse asyncResponse, String subName,
+    protected void internalAnalyzeSubscriptionBacklog(AsyncResponse asyncResponse, String subName,
                                                       boolean authoritative) {
         CompletableFuture<Void> future;
         if (topicName.isGlobal()) {
@@ -2457,14 +2457,14 @@ public class PersistentTopicsBase extends AdminResource {
             if (!topicName.isPartitioned() && getPartitionedTopicMetadata(topicName,
                     authoritative, false).partitions > 0) {
                 throw new RestException(Status.METHOD_NOT_ALLOWED,
-                        "Analise backlog on a partitioned topic is not allowed, "
+                        "Analyze backlog on a partitioned topic is not allowed, "
                                 + "please try do it on specific topic partition");
             }
-            internalAnaliseSubscriptionBacklogForNonPartitionedTopic(asyncResponse, subName, authoritative);
+            internalAnalyzeSubscriptionBacklogForNonPartitionedTopic(asyncResponse, subName, authoritative);
         }).exceptionally(ex -> {
             // If the exception is not redirect exception we need to log it.
             if (!isRedirectException(ex)) {
-                log.error("[{}] Failed to analise back log of subscription {} from topic {}",
+                log.error("[{}] Failed to analyze back log of subscription {} from topic {}",
                         clientAppId(), subName, topicName, ex);
             }
             resumeAsyncResponseExceptionally(asyncResponse, ex);

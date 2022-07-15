@@ -46,7 +46,7 @@ import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TopicStats;
-import org.apache.pulsar.common.stats.AnaliseSubscriptionBacklogResult;
+import org.apache.pulsar.common.stats.AnalyzeSubscriptionBacklogResult;
 
 /**
  * Admin interface for Topics management.
@@ -2052,7 +2052,7 @@ public interface Topics {
             throws PulsarAdminException;
 
     /**
-     * Analise subscription backlog.
+     * Analyze subscription backlog.
      * This is a potentially expensive operation, as it requires
      * to read the messages from storage.
      * This function takes into consideration batch messages
@@ -2065,11 +2065,11 @@ public interface Topics {
      * @throws PulsarAdminException
      *            Unexpected error
      */
-    AnaliseSubscriptionBacklogResult analiseSubscriptionBacklog(String topic, String subscriptionName)
+    AnalyzeSubscriptionBacklogResult analyzeSubscriptionBacklog(String topic, String subscriptionName)
             throws PulsarAdminException;
 
     /**
-     * Analise subscription backlog.
+     * Analyze subscription backlog.
      * This is a potentially expensive operation, as it requires
      * to read the messages from storage.
      * This function takes into consideration batch messages
@@ -2082,7 +2082,7 @@ public interface Topics {
      * @throws PulsarAdminException
      *            Unexpected error
      */
-    CompletableFuture<AnaliseSubscriptionBacklogResult> analiseSubscriptionBacklogAsync(String topic,
+    CompletableFuture<AnalyzeSubscriptionBacklogResult> analyzeSubscriptionBacklogAsync(String topic,
                                                                                         String subscriptionName);
 
     /**

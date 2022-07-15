@@ -23,7 +23,7 @@ import lombok.ToString;
 
 @Data
 @ToString
-public class AnaliseSubscriptionBacklogResult {
+public class AnalyzeSubscriptionBacklogResult {
     private long entries;
     private long messages;
 

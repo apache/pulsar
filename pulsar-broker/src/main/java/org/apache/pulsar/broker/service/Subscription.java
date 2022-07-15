@@ -111,7 +111,7 @@ public interface Subscription {
 
     CompletableFuture<Void> endTxn(long txnidMostBits, long txnidLeastBits, int txnAction, long lowWaterMark);
 
-    CompletableFuture<AnaliseBacklogResult> analiseBacklog();
+    CompletableFuture<AnalyzeBacklogResult> analyzeBacklog();
 
     default int getNumberOfSameAddressConsumers(final String clientAddress) {
         int count = 0;

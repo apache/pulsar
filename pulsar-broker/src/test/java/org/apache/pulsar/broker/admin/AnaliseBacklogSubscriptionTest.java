@@ -27,7 +27,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.common.stats.AnaliseSubscriptionBacklogResult;
+import org.apache.pulsar.common.stats.AnalyzeSubscriptionBacklogResult;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -43,7 +43,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertThrows;
 
 @Test(groups = "broker-admin")
-public class AnaliseBacklogSubscriptionTest extends ProducerConsumerBase {
+public class AnalyzeBacklogSubscriptionTest extends ProducerConsumerBase {
 
     @BeforeMethod
     @Override
@@ -59,16 +59,16 @@ public class AnaliseBacklogSubscriptionTest extends ProducerConsumerBase {
     }
 
     @Test
-    public void simpleAnaliseBacklogTest() throws Exception {
-        simpleAnaliseBacklogTest(false);
+    public void simpleAnalyzeBacklogTest() throws Exception {
+        simpleAnalyzeBacklogTest(false);
     }
 
     @Test
-    public void simpleAnaliseBacklogTestWithBatching() throws Exception {
-        simpleAnaliseBacklogTest(true);
+    public void simpleAnalyzeBacklogTestWithBatching() throws Exception {
+        simpleAnalyzeBacklogTest(true);
     }
 
-    private void simpleAnaliseBacklogTest(boolean batching) throws Exception {
+    private void simpleAnalyzeBacklogTest(boolean batching) throws Exception {
         int numMessages = 20;
         int batchSize = batching ? 5 : 1;
         int numEntries = numMessages / batchSize;
@@ -153,21 +153,21 @@ public class AnaliseBacklogSubscriptionTest extends ProducerConsumerBase {
     }
 
     private void verifyBacklog(String topic, String subscription, int numEntries, int numMessages) throws Exception {
-        AnaliseSubscriptionBacklogResult analiseSubscriptionBacklogResult
-                = admin.topics().analiseSubscriptionBacklog(topic, subscription);
+        AnalyzeSubscriptionBacklogResult analyzeSubscriptionBacklogResult
+                = admin.topics().analyzeSubscriptionBacklog(topic, subscription);
 
-        assertEquals(numEntries, analiseSubscriptionBacklogResult.getEntries());
-        assertEquals(numEntries, analiseSubscriptionBacklogResult.getFilterAcceptedEntries());
-        assertEquals(0, analiseSubscriptionBacklogResult.getFilterRejectedEntries());
-        assertEquals(0, analiseSubscriptionBacklogResult.getFilterRescheduledEntries());
-        assertEquals(0, analiseSubscriptionBacklogResult.getFilterRescheduledEntries());
+        assertEquals(numEntries, analyzeSubscriptionBacklogResult.getEntries());
+        assertEquals(numEntries, analyzeSubscriptionBacklogResult.getFilterAcceptedEntries());
+        assertEquals(0, analyzeSubscriptionBacklogResult.getFilterRejectedEntries());
+        assertEquals(0, analyzeSubscriptionBacklogResult.getFilterRescheduledEntries());
+        assertEquals(0, analyzeSubscriptionBacklogResult.getFilterRescheduledEntries());
 
-        assertEquals(numMessages, analiseSubscriptionBacklogResult.getMessages());
-        assertEquals(numMessages, analiseSubscriptionBacklogResult.getFilterAcceptedMessages());
-        assertEquals(0, analiseSubscriptionBacklogResult.getFilterRejectedMessages());
+        assertEquals(numMessages, analyzeSubscriptionBacklogResult.getMessages());
+        assertEquals(numMessages, analyzeSubscriptionBacklogResult.getFilterAcceptedMessages());
+        assertEquals(0, analyzeSubscriptionBacklogResult.getFilterRejectedMessages());
 
-        assertEquals(0, analiseSubscriptionBacklogResult.getFilterRescheduledMessages());
-        assertFalse(analiseSubscriptionBacklogResult.isAborted());
+        assertEquals(0, analyzeSubscriptionBacklogResult.getFilterRescheduledMessages());
+        assertFalse(analyzeSubscriptionBacklogResult.isAborted());
     }
 
 
@@ -181,13 +181,13 @@ public class AnaliseBacklogSubscriptionTest extends ProducerConsumerBase {
 
         // you cannot use this feature on a partitioned topic
         assertThrows(PulsarAdminException.NotAllowedException.class, () -> {
-            admin.topics().analiseSubscriptionBacklog(topic, "sub-1");
+            admin.topics().analyzeSubscriptionBacklog(topic, "sub-1");
         });
 
         // you can access single partitions
-        AnaliseSubscriptionBacklogResult analiseSubscriptionBacklogResult
-                = admin.topics().analiseSubscriptionBacklog(topic + "-partition-0", "sub-1");
-        assertEquals(0, analiseSubscriptionBacklogResult.getEntries());
+        AnalyzeSubscriptionBacklogResult analyzeSubscriptionBacklogResult
+                = admin.topics().analyzeSubscriptionBacklog(topic + "-partition-0", "sub-1");
+        assertEquals(0, analyzeSubscriptionBacklogResult.getEntries());
     }
 
 }
