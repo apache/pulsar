@@ -114,7 +114,9 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
         priorityQueue.add(deliverAt, ledgerId, entryId);
         updateTimer();
 
-        if (deliverAt < highestDeliveryTimeTracked) {
+        // Check that new delivery time comes after the current highest, or at
+        // least within a single tick time interval of 1 second.
+        if (deliverAt < (highestDeliveryTimeTracked - tickTimeMillis)) {
             messagesHaveFixedDelay = false;
         }
 
