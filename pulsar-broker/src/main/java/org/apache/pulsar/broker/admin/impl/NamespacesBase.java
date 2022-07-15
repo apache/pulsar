@@ -2784,11 +2784,11 @@ public abstract class NamespacesBase extends AdminResource {
            return policies;
        }).thenAccept(v -> {
            asyncResponse.resume(Response.noContent().build());
-           log.info("[{}] Successfully clear {} properties for on namespace {}", clientAppId(), clearedCount.get(),
+           log.info("[{}] Successfully clear {} properties on namespace {}", clientAppId(), clearedCount.get(),
                    namespaceName);
        }).exceptionally(ex -> {
            Throwable cause = ex.getCause();
-           log.error("[{}] Failed to remove property for key {} on namespace {}", clientAppId(), clearedCount.get(),
+           log.error("[{}] Failed to clear {} properties on namespace {}", clientAppId(), clearedCount.get(),
                    namespaceName, cause);
            asyncResponse.resume(cause);
            return null;
