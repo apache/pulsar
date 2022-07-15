@@ -55,6 +55,7 @@ import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.client.impl.TopicMessageImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -367,6 +368,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
                 .startMessageId(MessageId.latest);
 
         if (startInclusive) {
+            // When enabled, the first message is my-message-9
             readerBuilder.startMessageIdInclusive();
         }
 
@@ -381,12 +383,13 @@ public class TopicReaderTest extends ProducerConsumerBase {
         for (int i = halfOfMsgs; i < numOfMessages; i++) {
             Message<byte[]> message = reader.readNext();
             String receivedMessage = new String(message.getData());
-            String expectedMessage = String.format("my-message-%d", i);
+            String expectedMessage = String.format("my-message-%d", startInclusive ? i - 1 : i);
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }
 
         assertTrue(reader.isConnected());
-        assertEquals(((ReaderImpl) reader).getConsumer().numMessagesInQueue(), 0);
+        Awaitility.await().untilAsserted(
+                () -> assertEquals(((ReaderImpl) reader).getConsumer().numMessagesInQueue(), startInclusive ? 1 : 0));
         assertEquals(messageSet.size(), halfOfMsgs);
 
         // Acknowledge the consumption of all messages at once
@@ -397,11 +400,13 @@ public class TopicReaderTest extends ProducerConsumerBase {
     @Test(dataProvider = "variationsForResetOnLatestMsg")
     public void testMultiReaderOnLatestMessage(boolean startInclusive, int numOfMessages) throws Exception {
         final String topicName = "persistent://my-property/my-ns/testMultiReaderOnLatestMessage" + System.currentTimeMillis();
-        admin.topics().createPartitionedTopic(topicName, 3);
+        final int numPartitions = 3;
+        admin.topics().createPartitionedTopic(topicName, numPartitions);
         final int halfOfMsgs = numOfMessages / 2;
 
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topicName)
+                .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
                 .create();
 
         Set<byte[]> oldMessage = new HashSet<>();
@@ -435,7 +440,8 @@ public class TopicReaderTest extends ProducerConsumerBase {
         }
 
         assertTrue(reader.isConnected());
-        assertEquals(((MultiTopicsReaderImpl) reader).getMultiTopicsConsumer().numMessagesInQueue(), 0);
+        assertEquals(((MultiTopicsReaderImpl) reader).getMultiTopicsConsumer().numMessagesInQueue(),
+                startInclusive ? numPartitions : 0);
         assertEquals(messageSet.size(), halfOfMsgs);
 
         producer.close();
@@ -1448,6 +1454,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
                 .startMessageId(resetPos.get());
 
         if (startInclusive) {
+            // When enabled, the first message is my-message-9
             readerBuilder.startMessageIdInclusive();
         }
 

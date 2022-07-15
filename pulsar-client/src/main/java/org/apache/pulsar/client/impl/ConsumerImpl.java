@@ -865,7 +865,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     InitialPosition.valueOf(subscriptionInitialPosition.getValue()),
                     startMessageRollbackDuration, si, createTopicIfDoesNotExist, conf.getKeySharedPolicy(),
                     // Use the current epoch to subscribe.
-                    conf.getSubscriptionProperties(), CONSUMER_EPOCH.get(this));
+                    conf.getSubscriptionProperties(), CONSUMER_EPOCH.get(this), conf.isResetIncludeHead());
 
             cnx.sendRequestWithId(request, requestId).thenRun(() -> {
                 synchronized (ConsumerImpl.this) {

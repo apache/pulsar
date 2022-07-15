@@ -394,6 +394,9 @@ message CommandSubscribe {
 
     // The consumer epoch, when exclusive and failover consumer redeliver unack message will increase the epoch
     optional uint64 consumer_epoch = 19;
+
+    // If specified, the subscription will read the message from start message id position.
+    optional bool start_message_id_inclusive = 20 [default = false];
 }
 
 message CommandPartitionedTopicMetadata {

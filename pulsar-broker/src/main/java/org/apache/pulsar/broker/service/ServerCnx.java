@@ -976,6 +976,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         final KeySharedMeta keySharedMeta = subscribe.hasKeySharedMeta()
               ? new KeySharedMeta().copyFrom(subscribe.getKeySharedMeta())
               : emptyKeySharedMeta;
+        final boolean startMessageIdInclusive = subscribe.isStartMessageIdInclusive();
 
         if (log.isDebugEnabled()) {
             log.debug("Topic name = {}, subscription name = {}, schema is {}", topicName, subscriptionName,
@@ -1083,6 +1084,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                     .replicatedSubscriptionStateArg(isReplicated).keySharedMeta(keySharedMeta)
                                     .subscriptionProperties(subscriptionProperties)
                                     .consumerEpoch(consumerEpoch)
+                                    .startMessageIdInclusive(startMessageIdInclusive)
                                     .build();
                             if (schema != null) {
                                 return topic.addSchemaIfIdleOrCheckCompatible(schema)

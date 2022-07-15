@@ -677,7 +677,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 option.getStartMessageId(), option.getMetadata(), option.isReadCompacted(),
                 option.getInitialPosition(), option.getStartMessageRollbackDurationSec(),
                 option.isReplicatedSubscriptionStateArg(), option.getKeySharedMeta(),
-                option.getSubscriptionProperties().orElse(Collections.emptyMap()), option.getConsumerEpoch());
+                option.getSubscriptionProperties().orElse(Collections.emptyMap()), option.getConsumerEpoch(),
+                option.isStartMessageIdInclusive());
     }
 
     private CompletableFuture<Consumer> internalSubscribe(final TransportCnx cnx, String subscriptionName,
@@ -690,7 +691,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                                           boolean replicatedSubscriptionStateArg,
                                                           KeySharedMeta keySharedMeta,
                                                           Map<String, String> subscriptionProperties,
-                                                          long consumerEpoch) {
+                                                          long consumerEpoch,
+                                                          boolean startMessageIdInclusive
+    ) {
         if (readCompacted && !(subType == SubType.Failover || subType == SubType.Exclusive)) {
             return FutureUtil.failedFuture(new NotAllowedException(
                     "readCompacted only allowed on failover or exclusive subscriptions"));
@@ -771,9 +774,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
             CompletableFuture<? extends Subscription> subscriptionFuture = isDurable ? //
                     getDurableSubscription(subscriptionName, initialPosition, startMessageRollbackDurationSec,
-                            replicatedSubscriptionState, subscriptionProperties)
+                            replicatedSubscriptionState, subscriptionProperties, startMessageIdInclusive)
                     : getNonDurableSubscription(subscriptionName, startMessageId, initialPosition,
-                    startMessageRollbackDurationSec, readCompacted, subscriptionProperties);
+                    startMessageRollbackDurationSec, readCompacted, subscriptionProperties, startMessageIdInclusive);
 
             CompletableFuture<Consumer> future = subscriptionFuture.thenCompose(subscription -> {
                 Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel,
@@ -853,14 +856,17 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                                  long startMessageRollbackDurationSec,
                                                  boolean replicatedSubscriptionStateArg,
                                                  KeySharedMeta keySharedMeta) {
-        return internalSubscribe(cnx, subscriptionName, consumerId, subType, priorityLevel, consumerName,
-                isDurable, startMessageId, metadata, readCompacted, initialPosition, startMessageRollbackDurationSec,
-                replicatedSubscriptionStateArg, keySharedMeta, null, DEFAULT_CONSUMER_EPOCH);
+        return internalSubscribe(cnx, subscriptionName, consumerId, subType, priorityLevel, consumerName, isDurable,
+                startMessageId, metadata, readCompacted, initialPosition, startMessageRollbackDurationSec,
+                replicatedSubscriptionStateArg, keySharedMeta, null, DEFAULT_CONSUMER_EPOCH, false);
     }
 
     private CompletableFuture<Subscription> getDurableSubscription(String subscriptionName,
-            InitialPosition initialPosition, long startMessageRollbackDurationSec, boolean replicated,
-                                                                   Map<String, String> subscriptionProperties) {
+                                                                   InitialPosition initialPosition,
+                                                                   long startMessageRollbackDurationSec,
+                                                                   boolean replicated,
+                                                                   Map<String, String> subscriptionProperties,
+                                                                   boolean startMessageIdInclusive) {
         CompletableFuture<Subscription> subscriptionFuture = new CompletableFuture<>();
         if (checkMaxSubscriptionsPerTopicExceed(subscriptionName)) {
             subscriptionFuture.completeExceptionally(new NotAllowedException(
@@ -871,7 +877,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         Map<String, Long> properties = PersistentSubscription.getBaseCursorProperties(replicated);
 
         ledger.asyncOpenCursor(Codec.encode(subscriptionName), initialPosition, properties, subscriptionProperties,
-                new OpenCursorCallback() {
+                startMessageIdInclusive, new OpenCursorCallback() {
             @Override
             public void openCursorComplete(ManagedCursor cursor, Object ctx) {
                 if (log.isDebugEnabled()) {
@@ -920,7 +926,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     private CompletableFuture<? extends Subscription> getNonDurableSubscription(String subscriptionName,
             MessageId startMessageId, InitialPosition initialPosition, long startMessageRollbackDurationSec,
-            boolean isReadCompacted, Map<String, String> subscriptionProperties) {
+            boolean isReadCompacted, Map<String, String> subscriptionProperties, boolean startMessageIdInclusive) {
         log.info("[{}][{}] Creating non-durable subscription at msg id {} - {}",
                 topic, subscriptionName, startMessageId, subscriptionProperties);
 
@@ -942,7 +948,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 long ledgerId = msgId.getLedgerId();
                 long entryId = msgId.getEntryId();
                 // Ensure that the start message id starts from a valid entry.
-                if (ledgerId >= 0 && entryId >= 0
+                // When startMessageIdInclusive enabled, we need to skip this step.
+                if (!startMessageIdInclusive && ledgerId >= 0 && entryId >= 0
                         && msgId instanceof BatchMessageIdImpl) {
                     // When the start message is relative to a batch, we need to take one step back on the previous
                     // message,
@@ -955,7 +962,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 ManagedCursor cursor = null;
                 try {
                     cursor = ledger.newNonDurableCursor(startPosition, subscriptionName, initialPosition,
-                            isReadCompacted);
+                            isReadCompacted, startMessageIdInclusive);
                 } catch (ManagedLedgerException e) {
                     return FutureUtil.failedFuture(e);
                 }
@@ -1000,7 +1007,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                                               boolean replicateSubscriptionState,
                                                               Map<String, String> subscriptionProperties) {
         return getDurableSubscription(subscriptionName, initialPosition,
-                0 /*avoid reseting cursor*/, replicateSubscriptionState, subscriptionProperties);
+                0 /*avoid reseting cursor*/, replicateSubscriptionState, subscriptionProperties, false);
     }
 
     /**

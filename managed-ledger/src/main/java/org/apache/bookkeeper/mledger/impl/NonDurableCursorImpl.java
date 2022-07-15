@@ -19,14 +19,12 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import com.google.common.base.MoreObjects;
-import com.google.common.collect.Range;
 import java.util.Map;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,7 +35,7 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
 
     NonDurableCursorImpl(BookKeeper bookkeeper, ManagedLedgerConfig config, ManagedLedgerImpl ledger, String cursorName,
                          PositionImpl startCursorPosition, CommandSubscribe.InitialPosition initialPosition,
-                         boolean isReadCompacted) {
+                         boolean isReadCompacted, boolean inclusive) {
         super(bookkeeper, config, ledger, cursorName);
         this.readCompacted = isReadCompacted;
 
@@ -48,39 +46,46 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
             // Start from last entry
             switch (initialPosition) {
                 case Latest:
-                    initializeCursorPosition(ledger.getLastPositionAndCounter());
+                    initializeCursorPosition(ledger.getLastPositionAndCounter(), inclusive);
                     break;
                 case Earliest:
-                    initializeCursorPosition(ledger.getFirstPositionAndCounter());
+                    initializeCursorPosition(ledger.getFirstPositionAndCounter(), inclusive);
                     break;
             }
         } else if (startCursorPosition.getLedgerId() == PositionImpl.EARLIEST.getLedgerId()) {
             // Start from invalid ledger to read from first available entry
-            recoverCursor(ledger.getPreviousPosition(ledger.getFirstPosition()));
+            recoverCursor(ledger.getFirstPosition(), inclusive);
         } else {
             // Since the cursor is positioning on the mark-delete position, we need to take 1 step back from the desired
             // read-position
-            recoverCursor(startCursorPosition);
+            recoverCursor(startCursorPosition, inclusive);
         }
         STATE_UPDATER.set(this, State.Open);
         log.info("[{}] Created non-durable cursor read-position={} mark-delete-position={}", ledger.getName(),
                 readPosition, markDeletePosition);
     }
 
-    private void recoverCursor(PositionImpl mdPosition) {
-        Pair<PositionImpl, Long> lastEntryAndCounter = ledger.getLastPositionAndCounter();
-        this.readPosition = isReadCompacted() ? mdPosition.getNext() : ledger.getNextValidPosition(mdPosition);
-        markDeletePosition = mdPosition;
+    private void recoverCursor(PositionImpl mdPosition, boolean inclusive) {
+        if (inclusive) {
+            // when entry id is invalid, we need to get a valid position.
+            if (mdPosition.getEntryId() < 0) {
+                readPosition = ledger.getNextValidPosition(mdPosition);
+            } else {
+                readPosition = mdPosition;
+            }
+            markDeletePosition = PositionImpl.get(readPosition.getLedgerId(), readPosition.getEntryId() - 1);
+        } else {
+            readPosition = isReadCompacted() ? mdPosition.getNext() : ledger.getNextValidPosition(mdPosition);
+            markDeletePosition = mdPosition;
+        }
 
         // Initialize the counter such that the difference between the messages written on the ML and the
         // messagesConsumed is equal to the current backlog (negated).
         if (null != this.readPosition) {
-            long initialBacklog = readPosition.compareTo(lastEntryAndCounter.getLeft()) < 0
-                ? ledger.getNumberOfEntries(Range.closed(readPosition, lastEntryAndCounter.getLeft())) : 0;
-            messagesConsumedCounter = lastEntryAndCounter.getRight() - initialBacklog;
+            messagesConsumedCounter = countMessagesConsumed(readPosition);
         } else {
             log.warn("Recovered a non-durable cursor from position {} but didn't find a valid read position {}",
-                mdPosition, readPosition);
+                    mdPosition, readPosition);
         }
     }
 

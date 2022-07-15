@@ -250,6 +250,32 @@ public interface ManagedLedger {
             throws InterruptedException, ManagedLedgerException;
 
     /**
+     * Open a ManagedCursor in this ManagedLedger.
+     * <p>
+     * If the cursors doesn't exist, a new one will be created and its position will be at the end of the ManagedLedger.
+     *
+     * @param name
+     *            the name associated with the ManagedCursor
+     * @param initialPosition
+     *            the cursor will be set at latest position or not when first created
+     *            default is <b>true</b>
+     * @param properties
+     *             user defined properties that will be attached to the first position of the cursor, if the open
+     *             operation will trigger the creation of the cursor.
+     * @param cursorProperties
+     *            the properties for the Cursor
+     * @param inclusive
+     *            whether to start read from the specified position
+     * @return the ManagedCursor
+     * @throws ManagedLedgerException
+     */
+    default ManagedCursor openCursor(String name, InitialPosition initialPosition, Map<String, Long> properties,
+                                     Map<String, String> cursorProperties, boolean inclusive)
+            throws InterruptedException, ManagedLedgerException {
+        return openCursor(name, initialPosition, properties, cursorProperties);
+    }
+
+    /**
      * Creates a new cursor whose metadata is not backed by durable storage. A caller can treat the non-durable cursor
      * exactly like a normal cursor, with the only difference in that after restart it will not remember which entries
      * were deleted. Also it does not prevent data from being deleted.
@@ -268,6 +294,12 @@ public interface ManagedLedger {
     ManagedCursor newNonDurableCursor(Position startPosition, String subscriptionName) throws ManagedLedgerException;
     ManagedCursor newNonDurableCursor(Position startPosition, String subscriptionName, InitialPosition initialPosition,
                                       boolean isReadCompacted) throws ManagedLedgerException;
+
+    default ManagedCursor newNonDurableCursor(Position startPosition, String subscriptionName,
+                                              InitialPosition initialPosition, boolean isReadCompacted,
+                                              boolean inclusive) throws ManagedLedgerException {
+        return newNonDurableCursor(startPosition, subscriptionName, initialPosition, isReadCompacted);
+    }
 
     /**
      * Delete a ManagedCursor asynchronously.
@@ -348,7 +380,32 @@ public interface ManagedLedger {
      *            opaque context
      */
     void asyncOpenCursor(String name, InitialPosition initialPosition, Map<String, Long> properties,
-                         Map<String, String> cursorProperties, OpenCursorCallback callback, Object ctx);
+                         Map<String, String> cursorProperties, OpenCursorCallback callback,
+                         Object ctx);
+
+    /**
+     * Open a ManagedCursor asynchronously.
+     *
+     * @see #openCursor(String)
+     * @param name
+     *            the name associated with the ManagedCursor
+     * @param initialPosition
+     *            the cursor will be set at lastest position or not when first created
+     *            default is <b>true</b>
+     * @param cursorProperties
+     *            the properties for the Cursor
+     * @param inclusive
+     *            whether to read from the specified position
+     * @param callback
+     *            callback object
+     * @param ctx
+     *            opaque context
+     */
+    default void asyncOpenCursor(String name, InitialPosition initialPosition, Map<String, Long> properties,
+                                 Map<String, String> cursorProperties, boolean inclusive, OpenCursorCallback callback,
+                                 Object ctx) {
+        asyncOpenCursor(name, initialPosition, properties, cursorProperties, callback, ctx);
+    }
 
     /**
      * Get a list of all the cursors reading from this ManagedLedger.

@@ -1674,16 +1674,35 @@ public class ManagedCursorImpl implements ManagedCursor {
         return false;
     }
 
-    void initializeCursorPosition(Pair<PositionImpl, Long> lastPositionCounter) {
-        readPosition = ledger.getNextValidPosition(lastPositionCounter.getLeft());
-        markDeletePosition = lastPositionCounter.getLeft();
+    protected long countMessagesConsumed(PositionImpl position) {
+        if (position == null) {
+            return 0;
+        }
+        Pair<PositionImpl, Long> lastEntryAndCounter = ledger.getLastPositionAndCounter();
+        long initialBacklog = position.compareTo(lastEntryAndCounter.getLeft()) < 0
+                ? ledger.getNumberOfEntries(Range.closed(position, lastEntryAndCounter.getLeft())) : 0;
+        return lastEntryAndCounter.getRight() - initialBacklog;
+    }
+
+    void initializeCursorPosition(Pair<PositionImpl, Long> lastPositionCounter, boolean inclusive) {
+        if (inclusive) {
+            // when entry id is invalid, we need to get a valid position.
+            if (lastPositionCounter.getLeft().getEntryId() < 0) {
+                readPosition = ledger.getNextValidPosition(lastPositionCounter.getLeft());
+            } else {
+                readPosition = lastPositionCounter.getLeft();
+            }
+            markDeletePosition = PositionImpl.get(readPosition.getLedgerId(), readPosition.getEntryId() - 1);
+        } else {
+            readPosition = ledger.getNextValidPosition(lastPositionCounter.getLeft());
+            markDeletePosition = lastPositionCounter.getLeft();
+        }
+        // Initialize the counter such that the difference between the messages written on the ML and the
+        // messagesConsumed is 0, to ensure the initial backlog count is 0.
+        messagesConsumedCounter = countMessagesConsumed(readPosition);
         lastMarkDeleteEntry = new MarkDeleteEntry(markDeletePosition, getProperties(), null, null);
         persistentMarkDeletePosition = null;
         inProgressMarkDeletePersistPosition = null;
-
-        // Initialize the counter such that the difference between the messages written on the ML and the
-        // messagesConsumed is 0, to ensure the initial backlog count is 0.
-        messagesConsumedCounter = lastPositionCounter.getRight();
     }
 
     /**

@@ -25,11 +25,10 @@ import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import com.google.common.base.Charsets;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-
+import io.netty.buffer.ByteBuf;
 import java.nio.charset.Charset;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -37,8 +36,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-
-import io.netty.buffer.ByteBuf;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
@@ -52,6 +49,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
+import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
@@ -591,6 +589,100 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
         ManagedCursor c1 = ledger.newNonDurableCursor(PositionImpl.EARLIEST);
         assertEquals(c1.getReadPosition(), p3);
         assertEquals(c1.getMarkDeletedPosition(), new PositionImpl(5, -1));
+    }
+
+    @Test()
+    void subscribeToEarliestPositionWithInclusive() throws Exception {
+        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(1)
+                .setRetentionTime(1, TimeUnit.HOURS).setRetentionSizeInMB(1));
+
+        Position p1 = ledger.addEntry("entry-1".getBytes());
+        ledger.addEntry("entry-2".getBytes());
+        ledger.addEntry("entry-3".getBytes());
+
+        ManagedCursor c1 =
+                ledger.newNonDurableCursor(PositionImpl.EARLIEST, "test", CommandSubscribe.InitialPosition.Earliest,
+                        true, true);
+        assertEquals(c1.getReadPosition(), p1);
+        assertEquals(c1.getMarkDeletedPosition(), new PositionImpl(p1.getLedgerId(), p1.getEntryId() - 1));
+    }
+
+    @Test()
+    void subscribeToLatestPositionWithInclusive() throws Exception {
+        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(1)
+                .setRetentionTime(1, TimeUnit.HOURS).setRetentionSizeInMB(1));
+
+        ledger.addEntry("entry-1".getBytes());
+        ledger.addEntry("entry-2".getBytes());
+        Position p3 = ledger.addEntry("entry-3".getBytes());
+
+        ManagedCursor c1 =
+                ledger.newNonDurableCursor(PositionImpl.LATEST, "test", CommandSubscribe.InitialPosition.Latest, true,
+                        true);
+        assertEquals(c1.getReadPosition(), p3);
+        assertEquals(c1.getMarkDeletedPosition(), new PositionImpl(p3.getLedgerId(), p3.getEntryId() - 1));
+    }
+
+    @Test()
+    void subscribeToEarliestPosition() throws Exception {
+        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(1)
+                .setRetentionTime(1, TimeUnit.HOURS).setRetentionSizeInMB(1));
+
+        Position p1 = ledger.addEntry("entry-1".getBytes());
+        ledger.addEntry("entry-2".getBytes());
+        ledger.addEntry("entry-3".getBytes());
+
+        ManagedCursor c1 =
+                ledger.newNonDurableCursor(PositionImpl.EARLIEST, "test", CommandSubscribe.InitialPosition.Earliest,
+                        true, false);
+        assertEquals(c1.getReadPosition(), p1);
+        assertEquals(c1.getMarkDeletedPosition(), new PositionImpl(p1.getLedgerId(), p1.getEntryId() - 1));
+    }
+
+    @Test()
+    void subscribeToLatestPosition() throws Exception {
+        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(1)
+                .setRetentionTime(1, TimeUnit.HOURS).setRetentionSizeInMB(1));
+
+        ledger.addEntry("entry-1".getBytes());
+        ledger.addEntry("entry-2".getBytes());
+        Position p3 = ledger.addEntry("entry-3".getBytes());
+
+        ManagedCursor c1 =
+                ledger.newNonDurableCursor(PositionImpl.LATEST, "test", CommandSubscribe.InitialPosition.Latest, true,
+                        false);
+        assertEquals(c1.getReadPosition(), new PositionImpl(p3.getLedgerId(), p3.getEntryId() + 1));
+        assertEquals(c1.getMarkDeletedPosition(), p3);
+    }
+
+    @Test()
+    void subscribeToSpecifyPosition() throws Exception {
+        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(1)
+                .setRetentionTime(1, TimeUnit.HOURS).setRetentionSizeInMB(1));
+
+        ledger.addEntry("entry-1".getBytes());
+        Position p2 = ledger.addEntry("entry-2".getBytes());
+        ledger.addEntry("entry-3".getBytes());
+
+        ManagedCursor c1 = ledger.newNonDurableCursor(p2, "test", null, true,
+                        false);
+        assertEquals(c1.getReadPosition(), new PositionImpl(p2.getLedgerId(), p2.getEntryId() + 1));
+        assertEquals(c1.getMarkDeletedPosition(), p2);
+    }
+
+    @Test()
+    void subscribeToSpecifyPositionWithInsive() throws Exception {
+        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(1)
+                .setRetentionTime(1, TimeUnit.HOURS).setRetentionSizeInMB(1));
+
+        ledger.addEntry("entry-1".getBytes());
+        Position p2 = ledger.addEntry("entry-2".getBytes());
+        ledger.addEntry("entry-3".getBytes());
+
+        ManagedCursor c1 = ledger.newNonDurableCursor(p2, "test", null, true,
+                        true);
+        assertEquals(c1.getReadPosition(), p2);
+        assertEquals(c1.getMarkDeletedPosition(), new PositionImpl(p2.getLedgerId(), p2.getEntryId() - 1));
     }
 
     @Test // (timeOut = 20000)

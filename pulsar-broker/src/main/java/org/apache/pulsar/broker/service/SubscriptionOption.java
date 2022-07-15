@@ -49,6 +49,7 @@ public class SubscriptionOption {
     private KeySharedMeta keySharedMeta;
     private Optional<Map<String, String>> subscriptionProperties;
     private long consumerEpoch;
+    private boolean startMessageIdInclusive;
 
     public static Optional<Map<String, String>> getPropertiesMap(List<KeyValue> list) {
         if (list == null) {

@@ -22,6 +22,7 @@ import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructor
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockBookKeeper;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockZooKeeper;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
@@ -1701,25 +1702,25 @@ public class ServerCnxTest {
 
         doAnswer((Answer<Object>) invocationOnMock -> {
             Thread.sleep(300);
-            ((OpenCursorCallback) invocationOnMock.getArguments()[4]).openCursorComplete(cursorMock, null);
+            ((OpenCursorCallback) invocationOnMock.getArguments()[5]).openCursorComplete(cursorMock, null);
             return null;
         }).when(ledgerMock).asyncOpenCursor(matches(".*success.*"), any(InitialPosition.class), any(Map.class), any(Map.class),
-                any(OpenCursorCallback.class), any());
+                anyBoolean(), any(OpenCursorCallback.class), any());
 
         doAnswer((Answer<Object>) invocationOnMock -> {
             Thread.sleep(300);
-            ((OpenCursorCallback) invocationOnMock.getArguments()[3])
+            ((OpenCursorCallback) invocationOnMock.getArguments()[2])
                     .openCursorFailed(new ManagedLedgerException("Managed ledger failure"), null);
             return null;
         }).when(ledgerMock).asyncOpenCursor(matches(".*fail.*"), any(InitialPosition.class), any(OpenCursorCallback.class), any());
 
         doAnswer((Answer<Object>) invocationOnMock -> {
             Thread.sleep(300);
-            ((OpenCursorCallback) invocationOnMock.getArguments()[3])
+            ((OpenCursorCallback) invocationOnMock.getArguments()[4])
                     .openCursorFailed(new ManagedLedgerException("Managed ledger failure"), null);
             return null;
         }).when(ledgerMock).asyncOpenCursor(matches(".*fail.*"), any(InitialPosition.class), any(Map.class), any(Map.class),
-                any(OpenCursorCallback.class), any());
+                anyBoolean(), any(OpenCursorCallback.class), any());
 
         doAnswer((Answer<Object>) invocationOnMock -> {
             ((DeleteCursorCallback) invocationOnMock.getArguments()[1]).deleteCursorComplete(null);
