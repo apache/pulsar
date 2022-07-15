@@ -605,10 +605,10 @@ public class ModularLoadManagerImplTest {
         pulsar1.getBrokerService().updateRates();
         loadManager.updateAll();
 
-        // test1: no isolation police
+        // test1: no isolation policy
         assertTrue(loadManager.shouldNamespacePoliciesUnload(namespace, bundle, primaryHost));
 
-        // test2: as isolation police, there are not another broker to load the bundle.
+        // test2: as isolation policy, there are not another broker to load the bundle.
         String newPolicyJsonTemplate = "{\"namespaces\":[\"%s.*\"],\"primary\":[\"%s\"],"
                 + "\"secondary\":[\"%s\"],\"auto_failover_policy\":{\"policy_type\":\"min_available\",\"parameters\":{\"min_limit\":%s,\"usage_threshold\":80}}}";
         String newPolicyJson = String.format(newPolicyJsonTemplate, namespace, broker1Address,broker1Address, 1);
@@ -619,7 +619,7 @@ public class ModularLoadManagerImplTest {
         admin1.clusters().createNamespaceIsolationPolicy(cluster, newPolicyName, nsPolicyData);
         assertFalse(loadManager.shouldNamespacePoliciesUnload(namespace, bundle, broker1Address));
 
-        // test3: as isolation police, there are another can load the bundle.
+        // test3: as isolation policy, there are another can load the bundle.
         String newPolicyJson1 = String.format(newPolicyJsonTemplate, namespace, brokerAddress,brokerAddress, 1);
         NamespaceIsolationDataImpl nsPolicyData1 = jsonMapper.readValue(newPolicyJson1.getBytes(),
                 NamespaceIsolationDataImpl.class);
