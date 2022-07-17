@@ -419,14 +419,14 @@ The Apache Software License, Version 2.0
     - metrics-graphite-4.1.12.1.jar
     - metrics-jvm-4.1.12.1.jar
   * Prometheus
-    - simpleclient-0.15.0.jar
-    - simpleclient_common-0.15.0.jar
-    - simpleclient_hotspot-0.15.0.jar
-    - simpleclient_servlet-0.15.0.jar
-    - simpleclient_servlet_common-0.15.0.jar
-    - simpleclient_tracer_common-0.15.0.jar
-    - simpleclient_tracer_otel-0.15.0.jar
-    - simpleclient_tracer_otel_agent-0.15.0.jar
+    - simpleclient-0.16.0.jar
+    - simpleclient_common-0.16.0.jar
+    - simpleclient_hotspot-0.16.0.jar
+    - simpleclient_servlet-0.16.0.jar
+    - simpleclient_servlet_common-0.16.0.jar
+    - simpleclient_tracer_common-0.16.0.jar
+    - simpleclient_tracer_otel-0.16.0.jar
+    - simpleclient_tracer_otel_agent-0.16.0.jar
   * JCTools
     - jctools-core-2.1.2.jar
   * Asynchronous Http Client

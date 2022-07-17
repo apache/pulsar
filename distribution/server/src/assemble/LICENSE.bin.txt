@@ -378,18 +378,18 @@ The Apache Software License, Version 2.0
     - io.netty-netty-tcnative-classes-2.0.52.Final.jar
  * Prometheus client
     - io.prometheus.jmx-collector-0.16.1.jar
-    - io.prometheus-simpleclient-0.15.0.jar
-    - io.prometheus-simpleclient_caffeine-0.15.0.jar
-    - io.prometheus-simpleclient_common-0.15.0.jar
-    - io.prometheus-simpleclient_hotspot-0.15.0.jar
-    - io.prometheus-simpleclient_httpserver-0.15.0.jar
-    - io.prometheus-simpleclient_jetty-0.15.0.jar
-    - io.prometheus-simpleclient_log4j2-0.15.0.jar
-    - io.prometheus-simpleclient_servlet-0.15.0.jar
-    - io.prometheus-simpleclient_servlet_common-0.15.0.jar
-    - io.prometheus-simpleclient_tracer_common-0.15.0.jar
-    - io.prometheus-simpleclient_tracer_otel-0.15.0.jar
-    - io.prometheus-simpleclient_tracer_otel_agent-0.15.0.jar
+    - io.prometheus-simpleclient-0.16.0.jar
+    - io.prometheus-simpleclient_caffeine-0.16.0.jar
+    - io.prometheus-simpleclient_common-0.16.0.jar
+    - io.prometheus-simpleclient_hotspot-0.16.0.jar
+    - io.prometheus-simpleclient_httpserver-0.16.0.jar
+    - io.prometheus-simpleclient_jetty-0.16.0.jar
+    - io.prometheus-simpleclient_log4j2-0.16.0.jar
+    - io.prometheus-simpleclient_servlet-0.16.0.jar
+    - io.prometheus-simpleclient_servlet_common-0.16.0.jar
+    - io.prometheus-simpleclient_tracer_common-0.16.0.jar
+    - io.prometheus-simpleclient_tracer_otel-0.16.0.jar
+    - io.prometheus-simpleclient_tracer_otel_agent-0.16.0.jar
  * Jakarta Bean Validation API
     - jakarta.validation-jakarta.validation-api-2.0.2.jar
     - javax.validation-validation-api-1.1.0.Final.jar
@@ -513,7 +513,7 @@ The Apache Software License, Version 2.0
     - io.dropwizard.metrics-metrics-jvm-4.1.12.1.jar
     - io.dropwizard.metrics-metrics-jmx-4.1.12.1.jar
   * Prometheus
-    - io.prometheus-simpleclient_httpserver-0.15.0.jar
+    - io.prometheus-simpleclient_httpserver-0.16.0.jar
   * Java JSON WebTokens
     - io.jsonwebtoken-jjwt-api-0.11.1.jar
     - io.jsonwebtoken-jjwt-impl-0.11.1.jar
@@ -556,6 +556,7 @@ BSD 3-clause "New" or "Revised" License
  * LevelDB -- (included in org.rocksdb.*.jar) -- licenses/LICENSE-LevelDB.txt
  * JSR305 -- com.google.code.findbugs-jsr305-3.0.2.jar -- licenses/LICENSE-JSR305.txt
  * JLine -- jline-jline-2.14.6.jar -- licenses/LICENSE-JLine.txt
+ * JLine3 -- org.jline-jline-3.21.0.jar -- licenses/LICENSE-JLine.txt
 
 BSD 2-Clause License
  * HdrHistogram -- org.hdrhistogram-HdrHistogram-2.1.9.jar -- licenses/LICENSE-HdrHistogram.txt

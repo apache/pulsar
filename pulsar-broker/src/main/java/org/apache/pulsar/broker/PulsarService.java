@@ -209,7 +209,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private OrderedScheduler offloaderScheduler;
     private OffloadersCache offloadersCache = new OffloadersCache();
     private LedgerOffloader defaultOffloader;
-    private final LedgerOffloaderStats offloaderStats;
+    private LedgerOffloaderStats offloaderStats;
     private Map<NamespaceName, LedgerOffloader> ledgerOffloaderMap = new ConcurrentHashMap<>();
     private ScheduledFuture<?> loadReportTask = null;
     private ScheduledFuture<?> loadSheddingTask = null;
@@ -346,8 +346,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
         int interval = config.getManagedLedgerStatsPeriodSeconds();
         boolean exposeTopicMetrics = config.isExposeTopicLevelMetricsInPrometheus();
-        this.offloaderStats = LedgerOffloaderStats.create(config.isExposeManagedLedgerMetricsInPrometheus(),
-                exposeTopicMetrics, this.getOffloaderScheduler(), interval);
+        // here in the constructor we don't have the offloader scheduler yet
+        this.offloaderStats = LedgerOffloaderStats.create(false, false, null, 0);
     }
 
     public MetadataStore createConfigurationMetadataStore() throws MetadataStoreException {
@@ -741,8 +741,17 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             schemaRegistryService = SchemaRegistryService.create(
                     schemaStorage, config.getSchemaRegistryCompatibilityCheckers(), this.executor);
 
-            this.defaultOffloader = createManagedLedgerOffloader(
-                    OffloadPoliciesImpl.create(this.getConfiguration().getProperties()));
+            OffloadPoliciesImpl defaultOffloadPolicies =
+                    OffloadPoliciesImpl.create(this.getConfiguration().getProperties());
+            this.defaultOffloader = createManagedLedgerOffloader(defaultOffloadPolicies);
+
+            OrderedScheduler offloaderScheduler = getOffloaderScheduler(defaultOffloadPolicies);
+            int interval = config.getManagedLedgerStatsPeriodSeconds();
+            boolean exposeTopicMetrics = config.isExposeTopicLevelMetricsInPrometheus();
+
+            offloaderStats = LedgerOffloaderStats.create(config.isExposeManagedLedgerMetricsInPrometheus(),
+                    exposeTopicMetrics, offloaderScheduler, interval);
+
             this.brokerInterceptor = BrokerInterceptors.load(config);
             brokerService.setInterceptor(getBrokerInterceptor());
             this.brokerInterceptor.initialize(this);

@@ -55,6 +55,20 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
 
     private final boolean isDelayedDeliveryDeliverAtTimeStrict;
 
+    // If we detect that all messages have fixed delay time, such that the delivery is
+    // always going to be in FIFO order, then we can avoid pulling all the messages in
+    // tracker. Instead, we use the lookahead for detection and pause the read from
+    // the cursor if the delays are fixed.
+    public static final long DETECT_FIXED_DELAY_LOOKAHEAD_MESSAGES = 50_000;
+
+    // This is the timestamp of the message with the highest delivery time
+    // If new added messages are lower than this, it means the delivery is requested
+    // to be out-of-order. It gets reset to 0, once the tracker is emptied.
+    private long highestDeliveryTimeTracked = 0;
+
+    // Track whether we have seen all messages with fixed delay so far.
+    private boolean messagesHaveFixedDelay = true;
+
     InMemoryDelayedDeliveryTracker(PersistentDispatcherMultipleConsumers dispatcher, Timer timer, long tickTimeMillis,
                                    boolean isDelayedDeliveryDeliverAtTimeStrict) {
         this(dispatcher, timer, tickTimeMillis, Clock.systemUTC(), isDelayedDeliveryDeliverAtTimeStrict);
@@ -86,16 +100,28 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
 
     @Override
     public boolean addMessage(long ledgerId, long entryId, long deliverAt) {
+        if (deliverAt < 0 || deliverAt <= getCutoffTime()) {
+            messagesHaveFixedDelay = false;
+            return false;
+        }
+
         if (log.isDebugEnabled()) {
             log.debug("[{}] Add message {}:{} -- Delivery in {} ms ", dispatcher.getName(), ledgerId, entryId,
                     deliverAt - clock.millis());
         }
-        if (deliverAt <= getCutoffTime()) {
-            return false;
-        }
+
 
         priorityQueue.add(deliverAt, ledgerId, entryId);
         updateTimer();
+
+        // Check that new delivery time comes after the current highest, or at
+        // least within a single tick time interval of 1 second.
+        if (deliverAt < (highestDeliveryTimeTracked - tickTimeMillis)) {
+            messagesHaveFixedDelay = false;
+        }
+
+        highestDeliveryTimeTracked = Math.max(highestDeliveryTimeTracked, deliverAt);
+
         return true;
     }
 
@@ -137,6 +163,13 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
         if (log.isDebugEnabled()) {
             log.debug("[{}] Get scheduled messages - found {}", dispatcher.getName(), positions.size());
         }
+
+        if (priorityQueue.isEmpty()) {
+            // Reset to initial state
+            highestDeliveryTimeTracked = 0;
+            messagesHaveFixedDelay = true;
+        }
+
         updateTimer();
         return positions;
     }
@@ -240,5 +273,13 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
         if (timeout != null) {
             timeout.cancel();
         }
+    }
+
+    @Override
+    public boolean shouldPauseAllDeliveries() {
+        // Pause deliveries if we know all delays are fixed within the lookahead window
+        return messagesHaveFixedDelay
+                && priorityQueue.size() >= DETECT_FIXED_DELAY_LOOKAHEAD_MESSAGES
+                && !hasMessageAvailable();
     }
 }

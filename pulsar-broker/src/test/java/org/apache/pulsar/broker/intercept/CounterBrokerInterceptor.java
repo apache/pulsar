@@ -61,6 +61,21 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     int committedTxnCount = 0;
     int abortedTxnCount = 0;
 
+    public void reset() {
+        beforeSendCount = 0;
+        count = 0;
+        connectionCreationCount = 0;
+        producerCount = 0;
+        consumerCount = 0;
+        messageCount = 0;
+        messageDispatchCount = 0;
+        messageAckCount = 0;
+        handleAckCount = 0;
+        txnCount = 0;
+        committedTxnCount = 0;
+        abortedTxnCount = 0;
+    }
+
     private List<ResponseEvent> responseList = new ArrayList<>();
 
     @Data

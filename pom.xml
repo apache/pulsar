@@ -126,7 +126,7 @@ flexible messaging model and an intuitive client API.</description>
     <conscrypt.version>2.5.2</conscrypt.version>
     <jersey.version>2.34</jersey.version>
     <athenz.version>1.10.50</athenz.version>
-    <prometheus.version>0.15.0</prometheus.version>
+    <prometheus.version>0.16.0</prometheus.version>
     <vertx.version>3.9.8</vertx.version>
     <rocksdb.version>6.29.4.1</rocksdb.version>
     <slf4j.version>1.7.32</slf4j.version>
@@ -158,7 +158,7 @@ flexible messaging model and an intuitive client API.</description>
     <joda.version>2.10.5</joda.version>
     <jclouds.version>2.5.0</jclouds.version>
     <guice.version>5.1.0</guice.version>
-    <sqlite-jdbc.version>3.8.11.2</sqlite-jdbc.version>
+    <sqlite-jdbc.version>3.36.0.3</sqlite-jdbc.version>
     <mysql-jdbc.version>8.0.11</mysql-jdbc.version>
     <postgresql-jdbc.version>42.3.3</postgresql-jdbc.version>
     <clickhouse-jdbc.version>0.3.2</clickhouse-jdbc.version>
@@ -196,6 +196,7 @@ flexible messaging model and an intuitive client API.</description>
     <caffeine.version>2.9.1</caffeine.version>
     <java-semver.version>0.9.0</java-semver.version>
     <jline.version>2.14.6</jline.version>
+    <jline3.version>3.21.0</jline3.version>
     <hppc.version>0.9.1</hppc.version>
     <spark-streaming_2.10.version>2.1.0</spark-streaming_2.10.version>
     <assertj-core.version>3.18.1</assertj-core.version>
@@ -1554,6 +1555,7 @@ flexible messaging model and an intuitive client API.</description>
             <pulsar-admin>SCRIPT_STYLE</pulsar-admin>
             <pulsar-perf>SCRIPT_STYLE</pulsar-perf>
             <pulsar-client>SCRIPT_STYLE</pulsar-client>
+            <pulsar-shell>SCRIPT_STYLE</pulsar-shell>
             <bookkeeper>SCRIPT_STYLE</bookkeeper>
             <tfvars>SCRIPT_STYLE</tfvars>
           </mapping>
