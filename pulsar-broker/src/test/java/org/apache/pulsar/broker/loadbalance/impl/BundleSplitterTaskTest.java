@@ -22,6 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.LoadData;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.policies.data.loadbalancer.BrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.BundleData;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
@@ -97,7 +98,7 @@ public class BundleSplitterTaskTest {
 
     @Test
     public void testLoadBalancerNamespaceMaximumBundles() {
-        pulsar.getConfiguration().setLoadBalancerNamespaceMaximumBundles(2);
+        pulsar.getConfiguration().setLoadBalancerNamespaceMaximumBundles(3);
 
         final BundleSplitterTask bundleSplitterTask = new BundleSplitterTask();
         LoadData loadData = new LoadData();
@@ -140,9 +141,14 @@ public class BundleSplitterTaskTest {
         bundleData3.setLongTermData(averageMessageData3);
         loadData.getBundleData().put("ten/ns/0x40000000_0x60000000", bundleData3);
 
-        final Set<String> bundlesToSplit = bundleSplitterTask.findBundlesToSplit(loadData, pulsar);
-        Assert.assertTrue(bundlesToSplit.size() <=
-                pulsar.getConfiguration().getLoadBalancerNamespaceMaximumBundles());
+        try {
+            int currentBundleCount = pulsar.getNamespaceService().getBundleCount(NamespaceName.get("ten/ns"));
+            final Set<String> bundlesToSplit = bundleSplitterTask.findBundlesToSplit(loadData, pulsar);
+            Assert.assertEquals(bundlesToSplit.size() + currentBundleCount,
+                    pulsar.getConfiguration().getLoadBalancerNamespaceMaximumBundles());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
 
