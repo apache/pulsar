@@ -972,7 +972,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
 
-    public int getDelayedTrackerMemoryUsage() {
+    public long getDelayedTrackerMemoryUsage() {
         if (delayedDeliveryTracker.isEmpty()) {
             return 0;
         }

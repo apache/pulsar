@@ -132,7 +132,7 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
     public int nonContiguousDeletedMessagesRangesSerializedSize;
 
     /** The size of InMemoryDelayedDeliveryTracer memory usage. */
-    public int delayedTrackerMemoryUsage;
+    public long delayedTrackerMemoryUsage;
 
     /** SubscriptionProperties (key/value strings) associated with this subscribe. */
     public Map<String, String> subscriptionProperties;

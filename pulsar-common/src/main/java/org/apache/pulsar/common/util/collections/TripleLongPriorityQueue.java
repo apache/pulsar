@@ -162,13 +162,6 @@ public class TripleLongPriorityQueue implements AutoCloseable {
     }
 
     /**
-     * Returns the size of the buffer.
-     */
-    public int bufferSize() {
-        return this.buffer.capacity();
-    }
-
-    /**
      * Clear all items.
      */
     public void clear() {
