@@ -40,7 +40,7 @@ public class CmdGenerateDocumentation {
 
     public int run() throws PulsarClientException {
         PulsarClientTool pulsarClientTool = new PulsarClientTool(new Properties());
-        JCommander commander = pulsarClientTool.commandParser;
+        JCommander commander = pulsarClientTool.jcommander;
         if (commandNames.size() == 0) {
             for (Map.Entry<String, JCommander> cmd : commander.getCommands().entrySet()) {
                 if (cmd.getKey().equals("generate_documentation")) {
@@ -78,7 +78,7 @@ public class CmdGenerateDocumentation {
         sb.append("|Flag|Description|Default|\n");
         sb.append("|---|---|---|\n");
         List<ParameterDescription> options = cmd.getParameters();
-        options.forEach((option) ->
+        options.stream().filter(ele -> !ele.getParameterAnnotation().hidden()).forEach((option) ->
                 sb.append("| `").append(option.getNames())
                         .append("` | ").append(option.getDescription().replace("\n", " "))
                         .append("|").append(option.getDefault()).append("|\n")

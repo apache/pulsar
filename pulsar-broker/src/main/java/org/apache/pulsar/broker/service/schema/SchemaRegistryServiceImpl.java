@@ -623,6 +623,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                 .user(info.getUser())
                 .type(convertToDomainType(info.getType()))
                 .data(info.getSchema().toByteArray())
+                .timestamp(info.getTimestamp())
                 .isDeleted(info.getDeleted())
                 .props(toMap(info.getPropsList()))
                 .build();

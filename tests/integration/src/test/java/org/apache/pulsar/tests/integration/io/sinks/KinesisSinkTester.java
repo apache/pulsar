@@ -120,11 +120,11 @@ public class KinesisSinkTester extends SinkTester<LocalStackContainer> {
     }
 
     @Override
-    public void stopServiceContainer(PulsarCluster cluster) {
+    public void stopServiceContainer() {
         if (client != null) {
             client.close();
         }
-        super.stopServiceContainer(cluster);
+        super.stopServiceContainer();
     }
 
     @Override

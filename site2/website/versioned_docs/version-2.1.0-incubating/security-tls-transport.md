@@ -45,7 +45,7 @@ Create a directory for your CA, and place [this openssl configuration file](http
 
 mkdir my-ca
 cd my-ca
-wget https://raw.githubusercontent.com/apache/pulsar/master/site2/website/static/examples/openssl.cnf
+wget https://raw.githubusercontent.com/apache/pulsar-site/main/site2/website/static/examples/openssl.cnf
 export CA_HOME=$(pwd)
 
 ```

@@ -59,7 +59,7 @@ $ pulsar-admin functions create \
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|POST|/admin/v3/functions/:tenant/:namespace/:functionName?version=@pulsar:version_number@}
+{@inject: endpoint|POST|/admin/v3/functions/:tenant/:namespace/:functionName|operation/registerFunction?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java Admin API">
@@ -115,7 +115,7 @@ $ pulsar-admin functions update \
 </TabItem>
 <TabItem value="REST Admin API">
 
-{@inject: endpoint|PUT|/admin/v3/functions/:tenant/:namespace/:functionName?version=@pulsar:version_number@}
+{@inject: endpoint|PUT|/admin/v3/functions/:tenant/:namespace/:functionName|operation/updateFunction?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java Admin API">
@@ -165,7 +165,7 @@ $ pulsar-admin functions start \
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|POST|/admin/v3/functions/:tenant/:namespace/:functionName/:instanceId/start?version=@pulsar:version_number@}
+{@inject: endpoint|POST|/admin/v3/functions/:tenant/:namespace/:functionName/:instanceId/start|operation/startFunction?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java Admin API">
@@ -207,7 +207,7 @@ $ pulsar-admin functions start \
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|POST|/admin/v3/functions/:tenant/:namespace/:functionName/start?version=@pulsar:version_number@}
+{@inject: endpoint|POST|/admin/v3/functions/:tenant/:namespace/:functionName/start|operation/startFunction?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java">
@@ -250,7 +250,7 @@ $ pulsar-admin functions stop \
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|POST|/admin/v3/functions/:tenant/:namespace/:functionName/:instanceId/stop?version=@pulsar:version_number@}
+{@inject: endpoint|POST|/admin/v3/functions/:tenant/:namespace/:functionName/:instanceId/stop|operation/stopFunction?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java Admin API">
@@ -292,7 +292,7 @@ $ pulsar-admin functions stop \
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|POST|/admin/v3/functions/:tenant/:namespace/:functionName/stop?version=@pulsar:version_number@}
+{@inject: endpoint|POST|/admin/v3/functions/:tenant/:namespace/:functionName/stop|operation/stopFunction?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java Admin API">
@@ -335,7 +335,7 @@ $ pulsar-admin functions restart \
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|POST|/admin/v3/functions/:tenant/:namespace/:functionName/:instanceId/restart?version=@pulsar:version_number@}
+{@inject: endpoint|POST|/admin/v3/functions/:tenant/:namespace/:functionName/:instanceId/restart|operation/restartFunction?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java Admin API">
@@ -377,7 +377,7 @@ $ pulsar-admin functions restart \
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|POST|/admin/v3/functions/:tenant/:namespace/:functionName/restart?version=@pulsar:version_number@}
+{@inject: endpoint|POST|/admin/v3/functions/:tenant/:namespace/:functionName/restart|operation/restartFunction?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java Admin API">
@@ -418,7 +418,7 @@ $ pulsar-admin functions list \
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|GET|/admin/v3/functions/:tenant/:namespace?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v3/functions/:tenant/:namespace|operation/listFunctions?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java Admin API">
@@ -460,7 +460,7 @@ $ pulsar-admin functions delete \
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|DELETE|/admin/v3/functions/:tenant/:namespace/:functionName?version=@pulsar:version_number@}
+{@inject: endpoint|DELETE|/admin/v3/functions/:tenant/:namespace/:functionName|operation/deregisterFunction?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java Admin API">
@@ -502,7 +502,7 @@ $ pulsar-admin functions get \
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|GET|/admin/v3/functions/:tenant/:namespace/:functionName?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v3/functions/:tenant/:namespace/:functionName|operation/getFunctionInfo?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java Admin API">
@@ -544,7 +544,7 @@ $ pulsar-admin functions status \
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|GET|/admin/v3/functions/:tenant/:namespace/:functionName/:instanceId/status?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v3/functions/:tenant/:namespace/:functionName/:instanceId/status|operation/getFunctionInstanceStatus?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java Admin API">
@@ -586,7 +586,7 @@ $ pulsar-admin functions status \
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|GET|/admin/v3/functions/:tenant/:namespace/:functionName/status?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v3/functions/:tenant/:namespace/:functionName/status|operation/getFunctionStatus?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java Admin API">
@@ -628,7 +628,7 @@ $ pulsar-admin functions stats \
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|GET|/admin/v3/functions/:tenant/:namespace/:functionName/:instanceId/stats?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v3/functions/:tenant/:namespace/:functionName/:instanceId/stats|operation/getFunctionInstanceStats?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java Admin API">
@@ -670,7 +670,7 @@ $ pulsar-admin functions stats \
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|GET|/admin/v3/functions/:tenant/:namespace/:functionName/stats?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v3/functions/:tenant/:namespace/:functionName/stats|operation/getFunctionStats?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java Admin API">
@@ -715,7 +715,7 @@ $ pulsar-admin functions trigger \
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|POST|/admin/v3/functions/:tenant/:namespace/:functionName/trigger?version=@pulsar:version_number@}
+{@inject: endpoint|POST|/admin/v3/functions/:tenant/:namespace/:functionName/trigger|operation/triggerFunction?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java Admin API">
@@ -758,7 +758,7 @@ $ pulsar-admin functions putstate \
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|POST|/admin/v3/functions/:tenant/:namespace/:functionName/state/:key?version=@pulsar:version_number@}
+{@inject: endpoint|POST|/admin/v3/functions/:tenant/:namespace/:functionName/state/:key|operation/putFunctionState?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java Admin API">
@@ -803,7 +803,7 @@ $ pulsar-admin functions querystate \
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|GET|/admin/v3/functions/:tenant/:namespace/:functionName/state/:key?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v3/functions/:tenant/:namespace/:functionName/state/:key|operation/getFunctionState?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java Admin CLI">

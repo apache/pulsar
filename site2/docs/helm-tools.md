@@ -24,7 +24,7 @@ You can get Helm from the project's [releases page](https://github.com/helm/helm
 
 ### Next steps
 
-Once kubectl and Helm are configured, you can configure your [Kubernetes cluster](helm-prepare).
+Once kubectl and Helm are configured, you can configure your [Kubernetes cluster](helm-prepare.md).
 
 ## Additional information
 

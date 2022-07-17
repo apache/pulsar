@@ -121,32 +121,7 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
     public PlacementResult<List<BookieId>> newEnsemble(int ensembleSize, int writeQuorumSize, int ackQuorumSize,
             Map<String, byte[]> customMetadata, Set<BookieId> excludeBookies)
             throws BKNotEnoughBookiesException {
-        if (customMetadata.containsKey(EnsemblePlacementPolicyConfig.ENSEMBLE_PLACEMENT_POLICY_CONFIG)) {
-            try {
-                EnsemblePlacementPolicyConfig policy = EnsemblePlacementPolicyConfig
-                        .decode(customMetadata.get(EnsemblePlacementPolicyConfig.ENSEMBLE_PLACEMENT_POLICY_CONFIG));
-                Map<String, Object> policyProperties = policy.getProperties();
-                String isolationBookieGroups =
-                        (String) policyProperties.get(ISOLATION_BOOKIE_GROUPS);
-                String secondaryIsolationBookieGroups =
-                        (String) policyProperties.get(SECONDARY_ISOLATION_BOOKIE_GROUPS);
-                Set<String> primaryIsolationGroups = new HashSet<>();
-                Set<String> secondaryIsolationGroups = new HashSet<>();
-                if (isolationBookieGroups != null) {
-                    primaryIsolationGroups.addAll(Arrays.asList(isolationBookieGroups.split(",")));
-                }
-                if (secondaryIsolationBookieGroups != null) {
-                    secondaryIsolationGroups.addAll(Arrays.asList(secondaryIsolationBookieGroups.split(",")));
-                }
-                defaultIsolationGroups = ImmutablePair.of(primaryIsolationGroups, secondaryIsolationGroups);
-            } catch (EnsemblePlacementPolicyConfig.ParseEnsemblePlacementPolicyConfigException e) {
-              log.error("Failed to decode EnsemblePlacementPolicyConfig from customeMetadata when choosing ensemble, "
-                        + "Will use defaultIsolationGroups instead");
-            }
-        }
-
-        Set<BookieId> blacklistedBookies = getBlacklistedBookiesWithIsolationGroups(
-            ensembleSize, defaultIsolationGroups);
+        Set<BookieId> blacklistedBookies = getBlacklistedBookies(ensembleSize, customMetadata);
         if (excludeBookies == null) {
             excludeBookies = new HashSet<BookieId>();
         }
@@ -159,10 +134,20 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
             Map<String, byte[]> customMetadata, List<BookieId> currentEnsemble,
             BookieId bookieToReplace, Set<BookieId> excludeBookies)
             throws BKNotEnoughBookiesException {
+        Set<BookieId> blacklistedBookies = getBlacklistedBookies(ensembleSize, customMetadata);
+        if (excludeBookies == null) {
+            excludeBookies = new HashSet<BookieId>();
+        }
+        excludeBookies.addAll(blacklistedBookies);
+        return super.replaceBookie(ensembleSize, writeQuorumSize, ackQuorumSize, customMetadata, currentEnsemble,
+                bookieToReplace, excludeBookies);
+    }
+
+    private Set<BookieId> getBlacklistedBookies(int ensembleSize, Map<String, byte[]> customMetadata){
         // parse the ensemble placement policy from the custom metadata, if it is present, we will apply it to
         // the isolation groups for filtering the bookies.
         Optional<EnsemblePlacementPolicyConfig> ensemblePlacementPolicyConfig =
-            getEnsemblePlacementPolicyConfig(customMetadata);
+                getEnsemblePlacementPolicyConfig(customMetadata);
         Set<BookieId> blacklistedBookies;
         if (ensemblePlacementPolicyConfig.isPresent()) {
             EnsemblePlacementPolicyConfig config = ensemblePlacementPolicyConfig.get();
@@ -171,12 +156,7 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
         } else {
             blacklistedBookies = getBlacklistedBookiesWithIsolationGroups(ensembleSize, defaultIsolationGroups);
         }
-        if (excludeBookies == null) {
-            excludeBookies = new HashSet<BookieId>();
-        }
-        excludeBookies.addAll(blacklistedBookies);
-        return super.replaceBookie(ensembleSize, writeQuorumSize, ackQuorumSize, customMetadata, currentEnsemble,
-                bookieToReplace, excludeBookies);
+        return blacklistedBookies;
     }
 
     private static Optional<EnsemblePlacementPolicyConfig> getEnsemblePlacementPolicyConfig(
