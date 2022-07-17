@@ -381,19 +381,19 @@ All the bundleUnloading metrics are labelled with the following labels:
 - cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the `broker.conf` file.
 - metric: metric="bundleUnloading".
 
-| Name | Type | Description |
-| --- | --- | --- |
-| pulsar_lb_unload_broker_count | Counter | Unload broker count in this bundle unloading |
-| pulsar_lb_unload_bundle_count | Counter | Bundle unload count in this bundle unloading |
+| Name                          | Type    | Description                                  |
+|-------------------------------|---------|----------------------------------------------|
+| pulsar_lb_unload_broker_total | Counter | Unload broker count in this bundle unloading |
+| pulsar_lb_unload_bundle_total | Counter | Bundle unload count in this bundle unloading |
 
 #### BundleSplit metrics
 All the bundleUnloading metrics are labelled with the following labels:
 - cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the `broker.conf` file.
 - metric: metric="bundlesSplit".
 
-| Name | Type | Description |
-| --- | --- | --- |
-| pulsar_lb_bundles_split_count | Counter | bundle split count in this bundle splitting check interval |
+| Name                          | Type    | Description                                                |
+|-------------------------------|---------|------------------------------------------------------------|
+| pulsar_lb_bundles_split_total | Counter | bundle split count in this bundle splitting check interval |
 
 #### Bundle metrics
 All the bundle metrics are labelled with the following labels:
