@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.service;
+package org.apache.pulsar.common.util;
 
 import java.time.Duration;
 import java.util.ArrayList;

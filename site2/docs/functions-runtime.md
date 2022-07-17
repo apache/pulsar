@@ -10,9 +10,9 @@ The following table outlines the supported programming languages for each type o
 
 | Function runtime                                   | Supported programming languages of functions |
 |----------------------------------------------------|----------------------------------------------|
-| [Thread runtime](functions-runtime-thread)         | Java                                         |
-| [Process runtime](functions-runtime-process)       | Java, Python, Go                             |
-| [Kubernetes runtime](functions-runtime-kubernetes) | Java, Python, Go                             |
+| [Thread runtime](functions-runtime-thread.md)         | Java                                         |
+| [Process runtime](functions-runtime-process.md)       | Java, Python, Go                             |
+| [Kubernetes runtime](functions-runtime-kubernetes.md) | Java, Python, Go                             |
 
 :::note
 

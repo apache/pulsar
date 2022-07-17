@@ -16,7 +16,4 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-/**
- * Common partitioning.
- */
-package org.apache.pulsar.common.partition;
+package org.apache.pulsar.shell;
