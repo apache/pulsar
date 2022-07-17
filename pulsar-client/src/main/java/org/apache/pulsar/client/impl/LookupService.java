@@ -91,6 +91,13 @@ public interface LookupService extends AutoCloseable {
     String getServiceUrl();
 
     /**
+     * Resolves pulsar service url.
+     *
+     * @return the service url resolved to a socket address
+     */
+    InetSocketAddress resolveHost();
+
+    /**
      * Returns all the topics name for a given namespace.
      *
      * @param namespace : namespace-name

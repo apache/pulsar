@@ -294,12 +294,14 @@ message FeatureFlags {
   optional bool supports_auth_refresh = 1 [default = false];
   optional bool supports_broker_entry_metadata = 2 [default = false];
   optional bool supports_partial_producer = 3 [default = false];
+  optional bool supports_topic_watchers = 4 [default = false];
 }
 
 message CommandConnected {
     required string server_version = 1;
     optional int32 protocol_version = 2 [default = 0];
     optional int32 max_message_size = 3;
+    optional FeatureFlags feature_flags = 4;
 }
 
 message CommandAuthResponse {
@@ -757,6 +759,34 @@ message CommandGetTopicsOfNamespaceResponse {
     optional bool   changed        = 5 [default = true];
 }
 
+message CommandWatchTopicList {
+    required uint64 request_id     = 1;
+    required uint64 watcher_id     = 2;
+    required string namespace      = 3;
+    required string topics_pattern = 4;
+    // Only present when the client reconnects:
+    optional string topics_hash    = 5;
+}
+
+message CommandWatchTopicListSuccess {
+    required uint64 request_id     = 1;
+    required uint64 watcher_id     = 2;
+    repeated string topic          = 3;
+    required string topics_hash    = 4;
+}
+
+message CommandWatchTopicUpdate {
+    required uint64 watcher_id     = 1;
+    repeated string new_topics     = 2;
+    repeated string deleted_topics = 3;
+    required string topics_hash    = 4;
+}
+
+message CommandWatchTopicListClose {
+    required uint64 request_id     = 1;
+    required uint64 watcher_id     = 2;
+}
+
 message CommandGetSchema {
     required uint64 request_id = 1;
     required string topic      = 2;
@@ -987,6 +1017,11 @@ message BaseCommand {
         TC_CLIENT_CONNECT_REQUEST = 62;
         TC_CLIENT_CONNECT_RESPONSE = 63;
 
+        WATCH_TOPIC_LIST = 64;
+        WATCH_TOPIC_LIST_SUCCESS = 65;
+        WATCH_TOPIC_UPDATE = 66;
+        WATCH_TOPIC_LIST_CLOSE = 67;
+
     }
 
 
@@ -1063,4 +1098,9 @@ message BaseCommand {
     optional CommandEndTxnOnSubscriptionResponse endTxnOnSubscriptionResponse = 61;
     optional CommandTcClientConnectRequest tcClientConnectRequest = 62;
     optional CommandTcClientConnectResponse tcClientConnectResponse = 63;
+
+    optional CommandWatchTopicList watchTopicList = 64;
+    optional CommandWatchTopicListSuccess watchTopicListSuccess = 65;
+    optional CommandWatchTopicUpdate watchTopicUpdate = 66;
+    optional CommandWatchTopicListClose watchTopicListClose = 67;
 }

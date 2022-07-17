@@ -35,7 +35,8 @@ ReaderImpl::ReaderImpl(const ClientImplPtr client, const std::string& topic, con
                        const ExecutorServicePtr listenerExecutor, ReaderCallback readerCreatedCallback)
     : topic_(topic), client_(client), readerConf_(conf), readerCreatedCallback_(readerCreatedCallback) {}
 
-void ReaderImpl::start(const MessageId& startMessageId) {
+void ReaderImpl::start(const MessageId& startMessageId,
+                       std::function<void(const ConsumerImplBaseWeakPtr&)> callback) {
     ConsumerConfiguration consumerConf;
     consumerConf.setConsumerType(ConsumerExclusive);
     consumerConf.setReceiverQueueSize(readerConf_.getReceiverQueueSize());
@@ -79,18 +80,20 @@ void ReaderImpl::start(const MessageId& startMessageId) {
         client_.lock(), topic_, subscription, consumerConf, ExecutorServicePtr(), false, NonPartitioned,
         Commands::SubscriptionModeNonDurable, Optional<MessageId>::of(startMessageId));
     consumer_->setPartitionIndex(TopicName::getPartitionIndex(topic_));
-    consumer_->getConsumerCreatedFuture().addListener(std::bind(&ReaderImpl::handleConsumerCreated,
-                                                                shared_from_this(), std::placeholders::_1,
-                                                                std::placeholders::_2));
+    auto self = shared_from_this();
+    consumer_->getConsumerCreatedFuture().addListener(
+        [this, self, callback](Result result, const ConsumerImplBaseWeakPtr& weakConsumerPtr) {
+            if (result == ResultOk) {
+                readerCreatedCallback_(result, Reader(self));
+                callback(weakConsumerPtr);
+            } else {
+                readerCreatedCallback_(result, {});
+            }
+        });
     consumer_->start();
 }
 
 const std::string& ReaderImpl::getTopic() const { return consumer_->getTopic(); }
-
-void ReaderImpl::handleConsumerCreated(Result result, ConsumerImplBaseWeakPtr consumer) {
-    auto self = shared_from_this();
-    readerCreatedCallback_(result, Reader(self));
-}
 
 Result ReaderImpl::readNext(Message& msg) {
     Result res = consumer_->receive(msg);

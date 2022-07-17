@@ -1445,6 +1445,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         doReturn(brokerService).when(pulsar).getBrokerService();
         CompletableFuture<Optional<Topic>> completableFuture = new CompletableFuture<>();
         doReturn(completableFuture).when(brokerService).getTopicIfExists(topic);
+        completableFuture.completeExceptionally(new RuntimeException("TimeoutException"));
         try {
             admin.topics().resetCursor(topic, "my-sub", System.currentTimeMillis());
             Assert.fail();

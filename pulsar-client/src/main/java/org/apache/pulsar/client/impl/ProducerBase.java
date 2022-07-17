@@ -89,11 +89,6 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
     public TypedMessageBuilder<T> newMessage(Transaction txn) {
         checkArgument(txn instanceof TransactionImpl);
 
-        // check the producer has proper settings to send transactional messages
-        if (conf.getSendTimeoutMs() > 0) {
-            throw new IllegalArgumentException("Only producers disabled sendTimeout are allowed to"
-                + " produce transactional messages");
-        }
 
         return new TypedMessageBuilderImpl<>(this, schema, (TransactionImpl) txn);
     }

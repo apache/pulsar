@@ -544,12 +544,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_POLICIES,
+        dynamic = true,
         doc = "Enable the deletion of inactive topics.\n"
         + "If only enable this option, will not clean the metadata of partitioned topic."
     )
     private boolean brokerDeleteInactiveTopicsEnabled = true;
     @FieldContext(
             category = CATEGORY_POLICIES,
+            dynamic = true,
             doc = "Metadata of inactive partitioned topic will not be automatically cleaned up by default.\n"
             + "Note: If `allowAutoTopicCreation` and this option are enabled at the same time,\n"
             + "it may appear that a partitioned topic has just been deleted but is automatically created as a "
@@ -558,12 +560,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean brokerDeleteInactivePartitionedTopicMetadataEnabled = false;
     @FieldContext(
         category = CATEGORY_POLICIES,
+        dynamic = true,
         doc = "How often to check for inactive topics"
     )
     private int brokerDeleteInactiveTopicsFrequencySeconds = 60;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
+        dynamic = true,
         doc = "Set the inactive topic delete mode. Default is delete_when_no_subscriptions\n"
         + "'delete_when_no_subscriptions' mode only delete the topic which has no subscriptions and no active "
         + "producers\n"
@@ -575,6 +579,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_POLICIES,
+        dynamic = true,
         doc = "Max duration of topic inactivity in seconds, default is not present\n"
         + "If not present, 'brokerDeleteInactiveTopicsFrequencySeconds' will be used\n"
         + "Topics that are inactive for longer than this value will be deleted"
@@ -1017,6 +1022,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int dispatcherReadFailureBackoffMandatoryStopTimeInMs = 0;
 
     @FieldContext(
+            dynamic = true,
+            category = CATEGORY_SERVER,
+            doc = "Time in milliseconds to delay the new delivery of a message when an EntryFilter returns RESCHEDULE."
+    )
+    private int dispatcherEntryFilterRescheduledMessageDelay = 1000;
+
+    @FieldContext(
         dynamic = true,
         category = CATEGORY_SERVER,
         doc = "Max number of entries to dispatch for a shared subscription. By default it is 20 entries."
@@ -1207,6 +1219,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SERVER,
+            dynamic = true,
             doc = "The number of partitions per partitioned topic.\n"
                 + "If try to create or update partitioned topics by exceeded number of partitions, then fail."
     )
@@ -1677,6 +1690,17 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int bookkeeperClientNumWorkerThreads = Runtime.getRuntime().availableProcessors();
 
+    @FieldContext(
+            category = CATEGORY_STORAGE_BK,
+            doc = "Number of BookKeeper client IO threads. Default is Runtime.getRuntime().availableProcessors() * 2"
+    )
+    private int bookkeeperClientNumIoThreads = Runtime.getRuntime().availableProcessors() * 2;
+
+    @FieldContext(
+            category = CATEGORY_STORAGE_BK,
+            doc = "Use separated IO threads for BookKeeper client. Default is false, which will use Pulsar IO threads"
+    )
+    private boolean bookkeeperClientSeparatedIoThreadsEnabled = false;
 
     /**** --- Managed Ledger. --- ****/
     @FieldContext(
@@ -1779,21 +1803,25 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private double managedLedgerDefaultMarkDeleteRateLimit = 1.0;
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
+        dynamic = true,
         doc = "Allow automated creation of topics if set to true (default value)."
     )
     private boolean allowAutoTopicCreation = true;
     @FieldContext(
             category = CATEGORY_STORAGE_ML,
+            dynamic = true,
             doc = "The type of topic that is allowed to be automatically created.(partitioned/non-partitioned)"
     )
     private String allowAutoTopicCreationType = "non-partitioned";
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
+        dynamic = true,
         doc = "Allow automated creation of subscriptions if set to true (default value)."
     )
     private boolean allowAutoSubscriptionCreation = true;
     @FieldContext(
             category = CATEGORY_STORAGE_ML,
+            dynamic = true,
             doc = "The number of partitioned topics that is allowed to be automatically created"
                     + "if allowAutoTopicCreationType is partitioned."
     )
@@ -1972,6 +2000,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String loadBalancerLoadSheddingStrategy = "org.apache.pulsar.broker.loadbalance.impl.ThresholdShedder";
 
     @FieldContext(
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "load balance placement strategy"
+    )
+    private String loadBalancerLoadPlacementStrategy =
+            "org.apache.pulsar.broker.loadbalance.impl.LeastLongTermMessageRate";
+
+    @FieldContext(
         dynamic = true,
         category = CATEGORY_LOAD_BALANCER,
         doc = "Percentage of change to trigger load report update"
@@ -2044,6 +2079,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Usage threshold to determine a broker whether to start threshold shedder"
     )
     private int loadBalancerBrokerThresholdShedderPercentage = 10;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "Average resource usage difference threshold to determine a broker whether to be a best candidate in "
+                    + "LeastResourceUsageWithWeight.(eg: broker1 with 10% resource usage with weight "
+                    + "and broker2 with 30% and broker3 with 80% will have 40% average resource usage. "
+                    + "The placement strategy can select broker1 and broker2 as best candidates.)"
+    )
+    private int loadBalancerAverageResourceUsageDifferenceThresholdPercentage = 10;
 
     @FieldContext(
         dynamic = true,
@@ -2614,6 +2659,67 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "transactionPendingAckLogIndexMinLag is used to configure the minimum lag between indexes"
     )
     private long transactionPendingAckLogIndexMinLag = 500L;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            dynamic = true,
+            doc = "Provide a mechanism allowing the Transaction Log Store to aggregate multiple records into a batched"
+                    + " record and persist into a single BK entry. This will make Pulsar transactions work more"
+                    + " efficiently, aka batched log. see: https://github.com/apache/pulsar/issues/15370. Default false"
+    )
+    private boolean transactionLogBatchedWriteEnabled = false;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "If enabled the feature that transaction log batch, this attribute means maximum log records count"
+                    + " in a batch, default 512."
+    )
+    private int transactionLogBatchedWriteMaxRecords = 512;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "If enabled the feature that transaction log batch, this attribute means bytes size in a"
+                    + " batch, default 4m."
+    )
+    private int transactionLogBatchedWriteMaxSize = 1024 * 1024 * 4;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "If enabled the feature that transaction log batch, this attribute means maximum wait time(in millis)"
+                    + " for the first record in a batch, default 1 millisecond."
+    )
+    private int transactionLogBatchedWriteMaxDelayInMillis = 1;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            dynamic = true,
+            doc = "Provide a mechanism allowing the transaction pending ack Log Store to aggregate multiple records"
+                    + " into a batched record and persist into a single BK entry. This will make Pulsar transactions"
+                    + " work more efficiently, aka batched log. see: https://github.com/apache/pulsar/issues/15370."
+                    + " Default false."
+    )
+    private boolean transactionPendingAckBatchedWriteEnabled = false;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "If enabled the feature that transaction log batch, this attribute means maximum log records count"
+                    + " in a batch, default 512."
+    )
+    private int transactionPendingAckBatchedWriteMaxRecords = 512;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "If enabled the feature that transaction pending ack log batch, this attribute means bytes size in"
+                    + " a batch, default 4m."
+    )
+    private int transactionPendingAckBatchedWriteMaxSize = 1024 * 1024 * 4;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "If enabled the feature that transaction pending ack log batch, this attribute means maximum wait"
+                    + " time(in millis) for the first record in a batch, default 1 millisecond."
+    )
+    private int transactionPendingAckBatchedWriteMaxDelayInMillis = 1;
 
     /**** --- KeyStore TLS config variables. --- ****/
     @FieldContext(

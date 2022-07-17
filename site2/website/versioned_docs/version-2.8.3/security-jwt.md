@@ -281,8 +281,10 @@ authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationPr
 brokerClientTlsEnabled=true
 brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.AuthenticationToken
 brokerClientAuthenticationParameters={"token":"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0LXVzZXIifQ.9OHgE9ZUDeBTZs7nSMEFIuGNEX18FLR3qvy8mqxSxXw"}
-# Or, alternatively, read token from file
-# brokerClientAuthenticationParameters={"file":"///path/to/proxy-token.txt"}
+# Either configure the token string or specify to read it from a file. The following three available formats are all valid:
+# brokerClientAuthenticationParameters={"token":"your-token-string"}
+# brokerClientAuthenticationParameters=token:your-token-string
+# brokerClientAuthenticationParameters=file:///path/to/token
 brokerClientTrustCertsFilePath=/path/my-ca/certs/ca.cert.pem
 
 # If this flag is set then the broker authenticates the original Auth data
@@ -316,8 +318,10 @@ tokenSecretKey=file:///path/to/secret.key
 # For the proxy to connect to brokers
 brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.AuthenticationToken
 brokerClientAuthenticationParameters={"token":"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0LXVzZXIifQ.9OHgE9ZUDeBTZs7nSMEFIuGNEX18FLR3qvy8mqxSxXw"}
-# Or, alternatively, read token from file
-# brokerClientAuthenticationParameters={"file":"///path/to/proxy-token.txt"}
+# Either configure the token string or specify to read it from a file. The following three available formats are all valid:
+# brokerClientAuthenticationParameters={"token":"your-token-string"}
+# brokerClientAuthenticationParameters=token:your-token-string
+# brokerClientAuthenticationParameters=file:///path/to/token
 
 # Whether client authorization credentials are forwarded to the broker for re-authorization.
 # Authentication must be enabled via authenticationEnabled=true for this to take effect.

@@ -1020,6 +1020,15 @@ public class NamespaceService implements AutoCloseable {
         }
     }
 
+    public CompletableFuture<Boolean> isServiceUnitActiveAsync(TopicName topicName) {
+        Optional<CompletableFuture<OwnedBundle>> res = ownershipCache.getOwnedBundleAsync(getBundle(topicName));
+        if (!res.isPresent()) {
+            return CompletableFuture.completedFuture(false);
+        }
+
+        return res.get().thenApply(ob -> ob != null && ob.isActive());
+    }
+
     private boolean isNamespaceOwned(NamespaceName fqnn) throws Exception {
         return ownershipCache.getOwnedBundle(getFullBundle(fqnn)) != null;
     }
@@ -1038,10 +1047,9 @@ public class NamespaceService implements AutoCloseable {
                 .thenCompose(ownershipCache::checkOwnershipAsync);
     }
 
-    public void removeOwnedServiceUnit(NamespaceBundle nsBundle) throws Exception {
-        ownershipCache.removeOwnership(nsBundle).get(
-                pulsar.getConfiguration().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
-        bundleFactory.invalidateBundleCache(nsBundle.getNamespaceObject());
+    public CompletableFuture<Void> removeOwnedServiceUnitAsync(NamespaceBundle nsBundle) {
+        return ownershipCache.removeOwnership(nsBundle)
+                .thenRun(() -> bundleFactory.invalidateBundleCache(nsBundle.getNamespaceObject()));
     }
 
     protected void onNamespaceBundleOwned(NamespaceBundle bundle) {
