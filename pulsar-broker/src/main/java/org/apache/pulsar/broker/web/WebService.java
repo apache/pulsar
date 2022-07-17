@@ -77,7 +77,8 @@ public class WebService implements AutoCloseable {
     private JettyStatisticsCollector jettyStatisticsCollector;
 
     @Getter
-    private final DynamicSkipUnknownPropertyHandler sharedJsonMapperProvider = new DynamicSkipUnknownPropertyHandler();
+    private final DynamicSkipUnknownPropertyHandler sharedUnknownPropertyHandler =
+            new DynamicSkipUnknownPropertyHandler();
 
     public WebService(PulsarService pulsar) throws PulsarServerException {
         this.handlers = Lists.newArrayList();
@@ -174,7 +175,7 @@ public class WebService implements AutoCloseable {
     private void addResourceServlet(String basePath, boolean requiresAuthentication, Map<String, Object> attributeMap,
                                     ResourceConfig config, boolean useSharedJsonMapperProvider) {
         if (useSharedJsonMapperProvider){
-            JsonMapperProvider jsonMapperProvider = new JsonMapperProvider(sharedJsonMapperProvider);
+            JsonMapperProvider jsonMapperProvider = new JsonMapperProvider(sharedUnknownPropertyHandler);
             config.register(jsonMapperProvider);
         } else {
             config.register(JsonMapperProvider.class);
