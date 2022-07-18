@@ -24,7 +24,7 @@ set -e
 set -o pipefail
 set -o errexit
 
-MVN_TEST_OPTIONS='mvn -B -ntp -DskipSourceReleaseAssembly=true -DskipBuildDistribution=true -Dspotbugs.skip=true -Dlicense.skip=true -Dcheckstyle.skip=true -Drat.skip=true'
+MVN_TEST_OPTIONS='mvn -DskipSourceReleaseAssembly=true -DskipBuildDistribution=true -Dspotbugs.skip=true -Dlicense.skip=true -Dcheckstyle.skip=true -Drat.skip=true -Dlog4j.configurationFile=conf/log4j2.yaml'
 
 function mvn_test() {
   (

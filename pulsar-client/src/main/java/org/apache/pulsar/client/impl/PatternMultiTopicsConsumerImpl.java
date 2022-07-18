@@ -99,18 +99,17 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
     @Override
     public void run(Timeout timeout) throws Exception {
         if (timeout.isCancelled()) {
+            log.error("timeout return");
             return;
         }
         client.getLookup().getTopicsUnderNamespace(namespaceName, subscriptionMode, topicsPattern.pattern(), topicsHash)
             .thenCompose(getTopicsResult -> {
 
-                if (log.isDebugEnabled()) {
-                    log.debug("Get topics under namespace {}, topics.size: {}, topicsHash: {}, filtered: {}",
-                            namespaceName, getTopicsResult.getTopics().size(), getTopicsResult.getTopicsHash(),
-                            getTopicsResult.isFiltered());
-                    getTopicsResult.getTopics().forEach(topicName ->
-                            log.debug("Get topics under namespace {}, topic: {}", namespaceName, topicName));
-                }
+                log.error("Get topics under namespace {}, topics.size: {}, topicsHash: {}, filtered: {}",
+                    namespaceName, getTopicsResult.getTopics().size(), getTopicsResult.getTopicsHash(),
+                    getTopicsResult.isFiltered());
+                getTopicsResult.getTopics().forEach(topicName ->
+                    log.error("Get topics under namespace {}, topic: {}", namespaceName, topicName));
 
                 final List<String> oldTopics = new ArrayList<>(getPartitionedTopics());
                 for (String partition : getPartitions()) {
@@ -137,11 +136,12 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
                                                        GetTopicsResult getTopicsResult,
                                                        TopicsChangedListener topicsChangedListener,
                                                        List<String> oldTopics) {
+        log.error("updateSubscriptions before accept");
         topicsHashSetter.accept(getTopicsResult.getTopicsHash());
         if (!getTopicsResult.isChanged()) {
             return CompletableFuture.completedFuture(null);
         }
-
+        log.error("updateSubscriptions before accept2");
         List<String> newTopics;
         if (getTopicsResult.isFiltered()) {
             newTopics = getTopicsResult.getTopics();
@@ -149,9 +149,11 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
             newTopics = TopicList.filterTopics(getTopicsResult.getTopics(), topicsPattern);
         }
 
+        log.error("updateSubscriptions before accept3");
         final List<CompletableFuture<?>> listenersCallback = new ArrayList<>(2);
         listenersCallback.add(topicsChangedListener.onTopicsAdded(TopicList.minus(newTopics, oldTopics)));
         listenersCallback.add(topicsChangedListener.onTopicsRemoved(TopicList.minus(oldTopics, newTopics)));
+        log.error("updateSubscriptions before accept4");
         return FutureUtil.waitForAll(Collections.unmodifiableList(listenersCallback));
     }
 
