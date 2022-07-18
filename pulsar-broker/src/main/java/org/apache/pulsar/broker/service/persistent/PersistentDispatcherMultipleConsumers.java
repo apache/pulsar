@@ -497,7 +497,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     @Override
     public synchronized void readEntriesComplete(List<Entry> entries, Object ctx) {
-        log.info("read {}", entries.size(), new Exception("xxx").fillInStackTrace());
         ReadType readType = (ReadType) ctx;
         if (readType == ReadType.Normal) {
             havePendingRead = false;
