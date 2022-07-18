@@ -125,6 +125,7 @@ BookKeeper is a replicated log storage system that Pulsar uses for durable stora
 |dbStorage_rocksDB_numLevels||-1|
 |dbStorage_rocksDB_numFilesInLevel0||4|
 |dbStorage_rocksDB_maxSizeInLevel1MB||256|
+|skipListSizeLimit|Heap memory limitation of `EntryMemTable`, The `EntryMemTable` holds in-memory representation to the entries not-yet flushed. When asked to flush, current EntrySkipList is moved to snapshot and is cleared.|64MB|
 
 ## Broker
 
