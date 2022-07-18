@@ -41,17 +41,19 @@ public class DynamicSkipUnknownPropertyHandler extends DeserializationProblemHan
                                          JsonDeserializer<?> deserializer, Object beanOrClass,
                                          String propertyName) throws IOException {
         if (skipUnknownProperty){
-            StringBuilder warnLog = new StringBuilder();
-            warnLog.append("Deserialize json to [").append(beanOrClass.getClass().getName())
-                    .append("], found unknown property [").append(propertyName).append("] and skipped. ");
-            if (p.isExpectedStartArrayToken()){
-                warnLog.append("The requested value is an array.");
-            } else if (p.isExpectedStartObjectToken()){
-                warnLog.append("The requested value is an object.");
-            } else {
-                warnLog.append("The requested value is [").append(p.getText()).append("].");
+            if (log.isDebugEnabled()) {
+                StringBuilder warnLog = new StringBuilder();
+                warnLog.append("Deserialize json to [").append(beanOrClass.getClass().getName())
+                        .append("], found unknown property [").append(propertyName).append("] and skipped. ");
+                if (p.isExpectedStartArrayToken()){
+                    warnLog.append("The requested value is an array.");
+                } else if (p.isExpectedStartObjectToken()){
+                    warnLog.append("The requested value is an object.");
+                } else {
+                    warnLog.append("The requested value is [").append(p.getText()).append("].");
+                }
+                log.debug(warnLog.toString());
             }
-            log.warn(warnLog.toString());
             p.skipChildren();
             return skipUnknownProperty;
         } else {

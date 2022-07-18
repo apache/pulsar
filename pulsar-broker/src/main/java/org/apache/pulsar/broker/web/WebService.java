@@ -77,7 +77,7 @@ public class WebService implements AutoCloseable {
     private JettyStatisticsCollector jettyStatisticsCollector;
 
     @Getter
-    private final DynamicSkipUnknownPropertyHandler sharedUnknownPropertyHandler =
+    private static final DynamicSkipUnknownPropertyHandler sharedUnknownPropertyHandler =
             new DynamicSkipUnknownPropertyHandler();
 
     public WebService(PulsarService pulsar) throws PulsarServerException {

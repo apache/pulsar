@@ -26,6 +26,7 @@ import lombok.Data;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker-admin-v2")
 public class DynamicSkipUnknownPropertyHandlerTest {
 
     @Test
@@ -117,7 +118,7 @@ public class DynamicSkipUnknownPropertyHandlerTest {
     }
 
     @Data
-    public static class TestBean {
+    private static class TestBean {
         private String name1;
         private String name;
         private String name2;
