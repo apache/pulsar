@@ -56,7 +56,7 @@ fi
 add_maven_deps_to_classpath() {
     MVN="mvn"
     if [ "$MAVEN_HOME" != "" ]; then
-	    MVN=${MAVEN_HOME}/bin/mvn
+      MVN=${MAVEN_HOME}/bin/mvn
     fi
 
     # Need to generate classpath from maven pom. This is costly so generate it
