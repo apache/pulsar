@@ -43,3 +43,8 @@ message PendingAckMetadataEntry {
     optional uint64 txnid_most_bits = 4;
     repeated PendingAckMetadata pending_ack_metadata = 5;
 }
+
+message BatchedPendingAckMetadataEntry{
+    // Array for buffer pending ack data.
+    repeated PendingAckMetadataEntry pending_ack_logs = 1;
+}
