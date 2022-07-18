@@ -19,7 +19,6 @@
 
 package org.apache.pulsar.broker.service;
 
-import com.google.common.collect.ImmutableList;
 import io.netty.buffer.ByteBuf;
 import java.util.ArrayList;
 import java.util.Collections;
