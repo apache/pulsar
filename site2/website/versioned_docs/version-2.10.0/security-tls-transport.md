@@ -47,7 +47,7 @@ Follow the guide below to set up a certificate authority. You can also refer to 
 
 mkdir my-ca
 cd my-ca
-wget https://raw.githubusercontent.com/apache/pulsar/master/site2/website/static/examples/openssl.cnf
+wget https://raw.githubusercontent.com/apache/pulsar-site/main/site2/website/static/examples/openssl.cnf
 export CA_HOME=$(pwd)
 
 ```
@@ -220,7 +220,7 @@ The examples below show that hostname verification is disabled for the CLI tools
 
 ### CLI tools
 
-[Command-line tools](reference-cli-tools) like [`pulsar-admin`](reference-cli-tools.md#pulsar-admin), [`pulsar-perf`](reference-cli-tools.md#pulsar-perf), and [`pulsar-client`](reference-cli-tools.md#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
+[Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](reference-cli-tools.md#pulsar-admin), [`pulsar-perf`](reference-cli-tools.md#pulsar-perf), and [`pulsar-client`](reference-cli-tools.md#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
 
 You need to add the following parameters to that file to use TLS transport with the CLI tools of Pulsar:
 

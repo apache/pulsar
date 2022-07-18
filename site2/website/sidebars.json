@@ -230,8 +230,9 @@
         "administration-stats",
         "administration-load-balance",
         "administration-proxy",
+        "administration-isolation",
         "administration-upgrade",
-        "administration-isolation"
+        "administration-metadata-store"
       ]
     },
     {

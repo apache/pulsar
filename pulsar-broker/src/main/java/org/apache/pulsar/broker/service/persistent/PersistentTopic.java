@@ -386,11 +386,15 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private PersistentSubscription createPersistentSubscription(String subscriptionName, ManagedCursor cursor,
             boolean replicated, Map<String, String> subscriptionProperties) {
         checkNotNull(compactedTopic);
-        if (subscriptionName.equals(COMPACTION_SUBSCRIPTION)) {
+        if (isCompactionSubscription(subscriptionName)) {
             return new CompactorSubscription(this, compactedTopic, subscriptionName, cursor);
         } else {
             return new PersistentSubscription(this, subscriptionName, cursor, replicated, subscriptionProperties);
         }
+    }
+
+    private static boolean isCompactionSubscription(String subscriptionName) {
+        return COMPACTION_SUBSCRIPTION.equals(subscriptionName);
     }
 
     @Override
@@ -828,6 +832,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     }
                 } else if (ex.getCause() instanceof SubscriptionBusyException) {
                     log.warn("[{}][{}] {}", topic, subscriptionName, ex.getMessage());
+                } else if (ex.getCause() instanceof BrokerServiceException.SubscriptionFencedException
+                        && isCompactionSubscription(subscriptionName)) {
+                    log.warn("[{}] Failed to create compaction subscription: {}", topic, ex.getMessage());
                 } else {
                     log.error("[{}] Failed to create subscription: {}", topic, subscriptionName, ex);
                 }

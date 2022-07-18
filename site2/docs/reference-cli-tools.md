@@ -15,12 +15,13 @@ All Pulsar command-line tools can be run from the `bin` directory of your [insta
 * [`bookkeeper`](#bookkeeper)
 * [`broker-tool`](#broker-tool)
 
-> **Important** 
->
-> - This page only shows **some frequently used commands**. For the latest information about `pulsar`, `pulsar-client`, and `pulsar-perf`, including commands, flags, descriptions, and more information, see [Pulsar tools](/tools/).
->  
-> - You can get help for any CLI tool, command, or subcommand using the `--help` flag, or `-h` for short. Here's an example:
-> 
+:::tip
+
+ - This page only shows **some frequently used commands**. For the latest information about `pulsar`, `pulsar-client`, and `pulsar-perf`, including commands, flags, descriptions, and more information, see [Pulsar tools](/tools/).
+  
+ - You can get help for any CLI tool, command, or subcommand using the `--help` flag, or `-h` for short. Here's an example:
+
+:::
 
 > ```shell
 > 
@@ -809,7 +810,7 @@ Options
 
 ### `transaction`
 
-Run a transaction. For more information, see [Pulsar transactions](txn-why).
+Run a transaction. For more information, see [Pulsar transactions](txn-why.md).
 
 **Usage**
 

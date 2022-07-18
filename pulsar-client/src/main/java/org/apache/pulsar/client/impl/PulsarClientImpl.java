@@ -947,6 +947,10 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     public CompletableFuture<ClientCnx> getConnectionToServiceUrl() {
+        if (!(lookup instanceof BinaryProtoLookupService)) {
+            return FutureUtil.failedFuture(new PulsarClientException.InvalidServiceURL(
+                    "Can't get client connection to HTTP service URL", null));
+        }
         InetSocketAddress address = lookup.resolveHost();
         return getConnection(address, address);
     }

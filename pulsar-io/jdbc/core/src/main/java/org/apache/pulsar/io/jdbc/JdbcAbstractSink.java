@@ -31,6 +31,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Function;
+import lombok.AllArgsConstructor;
+import lombok.Data;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.api.Record;
@@ -43,7 +46,7 @@ import org.apache.pulsar.io.core.SinkContext;
 @Slf4j
 public abstract class JdbcAbstractSink<T> implements Sink<T> {
     // ----- Runtime fields
-    private JdbcSinkConfig jdbcSinkConfig;
+    protected JdbcSinkConfig jdbcSinkConfig;
     @Getter
     private Connection connection;
     private String jdbcUrl;
@@ -52,13 +55,11 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
     private JdbcUtils.TableId tableId;
     private PreparedStatement insertStatement;
     private PreparedStatement updateStatement;
+    private PreparedStatement upsertStatement;
     private PreparedStatement deleteStatement;
 
 
-    protected static final String ACTION = "ACTION";
-    protected static final String INSERT = "INSERT";
-    protected static final String UPDATE = "UPDATE";
-    protected static final String DELETE = "DELETE";
+    protected static final String ACTION_PROPERTY = "ACTION";
 
     protected JdbcUtils.TableDefinition tableDefinition;
 
@@ -122,12 +123,15 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
         }
 
         tableDefinition = JdbcUtils.getTableDefinition(connection, tableId, keyList, nonKeyList);
-        insertStatement = JdbcUtils.buildInsertStatement(connection, JdbcUtils.buildInsertSql(tableDefinition));
+        insertStatement = JdbcUtils.buildInsertStatement(connection, generateInsertQueryStatement());
+        if (jdbcSinkConfig.getInsertMode() == JdbcSinkConfig.InsertMode.UPSERT) {
+            upsertStatement = JdbcUtils.buildInsertStatement(connection, generateUpsertQueryStatement());
+        }
         if (!nonKeyList.isEmpty()) {
-            updateStatement = JdbcUtils.buildUpdateStatement(connection, JdbcUtils.buildUpdateSql(tableDefinition));
+            updateStatement = JdbcUtils.buildUpdateStatement(connection, generateUpdateQueryStatement());
         }
         if (!keyList.isEmpty()) {
-            deleteStatement = JdbcUtils.buildDeleteStatement(connection, JdbcUtils.buildDeleteSql(tableDefinition));
+            deleteStatement = JdbcUtils.buildDeleteStatement(connection, generateDeleteQueryStatement());
         }
     }
 
@@ -135,6 +139,18 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
     public void close() throws Exception {
         if (connection != null && !connection.getAutoCommit()) {
             connection.commit();
+        }
+        if (insertStatement != null) {
+            insertStatement.close();
+        }
+        if (updateStatement != null) {
+            updateStatement.close();
+        }
+        if (upsertStatement != null) {
+            upsertStatement.close();
+        }
+        if (deleteStatement != null) {
+            deleteStatement.close();
         }
         if (flushExecutor != null) {
             flushExecutor.shutdown();
@@ -159,10 +175,40 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
         }
     }
 
+    public String generateInsertQueryStatement() {
+        return JdbcUtils.buildInsertSql(tableDefinition);
+    }
+
+    public String generateUpdateQueryStatement() {
+        return JdbcUtils.buildUpdateSql(tableDefinition);
+    }
+
+    public abstract String generateUpsertQueryStatement();
+
+    public String generateDeleteQueryStatement() {
+        return JdbcUtils.buildDeleteSql(tableDefinition);
+    }
+
     // bind value with a PreparedStetement
     public abstract void bindValue(
         PreparedStatement statement,
-        Record<T> message, String action) throws Exception;
+        Mutation mutation) throws Exception;
+
+    public abstract Mutation createMutation(Record<T> message);
+
+    @Data
+    @AllArgsConstructor
+    protected static class Mutation {
+        private MutationType type;
+        private Function<String, Object> values;
+    }
+    protected enum MutationType {
+        INSERT,
+        UPDATE,
+        UPSERT,
+        DELETE
+    }
+
 
     private void flush() {
         // if not in flushing state, do flush, else return;
@@ -187,42 +233,44 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
             try {
                 // bind each record value
                 for (Record<T> record : swapList) {
-                    String action = record.getProperties().get(ACTION);
-                    if (action == null) {
-                        action = INSERT;
-                    }
-                    switch (action) {
+                    final Mutation mutation = createMutation(record);
+                    switch (mutation.getType()) {
                         case DELETE:
-                            bindValue(deleteStatement, record, action);
+                            bindValue(deleteStatement, mutation);
                             count += 1;
                             deleteStatement.execute();
                             break;
                         case UPDATE:
-                            bindValue(updateStatement, record, action);
+                            bindValue(updateStatement, mutation);
                             count += 1;
                             updateStatement.execute();
                             break;
                         case INSERT:
-                            bindValue(insertStatement, record, action);
+                            bindValue(insertStatement, mutation);
                             count += 1;
                             insertStatement.execute();
+                            break;
+                        case UPSERT:
+                            bindValue(upsertStatement, mutation);
+                            count += 1;
+                            upsertStatement.execute();
                             break;
                         default:
                             String msg = String.format(
                                     "Unsupported action %s, can be one of %s, or not set which indicate %s",
-                                    action, Arrays.asList(INSERT, UPDATE, DELETE), INSERT);
+                                    mutation.getType(), Arrays.toString(MutationType.values()), MutationType.INSERT);
                             throw new IllegalArgumentException(msg);
                     }
                 }
                 connection.commit();
                 swapList.forEach(Record::ack);
             } catch (Exception e) {
-                log.error("Got exception ", e);
+                log.error("Got exception ", e.getMessage(), e);
                 swapList.forEach(Record::fail);
             }
 
             if (swapList.size() != count) {
-                log.error("Update count {}  not match total number of records {}", count, swapList.size());
+                log.error("Update count {} not match total number of records {}", count, swapList.size());
             }
 
             // finish flush

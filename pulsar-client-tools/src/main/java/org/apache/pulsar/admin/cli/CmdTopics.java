@@ -808,10 +808,15 @@ public class CmdTopics extends CmdBase {
                 + ", locking required.")
         private boolean subscriptionBacklogSize = false;
 
+        @Parameter(names = { "-etb",
+                "--get-earliest-time-in-backlog" }, description = "Set true to get earliest time in backlog")
+        private boolean getEarliestTimeInBacklog = false;
+
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
-            print(getTopics().getPartitionedStats(topic, perPartition, getPreciseBacklog, subscriptionBacklogSize));
+            print(getTopics().getPartitionedStats(topic, perPartition, getPreciseBacklog,
+                    subscriptionBacklogSize, getEarliestTimeInBacklog));
         }
     }
 

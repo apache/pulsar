@@ -1031,39 +1031,6 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
 
     @SuppressWarnings("deprecation")
     @Test
-    public void testDispatchRateCompatibility1() throws Exception {
-        final String cluster = "test";
-
-        Optional<Policies> policies = Optional.of(new Policies());
-        DispatchRateImpl clusterDispatchRate = DispatchRateImpl.builder()
-                .dispatchThrottlingRateInMsg(10)
-                .dispatchThrottlingRateInByte(512)
-                .ratePeriodInSecond(1)
-                .build();
-        DispatchRateImpl topicDispatchRate = DispatchRateImpl.builder()
-                .dispatchThrottlingRateInMsg(200)
-                .dispatchThrottlingRateInByte(1024)
-                .ratePeriodInSecond(1)
-                .build();
-
-        // (1) If both clusterDispatchRate and topicDispatchRate are empty, dispatch throttling is disabled
-        DispatchRateImpl dispatchRate = DispatchRateLimiter.getPoliciesDispatchRate(cluster, policies,
-                DispatchRateLimiter.Type.TOPIC);
-        Assert.assertNull(dispatchRate);
-
-        // (2) If topicDispatchRate is empty, clusterDispatchRate is effective
-        policies.get().clusterDispatchRate.put(cluster, clusterDispatchRate);
-        dispatchRate = DispatchRateLimiter.getPoliciesDispatchRate(cluster, policies, DispatchRateLimiter.Type.TOPIC);
-        Assert.assertEquals(dispatchRate, clusterDispatchRate);
-
-        // (3) If topicDispatchRate is not empty, topicDispatchRate is effective
-        policies.get().topicDispatchRate.put(cluster, topicDispatchRate);
-        dispatchRate = DispatchRateLimiter.getPoliciesDispatchRate(cluster, policies, DispatchRateLimiter.Type.TOPIC);
-        Assert.assertEquals(dispatchRate, topicDispatchRate);
-    }
-
-    @SuppressWarnings("deprecation")
-    @Test
     public void testDispatchRateCompatibility2() throws Exception {
         final String namespace = "my-property/dispatch-rate-compatibility";
         final String topicName = "persistent://" + namespace + "/t1";

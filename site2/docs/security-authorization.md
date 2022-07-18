@@ -14,7 +14,7 @@ When a superuser creates a [tenant](reference-terminology.md#tenant), that tenan
 ## Broker and Proxy Setup
 
 ### Enable authorization and assign superusers
-You can enable the authorization and assign the superusers in the broker ([`conf/broker.conf`](reference-configuration.md#broker)) configuration files.
+You can enable the authorization and assign the superusers in the broker ([`conf/broker.conf`](reference-configuration.md#broker) or `conf/standalone.conf`) configuration files.
 
 ```properties
 
@@ -23,7 +23,7 @@ superUserRoles=my-super-user-1,my-super-user-2
 
 ```
 
-> A full list of parameters is available in the `conf/broker.conf` file.
+> A full list of parameters is available in the `conf/broker.conf` or `conf/standalone.conf` file.
 > You can also find the default values for those parameters in [Broker Configuration](reference-configuration.md#broker). 
 
 Typically, you use superuser roles for administrators, clients as well as broker-to-broker authorization. When you use [geo-replication](concepts-replication.md), every broker needs to be able to publish to all the other topics of clusters.

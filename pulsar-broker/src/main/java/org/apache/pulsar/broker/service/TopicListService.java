@@ -207,7 +207,7 @@ public class TopicListService {
         long requestId = commandWatchTopicListClose.getRequestId();
         long watcherId = commandWatchTopicListClose.getWatcherId();
         deleteTopicListWatcher(watcherId);
-        connection.getCommandSender().sendWatchTopicListSuccess(requestId, watcherId, null, null);
+        connection.getCommandSender().sendSuccess(requestId);
     }
 
     public void deleteTopicListWatcher(Long watcherId) {

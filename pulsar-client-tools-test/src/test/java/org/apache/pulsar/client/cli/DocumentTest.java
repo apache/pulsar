@@ -60,7 +60,7 @@ public class DocumentTest extends BrokerTestBase {
     @Test
     public void testGenerator() {
         PulsarClientTool pulsarClientTool = new PulsarClientTool(new Properties());
-        JCommander commander = pulsarClientTool.commandParser;
+        JCommander commander = pulsarClientTool.jcommander;
         CmdGenerateDocumentation document = new CmdGenerateDocumentation();
         for (Map.Entry<String, JCommander> cmd : commander.getCommands().entrySet()) {
             String res = document.generateDocument(cmd.getKey(), commander);
