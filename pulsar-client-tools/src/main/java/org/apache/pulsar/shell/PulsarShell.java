@@ -40,7 +40,6 @@ import org.apache.commons.text.StringSubstitutor;
 import org.jline.reader.Completer;
 import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
-import org.jline.reader.ParsedLine;
 import org.jline.reader.impl.completer.AggregateCompleter;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
@@ -147,6 +146,7 @@ public class PulsarShell {
     }
 
     public void run() throws Exception {
+        System.setProperty("org.jline.terminal.dumb", "true");
         final Terminal terminal = TerminalBuilder.builder().build();
         run((providersMap) -> {
             List<Completer> completers = new ArrayList<>();
@@ -245,8 +245,6 @@ public class PulsarShell {
 
     public void run(Function<Map<String, ShellCommandsProvider>, InteractiveLineReader> readerBuilder,
                     Function<Map<String, ShellCommandsProvider>, Terminal> terminalBuilder) throws Exception {
-        System.setProperty("org.jline.terminal.dumb", "true");
-
         /**
          * Options read from the shell session
          */
