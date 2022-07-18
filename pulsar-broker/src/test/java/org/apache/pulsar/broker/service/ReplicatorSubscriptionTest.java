@@ -28,6 +28,7 @@ import com.google.common.collect.Sets;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
@@ -546,22 +547,35 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
                 .statsInterval(0, TimeUnit.SECONDS)
                 .build();
 
-        // create consumer in r1
-        @Cleanup
-        Consumer<byte[]> consumer1 = client1.newConsumer()
-                .topic(topicName)
-                .subscriptionName(subscriptionName)
-                .replicateSubscriptionState(true)
-                .subscribe();
+        {
+            // create consumer in r1
+            @Cleanup
+            Consumer<byte[]> consumer = client1.newConsumer()
+                    .topic(topicName)
+                    .subscriptionName(subscriptionName)
+                    .replicateSubscriptionState(true)
+                    .subscribe();
 
-        // waiting to replicate topic/subscription to r1->r2
-        Awaitility.await().until(() -> pulsar2.getBrokerService().getTopics().containsKey(topicName));
-        final PersistentTopic topic2 = (PersistentTopic) pulsar2.getBrokerService().getTopic(topicName, false).join().get();
-        Awaitility.await().untilAsserted(() -> assertTrue(topic2.getReplicators().get("r1").isConnected()));
-        Awaitility.await().untilAsserted(() -> assertNotNull(topic2.getSubscription(subscriptionName)));
+            // send one message to trigger replication
+            @Cleanup
+            Producer<byte[]> producer = client1.newProducer().topic(topicName)
+                    .enableBatching(false)
+                    .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                    .create();
+            producer.send("message".getBytes(StandardCharsets.UTF_8));
+
+            assertEquals(readMessages(consumer, new HashSet<>(), 1, false), 1);
+
+            // waiting to replicate topic/subscription to r1->r2
+            Awaitility.await().until(() -> pulsar2.getBrokerService().getTopics().containsKey(topicName));
+            final PersistentTopic topic2 = (PersistentTopic) pulsar2.getBrokerService().getTopic(topicName, false).join().get();
+            Awaitility.await().untilAsserted(() -> assertTrue(topic2.getReplicators().get("r1").isConnected()));
+            Awaitility.await().untilAsserted(() -> assertNotNull(topic2.getSubscription(subscriptionName)));
+        }
 
         // unsubscribe replicated subscription in r2
         admin2.topics().deleteSubscription(topicName, subscriptionName);
+        final PersistentTopic topic2 = (PersistentTopic) pulsar2.getBrokerService().getTopic(topicName, false).join().get();
         assertNull(topic2.getSubscription(subscriptionName));
 
         // close replicator producer in r2
@@ -586,6 +600,12 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
 
         // consume 6 messages in r1
         Set<String> receivedMessages = new LinkedHashSet<>();
+        @Cleanup
+        Consumer<byte[]> consumer1 = client1.newConsumer()
+                .topic(topicName)
+                .subscriptionName(subscriptionName)
+                .replicateSubscriptionState(true)
+                .subscribe();
         assertEquals(readMessages(consumer1, receivedMessages, numMessages, false), numMessages);
 
         // wait for subscription to be replicated
