@@ -1502,7 +1502,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         try {
             admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0xffffffff", false, null);
         } catch (Exception e) {
-            fail("split bundle shouldn't have thrown exception");
+            fail("split bundle shouldn't have thrown exception", e);
         }
 
         // bundle-factory cache must have updated split bundles
@@ -1530,7 +1530,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                 f.get();
             }
         } catch (Exception e) {
-            fail("split bundle shouldn't have thrown exception");
+            fail("split bundle shouldn't have thrown exception", e);
         }
 
         Awaitility.await().untilAsserted(() ->
@@ -1565,7 +1565,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                 f.get();
             }
         } catch (Exception e) {
-            fail("split bundle shouldn't have thrown exception");
+            fail("split bundle shouldn't have thrown exception", e);
         }
         Awaitility.await().untilAsserted(() ->
                 assertEquals(bundleFactory.getBundles(NamespaceName.get(namespace)).getBundles().size(), 8));
