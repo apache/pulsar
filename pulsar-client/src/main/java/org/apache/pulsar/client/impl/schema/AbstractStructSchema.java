@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl.schema;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
+import java.io.InputStream;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
@@ -64,6 +65,16 @@ public abstract class AbstractStructSchema<T> extends AbstractSchema<T> {
     @Override
     public T decode(byte[] bytes, byte[] schemaVersion) {
         return reader.read(bytes, schemaVersion);
+    }
+
+    @Override
+    public T decode(InputStream input) {
+        return this.reader.read(input);
+    }
+
+    @Override
+    public T decode(InputStream input, byte[] schemaVersion) {
+        return this.reader.read(input, schemaVersion);
     }
 
     @Override

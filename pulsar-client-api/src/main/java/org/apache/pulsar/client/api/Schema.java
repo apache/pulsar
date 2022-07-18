@@ -19,6 +19,8 @@
 package org.apache.pulsar.client.api;
 
 import static org.apache.pulsar.client.internal.PulsarClientImplementationBinding.getBytes;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.sql.Time;
 import java.sql.Timestamp;
@@ -40,13 +42,14 @@ import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.common.utils.IOUtils;
 
 /**
  * Message schema definition.
  */
 @InterfaceAudience.Public
 @InterfaceStability.Stable
-public interface Schema<T> extends Cloneable{
+public interface Schema<T> extends Cloneable {
 
     /**
      * Check if the message is a valid object for this schema.
@@ -118,6 +121,36 @@ public interface Schema<T> extends Cloneable{
     default T decode(byte[] bytes, byte[] schemaVersion) {
         // ignore version by default (most of the primitive schema implementations ignore schema version)
         return decode(bytes);
+    }
+
+    /**
+     * Decode a byte array into an object using the schema definition and deserializer implementation.
+     *
+     * @param input the inputstream to decode
+     * @return the deserialized object
+     */
+    default T decode(InputStream input) {
+        try {
+            return decode(IOUtils.readAllBytes(input));
+        } catch (IOException ex) {
+            throw new SchemaSerializationException(ex);
+        }
+    }
+
+    /**
+     * Decode a byte array into an object using a given version.
+     *
+     * @param input the inputstream to decode
+     * @param schemaVersion
+     *            the schema version to decode the object. null indicates using latest version.
+     * @return the deserialized object
+     */
+    default T decode(InputStream input, byte[] schemaVersion) {
+        try {
+            return decode(IOUtils.readAllBytes(input), schemaVersion);
+        } catch (IOException ex) {
+            throw new SchemaSerializationException(ex);
+        }
     }
 
     /**
