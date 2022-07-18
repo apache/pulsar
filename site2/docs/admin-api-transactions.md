@@ -62,6 +62,94 @@ admin.transaction().getSlowTransactions(timeout, timeUnit)
 </Tabs>
 ````
 
+The following is an example of the returned values.
+
+```shell
+{
+  "(0,3)": {
+    "txnId": "(0,3)",
+    "status": "OPEN",
+    "openTimestamp": 1658120122474,
+    "timeoutAt": 300000,
+    "producedPartitions": {},
+    "ackedPartitions": {}
+  },
+  "(0,2)": {
+    "txnId": "(0,2)",
+    "status": "OPEN",
+    "openTimestamp": 1658120122471,
+    "timeoutAt": 300000,
+    "producedPartitions": {},
+    "ackedPartitions": {}
+  },
+  "(0,5)": {
+    "txnId": "(0,5)",
+    "status": "OPEN",
+    "openTimestamp": 1658120122478,
+    "timeoutAt": 300000,
+    "producedPartitions": {},
+    "ackedPartitions": {}
+  },
+  "(0,4)": {
+    "txnId": "(0,4)",
+    "status": "OPEN",
+    "openTimestamp": 1658120122476,
+    "timeoutAt": 300000,
+    "producedPartitions": {},
+    "ackedPartitions": {}
+  },
+  "(0,7)": {
+    "txnId": "(0,7)",
+    "status": "OPEN",
+    "openTimestamp": 1658120122482,
+    "timeoutAt": 300000,
+    "producedPartitions": {},
+    "ackedPartitions": {}
+  },
+  "(0,10)": {
+    "txnId": "(0,10)",
+    "status": "OPEN",
+    "openTimestamp": 1658120122488,
+    "timeoutAt": 300000,
+    "producedPartitions": {},
+    "ackedPartitions": {}
+  },
+  "(0,6)": {
+    "txnId": "(0,6)",
+    "status": "OPEN",
+    "openTimestamp": 1658120122480,
+    "timeoutAt": 300000,
+    "producedPartitions": {},
+    "ackedPartitions": {}
+  },
+  "(0,9)": {
+    "txnId": "(0,9)",
+    "status": "OPEN",
+    "openTimestamp": 1658120122486,
+    "timeoutAt": 300000,
+    "producedPartitions": {},
+    "ackedPartitions": {}
+  },
+  "(0,8)": {
+    "txnId": "(0,8)",
+    "status": "OPEN",
+    "openTimestamp": 1658120122484,
+    "timeoutAt": 300000,
+    "producedPartitions": {},
+    "ackedPartitions": {}
+  },
+  "(0,11)": {
+    "txnId": "(0,11)",
+    "status": "OPEN",
+    "openTimestamp": 1658120122490,
+    "timeoutAt": 300000,
+    "producedPartitions": {},
+    "ackedPartitions": {}
+  }
+}
+
+```
+
 ### ScaleTransactionCoordinators
 
 When the performance of transactions reaches a bottleneck due to the insufficient number of transaction coordinators, you can scale the number of the transaction coordinators in the following ways.
@@ -155,7 +243,7 @@ The following is an example of the returned values.
  "timeoutAt" : 5000,
  "producedPartitions" : {
    "my-topic" : {
-     "startPosition" : null,
+     "startPosition" : "127:4959",
      "aborted" : true
    }
  },
@@ -175,7 +263,7 @@ The following is an example of the returned values.
 The transaction stats in transaction pending ack that can be retrieved include:
 * **cumulativeAckPosition:** The position that this transaction cumulatively acknowledges in this subscription.
 
-Use one of the following ways to get transaction in pending ack stats:
+Use one of the following ways to get transaction stats in pending ack:
 
 ````mdx-code-block
 <Tabs groupId="api-choice"
@@ -339,7 +427,7 @@ The following is an example of the returned values.
 The coordinator's internal stats that can be retrieved include:
 * **transactionLogStats:** The stats of the transaction coordinator log.
 * **managedLedgerName:** The name of the managed ledger where the transaction coordinator log is stored. 
-* **managedLedgerInternalStats:** The internal stats of the managed ledger where the transaction coordinator log is stored.
+* **managedLedgerInternalStats:** The internal stats of the managed ledger where the transaction coordinator log is stored. See `[managedLedgerInternalStats](admin-api-topics.md#get-internal-stats)` for more details.
 
 Use one of the following ways to get coordinator’s internal stats:
 ````mdx-code-block
@@ -493,7 +581,7 @@ The following is an example of the returned values.
 The transaction pending ack internal stats that can be retrieved include:
 * **transactionLogStats:** The stats of the transaction pending ack log.
 * **managedLedgerName:** The name of the managed ledger where the transaction pending ack log is stored. 
-* **managedLedgerInternalStats:** The internal stats of the transaction log managerLedger.
+* **managedLedgerInternalStats:** The internal stats of the managed ledger where the transaction coordinator log is stored. See `[managedLedgerInternalStats](admin-api-topics.md#get-internal-stats)` for more details.
 
 Use one of the following ways to get transaction pending ack internal stats:
 
@@ -587,16 +675,16 @@ The following is an example of the returned values.
 
 ```
 
-### Get position stats in  pending ack
+### Get position stats in pending ack
 
 The position stats in pending ack include:
-* **PendingAck** Another transaction is acknowledging the position.
+* **PendingAck** The position is in pending ack stats.
 * **MarkDelete** The position is already acknowledged.
-* **NotInPendingAck** The position is not acknowledged.
+* **NotInPendingAck** The position is not acknowledged within a transaction.
 * **PendingAckNotReady** The pending ack has not been initialized.
 * **InvalidPosition** The position is an invalid position, for example, batch index > batch size.
 
-If you want to know whether the position has been acknowledged, you can use one of the following ways to get position pending ack stats:
+If you want to know whether the position has been acknowledged, you can use one of the following ways to get position stats pending ack:
 
 ````mdx-code-block
 <Tabs groupId="api-choice"
