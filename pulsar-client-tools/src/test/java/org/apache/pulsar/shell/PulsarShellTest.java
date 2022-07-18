@@ -74,7 +74,7 @@ public class PulsarShellTest {
 
         @Override
         @SneakyThrows
-        public String readLine(String prompt) throws UserInterruptException, EndOfFileException {
+        public String readLine() throws UserInterruptException, EndOfFileException {
             final String cmd = commandsQueue.take();
             log.info("writing command: {}", cmd);
             return cmd;
