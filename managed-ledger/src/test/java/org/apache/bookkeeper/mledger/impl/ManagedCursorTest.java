@@ -1921,6 +1921,37 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertTrue(error.get().getCause() instanceof RuntimeException);
         assertEquals(error.get().getCause().getMessage(), "dummy!");
 
+
+        // test deleted entries
+        List<Position> positions = new ArrayList<>();
+        assertEquals(ScanOutcome.COMPLETED, c1.scan((entry -> {
+            positions.add(entry.getPosition());
+            return true;
+        }), batchSize, Long.MAX_VALUE, Long.MAX_VALUE).get());
+        assertEquals(numEntries, positions.size());
+
+        // delete one entry in the middle
+        c1.delete(positions.get(2));
+
+        List<Position> positionsAfterDelete = new ArrayList<>();
+        assertEquals(ScanOutcome.COMPLETED, c1.scan((entry -> {
+            positionsAfterDelete.add(entry.getPosition());
+            return true;
+        }), batchSize, Long.MAX_VALUE, Long.MAX_VALUE).get());
+        assertEquals(numEntries - 1, positionsAfterDelete.size());
+
+        // delete all the entries
+        for (Position p : positionsAfterDelete) {
+            c1.delete(p);
+        }
+
+        List<Position> positionsFinal = new ArrayList<>();
+        assertEquals(ScanOutcome.COMPLETED, c1.scan((entry -> {
+            positionsFinal.add(entry.getPosition());
+            return true;
+        }), batchSize, Long.MAX_VALUE, Long.MAX_VALUE).get());
+        assertEquals(0,positionsFinal.size());
+
     }
 
     @Test(timeOut = 20000)

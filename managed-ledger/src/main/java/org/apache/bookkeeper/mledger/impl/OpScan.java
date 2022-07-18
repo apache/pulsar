@@ -70,8 +70,6 @@ class OpScan implements ReadEntriesCallback {
 
     @Override
     public void readEntriesComplete(List<Entry> entries, Object ctx) {
-        log.info("readEntriesComplete {}",
-                entries.stream().map(e->e.getPosition()).collect(Collectors.toList()));
         try {
             Position lastPositionForBatch = entries.get(entries.size() - 1).getPosition();
             lastSeenPosition = lastPositionForBatch;
