@@ -97,7 +97,7 @@ public class BundleSplitterTaskTest {
     }
 
     @Test
-    public void testLoadBalancerNamespaceMaximumBundles() {
+    public void testLoadBalancerNamespaceMaximumBundles() throws Exception {
         pulsar.getConfiguration().setLoadBalancerNamespaceMaximumBundles(3);
 
         final BundleSplitterTask bundleSplitterTask = new BundleSplitterTask();
@@ -141,14 +141,10 @@ public class BundleSplitterTaskTest {
         bundleData3.setLongTermData(averageMessageData3);
         loadData.getBundleData().put("ten/ns/0x40000000_0x60000000", bundleData3);
 
-        try {
-            int currentBundleCount = pulsar.getNamespaceService().getBundleCount(NamespaceName.get("ten/ns"));
-            final Set<String> bundlesToSplit = bundleSplitterTask.findBundlesToSplit(loadData, pulsar);
-            Assert.assertEquals(bundlesToSplit.size() + currentBundleCount,
-                    pulsar.getConfiguration().getLoadBalancerNamespaceMaximumBundles());
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        int currentBundleCount = pulsar.getNamespaceService().getBundleCount(NamespaceName.get("ten/ns"));
+        final Set<String> bundlesToSplit = bundleSplitterTask.findBundlesToSplit(loadData, pulsar);
+        Assert.assertEquals(bundlesToSplit.size() + currentBundleCount,
+                pulsar.getConfiguration().getLoadBalancerNamespaceMaximumBundles());
     }
 
 
