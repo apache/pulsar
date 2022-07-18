@@ -1627,7 +1627,7 @@ public class PersistentTopicsBase extends AdminResource {
                         log.error("[{}] Failed to analyze subscription backlog {} {}",
                                 clientAppId(), topicName, subName, cause);
                     }
-                    asyncResponse.resume(new RestException(cause));
+                    resumeAsyncResponseExceptionally(asyncResponse, cause);
                     return null;
                 });
     }
