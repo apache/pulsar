@@ -133,7 +133,7 @@ public class PersistentSubscription extends AbstractSubscription {
     private volatile Map<String, String> subscriptionProperties;
     private volatile CompletableFuture<Void> fenceFuture;
 
-    private volatile String lastLocalSubscriptionUpdatedSnapshotId;
+    private final AtomicReference<String> lastLocalSubscriptionUpdatedSnapshotIdReference = new AtomicReference<>();
 
     static Map<String, Long> getBaseCursorProperties(boolean isReplicated) {
         return isReplicated ? REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES : NON_REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES;
@@ -485,24 +485,31 @@ public class PersistentSubscription extends AbstractSubscription {
         if (!newMD.equals(oldMD)) {
             this.updateLastMarkDeleteAdvancedTimestamp();
 
-            // Mark delete position advance
-            ReplicatedSubscriptionSnapshotCache snapshotCache  = this.replicatedSubscriptionSnapshotCache;
-            if (snapshotCache != null) {
-                ReplicatedSubscriptionsSnapshot snapshot = snapshotCache.advancedMarkDeletePosition(newMD);
-                if (snapshot != null) {
-                    topic.getReplicatedSubscriptionController()
-                            .ifPresent(c -> {
-                                if (!snapshot.getSnapshotId().equals(lastLocalSubscriptionUpdatedSnapshotId)) {
-                                    c.localSubscriptionUpdated(subName, snapshot);
-                                    lastLocalSubscriptionUpdatedSnapshotId = snapshot.getSnapshotId();
-                                }
-                            });
-                }
-            }
+            handlePossibleReplicatedSubscriptionsUpdate(newMD);
         }
 
         if (dispatcher != null && newMD.compareTo(oldMD) > 0) {
             dispatcher.markDeletePositionMoveForward();
+        }
+    }
+
+    private void handlePossibleReplicatedSubscriptionsUpdate(PositionImpl markDeletePosition) {
+        // Mark delete position advance
+        ReplicatedSubscriptionSnapshotCache snapshotCache  = this.replicatedSubscriptionSnapshotCache;
+        if (snapshotCache != null) {
+            ReplicatedSubscriptionsSnapshot snapshot = snapshotCache.advancedMarkDeletePosition(markDeletePosition);
+            if (snapshot != null) {
+                topic.getReplicatedSubscriptionController()
+                        .ifPresent(c -> {
+                            String lastLocalSubscriptionUpdatedSnapshotId =
+                                    lastLocalSubscriptionUpdatedSnapshotIdReference.get();
+                            if (!snapshot.getSnapshotId().equals(lastLocalSubscriptionUpdatedSnapshotId)
+                                    && lastLocalSubscriptionUpdatedSnapshotIdReference
+                                    .compareAndSet(lastLocalSubscriptionUpdatedSnapshotId, snapshot.getSnapshotId())) {
+                                c.localSubscriptionUpdated(subName, snapshot);
+                            }
+                        });
+            }
         }
     }
 
@@ -1422,6 +1429,7 @@ public class PersistentSubscription extends AbstractSubscription {
         ReplicatedSubscriptionSnapshotCache snapshotCache = this.replicatedSubscriptionSnapshotCache;
         if (snapshotCache != null) {
             snapshotCache.addNewSnapshot(new ReplicatedSubscriptionsSnapshot().copyFrom(snapshot));
+            handlePossibleReplicatedSubscriptionsUpdate((PositionImpl) cursor.getMarkDeletedPosition());
         }
     }
 
