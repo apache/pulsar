@@ -265,7 +265,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         defaultStats.msgRateIn = DEFAULT_MESSAGE_RATE;
         defaultStats.msgRateOut = DEFAULT_MESSAGE_RATE;
 
-        placementStrategy = ModularLoadManagerStrategy.create();
+        placementStrategy = ModularLoadManagerStrategy.create(conf);
         policies = new SimpleResourceAllocationPolicies(pulsar);
         filterPipeline.add(new BrokerVersionFilter());
 
@@ -689,8 +689,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         dimensions.put("metric", "bundleUnloading");
 
         Metrics m = Metrics.create(dimensions);
-        m.put("brk_lb_unload_broker_count", unloadBrokerCount);
-        m.put("brk_lb_unload_bundle_count", unloadBundleCount);
+        m.put("brk_lb_unload_broker_total", unloadBrokerCount);
+        m.put("brk_lb_unload_bundle_total", unloadBundleCount);
         metrics.add(m);
         this.bundleUnloadMetrics.set(metrics);
     }
@@ -781,7 +781,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         dimensions.put("metric", "bundlesSplit");
 
         Metrics m = Metrics.create(dimensions);
-        m.put("brk_lb_bundles_split_count", bundleSplitCount);
+        m.put("brk_lb_bundles_split_total", bundleSplitCount);
         metrics.add(m);
         this.bundleSplitMetrics.set(metrics);
     }
@@ -878,7 +878,11 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                     LoadManagerShared.applyNamespacePolicies(serviceUnit, policies, brokerCandidateCache,
                             getAvailableBrokers(),
                             brokerTopicLoadingPredicate);
-                    broker = placementStrategy.selectBroker(brokerCandidateCache, data, loadData, conf);
+                    Optional<String> brokerTmp =
+                            placementStrategy.selectBroker(brokerCandidateCache, data, loadData, conf);
+                    if (brokerTmp.isPresent()) {
+                        broker = brokerTmp;
+                    }
                 }
 
                 // Add new bundle to preallocated.

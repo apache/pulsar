@@ -182,6 +182,13 @@ public class ManagedLedgerException extends Exception {
         }
     }
 
+    public static class ConcurrentWaitCallbackException extends ManagedLedgerException {
+
+        public ConcurrentWaitCallbackException() {
+            super("We can only have a single waiting callback");
+        }
+    }
+
     @Override
     public synchronized Throwable fillInStackTrace() {
         // Disable stack traces to be filled in

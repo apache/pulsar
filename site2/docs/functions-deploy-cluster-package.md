@@ -4,7 +4,7 @@ title: Enable package management service
 sidebar_label: "Enable package management service"
 ---
 
-[Package management service](admin-api-packages) enables both version management and simplified upgrade/rollback processes for functions, sinks, and sources. When using the same function, sink, and source in different namespaces, you can upload them to a common package management system.
+[Package management service](admin-api-packages.md) enables both version management and simplified upgrade/rollback processes for functions, sinks, and sources. When using the same function, sink, and source in different namespaces, you can upload them to a common package management system.
 
 With the package management service enabled, you can [upload your function package](/tools/pulsar-admin/) to the service and get the package URL. Thus you can create the function by setting `--jar`, `--py`, or `--go` to the package URL. 
 

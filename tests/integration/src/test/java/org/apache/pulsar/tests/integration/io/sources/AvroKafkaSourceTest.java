@@ -93,7 +93,7 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
         try {
             testSource();
         } finally {
-            stopKafkaContainers(pulsarCluster);
+            stopKafkaContainers();
         }
     }
 
@@ -146,12 +146,12 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
                 );
     }
 
-    public void stopKafkaContainers(PulsarCluster cluster) {
+    public void stopKafkaContainers() {
         if (null != schemaRegistryContainer) {
-            cluster.stopService(schemaRegistryContainerName, schemaRegistryContainer);
+            PulsarCluster.stopService(schemaRegistryContainerName, schemaRegistryContainer);
         }
         if (null != kafkaContainer) {
-            cluster.stopService(kafkaContainerName, kafkaContainer);
+            PulsarCluster.stopService(kafkaContainerName, kafkaContainer);
         }
     }
 

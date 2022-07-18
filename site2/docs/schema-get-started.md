@@ -16,7 +16,7 @@ Applications typically adopt one of the following approaches to guarantee type s
 
 #### Note
 >
-> Currently, the Pulsar schema registry is only available for the [Java client](client-libraries-java.md), [Go client](client-libraries-go.md), [Python client](client-libraries-python.md), and [C++ client](client-libraries-cpp).
+> Currently, the Pulsar schema registry is only available for the [Java client](client-libraries-java.md), [Go client](client-libraries-go.md), [Python client](client-libraries-python.md), and [C++ client](client-libraries-cpp.md).
 
 ### Client-side approach
 

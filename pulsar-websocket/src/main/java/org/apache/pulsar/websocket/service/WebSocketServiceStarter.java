@@ -49,7 +49,7 @@ public class WebSocketServiceStarter {
         private boolean generateDocs = false;
     }
 
-    public static void main(String args[]) throws Exception {
+    public static void main(String[] args) throws Exception {
         Arguments arguments = new Arguments();
         JCommander jcommander = new JCommander();
         try {

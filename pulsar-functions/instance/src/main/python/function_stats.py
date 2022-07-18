@@ -41,11 +41,11 @@ class Stats(object):
   LAST_INVOCATION = 'last_invocation'
   TOTAL_RECEIVED = 'received_total'
 
-  TOTAL_SUCCESSFULLY_PROCESSED_1min = 'processed_successfully_total_1min'
-  TOTAL_SYSTEM_EXCEPTIONS_1min = 'system_exceptions_total_1min'
-  TOTAL_USER_EXCEPTIONS_1min = 'user_exceptions_total_1min'
+  TOTAL_SUCCESSFULLY_PROCESSED_1min = 'processed_successfully_1min_total'
+  TOTAL_SYSTEM_EXCEPTIONS_1min = 'system_exceptions_1min_total'
+  TOTAL_USER_EXCEPTIONS_1min = 'user_exceptions_1min_total'
   PROCESS_LATENCY_MS_1min = 'process_latency_ms_1min'
-  TOTAL_RECEIVED_1min = 'received_total_1min'
+  TOTAL_RECEIVED_1min = 'received_1min_total'
 
   # Declare Prometheus
   stat_total_processed_successfully = Counter(PULSAR_FUNCTION_METRICS_PREFIX + TOTAL_SUCCESSFULLY_PROCESSED,

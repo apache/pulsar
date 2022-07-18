@@ -133,25 +133,25 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
         pulsarClient.newProducer(Schema.BOOL).topic("test").create();
         pulsarClient.newConsumer(Schema.STRING).topic("test1").subscriptionName("test-sub").subscribe();
         // single connection for both producer and consumer
-        Assert.assertTrue(((CounterBrokerInterceptor)listener).getConnectionCreationCount() == 1);
+        assertEquals(((CounterBrokerInterceptor) listener).getConnectionCreationCount(), 1);
     }
 
     @Test
     public void testProducerCreation() throws PulsarClientException {
         BrokerInterceptor listener = pulsar.getBrokerInterceptor();
         Assert.assertTrue(listener instanceof CounterBrokerInterceptor);
-        Assert.assertTrue(((CounterBrokerInterceptor)listener).getProducerCount() == 0);
+        assertEquals(((CounterBrokerInterceptor) listener).getProducerCount(), 0);
         pulsarClient.newProducer(Schema.BOOL).topic("test").create();
-        Assert.assertTrue(((CounterBrokerInterceptor)listener).getProducerCount() == 1);
+        assertEquals(((CounterBrokerInterceptor) listener).getProducerCount(), 1);
     }
 
     @Test
     public void testConsumerCreation() throws PulsarClientException {
         BrokerInterceptor listener = pulsar.getBrokerInterceptor();
         Assert.assertTrue(listener instanceof CounterBrokerInterceptor);
-        Assert.assertTrue(((CounterBrokerInterceptor)listener).getConsumerCount() == 0);
+        assertEquals(((CounterBrokerInterceptor) listener).getConsumerCount(), 0);
         pulsarClient.newConsumer(Schema.STRING).topic("test1").subscriptionName("test-sub").subscribe();
-        Assert.assertTrue(((CounterBrokerInterceptor)listener).getConsumerCount() == 1);
+        assertEquals(((CounterBrokerInterceptor) listener).getConsumerCount(), 1);
     }
 
     @Test

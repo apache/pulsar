@@ -40,7 +40,7 @@ In addition to being configurable when you start them up, brokers can also be [d
 
 ### List active brokers
 
-Fetch all available active brokers that are serving traffic.
+Fetch all available active brokers that are serving traffic with cluster name.
 
 ````mdx-code-block
 <Tabs 
@@ -104,7 +104,7 @@ BrokerInfo(serviceUrl=broker1.use.org.com:8080)
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|GET|/admin/v2/brokers/leaderBroker?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v2/brokers/leaderBroker|operation/getLeaderBroker?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="JAVA">

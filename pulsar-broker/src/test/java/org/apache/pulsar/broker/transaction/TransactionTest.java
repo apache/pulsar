@@ -38,6 +38,7 @@ import io.netty.buffer.Unpooled;
 import io.netty.util.Timeout;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
@@ -70,7 +71,6 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.intercept.CounterBrokerInterceptor;
 import org.apache.pulsar.broker.service.BacklogQuotaManager;
 import org.apache.pulsar.broker.service.BrokerService;
@@ -107,7 +107,9 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.ClientCnx;
+import org.apache.pulsar.client.impl.ConsumerBase;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.MessagesImpl;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
@@ -135,8 +137,8 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.powermock.reflect.Whitebox;
 import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 /**
@@ -149,9 +151,14 @@ public class TransactionTest extends TransactionTestBase {
     private static final int NUM_BROKERS = 1;
     private static final int NUM_PARTITIONS = 1;
 
-    @BeforeMethod
+    @BeforeClass
     protected void setup() throws Exception {
        setUpBase(NUM_BROKERS, NUM_PARTITIONS, NAMESPACE1 + "/test", 0);
+    }
+
+    @AfterClass(alwaysRun = true)
+    protected void cleanup() throws Exception {
+        super.internalCleanup();
     }
 
 
@@ -297,12 +304,6 @@ public class TransactionTest extends TransactionTestBase {
         Assert.assertNull(topics.get(MLPendingAckStore.getTransactionPendingAckStoreSuffix(topicName, subName)));
     }
 
-
-    @AfterMethod(alwaysRun = true)
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
-
     public Consumer<byte[]> getConsumer(String topicName, String subName) throws PulsarClientException {
         return pulsarClient.newConsumer()
                 .topic(topicName)
@@ -409,7 +410,7 @@ public class TransactionTest extends TransactionTestBase {
 
         ReaderBuilder<TransactionBufferSnapshot> readerBuilder = pulsarClient
                 .newReader(Schema.AVRO(TransactionBufferSnapshot.class))
-                .startMessageId(MessageId.earliest)
+                .startMessageId(MessageId.latest)
                 .topic(NAMESPACE1 + "/" + SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
         Reader<TransactionBufferSnapshot> reader = readerBuilder.create();
 
@@ -717,7 +718,7 @@ public class TransactionTest extends TransactionTestBase {
 
     @Test
     public void testEndTCRecoveringWhenManagerLedgerDisReadable() throws Exception{
-        String topic = NAMESPACE1 + "/testEndTBRecoveringWhenManagerLedgerDisReadable";
+        String topic = NAMESPACE1 + "/testEndTCRecoveringWhenManagerLedgerDisReadable";
         admin.topics().createNonPartitionedTopic(topic);
 
         PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0).getBrokerService()
@@ -790,6 +791,9 @@ public class TransactionTest extends TransactionTestBase {
 
     @Test
     public void testEndTxnWhenCommittingOrAborting() throws Exception {
+        CounterBrokerInterceptor listener = (CounterBrokerInterceptor) getPulsarServiceList().get(0)
+                .getBrokerInterceptor();
+        listener.reset();
         Transaction commitTxn = pulsarClient
                 .newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
@@ -808,7 +812,7 @@ public class TransactionTest extends TransactionTestBase {
         field.set(commitTxn, TransactionImpl.State.COMMITTING);
         field.set(abortTxn, TransactionImpl.State.ABORTING);
 
-        BrokerInterceptor listener = getPulsarServiceList().get(0).getBrokerInterceptor();
+
         assertEquals(((CounterBrokerInterceptor)listener).getTxnCount(),2);
         abortTxn.abort().get();
         assertEquals(((CounterBrokerInterceptor)listener).getAbortedTxnCount(),1);
@@ -1059,6 +1063,147 @@ public class TransactionTest extends TransactionTestBase {
                 .get();
 
         transaction.commit().get();
+    }
+
+    @Test(timeOut = 30000)
+    public void testTransactionAckMessageList() throws Exception {
+        String topic = "persistent://" + NAMESPACE1 +"/test";
+        String subName = "testSub";
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .sendTimeout(5, TimeUnit.SECONDS)
+                .create();
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName(subName)
+                .subscribe();
+
+        for (int i = 0; i < 5; i++) {
+            producer.newMessage().send();
+        }
+        //verify using aborted transaction to ack message list
+        List<MessageId> messages = new ArrayList<>();
+        for (int i = 0; i < 4; i++) {
+            Message<byte[]> message = consumer.receive();
+            messages.add(message.getMessageId());
+        }
+        Transaction transaction = pulsarClient
+                .newTransaction()
+                .withTransactionTimeout(5, TimeUnit.MINUTES)
+                .build()
+                .get();
+
+        consumer.acknowledgeAsync(messages, transaction);
+        transaction.abort().get();
+        consumer.close();
+        consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName(subName)
+                .subscribe();
+        for (int i = 0; i < 4; i++) {
+            Message<byte[]> message = consumer.receive();
+            assertTrue(messages.contains(message.getMessageId()));
+        }
+
+        //verify using committed transaction to ack message list
+        transaction = pulsarClient
+                .newTransaction()
+                .withTransactionTimeout(5, TimeUnit.MINUTES)
+                .build()
+                .get();
+        consumer.acknowledgeAsync(messages, transaction);
+        transaction.commit().get();
+
+        consumer.close();
+        consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName(subName)
+                .subscribe();
+        Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
+        Assert.assertNotNull(message);
+        Assert.assertFalse(messages.contains(message.getMessageId()));
+        message = consumer.receive(5, TimeUnit.SECONDS);
+        Assert.assertNull(message);
+        consumer.close();
+    }
+
+
+    @Test(timeOut = 30000)
+    public void testTransactionAckMessages() throws Exception {
+        String topic = "persistent://" + NAMESPACE1 +"/testTransactionAckMessages";
+        String subName = "testSub";
+        admin.topics().createPartitionedTopic(topic, 2);
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .sendTimeout(5, TimeUnit.SECONDS)
+                .create();
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName(subName)
+                .subscribe();
+
+        for (int i = 0; i < 4; i++) {
+            producer.newMessage().send();
+        }
+        Method method = ConsumerBase.class.getDeclaredMethod("getNewMessagesImpl");
+        method.setAccessible(true);
+
+        Field field = MessagesImpl.class.getDeclaredField("messageList");
+        field.setAccessible(true);
+
+        MessagesImpl<byte[]> messages = (MessagesImpl<byte[]>) method.invoke(consumer);
+
+        List<Message<byte[]>> messageList = new ArrayList<>();
+        for (int i = 0; i < 4; i++) {
+            Message<byte[]> message = consumer.receive();
+            messageList.add(message);
+        }
+        field.set(messages, messageList);
+        Transaction transaction = pulsarClient
+                .newTransaction()
+                .withTransactionTimeout(5, TimeUnit.MINUTES)
+                .build()
+                .get();
+
+        consumer.acknowledgeAsync(messages, transaction);
+        transaction.abort().get();
+        consumer.close();
+        consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName(subName)
+                .subscribe();
+        List<MessageId> messageIds = new ArrayList<>();
+        for (Message message : messageList) {
+            messageIds.add(message.getMessageId());
+        }
+        for (int i = 0; i < 4; i++) {
+            Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
+            assertTrue(messageIds.contains(message.getMessageId()));
+        }
+
+        //verify using committed transaction to ack message list
+        transaction = pulsarClient
+                .newTransaction()
+                .withTransactionTimeout(5, TimeUnit.MINUTES)
+                .build()
+                .get();
+        consumer.acknowledgeAsync(messages, transaction);
+        transaction.commit().get();
+
+        consumer.close();
+        consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName(subName)
+                .subscribe();
+        Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
+        Assert.assertNull(message);
+        consumer.close();
     }
 
     @Test
