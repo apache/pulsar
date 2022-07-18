@@ -70,7 +70,6 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
     private int batchingPartitionSwitchFrequencyByPublishDelay = 10;
     private int batchingMaxMessages = DEFAULT_BATCHING_MAX_MESSAGES;
     private int batchingMaxBytes = 128 * 1024; // 128KB (keep the maximum consistent as previous versions)
-    private boolean batchingSingleMessage = true;
     private boolean batchingEnabled = true; // enabled by default
     @JsonIgnore
     private BatcherBuilder batcherBuilder = BatcherBuilder.DEFAULT;

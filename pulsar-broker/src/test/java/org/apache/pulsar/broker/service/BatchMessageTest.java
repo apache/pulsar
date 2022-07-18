@@ -104,16 +104,6 @@ public class BatchMessageTest extends BrokerTestBase {
         };
     }
 
-    @DataProvider(name = "containerBuilderAndBatchingSingleMessage")
-    public Object[][] containerBuilderAndBatchingSingleMessage() {
-        return new Object[][]{
-            {BatcherBuilder.DEFAULT, true},
-            {BatcherBuilder.DEFAULT, false},
-            {BatcherBuilder.KEY_BASED, true},
-            {BatcherBuilder.KEY_BASED, false}
-        };
-    }
-
     @DataProvider(name = "testSubTypeAndEnableBatch")
     public Object[][] testSubTypeAndEnableBatch() {
         return new Object[][] { { SubscriptionType.Shared, Boolean.TRUE },
@@ -875,8 +865,8 @@ public class BatchMessageTest extends BrokerTestBase {
         producer.close();
     }
 
-    @Test(dataProvider = "containerBuilderAndBatchingSingleMessage")
-    public void testBatchSendOneMessage(BatcherBuilder builder, boolean batchingSingleMessage) throws Exception {
+    @Test(dataProvider = "containerBuilder")
+    public void testBatchSendOneMessage(BatcherBuilder builder) throws Exception {
         final String topicName = "persistent://prop/ns-abc/testBatchSendOneMessage-" + UUID.randomUUID();
         final String subscriptionName = "sub-1";
 
@@ -886,27 +876,18 @@ public class BatchMessageTest extends BrokerTestBase {
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .batchingMaxPublishDelay(1, TimeUnit.SECONDS).batchingMaxMessages(10).enableBatching(true)
             .batcherBuilder(builder)
-            .batchingSingleMessage(batchingSingleMessage)
             .create();
         String msg = "my-message";
         MessageId messageId = producer.send(msg.getBytes());
 
-        if (batchingSingleMessage) {
-            Assert.assertTrue(messageId instanceof BatchMessageIdImpl);
-        } else {
-            Assert.assertFalse(messageId instanceof BatchMessageIdImpl);
-        }
+        Assert.assertFalse(messageId instanceof BatchMessageIdImpl);
 
         Message<byte[]> received = consumer.receive();
         assertEquals(received.getSequenceId(), 0);
         consumer.acknowledge(received);
 
         Assert.assertEquals(new String(received.getData()), msg);
-        if (batchingSingleMessage) {
-            Assert.assertTrue(received.getMessageId() instanceof BatchMessageIdImpl);
-        } else {
-            Assert.assertFalse(received.getMessageId() instanceof BatchMessageIdImpl);
-        }
+        Assert.assertFalse(received.getMessageId() instanceof BatchMessageIdImpl);
 
         producer.close();
         consumer.close();

@@ -259,12 +259,6 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     }
 
     @Override
-    public ProducerBuilder<T> batchingSingleMessage(boolean batchingSingleMessage) {
-        conf.setBatchingSingleMessage(batchingSingleMessage);
-        return this;
-    }
-
-    @Override
     public ProducerBuilder<T> batcherBuilder(BatcherBuilder batcherBuilder) {
         conf.setBatcherBuilder(batcherBuilder);
         return this;

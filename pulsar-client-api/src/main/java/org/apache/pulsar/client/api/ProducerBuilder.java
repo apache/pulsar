@@ -480,21 +480,6 @@ public interface ProducerBuilder<T> extends Cloneable {
      */
     ProducerBuilder<T> batchingMaxBytes(int batchingMaxBytes);
 
-
-    /**
-     * Control whether automatic batching of single message for the producer. <i>default: true</i>
-     *
-     * <p> If there is only one message in the batch and set {@code batchingSingleMessage} as false, the single message
-     * will not be published as a batched message, which will save the single message meta in batched message.
-     *
-     * <p> Note that the returned {@code MessageId} will not be {@code BatchMessageIdImpl} both on producer and consumer
-     * if single message published as a non-batched message.
-     *
-     * @param batchingSingleMessage batching single message, default is true
-     * @return the producer builder instance
-     */
-    ProducerBuilder<T> batchingSingleMessage(boolean batchingSingleMessage);
-
     /**
      * Set the batcher builder {@link BatcherBuilder} of the producer. Producer will use the batcher builder to
      * build a batch message container.This is only be used when batching is enabled.

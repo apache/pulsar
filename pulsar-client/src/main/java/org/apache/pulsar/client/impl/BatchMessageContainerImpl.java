@@ -197,7 +197,7 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
 
     @Override
     public OpSendMsg createOpSendMsg() throws IOException {
-        if (!producer.conf.isBatchingSingleMessage() && messages.size() == 1) {
+        if (messages.size() == 1) {
             MessageImpl<?> msg = messages.get(0);
             messageMetadata = msg.getMessageBuilder();
             ByteBuf encryptedPayload = producer.encryptMessage(
