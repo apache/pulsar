@@ -743,7 +743,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             OffloadPoliciesImpl defaultOffloadPolicies =
                     OffloadPoliciesImpl.create(this.getConfiguration().getProperties());
-            this.defaultOffloader = createManagedLedgerOffloader(defaultOffloadPolicies);
 
             OrderedScheduler offloaderScheduler = getOffloaderScheduler(defaultOffloadPolicies);
             int interval = config.getManagedLedgerStatsPeriodSeconds();
@@ -751,6 +750,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             offloaderStats = LedgerOffloaderStats.create(config.isExposeManagedLedgerMetricsInPrometheus(),
                     exposeTopicMetrics, offloaderScheduler, interval);
+            this.defaultOffloader = createManagedLedgerOffloader(defaultOffloadPolicies);
 
             this.brokerInterceptor = BrokerInterceptors.load(config);
             brokerService.setInterceptor(getBrokerInterceptor());
