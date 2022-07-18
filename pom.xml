@@ -1413,6 +1413,7 @@ flexible messaging model and an intuitive client API.</description>
             <arg>-Xlint:-serial</arg>
             <arg>-Xlint:-classfile</arg>
             <arg>-Xlint:-processing</arg>
+            <arg>-Xpkginfo:always</arg>
           </compilerArgs>
         </configuration>
       </plugin>
