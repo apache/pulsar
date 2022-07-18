@@ -512,7 +512,8 @@ public interface ManagedCursor {
      * @throws InterruptedException
      * @throws ManagedLedgerException
      */
-    default CompletableFuture<ScanOutcome> scan(Predicate<Entry> condition, int batchSize, long maxEntries, long timeOutMs) {
+    default CompletableFuture<ScanOutcome> scan(Predicate<Entry> condition,
+                                                int batchSize, long maxEntries, long timeOutMs) {
         return CompletableFuture.failedFuture(new UnsupportedOperationException());
     }
 

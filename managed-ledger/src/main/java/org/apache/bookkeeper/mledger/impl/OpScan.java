@@ -23,8 +23,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.stream.Collectors;
-
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ScanCallback;
@@ -92,7 +90,8 @@ class OpScan implements ReadEntriesCallback {
                     }
                 }
             }
-            searchPosition = ledger.getPositionAfterN((PositionImpl) lastPositionForBatch, 1, PositionBound.startExcluded);
+            searchPosition = ledger.getPositionAfterN((PositionImpl) lastPositionForBatch, 1,
+                    PositionBound.startExcluded);
             log.debug("readEntryComplete {} at {} next is {}", lastPositionForBatch, searchPosition);
             if (log.isDebugEnabled()) {
                 log.debug("readEntryComplete {} at {} next is {}", lastPositionForBatch, searchPosition);
@@ -131,7 +130,7 @@ class OpScan implements ReadEntriesCallback {
             return;
         }
         if (cursor.hasMoreEntries(searchPosition)) {
-            OpReadEntry opReadEntry = OpReadEntry.create(cursor,searchPosition, batchSize,
+            OpReadEntry opReadEntry = OpReadEntry.create(cursor, searchPosition, batchSize,
             this, OpScan.this.ctx, null);
             ledger.asyncReadEntries(opReadEntry);
         } else {
