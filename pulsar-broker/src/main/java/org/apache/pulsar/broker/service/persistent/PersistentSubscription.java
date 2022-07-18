@@ -66,6 +66,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionFence
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionInvalidCursorPosition;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
+import org.apache.pulsar.broker.service.EntryFilterSupport;
 import org.apache.pulsar.broker.service.RedeliveryTracker;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
@@ -545,8 +546,8 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
             log.debug("[{}][{}] currentPosition {}",
                     topicName, subName, currentPosition);
         }
-        final AbstractBaseDispatcher abstractBaseDispatcher = dispatcher != null
-                ? (AbstractBaseDispatcher) dispatcher : new DummyDispatcherForFilters();
+        final EntryFilterSupport entryFilterSupport = dispatcher != null
+                ? (EntryFilterSupport) dispatcher : new EntryFilterSupport(this);
         // we put some hard limits on the scan, in order to prevent denial of services
         ServiceConfiguration configuration = topic.getBrokerService().getPulsar().getConfiguration();
         long maxEntries = configuration.getSubscriptionBacklogScanMaxEntries();
@@ -564,7 +565,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                 if (messageMetadata.hasNumMessagesInBatch()) {
                     numMessages = messageMetadata.getNumMessagesInBatch();
                 }
-                EntryFilter.FilterResult filterResult = abstractBaseDispatcher
+                EntryFilter.FilterResult filterResult = entryFilterSupport
                         .runFiltersForEntry(entry, messageMetadata, null);
 
                 if (filterResult == null) {
@@ -1292,100 +1293,4 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
 
     private static final Logger log = LoggerFactory.getLogger(PersistentSubscription.class);
 
-    private class DummyDispatcherForFilters extends AbstractBaseDispatcher {
-        public DummyDispatcherForFilters() {
-            super(PersistentSubscription.this,
-                    PersistentSubscription.this.topic.getBrokerService().getPulsar().getConfig());
-        }
-
-        @Override
-        protected boolean isConsumersExceededOnSubscription() {
-            return false;
-        }
-
-        @Override
-        protected void reScheduleRead() {
-
-        }
-
-        @Override
-        public void addConsumer(Consumer consumer) throws BrokerServiceException {
-
-        }
-
-        @Override
-        public void removeConsumer(Consumer consumer) throws BrokerServiceException {
-
-        }
-
-        @Override
-        public void consumerFlow(Consumer consumer, int additionalNumberOfMessages) {
-
-        }
-
-        @Override
-        public boolean isConsumerConnected() {
-            return false;
-        }
-
-        @Override
-        public List<Consumer> getConsumers() {
-            return null;
-        }
-
-        @Override
-        public boolean canUnsubscribe(Consumer consumer) {
-            return false;
-        }
-
-        @Override
-        public CompletableFuture<Void> close() {
-            return null;
-        }
-
-        @Override
-        public boolean isClosed() {
-            return false;
-        }
-
-        @Override
-        public CompletableFuture<Void> disconnectActiveConsumers(boolean isResetCursor) {
-            return null;
-        }
-
-        @Override
-        public CompletableFuture<Void> disconnectAllConsumers(boolean isResetCursor) {
-            return null;
-        }
-
-        @Override
-        public void reset() {
-
-        }
-
-        @Override
-        public SubType getType() {
-            return null;
-        }
-
-        @Override
-        public void redeliverUnacknowledgedMessages(Consumer consumer, long consumerEpoch) {
-
-        }
-
-        @Override
-        public void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions) {
-
-        }
-
-        @Override
-        public void addUnAckedMessages(int unAckMessages) {
-
-        }
-
-        @Override
-        public RedeliveryTracker getRedeliveryTracker() {
-            return null;
-        }
-    }
 }
