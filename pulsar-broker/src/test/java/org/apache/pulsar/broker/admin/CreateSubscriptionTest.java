@@ -487,33 +487,4 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
         assertEquals(ml.getWaitingCursorsCount(), 0);
     }
 
-
-    @Test
-    public void test() throws Exception {
-        String topic = "persistent://my-property/my-ns/my-topic";
-
-        @Cleanup
-        Consumer<byte[]> c = pulsarClient.newConsumer().topic(topic)
-                .subscriptionType(SubscriptionType.Shared)
-                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .subscriptionName("test")
-                .messageListener(new MessageListener<byte[]>() {
-                    @Override
-                    public void received(Consumer<byte[]> consumer, Message<byte[]> msg) {
-                        log.info("received {}", msg.getMessageId());
-                        consumer.acknowledgeAsync(msg);
-                    }
-                })
-                .subscribe();
-
-        @Cleanup
-        Producer<byte[]> p1 = pulsarClient.newProducer().topic(topic)
-                .blockIfQueueFull(true)
-                .create();
-        for (int i = 0; i < Integer.MAX_VALUE; i++) {
-            p1.send(new byte[100]);
-            Thread.sleep(1000);
-        }
-        p1.flush();
-    }
 }

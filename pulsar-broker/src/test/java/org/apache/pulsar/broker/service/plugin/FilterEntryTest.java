@@ -35,11 +35,11 @@ import java.util.concurrent.TimeUnit;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.pulsar.broker.service.AbstractBaseDispatcher;
 import org.apache.pulsar.broker.service.AbstractTopic;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.Dispatcher;
+import org.apache.pulsar.broker.service.EntryFilterSupport;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -85,7 +85,7 @@ public class FilterEntryTest extends BrokerTestBase {
         PersistentSubscription subscription = (PersistentSubscription) pulsar.getBrokerService()
                 .getTopicReference(topic).get().getSubscription(subName);
         Dispatcher dispatcher = subscription.getDispatcher();
-        Field field = AbstractBaseDispatcher.class.getDeclaredField("entryFilters");
+        Field field = EntryFilterSupport.class.getDeclaredField("entryFilters");
         field.setAccessible(true);
         NarClassLoader narClassLoader = mock(NarClassLoader.class);
         EntryFilter filter1 = new EntryFilterTest();
@@ -208,7 +208,7 @@ public class FilterEntryTest extends BrokerTestBase {
             PersistentSubscription subscription = (PersistentSubscription) pulsar.getBrokerService()
                     .getTopicReference(topic).get().getSubscription(subName);
             Dispatcher dispatcher = subscription.getDispatcher();
-            Field field = AbstractBaseDispatcher.class.getDeclaredField("entryFilters");
+            Field field = EntryFilterSupport.class.getDeclaredField("entryFilters");
             field.setAccessible(true);
             NarClassLoader narClassLoader = mock(NarClassLoader.class);
             EntryFilter filter1 = new EntryFilterTest();
@@ -281,7 +281,7 @@ public class FilterEntryTest extends BrokerTestBase {
             PersistentSubscription subscription = (PersistentSubscription) pulsar.getBrokerService()
                     .getTopicReference(topic).get().getSubscription(subName);
             Dispatcher dispatcher = subscription.getDispatcher();
-            Field field = AbstractBaseDispatcher.class.getDeclaredField("entryFilters");
+            Field field = EntryFilterSupport.class.getDeclaredField("entryFilters");
             field.setAccessible(true);
             NarClassLoader narClassLoader = mock(NarClassLoader.class);
             EntryFilter filter1 = new EntryFilterTest();
