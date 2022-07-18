@@ -343,11 +343,12 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
             if (scheduledFuture != null && !scheduledFuture.isCancelled() && !scheduledFuture.isDone()) {
                 if (this.scheduledFuture.cancel(false)){
                     this.state = State.CLOSED;
+                } else {
+                    // Cancel task failure, The state will stay at CLOSING.
+                    log.error("Cancel task that schedule at fixed rate trig flush failure. The state will stay at"
+                            + " CLOSING. managedLedger: " + managedLedger.getName());
                 }
             }
-            // Cancel task failure, The state will stay at CLOSING.
-            log.error("Cancel task that schedule at fixed rate trig flush failure. The state will stay at CLOSING."
-                    + " managedLedger: " + managedLedger.getName());
         });
     }
 
