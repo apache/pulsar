@@ -69,7 +69,6 @@ import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.service.BrokerServiceException.AlreadyRunningException;
-import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionInvalidCursorPosition;
 import org.apache.pulsar.broker.service.Subscription;
@@ -4176,47 +4175,11 @@ public class PersistentTopicsBase extends AdminResource {
         return metadataFuture;
     }
 
-    /**
-     * Get the Topic object reference from the Pulsar broker.
-     */
-    private Topic getTopicReference(TopicName topicName) {
-        try {
-            return pulsar().getBrokerService().getTopicIfExists(topicName.toString())
-                    .get(pulsar().getConfiguration().getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS)
-                    .orElseThrow(() -> topicNotFoundReason(topicName));
-        } catch (RestException e) {
-            throw e;
-        } catch (Exception e) {
-            if (e.getCause() instanceof NotAllowedException) {
-                throw new RestException(Status.BAD_REQUEST, e.getCause());
-            }
-            throw new RestException(e.getCause() == null ? e : e.getCause());
-        }
-    }
-
     private CompletableFuture<Topic> getTopicReferenceAsync(TopicName topicName) {
         return pulsar().getBrokerService().getTopicIfExists(topicName.toString())
                 .thenCompose(optTopic -> optTopic
                         .map(CompletableFuture::completedFuture)
                         .orElseGet(() -> topicNotFoundReasonAsync(topicName)));
-    }
-
-    private RestException topicNotFoundReason(TopicName topicName) {
-        if (!topicName.isPartitioned()) {
-            return new RestException(Status.NOT_FOUND, getTopicNotFoundErrorMessage(topicName.toString()));
-        }
-
-        PartitionedTopicMetadata partitionedTopicMetadata = getPartitionedTopicMetadata(
-                TopicName.get(topicName.getPartitionedTopicName()), false, false);
-        if (partitionedTopicMetadata == null || partitionedTopicMetadata.partitions == 0) {
-            final String topicErrorType = partitionedTopicMetadata
-                    == null ? "has no metadata" : "has zero partitions";
-            return new RestException(Status.NOT_FOUND, String.format(
-                    "Partitioned Topic not found: %s %s", topicName.toString(), topicErrorType));
-        } else if (!internalGetList(Optional.empty()).contains(topicName.toString())) {
-            return new RestException(Status.NOT_FOUND, "Topic partitions were not yet created");
-        }
-        return new RestException(Status.NOT_FOUND, getPartitionedTopicNotFoundErrorMessage(topicName.toString()));
     }
 
     private CompletableFuture<Topic> topicNotFoundReasonAsync(TopicName topicName) {
