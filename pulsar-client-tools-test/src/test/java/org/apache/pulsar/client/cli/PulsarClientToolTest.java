@@ -262,7 +262,6 @@ public class PulsarClientToolTest extends BrokerTestBase {
             Assert.assertNotNull(msg);
             if (i < numberOfMessages) {
                 Assert.assertEquals(new String(msg.getData()), "batched");
-                Assert.assertTrue(msg.getMessageId() instanceof BatchMessageIdImpl);
             } else {
                 Assert.assertEquals(new String(msg.getData()), "non-batched");
                 Assert.assertFalse(msg.getMessageId() instanceof BatchMessageIdImpl);

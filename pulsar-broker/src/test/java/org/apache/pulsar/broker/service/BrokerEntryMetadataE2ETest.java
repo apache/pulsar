@@ -237,9 +237,8 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
         Assert.assertTrue(entryMetadata.getBrokerTimestamp() >= sendTime);
         Assert.assertEquals(entryMetadata.getIndex(), 0);
         System.out.println(message.getProperties());
-        Assert.assertEquals(Integer.parseInt(message.getProperty(BATCH_HEADER)), 1);
-        // make sure BATCH_SIZE_HEADER > 0
-        Assert.assertTrue(Integer.parseInt(message.getProperty(BATCH_SIZE_HEADER)) > 0);
+        Assert.assertNull(message.getProperty(BATCH_HEADER));
+        Assert.assertNull(message.getProperty(BATCH_SIZE_HEADER));
 
         // 2. test for getMessagesById
         message = (MessageImpl) admin.topics().getMessageById(topic, messageId.getLedgerId(), messageId.getEntryId());
@@ -249,9 +248,8 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
         Assert.assertTrue(entryMetadata.getBrokerTimestamp() >= sendTime);
         Assert.assertEquals(entryMetadata.getIndex(), 0);
         System.out.println(message.getProperties());
-        Assert.assertEquals(Integer.parseInt(message.getProperty(BATCH_HEADER)), 1);
-        // make sure BATCH_SIZE_HEADER > 0
-        Assert.assertTrue(Integer.parseInt(message.getProperty(BATCH_SIZE_HEADER)) > 0);
+        Assert.assertNull(message.getProperty(BATCH_HEADER));
+        Assert.assertNull(message.getProperty(BATCH_SIZE_HEADER));
 
         // 3. test for examineMessage
         message = (MessageImpl) admin.topics().examineMessage(topic, "earliest", 1);
@@ -261,9 +259,8 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
         Assert.assertTrue(entryMetadata.getBrokerTimestamp() >= sendTime);
         Assert.assertEquals(entryMetadata.getIndex(), 0);
         System.out.println(message.getProperties());
-        Assert.assertEquals(Integer.parseInt(message.getProperty(BATCH_HEADER)), 1);
-        // make sure BATCH_SIZE_HEADER > 0
-        Assert.assertTrue(Integer.parseInt(message.getProperty(BATCH_SIZE_HEADER)) > 0);
+        Assert.assertNull(message.getProperty(BATCH_HEADER));
+        Assert.assertNull(message.getProperty(BATCH_SIZE_HEADER));
     }
 
     @Test(timeOut = 20000)

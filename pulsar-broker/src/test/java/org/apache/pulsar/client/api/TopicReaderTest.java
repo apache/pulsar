@@ -1096,7 +1096,6 @@ public class TopicReaderTest extends ProducerConsumerBase {
         ReaderImpl<byte[]> reader = (ReaderImpl<byte[]>)pulsarClient.newReader().topic(topicName)
                 .startMessageId(messageId).startMessageIdInclusive().create();
         MessageIdImpl lastMsgId = (MessageIdImpl) reader.getConsumer().getLastMessageId();
-        assertTrue(messageId instanceof BatchMessageIdImpl);
         assertEquals(lastMsgId.getLedgerId(), messageId.getLedgerId());
         assertEquals(lastMsgId.getEntryId(), messageId.getEntryId());
         reader.close();
