@@ -24,6 +24,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+/**
+ * Utils for I/O operations.
+ */
 public final class IOUtils {
     private static final int DEFAULT_BUFFER_SIZE = 8192;
     private static final int MAX_BUFFER_SIZE = Integer.MAX_VALUE - 8;
@@ -79,8 +82,8 @@ public final class IOUtils {
             if (result == null) {
                 return new byte[0];
             }
-            return result.length == total ?
-                    result : Arrays.copyOf(result, total);
+            return result.length == total
+                    ? result : Arrays.copyOf(result, total);
         }
 
         result = new byte[total];
