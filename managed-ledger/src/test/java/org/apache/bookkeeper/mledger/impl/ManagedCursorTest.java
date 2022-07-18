@@ -1836,49 +1836,84 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     }
 
     @Test(timeOut = 20000)
-    void testScan() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger_scan");
+    void testScanSingleEntry() throws Exception {
+        testScan(10,1);
+    }
+
+    @Test(timeOut = 30000)
+    void testScanBatchesWithSomeRemainder() throws Exception {
+        testScan(10,3);
+    }
+
+    @Test(timeOut = 30000)
+    void testScanBatches() throws Exception {
+        testScan(10,5);
+    }
+
+    @Test(timeOut = 30000)
+    void testScanBatchWholeLedger() throws Exception {
+        testScan(10,1000);
+    }
+
+    @Test(timeOut = 1000)
+    void testScanBatchEmptyLedger() throws Exception {
+        testScan(0,10);
+    }
+
+    void testScan(int numEntries, int batchSize) throws Exception {
+        ManagedLedger ledger = factory.open("my_test_ledger_scan_" + numEntries
+                + "_" +batchSize);
 
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
 
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < numEntries; i++) {
             ledger.addEntry(("a" + i).getBytes(Encoding));
         }
 
         List<String> contents = new CopyOnWriteArrayList<>();
+
         assertEquals(ScanOutcome.COMPLETED, c1.scan((entry -> {
             contents.add(new String(entry.getData(), StandardCharsets.UTF_8));
             return true;
-        }), Long.MAX_VALUE, Long.MAX_VALUE).get());
+        }), batchSize, Long.MAX_VALUE, Long.MAX_VALUE).get());
 
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < numEntries; i++) {
             assertEquals(contents.get(i), ("a" + i));
         }
-        assertEquals(contents.size(), 10);
+        assertEquals(contents.size(), numEntries);
+
+        if (numEntries <= 0) {
+            return;
+        }
 
         assertEquals(ScanOutcome.USER_INTERRUPTED, c1.scan((entry -> {
             return false;
-        }), Long.MAX_VALUE, Long.MAX_VALUE).get());
+        }), batchSize, Long.MAX_VALUE, Long.MAX_VALUE).get());
 
         // max entries
         assertEquals(ScanOutcome.ABORTED, c1.scan((entry -> {
             return true;
-        }), 1, Long.MAX_VALUE).get());
+        }), batchSize, 1, Long.MAX_VALUE).get());
 
         // timeout
-        assertEquals(ScanOutcome.ABORTED, c1.scan((entry -> {
-            try {
-                Thread.sleep(2000);
-            } catch (InterruptedException ie){
-            }
-            return true;
-        }), Long.MAX_VALUE, 1000).get());
-
+        // please note that the timeout is verified
+        // between the reads
+        // so with a big batchSize this test would take too much
+        // we are skipping this check if batchSize is too big
+        if (batchSize <= 5) {
+            assertEquals(ScanOutcome.ABORTED, c1.scan((entry -> {
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException ie) {
+                }
+                return true;
+            }), batchSize, Long.MAX_VALUE, 1000).get());
+        }
         // user code exception
         AtomicReference<Throwable> error = new AtomicReference<>();
         c1.scan((entry -> {
             throw new RuntimeException("dummy!");
-        }), Long.MAX_VALUE, Long.MAX_VALUE).handle((___, err) -> {
+        }), batchSize, Long.MAX_VALUE, Long.MAX_VALUE).handle((___, err) -> {
             error.set(err);
             return null;
         }).get();

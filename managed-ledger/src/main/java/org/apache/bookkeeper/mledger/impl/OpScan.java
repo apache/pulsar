@@ -23,8 +23,10 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
+
 import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ScanCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -33,7 +35,7 @@ import org.apache.bookkeeper.mledger.ScanOutcome;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.PositionBound;
 
 @Slf4j
-class OpScan implements ReadEntryCallback {
+class OpScan implements ReadEntriesCallback {
     private final ManagedCursorImpl cursor;
     private final ManagedLedgerImpl ledger;
     private final PositionImpl startPosition;
@@ -43,12 +45,18 @@ class OpScan implements ReadEntryCallback {
     private final AtomicLong remainingEntries = new AtomicLong();
     private final long timeOutMs;
     private final long startTime = System.currentTimeMillis();
+    private final int batchSize;
 
     PositionImpl searchPosition;
-    Position lastMatchedPosition = null;
+    Position lastSeenPosition = null;
 
-    public OpScan(ManagedCursorImpl cursor, PositionImpl startPosition, Predicate<Entry> condition,
+    public OpScan(ManagedCursorImpl cursor, int batchSize,
+                  PositionImpl startPosition, Predicate<Entry> condition,
                   ScanCallback callback, Object ctx, long maxEntries, long timeOutMs) {
+        this.batchSize = batchSize;
+        if (batchSize <= 0) {
+            throw new IllegalArgumentException("batchSize " + batchSize);
+        }
         this.cursor = Objects.requireNonNull(cursor);
         this.ledger = cursor.ledger;
         this.startPosition = startPosition;
@@ -60,70 +68,76 @@ class OpScan implements ReadEntryCallback {
         this.timeOutMs = timeOutMs;
     }
 
-
     @Override
-    public void readEntryComplete(Entry entry, Object ctx) {
-        remainingEntries.decrementAndGet();
-        final Position position = entry.getPosition();
-        lastMatchedPosition = position;
-        // filter out the entry if it has been already deleted
-        // filterReadEntries will call entry.release if the entry is filtered out
-        List<Entry> entries = this.cursor.filterReadEntries(List.of(entry));
-        if (!entries.isEmpty()) {
-            boolean exit = false;
-            try {
-                try {
-                    if (!condition.apply(entry)) {
-                        exit = true;
+    public void readEntriesComplete(List<Entry> entries, Object ctx) {
+        log.info("readEntriesComplete {}",
+                entries.stream().map(e->e.getPosition()).collect(Collectors.toList()));
+        try {
+            Position lastPositionForBatch = entries.get(entries.size() - 1).getPosition();
+            lastSeenPosition = lastPositionForBatch;
+            // filter out the entry if it has been already deleted
+            // filterReadEntries will call entry.release if the entry is filtered out
+            List<Entry> entriesFiltered = this.cursor.filterReadEntries(entries);
+            int skippedEntries = entries.size() - entriesFiltered.size();
+            remainingEntries.addAndGet(-skippedEntries);
+            if (!entriesFiltered.isEmpty()) {
+                for (Entry entry : entriesFiltered) {
+                    if (remainingEntries.decrementAndGet() <= 0) {
+                        log.warn("[{}] Scan abort after reading too many entries", OpScan.this.cursor);
+                        callback.scanComplete(lastSeenPosition, ScanOutcome.ABORTED, OpScan.this.ctx);
+                        return;
                     }
-                } finally {
-                    entry.release();
+                    if (!condition.apply(entry)) {
+                        log.warn("[{}] Scan abort due to user code", OpScan.this.cursor);
+                        callback.scanComplete(lastSeenPosition, ScanOutcome.USER_INTERRUPTED, OpScan.this.ctx);
+                        return;
+                    }
                 }
-            } catch (Throwable err) {
-                log.error("[{}] user exception", cursor, err);
-                callback.scanFailed(ManagedLedgerException.getManagedLedgerException(err),
-                        Optional.ofNullable(searchPosition), OpScan.this.ctx);
-                return;
             }
-            if (exit) {
-                // user code requested to stop our scan
-                callback.scanComplete(lastMatchedPosition, ScanOutcome.USER_INTERRUPTED, OpScan.this.ctx);
-                return;
+            searchPosition = ledger.getPositionAfterN((PositionImpl) lastPositionForBatch, 1, PositionBound.startExcluded);
+            log.debug("readEntryComplete {} at {} next is {}", lastPositionForBatch, searchPosition);
+            if (log.isDebugEnabled()) {
+                log.debug("readEntryComplete {} at {} next is {}", lastPositionForBatch, searchPosition);
             }
-        }
-        searchPosition = ledger.getPositionAfterN((PositionImpl) position, 1, PositionBound.startExcluded);
-        if (log.isDebugEnabled()) {
-            log.debug("readEntryComplete {} at {} next is {}", entry, position, searchPosition);
-        }
 
-        if (searchPosition.compareTo((PositionImpl) position) == 0) {
-            // we have reached the end of the ledger, as we are not doing progress
-            callback.scanComplete(lastMatchedPosition, ScanOutcome.COMPLETED, OpScan.this.ctx);
+            if (searchPosition.compareTo((PositionImpl) lastPositionForBatch) == 0) {
+                // we have reached the end of the ledger, as we are not doing progress
+                callback.scanComplete(lastSeenPosition, ScanOutcome.COMPLETED, OpScan.this.ctx);
+                return;
+            }
+        } catch (Throwable t) {
+            log.error("Unhandled error", t);
+            callback.scanFailed(ManagedLedgerException.getManagedLedgerException(t),
+                    Optional.ofNullable(lastSeenPosition), OpScan.this.ctx);
             return;
+        } finally {
+            entries.forEach(Entry::release);
         }
         find();
     }
 
     @Override
-    public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+    public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
         callback.scanFailed(exception, Optional.ofNullable(searchPosition), OpScan.this.ctx);
     }
 
     public void find() {
         if (remainingEntries.get() <= 0) {
             log.warn("[{}] Scan abort after reading too many entries", OpScan.this.cursor);
-            callback.scanComplete(lastMatchedPosition, ScanOutcome.ABORTED, OpScan.this.ctx);
+            callback.scanComplete(lastSeenPosition, ScanOutcome.ABORTED, OpScan.this.ctx);
             return;
         }
         if (System.currentTimeMillis() - startTime > timeOutMs) {
             log.warn("[{}] Scan abort after hitting the deadline", OpScan.this.cursor);
-            callback.scanComplete(lastMatchedPosition, ScanOutcome.ABORTED, OpScan.this.ctx);
+            callback.scanComplete(lastSeenPosition, ScanOutcome.ABORTED, OpScan.this.ctx);
             return;
         }
         if (cursor.hasMoreEntries(searchPosition)) {
-            ledger.asyncReadEntry(searchPosition, this, null);
+            OpReadEntry opReadEntry = OpReadEntry.create(cursor,searchPosition, batchSize,
+            this, OpScan.this.ctx, null);
+            ledger.asyncReadEntries(opReadEntry);
         } else {
-            callback.scanComplete(lastMatchedPosition, ScanOutcome.COMPLETED, OpScan.this.ctx);
+            callback.scanComplete(lastSeenPosition, ScanOutcome.COMPLETED, OpScan.this.ctx);
         }
     }
 }

@@ -1040,10 +1040,10 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     @Override
-    public CompletableFuture<ScanOutcome> scan(Predicate<Entry> condition, long maxEntries, long timeOutMs) {
+    public CompletableFuture<ScanOutcome> scan(Predicate<Entry> condition, int batchSize, long maxEntries, long timeOutMs) {
         PositionImpl startPosition = ledger.getNextValidPosition(markDeletePosition);
         CompletableFuture<ScanOutcome> future = new CompletableFuture<>();
-        OpScan op = new OpScan(this, startPosition, condition, new ScanCallback() {
+        OpScan op = new OpScan(this, batchSize, startPosition, condition, new ScanCallback() {
             @Override
             public void scanComplete(Position position, ScanOutcome scanOutcome, Object ctx) {
                 future.complete(scanOutcome);

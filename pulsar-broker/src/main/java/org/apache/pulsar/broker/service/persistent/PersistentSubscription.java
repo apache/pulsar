@@ -552,6 +552,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         ServiceConfiguration configuration = topic.getBrokerService().getPulsar().getConfiguration();
         long maxEntries = configuration.getSubscriptionBacklogScanMaxEntries();
         long timeOutMs = configuration.getSubscriptionBacklogScanMaxTimeMs();
+        int batchSize = configuration.getDispatcherMaxReadBatchSize();
         return cursor.scan(new Predicate<Entry>() {
             @Override
             public boolean apply(Entry entry) {
@@ -590,7 +591,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
 
                 return true;
             }
-        }, maxEntries, timeOutMs).thenApply((ScanOutcome outcome) -> {
+        }, batchSize, maxEntries, timeOutMs).thenApply((ScanOutcome outcome) -> {
             long end = System.currentTimeMillis();
             AnalyzeBacklogResult result = new AnalyzeBacklogResult();
             result.setEntries(entries.get());
