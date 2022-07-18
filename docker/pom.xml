@@ -59,6 +59,7 @@
       <modules>
         <module>pulsar</module>
         <module>pulsar-all</module>
+        <module>pulsar-experimental</module>
       </modules>
     </profile>
   </profiles>
