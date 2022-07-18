@@ -381,19 +381,19 @@ All the bundleUnloading metrics are labelled with the following labels:
 - cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the `broker.conf` file.
 - metric: metric="bundleUnloading".
 
-| Name | Type | Description |
-| --- | --- | --- |
-| pulsar_lb_unload_broker_count | Counter | Unload broker count in this bundle unloading |
-| pulsar_lb_unload_bundle_count | Counter | Bundle unload count in this bundle unloading |
+| Name                          | Type    | Description                                  |
+|-------------------------------|---------|----------------------------------------------|
+| pulsar_lb_unload_broker_total | Counter | Unload broker count in this bundle unloading |
+| pulsar_lb_unload_bundle_total | Counter | Bundle unload count in this bundle unloading |
 
 #### BundleSplit metrics
 All the bundleUnloading metrics are labelled with the following labels:
 - cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the `broker.conf` file.
 - metric: metric="bundlesSplit".
 
-| Name | Type | Description |
-| --- | --- | --- |
-| pulsar_lb_bundles_split_count | Counter | bundle split count in this bundle splitting check interval |
+| Name                          | Type    | Description                                                |
+|-------------------------------|---------|------------------------------------------------------------|
+| pulsar_lb_bundles_split_total | Counter | bundle split count in this bundle splitting check interval |
 
 #### Bundle metrics
 All the bundle metrics are labelled with the following labels:
@@ -533,16 +533,16 @@ All the schema metrics are labelled with the following labels:
 
 - *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you have configured in the `broker.conf` file.
 
-| Name | Type | Description |
-|---|---|---|
-| pulsar_schema_del_ops_failed_count | Counter | Number of failed operations to delete schemas. |
-| pulsar_schema_get_ops_failed_count | Counter | Number of failed operations to get schemas. |
-| pulsar_schema_put_ops_failed_count | Counter | Number of failed operations to send schemas. |
-| pulsar_schema_compatible_count | Counter | Number of compatible schemas. |
-| pulsar_schema_incompatible_count | Counter | Number of incompatible schemas. |
-| pulsar_schema_del_ops_latency | Summary | Latency of successful operations to delete schemas. |
-| pulsar_schema_get_ops_latency | Summary | Latency of successful operations to get schemas. |
-| pulsar_schema_put_ops_latency | Summary | Latency of successful operations to send schemas. |
+| Name                               | Type    | Description                                         |
+|------------------------------------|---------|-----------------------------------------------------|
+| pulsar_schema_del_ops_failed_total | Counter | Number of failed operations to delete schemas.      |
+| pulsar_schema_get_ops_failed_total | Counter | Number of failed operations to get schemas.         |
+| pulsar_schema_put_ops_failed_total | Counter | Number of failed operations to send schemas.        |
+| pulsar_schema_compatible_total     | Counter | Number of compatible schemas.                       |
+| pulsar_schema_incompatible_total   | Counter | Number of incompatible schemas.                     |
+| pulsar_schema_del_ops_latency      | Summary | Latency of successful operations to delete schemas. |
+| pulsar_schema_get_ops_latency      | Summary | Latency of successful operations to get schemas.    |
+| pulsar_schema_put_ops_latency      | Summary | Latency of successful operations to send schemas.   |
 
 ### Offload metrics
 

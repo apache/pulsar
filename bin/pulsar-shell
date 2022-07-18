@@ -18,7 +18,19 @@
 # under the License.
 #
 
-BINDIR=$(dirname "$0")
+# need this for relative symlinks
+PRG="$0"
+while [ -h "$PRG" ] ; do
+  ls=`ls -ld "$PRG"`
+  link=`expr "$ls" : '.*-> \(.*\)$'`
+  if expr "$link" : '/.*' > /dev/null; then
+    PRG="$link"
+  else
+    PRG="`dirname "$PRG"`/$link"
+  fi
+done
+
+BINDIR=$(dirname "$PRG")
 export PULSAR_HOME=`cd -P $BINDIR/..;pwd`
 . "$PULSAR_HOME/bin/pulsar-admin-common.sh"
 OPTS="-Dorg.jline.terminal.jansi=false $OPTS"
