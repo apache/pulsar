@@ -89,6 +89,20 @@ public class PulsarLedgerManager implements LedgerManager {
         store.registerListener(this::handleDataNotification);
     }
 
+    private static Throwable mapToBkException(Throwable ex) {
+        if (ex instanceof MetadataStoreException.NotFoundException) {
+            return BKException.create(BKException.Code.NoSuchLedgerExistsOnMetadataServerException);
+        } else if (ex instanceof MetadataStoreException.AlreadyExistsException) {
+            return BKException.create(BKException.Code.LedgerExistException);
+        } else if (ex instanceof MetadataStoreException.BadVersionException) {
+            return BKException.create(BKException.Code.MetadataVersionException);
+        } else if (ex instanceof MetadataStoreException.AlreadyClosedException) {
+            return BKException.create(BKException.Code.LedgerClosedException);
+        }
+
+        return ex;
+    }
+
     @Override
     public CompletableFuture<Versioned<LedgerMetadata>> createLedgerMetadata(long ledgerId,
                                                                              LedgerMetadata inputMetadata) {
@@ -106,14 +120,21 @@ public class PulsarLedgerManager implements LedgerManager {
             return FutureUtil.failedFuture(new BKException.BKMetadataSerializationException(ioe));
         }
 
+        CompletableFuture<Versioned<LedgerMetadata>> promise = new CompletableFuture<>();
+
         CompletableFuture<Versioned<LedgerMetadata>> future = store.put(getLedgerPath(ledgerId), data, Optional.of(-1L))
-                .thenApply(stat -> new Versioned(metadata, new LongVersion(stat.getVersion())));
+                .thenApply(stat -> {
+                    Versioned<LedgerMetadata> result = new Versioned(metadata, new LongVersion(stat.getVersion()));
+                    promise.complete(result);
+                    return result;
+                });
         future.exceptionally(ex -> {
+            promise.completeExceptionally(mapToBkException(ex));
             log.error("Failed to create ledger {}: {}", ledgerId, ex.getMessage());
             return null;
         });
 
-        return future;
+        return promise;
     }
 
     @Override
@@ -131,8 +152,10 @@ public class PulsarLedgerManager implements LedgerManager {
             }
         }
 
+        CompletableFuture<Void> promise = new CompletableFuture<>();
         return store.delete(getLedgerPath(ledgerId), existingVersion)
                 .thenRun(() -> {
+                    promise.complete(null);
                     // removed listener on ledgerId
                     Set<BookkeeperInternalCallbacks.LedgerMetadataListener> listenerSet = listeners.remove(ledgerId);
                     if (null != listenerSet) {
@@ -147,6 +170,11 @@ public class PulsarLedgerManager implements LedgerManager {
                                     ledgerId);
                         }
                     }
+                })
+                .exceptionally(ex -> {
+                    promise.completeExceptionally(mapToBkException(ex));
+                    log.error("Failed to remove ledger metadata {}: {}", ledgerId, ex.getMessage());
+                    return null;
                 });
     }
 
