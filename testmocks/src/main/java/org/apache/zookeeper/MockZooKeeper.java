@@ -1090,6 +1090,7 @@ public class MockZooKeeper extends ZooKeeper {
 
     @Override
     public void close() throws InterruptedException {
+        shutdown();
     }
 
     public void shutdown() throws InterruptedException {

@@ -43,7 +43,7 @@ jobs:
 
       - name: Execute pulsarbot command
         id:   pulsarbot
-        if: github.event_name == 'issue_comment' && startsWith(github.event.comment.body, '/pulsarbot')
+        if: github.event_name == 'issue_comment' && contains(github.event.comment.body, '/pulsarbot')
         env:
           GITHUB_TOKEN: ${{ secrets.PULSARBOT_TOKEN }}
         uses: apache/pulsar-test-infra/pulsarbot@master

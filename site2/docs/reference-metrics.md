@@ -381,19 +381,19 @@ All the bundleUnloading metrics are labelled with the following labels:
 - cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the `broker.conf` file.
 - metric: metric="bundleUnloading".
 
-| Name | Type | Description |
-| --- | --- | --- |
-| pulsar_lb_unload_broker_count | Counter | Unload broker count in this bundle unloading |
-| pulsar_lb_unload_bundle_count | Counter | Bundle unload count in this bundle unloading |
+| Name                          | Type    | Description                                  |
+|-------------------------------|---------|----------------------------------------------|
+| pulsar_lb_unload_broker_total | Counter | Unload broker count in this bundle unloading |
+| pulsar_lb_unload_bundle_total | Counter | Bundle unload count in this bundle unloading |
 
 #### BundleSplit metrics
 All the bundleUnloading metrics are labelled with the following labels:
 - cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the `broker.conf` file.
 - metric: metric="bundlesSplit".
 
-| Name | Type | Description |
-| --- | --- | --- |
-| pulsar_lb_bundles_split_count | Counter | bundle split count in this bundle splitting check interval |
+| Name                          | Type    | Description                                                |
+|-------------------------------|---------|------------------------------------------------------------|
+| pulsar_lb_bundles_split_total | Counter | bundle split count in this bundle splitting check interval |
 
 #### Bundle metrics
 All the bundle metrics are labelled with the following labels:
@@ -479,7 +479,7 @@ All the token metrics are labelled with the following labels:
 
 | Name | Type | Description |
 |---|---|---|
-| pulsar_expired_token_count | Counter | The number of expired tokens in Pulsar. |
+| pulsar_expired_token_total | Counter | The number of expired tokens in Pulsar. |
 | pulsar_expiring_token_minutes | Histogram | The remaining time of expiring tokens in minutes. |
 
 ### Authentication metrics
@@ -489,12 +489,12 @@ All the authentication metrics are labelled with the following labels:
 - *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you have configured in the `broker.conf` file.
 - *provider_name*: `provider_name=${provider_name}`. `${provider_name}` is the class name of the authentication provider.
 - *auth_method*: `auth_method=${auth_method}`. `${auth_method}` is the authentication method of the authentication provider.
-- *reason*: `reason=${reason}`. `${reason}` is the reason for failing authentication operation. (This label is only for `pulsar_authentication_failures_count`.)
+- *reason*: `reason=${reason}`. `${reason}` is the reason for failing authentication operation. (This label is only for `pulsar_authentication_failures_total`.)
 
 | Name | Type | Description |
 |---|---|---|
-| pulsar_authentication_success_count| Counter | The number of successful authentication operations. |
-| pulsar_authentication_failures_count | Counter | The number of failing authentication operations. |
+| pulsar_authentication_success_total| Counter | The number of successful authentication operations. |
+| pulsar_authentication_failures_total | Counter | The number of failing authentication operations. |
 
 ### Jetty metrics
 
@@ -533,16 +533,16 @@ All the schema metrics are labelled with the following labels:
 
 - *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you have configured in the `broker.conf` file.
 
-| Name | Type | Description |
-|---|---|---|
-| pulsar_schema_del_ops_failed_count | Counter | Number of failed operations to delete schemas. |
-| pulsar_schema_get_ops_failed_count | Counter | Number of failed operations to get schemas. |
-| pulsar_schema_put_ops_failed_count | Counter | Number of failed operations to send schemas. |
-| pulsar_schema_compatible_count | Counter | Number of compatible schemas. |
-| pulsar_schema_incompatible_count | Counter | Number of incompatible schemas. |
-| pulsar_schema_del_ops_latency | Summary | Latency of successful operations to delete schemas. |
-| pulsar_schema_get_ops_latency | Summary | Latency of successful operations to get schemas. |
-| pulsar_schema_put_ops_latency | Summary | Latency of successful operations to send schemas. |
+| Name                               | Type    | Description                                         |
+|------------------------------------|---------|-----------------------------------------------------|
+| pulsar_schema_del_ops_failed_total | Counter | Number of failed operations to delete schemas.      |
+| pulsar_schema_get_ops_failed_total | Counter | Number of failed operations to get schemas.         |
+| pulsar_schema_put_ops_failed_total | Counter | Number of failed operations to send schemas.        |
+| pulsar_schema_compatible_total     | Counter | Number of compatible schemas.                       |
+| pulsar_schema_incompatible_total   | Counter | Number of incompatible schemas.                     |
+| pulsar_schema_del_ops_latency      | Summary | Latency of successful operations to delete schemas. |
+| pulsar_schema_get_ops_latency      | Summary | Latency of successful operations to get schemas.    |
+| pulsar_schema_put_ops_latency      | Summary | Latency of successful operations to send schemas.   |
 
 ### Offload metrics
 
@@ -591,16 +591,16 @@ All the Pulsar Functions metrics are labelled with the following labels:
 | Name | Type | Description |
 |---|---|---|
 | pulsar_function_processed_successfully_total | Counter | The total number of messages processed successfully. |
-| pulsar_function_processed_successfully_total_1min | Counter | The total number of messages processed successfully in the last 1 minute. |
+| pulsar_function_processed_successfully_1min_total | Counter | The total number of messages processed successfully in the last 1 minute. |
 | pulsar_function_system_exceptions_total | Counter | The total number of system exceptions. |
-| pulsar_function_system_exceptions_total_1min | Counter | The total number of system exceptions in the last 1 minute. |
+| pulsar_function_system_exceptions_1min_total | Counter | The total number of system exceptions in the last 1 minute. |
 | pulsar_function_user_exceptions_total | Counter | The total number of user exceptions. |
-| pulsar_function_user_exceptions_total_1min | Counter | The total number of user exceptions in the last 1 minute. |
+| pulsar_function_user_exceptions_1min_total | Counter | The total number of user exceptions in the last 1 minute. |
 | pulsar_function_process_latency_ms | Summary | The process latency in milliseconds. |
 | pulsar_function_process_latency_ms_1min | Summary | The process latency in milliseconds in the last 1 minute. |
 | pulsar_function_last_invocation | Gauge | The timestamp of the last invocation of the function. |
 | pulsar_function_received_total | Counter | The total number of messages received from source. |
-| pulsar_function_received_total_1min | Counter | The total number of messages received from source in the last 1 minute. |
+| pulsar_function_received_1min_total | Counter | The total number of messages received from source in the last 1 minute. |
 pulsar_function_user_metric_ | Summary|The user-defined metrics.
 
 ## Connectors
@@ -617,16 +617,16 @@ Connector metrics contain **source** metrics and **sink** metrics.
   | Name | Type | Description |
   |---|---|---|
   pulsar_source_written_total|Counter|The total number of records written to a Pulsar topic.
-  pulsar_source_written_total_1min|Counter|The total number of records written to a Pulsar topic in the last 1 minute.
+  pulsar_source_written_1min_total|Counter|The total number of records written to a Pulsar topic in the last 1 minute.
   pulsar_source_received_total|Counter|The total number of records received from source.
-  pulsar_source_received_total_1min|Counter|The total number of records received from source in the last 1 minute.
+  pulsar_source_received_1min_total|Counter|The total number of records received from source in the last 1 minute.
   pulsar_source_last_invocation|Gauge|The timestamp of the last invocation of the source.
   pulsar_source_source_exception|Gauge|The exception from a source.
   pulsar_source_source_exceptions_total|Counter|The total number of source exceptions.
-  pulsar_source_source_exceptions_total_1min |Counter|The total number of source exceptions in the last 1 minute.
+  pulsar_source_source_exceptions_1min_total |Counter|The total number of source exceptions in the last 1 minute.
   pulsar_source_system_exception|Gauge|The exception from system code.
   pulsar_source_system_exceptions_total|Counter|The total number of system exceptions.
-  pulsar_source_system_exceptions_total_1min|Counter|The total number of system exceptions in the last 1 minute.
+  pulsar_source_system_exceptions_1min_total|Counter|The total number of system exceptions in the last 1 minute.
   pulsar_source_user_metric_ | Summary|The user-defined metrics.
 
 - **Sink** metrics
@@ -634,16 +634,16 @@ Connector metrics contain **source** metrics and **sink** metrics.
   | Name | Type | Description |
   |---|---|---|
   pulsar_sink_written_total|Counter| The total number of records processed by a sink.
-  pulsar_sink_written_total_1min|Counter| The total number of records processed by a sink in the last 1 minute.
-  pulsar_sink_received_total_1min|Counter| The total number of messages that a sink has received from Pulsar topics in the last 1 minute.
+  pulsar_sink_written_1min_total|Counter| The total number of records processed by a sink in the last 1 minute.
+  pulsar_sink_received_1min_total|Counter| The total number of messages that a sink has received from Pulsar topics in the last 1 minute.
   pulsar_sink_received_total|Counter| The total number of records that a sink has received from Pulsar topics.
   pulsar_sink_last_invocation|Gauge|The timestamp of the last invocation of the sink.
   pulsar_sink_sink_exception|Gauge|The exception from a sink.
   pulsar_sink_sink_exceptions_total|Counter|The total number of sink exceptions.
-  pulsar_sink_sink_exceptions_total_1min |Counter|The total number of sink exceptions in the last 1 minute.
+  pulsar_sink_sink_exceptions_1min_total |Counter|The total number of sink exceptions in the last 1 minute.
   pulsar_sink_system_exception|Gauge|The exception from system code.
   pulsar_sink_system_exceptions_total|Counter|The total number of system exceptions.
-  pulsar_sink_system_exceptions_total_1min|Counter|The total number of system exceptions in the last 1 minute.
+  pulsar_sink_system_exceptions_1min_total|Counter|The total number of system exceptions in the last 1 minute.
   pulsar_sink_user_metric_ | Summary|The user-defined metrics.
 
 ## Proxy
@@ -695,12 +695,12 @@ All the transaction metrics are labelled with the following labels:
 - *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you have configured in the `broker.conf` file.
 - *coordinator_id*: `coordinator_id=${coordinator_id}`. `${coordinator_id}` is the coordinator id.
 
-| Name | Type | Description |
-|---|---|---|
-| pulsar_txn_active_count | Gauge | Number of active transactions. |
-| pulsar_txn_created_count | Counter | Number of created transactions. |
-| pulsar_txn_committed_count | Counter | Number of committed transactions. |
-| pulsar_txn_aborted_count | Counter | Number of aborted transactions of this coordinator. |
-| pulsar_txn_timeout_count | Counter | Number of timeout transactions. |
-| pulsar_txn_append_log_count | Counter | Number of append transaction logs. |
+| Name                              | Type | Description |
+|-----------------------------------|---|---|
+| pulsar_txn_active_count           | Gauge | Number of active transactions. |
+| pulsar_txn_created_total          | Counter | Number of created transactions. |
+| pulsar_txn_committed_total        | Counter | Number of committed transactions. |
+| pulsar_txn_aborted_total          | Counter | Number of aborted transactions of this coordinator. |
+| pulsar_txn_timeout_total          | Counter | Number of timeout transactions. |
+| pulsar_txn_append_log_total       | Counter | Number of append transaction logs. |
 | pulsar_txn_execution_latency_le_* | Histogram | Transaction execution latency. <br /> Available latencies are as below: <br /><ul><li> latency="10" is TransactionExecutionLatency between (0ms, 10ms]</li> <li>latency="20" is TransactionExecutionLatency between (10ms, 20ms]</li><li>latency="50" is TransactionExecutionLatency between (20ms, 50ms]</li><li>latency="100" is TransactionExecutionLatency between (50ms, 100ms]</li><li>latency="500" is TransactionExecutionLatency between (100ms, 500ms]</li><li>latency="1000" is TransactionExecutionLatency between (500ms, 1000ms]</li><li>latency="5000" is TransactionExecutionLatency between (1s, 5s]</li><li>latency="15000" is TransactionExecutionLatency between (5s, 15s]</li><li>latency="30000" is TransactionExecutionLatency between (15s, 30s]</li><li>latency="60000" is TransactionExecutionLatency between (30s, 60s]</li><li>latency="300000" is TransactionExecutionLatency between (1m,5m]</li><li>latency="1500000" is TransactionExecutionLatency between (5m,15m]</li><li>latency="3000000" is TransactionExecutionLatency between (15m,30m]</li><li>latency="overflow" is TransactionExecutionLatency between (30m,∞]</li></ul>|

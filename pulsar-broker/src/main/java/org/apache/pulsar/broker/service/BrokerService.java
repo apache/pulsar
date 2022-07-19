@@ -159,6 +159,7 @@ import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FieldParser;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
 import org.apache.pulsar.common.util.RateLimiter;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
@@ -2005,7 +2006,7 @@ public class BrokerService implements Closeable {
 
     private void handleLocalPoliciesUpdates(NamespaceName namespace) {
         pulsar.getPulsarResources().getLocalPolicies().getLocalPoliciesAsync(namespace)
-                .thenAccept(optLocalPolicies -> {
+                .thenAcceptAsync(optLocalPolicies -> {
                     if (!optLocalPolicies.isPresent()) {
                         return;
                     }
@@ -2028,12 +2029,12 @@ public class BrokerService implements Closeable {
                             });
                         }
                     });
-                });
+                }, pulsar.getExecutor());
     }
 
     private void handlePoliciesUpdates(NamespaceName namespace) {
         pulsar.getPulsarResources().getNamespaceResources().getPoliciesAsync(namespace)
-                .thenAccept(optPolicies -> {
+                .thenAcceptAsync(optPolicies -> {
                     if (!optPolicies.isPresent()) {
                         return;
                     }
@@ -2058,7 +2059,7 @@ public class BrokerService implements Closeable {
                     // sometimes, some brokers don't receive policies-update watch and miss to remove
                     // replication-cluster and still own the bundle. That can cause data-loss for TODO: git-issue
                     unloadDeletedReplNamespace(policies, namespace);
-                });
+                }, pulsar.getExecutor());
     }
 
     private void handleDynamicConfigurationUpdates() {
