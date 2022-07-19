@@ -55,5 +55,5 @@ For more information, see the [Pulsar Summit schedule](https://pulsar-summit.org
 
 ## More Resources
 
-1. **Need for Speed Hackathon**: Sign up for this half-day, in-person hackathon in San Francisco on Monday, August 15th. This event gives you the opportunity to connect with the Apache Pulsar and Apache Pinot communities, as well as other real-time streaming developers. 
-2. **Meet the Apache Pulsar community**: [Subscribe to the Pulsar mailing lists](https://pulsar.apache.org/community#section-welcome) for user-related or Pulsar development discussions. You can also [join the Pulsar Slack](https://apache-pulsar.herokuapp.com/) for quick questions or join discussions on specialized topics.
+1. **Download and try out the latest version of Pulsar**. Recently, the Apache Pulsar community released [version 2.10.1](https://pulsar.apache.org/versions/). 50 contributors provided improvements and bug fixes that delivered 200+ commits. For more information, see [What’s New in Apache Pulsar 2.10.1](https://pulsar.apache.org/blog/2022/07/12/Apache-Pulsar-2-10-1).
+2. **Meet the Apache Pulsar community**. [Subscribe to the Pulsar mailing lists](https://pulsar.apache.org/community#section-welcome) for user-related or Pulsar development discussions. You can also [join the Pulsar Slack](https://apache-pulsar.herokuapp.com/) for quick questions or join discussions on specialized topics.
