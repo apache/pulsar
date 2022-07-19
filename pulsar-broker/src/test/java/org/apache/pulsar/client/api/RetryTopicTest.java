@@ -463,7 +463,7 @@ public class RetryTopicTest extends ProducerConsumerBase {
     }
 
 
-    @Test
+    @Test(timeOut = 30000L)
     public void testRetryTopicException() throws Exception {
         final String topic = "persistent://my-property/my-ns/retry-topic";
         final int maxRedeliveryCount = 2;
