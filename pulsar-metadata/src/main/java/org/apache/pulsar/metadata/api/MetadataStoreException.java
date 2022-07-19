@@ -21,11 +21,30 @@ package org.apache.pulsar.metadata.api;
 import java.io.IOException;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
+import org.apache.bookkeeper.client.BKException;
 
 /**
  * Generic metadata store exception.
  */
 public class MetadataStoreException extends IOException {
+
+    private static Throwable makeBkFriendlyException(int code, Throwable cause) {
+        Throwable t = cause;
+        while (t != null) {
+            if (t instanceof BKException) {
+                // BKException.getExceptionCode() traverses chain of causes
+                // no need to create another exception
+                return cause;
+            }
+            t = t.getCause();
+        }
+
+        BKException bkException = BKException.create(code);
+        if (cause != null) {
+            bkException.initCause(cause);
+        }
+        return bkException;
+    }
 
     public MetadataStoreException(Throwable t) {
         super(t);
@@ -61,15 +80,18 @@ public class MetadataStoreException extends IOException {
      */
     public static class NotFoundException extends MetadataStoreException {
         public NotFoundException() {
-            super((Throwable) null);
+            super(makeBkFriendlyException(
+                    BKException.Code.NoSuchLedgerExistsOnMetadataServerException, null));
         }
 
         public NotFoundException(Throwable t) {
-            super(t);
+            super(makeBkFriendlyException(
+                    BKException.Code.NoSuchLedgerExistsOnMetadataServerException, t));
         }
 
         public NotFoundException(String msg) {
-            super(msg);
+            super(msg, makeBkFriendlyException(
+                    BKException.Code.NoSuchLedgerExistsOnMetadataServerException, null));
         }
     }
 
@@ -78,11 +100,13 @@ public class MetadataStoreException extends IOException {
      */
     public static class AlreadyExistsException extends MetadataStoreException {
         public AlreadyExistsException(Throwable t) {
-            super(t);
+            super(makeBkFriendlyException(
+                    BKException.Code.LedgerExistException, t));
         }
 
         public AlreadyExistsException(String msg) {
-            super(msg);
+            super(msg, makeBkFriendlyException(
+                    BKException.Code.LedgerExistException, null));
         }
     }
 
@@ -91,11 +115,13 @@ public class MetadataStoreException extends IOException {
      */
     public static class BadVersionException extends MetadataStoreException {
         public BadVersionException(Throwable t) {
-            super(t);
+            super(makeBkFriendlyException(
+                    BKException.Code.MetadataVersionException, t));
         }
 
         public BadVersionException(String msg) {
-            super(msg);
+            super(msg, makeBkFriendlyException(
+                    BKException.Code.MetadataVersionException, null));
         }
     }
 
@@ -138,11 +164,13 @@ public class MetadataStoreException extends IOException {
      */
     public static class AlreadyClosedException extends MetadataStoreException {
         public AlreadyClosedException(Throwable t) {
-            super(t);
+            super(makeBkFriendlyException(
+                    BKException.Code.LedgerClosedException, t));
         }
 
         public AlreadyClosedException(String msg) {
-            super(msg);
+            super(msg, makeBkFriendlyException(
+                    BKException.Code.LedgerClosedException, null));
         }
     }
 

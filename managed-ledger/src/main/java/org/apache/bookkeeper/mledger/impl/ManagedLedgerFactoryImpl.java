@@ -893,7 +893,18 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
             DeleteLedgerCallback callback, Object ctx) {
         Futures.waitForAll(info.ledgers.stream()
                 .filter(li -> !li.isOffloaded)
-                .map(li -> bkc.newDeleteLedgerOp().withLedgerId(li.ledgerId).execute())
+                .map(li -> bkc.newDeleteLedgerOp().withLedgerId(li.ledgerId).execute()
+                        .handleAsync((result, ex) -> {
+                            if (ex != null) {
+                                int rc = BKException.getExceptionCode(ex);
+                                if (rc == BKException.Code.NoSuchLedgerExistsOnMetadataServerException
+                                    || rc == BKException.Code.NoSuchLedgerExistsException) {
+                                    return null;
+                                }
+                                throw new CompletionException(ex);
+                            }
+                            return result;
+                        }))
                 .collect(Collectors.toList()))
                 .thenRun(() -> {
                     // Delete the metadata
@@ -921,7 +932,19 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
         // Delete the cursor ledger if present
         if (cursor.cursorsLedgerId != -1) {
-            cursorLedgerDeleteFuture = bkc.newDeleteLedgerOp().withLedgerId(cursor.cursorsLedgerId).execute();
+            cursorLedgerDeleteFuture = bkc.newDeleteLedgerOp().withLedgerId(cursor.cursorsLedgerId)
+                    .execute()
+                    .handleAsync((result, ex) -> {
+                        if (ex != null) {
+                            int rc = BKException.getExceptionCode(ex);
+                            if (rc == BKException.Code.NoSuchLedgerExistsOnMetadataServerException
+                                    || rc == BKException.Code.NoSuchLedgerExistsException) {
+                                return null;
+                            }
+                            throw new CompletionException(ex);
+                        }
+                        return result;
+                    });
         } else {
             cursorLedgerDeleteFuture = CompletableFuture.completedFuture(null);
         }
