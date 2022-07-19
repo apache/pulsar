@@ -40,6 +40,7 @@ import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import java.lang.reflect.Field;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -1716,7 +1717,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         try {
             admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0xffffffff", false, null);
         } catch (Exception e) {
-            fail("split bundle shouldn't have thrown exception");
+            fail("split bundle shouldn't have thrown exception", e);
         }
 
         // bundle-factory cache must have updated split bundles
@@ -1744,7 +1745,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                 f.get();
             }
         } catch (Exception e) {
-            fail("split bundle shouldn't have thrown exception");
+            fail("split bundle shouldn't have thrown exception", e);
         }
 
         Awaitility.await().untilAsserted(() ->
@@ -1779,7 +1780,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                 f.get();
             }
         } catch (Exception e) {
-            fail("split bundle shouldn't have thrown exception");
+            fail("split bundle shouldn't have thrown exception", e);
         }
         Awaitility.await().untilAsserted(() ->
                 assertEquals(bundleFactory.getBundles(NamespaceName.get(namespace)).getBundles().size(), 8));
@@ -3359,5 +3360,28 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             assertEquals(peekedMessages.get(i).getMessageId(), receivedMessages.get(i).getMessageId());
             assertEquals(peekedMessages.get(i).getData(), receivedMessages.get(i).getData());
         }
+    }
+
+    @Test
+    public void testGetPartitionStatsWithEarliestTimeInBacklog() throws PulsarAdminException, PulsarClientException {
+        final String topicName = "persistent://prop-xyz/ns1/testPeekEncryptedMessages-" + UUID.randomUUID();
+        final String subName = "my-sub";
+        admin.topics().createPartitionedTopic(topicName, 3);
+        PartitionedTopicStats partitionedStats =
+                admin.topics().getPartitionedStats(topicName, true, true, true, true);
+        long value1 = partitionedStats.getEarliestMsgPublishTimeInBacklogs();
+        Assert.assertEquals(value1, 0);
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .create();
+        producer.send("Test".getBytes(StandardCharsets.UTF_8));
+        @Cleanup
+        Consumer<byte[]> subscribe = pulsarClient.newConsumer()
+                .subscriptionName(subName)
+                .topic(topicName)
+                .subscribe();
+        long value2 = partitionedStats.getEarliestMsgPublishTimeInBacklogs();
+        Assert.assertNotEquals(value2, 0);
     }
 }

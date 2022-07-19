@@ -23,6 +23,7 @@ import java.util.Collections;
 import java.util.List;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.MutablePair;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckReplyCallBack;
 import org.apache.pulsar.broker.transaction.pendingack.proto.PendingAckMetadata;
 import org.apache.pulsar.broker.transaction.pendingack.proto.PendingAckMetadataEntry;
@@ -53,8 +54,10 @@ public class MLPendingAckReplyCallBack implements PendingAckReplyCallBack {
                 log.info("Topic name : [{}], SubName : [{}] pending ack handle cache request success!",
                         pendingAckHandle.getTopicName(), pendingAckHandle.getSubName());
             } else {
-                log.error("Topic name : [{}], SubName : [{}] pending ack state reply fail!",
-                        pendingAckHandle.getTopicName(), pendingAckHandle.getSubName());
+                log.error("Topic name : [{}], SubName : [{}] pending ack state reply fail! current state: {}",
+                        pendingAckHandle.getTopicName(), pendingAckHandle.getSubName(), pendingAckHandle.state);
+                replayFailed(new BrokerServiceException.ServiceUnitNotReadyException("Failed"
+                        + " to change PendingAckHandle state to Ready, current state is : " + pendingAckHandle.state));
             }
             pendingAckHandle.handleCacheRequest();
         });

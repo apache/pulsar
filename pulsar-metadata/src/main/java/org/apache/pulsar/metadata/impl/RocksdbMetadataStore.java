@@ -26,6 +26,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumSet;
@@ -220,6 +222,8 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
         Path dataPath = FileSystems.getDefault().getPath(dataDir);
         try {
             Files.createDirectories(dataPath);
+            Set<PosixFilePermission> perms = PosixFilePermissions.fromString("rwxr-x---");
+            Files.setPosixFilePermissions(dataPath, perms);
         } catch (IOException e) {
             throw new MetadataStoreException("Fail to create RocksDB file directory", e);
         }
@@ -313,6 +317,8 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
             logPathSetting = FileSystems.getDefault().getPath(logPath + "/rocksdb-log");
             Files.createDirectories(logPathSetting);
             options.setDbLogDir(logPathSetting.toString());
+            Set<PosixFilePermission> perms = PosixFilePermissions.fromString("rwxr-x---");
+            Files.setPosixFilePermissions(logPathSetting, perms);
         }
 
         // Configure log level

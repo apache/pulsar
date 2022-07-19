@@ -30,7 +30,7 @@ Pulsar brokers consist of two components:
 
 * The `brokers` command of the [`pulsar-admin`](https://pulsar.apache.org/tools/pulsar-admin/) tool
 * The `/admin/v2/brokers` endpoint of the admin {@inject: rest:REST:/} API
-* The `brokers` method of the `PulsarAdmin` object in the [Java API](client-libraries-java)
+* The `brokers` method of the `PulsarAdmin` object in the [Java API](client-libraries-java.md)
 
 In addition to being configurable when you start them up, brokers can also be [dynamically configured](#dynamic-broker-configuration).
 
@@ -40,7 +40,7 @@ In addition to being configurable when you start them up, brokers can also be [d
 
 ### List active brokers
 
-Fetch all available active brokers that are serving traffic.
+Fetch all available active brokers that are serving traffic with cluster name.
 
 ````mdx-code-block
 <Tabs 
@@ -104,7 +104,7 @@ BrokerInfo(serviceUrl=broker1.use.org.com:8080)
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|GET|/admin/v2/brokers/leaderBroker?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v2/brokers/leaderBroker|operation/getLeaderBroker?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="JAVA">

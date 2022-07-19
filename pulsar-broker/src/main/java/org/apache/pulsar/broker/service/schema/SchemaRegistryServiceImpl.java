@@ -44,7 +44,7 @@ import javax.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
-import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.service.schema.exceptions.SchemaException;
 import org.apache.pulsar.broker.service.schema.proto.SchemaRegistryFormat;
@@ -623,6 +623,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                 .user(info.getUser())
                 .type(convertToDomainType(info.getType()))
                 .data(info.getSchema().toByteArray())
+                .timestamp(info.getTimestamp())
                 .isDeleted(info.getDeleted())
                 .props(toMap(info.getPropsList()))
                 .build();

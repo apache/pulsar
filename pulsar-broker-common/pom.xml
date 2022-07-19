@@ -35,12 +35,6 @@
   <dependencies>
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-zookeeper-utils</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-metadata</artifactId>
       <version>${project.version}</version>
     </dependency>
@@ -48,6 +42,11 @@
     <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>io.prometheus</groupId>
+      <artifactId>simpleclient_jetty</artifactId>
     </dependency>
 
     <dependency>
@@ -68,6 +67,14 @@
     <dependency>
       <groupId>io.jsonwebtoken</groupId>
       <artifactId>jjwt-jackson</artifactId>
+    </dependency>
+
+    <!-- test -->
+    <dependency>
+      <groupId>org.bouncycastle</groupId>
+      <artifactId>bc-fips</artifactId>
+      <version>${bouncycastlefips.version}</version>
+      <scope>test</scope>
     </dependency>
 
     <dependency>

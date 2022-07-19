@@ -172,7 +172,7 @@ Since Pulsar SQL is powered by [Trino (formerly Presto SQL)](https://trino.io), 
 
 :::note
 
-For how to set up a standalone single node environment, refer to [Query data](sql-getting-started). 
+For how to set up a standalone single node environment, refer to [Query data](sql-getting-started.md). 
 
 :::
 

@@ -367,6 +367,7 @@ public class SchemasImpl extends BaseResource implements Schemas {
         return SchemaInfo.builder()
                 .schema(schema)
                 .type(response.getType())
+                .timestamp(response.getTimestamp())
                 .properties(response.getProperties())
                 .name(tn.getLocalName())
                 .build();

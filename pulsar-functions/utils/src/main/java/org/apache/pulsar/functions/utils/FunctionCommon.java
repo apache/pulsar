@@ -54,8 +54,10 @@ import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.nar.NarClassLoaderBuilder;
 import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.apache.pulsar.functions.api.Function;
+import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.api.WindowFunction;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails.Runtime;
+import org.apache.pulsar.functions.utils.functions.FunctionUtils;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 import org.apache.pulsar.io.core.BatchSource;
 import org.apache.pulsar.io.core.Sink;
@@ -106,9 +108,9 @@ public class FunctionCommon {
         // if window function
         if (isWindowConfigPresent) {
             if (WindowFunction.class.isAssignableFrom(userClass)) {
-                typeArgs = TypeResolver.resolveRawArguments(WindowFunction.class, userClass);
+                typeArgs = getFunctionTypesUnwrappingRecordIfNeeded(WindowFunction.class, userClass);
             } else {
-                typeArgs = TypeResolver.resolveRawArguments(java.util.function.Function.class, userClass);
+                typeArgs = getFunctionTypesUnwrappingRecordIfNeeded(java.util.function.Function.class, userClass);
                 if (!typeArgs[0].equals(Collection.class)) {
                     throw new IllegalArgumentException("Window function must take a collection as input");
                 }
@@ -119,12 +121,23 @@ public class FunctionCommon {
             }
         } else {
             if (Function.class.isAssignableFrom(userClass)) {
-                typeArgs = TypeResolver.resolveRawArguments(Function.class, userClass);
+                typeArgs = getFunctionTypesUnwrappingRecordIfNeeded(Function.class, userClass);
             } else {
-                typeArgs = TypeResolver.resolveRawArguments(java.util.function.Function.class, userClass);
+                typeArgs = getFunctionTypesUnwrappingRecordIfNeeded(java.util.function.Function.class, userClass);
             }
         }
 
+        return typeArgs;
+    }
+
+    private static Class<?>[] getFunctionTypesUnwrappingRecordIfNeeded(Class<?> type, Class<?> subType) {
+        Class<?>[] typeArgs = TypeResolver.resolveRawArguments(type, subType);
+        if (typeArgs[1].equals(Record.class)) {
+            Type genericType = TypeResolver.resolveGenericType(type, subType);
+            Type recordType = ((ParameterizedType) genericType).getActualTypeArguments()[1];
+            Type actualInputType = ((ParameterizedType) recordType).getActualTypeArguments()[0];
+            typeArgs[1] = (Class<?>) actualInputType;
+        }
         return typeArgs;
     }
 
@@ -425,6 +438,9 @@ public class FunctionCommon {
                 }
                 try {
                     if (componentType
+                            == org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.FUNCTION) {
+                        connectorClassName = FunctionUtils.getFunctionClass((NarClassLoader) narClassLoader);
+                    } else if (componentType
                             == org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.SOURCE) {
                         connectorClassName = ConnectorUtils.getIOSourceClass((NarClassLoader) narClassLoader);
                     } else {

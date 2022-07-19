@@ -29,15 +29,12 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
-import static org.testng.Assert.fail;
 import java.lang.reflect.Field;
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import com.google.common.collect.Sets;
-import lombok.Cleanup;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.pulsar.broker.service.BrokerTestBase;
@@ -45,8 +42,6 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.NamespaceBundle;
@@ -273,39 +268,5 @@ public class PersistentTopicTest extends BrokerTestBase {
         for (Producer producer : producerSet) {
             producer.close();
         }
-    }
-
-    @Test
-    public void testAutoCreatePartitionedTopicThatNameIncludePartition() throws Exception {
-        final String topicName = "persistent://prop/autoNs/failedcreate-partition-abcde";
-        final String ns = "prop/autoNs";
-        admin.namespaces().createNamespace(ns);
-        pulsar.getConfiguration().setAllowAutoTopicCreationType("partitioned");
-        try {
-            @Cleanup
-            Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
-                    .create();
-            fail("unexpected operation");
-        } catch (PulsarClientException ex) {
-           assertTrue(ex.getMessage()
-                    .contains("Invalid topic name"));
-        }
-        assertEquals(admin.topics().getList(ns).size(), 0);
-        URI tcpLookupUrl = new URI(pulsar.getBrokerServiceUrl());
-        PulsarClient client = PulsarClient.builder()
-                .serviceUrl(tcpLookupUrl.toString())
-                .build();
-        try {
-            @Cleanup
-            Producer<byte[]> producer = client.newProducer()
-                    .topic(topicName)
-                    .create();
-            fail("unexpected operation");
-        } catch (PulsarClientException ex) {
-            assertTrue(ex.getMessage()
-                    .contains("Invalid topic name"));
-        }
-        assertEquals(admin.topics().getList(ns).size(), 0);
-        pulsar.getConfiguration().setAllowAutoTopicCreationType("non-partitioned");
     }
 }

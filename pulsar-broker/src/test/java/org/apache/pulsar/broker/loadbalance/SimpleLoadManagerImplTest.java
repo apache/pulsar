@@ -109,7 +109,7 @@ public class SimpleLoadManagerImplTest {
         ServiceConfiguration config1 = spy(ServiceConfiguration.class);
         config1.setClusterName("use");
         config1.setWebServicePort(Optional.of(0));
-        config1.setMetadataStoreUrl("zk:127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config1.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
         config1.setBrokerShutdownTimeoutMs(0L);
         config1.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         config1.setBrokerServicePort(Optional.of(0));
@@ -129,7 +129,7 @@ public class SimpleLoadManagerImplTest {
         ServiceConfiguration config2 = new ServiceConfiguration();
         config2.setClusterName("use");
         config2.setWebServicePort(Optional.of(0));
-        config2.setMetadataStoreUrl("zk:127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config2.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
         config2.setBrokerShutdownTimeoutMs(0L);
         config2.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         config2.setBrokerServicePort(Optional.of(0));

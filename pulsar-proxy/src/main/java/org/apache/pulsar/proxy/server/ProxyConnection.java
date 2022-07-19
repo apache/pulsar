@@ -21,14 +21,18 @@ package org.apache.pulsar.proxy.server;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelPromise;
+import io.netty.channel.epoll.EpollSocketChannel;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.resolver.dns.DnsAddressResolverGroup;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.nio.channels.ClosedChannelException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -101,7 +105,10 @@ public class ProxyConnection extends PulsarHandler {
     private String proxyToBrokerUrl;
     private HAProxyMessage haProxyMessage;
 
+    protected static final Integer SPLICE_BYTES = 1024 * 1024 * 1024;
     private static final byte[] EMPTY_CREDENTIALS = new byte[0];
+
+    boolean isTlsInboundChannel = false;
 
     enum State {
         Init,
@@ -161,6 +168,7 @@ public class ProxyConnection extends PulsarHandler {
         super.channelActive(ctx);
         ProxyService.NEW_CONNECTIONS.inc();
         service.getClientCnxs().add(this);
+        isTlsInboundChannel = ProxyConnection.isTlsChannel(ctx.channel());
         LOG.info("[{}] New connection opened", remoteAddress);
     }
 
@@ -243,6 +251,18 @@ public class ProxyConnection extends PulsarHandler {
                 }
                 directProxyHandler.outboundChannel.writeAndFlush(msg)
                         .addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
+
+                if (service.proxyZeroCopyModeEnabled && service.proxyLogLevel == 0) {
+                    if (!directProxyHandler.isTlsOutboundChannel && !isTlsInboundChannel) {
+                        spliceNIC2NIC((EpollSocketChannel) ctx.channel(),
+                                (EpollSocketChannel) directProxyHandler.outboundChannel, SPLICE_BYTES)
+                                .addListener(future -> {
+                                    ProxyService.OPS_COUNTER.inc();
+                                    ProxyService.BYTES_COUNTER.inc(SPLICE_BYTES);
+                                    directProxyHandler.getInboundChannelRequestsRate().recordEvent(SPLICE_BYTES);
+                                });
+                    }
+                }
             } else {
                 LOG.warn("Received message of type {} while connection to broker is missing in state {}. "
                                 + "Dropping the input message (readable bytes={}).", msg.getClass(), state,
@@ -257,6 +277,27 @@ public class ProxyConnection extends PulsarHandler {
         default:
             break;
         }
+    }
+
+    /**
+     * Use splice to zero-copy of NIC to NIC.
+     * @param inboundChannel input channel
+     * @param outboundChannel output channel
+     */
+    protected static ChannelPromise spliceNIC2NIC(EpollSocketChannel inboundChannel,
+                                                  EpollSocketChannel outboundChannel, int spliceLength) {
+        ChannelPromise promise = inboundChannel.newPromise();
+        inboundChannel.spliceTo(outboundChannel, spliceLength, promise);
+        promise.addListener((ChannelFutureListener) future -> {
+            if (!future.isSuccess() && !(future.cause() instanceof ClosedChannelException)) {
+                future.channel().pipeline().fireExceptionCaught(future.cause());
+            }
+        });
+        return promise;
+    }
+
+    protected static boolean isTlsChannel(Channel channel) {
+        return channel.pipeline().get(ServiceChannelInitializer.TLS_HANDLER) != null;
     }
 
     private synchronized void completeConnect(AuthData clientData) throws PulsarClientException {
@@ -330,7 +371,7 @@ public class ProxyConnection extends PulsarHandler {
             // partitions metadata lookups
             state = State.ProxyLookupRequests;
             lookupProxyHandler = new LookupProxyHandler(service, this);
-            ctx.writeAndFlush(Commands.newConnected(protocolVersionToAdvertise))
+            ctx.writeAndFlush(Commands.newConnected(protocolVersionToAdvertise, false))
                     .addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
         }
     }
@@ -342,7 +383,8 @@ public class ProxyConnection extends PulsarHandler {
             state = State.ProxyConnectionToBroker;
             int maxMessageSize =
                     connected.hasMaxMessageSize() ? connected.getMaxMessageSize() : Commands.INVALID_MAX_MESSAGE_SIZE;
-            ctx.writeAndFlush(Commands.newConnected(connected.getProtocolVersion(), maxMessageSize))
+            ctx.writeAndFlush(Commands.newConnected(connected.getProtocolVersion(), maxMessageSize,
+                            connected.hasFeatureFlags() && connected.getFeatureFlags().isSupportsTopicWatchers()))
                     .addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
         } else {
             LOG.warn("[{}] Channel is {}. ProxyConnection is in {}. "
@@ -364,7 +406,7 @@ public class ProxyConnection extends PulsarHandler {
     public void brokerConnected(DirectProxyHandler directProxyHandler, CommandConnected connected) {
         try {
             final CommandConnected finalConnected = new CommandConnected().copyFrom(connected);
-            ctx.executor().submit(() -> handleBrokerConnected(directProxyHandler, finalConnected));
+            ctx.executor().execute(() -> handleBrokerConnected(directProxyHandler, finalConnected));
         } catch (RejectedExecutionException e) {
             LOG.error("Event loop was already closed. Closing broker connection.", e);
             directProxyHandler.close();

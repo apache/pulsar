@@ -238,6 +238,11 @@ public class ProxyConfiguration implements PulsarConfiguration {
             doc = "Enable or disable the proxy protocol.")
     private boolean haProxyProtocolEnabled;
 
+    @FieldContext(category = CATEGORY_SERVER,
+            doc = "Enables zero-copy transport of data across network interfaces using the spice. "
+                    + "Zero copy mode cannot be used when TLS is enabled or when proxyLogLevel is > 0.")
+    private boolean proxyZeroCopyModeEnabled = true;
+
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = "The port for serving binary protobuf request"

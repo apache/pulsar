@@ -72,6 +72,7 @@ import org.apache.pulsar.functions.api.examples.AutoSchemaFunction;
 import org.apache.pulsar.functions.api.examples.AvroSchemaTestFunction;
 import org.apache.pulsar.functions.api.examples.MergeTopicFunction;
 import org.apache.pulsar.functions.api.examples.InitializableFunction;
+import org.apache.pulsar.functions.api.examples.RecordFunction;
 import org.apache.pulsar.functions.api.examples.pojo.AvroTestObject;
 import org.apache.pulsar.functions.api.examples.pojo.Users;
 import org.apache.pulsar.functions.api.examples.serde.CustomObject;
@@ -917,6 +918,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         assertTrue(result.getStdout().contains("Created successfully"));
     }
 
+    @SuppressWarnings("try")
     private <T> void ensureSubscriptionCreated(String inputTopicName,
                                                String subscriptionName,
                                                Schema<T> inputTopicSchema)
@@ -1667,6 +1669,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 if (message != null) {
                     GenericRecord genericRecord = message.getValue();
                     if (keyValue) {
+                        @SuppressWarnings("unchecked")
                         KeyValue<GenericRecord, GenericRecord> keyValueObject = (KeyValue<GenericRecord, GenericRecord>) genericRecord.getNativeObject();
                         GenericRecord key = keyValueObject.getKey();
                         GenericRecord value = keyValueObject.getValue();
@@ -1706,6 +1709,66 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                     i++;
                 }
             } while (message != null);
+        } finally {
+            pulsarCluster.dumpFunctionLogs(functionName);
+        }
+
+        deleteFunction(functionName);
+
+        getFunctionInfoNotFound(functionName);
+    }
+
+    protected void testRecordFunction() throws Exception {
+        log.info("start RecordFunction function test ...");
+
+        String ns = "public/ns-recordfunction-" + randomName(8);
+        @Cleanup
+        PulsarAdmin pulsarAdmin = getPulsarAdmin();
+        pulsarAdmin.namespaces().createNamespace(ns);
+
+        @Cleanup
+        PulsarClient pulsarClient = getPulsarClient();
+
+        final int numMessages = 10;
+        final String inputTopic = ns + "/test-string-input-" + randomName(8);
+        final String outputTopic = ns + "/test-string-output-" + randomName(8);
+        @Cleanup
+        Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
+                .subscriptionName("test")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .topic("publishtopic")
+                .subscribe();
+
+        final String functionName = "test-record-fn-" + randomName(8);
+        submitFunction(
+                Runtime.JAVA,
+                inputTopic,
+                outputTopic,
+                functionName,
+                null,
+                RecordFunction.class.getName(),
+                Schema.AUTO_CONSUME());
+        try {
+            @Cleanup
+            Producer<String> producer = pulsarClient
+                    .newProducer(Schema.STRING)
+                    .topic(inputTopic)
+                    .create();
+            for (int i = 0; i < numMessages; i++) {
+                producer.send("message" + i);
+            }
+
+            getFunctionInfoSuccess(functionName);
+
+            getFunctionStatus(functionName, numMessages, true);
+
+            for (int i = 0; i < numMessages; i++) {
+                Message<String> msg = consumer.receive(30, TimeUnit.SECONDS);
+                log.info("Received: {}", msg.getValue());
+                assertEquals(msg.getValue(), "message" + i + "!");
+                assertEquals(msg.getProperty("input_topic"), "persistent://" + inputTopic);
+            }
         } finally {
             pulsarCluster.dumpFunctionLogs(functionName);
         }
@@ -1824,16 +1887,16 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 messagePerTopic, inputSpecNode, topicMsgCntMap);
     }
 
-    private void generateDataByDifferentSchema(String ns,
+    private <T> void generateDataByDifferentSchema(String ns,
                                                String baseTopic,
                                                PulsarClient pulsarClient,
-                                               Schema schema,
-                                               Object data,
+                                               Schema<T> schema,
+                                               T data,
                                                int messageCnt,
                                                ObjectNode inputSpecNode,
                                                Map<String, AtomicInteger> topicMsgCntMap) throws PulsarClientException {
         String topic = ns + "/" + baseTopic;
-        Producer producer = pulsarClient.newProducer(schema)
+        Producer<T> producer = pulsarClient.newProducer(schema)
                 .topic(topic)
                 .create();
         for (int i = 0; i < messageCnt; i++) {
@@ -1847,8 +1910,9 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         log.info("[merge-fn] generate {} messages for schema {}", messageCnt, schema.getSchemaInfo());
     }
 
+    @SuppressWarnings("unchecked")
     private void checkSchemaForAutoSchema(Message<GenericRecord> message, String baseTopic) {
-        if (!message.getReaderSchema().isPresent()) {
+        if (message.getReaderSchema().isEmpty()) {
             fail("Failed to get reader schema for auto consume multiple schema topic.");
         }
         Object nativeObject = message.getValue().getNativeObject();

@@ -241,15 +241,15 @@ public class TransactionAggregator {
                                                  long coordinatorId) {
         writeMetric(stream, "pulsar_txn_active_count", stats.actives, cluster,
                 coordinatorId);
-        writeMetric(stream, "pulsar_txn_committed_count", stats.committedCount, cluster,
+        writeMetric(stream, "pulsar_txn_committed_total", stats.committedCount, cluster,
                 coordinatorId);
-        writeMetric(stream, "pulsar_txn_aborted_count", stats.abortedCount, cluster,
+        writeMetric(stream, "pulsar_txn_aborted_total", stats.abortedCount, cluster,
                 coordinatorId);
-        writeMetric(stream, "pulsar_txn_created_count", stats.createdCount, cluster,
+        writeMetric(stream, "pulsar_txn_created_total", stats.createdCount, cluster,
                 coordinatorId);
-        writeMetric(stream, "pulsar_txn_timeout_count", stats.timeoutCount, cluster,
+        writeMetric(stream, "pulsar_txn_timeout_total", stats.timeoutCount, cluster,
                 coordinatorId);
-        writeMetric(stream, "pulsar_txn_append_log_count", stats.appendLogCount, cluster,
+        writeMetric(stream, "pulsar_txn_append_log_total", stats.appendLogCount, cluster,
                 coordinatorId);
         long[] latencyBuckets = stats.executionLatency;
         writeMetric(stream, "pulsar_txn_execution_latency_le_10", latencyBuckets[0], cluster, coordinatorId);

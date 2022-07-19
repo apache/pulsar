@@ -20,7 +20,7 @@ There are also two independent sets of Javadoc API docs available:
 
 Library | Purpose
 :-------|:-------
-[`org.apache.pulsar.client.api`](/api/client) | The [Pulsar Java client](client-libraries-java) for producing and consuming messages on Pulsar topics [`org.apache.pulsar.client.admin`](/api/admin) | The Java client for the [Pulsar admin interface](admin-api-overview)
+[`org.apache.pulsar.client.api`](/api/client) | The [Pulsar Java client](client-libraries-java) for producing and consuming messages on Pulsar topics [`org.apache.pulsar.client.admin`](/api/admin) | The Java client for the [Pulsar admin interface](admin-api-overview.md)
 
 
 ## Go client

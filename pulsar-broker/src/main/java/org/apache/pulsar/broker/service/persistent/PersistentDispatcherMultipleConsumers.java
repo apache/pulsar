@@ -30,6 +30,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.stream.Stream;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
@@ -107,6 +108,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                     "blockedDispatcherOnUnackedMsgs");
     protected Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
 
+    private AtomicBoolean isRescheduleReadInProgress = new AtomicBoolean(false);
+
     protected enum ReadType {
         Normal, Replay
     }
@@ -156,7 +159,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         }
 
         consumerList.add(consumer);
-        consumerList.sort(Comparator.comparingInt(Consumer::getPriorityLevel));
+        if (consumerList.size() > 1
+                && consumer.getPriorityLevel() < consumerList.get(consumerList.size() - 2).getPriorityLevel()) {
+            consumerList.sort(Comparator.comparingInt(Consumer::getPriorityLevel));
+        }
         consumerSet.add(consumer);
     }
 
@@ -205,7 +211,13 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     @Override
-    public synchronized void consumerFlow(Consumer consumer, int additionalNumberOfMessages) {
+    public void consumerFlow(Consumer consumer, int additionalNumberOfMessages) {
+        topic.getBrokerService().executor().execute(() -> {
+            internalConsumerFlow(consumer, additionalNumberOfMessages);
+        });
+    }
+
+    private synchronized void internalConsumerFlow(Consumer consumer, int additionalNumberOfMessages) {
         if (!consumerSet.contains(consumer)) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Ignoring flow control from disconnected consumer {}", name, consumer);
@@ -224,6 +236,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     public synchronized void readMoreEntries() {
+        if (shouldPauseDeliveryForDelayTracker()) {
+            return;
+        }
+
         // totalAvailablePermits may be updated by other threads
         int firstAvailableConsumerPermits = getFirstAvailableConsumerPermits();
         int currentTotalAvailablePermits = Math.max(totalAvailablePermits, firstAvailableConsumerPermits);
@@ -291,8 +307,17 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     @Override
     protected void reScheduleRead() {
-        topic.getBrokerService().executor().schedule(() -> readMoreEntries(), MESSAGE_RATE_BACKOFF_MS,
-                TimeUnit.MILLISECONDS);
+        if (isRescheduleReadInProgress.compareAndSet(false, true)) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] [{}] Reschedule message read in {} ms", topic.getName(), name, MESSAGE_RATE_BACKOFF_MS);
+            }
+            topic.getBrokerService().executor().schedule(
+                    () -> {
+                        isRescheduleReadInProgress.set(false);
+                        readMoreEntries();
+                        },
+                    MESSAGE_RATE_BACKOFF_MS, TimeUnit.MILLISECONDS);
+        }
     }
 
     // left pair is messagesToRead, right pair is bytesToRead
@@ -853,13 +878,20 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
         synchronized (this) {
             if (!delayedDeliveryTracker.isPresent()) {
+                if (!msgMetadata.hasDeliverAtTime()) {
+                    // No need to initialize the tracker here
+                    return false;
+                }
+
                 // Initialize the tracker the first time we need to use it
                 delayedDeliveryTracker = Optional
                         .of(topic.getBrokerService().getDelayedDeliveryTrackerFactory().newTracker(this));
             }
 
             delayedDeliveryTracker.get().resetTickTime(topic.getDelayedDeliveryTickTimeMillis());
-            return delayedDeliveryTracker.get().addMessage(ledgerId, entryId, msgMetadata.getDeliverAtTime());
+
+            long deliverAtTime = msgMetadata.hasDeliverAtTime() ? msgMetadata.getDeliverAtTime() : -1L;
+            return delayedDeliveryTracker.get().addMessage(ledgerId, entryId, deliverAtTime);
         }
     }
 
@@ -872,6 +904,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         } else {
             return Collections.emptySet();
         }
+    }
+
+    protected synchronized boolean shouldPauseDeliveryForDelayTracker() {
+        return delayedDeliveryTracker.isPresent() && delayedDeliveryTracker.get().shouldPauseAllDeliveries();
     }
 
     @Override
