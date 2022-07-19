@@ -760,11 +760,11 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             if (pulsarSourceConfig instanceof SingleConsumerPulsarSourceConfig) {
                 object = new SingleConsumerPulsarSource(this.client,
                         (SingleConsumerPulsarSourceConfig) pulsarSourceConfig, this.properties,
-                        this.componentClassLoader);
+                        this.functionClassLoader);
             } else {
                 object =
                         new MultiConsumerPulsarSource(this.client, (MultiConsumerPulsarSourceConfig) pulsarSourceConfig,
-                                this.properties, this.componentClassLoader);
+                                this.properties, this.functionClassLoader);
             }
         } else {
 
@@ -849,7 +849,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 }
 
                 object = new PulsarSink(this.client, pulsarSinkConfig, this.properties, this.stats,
-                        this.componentClassLoader);
+                        this.functionClassLoader);
             }
         } else {
             object = Reflections.createInstance(

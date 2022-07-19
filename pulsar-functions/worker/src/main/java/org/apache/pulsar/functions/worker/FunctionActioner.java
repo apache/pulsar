@@ -118,7 +118,7 @@ public class FunctionActioner {
                 extraFunctionPackageFile = extraFunctionPkgLocation.getPackagePath();
             } else {
                 packageFile = getPackageFile(functionMetaData, functionDetails, instanceId, pkgLocation,
-                        functionDetails.getComponentType());
+                        InstanceUtils.calculateSubjectType(functionDetails));
                 if (!isEmpty(extraFunctionPkgLocation.getPackagePath())) {
                     extraFunctionPackageFile =
                             getPackageFile(functionMetaData, functionDetails, instanceId, extraFunctionPkgLocation,
