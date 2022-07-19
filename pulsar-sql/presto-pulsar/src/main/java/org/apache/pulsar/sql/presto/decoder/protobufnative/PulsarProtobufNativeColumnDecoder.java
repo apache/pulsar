@@ -21,9 +21,9 @@ package org.apache.pulsar.sql.presto.decoder.protobufnative;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static io.airlift.slice.Slices.utf8Slice;
-import static io.prestosql.decoder.DecoderErrorCode.DECODER_CONVERSION_NOT_SUPPORTED;
-import static io.prestosql.spi.StandardErrorCode.GENERIC_USER_ERROR;
-import static io.prestosql.spi.type.Varchars.truncateToLength;
+import static io.trino.decoder.DecoderErrorCode.DECODER_CONVERSION_NOT_SUPPORTED;
+import static io.trino.spi.StandardErrorCode.GENERIC_USER_ERROR;
+import static io.trino.spi.type.Varchars.truncateToLength;
 import static java.lang.Float.floatToIntBits;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -34,26 +34,26 @@ import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.EnumValue;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
-import io.prestosql.decoder.DecoderColumnHandle;
-import io.prestosql.decoder.FieldValueProvider;
-import io.prestosql.spi.PrestoException;
-import io.prestosql.spi.block.Block;
-import io.prestosql.spi.block.BlockBuilder;
-import io.prestosql.spi.type.ArrayType;
-import io.prestosql.spi.type.BigintType;
-import io.prestosql.spi.type.BooleanType;
-import io.prestosql.spi.type.DoubleType;
-import io.prestosql.spi.type.IntegerType;
-import io.prestosql.spi.type.MapType;
-import io.prestosql.spi.type.RealType;
-import io.prestosql.spi.type.RowType;
-import io.prestosql.spi.type.RowType.Field;
-import io.prestosql.spi.type.SmallintType;
-import io.prestosql.spi.type.TimestampType;
-import io.prestosql.spi.type.TinyintType;
-import io.prestosql.spi.type.Type;
-import io.prestosql.spi.type.VarbinaryType;
-import io.prestosql.spi.type.VarcharType;
+import io.trino.decoder.DecoderColumnHandle;
+import io.trino.decoder.FieldValueProvider;
+import io.trino.spi.TrinoException;
+import io.trino.spi.block.Block;
+import io.trino.spi.block.BlockBuilder;
+import io.trino.spi.type.ArrayType;
+import io.trino.spi.type.BigintType;
+import io.trino.spi.type.BooleanType;
+import io.trino.spi.type.DoubleType;
+import io.trino.spi.type.IntegerType;
+import io.trino.spi.type.MapType;
+import io.trino.spi.type.RealType;
+import io.trino.spi.type.RowType;
+import io.trino.spi.type.RowType.Field;
+import io.trino.spi.type.SmallintType;
+import io.trino.spi.type.TimestampType;
+import io.trino.spi.type.TinyintType;
+import io.trino.spi.type.Type;
+import io.trino.spi.type.VarbinaryType;
+import io.trino.spi.type.VarcharType;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -93,7 +93,7 @@ public class PulsarProtobufNativeColumnDecoder {
             checkArgument(isSupportedType(columnType),
                     "Unsupported column type '%s' for column '%s'", columnType, columnName);
         } catch (IllegalArgumentException e) {
-            throw new PrestoException(GENERIC_USER_ERROR, e);
+            throw new TrinoException(GENERIC_USER_ERROR, e);
         }
     }
 
@@ -169,7 +169,7 @@ public class PulsarProtobufNativeColumnDecoder {
             if (value instanceof Double || value instanceof Float) {
                 return ((Number) value).doubleValue();
             }
-            throw new PrestoException(DECODER_CONVERSION_NOT_SUPPORTED,
+            throw new TrinoException(DECODER_CONVERSION_NOT_SUPPORTED,
                     format("cannot decode object of '%s' as '%s' for column '%s'",
                             value.getClass(), columnType, columnName));
         }
@@ -179,7 +179,7 @@ public class PulsarProtobufNativeColumnDecoder {
             if (value instanceof Boolean) {
                 return (Boolean) value;
             }
-            throw new PrestoException(DECODER_CONVERSION_NOT_SUPPORTED,
+            throw new TrinoException(DECODER_CONVERSION_NOT_SUPPORTED,
                     format("cannot decode object of '%s' as '%s' for column '%s'",
                             value.getClass(), columnType, columnName));
         }
@@ -203,7 +203,7 @@ public class PulsarProtobufNativeColumnDecoder {
                 return seconds * MILLIS_PER_SECOND + nanos / NANOS_PER_MILLISECOND;
             }
 
-            throw new PrestoException(DECODER_CONVERSION_NOT_SUPPORTED,
+            throw new TrinoException(DECODER_CONVERSION_NOT_SUPPORTED,
                     format("cannot decode object of '%s' as '%s' for column '%s'",
                             value.getClass(), columnType, columnName));
         }
@@ -233,7 +233,7 @@ public class PulsarProtobufNativeColumnDecoder {
             return truncateToLength(utf8Slice(value.toString()), type);
         }
 
-        throw new PrestoException(DECODER_CONVERSION_NOT_SUPPORTED,
+        throw new TrinoException(DECODER_CONVERSION_NOT_SUPPORTED,
                 format("cannot decode object of '%s' as '%s' for column '%s'",
                         value.getClass(), type, columnName));
     }
@@ -308,7 +308,7 @@ public class PulsarProtobufNativeColumnDecoder {
             return;
         }
 
-        throw new PrestoException(DECODER_CONVERSION_NOT_SUPPORTED,
+        throw new TrinoException(DECODER_CONVERSION_NOT_SUPPORTED,
                 format("cannot decode object of '%s' as '%s' for column '%s'",
                         value.getClass(), type, columnName));
     }
