@@ -407,6 +407,8 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         // Assert all resources released
         dataSerializer.assertAllByteBufHasBeenReleased();
         // clean up.
+        txnLogBufferedWriter.close();
+        txnLogBufferedWriter2.close();
         dataSerializer.cleanup();
         scheduledExecutorService.shutdown();
         orderedExecutor.shutdown();
@@ -510,6 +512,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         // Assert the timing task count. The above calculation is not accurate, so leave a margin.
         Assert.assertTrue(workQueue.size() - maxCountOfRemainingTasks < 10);
         // clean up.
+        txnLogBufferedWriter.close();
         dataSerializer.cleanup();
         threadPoolExecutor.shutdown();
         scheduledExecutorService.shutdown();
