@@ -35,7 +35,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
 import lombok.SneakyThrows;
 import org.apache.pulsar.admin.cli.CmdBase;
 import org.apache.pulsar.shell.config.ConfigStore;
