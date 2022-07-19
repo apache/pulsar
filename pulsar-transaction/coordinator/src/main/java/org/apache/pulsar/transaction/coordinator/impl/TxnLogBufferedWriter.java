@@ -151,6 +151,7 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
      * Why not use {@link ScheduledExecutorService#scheduleAtFixedRate(Runnable, long, long, TimeUnit)} ?
      * Because: when the {@link #singleThreadExecutorForWrite} thread processes slowly, the scheduleAtFixedRate task
      * will continue to append tasks to the ledger thread, this burdens the ledger thread and leads to an avalanche.
+     * see: https://github.com/apache/pulsar/pull/16679.
      */
     private void nextTimingTrigger(){
         try {

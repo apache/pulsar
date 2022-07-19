@@ -29,10 +29,14 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BKException;
@@ -404,6 +408,110 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         dataSerializer.assertAllByteBufHasBeenReleased();
         // clean up.
         dataSerializer.cleanup();
+        scheduledExecutorService.shutdown();
+        orderedExecutor.shutdown();
+    }
+
+    /**
+     * The use of {@link ScheduledExecutorService#scheduleAtFixedRate(Runnable, long, long, TimeUnit)} for timed
+     * tasks in the original implementation caused this problem:
+     *   When the writer thread processes slowly, the scheduleAtFixedRate task will continue to append tasks to the
+     *   ledger thread, this burdens the ledger thread and leads to an avalanche.
+     * This method is used to verify the fix for the above problem. see: https://github.com/apache/pulsar/pull/16679.
+     */
+    @Test
+    public void testPendingScheduleTriggerTaskCount() throws Exception {
+        // Create components.
+        String managedLedgerName = "-";
+        ManagedLedger managedLedger = Mockito.mock(ManagedLedger.class);
+        Mockito.when(managedLedger.getName()).thenReturn(managedLedgerName);
+        OrderedExecutor orderedExecutor =  Mockito.mock(OrderedExecutor.class);
+        ArrayBlockingQueue<Runnable> workQueue = new ArrayBlockingQueue<>(65536 * 2);
+        ThreadPoolExecutor threadPoolExecutor = new ThreadPoolExecutor(1, 1, 5, TimeUnit.SECONDS, workQueue);
+        Mockito.when(orderedExecutor.chooseThread(Mockito.anyString())).thenReturn(threadPoolExecutor);
+        ScheduledExecutorService scheduledExecutorService =
+                Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("tx-scheduler-threads"));
+        SumStrDataSerializer dataSerializer = new SumStrDataSerializer();
+        // Count the number of tasks that have been submitted to bookie for later validation.
+        AtomicInteger completeFlushTaskCounter = new AtomicInteger();
+        Mockito.doAnswer(new Answer() {
+            @Override
+            public Object answer(InvocationOnMock invocation) throws Throwable {
+                completeFlushTaskCounter.incrementAndGet();
+                ByteBuf byteBuf = (ByteBuf)invocation.getArguments()[0];
+                byteBuf.skipBytes(4);
+                AsyncCallbacks.AddEntryCallback callback =
+                        (AsyncCallbacks.AddEntryCallback) invocation.getArguments()[1];
+                callback.addComplete(PositionImpl.get(1,1), byteBuf,
+                        invocation.getArguments()[2]);
+                return null;
+            }
+        }).when(managedLedger).asyncAddEntry(Mockito.any(ByteBuf.class), Mockito.any(), Mockito.any());
+        // Start tests.
+        TxnLogBufferedWriter txnLogBufferedWriter = new TxnLogBufferedWriter<>(managedLedger, orderedExecutor,
+                scheduledExecutorService, dataSerializer, 2, 1024 * 4, 1, true);
+        TxnLogBufferedWriter.AddDataCallback callback = Mockito.mock(TxnLogBufferedWriter.AddDataCallback.class);
+        // Append heavier tasks to the Ledger thread.
+        final ExecutorService executorService = orderedExecutor.chooseThread(managedLedgerName);
+        AtomicInteger heavierTaskCounter = new AtomicInteger();
+        Thread heavierTask = new Thread(() -> {
+            while (true) {
+                executorService.execute(() -> {
+                    try {
+                        heavierTaskCounter.incrementAndGet();
+                        Thread.sleep(19);
+                    } catch (InterruptedException e) {
+                    }
+                    heavierTaskCounter.decrementAndGet();
+                });
+                try {
+                    Thread.sleep(20);
+                } catch (InterruptedException e) {
+                    break;
+                }
+            }
+        });
+        // Append normal tasks to ledger thread.
+        AtomicInteger addAsyncDataTaskCounter = new AtomicInteger();
+        AtomicInteger normalFlushCounter = new AtomicInteger();
+        Thread normalWriteTask = new Thread(() -> {
+            while (true) {
+                for (int i = 0; i < 2; i++) {
+                    addAsyncDataTaskCounter.incrementAndGet();
+                    txnLogBufferedWriter.asyncAddData(1, callback, 1);
+                }
+                normalFlushCounter.incrementAndGet();
+                try {
+                    Thread.sleep(10);
+                } catch (InterruptedException e) {
+                    break;
+                }
+            }
+        });
+        heavierTask.start();
+        normalWriteTask.start();
+        // Running 100 millis.
+        Thread.sleep(100);
+        heavierTask.interrupt();
+        normalWriteTask.interrupt();
+        /**
+         * Calculates the expected maximum number of remaining tasks.
+         * 1. add the task async add.
+         * 2. add the task flush by records count limit.
+         * 3. sub the task already complete.
+         * 4. add the heavier task count.
+         */
+        int maxCountOfRemainingTasks = 0;
+        maxCountOfRemainingTasks += normalFlushCounter.get();
+        maxCountOfRemainingTasks += addAsyncDataTaskCounter.get();
+        maxCountOfRemainingTasks -= completeFlushTaskCounter.get() * 3;
+        maxCountOfRemainingTasks += heavierTaskCounter.get();
+        // In addition to the above tasks, is the timing tasks.
+        // Assert the timing task count. The above calculation is not accurate, so leave a margin.
+        Assert.assertTrue(workQueue.size() - maxCountOfRemainingTasks < 10);
+        // clean up.
+        dataSerializer.cleanup();
+        threadPoolExecutor.shutdown();
         scheduledExecutorService.shutdown();
         orderedExecutor.shutdown();
     }
