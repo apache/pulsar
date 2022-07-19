@@ -21,7 +21,6 @@ package org.apache.pulsar.io.debezium;
 import static org.apache.commons.lang.StringUtils.isBlank;
 import static org.apache.pulsar.io.common.IOConfigUtils.loadConfigFromJsonString;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
 import io.debezium.annotation.ThreadSafe;
 import io.debezium.config.Configuration;
 import io.debezium.config.Field;
@@ -49,7 +48,6 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 /**
  * A {@link DatabaseHistory} implementation that records schema changes as normal pulsar messages on the specified
