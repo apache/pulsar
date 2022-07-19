@@ -101,35 +101,32 @@
             </executions>
           </plugin>
           <plugin>
-            <groupId>com.spotify</groupId>
-            <artifactId>dockerfile-maven-plugin</artifactId>
-            <version>${dockerfile-maven.version}</version>
+            <groupId>io.fabric8</groupId>
+            <artifactId>docker-maven-plugin</artifactId>
+            <version>${docker-maven.version}</version>
+            <configuration>
+              <images>
+                <image>
+                  <name>${docker.organization}/pulsar-test-latest-version</name>
+                  <build>
+                    <contextDir>${project.basedir}</contextDir>
+                    <tags>
+                      <tag>latest</tag>
+                      <tag>${project.version}</tag>
+                    </tags>
+                  </build>
+                </image>
+              </images>
+            </configuration>
             <executions>
               <execution>
-                <id>default</id>
+                <id>build-image</id>
                 <phase>package</phase>
                 <goals>
                   <goal>build</goal>
                 </goals>
               </execution>
-              <execution>
-                <id>add-latest-tag</id>
-                <phase>package</phase>
-                <goals>
-                  <goal>tag</goal>
-                </goals>
-                <configuration>
-                  <repository>${docker.organization}/pulsar-test-latest-version</repository>
-                  <tag>latest</tag>
-                </configuration>
-              </execution>
             </executions>
-            <configuration>
-              <repository>${docker.organization}/pulsar-test-latest-version</repository>
-              <tag>${project.version}</tag>
-              <pullNewerImage>false</pullNewerImage>
-              <noCache>true</noCache>
-            </configuration>
           </plugin>
         </plugins>
       </build>
