@@ -135,8 +135,8 @@ public class ServiceConfigurationTest {
         InputStream stream = new ByteArrayInputStream(confFile.getBytes());
         final ServiceConfiguration conf = PulsarConfigurationLoader.create(stream, ServiceConfiguration.class);
 
-        assertEquals(conf.getMetadataStoreUrl(), "zk1:2181");
-        assertEquals(conf.getConfigurationMetadataStoreUrl(), "zk1:2181");
+        assertEquals(conf.getMetadataStoreUrl(), "zk:zk1:2181");
+        assertEquals(conf.getConfigurationMetadataStoreUrl(), "zk:zk1:2181");
         assertEquals(conf.getBookkeeperMetadataStoreUrl(), "metadata-store:zk:zk1:2181/ledgers");
         assertFalse(conf.isConfigurationStoreSeparated());
         assertFalse(conf.isBookkeeperMetadataStoreSeparated());
@@ -255,6 +255,15 @@ public class ServiceConfigurationTest {
             assertTrue(conf.isBookkeeperClientSeparatedIoThreadsEnabled());
             assertEquals(conf.getBookkeeperClientNumIoThreads(), 1);
         }
+    }
+
+    @Test
+    public void testSubscriptionTypesEnableWins() throws Exception {
+        final Properties properties = new Properties();
+        properties.setProperty("subscriptionKeySharedEnable", "true");
+        properties.setProperty("subscriptionTypesEnabled", "Exclusive,Shared,Failover");
+        final ServiceConfiguration conf = PulsarConfigurationLoader.create(properties, ServiceConfiguration.class);
+        assertFalse(conf.isSubscriptionKeySharedEnable());
     }
 
     /**
