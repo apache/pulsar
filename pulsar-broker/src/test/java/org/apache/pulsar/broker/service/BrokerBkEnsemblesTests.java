@@ -245,7 +245,7 @@ public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
                 try {
                     bookKeeper.deleteLedger(entry.getKey());
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    log.warn("failed to delete ledger {}", entry.getKey(), e);
                 }
             }
         });
@@ -359,7 +359,7 @@ public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
                 try {
                     bookKeeper.deleteLedger(entry.getKey());
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    log.warn("failed to delete ledger {}", entry.getKey(), e);
                 }
             }
         });

@@ -894,11 +894,12 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         Futures.waitForAll(info.ledgers.stream()
                 .filter(li -> !li.isOffloaded)
                 .map(li -> bkc.newDeleteLedgerOp().withLedgerId(li.ledgerId).execute()
-                        .handleAsync((result, ex) -> {
+                        .handle((result, ex) -> {
                             if (ex != null) {
                                 int rc = BKException.getExceptionCode(ex);
                                 if (rc == BKException.Code.NoSuchLedgerExistsOnMetadataServerException
                                     || rc == BKException.Code.NoSuchLedgerExistsException) {
+                                    log.info("Ledger {} does not exist, ignoring", li.ledgerId);
                                     return null;
                                 }
                                 throw new CompletionException(ex);
@@ -934,11 +935,12 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         if (cursor.cursorsLedgerId != -1) {
             cursorLedgerDeleteFuture = bkc.newDeleteLedgerOp().withLedgerId(cursor.cursorsLedgerId)
                     .execute()
-                    .handleAsync((result, ex) -> {
+                    .handle((result, ex) -> {
                         if (ex != null) {
                             int rc = BKException.getExceptionCode(ex);
                             if (rc == BKException.Code.NoSuchLedgerExistsOnMetadataServerException
                                     || rc == BKException.Code.NoSuchLedgerExistsException) {
+                                log.info("Ledger {} does not exist, ignoring", cursor.cursorsLedgerId);
                                 return null;
                             }
                             throw new CompletionException(ex);

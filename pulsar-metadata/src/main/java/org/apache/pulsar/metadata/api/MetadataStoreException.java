@@ -28,9 +28,9 @@ import org.apache.bookkeeper.client.BKException;
  */
 public class MetadataStoreException extends IOException {
 
-    private static Throwable makeBkFriendlyException(int code, Throwable cause) {
+    private static Throwable makeBkFriendlyException(BKException bkException, Throwable cause) {
         if (cause == null) {
-            return BKException.create(code);
+            return bkException;
         }
 
         Throwable lastCause = cause;
@@ -46,7 +46,6 @@ public class MetadataStoreException extends IOException {
             lastCause = lastCause.getCause();
         }
 
-        BKException bkException = BKException.create(code);
         lastCause.initCause(bkException);
         return cause;
     }
@@ -84,19 +83,19 @@ public class MetadataStoreException extends IOException {
      * Key not found in store.
      */
     public static class NotFoundException extends MetadataStoreException {
+        private static final BKException bkEx =
+                BKException.create(BKException.Code.NoSuchLedgerExistsOnMetadataServerException);
+
         public NotFoundException() {
-            super(makeBkFriendlyException(
-                    BKException.Code.NoSuchLedgerExistsOnMetadataServerException, null));
+            super(makeBkFriendlyException(bkEx, null));
         }
 
         public NotFoundException(Throwable t) {
-            super(makeBkFriendlyException(
-                    BKException.Code.NoSuchLedgerExistsOnMetadataServerException, t));
+            super(makeBkFriendlyException(bkEx, t));
         }
 
         public NotFoundException(String msg) {
-            super(msg, makeBkFriendlyException(
-                    BKException.Code.NoSuchLedgerExistsOnMetadataServerException, null));
+            super(msg, makeBkFriendlyException(bkEx, null));
         }
     }
 
@@ -104,14 +103,14 @@ public class MetadataStoreException extends IOException {
      * Key was already in store.
      */
     public static class AlreadyExistsException extends MetadataStoreException {
+        private static final BKException bkEx = BKException.create(BKException.Code.LedgerExistException);
+
         public AlreadyExistsException(Throwable t) {
-            super(makeBkFriendlyException(
-                    BKException.Code.LedgerExistException, t));
+            super(makeBkFriendlyException(bkEx, t));
         }
 
         public AlreadyExistsException(String msg) {
-            super(msg, makeBkFriendlyException(
-                    BKException.Code.LedgerExistException, null));
+            super(msg, makeBkFriendlyException(bkEx, null));
         }
     }
 
@@ -119,14 +118,14 @@ public class MetadataStoreException extends IOException {
      * Unsuccessful update due to mismatched expected version.
      */
     public static class BadVersionException extends MetadataStoreException {
+        private static final BKException bkEx = BKException.create(BKException.Code.MetadataVersionException);
+
         public BadVersionException(Throwable t) {
-            super(makeBkFriendlyException(
-                    BKException.Code.MetadataVersionException, t));
+            super(makeBkFriendlyException(bkEx, t));
         }
 
         public BadVersionException(String msg) {
-            super(msg, makeBkFriendlyException(
-                    BKException.Code.MetadataVersionException, null));
+            super(msg, makeBkFriendlyException(bkEx, null));
         }
     }
 
@@ -168,14 +167,14 @@ public class MetadataStoreException extends IOException {
      * The store was already closed.
      */
     public static class AlreadyClosedException extends MetadataStoreException {
+        private static final BKException bkEx = BKException.create(BKException.Code.LedgerClosedException);
+
         public AlreadyClosedException(Throwable t) {
-            super(makeBkFriendlyException(
-                    BKException.Code.LedgerClosedException, t));
+            super(makeBkFriendlyException(bkEx, t));
         }
 
         public AlreadyClosedException(String msg) {
-            super(msg, makeBkFriendlyException(
-                    BKException.Code.LedgerClosedException, null));
+            super(msg, makeBkFriendlyException(bkEx, null));
         }
     }
 
