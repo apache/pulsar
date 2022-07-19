@@ -168,7 +168,7 @@ flexible messaging model and an intuitive client API.</description>
     <json-smart.version>2.4.7</json-smart.version>
     <opensearch.version>1.2.4</opensearch.version>
     <elasticsearch-java.version>8.1.0</elasticsearch-java.version>
-    <presto.version>334</presto.version>
+    <trino.version>351</trino.version>
     <scala.binary.version>2.13</scala.binary.version>
     <scala-library.version>2.13.6</scala-library.version>
     <debezium.version>1.7.2.Final</debezium.version>
@@ -1626,7 +1626,7 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>pulsar-client-cpp/generated/**</exclude>
             <!-- This is a text property file that contains just a class name -->
             <exclude>**/META-INF/services/com.scurrilous.circe.HashProvider</exclude>
-            <exclude>**/META-INF/services/io.prestosql.spi.Plugin</exclude>
+            <exclude>**/META-INF/services/io.trino.spi.Plugin</exclude>
 
             <!-- Django generated code -->
             <exclude>**/django/stats/migrations/*.py</exclude>

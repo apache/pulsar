@@ -80,9 +80,9 @@
     </dependency>
 
     <dependency>
-      <groupId>io.prestosql</groupId>
-      <artifactId>presto-server-main</artifactId>
-      <version>${presto.version}</version>
+      <groupId>io.trino</groupId>
+      <artifactId>trino-server-main</artifactId>
+      <version>${trino.version}</version>
       <exclusions>
         <!-- exclude openjdk because of GPL license -->
         <exclusion>
@@ -105,9 +105,9 @@
     </dependency>
 
     <dependency>
-      <groupId>io.prestosql</groupId>
-      <artifactId>presto-cli</artifactId>
-      <version>${presto.version}</version>
+      <groupId>io.trino</groupId>
+      <artifactId>trino-cli</artifactId>
+      <version>${trino.version}</version>
     </dependency>
 
     <dependency>
