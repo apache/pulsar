@@ -126,6 +126,13 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
         return batchMessageContainer == null || batchMessageContainer.hasSameSchema(msg);
     }
 
+    @Override
+    public boolean hasSameProperties(MessageImpl<?> msg) {
+        String key = getKey(msg);
+        BatchMessageContainerImpl batchMessageContainer = batches.get(key);
+        return batchMessageContainer == null || batchMessageContainer.hasSameProperties(msg);
+    }
+
     private String getKey(MessageImpl<?> msg) {
         if (msg.hasOrderingKey()) {
             return Base64.getEncoder().encodeToString(msg.getOrderingKey());

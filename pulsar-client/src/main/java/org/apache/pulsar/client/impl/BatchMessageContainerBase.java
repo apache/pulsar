@@ -52,6 +52,8 @@ public interface BatchMessageContainerBase extends BatchMessageContainer {
      */
     boolean hasSameSchema(MessageImpl<?> msg);
 
+    boolean hasSameProperties(MessageImpl<?> msg);
+
     /**
      * Set producer of the message batch container.
      *

@@ -23,13 +23,16 @@ import io.netty.util.ReferenceCountUtil;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.ProducerImpl.OpSendMsg;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.CompressionType;
+import org.apache.pulsar.common.api.proto.KeyValue;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
@@ -82,6 +85,10 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
                 // some properties are common amongst the different messages in the batch, hence we just pick it up from
                 // the first message
                 messageMetadata.setSequenceId(msg.getSequenceId());
+                List<KeyValue> filterProperties = getProperties(msg);
+                if (!filterProperties.isEmpty()) {
+                    messageMetadata.addAllProperties(filterProperties);
+                }
                 lowestSequenceId = Commands.initBatchMessageMetadata(messageMetadata, msg.getMessageBuilder());
                 this.firstCallback = callback;
                 batchedMessageMetadataAndPayload = PulsarByteBufAllocator.DEFAULT
@@ -233,6 +240,28 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
             return msg.getSchemaVersion() == null;
         }
         return Arrays.equals(msg.getSchemaVersion(), messageMetadata.getSchemaVersion());
+    }
+
+    @Override
+    public boolean hasSameProperties(MessageImpl<?> msg) {
+        if (numMessagesInBatch == 0) {
+            return true;
+        }
+        if (!messageMetadata.getPropertiesList().isEmpty()) {
+            return getProperties(msg).isEmpty();
+        }
+        return getProperties(msg).equals(messageMetadata.getPropertiesList());
+    }
+
+    private List<KeyValue> getProperties(MessageImpl<?> msg) {
+        if (batchedFilterProperties.isEmpty() || msg.getMessageBuilder().getPropertiesList().isEmpty()) {
+            return Collections.emptyList();
+        }
+        return msg.getMessageBuilder().getPropertiesList()
+            .stream()
+            .filter(kv -> batchedFilterProperties.contains(kv.getKey()))
+            .sorted()
+            .collect(Collectors.toList());
     }
 
     private static final Logger log = LoggerFactory.getLogger(BatchMessageContainerImpl.class);

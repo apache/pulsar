@@ -845,6 +845,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private boolean canAddToCurrentBatch(MessageImpl<?> msg) {
         return batchMessageContainer.haveEnoughSpace(msg)
                && (!isMultiSchemaEnabled(false) || batchMessageContainer.hasSameSchema(msg))
+                && batchMessageContainer.hasSameProperties(msg)
                 && batchMessageContainer.hasSameTxn(msg);
     }
 

@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.api.proto.CompressionType;
@@ -36,6 +37,7 @@ public abstract class AbstractBatchMessageContainer implements BatchMessageConta
     protected String topicName;
     protected String producerName;
     protected ProducerImpl producer;
+    protected List<String> batchedFilterProperties = new ArrayList<>();
 
     protected int maxNumMessagesInBatch;
     protected int maxBytesInBatch;
@@ -96,6 +98,7 @@ public abstract class AbstractBatchMessageContainer implements BatchMessageConta
         this.compressor = CompressionCodecProvider.getCompressionCodec(compressionType);
         this.maxNumMessagesInBatch = producer.getConfiguration().getBatchingMaxMessages();
         this.maxBytesInBatch = producer.getConfiguration().getBatchingMaxBytes();
+        this.batchedFilterProperties = producer.getConfiguration().getBatchedFilterProperties();
     }
 
     @Override

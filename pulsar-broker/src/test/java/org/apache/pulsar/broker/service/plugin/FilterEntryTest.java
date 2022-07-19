@@ -26,8 +26,11 @@ import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertNotNull;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import java.lang.reflect.Field;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -51,6 +54,7 @@ import org.apache.pulsar.common.nar.NarClassLoader;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
@@ -165,6 +169,120 @@ public class FilterEntryTest extends BrokerTestBase {
 
     }
 
+    @DataProvider(name = "batchedFilterProperties")
+    public Object[][] batchedFilterProperties() {
+        return new Object[][]{new Object[] {Collections.singletonList("REJECT")},
+            {Lists.newArrayList("REJECT", "1", "2")},
+            {Collections.emptyList()}};
+    }
+
+    @Test(dataProvider = "batchedFilterProperties")
+    public void testFilterBatch(List<String> batchedFilterProperties) throws Exception {
+        Map<String, String> map = new HashMap<>();
+        map.put("1","1");
+        map.put("2","2");
+        String topic = "persistent://prop/ns-abc/topic" + UUID.randomUUID();
+        String subName = "sub";
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic)
+            .subscriptionProperties(map)
+            .subscriptionName(subName).subscribe();
+        // mock entry filters
+        PersistentSubscription subscription = (PersistentSubscription) pulsar.getBrokerService()
+            .getTopicReference(topic).get().getSubscription(subName);
+        Dispatcher dispatcher = subscription.getDispatcher();
+        Field field = AbstractBaseDispatcher.class.getDeclaredField("entryFilters");
+        field.setAccessible(true);
+        NarClassLoader narClassLoader = mock(NarClassLoader.class);
+        EntryFilter filter1 = new EntryFilterTest();
+        EntryFilterWithClassLoader loader1 = spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter1, narClassLoader);
+        EntryFilter filter2 = new EntryFilter3Test();
+        EntryFilterWithClassLoader loader2 = spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter2, narClassLoader);
+        field.set(dispatcher, ImmutableList.of(loader1, loader2));
+
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+            .enableBatching(true).batchedFilterProperties(batchedFilterProperties).topic(topic).create();
+        for (int i = 0; i < 10; i++) {
+            producer.send("test");
+        }
+
+        int counter = 0;
+        while (true) {
+            Message<String> message = consumer.receive(1, TimeUnit.SECONDS);
+            if (message != null) {
+                counter++;
+                consumer.acknowledge(message);
+            } else {
+                break;
+            }
+        }
+        // All normal messages can be received
+        assertEquals(10, counter);
+        MessageIdImpl lastMsgId = null;
+        for (int i = 0; i < 10; i++) {
+            lastMsgId = (MessageIdImpl) producer.newMessage().property("REJECT", "").value("1").send();
+        }
+        counter = 0;
+        while (true) {
+            Message<String> message = consumer.receive(1, TimeUnit.SECONDS);
+            if (message != null) {
+                counter++;
+                consumer.acknowledge(message);
+            } else {
+                break;
+            }
+        }
+        // REJECT messages are filtered out
+        if (batchedFilterProperties.isEmpty()) { // Nothing in batched filter list, so filter will not take effect
+            assertEquals(10, counter);
+        } else {
+            assertEquals(0, counter);
+        }
+
+
+        // All messages should be acked, check the MarkDeletedPosition
+        assertNotNull(lastMsgId);
+        MessageIdImpl finalLastMsgId = lastMsgId;
+        Awaitility.await().untilAsserted(() -> {
+            PositionImpl position = (PositionImpl) subscription.getCursor().getMarkDeletedPosition();
+            assertEquals(position.getLedgerId(), finalLastMsgId.getLedgerId());
+            assertEquals(position.getEntryId(), finalLastMsgId.getEntryId());
+        });
+        consumer.close();
+
+        consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic).subscriptionProperties(map)
+            .subscriptionName(subName).subscribe();
+        for (int i = 0; i < 10; i++) {
+            producer.newMessage().property(String.valueOf(i), String.valueOf(i)).value("1").send();
+        }
+        counter = 0;
+        while (true) {
+            Message<String> message = consumer.receive(1, TimeUnit.SECONDS);
+            if (message != null) {
+                counter++;
+                consumer.acknowledge(message);
+            } else {
+                break;
+            }
+        }
+
+        if (batchedFilterProperties.size() == 3) { // batched filter list contains `REJECT` `1` `2`
+            assertEquals(8, counter);
+        } else {
+            assertEquals(10, counter);
+        }
+
+        producer.close();
+        consumer.close();
+
+        BrokerService brokerService = pulsar.getBrokerService();
+        Field field1 = BrokerService.class.getDeclaredField("entryFilters");
+        field1.setAccessible(true);
+        field1.set(brokerService, ImmutableMap.of("1", loader1, "2", loader2));
+        cleanup();
+        verify(loader1, times(1)).close();
+        verify(loader2, times(1)).close();
+
+    }
 
     @Test
     public void testFilteredMsgCount() throws Throwable {

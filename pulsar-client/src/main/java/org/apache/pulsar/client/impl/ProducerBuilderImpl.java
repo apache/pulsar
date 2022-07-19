@@ -264,6 +264,11 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
         return this;
     }
 
+    @Override
+    public ProducerBuilder<T> batchedFilterProperties(List<String> batchedFilterProperties) {
+        conf.setBatchedFilterProperties(batchedFilterProperties);
+        return this;
+    }
 
     @Override
     public ProducerBuilder<T> initialSequenceId(long initialSequenceId) {

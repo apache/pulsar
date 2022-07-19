@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.api;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -489,6 +490,15 @@ public interface ProducerBuilder<T> extends Cloneable {
      * @return the producer builder instance
      */
     ProducerBuilder<T> batcherBuilder(BatcherBuilder batcherBuilder);
+
+    /**
+     * Properties of message will be added to batched metadata if the {@param batchedFilterProperties} contains the key
+     * of the property. This is useful when producer publish batched message and using {@code EntryFilter} to filter
+     * messages in broker. <i>default: empty list</i>
+     * @param batchedFilterProperties keys of properties to added to batched metadata.
+     * @return the producer builder instance
+     */
+    ProducerBuilder<T> batchedFilterProperties(List<String> batchedFilterProperties);
 
     /**
      * Set the baseline for the sequence ids for messages published by the producer.
