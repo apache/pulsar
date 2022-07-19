@@ -1794,7 +1794,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     public CompletableFuture<String> getLedgerMetadata(long ledgerId) {
-        return getLedgerHandle(ledgerId).thenApply(rh -> rh.getLedgerMetadata().toSafeString());
+        LedgerHandle currentLedger = this.currentLedger;
+        if (currentLedger != null && ledgerId == currentLedger.getId()) {
+            return CompletableFuture.completedFuture(currentLedger.getLedgerMetadata().toSafeString());
+        } else {
+            return getLedgerHandle(ledgerId).thenApply(rh -> rh.getLedgerMetadata().toSafeString());
+        }
     }
 
     @Override
