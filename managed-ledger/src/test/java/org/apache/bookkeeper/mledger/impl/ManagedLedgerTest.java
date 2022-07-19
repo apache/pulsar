@@ -3843,4 +3843,12 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             Assert.assertFalse(ledgerInfo.get(100, TimeUnit.MILLISECONDS).getOffloadContext().getComplete());
         });
     }
+
+    @Test
+    public void testGetLedgerMetadata() throws Exception {
+        ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) factory.open("testGetLedgerMetadata");
+        long lastLedger = managedLedger.ledgers.lastEntry().getKey();
+        managedLedger.getLedgerMetadata(lastLedger);
+        Assert.assertFalse(managedLedger.ledgerCache.containsKey(lastLedger));
+    }
 }
