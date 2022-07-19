@@ -254,7 +254,7 @@ public class PulsarDatabaseHistoryTest extends ProducerConsumerBase {
         // happy path
         testHistoryTopicContent(true, false, true);
         assertTrue(history.exists());
-        List<String> subscriptions = admin.topics().getSubscriptions("persistent://my-property/my-ns/substopic");
+        List<String> subscriptions = admin.topics().getSubscriptions(topicName);
         assertTrue(subscriptions.contains("my-subscription"));
     }
 }
