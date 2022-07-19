@@ -149,7 +149,7 @@ public class PulsarAvroRowDecoderFactory implements PulsarRowDecoderFactory {
                 if (logicalType == LogicalTypes.timestampMillis()) {
                     return TimestampType.TIMESTAMP;
                 }
-                //TODO: support timestamp_microseconds logicalType : https://github.com/prestosql/presto/issues/1284
+                //TODO: support timestamp_microseconds logicalType : https://github.com/trinodb/trino/issues/1284
                 return BigintType.BIGINT;
             case FLOAT:
                 return RealType.REAL;
