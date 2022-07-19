@@ -545,13 +545,13 @@ public abstract class NamespacesBase extends AdminResource {
 
         FutureUtil.waitForAll(bundleFutures).thenCompose(__ -> internalClearZkSources()).handle((result, exception) -> {
             if (exception != null) {
-                if (exception.getCause() instanceof PulsarAdminException) {
-                    asyncResponse.resume(new RestException((PulsarAdminException) exception.getCause()));
-                    return null;
+                Throwable cause = FutureUtil.unwrapCompletionException(exception);
+                if (cause instanceof PulsarAdminException.ConflictException) {
+                    internalDeleteNamespaceForcefully(asyncResponse, authoritative);
                 } else {
                     log.error("[{}] Failed to remove forcefully owned namespace {}",
-                            clientAppId(), namespaceName, exception);
-                    asyncResponse.resume(new RestException(exception.getCause()));
+                            clientAppId(), namespaceName, cause);
+                    asyncResponse.resume(new RestException(cause));
                     return null;
                 }
             }
