@@ -121,8 +121,6 @@
     <notes><![CDATA[
    file name: zookeeper-jute-3.8.0.jar
    ]]></notes>
-    <sha1>6560f966bcf1aa78d27bcfa75fb6c4463a72c6c5</sha1>
-    <cve>CVE-2021-34429</cve>
     <sha1>9dd29797ecabe7d2e7fa892ec6713a5552cfcc59</sha1>
     <cve>CVE-2022-27376</cve>
     <cve>CVE-2022-27377</cve>
