@@ -37,7 +37,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "broker-admin-v2")
+@Test(groups = "broker-admin")
 public class AdminRestTest extends MockedPulsarServiceBaseTest {
 
     private final String clusterName = "test";

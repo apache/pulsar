@@ -26,7 +26,7 @@ import lombok.Data;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker-admin-v2")
+@Test(groups = "broker-admin")
 public class DynamicSkipUnknownPropertyHandlerTest {
 
     @Test
