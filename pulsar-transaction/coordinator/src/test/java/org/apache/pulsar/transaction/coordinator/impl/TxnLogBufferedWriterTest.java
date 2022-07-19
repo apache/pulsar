@@ -207,7 +207,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
             txnLogBufferedWriter.asyncAddData(i, callback, i);
             // Ensure flush at least once before close buffered writer.
             if (closeBufferedWriter && i == 0){
-                txnLogBufferedWriter.trigFlush(true);
+                txnLogBufferedWriter.trigFlush(true, false);
             }
             if (closeBufferedWriter && bufferedWriteCloseAtIndex == i){
                 // Wait for any complete callback, avoid unstable.
