@@ -29,6 +29,7 @@ import org.awaitility.Awaitility;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker-impl")
 public class AutoCloseUselessClientConMultiTopicTest extends AutoCloseUselessClientConSupports {
 
     private static String topicName_1 = UUID.randomUUID().toString().replaceAll("-","");
