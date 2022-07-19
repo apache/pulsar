@@ -159,7 +159,7 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
                 return;
             }
             scheduledFuture = scheduledExecutorService.schedule(() -> trigFlush(false, true),
-                    batchedWriteMaxDelayInMillis, TimeUnit.MICROSECONDS);
+                    batchedWriteMaxDelayInMillis, TimeUnit.MILLISECONDS);
         } catch (Exception e){
             log.error("Start timing flush trigger failed."
                     + " managedLedger: " + managedLedger.getName(), e);
