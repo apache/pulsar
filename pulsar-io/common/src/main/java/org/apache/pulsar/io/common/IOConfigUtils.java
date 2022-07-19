@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.io.common;
 
+import static org.apache.commons.lang.StringUtils.isBlank;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
@@ -40,6 +43,15 @@ public class IOConfigUtils {
         return loadWithSecrets(map, clazz, secretName -> sinkContext.getSecret(secretName));
     }
 
+    public static Map<String, Object> loadConfigFromJsonString(String config) throws JsonProcessingException {
+        if (!isBlank(config)) {
+            ObjectMapper mapper = new ObjectMapper();
+            return mapper.readValue(config, new TypeReference<Map<String, Object>>() {
+            });
+        } else {
+            return new HashMap<>();
+        }
+    }
 
     private static <T> T loadWithSecrets(Map<String, Object> map, Class<T> clazz,
                                          Function<String, String> secretsGetter) {

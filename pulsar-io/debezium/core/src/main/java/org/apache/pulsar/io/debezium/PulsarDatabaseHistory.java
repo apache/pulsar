@@ -19,6 +19,9 @@
 package org.apache.pulsar.io.debezium;
 
 import static org.apache.commons.lang.StringUtils.isBlank;
+import static org.apache.pulsar.io.common.IOConfigUtils.loadConfigFromJsonString;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import io.debezium.annotation.ThreadSafe;
 import io.debezium.config.Configuration;
 import io.debezium.config.Field;
@@ -30,6 +33,8 @@ import io.debezium.relational.history.DatabaseHistoryListener;
 import io.debezium.relational.history.HistoryRecord;
 import io.debezium.relational.history.HistoryRecordComparator;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 import java.util.function.Consumer;
 import lombok.extern.slf4j.Slf4j;
@@ -44,6 +49,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 /**
  * A {@link DatabaseHistory} implementation that records schema changes as normal pulsar messages on the specified
@@ -77,14 +83,26 @@ public final class PulsarDatabaseHistory extends AbstractDatabaseHistory {
         .withDescription("Pulsar client builder")
         .withValidation(Field::isOptional);
 
+    public static final Field READER_CONFIG = Field.create(CONFIGURATION_FIELD_PREFIX_STRING + "pulsar.reader.config")
+            .withDisplayName("Extra configs of the reader")
+            .withType(Type.STRING)
+            .withWidth(Width.LONG)
+            .withImportance(Importance.HIGH)
+            .withDescription("The configs of the reader for the database schema history topic, "
+                    + "in the form of a JSON string with key-value pairs")
+            .withDefault((String) null)
+            .withValidation(Field::isOptional);
+
     public static final Field.Set ALL_FIELDS = Field.setOf(
         TOPIC,
         SERVICE_URL,
         CLIENT_BUILDER,
-        DatabaseHistory.NAME);
+        DatabaseHistory.NAME,
+        READER_CONFIG);
 
     private final DocumentReader reader = DocumentReader.defaultReader();
     private String topicName;
+    private Map<String, Object> readerConfigMap = new HashMap<>();
     private String dbHistoryName;
     private ClientBuilder clientBuilder;
     private volatile PulsarClient pulsarClient;
@@ -102,6 +120,12 @@ public final class PulsarDatabaseHistory extends AbstractDatabaseHistory {
                 + getClass().getSimpleName() + "; check the logs for details");
         }
         this.topicName = config.getString(TOPIC);
+        try {
+            this.readerConfigMap = loadConfigFromJsonString(config.getString(READER_CONFIG));
+        } catch (JsonProcessingException exception) {
+            log.warn("The provided reader configs are invalid, "
+                    + "will not passing any extra config to the reader builder.", exception);
+        }
 
         String clientBuilderBase64Encoded = config.getString(CLIENT_BUILDER);
         if (isBlank(clientBuilderBase64Encoded) && isBlank(config.getString(SERVICE_URL))) {
@@ -213,6 +237,7 @@ public final class PulsarDatabaseHistory extends AbstractDatabaseHistory {
         try (Reader<String> historyReader = pulsarClient.newReader(Schema.STRING)
                 .topic(topicName)
                 .startMessageId(MessageId.earliest)
+                .loadConf(readerConfigMap)
             .create()
         ) {
             log.info("Scanning the database history topic '{}'", topicName);
@@ -260,6 +285,7 @@ public final class PulsarDatabaseHistory extends AbstractDatabaseHistory {
         try (Reader<String> historyReader = pulsarClient.newReader(Schema.STRING)
                 .topic(topicName)
                 .startMessageId(MessageId.earliest)
+                .loadConf(readerConfigMap)
             .create()
         ) {
             return historyReader.hasMessageAvailable();
