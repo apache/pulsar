@@ -127,6 +127,8 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
                                 conf.getTlsCiphers(),
                                 conf.getTlsProtocols());
                     }
+                } catch (PulsarClientException pulsarClientException) {
+                    throw new RuntimeException(pulsarClientException);
                 } catch (Exception e) {
                     throw new RuntimeException("Failed to create TLS context", e);
                 }
