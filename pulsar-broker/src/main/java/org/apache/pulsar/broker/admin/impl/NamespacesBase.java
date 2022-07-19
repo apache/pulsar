@@ -351,7 +351,7 @@ public abstract class NamespacesBase extends AdminResource {
             if (cause instanceof PulsarAdminException.ConflictException) {
                 log.info("[{}] There are new topics created during the namespace deletion, "
                         + "retry to delete the namespace again.", namespaceName);
-                internalDeleteNamespace(asyncResponse, authoritative);
+                pulsar().getExecutor().execute(() -> internalDeleteNamespace(asyncResponse, authoritative));
             } else {
                 resumeAsyncResponseExceptionally(asyncResponse, ex);
             }
@@ -547,13 +547,16 @@ public abstract class NamespacesBase extends AdminResource {
             if (exception != null) {
                 Throwable cause = FutureUtil.unwrapCompletionException(exception);
                 if (cause instanceof PulsarAdminException.ConflictException) {
-                    internalDeleteNamespaceForcefully(asyncResponse, authoritative);
+                    log.info("[{}] There are new topics created during the namespace deletion, "
+                            + "retry to force delete the namespace again.", namespaceName);
+                    pulsar().getExecutor().execute(() ->
+                            internalDeleteNamespaceForcefully(asyncResponse, authoritative));
                 } else {
                     log.error("[{}] Failed to remove forcefully owned namespace {}",
                             clientAppId(), namespaceName, cause);
                     asyncResponse.resume(new RestException(cause));
-                    return null;
                 }
+                return null;
             }
             asyncResponse.resume(Response.noContent().build());
             return null;
