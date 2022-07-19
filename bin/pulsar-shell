@@ -37,4 +37,16 @@ OPTS="-Dorg.jline.terminal.jansi=false $OPTS"
 
 #Change to PULSAR_HOME to support relative paths
 cd "$PULSAR_HOME"
-exec $JAVA $OPTS org.apache.pulsar.shell.PulsarShell $PULSAR_CLIENT_CONF "$@"
+DEFAULT_SHELL_ARGS="--config $PULSAR_CLIENT_CONF"
+PASSED_SHELL_ARGS=""
+while [[ $# -gt 0 ]]
+do
+  key="$1"
+  if [[ "$key" == "-c" || "$key" == "--config" ]]; then
+    DEFAULT_SHELL_ARGS=""
+  fi
+  PASSED_SHELL_ARGS="$PASSED_SHELL_ARGS $key"
+  shift
+done
+
+exec $JAVA $OPTS org.apache.pulsar.shell.PulsarShell $DEFAULT_SHELL_ARGS $PASSED_SHELL_ARGS
