@@ -258,7 +258,7 @@ public class MaxUnackedMessagesTest extends ProducerConsumerBase {
         final String topicName = testTopic + System.currentTimeMillis();
         final String subscriberName = "test-sub" + System.currentTimeMillis();
         final int unackMsgAllowed = 100;
-        final int receiverQueueSize = 10;
+        final int receiverQueueSize = 1;
         final int totalProducedMsgs = 300;
 
         ConsumerBuilder<String> consumerBuilder = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
