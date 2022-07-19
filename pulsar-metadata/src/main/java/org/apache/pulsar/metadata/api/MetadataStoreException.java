@@ -29,21 +29,26 @@ import org.apache.bookkeeper.client.BKException;
 public class MetadataStoreException extends IOException {
 
     private static Throwable makeBkFriendlyException(int code, Throwable cause) {
-        Throwable t = cause;
-        while (t != null) {
-            if (t instanceof BKException) {
+        if (cause == null) {
+            return BKException.create(code);
+        }
+
+        Throwable lastCause = cause;
+        while (true) {
+            if (lastCause instanceof BKException) {
                 // BKException.getExceptionCode() traverses chain of causes
                 // no need to create another exception
                 return cause;
             }
-            t = t.getCause();
+            if (lastCause.getCause() == null) {
+                break;
+            }
+            lastCause = lastCause.getCause();
         }
 
         BKException bkException = BKException.create(code);
-        if (cause != null) {
-            bkException.initCause(cause);
-        }
-        return bkException;
+        lastCause.initCause(bkException);
+        return cause;
     }
 
     public MetadataStoreException(Throwable t) {
