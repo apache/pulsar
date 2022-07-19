@@ -1444,6 +1444,10 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                     metricName = metricName.substring(0, metricName.indexOf("_count"));
                 } else if (metricName.endsWith("_sum") && !currentMetric.get().endsWith("_sum")) {
                     metricName = metricName.substring(0, metricName.indexOf("_sum"));
+                } else if (metricName.endsWith("_total") && !currentMetric.get().endsWith("_total")) {
+                    metricName = metricName.substring(0, metricName.indexOf("_total"));
+                } else if (metricName.endsWith("_created") && !currentMetric.get().endsWith("_created")) {
+                    metricName = metricName.substring(0, metricName.indexOf("_created"));
                 }
 
                 if (!metricName.equals(currentMetric.get())) {
