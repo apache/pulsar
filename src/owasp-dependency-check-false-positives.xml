@@ -129,8 +129,6 @@
     <notes><![CDATA[
    file name: zookeeper-jute-3.8.0.jar
    ]]></notes>
-    <sha1>6560f966bcf1aa78d27bcfa75fb6c4463a72c6c5</sha1>
-    <cve>CVE-2021-34429</cve>
   </suppress>
 
   <!-- CVE-2021-23214 is about PostGre server -->
