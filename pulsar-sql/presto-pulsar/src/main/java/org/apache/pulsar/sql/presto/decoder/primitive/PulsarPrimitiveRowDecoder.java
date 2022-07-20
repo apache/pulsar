@@ -91,7 +91,10 @@ public class PulsarPrimitiveRowDecoder implements PulsarRowDecoder {
             } else if (type instanceof TimeType) {
                 primitiveColumn.put(columnHandle, longValueProvider(((Time) value).getTime()));
             } else if (type instanceof TimestampType) {
-                primitiveColumn.put(columnHandle, longValueProvider(((Timestamp) value).getTime()));
+                final long millis = ((Timestamp) value).getTime();
+                // Trino timestamp payload is in micros
+                final long micros = millis * 1000;
+                primitiveColumn.put(columnHandle, longValueProvider(micros));
             } else {
                 primitiveColumn.put(columnHandle, bytesValueProvider(value.toString().getBytes()));
             }
