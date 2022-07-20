@@ -21,8 +21,6 @@ package org.apache.pulsar.client.impl.schema;
 import static com.google.common.base.Preconditions.checkState;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.avro.Schema.Type.RECORD;
-
-import java.io.IOException;
 import java.io.InputStream;
 import java.util.Map;
 import java.util.Optional;
