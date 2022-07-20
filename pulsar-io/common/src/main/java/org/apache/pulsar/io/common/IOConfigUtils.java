@@ -24,6 +24,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
@@ -49,7 +50,7 @@ public class IOConfigUtils {
             return mapper.readValue(config, new TypeReference<Map<String, Object>>() {
             });
         } else {
-            return new HashMap<>();
+            return Collections.emptyMap();
         }
     }
 
