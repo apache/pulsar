@@ -480,6 +480,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String metadataStoreConfigPath = null;
 
     @FieldContext(
+            dynamic = true,
+            doc = "Factory class-name to create topic with custom workflow"
+        )
+    private String topicFactoryClassName;
+
+    @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "Enable backlog quota check. Enforces actions on topic when the quota is reached"
     )

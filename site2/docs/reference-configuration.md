@@ -181,6 +181,7 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |metadataStoreSessionTimeoutMillis| Metadata store session timeout in milliseconds |30000|
 |brokerShutdownTimeoutMs| Time to wait for broker graceful shutdown. After this time elapses, the process will be killed  |60000|
 |skipBrokerShutdownOnOOM| Flag to skip broker shutdown when broker handles Out of memory error. |false|
+|topicFactoryClassName| Factory class-name to create topic with custom workflow. ||
 |backlogQuotaCheckEnabled|  Enable backlog quota check. Enforces action on topic when the quota is reached  |true|
 |backlogQuotaCheckIntervalInSeconds|  How often to check for topics that have reached the quota |60|
 |backlogQuotaDefaultLimitBytes| The default per-topic backlog quota limit. Being less than 0 means no limitation. By default, it is -1. | -1 |
@@ -515,6 +516,7 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |metadataStoreOperationTimeoutSeconds|Metadata store operation timeout in seconds.|30|
 |brokerShutdownTimeoutMs| The time to wait for graceful broker shutdown. After this time elapses, the process will be killed. |60000|
 |skipBrokerShutdownOnOOM| Flag to skip broker shutdown when broker handles Out of memory error. |false|
+|topicFactoryClassName| Factory class-name to create topic with custom workflow. ||
 |backlogQuotaCheckEnabled|  Enable the backlog quota check, which enforces a specified action when the quota is reached.  |true|
 |backlogQuotaCheckIntervalInSeconds|  How often to check for topics that have reached the backlog quota.  |60|
 |backlogQuotaDefaultLimitBytes| The default per-topic backlog quota limit. Being less than 0 means no limitation. By default, it is -1. |-1|
