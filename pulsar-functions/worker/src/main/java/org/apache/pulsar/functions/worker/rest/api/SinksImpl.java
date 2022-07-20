@@ -228,35 +228,11 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
 
             functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
 
-            File functionPackageFile = null;
             String preprocessFunction = sinkConfig.getPreprocessFunction();
             if (isNotBlank(preprocessFunction)) {
-                try {
-                    String builtin = null;
-                    if (!preprocessFunction.startsWith(Utils.BUILTIN)) {
-                        functionPackageFile = getPackageFile(preprocessFunction);
-                    } else {
-                        builtin = preprocessFunction.replaceFirst("^builtin://", "");
-                        functionMetaDataBuilder.setFunctionDetails(functionDetails.toBuilder().setBuiltin(builtin));
-                    }
-                    Function.PackageLocationMetaData.Builder functionPackageLocation =
-                            getFunctionPackageLocation(functionMetaDataBuilder.build(),
-                                    preprocessFunction, null, functionPackageFile,
-                                    sinkName + "__sink-function",
-                                    Function.FunctionDetails.ComponentType.FUNCTION, builtin);
-                    functionMetaDataBuilder.setExtraFunctionPackageLocation(functionPackageLocation);
-                } catch (Exception e) {
-                    log.error("Failed process {} {}/{}/{} preprocess function package: ",
-                            ComponentTypeUtils.toString(componentType), tenant, namespace, sinkName, e);
-                    throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
-                } finally {
-                    if (functionPackageFile != null && functionPackageFile.exists()) {
-                        if (!preprocessFunction.startsWith(Utils.FILE)) {
-                            functionPackageFile.delete();
-                        }
-                    }
-                }
+                setExtraFunctionPackageLocation(functionMetaDataBuilder, functionDetails, preprocessFunction);
             }
+
             updateRequest(null, functionMetaDataBuilder.build());
         } finally {
             if (componentPackageFile != null && componentPackageFile.exists()) {
@@ -437,11 +413,48 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
 
             functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
 
+            String preprocessFunction = mergedConfig.getPreprocessFunction();
+            if (isNotBlank(preprocessFunction)
+                    && !preprocessFunction.equals(existingSinkConfig.getPreprocessFunction())) {
+                setExtraFunctionPackageLocation(functionMetaDataBuilder, functionDetails, preprocessFunction);
+            }
+
             updateRequest(existingComponent, functionMetaDataBuilder.build());
         } finally {
             if (componentPackageFile != null && componentPackageFile.exists()) {
                 if ((sinkPkgUrl != null && !sinkPkgUrl.startsWith(Utils.FILE)) || uploadedInputStream != null) {
                     componentPackageFile.delete();
+                }
+            }
+        }
+    }
+
+    private void setExtraFunctionPackageLocation(Function.FunctionMetaData.Builder functionMetaDataBuilder,
+                                                 Function.FunctionDetails functionDetails, String extraFunction) {
+        File functionPackageFile = null;
+        try {
+            String builtin = null;
+            if (!extraFunction.startsWith(Utils.BUILTIN)) {
+                functionPackageFile = getPackageFile(extraFunction);
+            } else {
+                builtin = extraFunction.replaceFirst("^builtin://", "");
+                functionMetaDataBuilder.setFunctionDetails(functionDetails.toBuilder().setBuiltin(builtin));
+            }
+            Function.PackageLocationMetaData.Builder functionPackageLocation =
+                    getFunctionPackageLocation(functionMetaDataBuilder.build(),
+                            extraFunction, null, functionPackageFile,
+                            functionDetails.getName() + "__sink-function",
+                            Function.FunctionDetails.ComponentType.FUNCTION, builtin);
+            functionMetaDataBuilder.setExtraFunctionPackageLocation(functionPackageLocation);
+        } catch (Exception e) {
+            log.error("Failed process {} {}/{}/{} extra function package: ",
+                    ComponentTypeUtils.toString(componentType), functionDetails.getTenant(),
+                    functionDetails.getNamespace(), functionDetails.getName(), e);
+            throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
+        } finally {
+            if (functionPackageFile != null && functionPackageFile.exists()) {
+                if (!extraFunction.startsWith(Utils.FILE)) {
+                    functionPackageFile.delete();
                 }
             }
         }
