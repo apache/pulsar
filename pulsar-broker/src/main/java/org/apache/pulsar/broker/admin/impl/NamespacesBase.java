@@ -346,8 +346,15 @@ public abstract class NamespacesBase extends AdminResource {
             asyncResponse.resume(Response.noContent().build());
         })
         .exceptionally(ex -> {
-            log.error("[{}] Failed to remove namespace {}", clientAppId(), namespaceName, ex.getCause());
-            resumeAsyncResponseExceptionally(asyncResponse, ex);
+            Throwable cause = FutureUtil.unwrapCompletionException(ex);
+            log.error("[{}] Failed to remove namespace {}", clientAppId(), namespaceName, cause);
+            if (cause instanceof PulsarAdminException.ConflictException) {
+                log.info("[{}] There are new topics created during the namespace deletion, "
+                        + "retry to delete the namespace again.", namespaceName);
+                pulsar().getExecutor().execute(() -> internalDeleteNamespace(asyncResponse, authoritative));
+            } else {
+                resumeAsyncResponseExceptionally(asyncResponse, ex);
+            }
             return null;
         });
     }
@@ -538,15 +545,18 @@ public abstract class NamespacesBase extends AdminResource {
 
         FutureUtil.waitForAll(bundleFutures).thenCompose(__ -> internalClearZkSources()).handle((result, exception) -> {
             if (exception != null) {
-                if (exception.getCause() instanceof PulsarAdminException) {
-                    asyncResponse.resume(new RestException((PulsarAdminException) exception.getCause()));
-                    return null;
+                Throwable cause = FutureUtil.unwrapCompletionException(exception);
+                if (cause instanceof PulsarAdminException.ConflictException) {
+                    log.info("[{}] There are new topics created during the namespace deletion, "
+                            + "retry to force delete the namespace again.", namespaceName);
+                    pulsar().getExecutor().execute(() ->
+                            internalDeleteNamespaceForcefully(asyncResponse, authoritative));
                 } else {
                     log.error("[{}] Failed to remove forcefully owned namespace {}",
-                            clientAppId(), namespaceName, exception);
-                    asyncResponse.resume(new RestException(exception.getCause()));
-                    return null;
+                            clientAppId(), namespaceName, cause);
+                    asyncResponse.resume(new RestException(cause));
                 }
+                return null;
             }
             asyncResponse.resume(Response.noContent().build());
             return null;
