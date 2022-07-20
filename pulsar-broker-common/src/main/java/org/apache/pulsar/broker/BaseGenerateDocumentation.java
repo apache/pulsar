@@ -151,6 +151,7 @@ public abstract class BaseGenerateDocumentation {
         fieldList.sort(Comparator.comparing(Field::getName));
 
         sb.append("# ").append(type).append("\n");
+        sb.append("## Optional\n");
         for (Field field : fieldList) {
             ApiModelProperty fieldContext = field.getAnnotation(ApiModelProperty.class);
             if (fieldContext == null) {
@@ -159,7 +160,7 @@ public abstract class BaseGenerateDocumentation {
             field.setAccessible(true);
 
             String name = StringUtils.isBlank(fieldContext.name()) ? field.getName() : fieldContext.name();
-            sb.append("## ").append(name).append("\n");
+            sb.append("### ").append(name).append("\n");
             sb.append(fieldContext.value().replace(">", "\\>")).append("\n\n");
             sb.append("**Default**: `").append(field.get(obj)).append("`\n\n");
         }
