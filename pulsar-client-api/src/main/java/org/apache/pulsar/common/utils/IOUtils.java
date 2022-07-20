@@ -26,6 +26,7 @@ import java.util.List;
 
 /**
  * Utils for I/O operations.
+ * Copied from JDK9 InputStream readAllBytes and readNBytes, this can be remove after JDK version upgrade to JDK9.
  */
 public final class IOUtils {
     private static final int DEFAULT_BUFFER_SIZE = 8192;
