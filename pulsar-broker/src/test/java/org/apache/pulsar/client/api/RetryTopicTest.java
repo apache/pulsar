@@ -491,9 +491,9 @@ public class RetryTopicTest extends ProducerConsumerBase {
         producer.close();
 
         // mock a retry producer exception when reconsumelater is called
-        MultiTopicsConsumerImpl multiTopicsConsumer = (MultiTopicsConsumerImpl) consumer;
-        List<ConsumerImpl> consumers = multiTopicsConsumer.getConsumers();
-        for (ConsumerImpl c : consumers) {
+        MultiTopicsConsumerImpl<byte[]> multiTopicsConsumer = (MultiTopicsConsumerImpl<byte[]>) consumer;
+        List<ConsumerImpl<byte[]>> consumers = multiTopicsConsumer.getConsumers();
+        for (ConsumerImpl<byte[]> c : consumers) {
             Set<Field> deadLetterPolicyField =
                     ReflectionUtils.getAllFields(c.getClass(), ReflectionUtils.withName("deadLetterPolicy"));
 
