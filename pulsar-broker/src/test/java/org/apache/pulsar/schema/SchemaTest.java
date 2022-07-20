@@ -1253,14 +1253,14 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         Message<User> message1 = consumer.receive();
         Assert.assertEquals(test, message1.getValue());
         Message<User> message2 = consumer.receive();
+
+        boolean exceptionHappened = false;
         try {
             message2.getValue();
         } catch (SchemaSerializationException e) {
-            final String schemaString =
-                    new String(Schema.AVRO(User.class).getSchemaInfo().getSchema(), StandardCharsets.UTF_8);
-            Assert.assertTrue(e.getMessage().contains(schemaString));
-            Assert.assertTrue(e.getMessage().contains("payload (4 bytes)"));
+            exceptionHappened = true;
         }
+        Assert.assertTrue(exceptionHappened);
     }
 
     @EqualsAndHashCode
