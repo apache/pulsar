@@ -40,17 +40,15 @@ public class PulsarFieldValueProviders {
     }
 
     /**
-     * FieldValueProvider for Time (Data,Timstamp etc.) with indicate Null instead of longValueProvider.
-     * @param value
-     * @param isNull
-     * @return
+     * FieldValueProvider for Time (Data, Timestamp etc.) with indicate Null instead of longValueProvider.
      */
     public static FieldValueProvider timeValueProvider(long value, boolean isNull) {
         return new FieldValueProvider() {
             @Override
-                public long getLong() {
-                    return value;
-                }
+            public long getLong() {
+                // Pulsar timestamp is in millis, while Trino timestamp is in micros.
+                return value * 1000;
+            }
 
             @Override
             public boolean isNull() {
