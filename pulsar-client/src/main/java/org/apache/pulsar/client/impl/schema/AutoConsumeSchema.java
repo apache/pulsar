@@ -124,7 +124,7 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
     }
 
     @Override
-    public GenericRecord decode(InputStream input, byte[] schemaVersion) throws IOException {
+    public GenericRecord decode(InputStream input, byte[] schemaVersion) {
         SchemaVersion sv = getSchemaVersion(schemaVersion);
         fetchSchemaIfNeeded(sv);
         ensureSchemaInitialized(sv);
