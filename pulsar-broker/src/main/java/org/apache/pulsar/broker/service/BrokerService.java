@@ -224,6 +224,9 @@ public class BrokerService implements Closeable {
     @Getter
     private final ScheduledExecutorService backlogQuotaChecker;
 
+    @Getter
+    private final ScheduledExecutorService transactionLogBufferedWriteAsyncFlushTrigger;
+
     protected final AtomicReference<Semaphore> lookupRequestSemaphore;
     protected final AtomicReference<Semaphore> topicLoadRequestSemaphore;
 
@@ -343,6 +346,8 @@ public class BrokerService implements Closeable {
                 new PublishRateLimiterMonitor("pulsar-broker-publish-rate-limiter-monitor");
         this.backlogQuotaManager = new BacklogQuotaManager(pulsar);
         this.backlogQuotaChecker = Executors
+                .newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-backlog-quota-checker"));
+        this.transactionLogBufferedWriteAsyncFlushTrigger = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-backlog-quota-checker"));
         this.authenticationService = new AuthenticationService(pulsar.getConfiguration());
         this.blockedDispatchers =

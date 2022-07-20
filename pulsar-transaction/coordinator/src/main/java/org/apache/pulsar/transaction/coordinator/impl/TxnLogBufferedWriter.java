@@ -545,7 +545,7 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
 
 
 
-    interface AddDataCallback {
+    public interface AddDataCallback {
 
         void addComplete(Position position, Object context);
 

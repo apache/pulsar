@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.transaction.pendingack;
 
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -31,6 +33,7 @@ import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck;
+import org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriterConfig;
 import org.testng.annotations.Test;
 import java.lang.reflect.Field;
 import java.util.concurrent.CompletableFuture;
@@ -48,6 +51,9 @@ public class PendingAckMetadataTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testPendingAckManageLedgerWriteFailState() throws Exception {
+        TxnLogBufferedWriterConfig bufferedWriterConfig = new TxnLogBufferedWriterConfig();
+        ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(1);
+
         ManagedLedgerFactoryConfig factoryConf = new ManagedLedgerFactoryConfig();
         factoryConf.setMaxCacheSize(0);
 
@@ -72,7 +78,8 @@ public class PendingAckMetadataTest extends MockedBookKeeperTestCase {
         ManagedCursor cursor = completableFuture.get().openCursor("test");
         ManagedCursor subCursor = completableFuture.get().openCursor("test");
         MLPendingAckStore pendingAckStore =
-                new MLPendingAckStore(completableFuture.get(), cursor, subCursor, 500);
+                new MLPendingAckStore(completableFuture.get(), cursor, subCursor, 500,
+                        bufferedWriterConfig, scheduledExecutorService);
 
         Field field = MLPendingAckStore.class.getDeclaredField("managedLedger");
         field.setAccessible(true);
@@ -90,9 +97,12 @@ public class PendingAckMetadataTest extends MockedBookKeeperTestCase {
         }
         pendingAckStore.appendAbortMark(new TxnID(1, 1), CommandAck.AckType.Cumulative).get();
 
+        // cleanup.
+        pendingAckStore.closeAsync();
         completableFuture.get().close();
         cursor.close();
         subCursor.close();
+        scheduledExecutorService.shutdown();
     }
 
 }
