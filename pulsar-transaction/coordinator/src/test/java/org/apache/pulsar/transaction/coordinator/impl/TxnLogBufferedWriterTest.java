@@ -388,7 +388,10 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         TxnLogBufferedWriter.AddDataCallback callback = Mockito.mock(TxnLogBufferedWriter.AddDataCallback.class);
         // Test threshold: writeMaxDelayInMillis.
         txnLogBufferedWriter.asyncAddData(100, callback, 100);
-        Thread.sleep(101);
+        Thread.sleep(90);
+        // Verify does not refresh ahead of time.
+        Assert.assertEquals(dataArrayFlushedToBookie.size(), 0);
+        Thread.sleep(11);
         // Test threshold: batchedWriteMaxRecords.
         for (int i = 0; i < 32; i++){
             txnLogBufferedWriter.asyncAddData(1, callback, 1);

@@ -267,8 +267,12 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
                 doFlush();
                 return;
             }
+            if (byScheduleThreads) {
+                doFlush();
+                return;
+            }
             AsyncAddArgs firstAsyncAddArgs = flushContext.asyncAddArgsList.get(0);
-            if (System.currentTimeMillis() - firstAsyncAddArgs.addedTime > batchedWriteMaxDelayInMillis) {
+            if (System.currentTimeMillis() - firstAsyncAddArgs.addedTime >= batchedWriteMaxDelayInMillis) {
                 doFlush();
                 return;
             }
