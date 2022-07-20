@@ -175,8 +175,8 @@ public class TransactionBufferClientTest extends TransactionTestBase {
         String metricsStr = statsOut.toString();
         Multimap<String, PrometheusMetricsTest.Metric> metricsMap = PrometheusMetricsTest.parseMetrics(metricsStr);
 
-        Collection<PrometheusMetricsTest.Metric> abortFailed = metricsMap.get("pulsar_txn_tb_client_abort_failed");
-        Collection<PrometheusMetricsTest.Metric> commitFailed = metricsMap.get("pulsar_txn_tb_client_commit_failed");
+        Collection<PrometheusMetricsTest.Metric> abortFailed = metricsMap.get("pulsar_txn_tb_client_abort_failed_total");
+        Collection<PrometheusMetricsTest.Metric> commitFailed = metricsMap.get("pulsar_txn_tb_client_commit_failed_total");
         Collection<PrometheusMetricsTest.Metric> abortLatencyCount =
                 metricsMap.get("pulsar_txn_tb_client_abort_latency_count");
         Collection<PrometheusMetricsTest.Metric> commitLatencyCount =
