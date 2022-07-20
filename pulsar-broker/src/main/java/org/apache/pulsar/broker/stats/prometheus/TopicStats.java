@@ -135,11 +135,11 @@ class TopicStats {
         metric(stream, cluster, namespace, topic, "pulsar_average_msg_size", stats.averageMsgSize,
                 splitTopicAndPartitionIndexLabel);
 
-        metric(stream, cluster, namespace, topic, "pulsar_txn_tb_active_count", stats.ongoingTxnCount,
+        metric(stream, cluster, namespace, topic, "pulsar_txn_tb_active_total", stats.ongoingTxnCount,
                 splitTopicAndPartitionIndexLabel);
-        metric(stream, cluster, namespace, topic, "pulsar_txn_tb_aborted_count", stats.abortedTxnCount,
+        metric(stream, cluster, namespace, topic, "pulsar_txn_tb_aborted_total", stats.abortedTxnCount,
                 splitTopicAndPartitionIndexLabel);
-        metric(stream, cluster, namespace, topic, "pulsar_txn_tb_committed_count", stats.committedTxnCount,
+        metric(stream, cluster, namespace, topic, "pulsar_txn_tb_committed_total", stats.committedTxnCount,
                 splitTopicAndPartitionIndexLabel);
 
         metric(stream, cluster, namespace, topic, "pulsar_storage_size", stats.managedLedgerStats.storageSize,

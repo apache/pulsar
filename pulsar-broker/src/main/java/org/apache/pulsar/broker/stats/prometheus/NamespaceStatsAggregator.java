@@ -333,9 +333,9 @@ public class NamespaceStatsAggregator {
         metric(stream, cluster, namespace, "pulsar_rate_out", stats.rateOut);
         metric(stream, cluster, namespace, "pulsar_throughput_in", stats.throughputIn);
         metric(stream, cluster, namespace, "pulsar_throughput_out", stats.throughputOut);
-        metric(stream, cluster, namespace, "pulsar_txn_tb_active_count", stats.ongoingTxnCount);
-        metric(stream, cluster, namespace, "pulsar_txn_tb_aborted_count", stats.abortedTxnCount);
-        metric(stream, cluster, namespace, "pulsar_txn_tb_committed_count", stats.committedTxnCount);
+        metric(stream, cluster, namespace, "pulsar_txn_tb_active_total", stats.ongoingTxnCount);
+        metric(stream, cluster, namespace, "pulsar_txn_tb_aborted_total", stats.abortedTxnCount);
+        metric(stream, cluster, namespace, "pulsar_txn_tb_committed_total", stats.committedTxnCount);
         metric(stream, cluster, namespace, "pulsar_consumer_msg_ack_rate", stats.messageAckRate);
 
         metric(stream, cluster, namespace, "pulsar_in_bytes_total", stats.bytesInCounter);
