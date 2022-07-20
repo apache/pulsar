@@ -111,7 +111,7 @@ def main():
     sys.exit(1)
   if os.path.splitext(str(args.py))[1] == '.whl':
     if args.install_usercode_dependencies:
-      cmd = "pip install -t %s" % os.path.dirname(str(args.py))
+      cmd = "pip install -t %s" % os.path.dirname(os.path.abspath(str(args.py)))
       if args.dependency_repository:
         cmd = cmd + " -i %s" % str(args.dependency_repository)
       if args.extra_dependency_repository:
@@ -124,7 +124,7 @@ def main():
     else:
       zpfile = zipfile.ZipFile(str(args.py), 'r')
       zpfile.extractall(os.path.dirname(str(args.py)))
-    sys.path.insert(0, os.path.dirname(str(args.py)))
+    sys.path.insert(0, os.path.dirname(os.path.abspath(str(args.py))))
   elif os.path.splitext(str(args.py))[1] == '.zip':
     # Assumig zip file with format func.zip
     # extract to folder function
