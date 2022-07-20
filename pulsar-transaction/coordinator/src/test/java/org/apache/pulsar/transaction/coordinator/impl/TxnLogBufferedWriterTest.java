@@ -390,8 +390,6 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         Thread.sleep(90);
         // Verify does not refresh ahead of time.
         Assert.assertEquals(dataArrayFlushedToBookie.size(), 0);
-        // Scheduled task maybe execute slowly than expected, so we wait a long time.
-        Thread.sleep(111);
         Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> dataArrayFlushedToBookie.size() == 1);
         Assert.assertEquals(dataArrayFlushedToBookie.get(0).intValue(), 100);
         txnLogBufferedWriter1.close();
