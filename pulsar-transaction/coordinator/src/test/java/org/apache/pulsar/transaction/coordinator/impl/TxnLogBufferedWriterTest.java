@@ -92,9 +92,9 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         // The number of data writes is large.
         provider[2] = new Object[]{512, 1024 * 1024, 100, true, 20000, 5, 4, BookieErrorType.NO_ERROR, false};
         // Big data writes.
-        provider[3] = new Object[]{512, 1024, 100, true, 3000, 4, 1024, BookieErrorType.NO_ERROR, false};
+        provider[3] = new Object[]{512, 1024, 100, true, 3000, 6, 1024, BookieErrorType.NO_ERROR, false};
         // A batch has only one data
-        provider[4] = new Object[]{1, 1024 * 1024, 100, true, 2000, 4, 4, BookieErrorType.NO_ERROR, false};
+        provider[4] = new Object[]{1, 1024 * 1024, 100, true, 2000, 6, 4, BookieErrorType.NO_ERROR, false};
         // A batch has only two data
         provider[5] = new Object[]{2, 1024 * 1024, 100, true, 1999, 4, 4, BookieErrorType.NO_ERROR, false};
         // Disabled the batch feature
@@ -382,36 +382,43 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
                 return null;
             }
         }).when(managedLedger).asyncAddEntry(Mockito.any(ByteBuf.class), Mockito.any(), Mockito.any());
-        // Start tests.
-        TxnLogBufferedWriter txnLogBufferedWriter = new TxnLogBufferedWriter<>(managedLedger, orderedExecutor,
+        // Test threshold: writeMaxDelayInMillis.
+        TxnLogBufferedWriter txnLogBufferedWriter1 = new TxnLogBufferedWriter<>(managedLedger, orderedExecutor,
                 scheduledExecutorService, dataSerializer, 32, 1024 * 4, 100, true);
         TxnLogBufferedWriter.AddDataCallback callback = Mockito.mock(TxnLogBufferedWriter.AddDataCallback.class);
-        // Test threshold: writeMaxDelayInMillis.
-        txnLogBufferedWriter.asyncAddData(100, callback, 100);
+        txnLogBufferedWriter1.asyncAddData(100, callback, 100);
         Thread.sleep(90);
         // Verify does not refresh ahead of time.
         Assert.assertEquals(dataArrayFlushedToBookie.size(), 0);
-        Thread.sleep(11);
+        Thread.sleep(111);
+        Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> dataArrayFlushedToBookie.size() == 1);
+        Assert.assertEquals(dataArrayFlushedToBookie.get(0).intValue(), 100);
+        txnLogBufferedWriter1.close();
+
         // Test threshold: batchedWriteMaxRecords.
-        for (int i = 0; i < 32; i++){
-            txnLogBufferedWriter.asyncAddData(1, callback, 1);
-        }
-        // Test threshold: batchedWriteMaxSize.
         TxnLogBufferedWriter txnLogBufferedWriter2 = new TxnLogBufferedWriter<>(managedLedger, orderedExecutor,
-                scheduledExecutorService, dataSerializer, 1024, 64 * 4, 100, true);
-        for (int i = 0; i < 64; i++){
+                scheduledExecutorService, dataSerializer, 32, 1024 * 4, 10000, true);
+        for (int i = 0; i < 32; i++){
             txnLogBufferedWriter2.asyncAddData(1, callback, 1);
+        }
+        Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> dataArrayFlushedToBookie.size() == 2);
+        Assert.assertEquals(dataArrayFlushedToBookie.get(1).intValue(), 32);
+        txnLogBufferedWriter2.close();
+
+        // Test threshold: batchedWriteMaxSize.
+        TxnLogBufferedWriter txnLogBufferedWriter3 = new TxnLogBufferedWriter<>(managedLedger, orderedExecutor,
+                scheduledExecutorService, dataSerializer, 1024, 64 * 4, 10000, true);
+        for (int i = 0; i < 64; i++){
+            txnLogBufferedWriter3.asyncAddData(1, callback, 1);
         }
         // Assert 4 flush.
         Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> dataArrayFlushedToBookie.size() == 3);
-        Assert.assertEquals(dataArrayFlushedToBookie.get(0).intValue(), 100);
-        Assert.assertEquals(dataArrayFlushedToBookie.get(1).intValue(), 32);
         Assert.assertEquals(dataArrayFlushedToBookie.get(2).intValue(), 64);
+        txnLogBufferedWriter3.close();
+
         // Assert all resources released
         dataSerializer.assertAllByteBufHasBeenReleased();
         // clean up.
-        txnLogBufferedWriter.close();
-        txnLogBufferedWriter2.close();
         dataSerializer.cleanup();
         scheduledExecutorService.shutdown();
         orderedExecutor.shutdown();
