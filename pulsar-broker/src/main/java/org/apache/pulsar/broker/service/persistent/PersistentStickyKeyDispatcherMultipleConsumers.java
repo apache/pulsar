@@ -403,13 +403,19 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     }
 
     @Override
-    public synchronized void markDeletePositionMoveForward() {
-        if (recentlyJoinedConsumers != null && !recentlyJoinedConsumers.isEmpty()
-                && removeConsumersFromRecentJoinedConsumers()) {
-            // After we process acks, we need to check whether the mark-delete position was advanced and we can finally
-            // read more messages. It's safe to call readMoreEntries() multiple times.
-            readMoreEntries();
-        }
+    public void markDeletePositionMoveForward() {
+        // Execute the notification in different thread to avoid a mutex chain here
+        // from the delete operation that was completed
+        topic.getBrokerService().getTopicOrderedExecutor().execute(() -> {
+            synchronized (PersistentStickyKeyDispatcherMultipleConsumers.this) {
+                if (recentlyJoinedConsumers != null && !recentlyJoinedConsumers.isEmpty()
+                        && removeConsumersFromRecentJoinedConsumers()) {
+                    // After we process acks, we need to check whether the mark-delete position was advanced and we
+                    // can finally read more messages. It's safe to call readMoreEntries() multiple times.
+                    readMoreEntries();
+                }
+            }
+        });
     }
 
     private boolean removeConsumersFromRecentJoinedConsumers() {

@@ -94,7 +94,7 @@ public class BacklogQuotaManagerTest {
 
             // start pulsar service
             config = new ServiceConfiguration();
-            config.setMetadataStoreUrl("zk:127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+            config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
             config.setAdvertisedAddress("localhost");
             config.setWebServicePort(Optional.of(0));
             config.setClusterName("usc");
