@@ -58,7 +58,7 @@ public class TestCacheSizeAllocator extends MockedPulsarServiceBaseTest {
 
     @BeforeClass
     @Override
-    protected void setup() throws Exception {
+    public void setup() throws Exception {
         super.internalSetup();
 
         admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
@@ -72,12 +72,12 @@ public class TestCacheSizeAllocator extends MockedPulsarServiceBaseTest {
 
     @AfterClass
     @Override
-    protected void cleanup() throws Exception {
+    public void cleanup() throws Exception {
         super.internalCleanup();
     }
 
     @DataProvider(name = "cacheSizeProvider")
-    private Object[][] dataProvider() {
+    public Object[][] dataProvider() {
         return new Object[][] {
                 {-1}, {0}, {2000}, {5000}
         };

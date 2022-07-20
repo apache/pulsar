@@ -52,7 +52,7 @@ public class TestPulsarAuth extends MockedPulsarServiceBaseTest {
 
     @BeforeClass
     @Override
-    protected void setup() throws Exception {
+    public void setup() throws Exception {
         conf.setAuthenticationEnabled(true);
         conf.setAuthenticationProviders(
                 Sets.newHashSet("org.apache.pulsar.broker.authentication.AuthenticationProviderToken"));
@@ -80,7 +80,7 @@ public class TestPulsarAuth extends MockedPulsarServiceBaseTest {
 
     @AfterClass
     @Override
-    protected void cleanup() throws Exception {
+    public void cleanup() throws Exception {
         internalCleanup();
     }
 

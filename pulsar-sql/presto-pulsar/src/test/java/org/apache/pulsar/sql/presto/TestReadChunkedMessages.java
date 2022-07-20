@@ -74,7 +74,7 @@ public class TestReadChunkedMessages extends MockedPulsarServiceBaseTest {
 
     @BeforeClass
     @Override
-    protected void setup() throws Exception {
+    public void setup() throws Exception {
         conf.setMaxMessageSize(MAX_MESSAGE_SIZE);
         conf.setManagedLedgerMaxEntriesPerLedger(5);
         conf.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
@@ -91,7 +91,7 @@ public class TestReadChunkedMessages extends MockedPulsarServiceBaseTest {
 
     @AfterClass
     @Override
-    protected void cleanup() throws Exception {
+    public void cleanup() throws Exception {
         internalCleanup();
     }
 
