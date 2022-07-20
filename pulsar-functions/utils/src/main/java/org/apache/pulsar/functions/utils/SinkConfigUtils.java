@@ -234,6 +234,11 @@ public class SinkConfigUtils {
             sinkSpecBuilder.setBuiltin(builtin);
         }
 
+        if (!isEmpty(sinkConfig.getPreprocessFunction())
+                && sinkConfig.getPreprocessFunction().startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN)) {
+            functionDetailsBuilder.setBuiltin(sinkConfig.getPreprocessFunction().replaceFirst("^builtin://", ""));
+        }
+
         if (sinkConfig.getConfigs() != null) {
             sinkSpecBuilder.setConfigs(new Gson().toJson(sinkConfig.getConfigs()));
         }
@@ -378,6 +383,17 @@ public class SinkConfigUtils {
                 sinkConfig.setDeadLetterTopic(functionDetails.getRetryDetails().getDeadLetterTopic());
             }
         }
+
+        if (!isEmpty(functionDetails.getBuiltin())) {
+            sinkConfig.setPreprocessFunction("builtin://" + functionDetails.getBuiltin());
+        }
+        if (!functionDetails.getClassName().equals(IdentityFunction.class.getName())) {
+            sinkConfig.setPreprocessFunctionClassName(functionDetails.getClassName());
+        }
+        if (!isEmpty(functionDetails.getUserConfig())) {
+            sinkConfig.setPreprocessFunctionConfig(functionDetails.getUserConfig());
+        }
+
 
         return sinkConfig;
     }
@@ -651,6 +667,15 @@ public class SinkConfigUtils {
         }
         if (newConfig.getCleanupSubscription() != null) {
             mergedConfig.setCleanupSubscription(newConfig.getCleanupSubscription());
+        }
+        if (newConfig.getPreprocessFunction() != null) {
+            mergedConfig.setPreprocessFunction(newConfig.getPreprocessFunction());
+        }
+        if (newConfig.getPreprocessFunctionClassName() != null) {
+            mergedConfig.setPreprocessFunctionClassName(newConfig.getPreprocessFunctionClassName());
+        }
+        if (newConfig.getPreprocessFunctionConfig() != null) {
+            mergedConfig.setPreprocessFunctionConfig(newConfig.getPreprocessFunctionConfig());
         }
 
         return mergedConfig;
