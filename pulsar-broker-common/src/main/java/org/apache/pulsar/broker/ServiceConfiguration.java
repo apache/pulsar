@@ -506,7 +506,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @Deprecated
     @FieldContext(
         category = CATEGORY_POLICIES,
-        doc = "@deprecated - Use backlogQuotaDefaultLimitByte instead.\""
+        doc = "@deprecated - Use backlogQuotaDefaultLimitByte instead."
     )
     private double backlogQuotaDefaultLimitGB = -1;
 
@@ -646,7 +646,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_POLICIES,
         dynamic = true,
-        doc = "Enable Key_Shared subscription (default is enabled)"
+        doc = "Enable Key_Shared subscription (default is enabled).\n"
+            + "@deprecated - use subscriptionTypesEnabled instead."
     )
     private boolean subscriptionKeySharedEnable = true;
 
@@ -1020,6 +1021,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "The read failure backoff mandatory stop time in milliseconds. By default it is 0s."
     )
     private int dispatcherReadFailureBackoffMandatoryStopTimeInMs = 0;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_SERVER,
+            doc = "Time in milliseconds to delay the new delivery of a message when an EntryFilter returns RESCHEDULE."
+    )
+    private int dispatcherEntryFilterRescheduledMessageDelay = 1000;
 
     @FieldContext(
         dynamic = true,
@@ -1896,7 +1904,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
         deprecated = true,
         doc = "Max number of `acknowledgment holes` that can be stored in Zookeeper.\n\n"
             + "If number of unack message range is higher than this limit then broker will persist"
-            + " unacked ranges into bookkeeper to avoid additional data overhead into zookeeper.")
+            + " unacked ranges into bookkeeper to avoid additional data overhead into zookeeper.\n"
+            + "@deprecated - use managedLedgerMaxUnackedRangesToPersistInMetadataStore.")
     private int managedLedgerMaxUnackedRangesToPersistInZooKeeper = -1;
     @FieldContext(
             category = CATEGORY_STORAGE_ML,
@@ -2305,7 +2314,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_POLICIES,
         deprecated = true,
         doc = "How often broker checks for inactive topics to be deleted (topics with no subscriptions and no one "
-                + "connected) Deprecated in favor of using `brokerDeleteInactiveTopicsFrequencySeconds`"
+                + "connected) Deprecated in favor of using `brokerDeleteInactiveTopicsFrequencySeconds`\n"
+                + "@deprecated - unused."
     )
     private int brokerServicePurgeInactiveFrequencyInSeconds = 60;
     @FieldContext(
@@ -2653,6 +2663,67 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private long transactionPendingAckLogIndexMinLag = 500L;
 
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            dynamic = true,
+            doc = "Provide a mechanism allowing the Transaction Log Store to aggregate multiple records into a batched"
+                    + " record and persist into a single BK entry. This will make Pulsar transactions work more"
+                    + " efficiently, aka batched log. see: https://github.com/apache/pulsar/issues/15370. Default false"
+    )
+    private boolean transactionLogBatchedWriteEnabled = false;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "If enabled the feature that transaction log batch, this attribute means maximum log records count"
+                    + " in a batch, default 512."
+    )
+    private int transactionLogBatchedWriteMaxRecords = 512;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "If enabled the feature that transaction log batch, this attribute means bytes size in a"
+                    + " batch, default 4m."
+    )
+    private int transactionLogBatchedWriteMaxSize = 1024 * 1024 * 4;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "If enabled the feature that transaction log batch, this attribute means maximum wait time(in millis)"
+                    + " for the first record in a batch, default 1 millisecond."
+    )
+    private int transactionLogBatchedWriteMaxDelayInMillis = 1;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            dynamic = true,
+            doc = "Provide a mechanism allowing the transaction pending ack Log Store to aggregate multiple records"
+                    + " into a batched record and persist into a single BK entry. This will make Pulsar transactions"
+                    + " work more efficiently, aka batched log. see: https://github.com/apache/pulsar/issues/15370."
+                    + " Default false."
+    )
+    private boolean transactionPendingAckBatchedWriteEnabled = false;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "If enabled the feature that transaction log batch, this attribute means maximum log records count"
+                    + " in a batch, default 512."
+    )
+    private int transactionPendingAckBatchedWriteMaxRecords = 512;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "If enabled the feature that transaction pending ack log batch, this attribute means bytes size in"
+                    + " a batch, default 4m."
+    )
+    private int transactionPendingAckBatchedWriteMaxSize = 1024 * 1024 * 4;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "If enabled the feature that transaction pending ack log batch, this attribute means maximum wait"
+                    + " time(in millis) for the first record in a batch, default 1 millisecond."
+    )
+    private int transactionPendingAckBatchedWriteMaxDelayInMillis = 1;
+
     /**** --- KeyStore TLS config variables. --- ****/
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
@@ -2796,12 +2867,22 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private Set<String> additionalServlets = new TreeSet<>();
 
+    /**
+     * @deprecated Use {@link #getSubscriptionTypesEnabled()} instead
+     */
+    @Deprecated
+    public boolean isSubscriptionKeySharedEnable() {
+        return subscriptionKeySharedEnable && subscriptionTypesEnabled.contains("Key_Shared");
+    }
+
     public String getMetadataStoreUrl() {
         if (StringUtils.isNotBlank(metadataStoreUrl)) {
             return metadataStoreUrl;
-        } else {
+        } else if (StringUtils.isNotBlank(zookeeperServers)) {
             // Fallback to old setting
-            return zookeeperServers;
+            return ZKMetadataStore.ZK_SCHEME_IDENTIFIER + zookeeperServers;
+        } else {
+            return "";
         }
     }
 
@@ -2839,15 +2920,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
         } else {
             // Fallback to same metadata service used by broker, adding the "metadata-store" to specify the BK
             // metadata adapter
-            String suffix;
-            if (StringUtils.isNotBlank(metadataStoreUrl)) {
-                suffix = metadataStoreUrl;
-            } else {
-                // Fallback to old setting
-                // Note: chroot is not settable by using 'zookeeperServers' config.
-                suffix = ZKMetadataStore.ZK_SCHEME_IDENTIFIER + zookeeperServers;
-            }
-            return "metadata-store:" + suffix + BookKeeperConstants.DEFAULT_ZK_LEDGERS_ROOT_PATH;
+            // Note: chroot is not settable by using 'zookeeperServers' config.
+            return "metadata-store:" + getMetadataStoreUrl() + BookKeeperConstants.DEFAULT_ZK_LEDGERS_ROOT_PATH;
         }
     }
 

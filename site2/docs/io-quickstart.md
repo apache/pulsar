@@ -6,13 +6,13 @@ sidebar_label: "Get started"
 
 This tutorial provides a hands-on look at how you can move data out of Pulsar without writing a single line of code.  
 
-It is helpful to review the [concepts](io-overview.md) for Pulsar I/O with running the steps in this guide to gain a deeper understanding.   
+It is helpful to review the [concepts](io-overview.md) for Pulsar I/O by running the steps in this guide to gain a deeper understanding.   
 
 At the end of this tutorial, you are able to:
 
-- [Connect Pulsar to Cassandra](#Connect-Pulsar-to-Cassandra)
+- [Connect Pulsar to Cassandra](#connect-pulsar-to-cassandra)
   
-- [Connect Pulsar to PostgreSQL](#Connect-Pulsar-to-PostgreSQL)
+- [Connect Pulsar to PostgreSQL](#connect-pulsar-to-postgreSQL)
 
 :::tip
 
@@ -112,7 +112,7 @@ This section demonstrates how to connect Pulsar to Cassandra.
 
 :::
 
-### Setup a Cassandra cluster
+### Set up a Cassandra cluster
 
 This example uses `cassandra` Docker image to start a single-node Cassandra cluster in Docker.
 
@@ -239,13 +239,15 @@ For more information, see [Cassandra sink connector](io-cassandra-sink.md).
 
 ### Create a Cassandra sink
 
-You can use the [Connector Admin CLI](/tools/pulsar-admin/) 
-to create a sink connector and perform other operations on them.
+You can use the [Connector Admin CLI](/tools/pulsar-admin/) to create a sink connector and perform other operations on them.
 
 Run the following command to create a Cassandra sink connector with sink type _cassandra_ and the config file _examples/cassandra-sink.yml_ created previously.
 
-#### Note
-> The `sink-type` parameter of the currently built-in connectors is determined by the setting of the `name` parameter specified in the pulsar-io.yaml file.
+:::note
+
+The `sink-type` parameter of the currently built-in connectors is determined by the setting of the `name` parameter specified in the _pulsar-io.yaml_ file.
+
+:::
 
 ```bash
 
@@ -261,13 +263,11 @@ bin/pulsar-admin sinks create \
 
 Once the command is executed, Pulsar creates the sink connector _cassandra-test-sink_. 
 
-This sink connector runs
-as a Pulsar Function and writes the messages produced in the topic _test_cassandra_ to the Cassandra table _pulsar_test_table_.
+This sink connector runs as a Pulsar Function and writes the messages produced in the topic _test_cassandra_ to the Cassandra table _pulsar_test_table_.
 
 ### Inspect a Cassandra sink
 
-You can use the [Connector Admin CLI](/tools/pulsar-admin/) 
-to monitor a connector and perform other operations on it.
+You can use the [Connector Admin CLI](/tools/pulsar-admin/) to monitor a connector and perform other operations on it.
 
 * Get the information of a Cassandra sink. 
 
@@ -449,15 +449,12 @@ This section demonstrates how to connect Pulsar to PostgreSQL.
 :::tip
 
 * Make sure you have Docker installed. If you do not have one, see [install Docker](https://docs.docker.com/docker-for-mac/install/).
-* The JDBC sink connector pulls messages from Pulsar topics 
+* The JDBC sink connector pulls messages from Pulsar topics and persists the messages to ClickHouse, MariaDB, PostgreSQL, or SQLite. For more information, see [JDBC sink connector](io-jdbc-sink.md).
 
 :::
 
-and persists the messages to ClickHouse, MariaDB, PostgreSQL, or SQlite. 
->For more information, see [JDBC sink connector](io-jdbc-sink.md).
 
-
-### Setup a PostgreSQL cluster
+### Set up a PostgreSQL cluster
 
 This example uses the PostgreSQL 12 docker image to start a single-node PostgreSQL cluster in Docker.
 
@@ -636,13 +633,13 @@ This sink connector runs as a Pulsar Function and writes the messages produced i
 
  #### Tip
 
- Flag | Description | This example 
+ Flag | Description | Example 
  ---|---|---|
- `--archive` | The path to the archive file for the sink. | _pulsar-io-jdbc-postgres-@pulsar:version@.nar_ |
+ `--archive` | The path to the archive file for the sink. | pulsar-io-jdbc-postgres-@pulsar:version@.nar |
  `--inputs` | The input topic(s) of the sink. <br /><br /> Multiple topics can be specified as a comma-separated list.||
- `--name` | The name of the sink. | _pulsar-postgres-jdbc-sink_ |
- `--sink-config-file` | The path to a YAML config file specifying the configuration of the sink. | _pulsar-postgres-jdbc-sink.yaml_ |
- `--parallelism` | The parallelism factor of the sink. <br /><br /> For example, the number of sink instances to run. |  _1_ |
+ `--name` | The name of the sink. | pulsar-postgres-jdbc-sink |
+ `--sink-config-file` | The path to a YAML config file specifying the configuration of the sink. | pulsar-postgres-jdbc-sink.yaml |
+ `--parallelism` | The parallelism factor of the sink. <br /><br /> For example, the number of sink instances to run. |  1 |
 
 :::tip
 
@@ -780,8 +777,7 @@ to monitor a connector and perform other operations on it.
 
 ### Stop a JDBC sink
 
-You can use the [Connector Admin CLI](/tools/pulsar-admin/) 
-to stop a connector and perform other operations on it.
+You can use the [Connector Admin CLI](/tools/pulsar-admin/) to stop a connector and perform other operations on it.
 
 ```bash
 
@@ -808,8 +804,7 @@ Stopped successfully
 
 ### Restart a JDBC sink
 
-You can use the [Connector Admin CLI](/tools/pulsar-admin/) 
-to restart a connector and perform other operations on it.
+You can use the [Connector Admin CLI](/tools/pulsar-admin/) to restart a connector and perform other operations on it.
 
 ```bash
 
@@ -844,8 +839,7 @@ Note that `pulsar-admin sinks localrun options` **runs a sink connector locally*
 
 ### Update a JDBC sink
 
-You can use the [Connector Admin CLI](/tools/pulsar-admin/) 
-to update a connector and perform other operations on it.
+You can use the [Connector Admin CLI](/tools/pulsar-admin/) to update a connector and perform other operations on it.
 
 This example updates the parallelism of the _pulsar-postgres-jdbc-sink_ sink connector to 2.
 

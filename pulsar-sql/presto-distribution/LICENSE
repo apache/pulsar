@@ -274,22 +274,22 @@ The Apache Software License, Version 2.0
     - joda-time-2.10.5.jar
     - failsafe-2.4.4.jar
   * Jetty
-    - http2-client-9.4.44.v20210927.jar
-    - http2-common-9.4.44.v20210927.jar
-    - http2-hpack-9.4.44.v20210927.jar
-    - http2-http-client-transport-9.4.44.v20210927.jar
-    - jetty-alpn-client-9.4.44.v20210927.jar
-    - http2-server-9.4.44.v20210927.jar
-    - jetty-alpn-java-client-9.4.44.v20210927.jar
-    - jetty-client-9.4.44.v20210927.jar
-    - jetty-http-9.4.44.v20210927.jar
-    - jetty-io-9.4.44.v20210927.jar
-    - jetty-jmx-9.4.44.v20210927.jar
-    - jetty-security-9.4.44.v20210927.jar
-    - jetty-server-9.4.44.v20210927.jar
-    - jetty-servlet-9.4.44.v20210927.jar
-    - jetty-util-9.4.44.v20210927.jar
-    - jetty-util-ajax-9.4.44.v20210927.jar
+    - http2-client-9.4.48.v20220622.jar
+    - http2-common-9.4.48.v20220622.jar
+    - http2-hpack-9.4.48.v20220622.jar
+    - http2-http-client-transport-9.4.48.v20220622.jar
+    - jetty-alpn-client-9.4.48.v20220622.jar
+    - http2-server-9.4.48.v20220622.jar
+    - jetty-alpn-java-client-9.4.48.v20220622.jar
+    - jetty-client-9.4.48.v20220622.jar
+    - jetty-http-9.4.48.v20220622.jar
+    - jetty-io-9.4.48.v20220622.jar
+    - jetty-jmx-9.4.48.v20220622.jar
+    - jetty-security-9.4.48.v20220622.jar
+    - jetty-server-9.4.48.v20220622.jar
+    - jetty-servlet-9.4.48.v20220622.jar
+    - jetty-util-9.4.48.v20220622.jar
+    - jetty-util-ajax-9.4.48.v20220622.jar
   * Apache BVal
     - bval-jsr-2.0.0.jar
   * Bytecode
@@ -419,10 +419,14 @@ The Apache Software License, Version 2.0
     - metrics-graphite-4.1.12.1.jar
     - metrics-jvm-4.1.12.1.jar
   * Prometheus
-    - simpleclient-0.5.0.jar
-    - simpleclient_common-0.5.0.jar
-    - simpleclient_hotspot-0.5.0.jar
-    - simpleclient_servlet-0.5.0.jar
+    - simpleclient-0.16.0.jar
+    - simpleclient_common-0.16.0.jar
+    - simpleclient_hotspot-0.16.0.jar
+    - simpleclient_servlet-0.16.0.jar
+    - simpleclient_servlet_common-0.16.0.jar
+    - simpleclient_tracer_common-0.16.0.jar
+    - simpleclient_tracer_otel-0.16.0.jar
+    - simpleclient_tracer_otel_agent-0.16.0.jar
   * JCTools
     - jctools-core-2.1.2.jar
   * Asynchronous Http Client
@@ -508,8 +512,6 @@ MIT License
    - slf4j-jdk14-1.7.32.jar
  * JCL 1.2 Implemented Over SLF4J
    - jcl-over-slf4j-1.7.32.jar
- * JUL to SLF4J Bridge
-   - jul-to-slf4j-1.7.32.jar
  * Checker Qual
    - checker-qual-3.12.0.jar 
  * Annotations

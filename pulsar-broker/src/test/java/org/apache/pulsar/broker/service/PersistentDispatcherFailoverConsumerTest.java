@@ -31,6 +31,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertSame;
@@ -47,6 +48,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.function.Supplier;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
@@ -360,7 +362,8 @@ public class PersistentDispatcherFailoverConsumerTest {
         // 4. Verify active consumer
         assertSame(pdfc.getActiveConsumer().consumerName(), consumer1.consumerName());
         // get the notified with who is the leader
-        change = consumerChanges.take();
+        change = consumerChanges.poll(10, TimeUnit.SECONDS);
+        assertNotNull(change);
         verifyActiveConsumerChange(change, 1, true);
         verify(consumer1, times(2)).notifyActiveConsumerChange(same(consumer1));
 
@@ -372,7 +375,8 @@ public class PersistentDispatcherFailoverConsumerTest {
         assertSame(pdfc.getActiveConsumer().consumerName(), consumer1.consumerName());
         assertEquals(3, consumers.size());
         // get notified with who is the leader
-        change = consumerChanges.take();
+        change = consumerChanges.poll(10, TimeUnit.SECONDS);
+        assertNotNull(change);
         verifyActiveConsumerChange(change, 2, false);
         verify(consumer1, times(2)).notifyActiveConsumerChange(same(consumer1));
         verify(consumer2, times(1)).notifyActiveConsumerChange(same(consumer1));
@@ -387,13 +391,17 @@ public class PersistentDispatcherFailoverConsumerTest {
         assertEquals(4, consumers.size());
 
         // all consumers will receive notifications
-        change = consumerChanges.take();
+        change = consumerChanges.poll(10, TimeUnit.SECONDS);
+        assertNotNull(change);
         verifyActiveConsumerChange(change, 0, true);
-        change = consumerChanges.take();
+        change = consumerChanges.poll(10, TimeUnit.SECONDS);
+        assertNotNull(change);
         verifyActiveConsumerChange(change, 1, false);
-        change = consumerChanges.take();
+        change = consumerChanges.poll(10, TimeUnit.SECONDS);
+        assertNotNull(change);
         verifyActiveConsumerChange(change, 1, false);
-        change = consumerChanges.take();
+        change = consumerChanges.poll(10, TimeUnit.SECONDS);
+        assertNotNull(change);
         verifyActiveConsumerChange(change, 2, false);
         verify(consumer0, times(1)).notifyActiveConsumerChange(same(consumer0));
         verify(consumer1, times(2)).notifyActiveConsumerChange(same(consumer1));
@@ -419,9 +427,11 @@ public class PersistentDispatcherFailoverConsumerTest {
         assertEquals(2, consumers.size());
 
         // the remaining consumers will receive notifications
-        change = consumerChanges.take();
+        change = consumerChanges.poll(10, TimeUnit.SECONDS);
+        assertNotNull(change);
         verifyActiveConsumerChange(change, 1, true);
-        change = consumerChanges.take();
+        change = consumerChanges.poll(10, TimeUnit.SECONDS);
+        assertNotNull(change);
         verifyActiveConsumerChange(change, 1, true);
 
         // 10. Attempt to remove already removed consumer

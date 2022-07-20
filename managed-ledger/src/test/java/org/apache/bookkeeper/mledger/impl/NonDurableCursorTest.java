@@ -282,13 +282,15 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
         ManagedLedger ledger = factory.open("my_test_ledger");
         ManagedCursor cursor = ledger.openCursor("c1");
         ledger.addEntry("dummy-entry-1".getBytes(Encoding));
+        ledger.addEntry("dummy-entry-2".getBytes(Encoding));
         List<Entry> entries = cursor.readEntries(100);
+        assertEquals(entries.size(), 2);
+        cursor.markDelete(entries.get(0).getPosition());
 
         stopBookKeeper();
-        assertEquals(entries.size(), 1);
 
         // Mark-delete should succeed if BK is down
-        cursor.markDelete(entries.get(0).getPosition());
+        cursor.markDelete(entries.get(1).getPosition());
 
         entries.forEach(Entry::release);
     }

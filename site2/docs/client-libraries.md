@@ -6,15 +6,15 @@ sidebar_label: "Overview"
 
 Pulsar supports the following client libraries:
 
-|Language|Documentation|Release note|Code repo
-|---|---|---|---
-Java |- [User doc](client-libraries-java.md) <br /><br />- [API doc](/api/client/)|[Here](/release-notes/)|[Here](https://github.com/apache/pulsar/tree/master/pulsar-client) 
-C++ | - [User doc](client-libraries-cpp.md) <br /><br />- [API doc](/api/cpp/)|[Here](/release-notes/)|[Here](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp) 
-Python | - [User doc](client-libraries-python.md) <br /><br />- [API doc](/api/python/)|[Here](/release-notes/)|[Here](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/python) 
-WebSocket| [User doc](client-libraries-websocket.md) | [Here](/release-notes/)|[Here](https://github.com/apache/pulsar/tree/master/pulsar-websocket) 
-Go client|[User doc](client-libraries-go.md)|[Here](https://github.com/apache/pulsar-client-go/blob/master/CHANGELOG) |[Here](https://github.com/apache/pulsar-client-go) 
-Node.js|[User doc](client-libraries-node.md)|[Here](https://github.com/apache/pulsar-client-node/releases) |[Here](https://github.com/apache/pulsar-client-node) 
-C# |[User doc](client-libraries-dotnet.md)| [Here](https://github.com/apache/pulsar-dotpulsar/blob/master/CHANGELOG)|[Here](https://github.com/apache/pulsar-dotpulsar) 
+| Language  | Documentation                                                                 | Release note                                                             | Code repo                                                                     |
+|-----------|-------------------------------------------------------------------------------|--------------------------------------------------------------------------|-------------------------------------------------------------------------------|
+| Java      | - [User doc](client-libraries-java.md) <br/><br/> - [API doc](/api/client/)   | [Here](/release-notes/)                                                  | [Here](https://github.com/apache/pulsar/tree/master/pulsar-client)            |
+| C++       | - [User doc](client-libraries-cpp.md) <br/><br/> - [API doc](/api/cpp/)       | [Here](/release-notes/)                                                  | [Here](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp)        |
+| Python    | - [User doc](client-libraries-python.md) <br/><br/> - [API doc](/api/python/) | [Here](/release-notes/)                                                  | [Here](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/python) |
+| WebSocket | [User doc](client-libraries-websocket.md)                                     | [Here](/release-notes/)                                                  | [Here](https://github.com/apache/pulsar/tree/master/pulsar-websocket)         |
+| Go client | [User doc](client-libraries-go.md)                                            | [Here](https://github.com/apache/pulsar-client-go/blob/master/CHANGELOG) | [Here](https://github.com/apache/pulsar-client-go)                            |
+| Node.js   | [User doc](client-libraries-node.md)                                          | [Here](https://github.com/apache/pulsar-client-node/releases)            | [Here](https://github.com/apache/pulsar-client-node)                          |
+| C#        | [User doc](client-libraries-dotnet.md)                                        | [Here](https://github.com/apache/pulsar-dotpulsar/blob/master/CHANGELOG) | [Here](https://github.com/apache/pulsar-dotpulsar)                            |
 
 :::note
 
@@ -42,3 +42,4 @@ Besides the official released clients, multiple projects on developing Pulsar cl
 | Rust | [pulsar-rs](https://github.com/wyyerd/pulsar-rs) | [Wyyerd Group](https://github.com/wyyerd) | [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) | Future-based Rust bindings for Apache Pulsar |
 | .NET | [pulsar-client-dotnet](https://github.com/fsharplang-ru/pulsar-client-dotnet) | [Lanayx](https://github.com/Lanayx) | [![GitHub](https://img.shields.io/badge/license-MIT-green.svg)](https://opensource.org/licenses/MIT) | Native .NET client for C#/F#/VB |
 | Node.js | [pulsar-flex](https://github.com/ayeo-flex-org/pulsar-flex) | [Daniel Sinai](https://github.com/danielsinai), [Ron Farkash](https://github.com/ronfarkash), [Gal Rosenberg](https://github.com/galrose)| [![GitHub](https://img.shields.io/badge/license-MIT-green.svg)](https://opensource.org/licenses/MIT) | Native Nodejs client |
+| PHP | [pulsar-client-php](https://github.com/ikilobyte/pulsar-client-php) | [ikilobyte](https://github.com/ikilobyte) | [![GitHub](https://img.shields.io/badge/license-MIT-green.svg)](https://opensource.org/licenses/MIT) | Native PHP client |

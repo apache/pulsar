@@ -70,7 +70,6 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.intercept.CounterBrokerInterceptor;
 import org.apache.pulsar.broker.service.BacklogQuotaManager;
 import org.apache.pulsar.broker.service.BrokerService;
@@ -136,8 +135,8 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.powermock.reflect.Whitebox;
 import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 /**
@@ -150,9 +149,14 @@ public class TransactionTest extends TransactionTestBase {
     private static final int NUM_BROKERS = 1;
     private static final int NUM_PARTITIONS = 1;
 
-    @BeforeMethod
+    @BeforeClass
     protected void setup() throws Exception {
        setUpBase(NUM_BROKERS, NUM_PARTITIONS, NAMESPACE1 + "/test", 0);
+    }
+
+    @AfterClass(alwaysRun = true)
+    protected void cleanup() throws Exception {
+        super.internalCleanup();
     }
 
     @Test
@@ -257,12 +261,6 @@ public class TransactionTest extends TransactionTestBase {
                 NamespaceName.SYSTEM_NAMESPACE, TRANSACTION_LOG_PREFIX).toString() + 0));
         Assert.assertNull(topics.get(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.getPartition(0).toString()));
         Assert.assertNull(topics.get(MLPendingAckStore.getTransactionPendingAckStoreSuffix(topicName, subName)));
-    }
-
-
-    @AfterMethod(alwaysRun = true)
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
     }
 
     public Consumer<byte[]> getConsumer(String topicName, String subName) throws PulsarClientException {
@@ -371,7 +369,7 @@ public class TransactionTest extends TransactionTestBase {
 
         ReaderBuilder<TransactionBufferSnapshot> readerBuilder = pulsarClient
                 .newReader(Schema.AVRO(TransactionBufferSnapshot.class))
-                .startMessageId(MessageId.earliest)
+                .startMessageId(MessageId.latest)
                 .topic(NAMESPACE1 + "/" + SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
         Reader<TransactionBufferSnapshot> reader = readerBuilder.create();
 
@@ -679,7 +677,7 @@ public class TransactionTest extends TransactionTestBase {
 
     @Test
     public void testEndTCRecoveringWhenManagerLedgerDisReadable() throws Exception{
-        String topic = NAMESPACE1 + "/testEndTBRecoveringWhenManagerLedgerDisReadable";
+        String topic = NAMESPACE1 + "/testEndTCRecoveringWhenManagerLedgerDisReadable";
         admin.topics().createNonPartitionedTopic(topic);
 
         PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0).getBrokerService()
@@ -752,6 +750,9 @@ public class TransactionTest extends TransactionTestBase {
 
     @Test
     public void testEndTxnWhenCommittingOrAborting() throws Exception {
+        CounterBrokerInterceptor listener = (CounterBrokerInterceptor) getPulsarServiceList().get(0)
+                .getBrokerInterceptor();
+        listener.reset();
         Transaction commitTxn = pulsarClient
                 .newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
@@ -770,7 +771,7 @@ public class TransactionTest extends TransactionTestBase {
         field.set(commitTxn, TransactionImpl.State.COMMITTING);
         field.set(abortTxn, TransactionImpl.State.ABORTING);
 
-        BrokerInterceptor listener = getPulsarServiceList().get(0).getBrokerInterceptor();
+
         assertEquals(((CounterBrokerInterceptor)listener).getTxnCount(),2);
         abortTxn.abort().get();
         assertEquals(((CounterBrokerInterceptor)listener).getAbortedTxnCount(),1);

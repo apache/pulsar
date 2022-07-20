@@ -87,11 +87,6 @@
       <artifactId>jackson-jaxrs-json-provider</artifactId>
     </dependency>
 
-    <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>jul-to-slf4j</artifactId>
-    </dependency>
-
 		<!-- To write basic websockets against -->
     <dependency>
       <groupId>org.eclipse.jetty.websocket</groupId>

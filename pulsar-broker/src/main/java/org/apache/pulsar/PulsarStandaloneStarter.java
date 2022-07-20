@@ -121,7 +121,7 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
         return Arrays.asList(args).contains(arg);
     }
 
-    public static void main(String args[]) throws Exception {
+    public static void main(String[] args) throws Exception {
         // Start standalone
         PulsarStandaloneStarter standalone = new PulsarStandaloneStarter(args);
         try {
