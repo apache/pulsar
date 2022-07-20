@@ -21,6 +21,7 @@ package org.apache.pulsar.io.debezium;
 import static org.apache.commons.lang.StringUtils.isBlank;
 import static org.apache.pulsar.io.common.IOConfigUtils.loadConfigFromJsonString;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.common.annotations.VisibleForTesting;
 import io.debezium.annotation.ThreadSafe;
 import io.debezium.config.Configuration;
 import io.debezium.config.Field;
@@ -232,12 +233,7 @@ public final class PulsarDatabaseHistory extends AbstractDatabaseHistory {
     @Override
     protected void recoverRecords(Consumer<HistoryRecord> records) {
         setupClientIfNeeded();
-        try (Reader<String> historyReader = pulsarClient.newReader(Schema.STRING)
-                .topic(topicName)
-                .startMessageId(MessageId.earliest)
-                .loadConf(readerConfigMap)
-            .create()
-        ) {
+        try (Reader<String> historyReader = createHistoryReader()) {
             log.info("Scanning the database history topic '{}'", topicName);
 
             // Read all messages in the topic ...
@@ -280,12 +276,7 @@ public final class PulsarDatabaseHistory extends AbstractDatabaseHistory {
     @Override
     public boolean exists() {
         setupClientIfNeeded();
-        try (Reader<String> historyReader = pulsarClient.newReader(Schema.STRING)
-                .topic(topicName)
-                .startMessageId(MessageId.earliest)
-                .loadConf(readerConfigMap)
-            .create()
-        ) {
+        try (Reader<String> historyReader = createHistoryReader()) {
             return historyReader.hasMessageAvailable();
         } catch (IOException e) {
             log.error("Encountered issues on checking existence of database history", e);
@@ -304,5 +295,14 @@ public final class PulsarDatabaseHistory extends AbstractDatabaseHistory {
             return "Pulsar topic (" + topicName + ")";
         }
         return "Pulsar topic";
+    }
+
+    @VisibleForTesting
+    Reader<String> createHistoryReader() throws PulsarClientException {
+        return pulsarClient.newReader(Schema.STRING)
+                .topic(topicName)
+                .startMessageId(MessageId.earliest)
+                .loadConf(readerConfigMap)
+                .create();
     }
 }

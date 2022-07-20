@@ -21,6 +21,7 @@ package org.apache.pulsar.io.debezium;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 import io.debezium.config.Configuration;
 import io.debezium.connector.mysql.antlr.MySqlAntlrDdlParser;
@@ -41,6 +42,7 @@ import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -251,10 +253,14 @@ public class PulsarDatabaseHistoryTest extends ProducerConsumerBase {
 
     @Test
     public void testSubscriptionName() throws Exception {
-        // happy path
         testHistoryTopicContent(true, false, true);
         assertTrue(history.exists());
-        List<String> subscriptions = admin.topics().getSubscriptions(topicName);
-        assertTrue(subscriptions.contains("my-subscription"));
+        try (Reader<String> ignored = history.createHistoryReader()) {
+            List<String> subscriptions = admin.topics().getSubscriptions(topicName);
+            assertEquals(subscriptions.size(), 1);
+            assertTrue(subscriptions.contains("my-subscription"));
+        } catch (Exception e) {
+            fail("Failed to create history reader");
+        }
     }
 }
