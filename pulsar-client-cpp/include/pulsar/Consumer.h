@@ -390,6 +390,17 @@ class PULSAR_PUBLIC Consumer {
      */
     bool isConnected() const;
 
+    /**
+     * Asynchronously get an ID of the last available message or a message ID with -1 as an entryId if the
+     * topic is empty.
+     */
+    void getLastMessageIdAsync(GetLastMessageIdCallback callback);
+
+    /**
+     * Get an ID of the last available message or a message ID with -1 as an entryId if the topic is empty.
+     */
+    Result getLastMessageId(MessageId& messageId);
+
    private:
     ConsumerImplBasePtr impl_;
     explicit Consumer(ConsumerImplBasePtr);

@@ -216,7 +216,7 @@ public class FunctionRuntimeManager implements AutoCloseable {
         }
         // initialize runtime
         this.runtimeFactory.initialize(workerConfig, authConfig,
-                secretsProviderConfigurator, connectorsManager,
+                secretsProviderConfigurator, connectorsManager, functionsManager,
                 functionAuthProvider, runtimeCustomizer);
 
         this.functionActioner = new FunctionActioner(this.workerConfig, runtimeFactory,

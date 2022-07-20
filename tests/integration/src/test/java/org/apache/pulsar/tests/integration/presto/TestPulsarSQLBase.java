@@ -31,6 +31,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicName;
@@ -40,9 +43,6 @@ import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.suites.PulsarSQLTestSuite;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.awaitility.Awaitility;
-import org.testcontainers.shaded.okhttp3.OkHttpClient;
-import org.testcontainers.shaded.okhttp3.Request;
-import org.testcontainers.shaded.okhttp3.Response;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 
@@ -56,7 +56,7 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
     protected void pulsarSQLBasicTest(TopicName topic,
                                       boolean isBatch,
                                       boolean useNsOffloadPolices,
-                                      Schema schema,
+                                      Schema<?> schema,
                                       CompressionType compressionType) throws Exception {
         log.info("Pulsar SQL basic test. topic: {}", topic);
 
@@ -133,7 +133,7 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
     protected int prepareData(TopicName topicName,
                               boolean isBatch,
                               boolean useNsOffloadPolices,
-                              Schema schema,
+                              Schema<?> schema,
                               CompressionType compressionType) throws Exception {
         throw new Exception("Unsupported operation prepareData.");
     }
@@ -159,11 +159,11 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
         );
     }
 
-    protected void validateContent(int messageNum, String[] contentArr, Schema schema) throws Exception {
+    protected void validateContent(int messageNum, String[] contentArr, Schema<?> schema) throws Exception {
         throw new Exception("Unsupported operation validateContent.");
     }
 
-    private void validateData(TopicName topicName, int messageNum, Schema schema) throws Exception {
+    private void validateData(TopicName topicName, int messageNum, Schema<?> schema) throws Exception {
         String namespace = topicName.getNamespace();
         String topic = topicName.getLocalName();
 

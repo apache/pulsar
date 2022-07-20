@@ -101,7 +101,6 @@ import org.apache.pulsar.broker.resources.ClusterResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.rest.Topics;
 import org.apache.pulsar.broker.service.BrokerService;
-import org.apache.pulsar.broker.service.GracefulExecutorServicesShutdown;
 import org.apache.pulsar.broker.service.SystemTopicBaseTxnBufferSnapshotService;
 import org.apache.pulsar.broker.service.SystemTopicBasedTopicPoliciesService;
 import org.apache.pulsar.broker.service.Topic;
@@ -132,6 +131,7 @@ import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 import org.apache.pulsar.client.internal.PropertiesUtils;
 import org.apache.pulsar.client.util.ExecutorProvider;
+import org.apache.pulsar.client.util.ScheduledExecutorProvider;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.configuration.VipStatus;
@@ -142,6 +142,7 @@ import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.protocol.schema.SchemaStorage;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
 import org.apache.pulsar.common.util.ThreadDumpUtil;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.compaction.Compactor;
@@ -208,7 +209,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private OrderedScheduler offloaderScheduler;
     private OffloadersCache offloadersCache = new OffloadersCache();
     private LedgerOffloader defaultOffloader;
-    private final LedgerOffloaderStats offloaderStats;
+    private LedgerOffloaderStats offloaderStats;
     private Map<NamespaceName, LedgerOffloader> ledgerOffloaderMap = new ConcurrentHashMap<>();
     private ScheduledFuture<?> loadReportTask = null;
     private ScheduledFuture<?> loadSheddingTask = null;
@@ -236,6 +237,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     protected final EventLoopGroup ioEventLoopGroup;
     private final ExecutorProvider brokerClientSharedInternalExecutorProvider;
     private final ExecutorProvider brokerClientSharedExternalExecutorProvider;
+    private final ScheduledExecutorProvider brokerClientSharedScheduledExecutorProvider;
     private final Timer brokerClientSharedTimer;
 
     private MetricsGenerator metricsGenerator;
@@ -337,13 +339,15 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         // since an instance is required, a single threaded shared instance is used for all broker client instances
         this.brokerClientSharedExternalExecutorProvider =
                 new ExecutorProvider(1, "broker-client-shared-external-executor");
+        this.brokerClientSharedScheduledExecutorProvider =
+                new ScheduledExecutorProvider(1, "broker-client-shared-scheduled-executor");
         this.brokerClientSharedTimer =
                 new HashedWheelTimer(new DefaultThreadFactory("broker-client-shared-timer"), 1, TimeUnit.MILLISECONDS);
 
         int interval = config.getManagedLedgerStatsPeriodSeconds();
         boolean exposeTopicMetrics = config.isExposeTopicLevelMetricsInPrometheus();
-        this.offloaderStats = LedgerOffloaderStats.create(config.isExposeManagedLedgerMetricsInPrometheus(),
-                exposeTopicMetrics, this.getOffloaderScheduler(), interval);
+        // here in the constructor we don't have the offloader scheduler yet
+        this.offloaderStats = LedgerOffloaderStats.create(false, false, null, 0);
     }
 
     public MetadataStore createConfigurationMetadataStore() throws MetadataStoreException {
@@ -441,6 +445,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                                             (long) (GRACEFUL_SHUTDOWN_TIMEOUT_RATIO_OF_TOTAL_TIMEOUT
                                                     * getConfiguration()
                                                     .getBrokerShutdownTimeoutMs())));
+
 
             List<CompletableFuture<Void>> asyncCloseFutures = new ArrayList<>();
             if (this.brokerService != null) {
@@ -543,8 +548,11 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             brokerClientSharedExternalExecutorProvider.shutdownNow();
             brokerClientSharedInternalExecutorProvider.shutdownNow();
+            brokerClientSharedScheduledExecutorProvider.shutdownNow();
             brokerClientSharedTimer.stop();
-            ioEventLoopGroup.shutdownGracefully();
+
+            asyncCloseFutures.add(EventLoopUtil.shutdownGracefully(ioEventLoopGroup));
+
 
             // add timeout handling for closing executors
             asyncCloseFutures.add(executorServicesShutdown.handle());
@@ -592,6 +600,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 Duration.ofMillis(Math.max(1L, getConfiguration().getBrokerShutdownTimeoutMs())),
                 shutdownExecutor, () -> FutureUtil.createTimeoutException("Timeout in close", getClass(), "close"));
         future.handle((v, t) -> {
+            if (t != null) {
+                LOG.info("Shutdown timed out after {} ms", getConfiguration().getBrokerShutdownTimeoutMs());
+                LOG.info(ThreadDumpUtil.buildThreadDiagnosticString());
+            }
             // shutdown the shutdown executor
             shutdownExecutor.shutdownNow();
             return null;
@@ -729,8 +741,17 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             schemaRegistryService = SchemaRegistryService.create(
                     schemaStorage, config.getSchemaRegistryCompatibilityCheckers(), this.executor);
 
-            this.defaultOffloader = createManagedLedgerOffloader(
-                    OffloadPoliciesImpl.create(this.getConfiguration().getProperties()));
+            OffloadPoliciesImpl defaultOffloadPolicies =
+                    OffloadPoliciesImpl.create(this.getConfiguration().getProperties());
+            this.defaultOffloader = createManagedLedgerOffloader(defaultOffloadPolicies);
+
+            OrderedScheduler offloaderScheduler = getOffloaderScheduler(defaultOffloadPolicies);
+            int interval = config.getManagedLedgerStatsPeriodSeconds();
+            boolean exposeTopicMetrics = config.isExposeTopicLevelMetricsInPrometheus();
+
+            offloaderStats = LedgerOffloaderStats.create(config.isExposeManagedLedgerMetricsInPrometheus(),
+                    exposeTopicMetrics, offloaderScheduler, interval);
+
             this.brokerInterceptor = BrokerInterceptors.load(config);
             brokerService.setInterceptor(getBrokerInterceptor());
             this.brokerInterceptor.initialize(this);
@@ -1398,6 +1419,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 .timer(brokerClientSharedTimer)
                 .internalExecutorProvider(brokerClientSharedInternalExecutorProvider)
                 .externalExecutorProvider(brokerClientSharedExternalExecutorProvider)
+                .scheduledExecutorProvider(brokerClientSharedScheduledExecutorProvider)
                 .build();
     }
 
@@ -1418,12 +1440,13 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 ClientConfigurationData conf =
                         ConfigurationDataUtils.loadData(overrides, initialConf, ClientConfigurationData.class);
 
-                conf.setServiceUrl(this.getConfiguration().isTlsEnabled()
-                                ? this.brokerServiceUrlTls : this.brokerServiceUrl);
-                conf.setTlsAllowInsecureConnection(this.getConfiguration().isTlsAllowInsecureConnection());
-                conf.setTlsTrustCertsFilePath(this.getConfiguration().getTlsCertificateFilePath());
+                boolean tlsEnabled = this.getConfiguration().isBrokerClientTlsEnabled();
+                conf.setServiceUrl(tlsEnabled ? this.brokerServiceUrlTls : this.brokerServiceUrl);
 
-                if (this.getConfiguration().isBrokerClientTlsEnabled()) {
+                if (tlsEnabled) {
+                    conf.setTlsCiphers(this.getConfiguration().getBrokerClientTlsCiphers());
+                    conf.setTlsProtocols(this.getConfiguration().getBrokerClientTlsProtocols());
+                    conf.setTlsAllowInsecureConnection(this.getConfiguration().isTlsAllowInsecureConnection());
                     if (this.getConfiguration().isBrokerClientTlsEnabledWithKeyStore()) {
                         conf.setUseKeyStoreTls(true);
                         conf.setTlsTrustStoreType(this.getConfiguration().getBrokerClientTlsTrustStoreType());

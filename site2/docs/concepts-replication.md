@@ -8,7 +8,7 @@ Regardless of industries, when an unforeseen event occurs and brings day-to-day 
 
 Pulsar's geo-replication mechanism is typically used for disaster recovery, enabling the replication of persistently stored message data across multiple data centers. For instance, your application is publishing data in one region and you would like to process it for consumption in other regions. With Pulsar’s geo-replication mechanism, messages can be produced and consumed in different geo-locations. 
 
-The diagram below illustrates the process of [geo-replication](administration-geo). Whenever three producers (P1, P2 and P3) respectively publish messages to the T1 topic in three clusters, those messages are instantly replicated across clusters. Once the messages are replicated, two consumers (C1 and C2) can consume those messages from their clusters.
+The diagram below illustrates the process of [geo-replication](administration-geo.md). Whenever three producers (P1, P2 and P3) respectively publish messages to the T1 topic in three clusters, those messages are instantly replicated across clusters. Once the messages are replicated, two consumers (C1 and C2) can consume those messages from their clusters.
 
 ![A typical geo-replication example with full-mesh pattern](/assets/full-mesh-replication.svg)
 

@@ -33,6 +33,7 @@ import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.io.Encoder;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.reflect.ReflectDatumWriter;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.sink.SinkRecord;
@@ -46,6 +47,7 @@ import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
+import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
@@ -75,10 +77,14 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.AbstractMap;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
@@ -91,6 +97,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -928,11 +935,16 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
 
     @Test
     public void offsetTest() throws Exception {
+        props.put("useIndexAsOffset", "true");
+        props.put("maxBatchBitsForOffset", "12");
+
+        final AtomicLong ledgerId = new AtomicLong(0L);
         final AtomicLong entryId = new AtomicLong(0L);
         final GenericRecord rec = getGenericRecord("value", Schema.STRING);
         Message msg = mock(MessageImpl.class);
         when(msg.getValue()).thenReturn(rec);
-        when(msg.getMessageId()).then(x -> new MessageIdImpl(0, entryId.getAndIncrement(), 0));
+        when(msg.getMessageId()).then(x -> new MessageIdImpl(ledgerId.get(), entryId.get(), 0));
+        when(msg.hasIndex()).thenReturn(false);
 
         final String topicName = "testTopic";
         final int partition = 1;
@@ -959,6 +971,7 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
         // offset is 0 for the first written record
         assertEquals(sink.currentOffset(topicName, partition), 0);
 
+        entryId.set(1);
         sink.write(record);
         sink.flush();
         // offset is 1 for the second written record
@@ -976,10 +989,239 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
         // offset is 1 after reopening the producer
         assertEquals(sink.currentOffset(topicName, partition), 1);
 
+        entryId.set(2);
         sink.write(record);
         sink.flush();
         // offset is 2 for the next written record
         assertEquals(sink.currentOffset(topicName, partition), 2);
+
+
+        // use index
+        entryId.set(999);
+        when(msg.hasIndex()).thenReturn(true);
+        when(msg.getIndex()).thenReturn(Optional.of(777L));
+
+        sink.write(record);
+        sink.flush();
+        // offset is 777 for the next written record according to index
+        assertEquals(sink.currentOffset(topicName, partition), 777);
+
+        final AtomicInteger batchIdx = new AtomicInteger(2);
+
+        entryId.set(3);
+        when(msg.getMessageId()).then(x -> new BatchMessageIdImpl(0, entryId.get(), 0, batchIdx.get()));
+        when(msg.hasIndex()).thenReturn(false);
+        sink.write(record);
+        sink.flush();
+        // offset is the batch message id includes batch
+        // (3 << 12) | 2
+        assertEquals(sink.currentOffset(topicName, partition), 12290);
+
+        // batch too large
+        batchIdx.set(Integer.MAX_VALUE);
+        sink.write(record);
+        sink.flush();
+        assertEquals(sink.currentOffset(topicName, partition), 2147483647L);
+
+        // batch too large, entryId changed,
+        // offset stays the same
+        entryId.incrementAndGet();
+        sink.write(record);
+        sink.flush();
+        assertEquals(sink.currentOffset(topicName, partition), 2147483647L);
+
+        // max usable bits for ledger: 64 - 28 used for entry + batch
+        long lastLedger = 1 << (64 - 28);
+        // max usable bits for ledger: 28 - 12 used for batch
+        long lastEntry = 1 << (28 - 12);
+        ledgerId.set(lastLedger);
+        entryId.set(lastEntry);
+        Set<Long> seenOffsets = new HashSet<>(4096);
+        // offsets are unique
+        for (int i = 0; i < 4096; i++) {
+            batchIdx.set(i);
+            sink.write(record);
+            sink.flush();
+            long offset = sink.currentOffset(topicName, partition);
+            assertFalse(seenOffsets.contains(offset));
+            seenOffsets.add(offset);
+        }
+
+        ledgerId.set(0);
+        entryId.set(0);
+        seenOffsets.clear();
+        // offsets are unique
+        for (int i = 0; i < 4096; i++) {
+            batchIdx.set(i);
+            sink.write(record);
+            sink.flush();
+            long offset = sink.currentOffset(topicName, partition);
+            assertFalse(seenOffsets.contains(offset));
+            seenOffsets.add(offset);
+        }
+
+        sink.close();
+    }
+
+    @Test
+    public void offsetNoIndexNoBatchTest() throws Exception {
+        props.put("useIndexAsOffset", "false");
+        props.put("maxBatchBitsForOffset", "0");
+
+        final AtomicLong ledgerId = new AtomicLong(0L);
+        final AtomicLong entryId = new AtomicLong(0L);
+        final GenericRecord rec = getGenericRecord("value", Schema.STRING);
+        Message msg = mock(MessageImpl.class);
+        when(msg.getValue()).thenReturn(rec);
+        when(msg.getMessageId()).then(x -> new MessageIdImpl(ledgerId.get(), entryId.get(), 0));
+        when(msg.hasIndex()).thenReturn(false);
+
+        final String topicName = "testTopic";
+        final int partition = 1;
+        final AtomicInteger status = new AtomicInteger(0);
+        Record<GenericObject> record = PulsarRecord.<String>builder()
+                .topicName(topicName)
+                .partition(partition)
+                .message(msg)
+                .ackFunction(status::incrementAndGet)
+                .failFunction(status::decrementAndGet)
+                .schema(Schema.STRING)
+                .build();
+
+        KafkaConnectSink sink = new KafkaConnectSink();
+        when(context.getSubscriptionType()).thenReturn(SubscriptionType.Exclusive);
+        sink.open(props, context);
+
+        // offset is -1 before any data is written (aka no offset)
+        assertEquals(sink.currentOffset(topicName, partition), -1L);
+
+        sink.write(record);
+        sink.flush();
+
+        // offset is 0 for the first written record
+        assertEquals(sink.currentOffset(topicName, partition), 0);
+
+        entryId.set(1);
+        sink.write(record);
+        sink.flush();
+        // offset is 1 for the second written record
+        assertEquals(sink.currentOffset(topicName, partition), 1);
+
+        sink.close();
+
+        // close the producer, open again
+        sink = new KafkaConnectSink();
+        when(context.getPulsarClient()).thenReturn(PulsarClient.builder()
+                .serviceUrl(brokerUrl.toString())
+                .build());
+        sink.open(props, context);
+
+        // offset is 1 after reopening the producer
+        assertEquals(sink.currentOffset(topicName, partition), 1);
+
+        entryId.set(2);
+        sink.write(record);
+        sink.flush();
+        // offset is 2 for the next written record
+        assertEquals(sink.currentOffset(topicName, partition), 2);
+
+        // use of index is disabled
+        entryId.set(999);
+        when(msg.hasIndex()).thenReturn(true);
+        when(msg.getIndex()).thenReturn(Optional.of(777L));
+
+        sink.write(record);
+        sink.flush();
+        // offset is 999 for the next written record, index is disabled
+        assertEquals(sink.currentOffset(topicName, partition), 999);
+
+        final AtomicInteger batchIdx = new AtomicInteger(2);
+
+        entryId.set(3);
+        when(msg.getMessageId()).then(x -> new BatchMessageIdImpl(0, entryId.get(), 0, batchIdx.get()));
+        when(msg.hasIndex()).thenReturn(false);
+        sink.write(record);
+        sink.flush();
+        // offset does not includes batch - it disabled
+        assertEquals(sink.currentOffset(topicName, partition), 3);
+
+        // max usable bits for ledger: 64 - 28 used for entry + batch
+        long lastLedger = 1 << (64 - 28);
+        // max usable bits for ledger: 28 - 12 used for batch
+        long lastEntry = 1 << (28 - 12);
+        ledgerId.set(lastLedger);
+        entryId.set(lastEntry);
+        Set<Long> seenOffsets = new HashSet<>(4096);
+        // offsets are not unique
+        for (int i = 0; i < 4096; i++) {
+            batchIdx.set(i);
+            sink.write(record);
+            sink.flush();
+            long offset = sink.currentOffset(topicName, partition);
+            seenOffsets.add(offset);
+        }
+        assertEquals(seenOffsets.size(), 1);
+
+        sink.close();
+    }
+
+
+    @Test
+    public void partialPreCommitTest() throws Exception {
+        props.put("useIndexAsOffset", "false");
+        props.put("maxBatchBitsForOffset", "0");
+        final String topicName = "testTopic";
+
+        KafkaConnectSink sink = new KafkaConnectSink();
+        when(context.getSubscriptionType()).thenReturn(SubscriptionType.Exclusive);
+        sink.open(props, context);
+
+        final int numPartitions = 3;
+        for (long i = 0; i < 30; i++) {
+            final AtomicLong ledgerId = new AtomicLong(0L);
+            final AtomicLong entryId = new AtomicLong(i);
+            final GenericRecord rec = getGenericRecord("value", Schema.STRING);
+            Message msg = mock(MessageImpl.class);
+            when(msg.getValue()).thenReturn(rec);
+            when(msg.getMessageId()).then(x -> new MessageIdImpl(ledgerId.get(), entryId.get(), 0));
+            when(msg.hasIndex()).thenReturn(false);
+
+            final int partition = (int)(i % numPartitions);
+            final AtomicInteger status = new AtomicInteger(0);
+            Record<GenericObject> record = PulsarRecord.<String>builder()
+                    .topicName(topicName)
+                    .partition(partition)
+                    .message(msg)
+                    .ackFunction(status::incrementAndGet)
+                    .failFunction(status::decrementAndGet)
+                    .schema(Schema.STRING)
+                    .build();
+
+            sink.write(record);
+        }
+
+        ConcurrentLinkedDeque<Record<GenericObject>> pendingFlushQueue = sink.pendingFlushQueue;
+        assertEquals(pendingFlushQueue.size(), 30);
+
+        Map<TopicPartition, OffsetAndMetadata> committedOffsets = new HashMap<>();
+        committedOffsets.put(new TopicPartition(topicName, 0),
+                new OffsetAndMetadata(3L, Optional.empty(), null));
+        committedOffsets.put(new TopicPartition(topicName, 1),
+                new OffsetAndMetadata(4L, Optional.empty(), null));
+        committedOffsets.put(new TopicPartition(topicName, 2),
+                new OffsetAndMetadata(5L, Optional.empty(), null));
+
+        Record<GenericObject> lastNotFlushed = pendingFlushQueue.peekFirst();
+        Record<GenericObject> lastNotFlushedAfter = (Record<GenericObject>) pendingFlushQueue.stream().toArray()[15];
+
+        final AtomicInteger ackedMessagesCount = new AtomicInteger(0);
+        sink.ackUntil(lastNotFlushed, committedOffsets, x -> ackedMessagesCount.incrementAndGet());
+        assertEquals(ackedMessagesCount.get(), 1);
+        assertEquals(pendingFlushQueue.size(), 29);
+
+        sink.ackUntil(lastNotFlushedAfter, committedOffsets, x -> ackedMessagesCount.incrementAndGet());
+        assertEquals(ackedMessagesCount.get(), 6);
+        assertEquals(pendingFlushQueue.size(), 24);
 
         sink.close();
     }

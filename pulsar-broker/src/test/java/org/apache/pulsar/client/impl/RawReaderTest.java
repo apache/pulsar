@@ -107,6 +107,58 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testHasMessageAvailableWithoutBatch() throws Exception {
+        int numKeys = 10;
+        String topic = "persistent://my-property/my-ns/my-raw-topic";
+        Set<String> keys = publishMessages(topic, numKeys);
+        RawReader reader = RawReader.create(pulsarClient, topic, subscription).get();
+        while (true) {
+            boolean hasMsg = reader.hasMessageAvailableAsync().get();
+            if (hasMsg && keys.isEmpty()) {
+                Assert.fail("HasMessageAvailable shows still has message when there is no message");
+            }
+            if (hasMsg) {
+                try (RawMessage m = reader.readNextAsync().get()) {
+                    Assert.assertTrue(keys.remove(extractKey(m)));
+                }
+            } else {
+                break;
+            }
+        }
+        Assert.assertTrue(keys.isEmpty());
+    }
+
+    @Test
+    public void testHasMessageAvailableWithBatch() throws Exception {
+        int numKeys = 20;
+        String topic = "persistent://my-property/my-ns/my-raw-topic";
+        Set<String> keys = publishMessages(topic, numKeys, true);
+        RawReader reader = RawReader.create(pulsarClient, topic, subscription).get();
+        int messageCount = 0;
+        while (true) {
+            boolean hasMsg = reader.hasMessageAvailableAsync().get();
+            if (hasMsg && (messageCount == numKeys)) {
+                Assert.fail("HasMessageAvailable shows still has message when there is no message");
+            }
+            if (hasMsg) {
+                try (RawMessage m = reader.readNextAsync().get()) {
+                    MessageMetadata meta = Commands.parseMessageMetadata(m.getHeadersAndPayload());
+                    messageCount += meta.getNumMessagesInBatch();
+                    RawBatchConverter.extractIdsAndKeysAndSize(m).forEach(batchInfo -> {
+                        String key = batchInfo.getMiddle();
+                        Assert.assertTrue(keys.remove(key));
+                    });
+
+                }
+            } else {
+                break;
+            }
+        }
+        Assert.assertEquals(messageCount, numKeys);
+        Assert.assertTrue(keys.isEmpty());
+    }
+
+    @Test
     public void testRawReader() throws Exception {
         int numKeys = 10;
 

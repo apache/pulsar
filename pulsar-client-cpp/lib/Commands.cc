@@ -669,6 +669,18 @@ std::string Commands::messageType(BaseCommand_Type type) {
         case BaseCommand::TC_CLIENT_CONNECT_RESPONSE:
             return "TC_CLIENT_CONNECT_RESPONSE";
             break;
+        case BaseCommand::WATCH_TOPIC_LIST:
+            return "WATCH_TOPIC_LIST";
+            break;
+        case BaseCommand::WATCH_TOPIC_LIST_SUCCESS:
+            return "WATCH_TOPIC_LIST_SUCCESS";
+            break;
+        case BaseCommand::WATCH_TOPIC_UPDATE:
+            return "WATCH_TOPIC_UPDATE";
+            break;
+        case BaseCommand::WATCH_TOPIC_LIST_CLOSE:
+            return "WATCH_TOPIC_LIST_CLOSE";
+            break;
     };
     BOOST_THROW_EXCEPTION(std::logic_error("Invalid BaseCommand enumeration value"));
 }

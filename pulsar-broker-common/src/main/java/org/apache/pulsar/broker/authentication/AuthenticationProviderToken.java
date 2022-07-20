@@ -74,7 +74,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     static final String TOKEN = "token";
 
     private static final Counter expiredTokenMetrics = Counter.build()
-            .name("pulsar_expired_token_count")
+            .name("pulsar_expired_token_total")
             .help("Pulsar expired token")
             .register();
 
@@ -356,7 +356,8 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
          */
         @Override
         public AuthData authenticate(AuthData authData) throws AuthenticationException {
-            // There's no additional auth stage required
+            String token = new String(authData.getBytes(), UTF_8);
+            checkExpiration(token);
             return null;
         }
 
