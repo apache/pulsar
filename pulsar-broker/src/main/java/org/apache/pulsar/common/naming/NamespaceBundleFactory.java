@@ -242,11 +242,11 @@ public class NamespaceBundleFactory {
         if (loadManager instanceof ModularLoadManagerWrapper) {
             NamespaceBundles bundles = getBundles(nsName);
             double maxMsgThroughput = -1;
-            NamespaceBundle bundleWithHighestThroughput = null;
+            NamespaceBundle bundleWithHighestThroughput = bundles.getBundles().get(0);
             for (NamespaceBundle bundle : bundles.getBundles()) {
                 BundleData bundleData = ((ModularLoadManagerWrapper) loadManager).getLoadManager()
                         .getBundleDataOrDefault(bundle.toString());
-                if (bundleData.getTopics() > 0
+                if (bundleData.getTopics() >= 0
                         && bundleData.getLongTermData().totalMsgThroughput() > maxMsgThroughput) {
                     maxMsgThroughput = bundleData.getLongTermData().totalMsgThroughput();
                     bundleWithHighestThroughput = bundle;

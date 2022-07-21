@@ -84,6 +84,7 @@ import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.policies.data.loadbalancer.BundleData;
 import org.awaitility.Awaitility;
 import org.mockito.stubbing.Answer;
+import org.powermock.reflect.Whitebox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -602,8 +603,8 @@ public class NamespaceServiceTest extends BrokerTestBase {
      */
     @Test
     public void testSplitBundleWithHighestThroughput() throws Exception {
-
         conf.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
+        conf.setLoadBalancerEnabled(false);
         restartBroker();
         String namespace = "prop/test/ns-abc2";
         String topic = "persistent://" + namespace + "/t1-";
@@ -644,7 +645,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
                 .getBundleRange();
 
         assertEquals(bundle, hotBundle);
-        
+
         for (int i = 0; i < totalTopics; i++) {
             consumers[i].close();
         }
