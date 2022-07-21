@@ -21,12 +21,12 @@ It is great for quickly switch between different clusters and modify cluster or 
 
 # Installation
 
-Download the tarball from the [Download page](https://pulsar.apache.org/download) and extract it.
+Download the tarball from the [download page](https://pulsar.apache.org/download) and extract it.
 
 ```shell
-wget https://archive.apache.org/dist/pulsar/pulsar-${version}/apache-pulsar-shell-${version}-bin.tar.gz
-tar xzvf apache-pulsar-shell-${version}-bin.tar.gz
-cd apache-pulsar-shell-${version}-bin.tar.gz
+wget https://archive.apache.org/dist/pulsar/pulsar-@pulsar:version@/apache-pulsar-shell-@pulsar:version@-bin.tar.gz
+tar xzvf apache-pulsar-shell-@pulsar:version@-bin.tar.gz
+cd apache-pulsar-shell-@pulsar:version@-bin.tar.gz
 ```
 
 Now you can enter the interactive mode:
