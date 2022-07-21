@@ -83,6 +83,9 @@ public class TestCmdSinks {
     private static final Long RAM = 1024L * 1024L;
     private static final Long DISK = 1024L * 1024L * 1024L;
     private static final String SINK_CONFIG_STRING = "{\"created_at\":\"Mon Jul 02 00:33:15 +0000 2018\",\"int\":1000,\"int_string\":\"1000\",\"float\":1000.0,\"float_string\":\"1000.0\"}";
+    private static final String PREPROCESS_FUNCTION = "preprocess";
+    private static final String PREPROCESS_FUNCTION_CLASSNAME = "PreProcessFunction";
+    private static final String PREPROCESS_FUNCTION_CONFIG = "{\"test_function_config\": \"\"}";
 
     private PulsarAdmin pulsarAdmin;
     private Sinks sink;
@@ -146,6 +149,11 @@ public class TestCmdSinks {
         sinkConfig.setArchive(JAR_FILE_PATH);
         sinkConfig.setResources(new Resources(CPU, RAM, DISK));
         sinkConfig.setConfigs(createSink.parseConfigs(SINK_CONFIG_STRING));
+
+        sinkConfig.setPreprocessFunction(PREPROCESS_FUNCTION);
+        sinkConfig.setPreprocessFunctionClassName(PREPROCESS_FUNCTION_CLASSNAME);
+        sinkConfig.setPreprocessFunctionConfig(PREPROCESS_FUNCTION_CONFIG);
+
         return sinkConfig;
     }
 
@@ -166,6 +174,9 @@ public class TestCmdSinks {
                 RAM,
                 DISK,
                 SINK_CONFIG_STRING,
+                PREPROCESS_FUNCTION,
+                PREPROCESS_FUNCTION_CLASSNAME,
+                PREPROCESS_FUNCTION_CONFIG,
                 sinkConfig
         );
     }
@@ -188,6 +199,9 @@ public class TestCmdSinks {
                 RAM,
                 DISK,
                 SINK_CONFIG_STRING,
+                PREPROCESS_FUNCTION,
+                PREPROCESS_FUNCTION_CLASSNAME,
+                PREPROCESS_FUNCTION_CONFIG,
                 sinkConfig
         );
     }
@@ -211,6 +225,9 @@ public class TestCmdSinks {
                 RAM,
                 DISK,
                 SINK_CONFIG_STRING,
+                PREPROCESS_FUNCTION,
+                PREPROCESS_FUNCTION_CLASSNAME,
+                PREPROCESS_FUNCTION_CONFIG,
                 sinkConfig
         );
     }
@@ -233,6 +250,9 @@ public class TestCmdSinks {
                 RAM,
                 DISK,
                 SINK_CONFIG_STRING,
+                PREPROCESS_FUNCTION,
+                PREPROCESS_FUNCTION_CLASSNAME,
+                PREPROCESS_FUNCTION_CONFIG,
                 sinkConfig
         );
     }
@@ -255,6 +275,9 @@ public class TestCmdSinks {
                 RAM,
                 DISK,
                 SINK_CONFIG_STRING,
+                PREPROCESS_FUNCTION,
+                PREPROCESS_FUNCTION_CLASSNAME,
+                PREPROCESS_FUNCTION_CONFIG,
                 sinkConfig
         );
     }
@@ -277,6 +300,9 @@ public class TestCmdSinks {
                 RAM,
                 DISK,
                 SINK_CONFIG_STRING,
+                PREPROCESS_FUNCTION,
+                PREPROCESS_FUNCTION_CLASSNAME,
+                PREPROCESS_FUNCTION_CONFIG,
                 sinkConfig
         );
     }
@@ -301,6 +327,9 @@ public class TestCmdSinks {
                 RAM,
                 DISK,
                 SINK_CONFIG_STRING,
+                PREPROCESS_FUNCTION,
+                PREPROCESS_FUNCTION_CLASSNAME,
+                PREPROCESS_FUNCTION_CONFIG,
                 sinkConfig
         );
     }
@@ -323,6 +352,9 @@ public class TestCmdSinks {
                 RAM,
                 DISK,
                 null,
+                PREPROCESS_FUNCTION,
+                PREPROCESS_FUNCTION_CLASSNAME,
+                PREPROCESS_FUNCTION_CONFIG,
                 sinkConfig
         );
     }
@@ -341,6 +373,9 @@ public class TestCmdSinks {
             Long ram,
             Long disk,
             String sinkConfigString,
+            String preprocessFunction,
+            String preprocessFunctionClassName,
+            String preprocessFunctionConfig,
             SinkConfig sinkConfig) throws Exception {
 
         // test create sink
@@ -357,6 +392,9 @@ public class TestCmdSinks {
         createSink.ram = ram;
         createSink.disk = disk;
         createSink.sinkConfigString = sinkConfigString;
+        createSink.preprocessFunction = preprocessFunction;
+        createSink.preprocessFunctionClassName = preprocessFunctionClassName;
+        createSink.preprocessFunctionConfig = preprocessFunctionConfig;
 
         createSink.processArguments();
 
@@ -376,6 +414,9 @@ public class TestCmdSinks {
         updateSink.ram = ram;
         updateSink.disk = disk;
         updateSink.sinkConfigString = sinkConfigString;
+        updateSink.preprocessFunction = preprocessFunction;
+        updateSink.preprocessFunctionClassName = preprocessFunctionClassName;
+        updateSink.preprocessFunctionConfig = preprocessFunctionConfig;
 
         updateSink.processArguments();
 
@@ -395,6 +436,9 @@ public class TestCmdSinks {
         localSinkRunner.ram = ram;
         localSinkRunner.disk = disk;
         localSinkRunner.sinkConfigString = sinkConfigString;
+        localSinkRunner.preprocessFunction = preprocessFunction;
+        localSinkRunner.preprocessFunctionClassName = preprocessFunctionClassName;
+        localSinkRunner.preprocessFunctionConfig = preprocessFunctionConfig;
 
         localSinkRunner.processArguments();
 
@@ -539,6 +583,9 @@ public class TestCmdSinks {
         testSinkConfig.setResources(new Resources(CPU + 1, RAM + 1, DISK + 1));
         testSinkConfig.setConfigs(createSink.parseConfigs("{\"created_at-prime\":\"Mon Jul 02 00:33:15 +0000 2018\", \"otherConfigProperties\":{\"property1.value\":\"value1\",\"property2.value\":\"value2\"}}"));
 
+        testSinkConfig.setPreprocessFunction(PREPROCESS_FUNCTION + "-prime");
+        testSinkConfig.setPreprocessFunction(PREPROCESS_FUNCTION_CLASSNAME + "-prime");
+        testSinkConfig.setPreprocessFunction("{\"test_function_config\": \"prime\"}");
 
         SinkConfig expectedSinkConfig = getSinkConfig();
 
@@ -563,6 +610,9 @@ public class TestCmdSinks {
                 RAM,
                 DISK,
                 SINK_CONFIG_STRING,
+                PREPROCESS_FUNCTION,
+                PREPROCESS_FUNCTION_CLASSNAME,
+                PREPROCESS_FUNCTION_CONFIG,
                 file.getAbsolutePath(),
                 expectedSinkConfig
         );
@@ -583,6 +633,9 @@ public class TestCmdSinks {
             Long ram,
             Long disk,
             String sinkConfigString,
+            String preprocessFunction,
+            String preprocessFunctionClassName,
+            String preprocessFunctionConfig,
             String sinkConfigFile,
             SinkConfig sinkConfig
     ) throws Exception {
@@ -602,6 +655,9 @@ public class TestCmdSinks {
         createSink.ram = ram;
         createSink.disk = disk;
         createSink.sinkConfigString = sinkConfigString;
+        createSink.preprocessFunction = preprocessFunction;
+        createSink.preprocessFunctionClassName = preprocessFunctionClassName;
+        createSink.preprocessFunctionConfig = preprocessFunctionConfig;
         createSink.sinkConfigFile = sinkConfigFile;
 
         createSink.processArguments();
@@ -622,6 +678,9 @@ public class TestCmdSinks {
         updateSink.ram = ram;
         updateSink.disk = disk;
         updateSink.sinkConfigString = sinkConfigString;
+        updateSink.preprocessFunction = preprocessFunction;
+        updateSink.preprocessFunctionClassName = preprocessFunctionClassName;
+        updateSink.preprocessFunctionConfig = preprocessFunctionConfig;
         updateSink.sinkConfigFile = sinkConfigFile;
 
         updateSink.processArguments();
@@ -642,6 +701,9 @@ public class TestCmdSinks {
         localSinkRunner.ram = ram;
         localSinkRunner.disk = disk;
         localSinkRunner.sinkConfigString = sinkConfigString;
+        localSinkRunner.preprocessFunction = preprocessFunction;
+        localSinkRunner.preprocessFunctionClassName = preprocessFunctionClassName;
+        localSinkRunner.preprocessFunctionConfig = preprocessFunctionConfig;
         localSinkRunner.sinkConfigFile = sinkConfigFile;
 
 

@@ -466,7 +466,7 @@ public class SinkConfigUtils {
                 try {
                     functionClassName = FunctionUtils.getFunctionClass(functionClassLoader);
                 } catch (IOException e) {
-                    throw new IllegalArgumentException("Failed to extract sink class from archive", e);
+                    throw new IllegalArgumentException("Failed to extract function class from archive", e);
                 }
             }
             Class functionClass;
