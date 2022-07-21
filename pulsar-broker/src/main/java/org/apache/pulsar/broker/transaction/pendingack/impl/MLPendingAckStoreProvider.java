@@ -58,7 +58,7 @@ public class MLPendingAckStoreProvider implements TransactionPendingAckStoreProv
         PulsarService pulsarService = originPersistentTopic.getBrokerService().getPulsar();
 
         final ScheduledExecutorService transactionLogScheduledExecutor =
-                pulsarService.getBrokerService().getTransactionLogBufferedWriteAsyncFlushTrigger();
+                pulsarService.getBrokerService().getTransactionTimer();
         final ServiceConfiguration serviceConfiguration = pulsarService.getConfiguration();
         final TxnLogBufferedWriterConfig txnLogBufferedWriterConfig = new TxnLogBufferedWriterConfig();
         txnLogBufferedWriterConfig.setBatchEnabled(serviceConfiguration.isTransactionPendingAckBatchedWriteEnabled());
