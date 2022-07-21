@@ -26,7 +26,7 @@ You can interact with the admin interface via:
    
   For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more information, see [Pulsar admin doc](/tools/pulsar-admin/).
 
-  [Pulsar Shell](administration-pulsar-shell.md) extends `pulsar-admin` with an improved user experience and flexibility, it makes easier to navigate between multiple clusters.
+  [Pulsar Shell](administration-pulsar-shell.md) extends `pulsar-admin` with an improved user experience for more flexibility and easier navigation between multiple clusters.
   
   :::
 

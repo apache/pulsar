@@ -10,13 +10,13 @@ import TabItem from '@theme/TabItem';
 ````
 
 
-Pulsar shell is a fast and flexible shell for Pulsar clusters management, producing and consuming messages and more. 
-It is great for quickly switch between different clusters and modify cluster or tenant configurations in an instant.
+Pulsar shell is a fast and flexible shell for Pulsar cluster management, messaging, and more.
+It's great for quickly switching between different clusters, and can modify cluster or tenant configurations in an instant.
 
 
 # Features
-- Administration: under `admin` command you can find all the [Admin API](admin-api-overview.md) features.
-- Client: under `client` command you can find all the [pulsar-client](reference-cli-tools#pulsar-client.md) features.
+- Administration: find all the [Admin API](admin-api-overview.md) features under  the `admin` command .
+- Client: find all the [pulsar-client](reference-cli-tools#pulsar-client.md) features under the `client` command.
 
 
 # Installation
@@ -29,7 +29,7 @@ tar xzvf apache-pulsar-shell-@pulsar:version@-bin.tar.gz
 cd apache-pulsar-shell-@pulsar:version@-bin.tar.gz
 ```
 
-Now you can enter the interactive mode:
+Now you can enter Pulsar shell's interactive mode:
 
 ```shell
 $ ./bin/pulsar-shell
@@ -47,7 +47,7 @@ default(localhost)>
 # Connect to your cluster
 
 By default, the shell will try to connect to a local Pulsar instance.
-In order to connect to a different cluster you have to register it. You can do in different ways depending on where your config file is located:
+To connect to a different cluster, you have to register the cluster with Pulsar shell. You can do this in a few different ways depending on where your config file is located:
 
 > The configuration file must be a valid `client.conf` file, the same one you use for `pulsar-admin`, `pulsar-client` and other client tools.
 
@@ -68,7 +68,7 @@ default(localhost)> config create --url https://<url_to_my_client.conf> mycluste
 </TabItem>
 <TabItem value="file">
 
-If the file is on your local machine you can use the `--file` option.
+If the file is on your local machine, use the `--file` option.
 
 
 ```
@@ -78,7 +78,7 @@ default(localhost)> config create --file ./my-cluster-my-client.conf mycluster
 </TabItem>
 <TabItem value="inline">
 
-You can encode the content of the config to base64 and specify it into the `--value` option.
+You can encode the content of the config to base64 and specify it with the `--value` option.
 
 ```
 default(localhost)> config create --value "base64:<client.conf_base64_encoded>" mycluster
@@ -91,7 +91,7 @@ default(localhost)> config create --value "base64:<client.conf_base64_encoded>" 
 ````
 
 
-Once you configured your cluster, you have to set it as current:
+Once you've configured your cluster, set it as current:
 
 ```
 default(localhost)> config use mycluster
@@ -107,12 +107,11 @@ my-cluster(mycluster)>
 
  
 # Non interactive mode
-Pulsar shell non interactive mode is great for running bunch of admin commands sequentially.
-For instance, you may need to run several commands to setup a new tenant with policies; normally you can do it using `pulsar-admin` command.
-Pulsar shell, due to its nature, is faster and allows you to save time.
+Pulsar shell's non-interactive mode is great for running bunch of admin commands sequentially.
+For example, to set up a new tenant with policies, you would normally need to run multiple `pulsar-admin` commands.
 
 Let's say you want to create a new tenant `new-tenant` with a namespace `new-namespace` in it.
-To run the non-interactive mode you have multiple ways: 
+There are multiple ways to do this with Pulsar shell non-interactive mode:
 
 ````mdx-code-block
 <Tabs groupId="shell-noninteractive-modes"
@@ -152,7 +151,7 @@ admin namespaces create new-tenant/new-namespace
 </TabItem>
 <TabItem value="pipe">
 
-Make the shell reading from the stadanrd input `-` option.
+Make the shell read from the standard input `-` option.
 
 ```shell
 
