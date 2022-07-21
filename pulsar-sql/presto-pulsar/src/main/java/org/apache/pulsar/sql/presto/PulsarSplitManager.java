@@ -41,7 +41,6 @@ import io.trino.spi.predicate.Range;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.predicate.Utils;
 import java.io.IOException;
-import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -386,15 +385,13 @@ public class PulsarSplitManager implements ConnectorSplitManager {
                             if (!range.isHighUnbounded()) {
                                 Block block = Utils.nativeValueToBlock(range.getType(), range.getHighBoundedValue());
                                 // Trino timestamp payload is in micros
-                                long millis = block.getLong(0, 0) / 1000;
-                                upperBoundTs = new Timestamp(millis).getTime();
+                                upperBoundTs = block.getLong(0, 0) / 1000;
                             }
 
                             if (!range.isLowUnbounded()) {
                                 Block block = Utils.nativeValueToBlock(range.getType(), range.getLowBoundedValue());
                                 // Trino timestamp payload is in micros
-                                long millis = block.getLong(0, 0) / 1000;
-                                lowerBoundTs = new Timestamp(millis).getTime();
+                                lowerBoundTs = block.getLong(0, 0) / 1000;
                             }
 
                             PositionImpl overallStartPos;

@@ -271,7 +271,7 @@ The Apache Software License, Version 2.0
     - jetcd-core-0.5.11.jar
 
  * Joda Time
-    - joda-time-2.10.5.jar
+    - joda-time-2.10.10.jar
     - failsafe-2.4.4.jar
   * Jetty
     - http2-client-9.4.48.v20220622.jar

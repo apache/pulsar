@@ -91,7 +91,7 @@ import static org.testng.Assert.assertNotNull;
 
 public abstract class TestPulsarConnector {
 
-    protected static final long currentTimeMs = 1534806330000L;
+    protected static final long currentTimeMicros = 1534806330000000L;
 
     protected PulsarConnectorConfig pulsarConnectorConfig;
 
@@ -405,7 +405,7 @@ public abstract class TestPulsarConnector {
 
             MessageMetadata messageMetadata = new MessageMetadata()
                     .setProducerName("test-producer").setSequenceId(i)
-                    .setPublishTime(currentTimeMs + i);
+                    .setPublishTime(currentTimeMicros / 1000 + i);
 
             Schema schema = topicsToSchemas.get(topicSchemaName).getType() == SchemaType.AVRO ? AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build()) : JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
 

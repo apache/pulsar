@@ -224,9 +224,10 @@ public class TestPrimitiveDecoder extends AbstractDecoderTester {
         Map<DecoderColumnHandle, FieldValueProvider> decodedRowTimestamp =
                 pulsarRowDecoderTimestamp.decodeRow(io.netty.buffer.Unpooled
                         .copiedBuffer(schemaTimestamp.encode(timestampValue))).get();
+        long timestampValueInMicros = timestampValue.getTime() * 1000;
         checkValue(decodedRowTimestamp, new PulsarColumnHandle(getPulsarConnectorId().toString(),
                 PRIMITIVE_COLUMN_NAME, TIMESTAMP, false, false, PRIMITIVE_COLUMN_NAME, null, null,
-                PulsarColumnHandle.HandleKeyValueType.NONE), timestampValue.getTime());
+                PulsarColumnHandle.HandleKeyValueType.NONE), timestampValueInMicros);
 
     }
 
