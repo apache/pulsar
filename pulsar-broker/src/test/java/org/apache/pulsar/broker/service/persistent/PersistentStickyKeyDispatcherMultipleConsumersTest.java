@@ -109,7 +109,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         HierarchyTopicPolicies topicPolicies = new HierarchyTopicPolicies();
         topicPolicies.getMaxConsumersPerSubscription().updateBrokerValue(0);
 
-        OrderedExecutor orderedExecutor = OrderedExecutor.newBuilder().build();
+        orderedExecutor = OrderedExecutor.newBuilder().build();
         doReturn(orderedExecutor).when(brokerMock).getTopicOrderedExecutor();
 
         EventLoopGroup eventLoopGroup = mock(EventLoopGroup.class);
