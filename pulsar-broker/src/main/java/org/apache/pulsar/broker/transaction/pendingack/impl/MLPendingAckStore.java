@@ -410,30 +410,13 @@ public class MLPendingAckStore implements PendingAckStore {
                             handleMetadataEntry(new PositionImpl(entry.getLedgerId(), entry.getEntryId()), log);
                             pendingAckReplyCallBack.handleMetadataEntry(log);
                         } else {
-                            /**
-                             * 1. Query batch index of current entry from cursor.
-                             * 2. Filter the data which has already ack.
-                             * 3. Build batched position and handle valid data.
-                             */
-                            long[] ackSetAlreadyAck = cursor.getDeletedBatchIndexesAsLongArray(
-                                    PositionImpl.get(entry.getLedgerId(), entry.getEntryId()));
-                            BitSetRecyclable bitSetAlreadyAck = null;
-                            if (ackSetAlreadyAck != null){
-                                bitSetAlreadyAck = BitSetRecyclable.valueOf(ackSetAlreadyAck);
-                            }
                             int batchSize = logs.size();
                             for (int batchIndex = 0; batchIndex < batchSize; batchIndex++){
-                                if (bitSetAlreadyAck != null && !bitSetAlreadyAck.get(batchIndex)){
-                                    continue;
-                                }
                                 PendingAckMetadataEntry log = logs.get(batchIndex);
                                 pendingAckReplyCallBack.handleMetadataEntry(log);
                             }
                             currentIndexLag.addAndGet(batchSize);
                             handleMetadataEntry(new PositionImpl(entry.getLedgerId(), entry.getEntryId()), logs);
-                            if (ackSetAlreadyAck != null){
-                                bitSetAlreadyAck.recycle();
-                            }
                         }
                         entry.release();
                         clearUselessLogData();
