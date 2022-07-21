@@ -269,7 +269,6 @@ public class ProxyServiceStarter {
 
         AdminProxyHandler adminProxyHandler = new AdminProxyHandler(config, discoveryProvider);
         ServletHolder servletHolder = new ServletHolder(adminProxyHandler);
-        servletHolder.setInitParameter("preserveHost", "true");
         server.addServlet("/admin", servletHolder);
         server.addServlet("/lookup", servletHolder);
 
