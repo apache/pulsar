@@ -56,7 +56,6 @@ import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.transaction.coordinator.impl.TxnBatchedPositionImpl;
 import org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriter;
 import org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriterConfig;
@@ -132,7 +131,7 @@ public class MLPendingAckStore implements PendingAckStore {
                 scheduledExecutorService, PendingAckLogSerializer.INSTANCE,
                 bufferedWriterConfig.getBatchedWriteMaxRecords(), bufferedWriterConfig.getBatchedWriteMaxSize(),
                 bufferedWriterConfig.getBatchedWriteMaxDelayInMillis(), bufferedWriterConfig.isBatchEnabled());
-        this.batchedPendingAckLogsWaitingForHandle = new ArrayList<>(bufferedWriterConfig.getBatchedWriteMaxRecords());
+        this.batchedPendingAckLogsWaitingForHandle = new ArrayList<>();
     }
 
     @Override
