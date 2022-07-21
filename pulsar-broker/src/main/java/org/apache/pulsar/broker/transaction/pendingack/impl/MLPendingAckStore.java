@@ -32,6 +32,8 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Predicate;
+import java.util.stream.Stream;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -296,56 +298,46 @@ public class MLPendingAckStore implements PendingAckStore {
      * @param logPosition The position of batch log Entry.
      * @param logList Pending ack log records in a batch log Entry.
      */
-    private void handleMetadataEntry(PositionImpl logPosition, List<PendingAckMetadataEntry> logList) {
-        // Find the record that carries the largest ack info, and call "handleMetadataEntry(position, pendingAckLog)"
-        PendingAckMetadataEntry pendingAckLogHasMaxAckPosition = null;
-        PositionImpl maxAcknowledgementPosition = this.maxAckPosition;
-        for (int i = logList.size() - 1; i >= 0; i--){
-            PendingAckMetadataEntry pendingAckLog = logList.get(i);
-            if (pendingAckLog.getPendingAckOp() == PendingAckOp.ABORT
-                    && pendingAckLog.getPendingAckOp() == PendingAckOp.COMMIT) {
-                continue;
-            }
-            if (pendingAckLog.getPendingAckMetadatasList().isEmpty()){
-                continue;
-            }
-            for (PendingAckMetadata ack : pendingAckLog.getPendingAckMetadatasList()){
-                if (maxAcknowledgementPosition.compareTo(ack.getLedgerId(), ack.getEntryId()) < 0){
-                    maxAcknowledgementPosition = PositionImpl.get(ack.getLedgerId(), ack.getEntryId());
-                    pendingAckLogHasMaxAckPosition = pendingAckLog;
-                }
-            }
-        }
+    private void handleMetadataEntry(PositionImpl logPosition,
+                                     List<PendingAckMetadataEntry> logList) {
+        Stream<PendingAckMetadata> pendingAckMetaStream = logList.stream()
+                .filter(log -> bothNotAbortAndCommitPredicate.test(log))
+                .flatMap(log -> log.getPendingAckMetadatasList().stream());
+        handleMetadataEntry(logPosition, pendingAckMetaStream);
+    }
 
-        if (pendingAckLogHasMaxAckPosition != null) {
-            handleMetadataEntry(logPosition, pendingAckLogHasMaxAckPosition);
+    private final Predicate<PendingAckMetadataEntry> bothNotAbortAndCommitPredicate = (pendingAckLog) ->
+            pendingAckLog.getPendingAckOp() != PendingAckOp.ABORT
+            && pendingAckLog.getPendingAckOp() != PendingAckOp.COMMIT;
+
+    private void handleMetadataEntry(PositionImpl logPosition,
+                                     PendingAckMetadataEntry pendingAckMetadataEntry) {
+        // store the persistent position in to memory
+        // store the max position of this entry retain
+        if (bothNotAbortAndCommitPredicate.test(pendingAckMetadataEntry)) {
+            handleMetadataEntry(logPosition, pendingAckMetadataEntry.getPendingAckMetadatasList().stream());
         }
     }
 
-    private void handleMetadataEntry(PositionImpl logPosition, PendingAckMetadataEntry pendingAckMetadataEntry) {
+    private void handleMetadataEntry(PositionImpl logPosition, Stream<PendingAckMetadata> pendingAckListStream) {
         // store the persistent position in to memory
         // store the max position of this entry retain
-        if (pendingAckMetadataEntry.getPendingAckOp() != PendingAckOp.ABORT
-                && pendingAckMetadataEntry.getPendingAckOp() != PendingAckOp.COMMIT) {
-            Optional<PendingAckMetadata> optional = pendingAckMetadataEntry.getPendingAckMetadatasList()
-                    .stream().max((o1, o2) -> ComparisonChain.start().compare(o1.getLedgerId(),
-                            o2.getLedgerId()).compare(o1.getEntryId(), o2.getEntryId()).result());
-
-            optional.ifPresent(pendingAckMetadata -> {
-                PositionImpl nowPosition = PositionImpl.get(pendingAckMetadata.getLedgerId(),
-                        pendingAckMetadata.getEntryId());
-
-                if (nowPosition.compareTo(maxAckPosition) > 0) {
-                    maxAckPosition = nowPosition;
-                }
-                if (currentIndexLag.get() >= maxIndexLag) {
-                    pendingAckLogIndex.compute(maxAckPosition,
-                            (thisPosition, otherPosition) -> logPosition);
-                    maxIndexLag = logIndexBackoff.next(pendingAckLogIndex.size());
-                    currentIndexLag.set(0);
-                }
-            });
-        }
+        Optional<PendingAckMetadata> optional = pendingAckListStream
+                .max((o1, o2) -> ComparisonChain.start().compare(o1.getLedgerId(),
+                        o2.getLedgerId()).compare(o1.getEntryId(), o2.getEntryId()).result());
+        optional.ifPresent(pendingAckMetadata -> {
+            PositionImpl nowPosition = PositionImpl.get(pendingAckMetadata.getLedgerId(),
+                    pendingAckMetadata.getEntryId());
+            if (nowPosition.compareTo(maxAckPosition) > 0) {
+                maxAckPosition = nowPosition;
+            }
+            if (currentIndexLag.get() >= maxIndexLag) {
+                pendingAckLogIndex.compute(maxAckPosition,
+                        (thisPosition, otherPosition) -> logPosition);
+                maxIndexLag = logIndexBackoff.next(pendingAckLogIndex.size());
+                currentIndexLag.set(0);
+            }
+        });
     }
 
     @VisibleForTesting

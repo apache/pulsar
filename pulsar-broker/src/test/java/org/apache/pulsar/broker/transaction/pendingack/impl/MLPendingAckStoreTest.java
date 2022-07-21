@@ -137,7 +137,7 @@ public class MLPendingAckStoreTest extends TransactionTestBase {
      * @param readWithBatch Whether to enable batch feature when replay.
      */
     @Test(dataProvider = "mainProcessArgs")
-    public void test1(boolean writeWithBatch, boolean readWithBatch) throws Exception {
+    public void testMainProcess(boolean writeWithBatch, boolean readWithBatch) throws Exception {
         // Write some data.
         TxnLogBufferedWriterConfig configForWrite = new TxnLogBufferedWriterConfig();
         configForWrite.setBatchEnabled(writeWithBatch);
