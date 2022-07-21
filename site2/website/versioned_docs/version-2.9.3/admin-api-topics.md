@@ -805,7 +805,7 @@ msg-payload
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/subscription/:subName/position/:messagePosition|operation?version=@pulsar:version_number@/peekNthMessage}
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/subscription/:subName/position/:messagePosition|operation/peekNthMessage?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java">
@@ -1236,7 +1236,7 @@ pulsar-admin topics last-message-id topic-name
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|Get|/admin/v2/:schema/:tenant/:namespace/:topic/lastMessageId?version=@pulsar:version_number@}
+{@inject: endpoint|Get|/admin/v2/:schema/:tenant/:namespace/:topic/lastMessageId|operation/getLastMessageId?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java">
@@ -1528,7 +1528,7 @@ pulsar-admin topics get-offload-policies options
 
 ```
 
-{@inject: endpoint|GET|/admin/v2/topics/:tenant/:namespace/:topic/offloadPolicies?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v2/topics/:tenant/:namespace/:topic/offloadPolicies|operation/getOffloadPolicies?version=@pulsar:version_number@}
 
 ```
 
@@ -1567,7 +1567,7 @@ pulsar-admin topics set-offload-policies options
 
 ```
 
-{@inject: endpoint|POST|/admin/v2/topics/:tenant/:namespace/:topic/offloadPolicies?version=@pulsar:version_number@}
+{@inject: endpoint|POST|/admin/v2/topics/:tenant/:namespace/:topic/offloadPolicies|operation/setOffloadPolicies?version=@pulsar:version_number@}
 
 ```
 
@@ -1606,7 +1606,7 @@ pulsar-admin topics remove-offload-policies options
 
 ```
 
-{@inject: endpoint|DELETE|/admin/v2/topics/:tenant/:namespace/:topic/offloadPolicies?version=@pulsar:version_number@}
+{@inject: endpoint|DELETE|/admin/v2/topics/:tenant/:namespace/:topic/offloadPolicies|operation/removeOffloadPolicies?version=@pulsar:version_number@}
 
 ```
 
