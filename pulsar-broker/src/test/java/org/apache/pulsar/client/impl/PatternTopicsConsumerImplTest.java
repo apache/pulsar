@@ -469,11 +469,6 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
             .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition)
             .create();
 
-        List<String> topicNames = Lists.newArrayList(topicName1, topicName2, topicName3);
-        NamespaceService nss = pulsar.getNamespaceService();
-        doReturn(CompletableFuture.completedFuture(topicNames)).when(nss)
-                .getListOfPersistentTopics(NamespaceName.get("my-property/my-ns"));
-
         // 5. call recheckTopics to subscribe each added topics above
         log.debug("recheck topics change");
         PatternMultiTopicsConsumerImpl<byte[]> consumer1 = ((PatternMultiTopicsConsumerImpl<byte[]>) consumer);
@@ -589,11 +584,6 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
             .enableBatching(false)
             .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition)
             .create();
-
-        List<String> topicNames = Lists.newArrayList(topicName1, topicName2, topicName3, topicName4);
-        NamespaceService nss = pulsar.getNamespaceService();
-        doReturn(CompletableFuture.completedFuture(topicNames)).when(nss)
-                .getListOfPersistentTopics(NamespaceName.get("my-property/my-ns"));
 
         // 7. call recheckTopics to subscribe each added topics above, verify topics number: 10=1+2+3+4
         log.debug("recheck topics change");
