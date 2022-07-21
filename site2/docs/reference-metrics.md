@@ -435,6 +435,15 @@ All the subscription metrics are labelled with the following labels:
 | pulsar_subscription_msg_rate_out | Gauge | The total message dispatch rate for a subscription (message per second). |
 | pulsar_subscription_msg_throughput_out | Gauge | The total message dispatch throughput for a subscription (byte per second). |
 | pulsar_subscription_msg_ack_rate | Gauge | The total message acknowledgment rate for a subscription (message per second). |
+| pulsar_subscription_last_expire_timestamp | Gauge | The expiration timestamp of the last message on the subscription. |
+| pulsar_subscription_last_acked_timestamp | Gauge | The timestamp of the last acknowledged message on the subscription. |
+| pulsar_subscription_last_consumed_flow_timestamp | Gauge | The timestamp of the last received consume flow command on the subscription. |
+| pulsar_subscription_last_consumed_timestamp | Gauge | The timestamp of the last consumed message on the subscription. |
+| pulsar_subscription_last_mark_delete_advanced_timestamp | Gauge | The advanced timestamp of the last MarkDelete position on the subscription. |
+| pulsar_subscription_msg_rate_expired | Gauge | The total rate of messages expired on this subscription (message per second). |
+| pulsar_subscription_total_msg_expired | Gauge | The total number of messages expired on this subscription. |
+| pulsar_subscription_msg_drop_rate | Gauge | The rate of messages dropped on this subscription (message per second). |
+| pulsar_subscription_consumers_count | Gauge | The number of connected consumers on this subscription. |
 
 ### Consumer metrics
 
