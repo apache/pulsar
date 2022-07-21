@@ -83,6 +83,10 @@ if [ $RES -eq 0 ]; then
     RES=$?
     echo "pulsar_test.py: $RES"
 
+    python3 schema_test.py
+    RES=$?
+    echo "schema_test.py: $RES"
+
     echo "---- Running Python Function Instance unit tests"
     bash $ROOT_DIR/pulsar-functions/instance/src/scripts/run_python_instance_tests.sh
     RES=$?
