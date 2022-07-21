@@ -299,7 +299,8 @@
         "admin-api-permissions",
         "admin-api-topics",
         "admin-api-functions",
-        "admin-api-packages"
+        "admin-api-packages",
+        "admin-api-transactions"
       ]
     },
     {
