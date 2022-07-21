@@ -86,6 +86,12 @@ public class MLPendingAckStore implements PendingAckStore {
     protected PositionImpl maxAckPosition = PositionImpl.EARLIEST;
     private final LogIndexLagBackoff logIndexBackoff;
 
+    /**
+     * If the Batch feature is enabled by {@link #bufferedWriter}, {@link #handleMetadataEntry(PositionImpl, List)} is
+     * executed after all data in the batch is written, instead of
+     * {@link #handleMetadataEntry(PositionImpl, PendingAckMetadataEntry)} after each data is written. This is because
+     * method {@link #clearUselessLogData()} deletes the data in the unit of Entry.
+     */
     private final ArrayList<PendingAckMetadataEntry> batchedPendingAckLogsWaitingForHandle;
 
     /**
@@ -244,7 +250,15 @@ public class MLPendingAckStore implements PendingAckStore {
                             managedLedger.getName(), ctx, position, txnID, pendingAckMetadataEntry.getPendingAckOp());
                 }
                 currentIndexLag.incrementAndGet();
-
+                /**
+                 * If the Batch feature is enabled by {@link #bufferedWriter},
+                 * {@link #handleMetadataEntry(PositionImpl, List)} is executed after all data in the batch is written,
+                 * instead of {@link #handleMetadataEntry(PositionImpl, PendingAckMetadataEntry)} after each data is
+                 * written. This is because method {@link #clearUselessLogData()} deletes the data in the unit of Entry.
+                 * {@link TxnLogBufferedWriter.AddDataCallback#addComplete} for elements in a batch is executed
+                 * simultaneously and in strict order, so when the last element in a batch is complete, the whole
+                 * batch is complete.
+                 */
                 if (position instanceof TxnBatchedPositionImpl batchedPosition){
                     batchedPendingAckLogsWaitingForHandle.add(pendingAckMetadataEntry);
                     if (batchedPosition.getBatchIndex() == batchedPosition.getBatchSize() - 1){
@@ -460,8 +474,7 @@ public class MLPendingAckStore implements PendingAckStore {
         if (magicNum == BATCHED_ENTRY_DATA_PREFIX_MAGIC_NUMBER){
             // skip version
             buffer.skipBytes(4);
-            BatchedPendingAckMetadataEntry batchedPendingAckMetadataEntry = localBatchedPendingAckLogCache.get();
-            batchedPendingAckMetadataEntry.clear();
+            BatchedPendingAckMetadataEntry batchedPendingAckMetadataEntry = new BatchedPendingAckMetadataEntry();
             batchedPendingAckMetadataEntry.parseFrom(buffer, buffer.readableBytes());
             return batchedPendingAckMetadataEntry.getPendingAckLogsList();
         } else {
@@ -531,7 +544,13 @@ public class MLPendingAckStore implements PendingAckStore {
 
     private static final Logger log = LoggerFactory.getLogger(MLPendingAckStore.class);
 
-    private static final FastThreadLocal<BatchedPendingAckMetadataEntry> localBatchedPendingAckLogCache =
+    /**
+     * Used only for buffered writer. Since all cmd-writes in buffered writer are in the same thread, so we can use
+     * threadLocal variables here. Why need to be on the same thread ?
+     * Because {@link BatchedPendingAckMetadataEntry#clear()} will modifies the elements in the attribute
+     * {@link BatchedPendingAckMetadataEntry#getPendingAckLogsList()}, this will cause problems by multi-thread write.
+     */
+    private static final FastThreadLocal<BatchedPendingAckMetadataEntry> batchedMetaThreadLocalForBufferedWriter =
             new FastThreadLocal<>() {
                 @Override
                 protected BatchedPendingAckMetadataEntry initialValue() throws Exception {
@@ -560,7 +579,7 @@ public class MLPendingAckStore implements PendingAckStore {
         @Override
         public ByteBuf serialize(ArrayList<PendingAckMetadataEntry> dataArray) {
             // Since all writes are in the same thread, so we can use threadLocal variables here.
-            BatchedPendingAckMetadataEntry batch = localBatchedPendingAckLogCache.get();
+            BatchedPendingAckMetadataEntry batch = batchedMetaThreadLocalForBufferedWriter.get();
             batch.clear();
             batch.addAllPendingAckLogs(dataArray);
             int batchSize = batch.getSerializedSize();

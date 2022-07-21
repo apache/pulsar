@@ -1,3 +1,21 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.apache.pulsar.broker.transaction.pendingack.impl;
 
 import java.util.ArrayList;
@@ -23,6 +41,7 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriter;
 import org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriterConfig;
 import static org.mockito.Mockito.*;
 import org.mockito.invocation.InvocationOnMock;
@@ -93,6 +112,13 @@ public class MLPendingAckStoreTest extends TransactionTestBase {
         return (MLPendingAckStore) mlPendingAckStoreProvider.newPendingAckStore(persistentSubscriptionMock).get();
     }
 
+    /**
+     * Overridden cases:
+     *   1. Batched write and replay with batched feature.
+     *   1. Non-batched write and replay without batched feature
+     *   1. Batched write and replay without batched feature.
+     *   1. Non-batched write and replay with batched feature.
+     */
     @DataProvider(name = "mainProcessArgs")
     public Object[][] mainProcessArgsProvider(){
         Object[][] args = new Object[4][];
@@ -103,6 +129,14 @@ public class MLPendingAckStoreTest extends TransactionTestBase {
         return args;
     }
 
+    /**
+     * This method executed the following steps of validation:
+     *   1. Write some data, verify indexes build correct after write.
+     *   2. Replay data that has been written, verify indexes build correct after replay.
+     *   3. Verify that position deletion is in sync with {@link PersistentSubscription}.
+     * @param writeWithBatch Whether to enable batch feature when writing data.
+     * @param readWithBatch Whether to enable batch feature when replay.
+     */
     @Test(dataProvider = "mainProcessArgs")
     public void test1(boolean writeWithBatch, boolean readWithBatch) throws Exception {
         // Write some data.
@@ -151,8 +185,11 @@ public class MLPendingAckStoreTest extends TransactionTestBase {
             }
         }
         LinkedHashSet<Long> expectedPositions = calculatePendingAckIndexes(positionList, skipSet);
-        Assert.assertEquals(mlPendingAckStoreForWrite.pendingAckLogIndex.keySet().stream().map(PositionImpl::getEntryId).collect(
-                Collectors.toList()), new ArrayList<>(expectedPositions));
+        Assert.assertEquals(
+                mlPendingAckStoreForWrite.pendingAckLogIndex.keySet().stream()
+                        .map(PositionImpl::getEntryId).collect(Collectors.toList()),
+                new ArrayList<>(expectedPositions)
+        );
         // Replay.
         TxnLogBufferedWriterConfig configForReplay = new TxnLogBufferedWriterConfig();
         configForReplay.setBatchEnabled(readWithBatch);

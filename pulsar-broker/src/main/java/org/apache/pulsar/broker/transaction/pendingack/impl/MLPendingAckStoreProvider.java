@@ -57,7 +57,7 @@ public class MLPendingAckStoreProvider implements TransactionPendingAckStoreProv
         PersistentTopic originPersistentTopic = (PersistentTopic) subscription.getTopic();
         PulsarService pulsarService = originPersistentTopic.getBrokerService().getPulsar();
 
-        final ScheduledExecutorService transactionLogExecutor =
+        final ScheduledExecutorService transactionLogScheduledExecutor =
                 pulsarService.getBrokerService().getTransactionLogBufferedWriteAsyncFlushTrigger();
         final ServiceConfiguration serviceConfiguration = pulsarService.getConfiguration();
         final TxnLogBufferedWriterConfig txnLogBufferedWriterConfig = new TxnLogBufferedWriterConfig();
@@ -105,7 +105,7 @@ public class MLPendingAckStoreProvider implements TransactionPendingAckStoreProv
                                                                         .getConfiguration()
                                                                         .getTransactionPendingAckLogIndexMinLag(),
                                                                 txnLogBufferedWriterConfig,
-                                                                transactionLogExecutor));
+                                                                transactionLogScheduledExecutor));
                                                         if (log.isDebugEnabled()) {
                                                             log.debug("{},{} open MLPendingAckStore cursor success",
                                                                     originPersistentTopic.getName(),

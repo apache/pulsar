@@ -613,7 +613,6 @@ public class TransactionTest extends TransactionTestBase {
     @Test
     public void testEndTPRecoveringWhenManagerLedgerDisReadable() throws Exception{
         TxnLogBufferedWriterConfig bufferedWriterConfig = new TxnLogBufferedWriterConfig();
-        bufferedWriterConfig.setBatchEnabled(true);
         ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(1);
 
         String topic = NAMESPACE1 + "/testEndTPRecoveringWhenManagerLedgerDisReadable";
