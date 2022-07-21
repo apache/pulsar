@@ -117,7 +117,7 @@ then
 fi
 
 # Check pulsar env and load pulsar_env.sh
-if [[ -f "$PULSAR_HOME/conf/pulsar_env.sh" && $COMMAND != "bookie" ]]
+if [[ -f "$PULSAR_HOME/conf/pulsar_env.sh" && $COMMAND != "bookie" && $COMMAND != "autorecovery" ]]
 then
     . "$PULSAR_HOME/conf/pulsar_env.sh"
 fi
@@ -295,7 +295,7 @@ fi
 
 OPTS="-cp $PULSAR_CLASSPATH $OPTS"
 
-if [ $COMMAND == "bookie" ]; then
+if [[ $COMMAND == "bookie" || $COMMAND == "autorecovery" ]]; then
   # Pass BOOKIE_EXTRA_OPTS option defined in bkenv.sh
   OPTS="$OPTS $BOOKIE_MEM $BOOKIE_GC $BOOKIE_GC_LOG $BOOKIE_EXTRA_OPTS"
 else
