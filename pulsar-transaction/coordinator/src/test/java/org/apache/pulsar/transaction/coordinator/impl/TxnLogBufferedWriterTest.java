@@ -155,8 +155,8 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
          *  - scheduledExecutorService
          *  - dataSerializer
          */
-        ManagedLedger managedLedger = factory.open("tx_test_ledger");
-        ManagedCursor managedCursor = managedLedger.openCursor("tx_test_cursor");
+        ManagedLedger managedLedger = factory.open("txn_test_ledger");
+        ManagedCursor managedCursor = managedLedger.openCursor("txn_test_cursor");
         if (BookieErrorType.ALWAYS_ERROR == bookieErrorType){
             managedLedger = Mockito.spy(managedLedger);
             managedCursor = Mockito.spy(managedCursor);
@@ -166,7 +166,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
             metadataStore.setAlwaysFail(new MetadataStoreException.BadVersionException(""));
         }
         OrderedExecutor orderedExecutor =  OrderedExecutor.newBuilder()
-                .numThreads(5).name("tx-threads").build();
+                .numThreads(5).name("txn-threads").build();
         JsonDataSerializer dataSerializer = new JsonDataSerializer(eachDataBytesLen);
         /**
          * Execute test task.
@@ -177,7 +177,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         HashedWheelTimer transactionTimer = new HashedWheelTimer(new DefaultThreadFactory("transaction-timer"),
                 1, TimeUnit.MILLISECONDS);
         ScheduledExecutorService transactionScheduledService =
-                Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("tx-scheduler-threads"));
+                Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("txn-scheduler-threads"));
         TxnLogBufferedWriter txnLogBufferedWriter = null;
         if (useTimer){
             txnLogBufferedWriter = new TxnLogBufferedWriter<Integer>(
@@ -377,11 +377,11 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         String managedLedgerName = "-";
         ManagedLedger managedLedger = Mockito.mock(ManagedLedger.class);
         Mockito.when(managedLedger.getName()).thenReturn(managedLedgerName);
-        OrderedExecutor orderedExecutor =  OrderedExecutor.newBuilder().numThreads(5).name("tx-topic-threads").build();
+        OrderedExecutor orderedExecutor =  OrderedExecutor.newBuilder().numThreads(5).name("txn-topic-threads").build();
         HashedWheelTimer transactionTimer = new HashedWheelTimer(new DefaultThreadFactory("transaction-timer"),
                 1, TimeUnit.MILLISECONDS);
         ScheduledExecutorService scheduledExecutorService =
-                Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("tx-scheduler-threads"));
+                Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("txn-scheduler-threads"));
         SumStrDataSerializer dataSerializer = new SumStrDataSerializer();
         // Cache the data flush to Bookie for Asserts.
         List<Integer> dataArrayFlushedToBookie = new ArrayList<>();
@@ -416,7 +416,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         TxnLogBufferedWriter txnLogBufferedWriter1 = new TxnLogBufferedWriter<>(managedLedger, orderedExecutor,
                 transactionTimer, dataSerializer, 32, 1024 * 4, 100, true);
         txnLogBufferedWriter1.asyncAddData(100, callback, 100);
-        Thread.sleep(70);
+        Thread.sleep(90);
         // Verify does not refresh ahead of time.
         Assert.assertEquals(dataArrayFlushedToBookie.size(), 1);
         Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> dataArrayFlushedToBookie.size() == 2);
@@ -481,7 +481,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         HashedWheelTimer transactionTimer = new HashedWheelTimer(new DefaultThreadFactory("transaction-timer"),
                 1, TimeUnit.MILLISECONDS);
         ScheduledExecutorService scheduledExecutorService =
-                Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("tx-scheduler-threads"));
+                Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("txn-scheduler-threads"));
         SumStrDataSerializer dataSerializer = new SumStrDataSerializer();
         // Count the number of tasks that have been submitted to bookie for later validation.
         AtomicInteger completeFlushTaskCounter = new AtomicInteger();
