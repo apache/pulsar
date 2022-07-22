@@ -22,8 +22,10 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.annotations.Beta;
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledExecutorService;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
+import org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriterConfig;
 
 /**
  * A provider that provides {@link TransactionMetadataStore}.
@@ -68,5 +70,6 @@ public interface TransactionMetadataStoreProvider {
     CompletableFuture<TransactionMetadataStore> openStore(
             TransactionCoordinatorID transactionCoordinatorId, ManagedLedgerFactory managedLedgerFactory,
             ManagedLedgerConfig managedLedgerConfig, TransactionTimeoutTracker timeoutTracker,
-            TransactionRecoverTracker recoverTracker, long maxActiveTransactionsPerCoordinator);
+            TransactionRecoverTracker recoverTracker, long maxActiveTransactionsPerCoordinator,
+            TxnLogBufferedWriterConfig txnLogBufferedWriterConfig, ScheduledExecutorService scheduledExecutorService);
 }

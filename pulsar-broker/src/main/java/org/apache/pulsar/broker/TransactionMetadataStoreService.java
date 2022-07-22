@@ -35,6 +35,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
@@ -67,6 +68,7 @@ import org.apache.pulsar.transaction.coordinator.TxnMeta;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.CoordinatorNotFoundException;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.InvalidTxnStatusException;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.TransactionMetadataStoreStateException;
+import org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriterConfig;
 import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -200,6 +202,17 @@ public class TransactionMetadataStoreService {
     }
 
     public CompletableFuture<TransactionMetadataStore> openTransactionMetadataStore(TransactionCoordinatorID tcId) {
+        final ScheduledExecutorService transactionLogBufferedWriteAsyncFlushTrigger =
+                pulsarService.getBrokerService().getTransactionTimer();
+        final ServiceConfiguration serviceConfiguration = pulsarService.getConfiguration();
+        final TxnLogBufferedWriterConfig txnLogBufferedWriterConfig = new TxnLogBufferedWriterConfig();
+        txnLogBufferedWriterConfig.setBatchEnabled(serviceConfiguration.isTransactionLogBatchedWriteEnabled());
+        txnLogBufferedWriterConfig
+                .setBatchedWriteMaxRecords(serviceConfiguration.getTransactionLogBatchedWriteMaxRecords());
+        txnLogBufferedWriterConfig.setBatchedWriteMaxSize(serviceConfiguration.getTransactionLogBatchedWriteMaxSize());
+        txnLogBufferedWriterConfig
+                .setBatchedWriteMaxDelayInMillis(serviceConfiguration.getTransactionLogBatchedWriteMaxDelayInMillis());
+
         return pulsarService.getBrokerService()
                 .getManagedLedgerConfig(getMLTransactionLogName(tcId)).thenCompose(v -> {
                             TransactionTimeoutTracker timeoutTracker = timeoutTrackerFactory.newTracker(tcId);
@@ -209,7 +222,8 @@ public class TransactionMetadataStoreService {
                             return transactionMetadataStoreProvider
                                     .openStore(tcId, pulsarService.getManagedLedgerFactory(), v,
                                             timeoutTracker, recoverTracker,
-                                            pulsarService.getConfig().getMaxActiveTransactionsPerCoordinator());
+                                            pulsarService.getConfig().getMaxActiveTransactionsPerCoordinator(),
+                                            txnLogBufferedWriterConfig, transactionLogBufferedWriteAsyncFlushTrigger);
                 });
     }
 
