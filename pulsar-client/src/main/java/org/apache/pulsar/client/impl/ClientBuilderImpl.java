@@ -109,11 +109,6 @@ public class ClientBuilderImpl implements ClientBuilder {
         return this;
     }
 
-    public ClientBuilder disabledAutoReleaseUselessConnections(){
-        conf.disabledAutoReleaseUselessConnections();
-        return this;
-    }
-
     @Override
     public ClientBuilder authentication(Authentication authentication) {
         conf.setAuthentication(authentication);

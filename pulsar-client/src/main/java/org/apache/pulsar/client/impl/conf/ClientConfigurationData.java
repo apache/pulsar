@@ -432,11 +432,4 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     public String getSocks5ProxyPassword() {
         return Objects.nonNull(socks5ProxyPassword) ? socks5ProxyPassword : System.getProperty("socks5Proxy.password");
     }
-
-    /**
-     * Disable The "auto release useless connections" feature.
-     */
-    public void disabledAutoReleaseUselessConnections(){
-        this.connectionMaxIdleSeconds = -1;
-    }
 }

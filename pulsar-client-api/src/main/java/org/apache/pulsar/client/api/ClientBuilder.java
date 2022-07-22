@@ -612,9 +612,4 @@ public interface ClientBuilder extends Serializable, Cloneable {
      * @return
      */
     ClientBuilder socks5ProxyPassword(String socks5ProxyPassword);
-
-    /**
-     * Disable The "auto release useless connections" feature.
-     */
-    ClientBuilder disabledAutoReleaseUselessConnections();
 }

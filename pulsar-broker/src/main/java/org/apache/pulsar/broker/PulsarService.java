@@ -1433,7 +1433,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 initialConf.setStatsIntervalSeconds(0);
 
                 // Disabled auto release useless connections
-                initialConf.disabledAutoReleaseUselessConnections();
+                initialConf.setConnectionMaxIdleSeconds(-1);
 
                 // Apply all arbitrary configuration. This must be called before setting any fields annotated as
                 // @Secret on the ClientConfigurationData object because of the way they are serialized.
