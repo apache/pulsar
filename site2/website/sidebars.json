@@ -225,7 +225,7 @@
       "label": "Administration",
       "items": [
         "administration-zk-bk",
-        "administration-metadata-store"
+        "administration-metadata-store",
         "administration-geo",
         "administration-pulsar-manager",
         "administration-stats",
