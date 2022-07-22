@@ -23,6 +23,7 @@ import io.netty.buffer.Unpooled;
 import io.netty.util.Recycler;
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
+import io.netty.util.TimerTask;
 import java.io.Closeable;
 import java.util.ArrayList;
 import java.util.UUID;
@@ -75,7 +76,7 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
 
     private final ManagedLedger managedLedger;
 
-    private Timer timer;
+    private final Timer timer;
 
     /** All write operation will be executed on single thread. **/
     private final ExecutorService singleThreadExecutorForWrite;
@@ -150,6 +151,8 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
         }
     }
 
+    private final TimerTask timingFlush = timeout -> trigFlush(false, true);
+
     /***
      * Why not use {@link ScheduledExecutorService#scheduleAtFixedRate(Runnable, long, long, TimeUnit)} ?
      * Because: when the {@link #singleThreadExecutorForWrite} thread processes slowly, the scheduleAtFixedRate task
@@ -161,15 +164,12 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
             if (state == State.CLOSING || state == State.CLOSED){
                 return;
             }
-            timeout = timer.newTimeout(timeout -> trigFlush(false, true),
-                    batchedWriteMaxDelayInMillis, TimeUnit.MILLISECONDS);
+            timeout = timer.newTimeout(timingFlush, batchedWriteMaxDelayInMillis, TimeUnit.MILLISECONDS);
         } catch (Exception e){
             log.error("Start timing flush trigger failed."
                     + " managedLedger: " + managedLedger.getName(), e);
         }
     }
-
-
 
     /**
      * Append a new entry to the end of a managed ledger. All writes will be performed in the same thread. Callbacks are
