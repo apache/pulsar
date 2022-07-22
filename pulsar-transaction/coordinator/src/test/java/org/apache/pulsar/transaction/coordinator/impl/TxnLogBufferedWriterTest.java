@@ -32,7 +32,6 @@ import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -87,29 +86,28 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
     public Object[][] mainProcessCasesProvider(){
         return new Object [][]{
                 // Normal.
-                {512, 1024 * 1024, 1, true, 2000, 2, 4, BookieErrorType.NO_ERROR, false, true},
-                {512, 1024 * 1024, 1, true, 2000, 2, 4, BookieErrorType.NO_ERROR, false, false},
+                {512, 1024 * 1024, 1, true, 2000, 2, 4, BookieErrorType.NO_ERROR, false},
                 // The number of data writes is few.
-                {512, 1024 * 1024, 1, true, 100, 2, 4, BookieErrorType.NO_ERROR, false, true},
+                {512, 1024 * 1024, 1, true, 100, 2, 4, BookieErrorType.NO_ERROR, false},
                 // The number of data writes is large.
-                {512, 1024 * 1024, 100, true, 20000, 5, 4, BookieErrorType.NO_ERROR, false, true},
+                {512, 1024 * 1024, 100, true, 20000, 5, 4, BookieErrorType.NO_ERROR, false},
                 // Big data writes.
-                {512, 1024, 100, true, 3000, 6, 1024, BookieErrorType.NO_ERROR, false, true},
+                {512, 1024, 100, true, 3000, 6, 1024, BookieErrorType.NO_ERROR, false},
                 // A batch has only one data
-                {1, 1024 * 1024, 100, true, 2000, 6, 4, BookieErrorType.NO_ERROR, false, true},
+                {1, 1024 * 1024, 100, true, 2000, 6, 4, BookieErrorType.NO_ERROR, false},
                 // A batch has only two data
-                {2, 1024 * 1024, 100, true, 1999, 4, 4, BookieErrorType.NO_ERROR, false, true},
+                {2, 1024 * 1024, 100, true, 1999, 4, 4, BookieErrorType.NO_ERROR, false},
                 // Disabled the batch feature
-                {512, 1024 * 1024, 1, false, 2000, 4, 4, BookieErrorType.NO_ERROR, false, true},
+                {512, 1024 * 1024, 1, false, 2000, 4, 4, BookieErrorType.NO_ERROR, false},
                 // Bookie always error.
-                {512, 1024 * 1024, 1, true, 2000, 2, 4, BookieErrorType.ALWAYS_ERROR, false, true},
-                {512, 1024 * 1024, 1, false, 2000, 4, 4, BookieErrorType.ALWAYS_ERROR, false, true},
+                {512, 1024 * 1024, 1, true, 2000, 2, 4, BookieErrorType.ALWAYS_ERROR, false},
+                {512, 1024 * 1024, 1, false, 2000, 4, 4, BookieErrorType.ALWAYS_ERROR, false},
                 // Bookie sometimes error.
-                {512, 1024 * 1024, 1, true, 2000, 4, 4, BookieErrorType.SOMETIMES_ERROR, false, true},
-                {512, 1024 * 1024, 1, false, 2000, 4, 4, BookieErrorType.SOMETIMES_ERROR, false, true},
+                {512, 1024 * 1024, 1, true, 2000, 4, 4, BookieErrorType.SOMETIMES_ERROR, false},
+                {512, 1024 * 1024, 1, false, 2000, 4, 4, BookieErrorType.SOMETIMES_ERROR, false},
                 // TxnLogBufferedWriter sometimes close.
-                {512, 1024 * 1024, 1, true, 2000, 4, 4, BookieErrorType.NO_ERROR, true, true},
-                {512, 1024 * 1024, 1, false, 2000, 4, 4, BookieErrorType.NO_ERROR, true, true}
+                {512, 1024 * 1024, 1, true, 2000, 4, 4, BookieErrorType.NO_ERROR, true},
+                {512, 1024 * 1024, 1, false, 2000, 4, 4, BookieErrorType.NO_ERROR, true}
         };
     }
 
@@ -132,7 +130,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
     public void testMainProcess(int batchedWriteMaxRecords, int batchedWriteMaxSize, int batchedWriteMaxDelayInMillis,
                                 boolean batchEnabled, final int writeCmdExecuteCount, int maxWaitSeconds,
                                 int eachDataBytesLen, BookieErrorType bookieErrorType,
-                                boolean closeBufferedWriter, boolean useTimer) throws Exception {
+                                boolean closeBufferedWriter) throws Exception {
         // Assert args.
         if (BookieErrorType.SOMETIMES_ERROR == bookieErrorType || closeBufferedWriter){
             if (writeCmdExecuteCount < batchedWriteMaxRecords * 2){
@@ -167,6 +165,8 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         }
         OrderedExecutor orderedExecutor =  OrderedExecutor.newBuilder()
                 .numThreads(5).name("txn-threads").build();
+        HashedWheelTimer transactionTimer = new HashedWheelTimer(new DefaultThreadFactory("transaction-timer"),
+                1, TimeUnit.MILLISECONDS);
         JsonDataSerializer dataSerializer = new JsonDataSerializer(eachDataBytesLen);
         /**
          * Execute test task.
@@ -174,23 +174,10 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
          *   2. Store the param-context and param-position of callback function for verify.
          */
         // Create TxLogBufferedWriter.
-        HashedWheelTimer transactionTimer = new HashedWheelTimer(new DefaultThreadFactory("transaction-timer"),
-                1, TimeUnit.MILLISECONDS);
-        ScheduledExecutorService transactionScheduledService =
-                Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("txn-scheduler-threads"));
-        TxnLogBufferedWriter txnLogBufferedWriter = null;
-        if (useTimer){
-            txnLogBufferedWriter = new TxnLogBufferedWriter<Integer>(
+        TxnLogBufferedWriter txnLogBufferedWriter =  new TxnLogBufferedWriter<Integer>(
                     managedLedger, orderedExecutor, transactionTimer,
                     dataSerializer, batchedWriteMaxRecords, batchedWriteMaxSize,
                     batchedWriteMaxDelayInMillis, batchEnabled);
-        } else {
-            txnLogBufferedWriter = new TxnLogBufferedWriter<Integer>(
-                    managedLedger, orderedExecutor, transactionScheduledService,
-                    dataSerializer, batchedWriteMaxRecords, batchedWriteMaxSize,
-                    batchedWriteMaxDelayInMillis, batchEnabled);
-        }
-
         // Store the param-context, param-position, param-exception of callback function and complete-count for verify.
         ArrayList<Integer> contextArrayOfCallback = new ArrayList<>();
         ArrayList<ManagedLedgerException> exceptionArrayOfCallback = new ArrayList<>();
@@ -337,7 +324,6 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         if (BookieErrorType.SOMETIMES_ERROR != bookieErrorType){
             managedLedger.close();
         }
-        transactionScheduledService.shutdown();
         transactionTimer.stop();
         orderedExecutor.shutdown();
         /**
@@ -380,8 +366,6 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         OrderedExecutor orderedExecutor =  OrderedExecutor.newBuilder().numThreads(5).name("txn-topic-threads").build();
         HashedWheelTimer transactionTimer = new HashedWheelTimer(new DefaultThreadFactory("transaction-timer"),
                 1, TimeUnit.MILLISECONDS);
-        ScheduledExecutorService scheduledExecutorService =
-                Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("txn-scheduler-threads"));
         SumStrDataSerializer dataSerializer = new SumStrDataSerializer();
         // Cache the data flush to Bookie for Asserts.
         List<Integer> dataArrayFlushedToBookie = new ArrayList<>();
@@ -398,29 +382,16 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
                 return null;
             }
         }).when(managedLedger).asyncAddEntry(Mockito.any(ByteBuf.class), Mockito.any(), Mockito.any());
+        // Test threshold: writeMaxDelayInMillis (use timer).
+        TxnLogBufferedWriter txnLogBufferedWriter1 = new TxnLogBufferedWriter<>(managedLedger, orderedExecutor,
+                transactionTimer, dataSerializer, 32, 1024 * 4, 100, true);
         TxnLogBufferedWriter.AddDataCallback callback = Mockito.mock(TxnLogBufferedWriter.AddDataCallback.class);
-
-        // Test threshold: writeMaxDelayInMillis (use scheduled service).
-        TxnLogBufferedWriter txnLogBufferedWriter0 = new TxnLogBufferedWriter<>(managedLedger, orderedExecutor,
-                scheduledExecutorService, dataSerializer, 32, 1024 * 4, 100, true);
-
-        txnLogBufferedWriter0.asyncAddData(100, callback, 100);
+        txnLogBufferedWriter1.asyncAddData(100, callback, 100);
         Thread.sleep(90);
         // Verify does not refresh ahead of time.
         Assert.assertEquals(dataArrayFlushedToBookie.size(), 0);
         Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> dataArrayFlushedToBookie.size() == 1);
         Assert.assertEquals(dataArrayFlushedToBookie.get(0).intValue(), 100);
-        txnLogBufferedWriter0.close();
-
-        // Test threshold: writeMaxDelayInMillis (use timer).
-        TxnLogBufferedWriter txnLogBufferedWriter1 = new TxnLogBufferedWriter<>(managedLedger, orderedExecutor,
-                transactionTimer, dataSerializer, 32, 1024 * 4, 100, true);
-        txnLogBufferedWriter1.asyncAddData(100, callback, 100);
-        Thread.sleep(90);
-        // Verify does not refresh ahead of time.
-        Assert.assertEquals(dataArrayFlushedToBookie.size(), 1);
-        Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> dataArrayFlushedToBookie.size() == 2);
-        Assert.assertEquals(dataArrayFlushedToBookie.get(1).intValue(), 100);
         txnLogBufferedWriter1.close();
 
         // Test threshold: batchedWriteMaxRecords.
@@ -429,8 +400,8 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         for (int i = 0; i < 32; i++){
             txnLogBufferedWriter2.asyncAddData(1, callback, 1);
         }
-        Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> dataArrayFlushedToBookie.size() == 3);
-        Assert.assertEquals(dataArrayFlushedToBookie.get(2).intValue(), 32);
+        Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> dataArrayFlushedToBookie.size() == 2);
+        Assert.assertEquals(dataArrayFlushedToBookie.get(1).intValue(), 32);
         txnLogBufferedWriter2.close();
 
         // Test threshold: batchedWriteMaxSize.
@@ -439,26 +410,16 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         for (int i = 0; i < 64; i++){
             txnLogBufferedWriter3.asyncAddData(1, callback, 1);
         }
-        Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> dataArrayFlushedToBookie.size() == 4);
-        Assert.assertEquals(dataArrayFlushedToBookie.get(3).intValue(), 64);
+        Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> dataArrayFlushedToBookie.size() == 3);
+        Assert.assertEquals(dataArrayFlushedToBookie.get(2).intValue(), 64);
         txnLogBufferedWriter3.close();
 
         // Assert all resources released
         dataSerializer.assertAllByteBufHasBeenReleased();
         // clean up.
         dataSerializer.cleanup();
-        scheduledExecutorService.shutdown();
-        orderedExecutor.shutdown();
         transactionTimer.stop();
-    }
-
-
-    @DataProvider(name = "schedulerProvider")
-    public Object[][] schedulerProvider(){
-        return new Object[][]{
-                {true},
-                {false}
-        };
+        orderedExecutor.shutdown();
     }
 
     /**
@@ -468,8 +429,8 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
      *   ledger thread, this burdens the ledger thread and leads to an avalanche.
      * This method is used to verify the fix for the above problem. see: https://github.com/apache/pulsar/pull/16679.
      */
-    @Test(dataProvider = "schedulerProvider")
-    public void testPendingScheduleTriggerTaskCount(boolean useTimer) throws Exception {
+    @Test
+    public void testPendingScheduleTriggerTaskCount() throws Exception {
         // Create components.
         String managedLedgerName = "-";
         ManagedLedger managedLedger = Mockito.mock(ManagedLedger.class);
@@ -480,8 +441,6 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         Mockito.when(orderedExecutor.chooseThread(Mockito.anyString())).thenReturn(threadPoolExecutor);
         HashedWheelTimer transactionTimer = new HashedWheelTimer(new DefaultThreadFactory("transaction-timer"),
                 1, TimeUnit.MILLISECONDS);
-        ScheduledExecutorService scheduledExecutorService =
-                Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("txn-scheduler-threads"));
         SumStrDataSerializer dataSerializer = new SumStrDataSerializer();
         // Count the number of tasks that have been submitted to bookie for later validation.
         AtomicInteger completeFlushTaskCounter = new AtomicInteger();
@@ -498,18 +457,10 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
                 return null;
             }
         }).when(managedLedger).asyncAddEntry(Mockito.any(ByteBuf.class), Mockito.any(), Mockito.any());
-
-        TxnLogBufferedWriter.AddDataCallback callback = Mockito.mock(TxnLogBufferedWriter.AddDataCallback.class);
         // Start tests.
-        TxnLogBufferedWriter txnLogBufferedWriter = null;
-        if (useTimer) {
-            txnLogBufferedWriter = new TxnLogBufferedWriter<>(managedLedger, orderedExecutor,
+        TxnLogBufferedWriter txnLogBufferedWriter = new TxnLogBufferedWriter<>(managedLedger, orderedExecutor,
                     transactionTimer, dataSerializer, 2, 1024 * 4, 1, true);
-        } else {
-            txnLogBufferedWriter = new TxnLogBufferedWriter<>(managedLedger, orderedExecutor,
-                    scheduledExecutorService, dataSerializer, 2, 1024 * 4, 1, true);
-        }
-        final TxnLogBufferedWriter txnLogBufferedWriterFinal = txnLogBufferedWriter;
+        TxnLogBufferedWriter.AddDataCallback callback = Mockito.mock(TxnLogBufferedWriter.AddDataCallback.class);
         // Append heavier tasks to the Ledger thread.
         final ExecutorService executorService = orderedExecutor.chooseThread(managedLedgerName);
         AtomicInteger heavierTaskCounter = new AtomicInteger();
@@ -537,7 +488,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
             while (true) {
                 for (int i = 0; i < 2; i++) {
                     addAsyncDataTaskCounter.incrementAndGet();
-                    txnLogBufferedWriterFinal.asyncAddData(1, callback, 1);
+                    txnLogBufferedWriter.asyncAddData(1, callback, 1);
                 }
                 normalFlushCounter.incrementAndGet();
                 try {
@@ -572,7 +523,6 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         txnLogBufferedWriter.close();
         dataSerializer.cleanup();
         threadPoolExecutor.shutdown();
-        scheduledExecutorService.shutdown();
         transactionTimer.stop();
         orderedExecutor.shutdown();
     }
