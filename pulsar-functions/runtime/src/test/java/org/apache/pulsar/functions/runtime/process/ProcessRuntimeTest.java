@@ -289,7 +289,8 @@ public class ProcessRuntimeTest {
         List<String> args;
         try (MockedStatic<SystemUtils> systemUtils = Mockito.mockStatic(SystemUtils.class, Mockito.CALLS_REAL_METHODS)) {
             systemUtils.when(() -> SystemUtils.isJavaVersionAtLeast(JavaVersion.JAVA_9)).thenReturn(true);
-            ProcessRuntime container = factory.createContainer(config, userJarFile, userJarFile, null, null,30L);
+            ProcessRuntime container = factory.createContainer(config, userJarFile, userJarFile,
+                    userJarFile, userJarFile,30L);
             args = container.getProcessArgs();
         }
 
@@ -297,7 +298,7 @@ public class ProcessRuntimeTest {
         String extraDepsEnv;
         int portArg;
         int metricsPortArg;
-        int totalArgCount = 44;
+        int totalArgCount = 48;
         if (webServiceUrl != null && config.isExposePulsarAdminClientEnabled()) {
             totalArgCount += 3;
         }
@@ -305,13 +306,13 @@ public class ProcessRuntimeTest {
             assertEquals(args.size(), totalArgCount);
             extraDepsEnv = " -Dpulsar.functions.extra.dependencies.dir=" + depsDir;
             classpath = classpath + ":" + depsDir + "/*";
-            portArg = 27;
-            metricsPortArg = 29;
+            portArg = 31;
+            metricsPortArg = 33;
         } else {
             assertEquals(args.size(), totalArgCount-1);
             extraDepsEnv = "";
-            portArg = 26;
-            metricsPortArg = 28;
+            portArg = 30;
+            metricsPortArg = 32;
         }
         if (webServiceUrl != null && config.isExposePulsarAdminClientEnabled()) {
             portArg += 3;
@@ -330,8 +331,11 @@ public class ProcessRuntimeTest {
                 + " -Dio.netty.tryReflectionSetAccessible=true"
                 + " --add-opens java.base/sun.net=ALL-UNNAMED"
                 + " org.apache.pulsar.functions.instance.JavaInstanceMain"
-                + " --jar " + userJarFile + " --instance_id "
-                + config.getInstanceId() + " --function_id " + config.getFunctionId()
+                + " --jar " + userJarFile
+                + " --extra_function_jar " + userJarFile
+                + " --extra_function_id " +  config.getExtraFunctionId()
+                + " --instance_id " + config.getInstanceId()
+                + " --function_id " + config.getFunctionId()
                 + " --function_version " + config.getFunctionVersion()
                 + " --function_details '" + JsonFormat.printer().omittingInsignificantWhitespace().print(config.getFunctionDetails())
                 + "' --pulsar_serviceurl " + pulsarServiceUrl

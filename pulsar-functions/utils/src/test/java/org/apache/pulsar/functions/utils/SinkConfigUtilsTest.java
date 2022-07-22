@@ -70,7 +70,7 @@ public class SinkConfigUtilsTest {
 
         assertThrows(IllegalArgumentException.class, () -> {
             SinkConfigUtils.convert(sinkConfig,
-                    new SinkConfigUtils.ExtractedSinkDetails(null, null));
+                    new SinkConfigUtils.ExtractedSinkDetails(null, null, null));
         });
     }
 

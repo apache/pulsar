@@ -284,6 +284,7 @@ public class KubernetesRuntimeTest {
 
         config.setFunctionDetails(createFunctionDetails(runtime, addSecrets));
         config.setFunctionId(java.util.UUID.randomUUID().toString());
+        config.setExtraFunctionId(java.util.UUID.randomUUID().toString());
         config.setFunctionVersion("1.0");
         config.setInstanceId(0);
         config.setMaxBufferedTuples(1024);
@@ -387,7 +388,7 @@ public class KubernetesRuntimeTest {
         List<String> args;
         try (MockedStatic<SystemUtils> systemUtils = Mockito.mockStatic(SystemUtils.class, Mockito.CALLS_REAL_METHODS)) {
             systemUtils.when(() -> SystemUtils.isJavaVersionAtLeast(JavaVersion.JAVA_9)).thenReturn(true);
-            container = factory.createContainer(config, userJarFile, userJarFile, null, null,30L);
+            container = factory.createContainer(config, userJarFile, userJarFile, userJarFile, userJarFile,30L);
             args = container.getProcessArgs();
         }
 
@@ -400,14 +401,14 @@ public class KubernetesRuntimeTest {
         if (null != depsDir) {
             extraDepsEnv = " -Dpulsar.functions.extra.dependencies.dir=" + depsDir;
             classpath = classpath + ":" + depsDir + "/*";
-            totalArgs = 42;
-            portArg = 29;
-            metricsPortArg = 31;
+            totalArgs = 46;
+            portArg = 33;
+            metricsPortArg = 35;
         } else {
             extraDepsEnv = "";
-            portArg = 28;
-            metricsPortArg = 30;
-            totalArgs = 41;
+            portArg = 32;
+            metricsPortArg = 34;
+            totalArgs = 45;
         }
         if (secretsAttached) {
             totalArgs += 4;
@@ -441,8 +442,11 @@ public class KubernetesRuntimeTest {
                 + " --add-opens java.base/sun.net=ALL-UNNAMED"
                 + " -Xmx" + RESOURCES.getRam()
                 + " org.apache.pulsar.functions.instance.JavaInstanceMain"
-                + " --jar " + jarLocation + " --instance_id "
-                + "$SHARD_ID" + " --function_id " + config.getFunctionId()
+                + " --jar " + jarLocation
+                + " --extra_function_jar " + jarLocation
+                + " --extra_function_id " +  config.getExtraFunctionId()
+                + " --instance_id " + "$SHARD_ID"
+                + " --function_id " + config.getFunctionId()
                 + " --function_version " + config.getFunctionVersion()
                 + " --function_details '" + JsonFormat.printer().omittingInsignificantWhitespace().print(config.getFunctionDetails())
                 + "' --pulsar_serviceurl " + pulsarServiceUrl

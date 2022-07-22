@@ -351,6 +351,8 @@ public class RuntimeUtils {
             if (isNotEmpty(originalExtraFunctionFileName)) {
                 args.add("--extra_function_jar");
                 args.add(originalExtraFunctionFileName);
+                args.add("--extra_function_id");
+                args.add(instanceConfig.getExtraFunctionId());
             }
         } else if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.PYTHON) {
             args.add("python3");
@@ -386,10 +388,6 @@ public class RuntimeUtils {
         args.add(shardId);
         args.add("--function_id");
         args.add(instanceConfig.getFunctionId());
-        if (instanceConfig.getExtraFunctionId() != null) {
-            args.add("--extra_function_id");
-            args.add(instanceConfig.getExtraFunctionId());
-        }
         args.add("--function_version");
         args.add(instanceConfig.getFunctionVersion());
         args.add("--function_details");
