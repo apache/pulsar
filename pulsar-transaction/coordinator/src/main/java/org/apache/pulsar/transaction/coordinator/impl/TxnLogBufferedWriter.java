@@ -151,7 +151,12 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
         }
     }
 
-    private final TimerTask timingFlush = timeout -> trigFlush(false, true);
+    private final TimerTask timingFlush = (timeout) -> {
+        if (timeout.isCancelled()) {
+            return;
+        }
+        trigFlush(false, true);
+    };
 
     /***
      * Why not use {@link ScheduledExecutorService#scheduleAtFixedRate(Runnable, long, long, TimeUnit)} ?
