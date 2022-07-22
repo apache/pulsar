@@ -297,6 +297,7 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 |managedLedgerDefaultAckQuorum| Number of guaranteed copies (acks to wait before write is complete) |2|
 |managedLedgerCacheSizeMB|  Amount of memory to use for caching data payload in managed ledger. This memory is allocated from JVM direct memory and it’s shared across all the topics running in the same broker. By default, uses 1/5th of available direct memory ||
 |managedLedgerCacheCopyEntries| Whether we should make a copy of the entry payloads when inserting in cache| false|
+|managedLedgerCacheManagerImplementationClass| The class name for the implementation of ManagedLedger cache manager component. Options are: org.apache.bookkeeper.mledger.impl.cache.SharedEntryCacheManagerImpl, org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheManagerImpl| org.apache.bookkeeper.mledger.impl.cache.SharedEntryCacheManagerImpl|
 |managedLedgerCacheEvictionWatermark| Threshold to which bring down the cache level when eviction is triggered  |0.9|
 |managedLedgerCacheEvictionFrequency| Configure the cache eviction frequency for the managed ledger cache (evictions/sec) | 100.0 |
 |managedLedgerCacheEvictionTimeThresholdMillis| All entries that have stayed in cache for more than the configured time, will be evicted | 1000 |

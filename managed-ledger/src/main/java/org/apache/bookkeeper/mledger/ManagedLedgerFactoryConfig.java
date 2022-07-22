@@ -21,6 +21,7 @@ package org.apache.bookkeeper.mledger;
 import lombok.Data;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
+import org.apache.bookkeeper.mledger.impl.cache.SharedEntryCacheManagerImpl;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 
 /**
@@ -91,4 +92,15 @@ public class ManagedLedgerFactoryConfig {
      * ManagedCursorInfo compression type. If the compression type is null or invalid, don't compress data.
      */
     private String managedCursorInfoCompressionType = MLDataFormats.CompressionType.NONE.name();
+
+    /**
+     * Class name for the implementation of {@link org.apache.bookkeeper.mledger.impl.cache.EntryCacheManager}.
+     *
+     * Options are:
+     * <ul>
+     *     <li>{@link org.apache.bookkeeper.mledger.impl.cache.SharedEntryCacheManagerImpl}</li>
+     *     <li>{@link org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheManagerImpl}</li>
+     * </ul>
+     */
+    private String entryCacheManagerClassName = SharedEntryCacheManagerImpl.class.getName();
 }

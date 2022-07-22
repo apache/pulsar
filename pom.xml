@@ -231,6 +231,7 @@ flexible messaging model and an intuitive client API.</description>
     <!-- test dependencies -->
     <testcontainers.version>1.17.2</testcontainers.version>
     <hamcrest.version>2.2</hamcrest.version>
+    <jmh.version>1.35</jmh.version>
 
     <!-- Set docker-java.version to the version of docker-java used in Testcontainers -->
     <docker-java.version>3.2.13</docker-java.version>
@@ -1290,6 +1291,18 @@ flexible messaging model and an intuitive client API.</description>
           <artifactId>netty-reactive-streams</artifactId>
           <version>${netty-reactive-streams.version}</version>
       </dependency>
+
+      <!-- benchmark dependencies -->
+      <dependency>
+        <groupId>org.openjdk.jmh</groupId>
+        <artifactId>jmh-core</artifactId>
+        <version>${jmh.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.openjdk.jmh</groupId>
+        <artifactId>jmh-generator-annprocess</artifactId>
+        <version>${jmh.version}</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -2117,6 +2130,7 @@ flexible messaging model and an intuitive client API.</description>
         <module>distribution</module>
         <module>docker</module>
         <module>tests</module>
+        <module>microbenchmarks</module>
       </modules>
     </profile>
 
@@ -2145,6 +2159,7 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-broker-auth-sasl</module>
         <module>pulsar-client-auth-sasl</module>
         <module>pulsar-config-validation</module>
+        <module>microbenchmarks</module>
 
         <!-- transaction related modules -->
         <module>pulsar-transaction</module>

@@ -204,6 +204,12 @@ public class ConcurrentLongLongPairHashMap {
         return getSection(h).get(key1, key2, (int) h);
     }
 
+    public long getFirstValue(long key1, long key2) {
+        checkBiggerEqualZero(key1);
+        long h = hash(key1, key2);
+        return getSection(h).getFirstValue(key1, key2, (int) h);
+    }
+
     public boolean containsKey(long key1, long key2) {
         return get(key1, key2) != null;
     }
@@ -358,6 +364,55 @@ public class ConcurrentLongLongPairHashMap {
                         } else if (storedKey1 == EmptyKey) {
                             // Not found
                             return null;
+                        }
+                    }
+
+                    bucket = (bucket + 4) & (table.length - 1);
+                }
+            } finally {
+                if (acquiredLock) {
+                    unlockRead(stamp);
+                }
+            }
+        }
+
+        long getFirstValue(long key1, long key2, int keyHash) {
+            long stamp = tryOptimisticRead();
+            boolean acquiredLock = false;
+            int bucket = signSafeMod(keyHash, capacity);
+
+            try {
+                while (true) {
+                    // First try optimistic locking
+                    long storedKey1 = table[bucket];
+                    long storedKey2 = table[bucket + 1];
+                    long storedValue1 = table[bucket + 2];
+
+                    if (!acquiredLock && validate(stamp)) {
+                        // The values we have read are consistent
+                        if (key1 == storedKey1 && key2 == storedKey2) {
+                            return storedValue1;
+                        } else if (storedKey1 == EmptyKey) {
+                            // Not found
+                            return ValueNotFound;
+                        }
+                    } else {
+                        // Fallback to acquiring read lock
+                        if (!acquiredLock) {
+                            stamp = readLock();
+                            acquiredLock = true;
+
+                            bucket = signSafeMod(keyHash, capacity);
+                            storedKey1 = table[bucket];
+                            storedKey2 = table[bucket + 1];
+                            storedValue1 = table[bucket + 2];
+                        }
+
+                        if (key1 == storedKey1 && key2 == storedKey2) {
+                            return storedValue1;
+                        } else if (storedKey1 == EmptyKey) {
+                            // Not found
+                            return ValueNotFound;
                         }
                     }
 

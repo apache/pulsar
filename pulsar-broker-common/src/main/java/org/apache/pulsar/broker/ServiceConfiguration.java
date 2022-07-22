@@ -1786,6 +1786,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(category = CATEGORY_STORAGE_ML, doc = "Whether we should make a copy of the entry payloads when "
             + "inserting in cache")
     private boolean managedLedgerCacheCopyEntries = false;
+
+    @FieldContext(category = CATEGORY_STORAGE_ML,
+            doc = "The class name for the implementation of ManagedLedger cache manager component.\n"
+                    + "Options are:\n"
+                    + " - org.apache.bookkeeper.mledger.impl.cache.SharedEntryCacheManagerImpl\n"
+                    + " - org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheManagerImpl")
+    private String managedLedgerCacheManagerImplementationClass =
+            "org.apache.bookkeeper.mledger.impl.cache.SharedEntryCacheManagerImpl";
+
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
         dynamic = true,

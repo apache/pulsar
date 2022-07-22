@@ -69,7 +69,6 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.ManagedLedgerInitial
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.State;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.impl.cache.EntryCacheManager;
-import org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheManagerImpl;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
@@ -193,7 +192,11 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 config.getManagedCursorInfoCompressionType());
         this.config = config;
         this.mbean = new ManagedLedgerFactoryMBeanImpl(this);
-        this.entryCacheManager = new RangeEntryCacheManagerImpl(this);
+
+        Class<EntryCacheManager> ecmClass =
+                (Class<EntryCacheManager>) Class.forName(config.getEntryCacheManagerClassName());
+        this.entryCacheManager = ecmClass.getDeclaredConstructor(ManagedLedgerFactoryImpl.class).newInstance(this);
+
         this.statsTask = scheduledExecutor.scheduleWithFixedDelay(catchingAndLoggingThrowables(this::refreshStats),
                 0, config.getStatsPeriodSeconds(), TimeUnit.SECONDS);
         this.flushCursorsTask = scheduledExecutor.scheduleAtFixedRate(catchingAndLoggingThrowables(this::flushCursors),
@@ -592,7 +595,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 }));
             }
         }));
-        entryCacheManager.clear();
+
+        entryCacheManager.close();
         return FutureUtil.waitForAll(futures).thenAccept(__ -> {
             //wait for tasks in scheduledExecutor executed.
             scheduledExecutor.shutdown();
@@ -653,7 +657,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
         scheduledExecutor.shutdownNow();
 
-        entryCacheManager.clear();
+        entryCacheManager.close();
     }
 
     @Override
