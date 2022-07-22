@@ -40,25 +40,17 @@ public class DynamicSkipUnknownPropertyHandler extends DeserializationProblemHan
     public boolean handleUnknownProperty(DeserializationContext deserializationContext, JsonParser p,
                                          JsonDeserializer<?> deserializer, Object beanOrClass,
                                          String propertyName) throws IOException {
+        Collection<Object> propIds = (deserializer == null) ? null : deserializer.getKnownPropertyNames();
+        UnrecognizedPropertyException unrecognizedPropertyException = UnrecognizedPropertyException
+                .from(p, beanOrClass, propertyName, propIds);
         if (skipUnknownProperty){
             if (log.isDebugEnabled()) {
-                StringBuilder warnLog = new StringBuilder();
-                warnLog.append("Deserialize json to [").append(beanOrClass.getClass().getName())
-                        .append("], found unknown property [").append(propertyName).append("] and skipped. ");
-                if (p.isExpectedStartArrayToken()){
-                    warnLog.append("The requested value is an array.");
-                } else if (p.isExpectedStartObjectToken()){
-                    warnLog.append("The requested value is an object.");
-                } else {
-                    warnLog.append("The requested value is [").append(p.getText()).append("].");
-                }
-                log.debug(warnLog.toString());
+                log.debug(unrecognizedPropertyException.getMessage());
             }
             p.skipChildren();
             return skipUnknownProperty;
         } else {
-            Collection<Object> propIds = (deserializer == null) ? null : deserializer.getKnownPropertyNames();
-            throw UnrecognizedPropertyException.from(p, beanOrClass, propertyName, propIds);
+            throw unrecognizedPropertyException;
         }
     }
 }
