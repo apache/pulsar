@@ -539,6 +539,8 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
             assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getConsumers().size(), 4);
             assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitionedTopics().size(), 1);
         });
+
+        consumer.close();
     }
 
     // simulate subscribe a pattern which has 3 topics, but then matched topic added in.
