@@ -1313,7 +1313,7 @@ public class SinkApiV3ResourceTest {
     }
 
     @Test
-    public void testDeregisterSinkBKPackageCleanup() throws IOException {
+    public void testDeregisterSinkBKPackageCleanup() {
         mockInstanceUtils();
         try (final MockedStatic<WorkerUtils> ctx = Mockito.mockStatic(WorkerUtils.class)) {
 
@@ -1321,15 +1321,20 @@ public class SinkApiV3ResourceTest {
 
             String packagePath =
                     "public/default/test/591541f0-c7c5-40c0-983b-610c722f90b0-pulsar-io-batch-data-generator-2.7.0.nar";
+            String extraFunctionPackagePath =
+                    "public/default/test/591541f0-c7c5-40c0-983b-610c722f90b0-test-function.nar";
+            FunctionMetaData functionMetaData = FunctionMetaData.newBuilder()
+                    .setPackageLocation(Function.PackageLocationMetaData.newBuilder().setPackagePath(packagePath))
+                    .setExtraFunctionPackageLocation(Function.PackageLocationMetaData.newBuilder()
+                            .setPackagePath(extraFunctionPackagePath))
+                    .build();
             when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(sink)))
-                    .thenReturn(FunctionMetaData.newBuilder().setPackageLocation(
-                            Function.PackageLocationMetaData.newBuilder().setPackagePath(packagePath).build()).build());
+                    .thenReturn(functionMetaData);
 
             deregisterDefaultSink();
 
-            ctx.verify(() -> {
-                WorkerUtils.deleteFromBookkeeper(any(), eq(packagePath));
-            }, times(1));
+            ctx.verify(() -> WorkerUtils.deleteFromBookkeeper(any(), eq(packagePath)), times(1));
+            ctx.verify(() -> WorkerUtils.deleteFromBookkeeper(any(), eq(extraFunctionPackagePath)), times(1));
         }
     }
 
@@ -1341,16 +1346,19 @@ public class SinkApiV3ResourceTest {
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
 
             String packagePath = String.format("%s://data-generator", Utils.BUILTIN);
+            String extraFunctionPackagePath = String.format("%s://exclamation", Utils.BUILTIN);
+            FunctionMetaData functionMetaData = FunctionMetaData.newBuilder()
+                    .setPackageLocation(Function.PackageLocationMetaData.newBuilder().setPackagePath(packagePath))
+                    .setExtraFunctionPackageLocation(Function.PackageLocationMetaData.newBuilder()
+                            .setPackagePath(extraFunctionPackagePath))
+                    .build();
             when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(sink)))
-                    .thenReturn(FunctionMetaData.newBuilder().setPackageLocation(
-                            Function.PackageLocationMetaData.newBuilder().setPackagePath(packagePath).build()).build());
+                    .thenReturn(functionMetaData);
 
             deregisterDefaultSink();
 
             // if the sink is a builtin sink we shouldn't try to clean it up
-            ctx.verify(() -> {
-                WorkerUtils.deleteFromBookkeeper(any(), eq(packagePath));
-            }, times(0));
+            ctx.verify(() -> WorkerUtils.deleteFromBookkeeper(any(), anyString()), times(0));
         }
     }
 
@@ -1363,22 +1371,25 @@ public class SinkApiV3ResourceTest {
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
 
             String packagePath = "http://foo.com/connector.jar";
+            String extraFunctionPackagePath = "http://foo.com/function.jar";
+            FunctionMetaData functionMetaData = FunctionMetaData.newBuilder()
+                    .setPackageLocation(Function.PackageLocationMetaData.newBuilder().setPackagePath(packagePath))
+                    .setExtraFunctionPackageLocation(Function.PackageLocationMetaData.newBuilder()
+                            .setPackagePath(extraFunctionPackagePath))
+                    .build();
+
             when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(sink)))
-                    .thenReturn(FunctionMetaData.newBuilder().setPackageLocation(
-                            Function.PackageLocationMetaData.newBuilder().setPackagePath(packagePath).build()).build());
+                    .thenReturn(functionMetaData);
 
             deregisterDefaultSink();
 
             // if the sink is a is download from a http url, we shouldn't try to clean it up
-            ctx.verify(() -> {
-                WorkerUtils.deleteFromBookkeeper(any(), eq(packagePath));
-            }, times(0));
-
+            ctx.verify(() -> WorkerUtils.deleteFromBookkeeper(any(), anyString()), times(0));
         }
     }
 
     @Test
-    public void testDeregisterFileSinkBKPackageCleanup() throws IOException {
+    public void testDeregisterFileSinkBKPackageCleanup() {
         mockInstanceUtils();
 
         try (final MockedStatic<WorkerUtils> ctx = Mockito.mockStatic(WorkerUtils.class)) {
@@ -1386,16 +1397,20 @@ public class SinkApiV3ResourceTest {
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
 
             String packagePath = "file://foo/connector.jar";
+            String extraFunctionPackagePath = "file://foo/function.jar";
+            FunctionMetaData functionMetaData = FunctionMetaData.newBuilder()
+                    .setPackageLocation(Function.PackageLocationMetaData.newBuilder().setPackagePath(packagePath))
+                    .setExtraFunctionPackageLocation(Function.PackageLocationMetaData.newBuilder()
+                            .setPackagePath(extraFunctionPackagePath))
+                    .build();
+
             when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(sink)))
-                    .thenReturn(FunctionMetaData.newBuilder().setPackageLocation(
-                            Function.PackageLocationMetaData.newBuilder().setPackagePath(packagePath).build()).build());
+                    .thenReturn(functionMetaData);
 
             deregisterDefaultSink();
 
             // if the sink package has a file url, we shouldn't try to clean it up
-            ctx.verify(() -> {
-                WorkerUtils.deleteFromBookkeeper(any(), eq(packagePath));
-            }, times(0));
+            ctx.verify(() -> WorkerUtils.deleteFromBookkeeper(any(), eq(packagePath)), times(0));
         }
     }
 

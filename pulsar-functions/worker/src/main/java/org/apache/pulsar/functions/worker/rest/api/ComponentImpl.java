@@ -514,8 +514,19 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                 String.format("Error deleting %s @ /%s/%s/%s",
                         ComponentTypeUtils.toString(componentType), tenant, namespace, componentName));
 
-        // clean up component files stored in BK
-        String functionPackagePath = functionMetaData.getPackageLocation().getPackagePath();
+        deleteComponentFromStorage(tenant, namespace, componentName,
+                functionMetaData.getPackageLocation().getPackagePath());
+
+        if (!isEmpty(functionMetaData.getExtraFunctionPackageLocation().getPackagePath())) {
+            deleteComponentFromStorage(tenant, namespace, componentName,
+                    functionMetaData.getExtraFunctionPackageLocation().getPackagePath());
+        }
+
+        deleteStatestoreTableAsync(getStateNamespace(tenant, namespace), componentName);
+    }
+
+    private void deleteComponentFromStorage(String tenant, String namespace, String componentName,
+                                            String functionPackagePath) {
         if (!functionPackagePath.startsWith(Utils.HTTP)
                 && !functionPackagePath.startsWith(Utils.FILE)
                 && !functionPackagePath.startsWith(Utils.BUILTIN)) {
@@ -523,22 +534,19 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                 try {
                     worker().getBrokerAdmin().packages().delete(functionPackagePath);
                 } catch (PulsarAdminException e) {
-                    log.error("{}/{}/{} Failed to cleanup package in package managemanet with url {}", tenant,
-                            namespace, componentName, functionMetaData.getPackageLocation().getPackagePath(), e);
+                    log.error("{}/{}/{} Failed to cleanup package in package management with url {}", tenant,
+                            namespace, componentName, functionPackagePath, e);
                 }
             } else {
                 try {
-                    WorkerUtils.deleteFromBookkeeper(worker().getDlogNamespace(),
-                            functionMetaData.getPackageLocation().getPackagePath());
+                    WorkerUtils.deleteFromBookkeeper(worker().getDlogNamespace(), functionPackagePath);
                 } catch (IOException e) {
                     log.error("{}/{}/{} Failed to cleanup package in BK with path {}", tenant, namespace, componentName,
-                            functionMetaData.getPackageLocation().getPackagePath(), e);
+                            functionPackagePath, e);
                 }
             }
 
         }
-
-        deleteStatestoreTableAsync(getStateNamespace(tenant, namespace), componentName);
     }
 
     @Override

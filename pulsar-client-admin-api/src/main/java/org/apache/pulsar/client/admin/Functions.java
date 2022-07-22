@@ -769,7 +769,7 @@ public interface Functions {
      * @param function
      *            Function name
      * @param extraFunction
-     *            Whether to download the extra-function
+     *            Whether to download the extra-function (for sources and sinks)
      * @throws PulsarAdminException
      */
     void downloadFunction(String destinationFile, String tenant, String namespace, String function,
@@ -787,7 +787,7 @@ public interface Functions {
      * @param function
      *            Function name
      * @param extraFunction
-     *            Whether to download the extra-function
+     *            Whether to download the extra-function (for sources and sinks)
      */
     CompletableFuture<Void> downloadFunctionAsync(
             String destinationFile, String tenant, String namespace, String function, boolean extraFunction);
