@@ -210,7 +210,7 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
                     .collect(Collectors.toSet());
 
             List<CompletableFuture<Void>> futures = Lists.newArrayListWithExpectedSize(partitionedTopics.size());
-            addTopicPartitionedName.stream().forEach(partitionedTopic -> futures.add(
+            addTopicPartitionedName.forEach(partitionedTopic -> futures.add(
                     subscribeAsync(partitionedTopic,
                             false /* createTopicIfDoesNotExist */)));
             FutureUtil.waitForAll(futures)
