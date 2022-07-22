@@ -35,7 +35,7 @@ docker run -it \
 ### Configure Database or JWT authentication
 ####  Configure Database (optional)
 
-If you have a large amount of data, you can use a custom database, otherwise, some display errors may occur, such as the topic information cannot be displayed when the topic exceeds 10000.
+If you have a large amount of data, you can use a custom database. Otherwise, some display errors may occur. For example, the topic information cannot be displayed when the topic exceeds 10000.
 The following is an example of PostgreSQL.
 
 1. Initialize database and table structures using the [file](https://github.com/apache/pulsar-manager/blob/master/src/main/resources/META-INF/sql/postgresql-schema.sql).

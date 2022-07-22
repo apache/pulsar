@@ -97,14 +97,15 @@ in the `bookkeeper.conf` configuration file.
 | auditor_NUM_LEDGERS_HAVING_NO_REPLICA_OF_AN_ENTRY | Gauge | Gauge for number of ledgers having an entry with all the replicas missing. |
 | auditor_NUM_LEDGERS_HAVING_LESS_THAN_AQ_REPLICAS_OF_AN_ENTRY | Gauge | Gauge for number of ledgers having an entry with less than AQ number of replicas, this doesn't include ledgers counted towards numLedgersHavingNoReplicaOfAnEntry. |
 | auditor_NUM_LEDGERS_HAVING_LESS_THAN_WQ_REPLICAS_OF_AN_ENTRY | Gauge | Gauge for number of ledgers having an entry with less than WQ number of replicas, this doesn't include ledgers counted towards numLedgersHavingLessThanAQReplicasOfAnEntry. |
+| election_attempts | Counter | The number of auditor election attempts. |
 | replication_worker_NUM_BYTES_READ | Summary | The distribution of size of entries read by the replicator. |
 | replication_worker_NUM_ENTRIES_READ | Counter | Number of entries read by the replicator. |
 | replication_worker_NUM_ENTRIES_WRITTEN | Counter | Number of entries written by the replicator. |
 | replication_worker_NUM_BYTES_WRITTEN | Summary | The distribution of size of entries written by the replicator. |
 | replication_worker_READ_DATA_LATENCY | Summary | The distribution of latency of read entries by the replicator. |
 | replication_worker_WRITE_DATA_LATENCY | Summary | The distribution of latency of write entries by the replicator. |
-| replication_worker_REPLICATE_EXCEPTION | Summary | Replication related exceptions. |
-| replication_worker_REREPLICATE_OP | Summary | Operation stats of re-replicating ledgers. |
+| replication_worker_exceptions | Summary | Replication related exceptions. |
+| replication_worker_rereplicate | Summary | Operation stats of re-replicating ledgers. |
 | replication_worker_NUM_FULL_OR_PARTIAL_LEDGERS_REPLICATED | Counter | The number of ledgers re-replicated. |
 | replication_worker_NUM_DEFER_LEDGER_LOCK_RELEASE_OF_FAILED_LEDGER | Counter | The number of defer-ledger-lock-releases of failed ledgers. |
 | replication_worker_NUM_ENTRIES_UNABLE_TO_READ_FOR_REPLICATION | Counter | The number of entries ReplicationWorker unable to read. |
@@ -381,19 +382,19 @@ All the bundleUnloading metrics are labelled with the following labels:
 - cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the `broker.conf` file.
 - metric: metric="bundleUnloading".
 
-| Name | Type | Description |
-| --- | --- | --- |
-| pulsar_lb_unload_broker_count | Counter | Unload broker count in this bundle unloading |
-| pulsar_lb_unload_bundle_count | Counter | Bundle unload count in this bundle unloading |
+| Name                          | Type    | Description                                  |
+|-------------------------------|---------|----------------------------------------------|
+| pulsar_lb_unload_broker_total | Counter | Unload broker count in this bundle unloading |
+| pulsar_lb_unload_bundle_total | Counter | Bundle unload count in this bundle unloading |
 
 #### BundleSplit metrics
 All the bundleUnloading metrics are labelled with the following labels:
 - cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the `broker.conf` file.
 - metric: metric="bundlesSplit".
 
-| Name | Type | Description |
-| --- | --- | --- |
-| pulsar_lb_bundles_split_count | Counter | bundle split count in this bundle splitting check interval |
+| Name                          | Type    | Description                                                |
+|-------------------------------|---------|------------------------------------------------------------|
+| pulsar_lb_bundles_split_total | Counter | bundle split count in this bundle splitting check interval |
 
 #### Bundle metrics
 All the bundle metrics are labelled with the following labels:
@@ -533,16 +534,16 @@ All the schema metrics are labelled with the following labels:
 
 - *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you have configured in the `broker.conf` file.
 
-| Name | Type | Description |
-|---|---|---|
-| pulsar_schema_del_ops_failed_count | Counter | Number of failed operations to delete schemas. |
-| pulsar_schema_get_ops_failed_count | Counter | Number of failed operations to get schemas. |
-| pulsar_schema_put_ops_failed_count | Counter | Number of failed operations to send schemas. |
-| pulsar_schema_compatible_count | Counter | Number of compatible schemas. |
-| pulsar_schema_incompatible_count | Counter | Number of incompatible schemas. |
-| pulsar_schema_del_ops_latency | Summary | Latency of successful operations to delete schemas. |
-| pulsar_schema_get_ops_latency | Summary | Latency of successful operations to get schemas. |
-| pulsar_schema_put_ops_latency | Summary | Latency of successful operations to send schemas. |
+| Name                               | Type    | Description                                         |
+|------------------------------------|---------|-----------------------------------------------------|
+| pulsar_schema_del_ops_failed_total | Counter | Number of failed operations to delete schemas.      |
+| pulsar_schema_get_ops_failed_total | Counter | Number of failed operations to get schemas.         |
+| pulsar_schema_put_ops_failed_total | Counter | Number of failed operations to send schemas.        |
+| pulsar_schema_compatible_total     | Counter | Number of compatible schemas.                       |
+| pulsar_schema_incompatible_total   | Counter | Number of incompatible schemas.                     |
+| pulsar_schema_del_ops_latency      | Summary | Latency of successful operations to delete schemas. |
+| pulsar_schema_get_ops_latency      | Summary | Latency of successful operations to get schemas.    |
+| pulsar_schema_put_ops_latency      | Summary | Latency of successful operations to send schemas.   |
 
 ### Offload metrics
 

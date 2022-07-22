@@ -314,4 +314,117 @@ public class InMemoryDeliveryTrackerTest {
         Awaitility.await().atMost(10, TimeUnit.SECONDS)
                 .untilAsserted(() -> verify(dispatcher).readMoreEntries());
     }
+
+    @Test
+    public void testWithFixedDelays() throws Exception {
+        PersistentDispatcherMultipleConsumers dispatcher = mock(PersistentDispatcherMultipleConsumers.class);
+
+        AtomicLong clockTime = new AtomicLong();
+        Clock clock = mock(Clock.class);
+        when(clock.millis()).then(x -> clockTime.get());
+
+        @Cleanup
+        InMemoryDelayedDeliveryTracker tracker = new InMemoryDelayedDeliveryTracker(dispatcher, timer, 1, clock,
+                true);
+
+        assertFalse(tracker.hasMessageAvailable());
+
+        assertTrue(tracker.addMessage(1, 1, 10));
+        assertTrue(tracker.addMessage(2, 2, 20));
+        assertTrue(tracker.addMessage(3, 3, 30));
+        assertTrue(tracker.addMessage(4, 4, 40));
+        assertTrue(tracker.addMessage(5, 5, 50));
+
+        assertFalse(tracker.hasMessageAvailable());
+        assertEquals(tracker.getNumberOfDelayedMessages(), 5);
+        assertFalse(tracker.shouldPauseAllDeliveries());
+
+        for (int i = 6; i <= InMemoryDelayedDeliveryTracker.DETECT_FIXED_DELAY_LOOKAHEAD_MESSAGES; i++) {
+            assertTrue(tracker.addMessage(i, i, i * 10));
+        }
+
+        assertTrue(tracker.shouldPauseAllDeliveries());
+
+        clockTime.set(InMemoryDelayedDeliveryTracker.DETECT_FIXED_DELAY_LOOKAHEAD_MESSAGES * 10);
+
+        tracker.getScheduledMessages(100);
+        assertFalse(tracker.shouldPauseAllDeliveries());
+
+        // Empty the tracker
+        int removed = 0;
+        do {
+            removed = tracker.getScheduledMessages(100).size();
+        } while (removed > 0);
+
+        assertFalse(tracker.shouldPauseAllDeliveries());
+    }
+
+    @Test
+    public void testWithMixedDelays() throws Exception {
+        PersistentDispatcherMultipleConsumers dispatcher = mock(PersistentDispatcherMultipleConsumers.class);
+
+        AtomicLong clockTime = new AtomicLong();
+        Clock clock = mock(Clock.class);
+        when(clock.millis()).then(x -> clockTime.get());
+
+        @Cleanup
+        InMemoryDelayedDeliveryTracker tracker = new InMemoryDelayedDeliveryTracker(dispatcher, timer, 1, clock,
+                true);
+
+        assertFalse(tracker.hasMessageAvailable());
+
+        assertTrue(tracker.addMessage(1, 1, 10));
+        assertTrue(tracker.addMessage(2, 2, 20));
+        assertTrue(tracker.addMessage(3, 3, 30));
+        assertTrue(tracker.addMessage(4, 4, 40));
+        assertTrue(tracker.addMessage(5, 5, 50));
+
+        assertFalse(tracker.shouldPauseAllDeliveries());
+
+        for (int i = 6; i <= InMemoryDelayedDeliveryTracker.DETECT_FIXED_DELAY_LOOKAHEAD_MESSAGES; i++) {
+            assertTrue(tracker.addMessage(i, i, i * 10));
+        }
+
+        assertTrue(tracker.shouldPauseAllDeliveries());
+
+        // Add message with earlier delivery time
+        assertTrue(tracker.addMessage(5, 5, 5));
+
+        assertFalse(tracker.shouldPauseAllDeliveries());
+    }
+
+    @Test
+    public void testWithNoDelays() throws Exception {
+        PersistentDispatcherMultipleConsumers dispatcher = mock(PersistentDispatcherMultipleConsumers.class);
+
+        AtomicLong clockTime = new AtomicLong();
+        Clock clock = mock(Clock.class);
+        when(clock.millis()).then(x -> clockTime.get());
+
+        @Cleanup
+        InMemoryDelayedDeliveryTracker tracker = new InMemoryDelayedDeliveryTracker(dispatcher, timer, 1, clock,
+                true);
+
+        assertFalse(tracker.hasMessageAvailable());
+
+        assertTrue(tracker.addMessage(1, 1, 10));
+        assertTrue(tracker.addMessage(2, 2, 20));
+        assertTrue(tracker.addMessage(3, 3, 30));
+        assertTrue(tracker.addMessage(4, 4, 40));
+        assertTrue(tracker.addMessage(5, 5, 50));
+
+        assertFalse(tracker.shouldPauseAllDeliveries());
+
+        for (int i = 6; i <= InMemoryDelayedDeliveryTracker.DETECT_FIXED_DELAY_LOOKAHEAD_MESSAGES; i++) {
+            assertTrue(tracker.addMessage(i, i, i * 10));
+        }
+
+        assertTrue(tracker.shouldPauseAllDeliveries());
+
+        // Add message with no-delay
+        assertFalse(tracker.addMessage(5, 5, -1L));
+
+        assertFalse(tracker.shouldPauseAllDeliveries());
+    }
+
 }

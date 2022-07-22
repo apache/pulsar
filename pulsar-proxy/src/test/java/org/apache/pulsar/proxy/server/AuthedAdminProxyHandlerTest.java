@@ -109,7 +109,6 @@ public class AuthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
         doReturn(report).when(discoveryProvider).nextBroker();
 
         ServletHolder servletHolder = new ServletHolder(new AdminProxyHandler(proxyConfig, discoveryProvider));
-        servletHolder.setInitParameter("preserveHost", "true");
         webServer.addServlet("/admin", servletHolder);
         webServer.addServlet("/lookup", servletHolder);
 

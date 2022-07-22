@@ -2013,10 +2013,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 for (MessageImpl<T> message : finalDeadLetterMessages) {
                     String originMessageIdStr = getOriginMessageIdStr(message);
                     String originTopicNameStr = getOriginTopicNameStr(message);
-                    producerDLQ.newMessage(Schema.AUTO_PRODUCE_BYTES(message.getReaderSchema().get()))
+                    TypedMessageBuilder<byte[]> typedMessageBuilderNew =
+                            producerDLQ.newMessage(Schema.AUTO_PRODUCE_BYTES(message.getReaderSchema().get()))
                             .value(message.getData())
-                            .properties(getPropertiesMap(message, originMessageIdStr, originTopicNameStr))
-                            .sendAsync()
+                            .properties(getPropertiesMap(message, originMessageIdStr, originTopicNameStr));
+                    if (message.hasKey()) {
+                        typedMessageBuilderNew.key(message.getKey());
+                    }
+                    typedMessageBuilderNew.sendAsync()
                             .thenAccept(messageIdInDLQ -> {
                                 possibleSendToDeadLetterTopicMessages.remove(finalMessageId);
                                 acknowledgeAsync(finalMessageId).whenComplete((v, ex) -> {

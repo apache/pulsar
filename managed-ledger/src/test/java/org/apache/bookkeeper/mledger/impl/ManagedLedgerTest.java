@@ -1632,7 +1632,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ledger.openCursor("c1");
 
         ledger.addEntry("data".getBytes(Encoding));
-        assertEquals(bkc.getLedgers().size(), 2);
+        assertEquals(bkc.getLedgers().size(), 1);
 
         ledger.delete();
         assertEquals(bkc.getLedgers().size(), 0);
@@ -1644,7 +1644,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ledger.openCursor("c1");
 
         ledger.addEntry("data".getBytes(Encoding));
-        assertEquals(bkc.getLedgers().size(), 2);
+        assertEquals(bkc.getLedgers().size(), 1);
 
         final CountDownLatch latch = new CountDownLatch(1);
 
@@ -3112,7 +3112,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         }, null, PositionImpl.LATEST);
         ledger.asyncReadEntry(ledgerHandle, PositionImpl.EARLIEST.getEntryId(), PositionImpl.EARLIEST.getEntryId(),
-                false, opReadEntry, ctxStr);
+                opReadEntry, ctxStr);
         retryStrategically((test) -> {
             return responseException2.get() != null;
         }, 5, 1000);
