@@ -78,7 +78,6 @@ public class FunctionActionerTest {
         @SuppressWarnings("resource")
         FunctionActioner actioner = new FunctionActioner(workerConfig, factory, dlogNamespace,
                 new ConnectorsManager(workerConfig), new FunctionsManager(workerConfig), mock(PulsarAdmin.class));
-        Runtime runtime = mock(Runtime.class);
         Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
                 .setFunctionDetails(Function.FunctionDetails.newBuilder().setTenant("test-tenant")
                         .setNamespace("test-namespace").setName("func-1"))
@@ -128,37 +127,47 @@ public class FunctionActionerTest {
         // (1) test with file url. functionActioner should be able to consider file-url and it should be able to call
         // RuntimeSpawner
         String pkgPathLocation = FILE + ":/user/my-file.jar";
-        Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
-                .setFunctionDetails(Function.FunctionDetails.newBuilder().setTenant("test-tenant")
-                        .setNamespace("test-namespace").setName("func-1"))
-                .setPackageLocation(PackageLocationMetaData.newBuilder().setPackagePath(pkgPathLocation).build())
-                .build();
-        Function.Instance instance = Function.Instance.newBuilder().setFunctionMetaData(function1).setInstanceId(0)
-                .build();
-        FunctionRuntimeInfo functionRuntimeInfo = mock(FunctionRuntimeInfo.class);
-        doReturn(instance).when(functionRuntimeInfo).getFunctionInstance();
-
-        actioner.startFunction(functionRuntimeInfo);
+        startFunction(actioner, pkgPathLocation, pkgPathLocation);
         verify(runtime, times(1)).start();
 
         // (2) test with http-url, downloading file from http should fail with UnknownHostException due to invalid url
-        pkgPathLocation = "http://invalid/my-file.jar";
-        function1 = Function.FunctionMetaData.newBuilder()
-                .setFunctionDetails(Function.FunctionDetails.newBuilder().setTenant("test-tenant")
-                        .setNamespace("test-namespace").setName("func-1"))
-                .setPackageLocation(PackageLocationMetaData.newBuilder().setPackagePath(pkgPathLocation).build())
-                .build();
-        instance = Function.Instance.newBuilder().setFunctionMetaData(function1).setInstanceId(0).build();
-        functionRuntimeInfo = mock(FunctionRuntimeInfo.class);
-        doReturn(instance).when(functionRuntimeInfo).getFunctionInstance();
-        doThrow(new IllegalStateException("StartupException")).when(functionRuntimeInfo).setStartupException(any());
+        String invalidPkgPathLocation = "http://invalid/my-file.jar";
 
         try {
-            actioner.startFunction(functionRuntimeInfo);
+            startFunction(actioner, invalidPkgPathLocation, pkgPathLocation);
             fail();
         } catch (IllegalStateException ex) {
             assertEquals(ex.getMessage(), "StartupException");
         }
+
+        try {
+            startFunction(actioner, pkgPathLocation, invalidPkgPathLocation);
+            fail();
+        } catch (IllegalStateException ex) {
+            assertEquals(ex.getMessage(), "StartupException");
+        }
+    }
+
+    private void startFunction(FunctionActioner actioner, String pkgPathLocation, String extraPkgPathLocation) {
+        PackageLocationMetaData packageLocation = PackageLocationMetaData.newBuilder()
+                .setPackagePath(pkgPathLocation)
+                .build();
+        PackageLocationMetaData extraPackageLocation = PackageLocationMetaData.newBuilder()
+                .setPackagePath(extraPkgPathLocation)
+                .build();
+        Function.FunctionMetaData function = Function.FunctionMetaData.newBuilder()
+                .setFunctionDetails(Function.FunctionDetails.newBuilder().setTenant("test-tenant")
+                        .setNamespace("test-namespace").setName("func-1"))
+                .setPackageLocation(packageLocation)
+                .setExtraFunctionPackageLocation(extraPackageLocation)
+                .build();
+        Function.Instance instance = Function.Instance.newBuilder().setFunctionMetaData(function).setInstanceId(0)
+                .build();
+        FunctionRuntimeInfo functionRuntimeInfo = mock(FunctionRuntimeInfo.class);
+        doReturn(instance).when(functionRuntimeInfo).getFunctionInstance();
+        doThrow(new IllegalStateException("StartupException")).when(functionRuntimeInfo).setStartupException(any());
+
+        actioner.startFunction(functionRuntimeInfo);
     }
 
     @Test
@@ -253,17 +262,7 @@ public class FunctionActionerTest {
         // (1) test with file url. functionActioner should be able to consider file-url and it should be able to call
         // RuntimeSpawner
         String pkgPathLocation = "function://public/default/test-function@latest";
-        Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
-                .setFunctionDetails(Function.FunctionDetails.newBuilder().setTenant("test-tenant")
-                        .setNamespace("test-namespace").setName("func-1"))
-                .setPackageLocation(PackageLocationMetaData.newBuilder().setPackagePath(pkgPathLocation).build())
-                .build();
-        Function.Instance instance = Function.Instance.newBuilder().setFunctionMetaData(function1).setInstanceId(0)
-                .build();
-        FunctionRuntimeInfo functionRuntimeInfo = mock(FunctionRuntimeInfo.class);
-        doReturn(instance).when(functionRuntimeInfo).getFunctionInstance();
-
-        actioner.startFunction(functionRuntimeInfo);
+        startFunction(actioner, pkgPathLocation, pkgPathLocation);
         verify(runtime, times(1)).start();
     }
 

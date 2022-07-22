@@ -742,7 +742,9 @@ public class FunctionRuntimeManagerTest {
             functionRuntimeManager.setFunctionActioner(functionActioner);
 
             Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
-                    .setPackageLocation(Function.PackageLocationMetaData.newBuilder().setPackagePath("path").build())
+                    .setPackageLocation(Function.PackageLocationMetaData.newBuilder().setPackagePath("path"))
+                    .setExtraFunctionPackageLocation(Function.PackageLocationMetaData.newBuilder()
+                            .setPackagePath("function-path"))
                     .setFunctionDetails(
                             Function.FunctionDetails.newBuilder()
                                     .setTenant("test-tenant").setNamespace("test-namespace").setName("func-1")).build();
