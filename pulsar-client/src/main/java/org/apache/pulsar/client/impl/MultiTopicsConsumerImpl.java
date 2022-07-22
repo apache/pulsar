@@ -932,10 +932,9 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
         CompletableFuture<Void> subscribeResult = new CompletableFuture<>();
 
-        client.getPartitionedTopicMetadata(topicNameInstance.getPartitionedTopicName())
-                .thenAccept(metadata -> subscribeTopicPartitions(subscribeResult,
-                        topicNameInstance.getPartitionedTopicName(),
-                        metadata.partitions, createTopicIfDoesNotExist))
+        client.getPartitionedTopicMetadata(topicName)
+                .thenAccept(metadata -> subscribeTopicPartitions(subscribeResult, fullTopicName, metadata.partitions,
+                        createTopicIfDoesNotExist))
                 .exceptionally(ex1 -> {
                     log.warn("[{}] Failed to get partitioned topic metadata: {}", fullTopicName, ex1.getMessage());
                     subscribeResult.completeExceptionally(ex1);
