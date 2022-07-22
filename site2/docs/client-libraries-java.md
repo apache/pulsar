@@ -156,7 +156,6 @@ If you create a client, you can use the `loadConf` configuration. The following 
 `socks5ProxyUsername`|string|SOCKS5 proxy username | None
 `socks5ProxyPassword`|string|SOCKS5 proxy password | None
 `connectionMaxIdleSeconds`|int|Release the connection if it is not used for more than `connectionMaxIdleSeconds` seconds.If `connectionMaxIdleSeconds` < 0, disabled the feature that auto release the idle connection|180
-`connectionIdleDetectionIntervalSeconds`|int|connection idle-check task  performed once every `connectionIdleDetectionIntervalSeconds` second|60
 
 Check out the Javadoc for the {@inject: javadoc:PulsarClient:/client/org/apache/pulsar/client/api/PulsarClient} class for a full list of configurable parameters.
 

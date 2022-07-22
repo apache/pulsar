@@ -132,12 +132,6 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private int connectionMaxIdleSeconds = 180;
 
     @ApiModelProperty(
-            name = "connectionIdleDetectionIntervalSeconds",
-            value = "How often check idle connections"
-    )
-    private int connectionIdleDetectionIntervalSeconds = 60;
-
-    @ApiModelProperty(
             name = "useTcpNoDelay",
             value = "Whether to use TCP NoDelay option."
     )
