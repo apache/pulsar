@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
+import lombok.Getter;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -76,6 +77,7 @@ public class MLTransactionLogImpl implements TransactionLog {
 
     private final TopicName topicName;
 
+    @Getter
     private TxnLogBufferedWriter<TransactionMetadataEntry> bufferedWriter;
 
     private final ScheduledExecutorService scheduledExecutorService;

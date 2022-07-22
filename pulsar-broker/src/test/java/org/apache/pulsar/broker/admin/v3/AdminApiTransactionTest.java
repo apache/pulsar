@@ -56,6 +56,7 @@ import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionMetadata;
+import org.apache.pulsar.common.policies.data.TxnBufferedWriterStat;
 import org.apache.pulsar.common.stats.PositionInPendingAckStats;
 import org.apache.pulsar.packages.management.core.MockedPackagesStorageProvider;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl;
@@ -81,6 +82,14 @@ import static org.testng.Assert.fail;
 @Test(groups = "broker-admin")
 public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
 
+    /**
+     * Transaction log batch Configuration.
+     */
+    private boolean transactionBatchEnabled = true;
+    private int transactionMaxCountInBatch = 256;
+    private int transactionBatchMaxSize = 1024 * 1024;
+    private int transactionBatchMaxDelayMillis = 128;
+
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
@@ -88,6 +97,10 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         conf.setPackagesManagementStorageProvider(MockedPackagesStorageProvider.class.getName());
         conf.setTransactionCoordinatorEnabled(true);
         conf.setTransactionBufferSnapshotMaxTransactionCount(1);
+        conf.setTransactionLogBatchedWriteEnabled(transactionBatchEnabled);
+        conf.setTransactionLogBatchedWriteMaxRecords(transactionMaxCountInBatch);
+        conf.setTransactionLogBatchedWriteMaxSize(transactionBatchMaxSize);
+        conf.setTransactionLogBatchedWriteMaxDelayInMillis(transactionBatchMaxDelayMillis);
         super.internalSetup();
         admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
@@ -116,6 +129,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         transactionCoordinatorstats = admin.transactions().getCoordinatorStatsByIdAsync(0).get();
         verifyCoordinatorStats(transactionCoordinatorstats.state,
                 transactionCoordinatorstats.leastSigBits, transactionCoordinatorstats.lowWaterMark);
+        verifyTxnBufferedWriterStat(transactionCoordinatorstats.bufferedWriterStat);
         Map<Integer, TransactionCoordinatorStats> stats = admin.transactions().getCoordinatorStatsAsync().get();
 
         assertEquals(stats.size(), 2);
@@ -123,10 +137,12 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         transactionCoordinatorstats = stats.get(0);
         verifyCoordinatorStats(transactionCoordinatorstats.state,
                 transactionCoordinatorstats.leastSigBits, transactionCoordinatorstats.lowWaterMark);
+        verifyTxnBufferedWriterStat(transactionCoordinatorstats.bufferedWriterStat);
 
         transactionCoordinatorstats = stats.get(1);
         verifyCoordinatorStats(transactionCoordinatorstats.state,
                 transactionCoordinatorstats.leastSigBits, transactionCoordinatorstats.lowWaterMark);
+        verifyTxnBufferedWriterStat(transactionCoordinatorstats.bufferedWriterStat);
     }
 
     @Test(timeOut = 20000)
@@ -793,6 +809,14 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         assertEquals(state, "Ready");
         assertEquals(sequenceId, 0);
         assertEquals(lowWaterMark, 0);
+    }
+
+
+    private void verifyTxnBufferedWriterStat(TxnBufferedWriterStat txnBufferedWriterStat) {
+        assertEquals(txnBufferedWriterStat.isBatchEnabled(), transactionBatchEnabled);
+        assertEquals(txnBufferedWriterStat.getBatchedWriteMaxRecords(), transactionMaxCountInBatch);
+        assertEquals(txnBufferedWriterStat.getBatchedWriteMaxSize(), transactionBatchMaxSize);
+        assertEquals(txnBufferedWriterStat.getBatchedWriteMaxDelayInMillis(), transactionBatchMaxDelayMillis);
     }
 
     private void initTransaction(int coordinatorSize) throws Exception {

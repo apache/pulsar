@@ -20,30 +20,20 @@ package org.apache.pulsar.common.policies.data;
 
 import lombok.Data;
 
-/**
- * Transaction coordinator stats.
- */
 @Data
-public class TransactionCoordinatorStats {
+public class TxnBufferedWriterStat {
 
-    /** The state of this transaction metadataStore. */
-    public String state;
+    /** Whether to enable the batch feature when writing to Bookie. **/
+    private boolean batchEnabled = false;
 
-    /** The sequenceId of transaction metadataStore. */
-    public long leastSigBits;
+    /** If enabled the feature-batch, this attribute means maximum log records count in a batch. **/
+    private int batchedWriteMaxRecords = 512;
 
-    /** The low water mark of transaction metadataStore. */
-    public long lowWaterMark;
+    /** If enabled the feature-batch, this attribute means bytes size in a batch. **/
+    private int batchedWriteMaxSize;
 
     /**
-     *  The total number of ongoing transactions in this transaction coordinator.
+     * If enabled the feature-batch, this attribute means maximum wait time(in millis) for the first record in a batch.
      */
-    public long ongoingTxnSize;
-    //Start timestamp of  transaction coordinator recovery. 0L means no startup.
-    public long recoverStartTime;
-    //End timestamp of transaction coordinator recovery. 0L means no startup.
-    public long recoverEndTime;
-
-    /** The stat of transaction log buffered writer. **/
-    public TxnBufferedWriterStat bufferedWriterStat;
+    private int batchedWriteMaxDelayInMillis;
 }

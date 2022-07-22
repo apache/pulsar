@@ -417,7 +417,13 @@ The following is an example of the returned values.
   "lowWaterMark" : 0,
   "ongoingTxnSize" : 0,
   "recoverStartTime" : 1657021892377,
-  "recoverEndTime" : 1657021892378
+  "recoverEndTime" : 1657021892378,
+  "bufferedWriterStat":{
+    "batchEnabled": true,
+    "batchedWriteMaxRecords": 512
+    "batchedWriteMaxSize": 4194304,
+    "batchedWriteMaxDelayInMillis": 1
+  }
 }
 
 ```

@@ -39,6 +39,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
+import org.apache.pulsar.common.policies.data.TxnBufferedWriterStat;
 
 /***
  * See PIP-160: https://github.com/apache/pulsar/issues/15516.
@@ -576,5 +577,14 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
                 asyncAddArgs.recycle();
             }
         }
+    }
+
+    public TxnBufferedWriterStat getStats(){
+        TxnBufferedWriterStat txnBufferedWriterStat = new TxnBufferedWriterStat();
+        txnBufferedWriterStat.setBatchEnabled(batchEnabled);
+        txnBufferedWriterStat.setBatchedWriteMaxRecords(batchedWriteMaxRecords);
+        txnBufferedWriterStat.setBatchedWriteMaxSize(batchedWriteMaxSize);
+        txnBufferedWriterStat.setBatchedWriteMaxDelayInMillis(batchedWriteMaxDelayInMillis);
+        return txnBufferedWriterStat;
     }
 }

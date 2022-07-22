@@ -453,6 +453,7 @@ public class MLTransactionMetadataStore
         transactionCoordinatorstats.ongoingTxnSize = txnMetaMap.size();
         transactionCoordinatorstats.recoverStartTime = recoverTime.getRecoverStartTime();
         transactionCoordinatorstats.recoverEndTime = recoverTime.getRecoverEndTime();
+        transactionCoordinatorstats.bufferedWriterStat = transactionLog.getBufferedWriter().getStats();
         return transactionCoordinatorstats;
     }
 
