@@ -48,18 +48,18 @@ import org.eclipse.jetty.server.Response;
 @Slf4j
 public class CounterBrokerInterceptor implements BrokerInterceptor {
 
-    int beforeSendCount = 0;
-    int count = 0;
-    int connectionCreationCount = 0;
-    int producerCount = 0;
-    int consumerCount = 0;
-    int messageCount = 0;
-    int messageDispatchCount = 0;
-    int messageAckCount = 0;
-    int handleAckCount = 0;
-    int txnCount = 0;
-    int committedTxnCount = 0;
-    int abortedTxnCount = 0;
+    private volatile int beforeSendCount = 0;
+    private volatile int count = 0;
+    private volatile int connectionCreationCount = 0;
+    private volatile int producerCount = 0;
+    private volatile int consumerCount = 0;
+    private volatile int messageCount = 0;
+    private volatile int messageDispatchCount = 0;
+    private volatile int messageAckCount = 0;
+    private volatile int handleAckCount = 0;
+    private volatile int txnCount = 0;
+    private volatile int committedTxnCount = 0;
+    private volatile int abortedTxnCount = 0;
 
     public void reset() {
         beforeSendCount = 0;
