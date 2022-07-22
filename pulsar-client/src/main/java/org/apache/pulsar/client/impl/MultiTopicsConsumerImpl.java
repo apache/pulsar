@@ -934,7 +934,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
         client.getPartitionedTopicMetadata(topicName)
                 .thenAccept(metadata -> subscribeTopicPartitions(subscribeResult, fullTopicName, metadata.partitions,
-                        createTopicIfDoesNotExist))
+                    createTopicIfDoesNotExist))
                 .exceptionally(ex1 -> {
                     log.warn("[{}] Failed to get partitioned topic metadata: {}", fullTopicName, ex1.getMessage());
                     subscribeResult.completeExceptionally(ex1);
