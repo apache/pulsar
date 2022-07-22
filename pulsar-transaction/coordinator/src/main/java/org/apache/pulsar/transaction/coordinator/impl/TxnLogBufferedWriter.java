@@ -39,7 +39,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
-import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 
 /***
  * See PIP-160: https://github.com/apache/pulsar/issues/15516.
@@ -58,8 +57,10 @@ import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback, Closeable {
 
     public static final short BATCHED_ENTRY_DATA_PREFIX_MAGIC_NUMBER = 0x0e01;
+    public static final int BATCHED_ENTRY_DATA_PREFIX_MAGIC_NUMBER_LEN = 2;
 
     public static final short BATCHED_ENTRY_DATA_PREFIX_VERSION = 1;
+    public static final short BATCHED_ENTRY_DATA_PREFIX_VERSION_LEN = 2;
 
     private static final ManagedLedgerException BUFFERED_WRITER_CLOSED_EXCEPTION =
             new ManagedLedgerException.ManagedLedgerFencedException(
@@ -321,12 +322,8 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
             final int batchSize = flushContext.asyncAddArgsList.size();
             for (int batchIndex = 0; batchIndex < batchSize; batchIndex++) {
                 final AsyncAddArgs asyncAddArgs = flushContext.asyncAddArgsList.get(batchIndex);
-                BitSetRecyclable bitSetRecyclable = BitSetRecyclable.create();
-                bitSetRecyclable.set(batchIndex);
-                long[] ackSet = bitSetRecyclable.toLongArray();
-                bitSetRecyclable.recycle();
                 final TxnBatchedPositionImpl txnBatchedPosition = new TxnBatchedPositionImpl(position, batchSize,
-                        batchIndex, ackSet);
+                        batchIndex);
                 // Because this task already running at ordered task, so just "run".
                 try {
                     asyncAddArgs.callback.addComplete(txnBatchedPosition, asyncAddArgs.ctx);
