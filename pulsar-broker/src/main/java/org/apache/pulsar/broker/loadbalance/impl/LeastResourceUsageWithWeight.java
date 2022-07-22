@@ -139,7 +139,8 @@ public class LeastResourceUsageWithWeight implements ModularLoadManagerStrategy 
         final double diffThreshold =
                 conf.getLoadBalancerAverageResourceUsageDifferenceThresholdPercentage() / 100.0;
         brokerAvgResourceUsageWithWeight.forEach((broker, avgResUsage) -> {
-            if (avgResUsage + diffThreshold <= avgUsage) {
+            if ((avgResUsage + diffThreshold <= avgUsage)
+                    && candidates.contains(broker)) {
                 bestBrokers.add(broker);
             }
         });
