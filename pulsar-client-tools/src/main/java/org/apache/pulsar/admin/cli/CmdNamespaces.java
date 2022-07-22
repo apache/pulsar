@@ -744,14 +744,14 @@ public class CmdNamespaces extends CmdBase {
         @Parameter(names = { "--time",
                 "-t" }, description = "Retention time with optional time unit suffix "
                         + "eg: 100m, 3h, 2d, 5w. "
-                        + "The suffix character can be s for seconds, m for minutes, h for hours, "
-                        + "d for days, w for weeks or y for years. "
                         + "If no time unit is specified the default is seconds, eg: "
                         + "-t 120 will set retention to 2 minutes. "
                         + "0 means no retention and -1 means infinite time retention.", required = true)
         private String retentionTimeStr;
 
-        @Parameter(names = { "--size", "-s" }, description = "Retention size limit (eg: 10M, 16G, 3T). "
+        @Parameter(names = { "--size", "-s" }, description = "Retention size limit with optional size unit suffix "
+                + "eg: 4096, 10M, 16G, 3T.  The size unit suffix character can be k/K, m/M, g/G, or t/T.  "
+                + "If the size unit suffix is not specified, the default unit is bytes. "
                 + "0 or less than 1MB means no retention and -1 means infinite size retention", required = true)
         private String limitStr;
 
