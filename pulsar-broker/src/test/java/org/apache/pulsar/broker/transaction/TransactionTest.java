@@ -35,7 +35,9 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.netty.buffer.Unpooled;
+import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timeout;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -678,7 +680,8 @@ public class TransactionTest extends TransactionTestBase {
 
     @Test
     public void testEndTCRecoveringWhenManagerLedgerDisReadable() throws Exception{
-        ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(1);
+        HashedWheelTimer transactionTimer = new HashedWheelTimer(new DefaultThreadFactory("transaction-timer"),
+                1, TimeUnit.MILLISECONDS);
 
         String topic = NAMESPACE1 + "/testEndTCRecoveringWhenManagerLedgerDisReadable";
         admin.topics().createNonPartitionedTopic(topic);
@@ -703,7 +706,7 @@ public class TransactionTest extends TransactionTestBase {
         MLTransactionLogImpl mlTransactionLog =
                 new MLTransactionLogImpl(new TransactionCoordinatorID(1), null,
                         persistentTopic.getManagedLedger().getConfig(), new TxnLogBufferedWriterConfig(),
-                        scheduledExecutorService);
+                        transactionTimer);
         Class<MLTransactionLogImpl> mlTransactionLogClass = MLTransactionLogImpl.class;
         Field field = mlTransactionLogClass.getDeclaredField("cursor");
         field.setAccessible(true);
@@ -752,7 +755,7 @@ public class TransactionTest extends TransactionTestBase {
                 assertEquals(metadataStore3.getCoordinatorStats().state, "Ready"));
 
         // cleanup.
-        scheduledExecutorService.shutdown();
+        transactionTimer.stop();
     }
 
     @Test
