@@ -83,6 +83,10 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
         return flag.booleanValue();
     }
 
+    public boolean exists(Key key) {
+        return key != null ? entries.containsKey(key) : true;
+    }
+
     public Value get(Key key) {
         Value value = entries.get(key);
         if (value == null) {

@@ -60,6 +60,12 @@ tlsTrustCertsFilePath=/path/to/ca.cert.pem
 
 ```
 
+To enable encryption at rest on WebSocket service, add CryptoKeyReaderFactory factory class in classpath which will create CryptoKeyReader for WebSocket and that helps to load encryption keys for producer/consumer.
+
+```
+cryptoKeyReaderFactoryClassName=org.apache.pulsar.MyCryptoKeyReaderFactoryClassImpl
+```
+
 ### Starting the broker
 
 When the configuration is set, you can start the service using the [`pulsar-daemon`](reference-cli-tools.md#pulsar-daemon) tool:
@@ -113,6 +119,7 @@ Key | Type | Required? | Explanation
 `initialSequenceId` | long | no | Set the baseline for the sequence ids for messages published by the producer.
 `hashingScheme` | string | no | [Hashing function](/api/client/org/apache/pulsar/client/api/ProducerConfiguration.HashingScheme.html) to use when publishing on a partitioned topic: `JavaStringHash`, `Murmur3_32Hash`
 `token` | string | no | Authentication token, this is used for the browser javascript client
+`encryptionKeys` | string | no | Encryption key to encrypt published message only if encryption reader is configured using cryptoKeyReaderFactoryClassName config in websocket-configuration.
 
 
 #### Publishing a message

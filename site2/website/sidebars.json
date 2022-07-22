@@ -225,6 +225,7 @@
       "label": "Administration",
       "items": [
         "administration-zk-bk",
+        "administration-metadata-store"
         "administration-geo",
         "administration-pulsar-manager",
         "administration-stats",
@@ -232,7 +233,18 @@
         "administration-proxy",
         "administration-isolation",
         "administration-upgrade",
-        "administration-metadata-store"
+        {
+          "type": "category",
+          "label": "Pulsar isolation",
+          "link": {
+            "type": "doc",
+            "id": "administration-isolation"
+          },
+          "items": [
+            "administration-isolation-broker",
+            "administration-isolation-bookie"
+          ]
+        }
       ]
     },
     {
@@ -287,7 +299,8 @@
         "admin-api-permissions",
         "admin-api-topics",
         "admin-api-functions",
-        "admin-api-packages"
+        "admin-api-packages",
+        "admin-api-transactions"
       ]
     },
     {
