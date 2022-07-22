@@ -15,11 +15,11 @@ It's great for quickly switching between different clusters, and can modify clus
 
 
 # Features
-- Administration: find all the [Admin API](admin-api-overview.md) features under  the `admin` command .
+- Administration: find all the [Admin API](admin-api-overview.md) features under the `admin` command.
 - Client: find all the [pulsar-client](reference-cli-tools#pulsar-client.md) features under the `client` command.
 
 
-# Installation
+## Install Pulsar Shell
 
 Download the tarball from the [download page](https://pulsar.apache.org/download) and extract it.
 
@@ -46,7 +46,7 @@ default(localhost)>
 
 # Connect to your cluster
 
-By default, the shell will try to connect to a local Pulsar instance.
+By default, the shell tries to connect to a local Pulsar instance.
 To connect to a different cluster, you have to register the cluster with Pulsar shell. You can do this in a few different ways depending on where your config file is located:
 
 > The configuration file must be a valid `client.conf` file, the same one you use for `pulsar-admin`, `pulsar-client` and other client tools.
@@ -107,7 +107,7 @@ my-cluster(mycluster)>
 
  
 # Non interactive mode
-Pulsar shell's non-interactive mode is great for running bunch of admin commands sequentially.
+To run a bunch of admin commands sequentially, you can use Pulsar shell's non-interactive mode.
 For example, to set up a new tenant with policies, you would normally need to run multiple `pulsar-admin` commands.
 
 Let's say you want to create a new tenant `new-tenant` with a namespace `new-namespace` in it.
