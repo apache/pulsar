@@ -22,11 +22,12 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 import io.swagger.annotations.ApiModelProperty;
-
 import java.lang.reflect.Field;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.List;
 import java.util.function.Predicate;
-
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
@@ -44,7 +45,7 @@ public abstract class BaseGenerateDocumentation {
             "List of class names, generate documentation based on the annotations in the Class")
     private List<String> classNames = new ArrayList<>();
 
-    @Parameter(names = {"-h", "--help",}, help = true, description = "Show this help.")
+    @Parameter(names = {"-h", "--help"}, help = true, description = "Show this help.")
     boolean help;
 
     public BaseGenerateDocumentation() {
@@ -83,25 +84,16 @@ public abstract class BaseGenerateDocumentation {
 
     protected Predicate<Field> isRequired = field -> {
         FieldContext fieldContext = field.getAnnotation(FieldContext.class);
-        if (fieldContext == null) {
-            return false;
-        }
         return fieldContext.required();
     };
 
     protected Predicate<Field> isOptional = field -> {
         FieldContext fieldContext = field.getAnnotation(FieldContext.class);
-        if (fieldContext == null) {
-            return false;
-        }
         return !fieldContext.deprecated() && !fieldContext.required();
     };
 
     protected Predicate<Field> isDeprecated = field -> {
         FieldContext fieldContext = field.getAnnotation(FieldContext.class);
-        if (fieldContext == null) {
-            return false;
-        }
         return fieldContext.deprecated();
     };
 
@@ -118,18 +110,45 @@ public abstract class BaseGenerateDocumentation {
         }
     }
 
+    protected static class CategoryComparator implements Comparator<Field> {
+        @Override
+        public int compare(Field o1, Field o2) {
+            FieldContext o1Context = o1.getAnnotation(FieldContext.class);
+            FieldContext o2Context = o2.getAnnotation(FieldContext.class);
+
+            if (o1Context.category().equals(o2Context.category())) {
+                return o1.getName().compareTo(o2.getName());
+            }
+            return o1Context.category().compareTo(o2Context.category());
+        }
+    }
+
+    protected String prefix = """
+            :::note
+
+            This page is automatically generated from code files.
+            If you find something inaccurate, feel free to update `""";
+    protected String suffix = """
+            `. Do NOT edit this markdown file manually. Manual changes will be overwritten by automatic generation.
+
+            :::
+            """;
+
     protected String generateDocByFieldContext(String className, String type, StringBuilder sb) throws Exception {
         Class<?> clazz = Class.forName(className);
         Object obj = clazz.getDeclaredConstructor().newInstance();
         Field[] fields = clazz.getDeclaredFields();
-        List<Field> fieldList = Arrays.asList(fields);
+        ArrayList<Field> fieldList = new ArrayList<>(Arrays.asList(fields));
 
-        fieldList.sort(Comparator.comparing(Field::getName));
+        fieldList.removeIf(f -> f.getAnnotation(FieldContext.class) == null);
+        fieldList.sort(new CategoryComparator());
         List<Field> requiredFields = fieldList.stream().filter(isRequired).toList();
         List<Field> optionalFields = fieldList.stream().filter(isOptional).toList();
         List<Field> deprecatedFields = fieldList.stream().filter(isDeprecated).toList();
 
         sb.append("# ").append(type).append("\n");
+
+        sb.append(prefix).append(className).append(suffix);
         sb.append("## Required\n");
         writeDocListByFieldContext(requiredFields, sb, obj);
         sb.append("## Optional\n");
@@ -144,12 +163,12 @@ public abstract class BaseGenerateDocumentation {
         Class<?> clazz = Class.forName(className);
         Object obj = clazz.getDeclaredConstructor().newInstance();
         Field[] fields = clazz.getDeclaredFields();
-
-        List<Field> fieldList = Arrays.asList(fields);
+        ArrayList<Field> fieldList = new ArrayList<>(Arrays.asList(fields));
 
         fieldList.sort(Comparator.comparing(Field::getName));
 
         sb.append("# ").append(type).append("\n");
+        sb.append(prefix).append(className).append(suffix);
         sb.append("## Optional\n");
         for (Field field : fieldList) {
             ApiModelProperty fieldContext = field.getAnnotation(ApiModelProperty.class);

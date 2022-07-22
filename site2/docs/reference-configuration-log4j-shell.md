@@ -1,7 +1,5 @@
 # Log4j shell
 
-## Optional
-
 ### bookkeeper.root.logger
 
 **Default**: ERROR,CONSOLE

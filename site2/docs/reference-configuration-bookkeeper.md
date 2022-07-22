@@ -2,8 +2,6 @@
 
 BookKeeper is a replicated log storage system that Pulsar uses for durable storage of all messages.
 
-## Optional
-
 ### bookiePort
 
 The port on which the bookie server listens.

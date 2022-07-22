@@ -2,8 +2,6 @@
 
 You can set the log level and configuration in the [log4j2.yaml](https://github.com/apache/pulsar/blob/d557e0aa286866363bc6261dec87790c055db1b0/conf/log4j2.yaml#L155) file. The following logging configuration parameters are available.
 
-## Optional
-
 ### pulsar.root.logger
 
 **Default**: WARN,CONSOLE

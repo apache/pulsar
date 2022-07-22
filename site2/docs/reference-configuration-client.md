@@ -1,4 +1,10 @@
 # Client
+:::note
+
+This page is automatically generated from code files.
+If you find something inaccurate, feel free to update `org.apache.pulsar.client.impl.conf.ClientConfigurationData`. Do NOT edit this markdown file manually. Manual changes will be overwritten by automatic generation.
+
+:::
 ## Optional
 ### authParamMap
 Authentication map of the client.

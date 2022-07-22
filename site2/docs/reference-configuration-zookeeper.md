@@ -2,8 +2,6 @@
 
 ZooKeeper handles a broad range of essential configuration- and coordination-related tasks for Pulsar. The default configuration file for ZooKeeper is in the `conf/zookeeper.conf` file in your Pulsar installation. The following parameters are available:
 
-## Optional
-
 ### tickTime
 
 The tick is the basic unit of time in ZooKeeper, measured in milliseconds and used to regulate things like heartbeats and timeouts. tickTime is the length of a single tick.
@@ -70,10 +68,9 @@ The maximum number of client connections. Increase this if you need to handle mo
 
 **Default**: 60
 
-## Notes
+---
 
-In addition to the parameters in the table above, configuring ZooKeeper for Pulsar involves adding
-a `server.N` line to the `conf/zookeeper.conf` file for each node in the ZooKeeper cluster, where `N` is the number of the ZooKeeper node. Here's an example for a three-node ZooKeeper cluster:
+In addition to the parameters above, configuring ZooKeeper for Pulsar involves adding a `server.N` line to the `conf/zookeeper.conf` file for each node in the ZooKeeper cluster, where `N` is the number of the ZooKeeper node. Here's an example for a three-node ZooKeeper cluster:
 
 ```properties
 
