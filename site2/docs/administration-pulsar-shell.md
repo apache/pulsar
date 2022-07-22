@@ -14,13 +14,12 @@ Pulsar shell is a fast and flexible shell for Pulsar cluster management, messagi
 It's great for quickly switching between different clusters, and can modify cluster or tenant configurations in an instant.
 
 
-# Features
+## Use case
 - Administration: find all the [Admin API](admin-api-overview.md) features under the `admin` command.
 - Client: find all the [pulsar-client](reference-cli-tools#pulsar-client.md) features under the `client` command.
 
 
 ## Install Pulsar Shell
-
 Download the tarball from the [download page](https://pulsar.apache.org/download) and extract it.
 
 ```shell
@@ -44,7 +43,7 @@ default(localhost)>
 ```
 
 
-# Connect to your cluster
+## Connect to your cluster
 
 By default, the shell tries to connect to a local Pulsar instance.
 To connect to a different cluster, you have to register the cluster with Pulsar shell. You can do this in a few different ways depending on where your config file is located:
@@ -106,7 +105,7 @@ my-cluster(mycluster)>
 ```
 
  
-# Non interactive mode
+## Run commands sequentially
 To run a bunch of admin commands sequentially, you can use Pulsar shell's non-interactive mode.
 For example, to set up a new tenant with policies, you would normally need to run multiple `pulsar-admin` commands.
 
