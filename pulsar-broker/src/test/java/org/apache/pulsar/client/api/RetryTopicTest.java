@@ -18,16 +18,20 @@
  */
 package org.apache.pulsar.client.api;
 
+import static org.junit.Assert.fail;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.client.util.RetryMessageUtil;
+import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
@@ -50,6 +54,42 @@ public class RetryTopicTest extends ProducerConsumerBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    public void testRetryTopicInNonSharedSub() throws Exception {
+        final String topic = "persistent://my-property/my-ns/retry-topic";
+
+        final int maxRedeliveryCount = 2;
+
+        final int sendMessages = 100;
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
+                .topic(topic)
+                .subscriptionName("my-subscription")
+                .subscriptionType(SubscriptionType.Exclusive)
+                .enableRetry(true)
+                .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(maxRedeliveryCount).build())
+                .receiverQueueSize(100)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
+                .topic(topic)
+                .create();
+
+        for (int i = 0; i < sendMessages; i++) {
+            producer.send(String.format("Hello Pulsar [%d]", i).getBytes());
+        }
+
+        producer.close();
+        try {
+            Message<byte[]> message = consumer.receive();
+            log.info("consumer received message : {} {}", message.getMessageId(), new String(message.getData()));
+            consumer.reconsumeLater(message, 1, TimeUnit.SECONDS);
+            fail("Should fail, Because Non shared subscription type doesn't support retry letter topic.");
+        } catch (PulsarClientException e) {
+            assertEquals(e.getMessage(), "reconsumeLater method not supported using non shared subscribe type.");
+        }
+
     }
 
     @Test

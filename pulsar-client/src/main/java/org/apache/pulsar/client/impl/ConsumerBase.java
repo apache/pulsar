@@ -419,6 +419,9 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         if (!conf.isRetryEnable()) {
             throw new PulsarClientException(RECONSUME_LATER_ERROR_MSG);
         }
+        if (conf.getSubscriptionType() != SubscriptionType.Shared) {
+            throw new PulsarClientException("reconsumeLater method not supported using non shared subscribe type.");
+        }
         try {
             reconsumeLaterAsync(message, customProperties, delayTime, unit).get();
         } catch (InterruptedException e) {
@@ -526,6 +529,10 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             Message<?> message, Map<String, String> customProperties, long delayTime, TimeUnit unit) {
         if (!conf.isRetryEnable()) {
             return FutureUtil.failedFuture(new PulsarClientException(RECONSUME_LATER_ERROR_MSG));
+        }
+        if (conf.getSubscriptionType() != SubscriptionType.Shared) {
+            return FutureUtil.failedFuture(new PulsarClientException("reconsumeLater method not supported using non "
+                    + "shared subscribe type."));
         }
         try {
             validateMessageId(message);
