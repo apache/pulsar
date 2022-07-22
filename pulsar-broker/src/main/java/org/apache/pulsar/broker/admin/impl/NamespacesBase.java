@@ -1155,7 +1155,7 @@ public abstract class NamespacesBase extends AdminResource {
                 .thenCompose(policies->{
                     String bundleRange = getBundleRange(bundleName);
                     return validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles, bundleRange,
-                            authoritative, true)
+                            authoritative, false)
                             .thenCompose(nsBundle -> pulsar().getNamespaceService().splitAndOwnBundle(nsBundle, unload,
                                     getNamespaceBundleSplitAlgorithmByName(splitAlgorithmName), splitBoundaries));
 
