@@ -525,8 +525,6 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
                 .receiverQueueSize(4)
                 .subscribe();
 
-
-
         // 1. create partition
         String topicName = "persistent://my-property/my-ns/pattern-topic-1-" + key;
         TenantInfoImpl tenantInfo = createDefaultTenantInfo();
