@@ -21,17 +21,14 @@ package org.apache.pulsar.client.api;
 import static org.junit.Assert.fail;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
-import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.client.util.RetryMessageUtil;
-import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
