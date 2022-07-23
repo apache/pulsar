@@ -731,6 +731,13 @@ public class BrokerService implements Closeable {
     public CompletableFuture<Void> closeAsync() {
         try {
             log.info("Shutting down Pulsar Broker service");
+            log.info("Event loops shutting down gracefully...");
+            List<CompletableFuture<?>> shutdownEventLoops = new ArrayList<>();
+            shutdownEventLoops.add(shutdownEventLoopGracefully(acceptorGroup));
+            shutdownEventLoops.add(shutdownEventLoopGracefully(workerGroup));
+            for (EventLoopGroup group : protocolHandlersWorkerGroups) {
+                shutdownEventLoops.add(shutdownEventLoopGracefully(group));
+            }
 
             // unloads all namespaces gracefully without disrupting mutually
             unloadNamespaceBundlesGracefully();
@@ -765,13 +772,6 @@ public class BrokerService implements Closeable {
             }
 
             CompletableFuture<CompletableFuture<Void>> cancellableDownstreamFutureReference = new CompletableFuture<>();
-            log.info("Event loops shutting down gracefully...");
-            List<CompletableFuture<?>> shutdownEventLoops = new ArrayList<>();
-            shutdownEventLoops.add(shutdownEventLoopGracefully(acceptorGroup));
-            shutdownEventLoops.add(shutdownEventLoopGracefully(workerGroup));
-            for (EventLoopGroup group : protocolHandlersWorkerGroups) {
-                shutdownEventLoops.add(shutdownEventLoopGracefully(group));
-            }
             CompletableFuture<Void> shutdownFuture =
                     CompletableFuture.allOf(shutdownEventLoops.toArray(new CompletableFuture[0]))
                             .handle((v, t) -> {
