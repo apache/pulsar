@@ -453,7 +453,10 @@ public class MLTransactionMetadataStore
         transactionCoordinatorstats.ongoingTxnSize = txnMetaMap.size();
         transactionCoordinatorstats.recoverStartTime = recoverTime.getRecoverStartTime();
         transactionCoordinatorstats.recoverEndTime = recoverTime.getRecoverEndTime();
-        transactionCoordinatorstats.bufferedWriterStat = transactionLog.getBufferedWriter().getStats();
+        // Writer is null if transactionLog's initialize-method is not executed，normally it is not null.
+        if (transactionLog.getBufferedWriter() != null) {
+            transactionCoordinatorstats.bufferedWriterStat = transactionLog.getBufferedWriter().getStats();
+        }
         return transactionCoordinatorstats;
     }
 

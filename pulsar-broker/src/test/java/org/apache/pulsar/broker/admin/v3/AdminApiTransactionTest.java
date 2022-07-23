@@ -85,7 +85,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
     /**
      * Transaction log batch Configuration.
      */
-    private boolean transactionBatchEnabled = true;
+    private boolean transactionBatchEnabled = false;
     private int transactionMaxCountInBatch = 256;
     private int transactionBatchMaxSize = 1024 * 1024;
     private int transactionBatchMaxDelayMillis = 128;
