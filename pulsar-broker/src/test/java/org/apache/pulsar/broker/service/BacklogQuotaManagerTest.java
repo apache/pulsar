@@ -528,6 +528,12 @@ public class BacklogQuotaManagerTest {
             assertEquals(internalStats.ledgers.get(1).entries, 0);
         });
 
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(topic);
+            assertEquals(internalStats.ledgers.size(), 2);
+            assertEquals(internalStats.ledgers.get(1).entries, 0);
+        });
+
         TopicStats stats = admin.topics().getStats(topic);
         assertEquals(stats.getSubscriptions().get(subName).getMsgBacklog(), 1);
 
