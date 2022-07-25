@@ -1488,6 +1488,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private double httpRequestsMaxPerSecond = 100.0;
 
     @FieldContext(
+            category =  CATEGORY_HTTP,
+            dynamic = true,
+            doc = "Admin API fail on unknown request parameter in request-body. see PIP-178. Default false."
+        )
+    private boolean httpRequestsFailOnUnknownPropertiesEnabled = false;
+
+    @FieldContext(
         category = CATEGORY_SASL_AUTH,
         doc = "This is a regexp, which limits the range of possible ids which can connect to the Broker using SASL.\n"
             + " Default value is: \".*pulsar.*\", so only clients whose id contains 'pulsar' are allowed to connect."
