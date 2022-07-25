@@ -283,14 +283,6 @@ public class PersistentTopicsBase extends AdminResource {
         validateAdminAccessForTenant(namespaceName.getTenant());
         validatePoliciesReadOnlyAccess();
 
-        PartitionedTopicMetadata meta = getPartitionedTopicMetadata(topicName, true, false);
-        int numPartitions = meta.partitions;
-        if (numPartitions > 0) {
-            for (int i = 0; i < numPartitions; i++) {
-                TopicName topicNamePartition = topicName.getPartition(i);
-                grantPermissions(topicNamePartition.toString(), role, actions);
-            }
-        }
         grantPermissions(topicName.toString(), role, actions);
     }
 
