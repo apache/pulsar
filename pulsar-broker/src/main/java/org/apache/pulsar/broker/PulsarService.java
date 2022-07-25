@@ -908,18 +908,18 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
         // Add admin rest resources
         webService.addRestResource("/",
-                false, vipAttributeMap, VipStatus.class);
+                false, vipAttributeMap, false, VipStatus.class);
         webService.addRestResources("/admin",
-                true, attributeMap, "org.apache.pulsar.broker.admin.v1");
+                true, attributeMap, false, "org.apache.pulsar.broker.admin.v1");
         webService.addRestResources("/admin/v2",
-                true, attributeMap, "org.apache.pulsar.broker.admin.v2");
+                true, attributeMap, true, "org.apache.pulsar.broker.admin.v2");
         webService.addRestResources("/admin/v3",
-                true, attributeMap, "org.apache.pulsar.broker.admin.v3");
+                true, attributeMap, true, "org.apache.pulsar.broker.admin.v3");
         webService.addRestResource("/lookup",
-                true, attributeMap, TopicLookup.class,
+                true, attributeMap, true,  TopicLookup.class,
                 org.apache.pulsar.broker.lookup.v2.TopicLookup.class);
         webService.addRestResource("/topics",
-                true, attributeMap, Topics.class);
+                true, attributeMap, true, Topics.class);
 
         // Add metrics servlet
         webService.addServlet("/metrics",

@@ -26,6 +26,7 @@ You can configure a function by using a predefined YAML file. The following tabl
 | namespace            | String                     | `--namespace`              | The namespace of a function.|
 | name                 | String                     | `--name`                   | The name of a function.|
 | className            | String                     | `--classname`              | The class name of a function. |
+| functionType         | String                     | `--function-type`          | The built-in function type. |
 | inputs               | List`<String>`               | `-i`, `--inputs`           | The input topics of a function. Multiple topics can be specified as a comma-separated list. |
 | customSerdeInputs    | Map`<String,String>`         | `--custom-serde-inputs`    | The mapping from input topics to SerDe class names. |
 | topicsPattern        | String                     | `--topics-pattern`         | The topic pattern to consume from a list of topics under a namespace. <br />**Note:** `--input` and `--topic-pattern` are mutually exclusive. For Java functions, you need to add the SerDe class name for a pattern in `--custom-serde-inputs`. |
