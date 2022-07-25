@@ -20,6 +20,7 @@ package org.apache.pulsar.tests.integration.functions;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.in;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
@@ -39,6 +40,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import io.swagger.util.Json;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -1587,6 +1590,16 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         for (int i = 0; i < numMessages; i++) {
             Message<byte[]> msg = consumer.receive(30, TimeUnit.SECONDS);
+            if (msg == null) {
+                log.info("Input topic stats: {}",
+                        Json.pretty(pulsarAdmin.topics().getStats(inputTopic, true)));
+                log.info("Output topic stats: {}",
+                        Json.pretty(pulsarAdmin.topics().getStats(outputTopic, true)));
+                log.info("Input topic internal-stats: {}",
+                        Json.pretty(pulsarAdmin.topics().getInternalStats(inputTopic, true)));
+                log.info("Output topic internal-stats: {}",
+                        Json.pretty(pulsarAdmin.topics().getInternalStats(outputTopic, true)));
+            }
             String logMsg = new String(msg.getValue(), UTF_8);
             log.info("Received message: '{}'", logMsg);
             assertTrue(expectedMessages.contains(logMsg), "Message '" + logMsg + "' not expected");
