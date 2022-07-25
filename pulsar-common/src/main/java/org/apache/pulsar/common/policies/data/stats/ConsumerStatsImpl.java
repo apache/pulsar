@@ -46,7 +46,7 @@ public class ConsumerStatsImpl implements ConsumerStats {
     public double msgRateRedeliver;
 
     /**
-     * Total rate of message ack(msg/s).
+     * Total rate of message ack (msg/s).
      */
     public double messageAckRate;
 
