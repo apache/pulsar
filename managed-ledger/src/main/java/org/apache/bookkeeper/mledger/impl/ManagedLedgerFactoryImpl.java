@@ -570,9 +570,6 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
             } else {
                 bookkeeperFuture.complete(null);
             }
-            //wait for tasks in scheduledExecutor executed.
-            scheduledExecutor.shutdown();
-
             if (!ledgers.isEmpty()) {
                 log.info("Force closing {} ledgers.", ledgers.size());
                 //make sure all callbacks is called.
@@ -596,7 +593,10 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
             }
         }));
         entryCacheManager.clear();
-        return FutureUtil.waitForAll(futures);
+        return FutureUtil.waitForAll(futures).thenAccept(__ -> {
+            //wait for tasks in scheduledExecutor executed.
+            scheduledExecutor.shutdown();
+        });
     }
 
     @Override

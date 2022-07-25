@@ -23,17 +23,21 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.MalformedURLException;
+import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import javax.servlet.ServletException;
 import javax.websocket.DeploymentException;
+import lombok.Getter;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.client.api.ClientBuilder;
+import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SizeUnit;
@@ -64,6 +68,8 @@ public class WebSocketService implements Closeable {
     private PulsarResources pulsarResources;
     private MetadataStoreExtended configMetadataStore;
     private ServiceConfiguration config;
+    @Getter
+    private Optional<CryptoKeyReader> cryptoKeyReader = Optional.empty();
 
     private ClusterData localCluster;
     private final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<ProducerHandler>> topicProducerMap;
@@ -118,6 +124,19 @@ public class WebSocketService implements Closeable {
         }
         // start authentication service
         authenticationService = new AuthenticationService(this.config);
+        // initialize crypto key reader
+        String cryptoFactoryClassName = (String) config.getProperties().get("cryptoKeyReaderFactoryClassName");
+        if (StringUtils.isNotBlank(cryptoFactoryClassName)) {
+            try {
+                CryptoKeyReaderFactory factoryInstance = (CryptoKeyReaderFactory) Class.forName(cryptoFactoryClassName)
+                        .getDeclaredConstructor().newInstance();
+                cryptoKeyReader = Optional.ofNullable(factoryInstance.create());
+            } catch (Exception e) {
+                log.info("Failed to initialize crypto-key reader", e);
+                throw new PulsarServerException(e);
+            }
+        }
+
         log.info("Pulsar WebSocket Service started");
     }
 

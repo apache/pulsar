@@ -4,120 +4,61 @@ title: Pulsar isolation
 sidebar_label: "Pulsar isolation"
 ---
 
-````mdx-code-block
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
-````
-
 
 In an organization, a Pulsar instance provides services to multiple teams. When organizing the resources across multiple teams, you want to make a suitable isolation plan to avoid the resource competition between different teams and applications and provide high-quality messaging service. In this case, you need to take resource isolation into consideration and weigh your intended actions against expected and unexpected consequences.
 
-To enforce resource isolation, you can use the Pulsar isolation policy, which allows you to allocate resources (**broker** and **bookie**) for the namespace.
+The multi-layer and segment-centric architecture and hierarchical resource management of Pulsar provide a solid foundation for isolation, which allows you to isolate resources in your desired manner, prevent resource competition, and attain stability.
 
-## Broker isolation
 
-In Pulsar, when namespaces (more specifically, namespace bundles) are assigned dynamically to brokers, the namespace isolation policy limits the set of brokers that can be used for assignment. Before topics are assigned to brokers, you can set the namespace isolation policy with a primary or a secondary regex to select desired brokers.
+## Isolation methods
+To enforce resource isolation within Pulsar, you can use the following methods of isolating broker and bookie resources:
+* [Isolate brokers](administration-isolation-broker.md)
+* [Isolate bookies](administration-isolation-bookie.md)
 
-You can set a namespace isolation policy for a cluster using one of the following methods. 
 
-````mdx-code-block
-<Tabs groupId="api-choice"
-  defaultValue="Admin CLI"
-  values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
+## Deployments to achieve isolation within Pulsar
 
-<TabItem value="Admin CLI">
+### Separate Pulsar clusters
 
-```
+The following illustration demonstrates the deployment of separate Pulsar clusters to achieve the highest-level isolation.
 
-pulsar-admin ns-isolation-policy set options
+![Deployment of separate Pulsar clusters](/assets/isolation-1.png)
 
-```
-
-For more information about the command `pulsar-admin ns-isolation-policy set options`, see [here](/tools/pulsar-admin/).
-
-**Example**
-
-```shell
-
-bin/pulsar-admin ns-isolation-policy set \
---auto-failover-policy-type min_available \
---auto-failover-policy-params min_limit=1,usage_threshold=80 \
---namespaces my-tenant/my-namespace \
---primary 10.193.216.*  my-cluster policy-name
-
-```
-
-</TabItem>
-<TabItem value="REST API">
-
-[PUT /admin/v2/namespaces/{tenant}/{namespace}](/admin-rest-api/?version=master&apiversion=v2#operation/createNamespace)
-
-</TabItem>
-<TabItem value="Java Admin API">
-
-For how to set namespace isolation policy using Java admin API, see [here](https://github.com/apache/pulsar/blob/master/pulsar-client-admin/src/main/java/org/apache/pulsar/client/admin/internal/NamespacesImpl.java#L251).
-
-</TabItem>
-
-</Tabs>
-````
-
-## Bookie isolation
-
-A namespace can be isolated into user-defined groups of bookies, which guarantees all the data that belongs to the namespace is stored in desired bookies. The bookie affinity group uses the BookKeeper [rack-aware placement policy](https://bookkeeper.apache.org/docs/latest/api/javadoc/org/apache/bookkeeper/client/EnsemblePlacementPolicy.html) and it is a way to feed rack information which is stored as JSON format in znode.
-
-You can set a bookie affinity group using one of the following methods.
-
-````mdx-code-block
-<Tabs groupId="api-choice"
-  defaultValue="Admin CLI"
-  values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
-
-<TabItem value="Admin CLI">
-
-```
-
-pulsar-admin namespaces set-bookie-affinity-group options
-
-```
-
-For more information about the command `pulsar-admin namespaces set-bookie-affinity-group options`, see [here](/tools/pulsar-admin/).
-
-**Example**
-
-```shell
-
-bin/pulsar-admin bookies set-bookie-rack \
---bookie 127.0.0.1:3181 \
---hostname 127.0.0.1:3181 \
---group group-bookie1 \
---rack rack1
-
-bin/pulsar-admin namespaces set-bookie-affinity-group public/default \
---primary-group group-bookie1
-
-```
+Here are some key points for understanding how it works:
+- Separate Pulsar clusters use a shared [configuration store](concepts-architecture-overview.md/#configuration-store).
+- Each cluster exposes its service through a DNS entry point and makes sure a client can access the cluster through the DNS entry point. Clients can use one or multiple Pulsar URLs that the Pulsar cluster exposes as the service URL.
+- Each Pulsar cluster has one or multiple brokers and bookies.
+- Each Pulsar cluster has one metadata store, which can be separated into [Pulsar metadata store](concepts-architecture-overview.md/#metadata-store) and [BookKeeper metadata store](https://bookkeeper.apache.org/docs/latest/getting-started/concepts/#metadata-storage). 
 
 :::note
 
-- Do not set a bookie rack name to slash (`/`) or an empty string (`""`) if you use Pulsar earlier than 2.7.5, 2.8.3, and 2.9.2. If you use Pulsar 2.7.5, 2.8.3, 2.9.2 or later versions, it falls back to `/default-rack` or `/default-region/default-rack`.
-- When `RackawareEnsemblePlacementPolicy` is enabled, the rack name is not allowed to contain slash (`/`) except for the beginning and end of the rack name string. For example, rack name like `/rack0` is okay, but `/rack/0` is not allowed.
-- When `RegionawareEnsemblePlacementPolicy` is enabled, the rack name can only contain one slash (`/`) except for the beginning and end of the rack name string. For example, rack name like `/region0/rack0` is okay, but `/region0rack0` and `/region0/rack/0` are not allowed.
-For the bookie rack name restrictions, see [pulsar-admin bookies set-bookie-rack](/tools/pulsar-admin/).
+When using this approach, if you want to achieve namespace isolation, you need to specify a cluster for a namespace. The cluster must be in the allowed cluster list of the tenant. Topics under the namespace are assigned to this cluster. 
 
 :::
 
-</TabItem>
-<TabItem value="REST API">
+### Shared BookKeeper cluster
 
-[POST /admin/v2/namespaces/{tenant}/{namespace}/persistence/bookieAffinity](/admin-rest-api/?version=master&apiversion=v2#operation/setBookieAffinityGroup)
+The following illustration demonstrates the deployment of shared BookKeeper clusters to achieve isolation.
 
-</TabItem>
-<TabItem value="Java Admin API">
+![Deployment of shared BookKeeper cluster](/assets/isolation-2.png)
 
-For how to set bookie affinity group for a namespace using Java admin API, see [here](https://github.com/apache/pulsar/blob/master/pulsar-client-admin/src/main/java/org/apache/pulsar/client/admin/internal/NamespacesImpl.java#L1164).
+Here are some key points for understanding how it works:
+- Separate Pulsar clusters share a BookKeeper cluster and a [configuration store](concepts-architecture-overview.md/#configuration-store).
+- Each cluster exposes its service through a DNS entry point and makes sure a client can access the cluster through the DNS entry point. Clients can use one or multiple Pulsar URLs that the Pulsar cluster exposes as the service URL.
+- Each Pulsar cluster has one or multiple brokers.
+- Each Pulsar cluster has one metadata store. 
 
-</TabItem>
+As illustrated below, storage isolation is achieved by setting [bookie affinity groups](administration-isolation-bookie.md). All bookie groups use a shared BookKeeper cluster and a metadata store, and each bookie isolation group has one or several bookies. You can specify one or multiple primary/secondary groups for a namespace. Topics under the namespace are created on the bookies in the primary group firstly and then created on the bookies in the secondary group.
 
-</Tabs>
-````
+![Storage isolation achieved by bookie affinity groups](/assets/isolation-3.png)
+
+### Single Pulsar cluster
+
+The following illustration demonstrates how to achieve isolation inside a single Pulsar cluster.
+
+![Deployment of a single Pulsar cluster](/assets/isolation-4.png)
+
+Here are some key points for understanding how it works:
+- Each cluster exposes its service through a DNS entry point and makes sure a client can access the cluster through the DNS entry point. Clients can use one or multiple Pulsar URLs that the Pulsar cluster exposes as the service URL.
+- Broker isolation is achieved by setting [namespace isolation policy](administration-isolation-broker.md).
+
