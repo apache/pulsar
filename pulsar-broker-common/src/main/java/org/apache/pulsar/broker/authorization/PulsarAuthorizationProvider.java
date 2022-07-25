@@ -60,7 +60,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
     private static final Logger log = LoggerFactory.getLogger(PulsarAuthorizationProvider.class);
 
     public ServiceConfiguration conf;
-    private PulsarResources pulsarResources;
+    protected PulsarResources pulsarResources;
     private static final String POLICY_ROOT = "/admin/policies/";
     public static final String POLICIES = "policies";
     private static final String POLICIES_READONLY_FLAG_PATH = "/admin/flags/policies-readonly";
