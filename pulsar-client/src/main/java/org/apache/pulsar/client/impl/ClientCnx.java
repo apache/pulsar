@@ -777,8 +777,9 @@ public class ClientCnx extends PulsarHandler {
                     log.debug("{} Failed to add lookup-request into waiting queue", requestId);
                 }
                 future.completeExceptionally(new PulsarClientException.TooManyRequestsException(String.format(
-                    "Requests number out of config: There are {%s} lookup requests outstanding and {%s} requests pending.",
-                    pendingLookupRequestSemaphore.availablePermits(),
+                    "Requests number out of config: There are {%s} lookup requests outstanding and {%s} requests"
+                            + " pending.",
+                    pendingLookupRequestSemaphore.getQueueLength(),
                     waitingLookupRequests.size())));
             }
         }
