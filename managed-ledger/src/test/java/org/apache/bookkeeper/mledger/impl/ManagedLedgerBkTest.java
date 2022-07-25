@@ -329,10 +329,10 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
             }, null);
         }
 
+        counter.await();
+
         cursor.close();
         ledger.close();
-
-        counter.await();
 
         assertFalse(gotException.get());
     }
