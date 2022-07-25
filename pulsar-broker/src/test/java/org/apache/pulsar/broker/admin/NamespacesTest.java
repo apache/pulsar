@@ -644,10 +644,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 .numBundles(boundaries.size() - 1)
                 .build();
         createBundledTestNamespaces(this.testTenant, this.testLocalCluster, "test-bundled-namespace-1", bundle);
-        BundlesData responseData = namespaces.getBundlesData(testTenant, this.testLocalCluster,
-                "test-bundled-namespace-1");
-
-        assertEquals(responseData, bundle);
+        assertEquals(asyncRequests(ctx -> namespaces.getBundlesData(ctx, testTenant, this.testLocalCluster,
+                "test-bundled-namespace-1")), bundle);
     }
 
     @Test
@@ -917,7 +915,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             ArgumentCaptor<Response> captor = ArgumentCaptor.forClass(Response.class);
             verify(response, timeout(5000).times(1)).resume(captor.capture());
             // verify split bundles
-            BundlesData bundlesData = namespaces.getBundlesData(testTenant, testLocalCluster, bundledNsLocal);
+            BundlesData bundlesData = (BundlesData) asyncRequests(ctx -> namespaces.getBundlesData(ctx, testTenant,
+                    testLocalCluster, bundledNsLocal));
             assertNotNull(bundlesData);
             assertEquals(bundlesData.getBoundaries().size(), 3);
             assertEquals(bundlesData.getBoundaries().get(0), "0x00000000");

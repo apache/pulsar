@@ -809,15 +809,22 @@ public class Namespaces extends NamespacesBase {
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
             @ApiResponse(code = 412, message = "Namespace is not setup to split in bundles") })
-    public BundlesData getBundlesData(@PathParam("property") String property, @PathParam("cluster") String cluster,
-            @PathParam("namespace") String namespace) {
-        validatePoliciesReadOnlyAccess();
+    public void getBundlesData(@Suspended final AsyncResponse asyncResponse,
+                              @PathParam("property") String property,
+                              @PathParam("cluster") String cluster,
+                              @PathParam("namespace") String namespace) {
         validateNamespaceName(property, cluster, namespace);
-        validateNamespaceOperation(NamespaceName.get(property, namespace), NamespaceOperation.GET_BUNDLE);
-
-        Policies policies = getNamespacePolicies(namespaceName);
-
-        return policies.bundles;
+        validatePoliciesReadOnlyAccessAsync()
+                .thenCompose(__ -> validateNamespaceOperationAsync(NamespaceName.get(property, namespace),
+                        NamespaceOperation.GET_BUNDLE))
+                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+                .thenAccept(policies -> asyncResponse.resume(policies.bundles))
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to get bundle data for namespace {} ", clientAppId(),
+                            namespaceName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @PUT
@@ -899,15 +906,27 @@ public class Namespaces extends NamespacesBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("unload") @DefaultValue("false") boolean unload,
             @QueryParam("splitBoundaries") @DefaultValue("") List<Long> splitBoundaries) {
-        try {
-            validateNamespaceName(property, cluster, namespace);
-            internalSplitNamespaceBundle(asyncResponse, bundleRange,
-                    authoritative, unload, NamespaceBundleSplitAlgorithm.RANGE_EQUALLY_DIVIDE_NAME, splitBoundaries);
-        } catch (WebApplicationException wae) {
-            asyncResponse.resume(wae);
-        } catch (Exception e) {
-            asyncResponse.resume(new RestException(e));
-        }
+        validateNamespaceName(property, cluster, namespace);
+        internalSplitNamespaceBundleAsync(bundleRange,
+                authoritative, unload, NamespaceBundleSplitAlgorithm.RANGE_EQUALLY_DIVIDE_NAME, splitBoundaries)
+                .thenAccept(__ -> {
+                    log.info("[{}] Successfully split namespace bundle {}", clientAppId(), bundleRange);
+                    asyncResponse.resume(Response.noContent().build());
+                })
+                .exceptionally(ex -> {
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to split namespace bundle {}/{}",
+                                clientAppId(), namespaceName, bundleRange, ex);
+                    }
+                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                    if (realCause instanceof IllegalArgumentException) {
+                        asyncResponse.resume(new RestException(Response.Status.PRECONDITION_FAILED,
+                                "Split bundle failed due to invalid request"));
+                    } else {
+                        resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    }
+                    return null;
+                });
     }
 
     @GET
@@ -923,17 +942,32 @@ public class Namespaces extends NamespacesBase {
             @QueryParam("topics") List<String> topics,
             @Suspended AsyncResponse asyncResponse) {
         validateNamespaceName(property, cluster, namespace);
-        internalGetTopicHashPositions(asyncResponse, bundle, topics);
+        internalGetTopicHashPositionsAsync(bundle, topics)
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] {} Failed to get topic list for bundle {}.", clientAppId(),
+                                namespaceName, bundle);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @POST
     @Path("/{property}/{cluster}/{namespace}/publishRate")
     @ApiOperation(hidden = true, value = "Set publish-rate throttling for all topics of the namespace")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
-    public void setPublishRate(@PathParam("property") String property, @PathParam("cluster") String cluster,
-            @PathParam("namespace") String namespace, PublishRate publishRate) {
+    public void setPublishRate(@Suspended AsyncResponse asyncResponse,
+                               @PathParam("property") String property, @PathParam("cluster") String cluster,
+                               @PathParam("namespace") String namespace, PublishRate publishRate) {
         validateNamespaceName(property, cluster, namespace);
-        internalSetPublishRate(publishRate);
+        internalSetPublishRateAsync(publishRate)
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET
@@ -943,20 +977,37 @@ public class Namespaces extends NamespacesBase {
                     + "-1 means msg-publish-rate or byte-publish-rate not configured in publish-rate yet")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist")})
-    public PublishRate getPublishRate(@PathParam("property") String property, @PathParam("cluster") String cluster,
-            @PathParam("namespace") String namespace) {
+    public void getPublishRate(@Suspended AsyncResponse asyncResponse,
+                               @PathParam("property") String property,
+                               @PathParam("cluster") String cluster,
+                               @PathParam("namespace") String namespace) {
         validateNamespaceName(property, cluster, namespace);
-        return internalGetPublishRate();
+        internalGetPublishRateAsync()
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    log.error("Failed to get publish rate for namespace {}", namespaceName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @POST
     @Path("/{property}/{cluster}/{namespace}/dispatchRate")
     @ApiOperation(hidden = true, value = "Set dispatch-rate throttling for all topics of the namespace")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
-    public void setDispatchRate(@PathParam("property") String property, @PathParam("cluster") String cluster,
-            @PathParam("namespace") String namespace, DispatchRateImpl dispatchRate) {
+    public void setDispatchRate(@Suspended AsyncResponse asyncResponse,
+                                @PathParam("property") String property,
+                                @PathParam("cluster") String cluster,
+                                @PathParam("namespace") String namespace, DispatchRateImpl dispatchRate) {
         validateNamespaceName(property, cluster, namespace);
-        internalSetTopicDispatchRate(dispatchRate);
+        internalSetTopicDispatchRateAsync(dispatchRate)
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to update the dispatchRate for cluster on namespace {}", clientAppId(),
+                            namespaceName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET
