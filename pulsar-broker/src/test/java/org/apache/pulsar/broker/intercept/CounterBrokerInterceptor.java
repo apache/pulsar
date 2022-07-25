@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.intercept;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
@@ -40,9 +41,15 @@ import org.eclipse.jetty.server.Response;
 @Slf4j
 public class CounterBrokerInterceptor implements BrokerInterceptor {
 
-    int beforeSendCount = 0;
-    int count = 0;
-    private List<ResponseEvent> responseList = new ArrayList<>();
+    private final AtomicInteger beforeSendCount = new AtomicInteger();
+    private final AtomicInteger count = new AtomicInteger();
+
+    public void reset() {
+        beforeSendCount.set(0);
+        count.set(0);
+    }
+
+    private final List<ResponseEvent> responseList = new ArrayList<>();
 
     @Data
     @AllArgsConstructor
@@ -56,15 +63,19 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
                                   Entry entry,
                                   long[] ackSet,
                                   MessageMetadata msgMetadata) {
-        log.debug("Send message to topic {}, subscription {}",
-            subscription.getTopic(), subscription.getName());
-        beforeSendCount++;
+        if (log.isDebugEnabled()) {
+            log.debug("Send message to topic {}, subscription {}",
+                    subscription.getTopic(), subscription.getName());
+        }
+        beforeSendCount.incrementAndGet();
     }
 
     @Override
     public void onPulsarCommand(BaseCommand command, ServerCnx cnx) {
-        log.debug("[{}] On [{}] Pulsar command", count, command.getType().name());
-        count ++;
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] On [{}] Pulsar command", count, command.getType().name());
+        }
+        count.incrementAndGet();
     }
 
     @Override
@@ -74,14 +85,18 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
 
     @Override
     public void onWebserviceRequest(ServletRequest request) {
-        count ++;
-        log.debug("[{}] On [{}] Webservice request", count, ((HttpServletRequest)request).getRequestURL().toString());
+        count.incrementAndGet();
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] On [{}] Webservice request", count, ((HttpServletRequest) request).getRequestURL().toString());
+        }
     }
 
     @Override
     public void onWebserviceResponse(ServletRequest request, ServletResponse response) {
-        count ++;
-        log.debug("[{}] On [{}] Webservice response {}", count, ((HttpServletRequest)request).getRequestURL().toString(), response);
+        count.incrementAndGet();
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] On [{}] Webservice response {}", count, ((HttpServletRequest) request).getRequestURL().toString(), response);
+        }
         if (response instanceof Response) {
             Response res = (Response) response;
             responseList.add(new ResponseEvent(res.getHttpChannel().getRequest().getRequestURI(), res.getStatus()));
@@ -91,7 +106,7 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     @Override
     public void onFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
-        count = 100;
+        count.set(100);
         chain.doFilter(request, response);
     }
 
@@ -106,11 +121,11 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     }
 
     public int getCount() {
-        return count;
+        return count.get();
     }
 
     public int getBeforeSendCount() {
-        return beforeSendCount;
+        return beforeSendCount.get();
     }
 
     public void clearResponseList() {
