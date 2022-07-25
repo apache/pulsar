@@ -52,11 +52,12 @@ public class EmbeddedPulsarCluster implements AutoCloseable {
     private final PulsarAdmin admin;
 
     @Builder
-    private EmbeddedPulsarCluster(int numBrokers, int numBookies, String metadataStoreUrl) throws Exception {
+    private EmbeddedPulsarCluster(int numBrokers, int numBookies, String metadataStoreUrl,
+                                   boolean clearOldData) throws Exception {
         this.numBrokers = numBrokers;
         this.numBookies = numBookies;
         this.metadataStoreUrl = metadataStoreUrl;
-        this.bkCluster = new BKCluster(metadataStoreUrl, numBookies);
+        this.bkCluster = new BKCluster(metadataStoreUrl, numBookies, clearOldData);
 
         for (int i = 0; i < numBrokers; i++) {
             PulsarService s = new PulsarService(getConf());

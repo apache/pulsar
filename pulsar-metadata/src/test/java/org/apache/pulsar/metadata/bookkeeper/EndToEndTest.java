@@ -41,7 +41,7 @@ public class EndToEndTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "impl")
     public void testBasic(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        BKCluster bktc = new BKCluster(urlSupplier.get(), 1);
+        BKCluster bktc = new BKCluster(urlSupplier.get(), 1, true);
 
         @Cleanup
         BookKeeper bkc = bktc.newClient();
@@ -85,7 +85,7 @@ public class EndToEndTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "impl")
     public void testWithLedgerRecovery(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        BKCluster bktc = new BKCluster(urlSupplier.get(), 3);
+        BKCluster bktc = new BKCluster(urlSupplier.get(), 3, true);
 
         @Cleanup
         BookKeeper bkc = bktc.newClient();

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.metadata.bookkeeper;
 
+import static org.apache.commons.io.FileUtils.cleanDirectory;
 import java.io.File;
 import java.io.IOException;
 import java.net.NetworkInterface;
@@ -67,9 +68,10 @@ public class BKCluster implements AutoCloseable {
 
     protected final ServerConfiguration baseConf = newBaseServerConfiguration();
     protected final ClientConfiguration baseClientConf = newBaseClientConfiguration();
+    private final boolean clearOldData;
 
-
-    public BKCluster(String metadataServiceUri, int numBookies) throws Exception {
+    public BKCluster(String metadataServiceUri, int numBookies, boolean clearOldData) throws Exception {
+        this.clearOldData = clearOldData;
         this.metadataServiceUri = metadataServiceUri;
         this.store = MetadataStoreExtended.create(metadataServiceUri, MetadataStoreConfig.builder().build());
         baseConf.setJournalRemovePagesFromCache(false);
@@ -87,7 +89,6 @@ public class BKCluster implements AutoCloseable {
 
     @Override
     public void close() throws Exception {
-        boolean failed = false;
         // stop bookkeeper service
         try {
             stopBKCluster();
@@ -160,6 +161,10 @@ public class BKCluster implements AutoCloseable {
 
     private ServerConfiguration newServerConfiguration() throws Exception {
         File f = createTempDir("bookie", "test");
+
+        if (clearOldData) {
+            cleanDirectory(f);
+        }
 
         int port;
         if (baseConf.isEnableLocalTransport() || !baseConf.getAllowEphemeralPorts()) {
