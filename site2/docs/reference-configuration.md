@@ -664,6 +664,7 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 | bookkeeperDiskWeightBasedPlacementEnabled | Enable/Disable disk weight based placement. | false |
 | bookkeeperExplicitLacIntervalInMills | Set the interval to check the need for sending an explicit LAC. When the value is set to 0, no explicit LAC is sent. | 0 |
 | bookkeeperClientExposeStatsToPrometheus | Expose BookKeeper client managed ledger stats to Prometheus. | false |
+| bookkeeperClientLimitStatsLogging | Limit per_channel_bookie_client metrics of Bookkeeper client managed ledger stats | false |
 |managedLedgerDefaultEnsembleSize|    |1|
 |managedLedgerDefaultWriteQuorum|   |1|
 |managedLedgerDefaultAckQuorum|   |1|

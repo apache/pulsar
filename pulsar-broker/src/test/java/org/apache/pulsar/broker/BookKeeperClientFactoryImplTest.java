@@ -299,4 +299,24 @@ public class BookKeeperClientFactoryImplTest {
         assertNull(Whitebox.getInternalState(builder, "eventLoopGroup"));
     }
 
+    @Test
+    public void testBookKeeperLimitStatsLoggingConfiguration() {
+        BookKeeperClientFactoryImpl factory = new BookKeeperClientFactoryImpl();
+        ServiceConfiguration conf = new ServiceConfiguration();
+        assertEquals(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
+                .getLimitStatsLogging(), false);
+        EventLoopGroup eventLoopGroup = mock(EventLoopGroup.class);
+        BookKeeper.Builder builder = factory.getBookKeeperBuilder(conf, eventLoopGroup, mock(StatsLogger.class),
+                factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf));
+        ClientConfiguration clientConfiguration = Whitebox.getInternalState(builder, "conf");
+        assertEquals(clientConfiguration.getLimitStatsLogging(), false);
+
+        conf.setBookkeeperClientLimitStatsLogging(true);
+        assertEquals(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
+                .getLimitStatsLogging(), true);
+        builder = factory.getBookKeeperBuilder(conf, eventLoopGroup, mock(StatsLogger.class),
+                factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf));
+        clientConfiguration = Whitebox.getInternalState(builder, "conf");
+        assertEquals(clientConfiguration.getLimitStatsLogging(), true);
+    }
 }
