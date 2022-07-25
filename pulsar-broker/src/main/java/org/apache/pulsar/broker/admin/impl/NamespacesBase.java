@@ -2338,11 +2338,6 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected Long internalGetCompactionThreshold() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.COMPACTION, PolicyOperation.READ);
-        return getNamespacePolicies(namespaceName).compaction_threshold;
-    }
-
     protected void internalSetCompactionThreshold(Long newThreshold) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.COMPACTION, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
@@ -2368,16 +2363,6 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected long internalGetOffloadThreshold() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.OFFLOAD, PolicyOperation.READ);
-        Policies policies = getNamespacePolicies(namespaceName);
-        if (policies.offload_policies == null) {
-            return policies.offload_threshold;
-        } else {
-            return policies.offload_policies.getManagedLedgerOffloadThresholdInBytes();
-        }
-    }
-
     protected void internalSetOffloadThreshold(long newThreshold) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.OFFLOAD, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
@@ -2400,16 +2385,6 @@ public abstract class NamespacesBase extends AdminResource {
             log.error("[{}] Failed to update offloadThreshold configuration for namespace {}",
                     clientAppId(), namespaceName, e);
             throw new RestException(e);
-        }
-    }
-
-    protected Long internalGetOffloadDeletionLag() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.OFFLOAD, PolicyOperation.READ);
-        Policies policies = getNamespacePolicies(namespaceName);
-        if (policies.offload_policies == null) {
-            return policies.offload_deletion_lag_ms;
-        } else {
-            return policies.offload_policies.getManagedLedgerOffloadDeletionLagInMillis();
         }
     }
 
@@ -2658,13 +2633,6 @@ public abstract class NamespacesBase extends AdminResource {
             throw new RestException(Status.PRECONDITION_FAILED,
                     "The bucket must be specified for namespace offload.");
         }
-    }
-
-    protected OffloadPoliciesImpl internalGetOffloadPolicies() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.OFFLOAD, PolicyOperation.READ);
-
-        Policies policies = getNamespacePolicies(namespaceName);
-        return (OffloadPoliciesImpl) policies.offload_policies;
     }
 
     protected int internalGetMaxTopicsPerNamespace() {
