@@ -33,9 +33,7 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import com.google.common.collect.BoundType;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
 import java.net.URI;
@@ -1831,18 +1829,13 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         String namespace = BrokerTestUtil.newUniqueName(this.testTenant + "/namespace");
         BundlesData data = BundlesData.builder().numBundles(4).build();
         admin.namespaces().createNamespace(namespace, data);
-        LookupOptions optionsHttps = LookupOptions.builder().authoritative(false).requestHttps(true).readOnly(false).build();
         URL localWebServiceUrl = new URL(pulsar.getSafeWebServiceAddress());
+        final NamespaceName testNs = NamespaceName.get(namespace);
+        mockWebUrl(localWebServiceUrl, testNs);
         for (int i = 0; i < 10; i ++) {
             final BundlesData bundles = admin.namespaces().getBundles(namespace);
             final String bundle = bundles.getBoundaries().get(0) + "_" + bundles.getBoundaries().get(1);
-            NamespaceBundle testBundle = new NamespaceBundle(NamespaceName.get(namespace),
-                    Range.range(Long.decode(bundles.getBoundaries().get(0)), BoundType.CLOSED,
-                            Long.decode(bundles.getBoundaries().get(1)), BoundType.OPEN),
-                    pulsar.getNamespaceService().getNamespaceBundleFactory());
-            doReturn(Optional.of(localWebServiceUrl)).when(nsSvc).getWebServiceUrl(testBundle, optionsHttps);
             admin.namespaces().splitNamespaceBundle(namespace, bundle, true, null);
-
         }
         BundlesData bundles = admin.namespaces().getBundles(namespace);
         assertEquals(bundles.getNumBundles(), 14);
