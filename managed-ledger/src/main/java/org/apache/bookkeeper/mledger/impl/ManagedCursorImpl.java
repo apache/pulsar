@@ -177,6 +177,8 @@ public class ManagedCursorImpl implements ManagedCursor {
     // Stat of the cursor z-node
     private volatile Stat cursorLedgerStat;
 
+    private volatile ManagedCursorInfo managedCursorInfo;
+
     private static final LongPairConsumer<PositionImpl> positionRangeConverter = PositionImpl::new;
     private static final LongPairConsumer<PositionImplRecyclable> recyclePositionRangeConverter = (key, value) -> {
         PositionImplRecyclable position = PositionImplRecyclable.create();
@@ -329,17 +331,18 @@ public class ManagedCursorImpl implements ManagedCursor {
     private CompletableFuture<Void> asyncReadAndUpdateCursorProperties(
             final Function<Map<String, String>, Map<String, String>> updateFunction) {
         CompletableFuture<Void> updateCursorPropertiesResult = new CompletableFuture<>();
-        ledger.getStore().asyncGetCursorInfo(ledger.getName(), name, new MetaStoreCallback<>() {
-            @Override
-            public void operationComplete(ManagedCursorInfo info, Stat stat) {
-                final Map<String, String> newProperties = updateFunction.apply(ManagedCursorImpl.this.cursorProperties);
-                ManagedCursorInfo copy = ManagedCursorInfo
-                        .newBuilder(info)
-                        .clearCursorProperties()
-                        .addAllCursorProperties(buildStringPropertiesMap(newProperties))
-                        .build();
-                ledger.getStore().asyncUpdateCursorInfo(ledger.getName(),
-                        name, copy, stat, new MetaStoreCallback<>() {
+
+        final Stat lastCursorLedgerStat = ManagedCursorImpl.this.cursorLedgerStat;
+
+        Map<String, String> newProperties = updateFunction.apply(ManagedCursorImpl.this.cursorProperties);
+        ManagedCursorInfo copy = ManagedCursorInfo
+                .newBuilder(ManagedCursorImpl.this.managedCursorInfo)
+                .clearCursorProperties()
+                .addAllCursorProperties(buildStringPropertiesMap(newProperties))
+                .build();
+
+        ledger.getStore().asyncUpdateCursorInfo(ledger.getName(),
+                name, copy, lastCursorLedgerStat, new MetaStoreCallback<>() {
                     @Override
                     public void operationComplete(Void result, Stat stat) {
                         log.info("[{}] Updated ledger cursor: {} properties {}", ledger.getName(),
@@ -368,15 +371,6 @@ public class ManagedCursorImpl implements ManagedCursor {
                         }
                     }
                 });
-            }
-
-            @Override
-            public void operationFailed(MetaStoreException e) {
-                log.error("[{}] Error while updating ledger cursor: {} properties {}", ledger.getName(),
-                        name, cursorProperties, e);
-                updateCursorPropertiesResult.completeExceptionally(e);
-            }
-        });
 
         return updateCursorPropertiesResult;
     }
@@ -449,6 +443,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             @Override
             public void operationComplete(ManagedCursorInfo info, Stat stat) {
 
+                ManagedCursorImpl.this.managedCursorInfo = info;
                 cursorLedgerStat = stat;
                 lastActive = info.getLastActive() != 0 ? info.getLastActive() : lastActive;
 
@@ -2538,6 +2533,8 @@ public class ManagedCursorImpl implements ManagedCursor {
             return;
         }
 
+        final Stat lastCursorLedgerStat = cursorLedgerStat;
+
         // When closing we store the last mark-delete position in the z-node itself, so we won't need the cursor ledger,
         // hence we write it as -1. The cursor ledger is deleted once the z-node write is confirmed.
         ManagedCursorInfo.Builder info = ManagedCursorInfo.newBuilder() //
@@ -2559,10 +2556,12 @@ public class ManagedCursorImpl implements ManagedCursor {
             log.debug("[{}][{}]  Closing cursor at md-position: {}", ledger.getName(), name, position);
         }
 
-        ledger.getStore().asyncUpdateCursorInfo(ledger.getName(), name, info.build(), cursorLedgerStat,
+        ManagedCursorInfo cursorInfo = info.build();
+        ledger.getStore().asyncUpdateCursorInfo(ledger.getName(), name, cursorInfo, lastCursorLedgerStat,
                 new MetaStoreCallback<Void>() {
                     @Override
                     public void operationComplete(Void result, Stat stat) {
+                        managedCursorInfo = cursorInfo;
                         cursorLedgerStat = stat;
                         callback.operationComplete(result, stat);
                     }
