@@ -98,7 +98,7 @@ public class BKCluster implements AutoCloseable {
             return this;
         }
 
-        public BKClusterConf clearOldData(Boolean clearOldData) {
+        public BKClusterConf clearOldData(boolean clearOldData) {
             this.clearOldData = clearOldData;
             return this;
         }
