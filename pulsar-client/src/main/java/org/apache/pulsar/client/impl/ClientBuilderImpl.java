@@ -175,6 +175,18 @@ public class ClientBuilderImpl implements ClientBuilder {
     }
 
     @Override
+    public ClientBuilder tlsKeyFilePath(String tlsKeyFilePath) {
+        conf.setTlsKeyFilePath(tlsKeyFilePath);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder tlsCertificateFilePath(String tlsCertificateFilePath) {
+        conf.setTlsCertificateFilePath(tlsCertificateFilePath);
+        return this;
+    }
+
+    @Override
     public ClientBuilder enableTlsHostnameVerification(boolean enableTlsHostnameVerification) {
         conf.setTlsHostnameVerificationEnable(enableTlsHostnameVerification);
         return this;
@@ -201,6 +213,24 @@ public class ClientBuilderImpl implements ClientBuilder {
     @Override
     public ClientBuilder sslProvider(String sslProvider) {
         conf.setSslProvider(sslProvider);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder tlsKeyStoreType(String tlsKeyStoreType) {
+        conf.setTlsKeyStoreType(tlsKeyStoreType);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder tlsKeyStorePath(String tlsTrustStorePath) {
+        conf.setTlsKeyStorePath(tlsTrustStorePath);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder tlsKeyStorePassword(String tlsKeyStorePassword) {
+        conf.setTlsKeyStorePassword(tlsKeyStorePassword);
         return this;
     }
 

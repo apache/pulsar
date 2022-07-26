@@ -137,10 +137,22 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private boolean useTls = false;
 
     @ApiModelProperty(
+            name = "tlsKeyFilePath",
+            value = "Path to the TLS key file."
+    )
+    private String tlsKeyFilePath = null;
+
+    @ApiModelProperty(
+            name = "tlsCertificateFilePath",
+            value = "Path to the TLS certificate file."
+    )
+    private String tlsCertificateFilePath = null;
+
+    @ApiModelProperty(
             name = "tlsTrustCertsFilePath",
             value = "Path to the trusted TLS certificate file."
     )
-    private String tlsTrustCertsFilePath = "";
+    private String tlsTrustCertsFilePath = null;
 
     @ApiModelProperty(
             name = "tlsAllowInsecureConnection",
@@ -235,6 +247,25 @@ public class ClientConfigurationData implements Serializable, Cloneable {
             value = "The TLS provider used by an internal client to authenticate with other Pulsar brokers."
     )
     private String sslProvider = null;
+
+    @ApiModelProperty(
+            name = "tlsKeyStoreType",
+            value = "TLS KeyStore type configuration."
+    )
+    private String tlsKeyStoreType = "JKS";
+
+    @ApiModelProperty(
+            name = "tlsKeyStorePath",
+            value = "Path of TLS KeyStore."
+    )
+    private String tlsKeyStorePath = null;
+
+    @ApiModelProperty(
+            name = "tlsKeyStorePassword",
+            value = "Password of TLS KeyStore."
+    )
+    @Secret
+    private String tlsKeyStorePassword = null;
 
     @ApiModelProperty(
             name = "tlsTrustStoreType",

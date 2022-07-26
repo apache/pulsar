@@ -95,13 +95,15 @@ public class HttpClient implements Closeable {
 
                 if (conf.isUseKeyStoreTls()) {
                     SSLContext sslCtx = null;
-                    KeyStoreParams params = authData.hasDataForTls() ? authData.getTlsKeyStoreParams() : null;
+                    KeyStoreParams params = authData.hasDataForTls() ? authData.getTlsKeyStoreParams() :
+                            new KeyStoreParams(conf.getTlsKeyStoreType(), conf.getTlsKeyStorePath(),
+                                    conf.getTlsKeyStorePassword());
 
                     sslCtx = KeyStoreSSLContext.createClientSslContext(
                             conf.getSslProvider(),
-                            params != null ? params.getKeyStoreType() : null,
-                            params != null ? params.getKeyStorePath() : null,
-                            params != null ? params.getKeyStorePassword() : null,
+                            params.getKeyStoreType(),
+                            params.getKeyStorePath(),
+                            params.getKeyStorePassword(),
                             conf.isTlsAllowInsecureConnection(),
                             conf.getTlsTrustStoreType(),
                             conf.getTlsTrustStorePath(),
@@ -131,7 +133,11 @@ public class HttpClient implements Closeable {
                         sslCtx = SecurityUtility.createNettySslContextForClient(
                                 sslProvider,
                                 conf.isTlsAllowInsecureConnection(),
-                                conf.getTlsTrustCertsFilePath(), conf.getTlsCiphers(), conf.getTlsProtocols());
+                                conf.getTlsTrustCertsFilePath(),
+                                conf.getTlsCertificateFilePath(),
+                                conf.getTlsKeyFilePath(),
+                                conf.getTlsCiphers(),
+                                conf.getTlsProtocols());
                     }
                     confBuilder.setSslContext(sslCtx);
                 }
