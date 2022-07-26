@@ -130,6 +130,7 @@ import org.apache.pulsar.transaction.coordinator.TransactionTimeoutTracker;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionSequenceIdGenerator;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore;
+import org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriterConfig;
 import org.awaitility.Awaitility;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -677,6 +678,8 @@ public class TransactionTest extends TransactionTestBase {
 
     @Test
     public void testEndTCRecoveringWhenManagerLedgerDisReadable() throws Exception{
+        ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(1);
+
         String topic = NAMESPACE1 + "/testEndTCRecoveringWhenManagerLedgerDisReadable";
         admin.topics().createNonPartitionedTopic(topic);
 
@@ -699,7 +702,8 @@ public class TransactionTest extends TransactionTestBase {
         persistentTopic.getManagedLedger().getConfig().setManagedLedgerInterceptor(mlTransactionSequenceIdGenerator);
         MLTransactionLogImpl mlTransactionLog =
                 new MLTransactionLogImpl(new TransactionCoordinatorID(1), null,
-                        persistentTopic.getManagedLedger().getConfig());
+                        persistentTopic.getManagedLedger().getConfig(), new TxnLogBufferedWriterConfig(),
+                        scheduledExecutorService);
         Class<MLTransactionLogImpl> mlTransactionLogClass = MLTransactionLogImpl.class;
         Field field = mlTransactionLogClass.getDeclaredField("cursor");
         field.setAccessible(true);
@@ -746,6 +750,9 @@ public class TransactionTest extends TransactionTestBase {
         metadataStore3.init(transactionRecoverTracker).get();
         Awaitility.await().untilAsserted(() ->
                 assertEquals(metadataStore3.getCoordinatorStats().state, "Ready"));
+
+        // cleanup.
+        scheduledExecutorService.shutdown();
     }
 
     @Test

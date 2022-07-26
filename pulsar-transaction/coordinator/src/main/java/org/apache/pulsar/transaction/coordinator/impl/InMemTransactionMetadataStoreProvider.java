@@ -19,6 +19,7 @@
 package org.apache.pulsar.transaction.coordinator.impl;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledExecutorService;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
@@ -38,7 +39,9 @@ public class InMemTransactionMetadataStoreProvider implements TransactionMetadat
                                                                  ManagedLedgerConfig managedLedgerConfig,
                                                                  TransactionTimeoutTracker timeoutTracker,
                                                                  TransactionRecoverTracker recoverTracker,
-                                                                 long maxActiveTransactionsPerCoordinator) {
+                                                                 long maxActiveTransactionsPerCoordinator,
+                                                                 TxnLogBufferedWriterConfig txnLogBufferedWriterConfig,
+                                                                 ScheduledExecutorService scheduledExecutorService) {
         return CompletableFuture.completedFuture(
             new InMemTransactionMetadataStore(transactionCoordinatorId));
     }
