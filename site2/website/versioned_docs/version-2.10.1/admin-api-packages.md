@@ -90,7 +90,7 @@ bin/pulsar-admin packages upload function://public/default/example@v0.1 --path p
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|POST|/admin/v3/packages/:type/:tenant/:namespace/:packageName/:version}
+{@inject: endpoint|POST|/admin/v3/packages/:type/:tenant/:namespace/:packageName/:version|operation/upload?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="JAVA">
@@ -135,7 +135,7 @@ bin/pulsar-admin packages download function://public/default/example@v0.1 --path
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|GET|/admin/v3/packages/:type/:tenant/:namespace/:packageName/:version}
+{@inject: endpoint|GET|/admin/v3/packages/:type/:tenant/:namespace/:packageName/:version|operation/download?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="JAVA">
@@ -182,7 +182,7 @@ bin/pulsar-admin packages delete functions://public/default/example@v0.1
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|DELETE|/admin/v3/packages/:type/:tenant/:namespace/:packageName/:version}
+{@inject: endpoint|DELETE|/admin/v3/packages/:type/:tenant/:namespace/:packageName/:version|operation/delete?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="JAVA">
@@ -227,7 +227,7 @@ bin/pulsar-admin packages get-metadata function://public/default/test@v1
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|GET|/admin/v3/packages/:type/:tenant/:namespace/:packageName/:version/metadata}
+{@inject: endpoint|GET|/admin/v3/packages/:type/:tenant/:namespace/:packageName/:version/metadata|operation/getMeta?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="JAVA">
@@ -272,7 +272,7 @@ bin/pulsar-admin packages update-metadata function://public/default/example@v0.1
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|PUT|/admin/v3/packages/:type/:tenant/:namespace/:packageName/:version/metadata}
+{@inject: endpoint|PUT|/admin/v3/packages/:type/:tenant/:namespace/:packageName/:version/metadata|operation/updateMeta?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="JAVA">
@@ -317,7 +317,7 @@ bin/pulsar-admin packages list-versions type://tenant/namespace/packageName
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|GET|/admin/v3/packages/:type/:tenant/:namespace/:packageName}
+{@inject: endpoint|GET|/admin/v3/packages/:type/:tenant/:namespace/:packageName|operation/listPackageVersion?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="JAVA">
@@ -363,7 +363,7 @@ bin/pulsar-admin packages list --type function public/default
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|PUT|/admin/v3/packages/:type/:tenant/:namespace}
+{@inject: endpoint|PUT|/admin/v3/packages/:type/:tenant/:namespace|operation/listPackages?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="JAVA">

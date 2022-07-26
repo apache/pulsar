@@ -10,15 +10,17 @@ import TabItem from '@theme/TabItem';
 ````
 
 
-> **Important**
->
-> This page only shows **some frequently used operations**.
->
-> - For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more, see [Pulsar admin doc](/tools/pulsar-admin/)
-> 
-> - For the latest and complete information about `REST API`, including parameters, responses, samples, and more, see {@inject: rest:REST:/} API doc.
-> 
-> - For the latest and complete information about `Java admin API`, including classes, methods, descriptions, and more, see [Java admin API doc](/api/admin/).
+:::tip
+
+ This page only shows **some frequently used operations**.
+
+ - For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more, see [Pulsar admin doc](/tools/pulsar-admin/)
+ 
+ - For the latest and complete information about `REST API`, including parameters, responses, samples, and more, see {@inject: rest:REST:/} API doc.
+ 
+ - For the latest and complete information about `Java admin API`, including classes, methods, descriptions, and more, see [Java admin API doc](/api/admin/).
+ 
+:::
 
 Pulsar has persistent and non-persistent topics. Persistent topic is a logical endpoint for publishing and consuming messages. The topic name structure for persistent topics is:
 
@@ -1066,9 +1068,9 @@ admin.topics().resetCursor(topic, subName, timestamp);
 </Tabs>
 ````
 
-### Lookup of topic
+### Look up topic's owner broker
 
-You can locate the broker URL which is serving the given topic in the following ways.
+You can locate the owner broker of the given topic in the following ways.
 
 ````mdx-code-block
 <Tabs groupId="api-choice"
@@ -1088,7 +1090,7 @@ $ pulsar-admin topics lookup \
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|GET|/lookup/v2/topic/:schema/:tenant:namespace/:topic|/?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/lookup/v2/topic/:topic_domain/:tenant/:namespace/:topic|operation/lookupTopicAsync?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java">
@@ -1105,9 +1107,9 @@ admin.lookup().lookupDestination(topic);
 </Tabs>
 ````
 
-### Lookup of partitioned topic
+### Look up partitioned topic's owner broker
 
-You can locate the broker URL of each partitioned topic which is serving the given topic in the following ways.
+You can locate the owner broker of the given partitioned topic in the following ways.
 
 ````mdx-code-block
 <Tabs groupId="api-choice"
@@ -1155,7 +1157,7 @@ $ pulsar-admin topics partitioned-lookup \
 
 ### Get bundle
 
-You can check the range of the bundle which contains given topic in the following ways.
+You can get the range of the bundle that the given topic belongs to in the following ways.
 
 ````mdx-code-block
 <Tabs groupId="api-choice"
@@ -1175,7 +1177,7 @@ $ pulsar-admin topics bundle-range \
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|GET|/lookup/v2/topic/:topic_domain/:tenant/:namespace/:topic/bundle|/?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/lookup/v2/topic/:topic_domain/:tenant/:namespace/:topic/bundle|operation/getNamespaceBundle?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java">

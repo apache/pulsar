@@ -15,4 +15,5 @@ Pulsar provides a variety of REST APIs that enable you to interact with Pulsar t
 | [Sources](/source-rest-api/?version=master) | REST APIs for source-specific operations.|
 | [Sinks](/sink-rest-api/?version=master) | REST APIs for sink-specific operations.|
 | [Packages](/packages-rest-api/?version=master) | REST APIs for package-specific operations. A package can be a group of functions, sources, and sinks.|
+| [Transactions](/transactions-rest-api/?version=master) | REST APIs for transaction-specific operations.|
 

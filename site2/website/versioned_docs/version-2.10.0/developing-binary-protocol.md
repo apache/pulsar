@@ -515,8 +515,7 @@ Topic lookup needs to be performed each time a client needs to create or
 reconnect a producer or a consumer. Lookup is used to discover which particular
 broker is serving the topic we are about to use.
 
-Lookup can be done with a REST call as described in the [admin API](admin-api-topics.md#lookup-of-topic)
-docs.
+Lookup can be done with a REST call as described in the [admin API](admin-api-topics.md#look-up-topics-owner-broker) docs.
 
 Since Pulsar-1.16 it is also possible to perform the lookup within the binary
 protocol.

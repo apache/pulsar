@@ -177,8 +177,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
                 entry.release();
                 individualAcknowledgeMessageIfNeeded(pos, Collections.emptyMap());
                 continue;
-            } else if (msgMetadata.hasDeliverAtTime()
-                    && trackDelayedDelivery(entry.getLedgerId(), entry.getEntryId(), msgMetadata)) {
+            } else if (trackDelayedDelivery(entry.getLedgerId(), entry.getEntryId(), msgMetadata)) {
                 // The message is marked for delayed delivery. Ignore for now.
                 entries.set(i, null);
                 entry.release();
@@ -223,7 +222,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
                         // simulate the Consumer rejected the message
                         subscription
                                 .redeliverUnacknowledgedMessages(consumer, entriesToRedeliver);
-                    }, 1, TimeUnit.SECONDS);
+                    }, serviceConfig.getDispatcherEntryFilterRescheduledMessageDelay(), TimeUnit.MILLISECONDS);
 
         }
 

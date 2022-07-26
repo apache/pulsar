@@ -55,6 +55,11 @@ public interface DelayedDeliveryTracker extends AutoCloseable {
      */
     Set<PositionImpl> getScheduledMessages(int maxMessages);
 
+    /**
+     * Tells whether the dispatcher should pause any message deliveries, until the DelayedDeliveryTracker has
+     * more messages available.
+     */
+    boolean shouldPauseAllDeliveries();
 
     /**
      *  Reset tick time use zk policies cache.
