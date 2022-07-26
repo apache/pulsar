@@ -45,13 +45,6 @@ public class IOConfigUtilsTest {
 
     @Data
     static class TestDefaultConfig {
-        @FieldDoc(
-                required = false,
-                defaultValue = "defaultStr",
-                sensitive = false,
-                help = "defaultStr"
-        )
-        protected String defaultStr;
 
         @FieldDoc(
                 required = true,
@@ -60,6 +53,14 @@ public class IOConfigUtilsTest {
                 help = "testRequired"
         )
         protected String testRequired;
+
+        @FieldDoc(
+                required = false,
+                defaultValue = "defaultStr",
+                sensitive = false,
+                help = "defaultStr"
+        )
+        protected String defaultStr;
 
         @FieldDoc(
                 required = false,
@@ -113,7 +114,7 @@ public class IOConfigUtilsTest {
     @Data
     static class TestConfig {
         @FieldDoc(
-                required = true,
+                required = false,
                 defaultValue = "",
                 sensitive = true,
                 help = "password"
@@ -132,7 +133,7 @@ public class IOConfigUtilsTest {
          * Non-string secrets are not supported at this moment
          */
         @FieldDoc(
-                required = true,
+                required = false,
                 defaultValue = "",
                 sensitive = true,
                 help = ""
