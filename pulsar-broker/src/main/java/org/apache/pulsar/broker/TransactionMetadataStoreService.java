@@ -35,7 +35,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
@@ -202,8 +201,8 @@ public class TransactionMetadataStoreService {
     }
 
     public CompletableFuture<TransactionMetadataStore> openTransactionMetadataStore(TransactionCoordinatorID tcId) {
-        final ScheduledExecutorService transactionLogBufferedWriteAsyncFlushTrigger =
-                pulsarService.getBrokerService().getTransactionTimer();
+        final Timer brokerClientSharedTimer =
+                pulsarService.getBrokerClientSharedTimer();
         final ServiceConfiguration serviceConfiguration = pulsarService.getConfiguration();
         final TxnLogBufferedWriterConfig txnLogBufferedWriterConfig = new TxnLogBufferedWriterConfig();
         txnLogBufferedWriterConfig.setBatchEnabled(serviceConfiguration.isTransactionLogBatchedWriteEnabled());
@@ -223,7 +222,7 @@ public class TransactionMetadataStoreService {
                                     .openStore(tcId, pulsarService.getManagedLedgerFactory(), v,
                                             timeoutTracker, recoverTracker,
                                             pulsarService.getConfig().getMaxActiveTransactionsPerCoordinator(),
-                                            txnLogBufferedWriterConfig, transactionLogBufferedWriteAsyncFlushTrigger);
+                                            txnLogBufferedWriterConfig, brokerClientSharedTimer);
                 });
     }
 

@@ -20,9 +20,9 @@ package org.apache.pulsar.transaction.coordinator;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.annotations.Beta;
+import io.netty.util.Timer;
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ScheduledExecutorService;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriterConfig;
@@ -71,5 +71,5 @@ public interface TransactionMetadataStoreProvider {
             TransactionCoordinatorID transactionCoordinatorId, ManagedLedgerFactory managedLedgerFactory,
             ManagedLedgerConfig managedLedgerConfig, TransactionTimeoutTracker timeoutTracker,
             TransactionRecoverTracker recoverTracker, long maxActiveTransactionsPerCoordinator,
-            TxnLogBufferedWriterConfig txnLogBufferedWriterConfig, ScheduledExecutorService scheduledExecutorService);
+            TxnLogBufferedWriterConfig txnLogBufferedWriterConfig, Timer timer);
 }
