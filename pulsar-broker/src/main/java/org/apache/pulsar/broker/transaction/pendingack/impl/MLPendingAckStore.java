@@ -22,6 +22,7 @@ import static org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWrite
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ComparisonChain;
 import io.netty.buffer.ByteBuf;
+import io.netty.util.Timer;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -30,7 +31,6 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
@@ -117,7 +117,7 @@ public class MLPendingAckStore implements PendingAckStore {
     public MLPendingAckStore(ManagedLedger managedLedger, ManagedCursor cursor,
                              ManagedCursor subManagedCursor, long transactionPendingAckLogIndexMinLag,
                              TxnLogBufferedWriterConfig bufferedWriterConfig,
-                             ScheduledExecutorService scheduledExecutorService) {
+                             Timer timer) {
         this.managedLedger = managedLedger;
         this.cursor = cursor;
         this.currentLoadPosition = (PositionImpl) this.cursor.getMarkDeletedPosition();
@@ -128,7 +128,7 @@ public class MLPendingAckStore implements PendingAckStore {
         this.logIndexBackoff = new LogIndexLagBackoff(transactionPendingAckLogIndexMinLag, Long.MAX_VALUE, 1);
         this.maxIndexLag = logIndexBackoff.next(0);
         this.bufferedWriter = new TxnLogBufferedWriter(managedLedger, ((ManagedLedgerImpl) managedLedger).getExecutor(),
-                scheduledExecutorService, PendingAckLogSerializer.INSTANCE,
+                timer, PendingAckLogSerializer.INSTANCE,
                 bufferedWriterConfig.getBatchedWriteMaxRecords(), bufferedWriterConfig.getBatchedWriteMaxSize(),
                 bufferedWriterConfig.getBatchedWriteMaxDelayInMillis(), bufferedWriterConfig.isBatchEnabled());
         this.batchedPendingAckLogsWaitingForHandle = new ArrayList<>();

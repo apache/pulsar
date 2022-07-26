@@ -613,7 +613,8 @@ public class TransactionTest extends TransactionTestBase {
     @Test
     public void testEndTPRecoveringWhenManagerLedgerDisReadable() throws Exception{
         TxnLogBufferedWriterConfig bufferedWriterConfig = new TxnLogBufferedWriterConfig();
-        ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(1);
+        HashedWheelTimer transactionTimer = new HashedWheelTimer(new DefaultThreadFactory("transaction-timer"),
+                1, TimeUnit.MILLISECONDS);
 
         String topic = NAMESPACE1 + "/testEndTPRecoveringWhenManagerLedgerDisReadable";
         admin.topics().createNonPartitionedTopic(topic);
@@ -647,7 +648,7 @@ public class TransactionTest extends TransactionTestBase {
         TransactionPendingAckStoreProvider pendingAckStoreProvider = mock(TransactionPendingAckStoreProvider.class);
         doReturn(CompletableFuture.completedFuture(
                 new MLPendingAckStore(persistentTopic.getManagedLedger(), managedCursor, null,
-                        500, bufferedWriterConfig, scheduledExecutorService)))
+                        500, bufferedWriterConfig, transactionTimer)))
                 .when(pendingAckStoreProvider).newPendingAckStore(any());
         doReturn(CompletableFuture.completedFuture(true)).when(pendingAckStoreProvider).checkInitializedBefore(any());
 
@@ -680,6 +681,9 @@ public class TransactionTest extends TransactionTestBase {
 
         Awaitility.await().untilAsserted(() ->
                 assertEquals(pendingAckHandle3.getStats(false).state, "Ready"));
+
+        // cleanup
+        transactionTimer.stop();
     }
 
     @Test

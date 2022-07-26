@@ -18,8 +18,9 @@
  */
 package org.apache.pulsar.broker.transaction.pendingack;
 
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
+import io.netty.util.HashedWheelTimer;
+import io.netty.util.concurrent.DefaultThreadFactory;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -52,7 +53,8 @@ public class PendingAckMetadataTest extends MockedBookKeeperTestCase {
     @Test
     public void testPendingAckManageLedgerWriteFailState() throws Exception {
         TxnLogBufferedWriterConfig bufferedWriterConfig = new TxnLogBufferedWriterConfig();
-        ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(1);
+        HashedWheelTimer transactionTimer = new HashedWheelTimer(new DefaultThreadFactory("transaction-timer"),
+                1, TimeUnit.MILLISECONDS);
 
         ManagedLedgerFactoryConfig factoryConf = new ManagedLedgerFactoryConfig();
         factoryConf.setMaxCacheSize(0);
@@ -79,7 +81,7 @@ public class PendingAckMetadataTest extends MockedBookKeeperTestCase {
         ManagedCursor subCursor = completableFuture.get().openCursor("test");
         MLPendingAckStore pendingAckStore =
                 new MLPendingAckStore(completableFuture.get(), cursor, subCursor, 500,
-                        bufferedWriterConfig, scheduledExecutorService);
+                        bufferedWriterConfig, transactionTimer);
 
         Field field = MLPendingAckStore.class.getDeclaredField("managedLedger");
         field.setAccessible(true);
@@ -102,7 +104,7 @@ public class PendingAckMetadataTest extends MockedBookKeeperTestCase {
         completableFuture.get().close();
         cursor.close();
         subCursor.close();
-        scheduledExecutorService.shutdown();
+        transactionTimer.stop();
     }
 
 }

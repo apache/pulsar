@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.broker.transaction.pendingack.impl;
 
+import io.netty.util.Timer;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ScheduledExecutorService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -57,8 +57,8 @@ public class MLPendingAckStoreProvider implements TransactionPendingAckStoreProv
         PersistentTopic originPersistentTopic = (PersistentTopic) subscription.getTopic();
         PulsarService pulsarService = originPersistentTopic.getBrokerService().getPulsar();
 
-        final ScheduledExecutorService transactionLogScheduledExecutor =
-                pulsarService.getBrokerService().getTransactionTimer();
+        final Timer brokerClientSharedTimer =
+                pulsarService.getBrokerClientSharedTimer();
         final ServiceConfiguration serviceConfiguration = pulsarService.getConfiguration();
         final TxnLogBufferedWriterConfig txnLogBufferedWriterConfig = new TxnLogBufferedWriterConfig();
         txnLogBufferedWriterConfig.setBatchEnabled(serviceConfiguration.isTransactionPendingAckBatchedWriteEnabled());
@@ -105,7 +105,7 @@ public class MLPendingAckStoreProvider implements TransactionPendingAckStoreProv
                                                                         .getConfiguration()
                                                                         .getTransactionPendingAckLogIndexMinLag(),
                                                                 txnLogBufferedWriterConfig,
-                                                                transactionLogScheduledExecutor));
+                                                                brokerClientSharedTimer));
                                                         if (log.isDebugEnabled()) {
                                                             log.debug("{},{} open MLPendingAckStore cursor success",
                                                                     originPersistentTopic.getName(),
