@@ -14,6 +14,7 @@ All Pulsar command-line tools can be run from the `bin` directory of your [insta
 * [`pulsar-perf`](#pulsar-perf)
 * [`bookkeeper`](#bookkeeper)
 * [`broker-tool`](#broker-tool)
+* [`pulsar-shell`](#pulsar-shell)
 
 :::tip
 
@@ -1015,3 +1016,127 @@ Options
 |`-i`, `--interval`| Interval to collect load report, in milliseconds ||
 |`-h`, `--help`| Display help information ||
 
+
+## `pulsar-shell`
+
+[Pulsar shell](administration-pulsar-shell.md) tool.
+
+### Interactive mode
+
+Usage
+
+```bash
+
+$ pulsar-shell
+
+```
+
+Options
+
+| Flag               | Description                                                               | Default          |
+|--------------------|---------------------------------------------------------------------------|------------------|
+| `-c`, `--config`   | Client configuration file. It is used as a `default` config.           | conf/client.conf | 
+| `--fail-on-error` | If true, the shell is interrupted when a command throws an exception.  | false            | 
+| `-h`, `--help`     | Show this help.                                                            | |
+
+
+### Non interactive mode
+
+Usage
+
+```bash
+
+$ pulsar-shell -f [FILE]
+$ pulsar-shell -e [COMMAND]
+$ echo "[COMMAND]" | pulsar-shell -
+
+```
+
+Options
+
+| Flag                      | Description                                                                                         | Default         |
+|---------------------------|-----------------------------------------------------------------------------------------------------|-----------------|
+| `-c`, `--config`          | Client configuration file. It is used as a `default` config.                                     | conf/client.conf | 
+| `--fail-on-error`         | If true, the shell is interrupted when a command throws an exception.                            | false           | 
+| `-np`, `--no-progress`    | Display raw output of the commands without the fancy progress visualization.                        | false           | 
+| `-f`, `--filename`        | Input filename with a list of commands to be executed. Each command must be separated by a newline. |                 |
+| `-e`, `--execute-command` | Execute this command and exit.                                                                      | |
+| `-` | Read commands from the standard input.                                                              | |
+| `-h`, `--help`     | Show this help.                                                                                      | |
+
+
+Commands
+* `admin` - See [Admin API](admin-api-overview.md)
+* `client` - See [pulsar-client](#pulsar-client)
+* `config`
+
+
+### `config`
+
+Manage shell configurations.
+
+#### `use`
+
+Use a specific configuration for next commands.
+
+```
+default(localhost)> config use mycluster
+```
+
+#### `create`
+
+Create a new configuration.
+
+```
+default(localhost)> config create --file ./conf/client.conf mycluster
+```
+
+Options
+
+| Flag     | Description              | Default         |
+|----------|--------------------------|-----------------|
+| `--file` | File path of the config. |  | 
+| `--url`  | URL of the config.       |  |
+| `--value`  | Inline value of the config. Base64-encoded value is supported with the prefix `base64:`. |  |
+
+#### `update`
+
+Update an existing configuration.
+
+```
+default(localhost)> config update --file ./conf/client.conf mycluster
+```
+
+Options
+
+| Flag     | Description              | Default         |
+|----------|--------------------------|-----------------|
+| `--file` | File path of the config. |  | 
+| `--url`  | URL of the config.       |  |
+| `--value`  | Inline value of the config. Base64-encoded value is supported with the prefix `base64:`. |  |
+
+
+#### `view`
+
+View details of a config.
+
+```
+default(localhost)> config view mycluster
+```
+
+#### `delete`
+
+Delete a config. You can't delete a config if it's currently used.
+
+```
+default(localhost)> config delete mycluster
+```
+
+
+#### `list`
+
+List all the configuration names.
+
+```
+default(localhost)> config list
+```
