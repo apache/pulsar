@@ -85,6 +85,7 @@ import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.apache.zookeeper.ZooKeeper;
+import org.awaitility.Awaitility;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
@@ -409,13 +410,25 @@ public class PersistentDispatcherFailoverConsumerTest {
         verify(consumer2, times(1)).notifyActiveConsumerChange(same(consumer1));
         verify(consumer2, times(1)).notifyActiveConsumerChange(same(consumer0));
 
-        // 7. Remove last consumer
+        // 7. Remove consumer
         pdfc.removeConsumer(consumer2);
         consumers = pdfc.getConsumers();
         assertSame(pdfc.getActiveConsumer().consumerName(), consumer1.consumerName());
         assertEquals(3, consumers.size());
-        // not consumer group changes
-        assertNull(consumerChanges.poll());
+
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(consumerChanges.size(), 3);
+        });
+
+        change = consumerChanges.poll(10, TimeUnit.SECONDS);
+        assertNotNull(change);
+        verifyActiveConsumerChange(change, 0, false);
+        change = consumerChanges.poll(10, TimeUnit.SECONDS);
+        assertNotNull(change);
+        verifyActiveConsumerChange(change, 1, true);
+        change = consumerChanges.poll(10, TimeUnit.SECONDS);
+        assertNotNull(change);
+        verifyActiveConsumerChange(change, 1, true);
 
         // 8. Verify if we cannot unsubscribe when more than one consumer is connected
         assertFalse(pdfc.canUnsubscribe(consumer0));
@@ -426,13 +439,10 @@ public class PersistentDispatcherFailoverConsumerTest {
         assertSame(pdfc.getActiveConsumer().consumerName(), consumer1.consumerName());
         assertEquals(2, consumers.size());
 
-        // the remaining consumers will receive notifications
-        change = consumerChanges.poll(10, TimeUnit.SECONDS);
-        assertNotNull(change);
-        verifyActiveConsumerChange(change, 1, true);
-        change = consumerChanges.poll(10, TimeUnit.SECONDS);
-        assertNotNull(change);
-        verifyActiveConsumerChange(change, 1, true);
+        // not consumer group changes
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(consumerChanges.size(), 0);
+        });
 
         // 10. Attempt to remove already removed consumer
         String cause = "";
@@ -449,7 +459,9 @@ public class PersistentDispatcherFailoverConsumerTest {
         assertSame(pdfc.getActiveConsumer().consumerName(), consumer1.consumerName());
         assertEquals(1, consumers.size());
         // not consumer group changes
-        assertNull(consumerChanges.poll());
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(consumerChanges.size(), 0);
+        });
 
         // 11. With only one consumer, unsubscribe is allowed
         assertTrue(pdfc.canUnsubscribe(consumer1));
