@@ -22,12 +22,12 @@ import static org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWrite
 import static org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriter.BATCHED_ENTRY_DATA_PREFIX_MAGIC_NUMBER_LEN;
 import static org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriter.BATCHED_ENTRY_DATA_PREFIX_VERSION_LEN;
 import io.netty.buffer.ByteBuf;
+import io.netty.util.Timer;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
@@ -78,7 +78,7 @@ public class MLTransactionLogImpl implements TransactionLog {
 
     private TxnLogBufferedWriter<TransactionMetadataEntry> bufferedWriter;
 
-    private final ScheduledExecutorService scheduledExecutorService;
+    private final Timer timer;
 
     private final TxnLogBufferedWriterConfig txnLogBufferedWriterConfig;
 
@@ -86,12 +86,12 @@ public class MLTransactionLogImpl implements TransactionLog {
                                 ManagedLedgerFactory managedLedgerFactory,
                                 ManagedLedgerConfig managedLedgerConfig,
                                 TxnLogBufferedWriterConfig txnLogBufferedWriterConfig,
-                                ScheduledExecutorService scheduledExecutorService) {
+                                Timer timer) {
         this.topicName = getMLTransactionLogName(tcID);
         this.tcId = tcID.getId();
         this.managedLedgerFactory = managedLedgerFactory;
         this.managedLedgerConfig = managedLedgerConfig;
-        this.scheduledExecutorService = scheduledExecutorService;
+        this.timer = timer;
         this.txnLogBufferedWriterConfig = txnLogBufferedWriterConfig;
         if (txnLogBufferedWriterConfig.isBatchEnabled()) {
             this.managedLedgerConfig.setDeletionAtBatchIndexLevelEnabled(true);
@@ -115,7 +115,7 @@ public class MLTransactionLogImpl implements TransactionLog {
                         MLTransactionLogImpl.this.managedLedger = ledger;
                         MLTransactionLogImpl.this.bufferedWriter = new TxnLogBufferedWriter<>(
                                 managedLedger, ((ManagedLedgerImpl) managedLedger).getExecutor(),
-                                scheduledExecutorService, TransactionLogDataSerializer.INSTANCE,
+                                timer, TransactionLogDataSerializer.INSTANCE,
                                 txnLogBufferedWriterConfig.getBatchedWriteMaxRecords(),
                                 txnLogBufferedWriterConfig.getBatchedWriteMaxSize(),
                                 txnLogBufferedWriterConfig.getBatchedWriteMaxDelayInMillis(),

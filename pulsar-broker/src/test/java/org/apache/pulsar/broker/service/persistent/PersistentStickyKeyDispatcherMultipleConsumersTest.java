@@ -49,6 +49,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import io.netty.channel.EventLoopGroup;
+import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
@@ -84,6 +85,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
     private PersistentSubscription subscriptionMock;
     private ServiceConfiguration configMock;
     private ChannelPromise channelMock;
+    private OrderedExecutor orderedExecutor;
 
     private PersistentStickyKeyDispatcherMultipleConsumers persistentDispatcher;
 
@@ -106,6 +108,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
 
         HierarchyTopicPolicies topicPolicies = new HierarchyTopicPolicies();
         topicPolicies.getMaxConsumersPerSubscription().updateBrokerValue(0);
+
+        orderedExecutor = OrderedExecutor.newBuilder().build();
+        doReturn(orderedExecutor).when(brokerMock).getTopicOrderedExecutor();
 
         EventLoopGroup eventLoopGroup = mock(EventLoopGroup.class);
         doReturn(eventLoopGroup).when(brokerMock).executor();
@@ -142,6 +147,13 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         persistentDispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(
             topicMock, cursorMock, subscriptionMock, configMock,
             new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT));
+    }
+
+    public void cleanup() {
+        if (orderedExecutor != null) {
+            orderedExecutor.shutdown();
+            orderedExecutor = null;
+        }
     }
 
     @Test

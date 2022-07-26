@@ -278,6 +278,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         for (int i = 0; i < N; i++) {
             msg = consumer.receive(10, TimeUnit.SECONDS);
             receivedMsgs.add(msg.getValue());
+            consumer.acknowledge(msg);
         }
 
         assertEquals(receivedMsgs.size(), N);

@@ -990,6 +990,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int dispatcherMaxReadBatchSize = 100;
 
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_SERVER,
+            doc = "Dispatch messages and execute broker side filters in a per-subscription thread"
+    )
+    private boolean dispatcherDispatchMessagesInSubscriptionThread = true;
+
     // <-- dispatcher read settings -->
     @FieldContext(
         dynamic = true,
@@ -1486,6 +1493,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "(Too many requests)"
         )
     private double httpRequestsMaxPerSecond = 100.0;
+
+    @FieldContext(
+            category =  CATEGORY_HTTP,
+            dynamic = true,
+            doc = "Admin API fail on unknown request parameter in request-body. see PIP-179. Default false."
+        )
+    private boolean httpRequestsFailOnUnknownPropertiesEnabled = false;
 
     @FieldContext(
         category = CATEGORY_SASL_AUTH,
