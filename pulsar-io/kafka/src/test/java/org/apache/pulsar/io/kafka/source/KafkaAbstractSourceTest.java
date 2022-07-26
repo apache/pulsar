@@ -20,6 +20,7 @@
 package org.apache.pulsar.io.kafka.source;
 
 
+import com.google.common.collect.ImmutableMap;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -45,6 +46,7 @@ import java.util.concurrent.CompletableFuture;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.expectThrows;
 import static org.testng.Assert.fail;
 
@@ -102,6 +104,23 @@ public class KafkaAbstractSourceTest {
         config.put("autoOffsetReset", "earliest");
         source.open(config, ctx);
         source.close();
+    }
+
+    @Test
+    public void loadConsumerConfigPropertiesFromMapTest() throws Exception {
+        Map<String, Object> config = new HashMap<>();
+        config.put("consumerConfigProperties", "");
+        KafkaSourceConfig kafkaSourceConfig = KafkaSourceConfig.load(config);
+        assertNotNull(kafkaSourceConfig);
+        assertNull(kafkaSourceConfig.getConsumerConfigProperties());
+
+        config.put("consumerConfigProperties", null);
+        kafkaSourceConfig = KafkaSourceConfig.load(config);
+        assertNull(kafkaSourceConfig.getConsumerConfigProperties());
+
+        config.put("consumerConfigProperties", ImmutableMap.of("foo", "bar"));
+        kafkaSourceConfig = KafkaSourceConfig.load(config);
+        assertEquals(kafkaSourceConfig.getConsumerConfigProperties(), ImmutableMap.of("foo", "bar"));
     }
 
     @Test
