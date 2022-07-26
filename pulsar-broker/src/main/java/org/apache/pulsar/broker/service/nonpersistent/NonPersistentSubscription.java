@@ -22,6 +22,7 @@ import com.google.common.base.MoreObjects;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import org.apache.bookkeeper.mledger.Entry;
@@ -514,7 +515,7 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
     }
 
     @Override
-    public CompletableFuture<AnalyzeBacklogResult> analyzeBacklog() {
+    public CompletableFuture<AnalyzeBacklogResult> analyzeBacklog(Optional<Position> position) {
         CompletableFuture<AnalyzeBacklogResult> completableFuture = new CompletableFuture<>();
         completableFuture.completeExceptionally(
                 new Exception("Unsupported operation analyzeBacklog for NonPersistentSubscription"));

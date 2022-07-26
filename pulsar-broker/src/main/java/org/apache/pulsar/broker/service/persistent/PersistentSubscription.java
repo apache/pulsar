@@ -33,6 +33,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
@@ -522,7 +523,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
     }
 
     @Override
-    public CompletableFuture<AnalyzeBacklogResult> analyzeBacklog() {
+    public CompletableFuture<AnalyzeBacklogResult> analyzeBacklog(Optional<Position> position) {
 
         long start = System.currentTimeMillis();
         if (log.isDebugEnabled()) {
@@ -551,13 +552,17 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         long maxEntries = configuration.getSubscriptionBacklogScanMaxEntries();
         long timeOutMs = configuration.getSubscriptionBacklogScanMaxTimeMs();
         int batchSize = configuration.getDispatcherMaxReadBatchSize();
-        return cursor.scan(new Predicate<Entry>() {
+        AtomicReference<Position> firstPosition = new AtomicReference<>();
+        AtomicReference<Position> lastPosition = new AtomicReference<>();
+        return cursor.scan(position, new Predicate<Entry>() {
             @Override
             public boolean apply(Entry entry) {
                 if (log.isDebugEnabled()) {
                     log.debug("found {}", entry);
                 }
-
+                Position entryPosition = entry.getPosition();
+                firstPosition.compareAndSet(null, entryPosition);
+                lastPosition.set(entryPosition);
                 ByteBuf metadataAndPayload = entry.getDataBuffer();
                 MessageMetadata messageMetadata = Commands.peekMessageMetadata(metadataAndPayload, "", -1);
                 int numMessages = 1;
@@ -592,6 +597,8 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         }, batchSize, maxEntries, timeOutMs).thenApply((ScanOutcome outcome) -> {
             long end = System.currentTimeMillis();
             AnalyzeBacklogResult result = new AnalyzeBacklogResult();
+            result.setFirstPosition(firstPosition.get());
+            result.setLastPosition(lastPosition.get());
             result.setEntries(entries.get());
             result.setMessages(messages.get());
             result.setFilterAcceptedEntries(accepted.get());

@@ -75,6 +75,7 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.ScanOutcome;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
@@ -1591,6 +1592,7 @@ public class PersistentTopicsBase extends AdminResource {
 
     private void internalAnalyzeSubscriptionBacklogForNonPartitionedTopic(AsyncResponse asyncResponse,
                                                                           String subName,
+                                                                          Optional<Position> position,
                                                                           boolean authoritative) {
         validateTopicOwnershipAsync(topicName, authoritative)
                 .thenRun(() -> validateTopicOperation(topicName, TopicOperation.CONSUME))
@@ -1601,11 +1603,26 @@ public class PersistentTopicsBase extends AdminResource {
                                 throw new RestException(Status.NOT_FOUND,
                                         getSubNotFoundErrorMessage(topicName.toString(), subName));
                             }
-                            return sub.analyzeBacklog();
+                            return sub.analyzeBacklog(position);
                         })
                 .thenAccept((AnalyzeBacklogResult rawResult) -> {
 
                         AnalyzeSubscriptionBacklogResult result = new AnalyzeSubscriptionBacklogResult();
+
+                        if (rawResult.getFirstPosition() != null) {
+                            result.setFirstMessageId(new MessageIdImpl(
+                                    rawResult.getFirstPosition().getLedgerId(),
+                                    rawResult.getFirstPosition().getEntryId(),
+                                    topicName.getPartitionIndex()));
+                        }
+
+                        if (rawResult.getLastPosition() != null) {
+                            result.setLastMessageId(new MessageIdImpl(
+                                    rawResult.getLastPosition().getLedgerId(),
+                                    rawResult.getLastPosition().getEntryId(),
+                                    topicName.getPartitionIndex()));
+                        }
+
                         result.setEntries(rawResult.getEntries());
                         result.setMessages(rawResult.getMessages());
 
@@ -2445,6 +2462,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected void internalAnalyzeSubscriptionBacklog(AsyncResponse asyncResponse, String subName,
+                                                      Optional<Position> position,
                                                       boolean authoritative) {
         CompletableFuture<Void> future;
         if (topicName.isGlobal()) {
@@ -2460,7 +2478,7 @@ public class PersistentTopicsBase extends AdminResource {
                         "Analyze backlog on a partitioned topic is not allowed, "
                                 + "please try do it on specific topic partition");
             }
-            internalAnalyzeSubscriptionBacklogForNonPartitionedTopic(asyncResponse, subName, authoritative);
+            internalAnalyzeSubscriptionBacklogForNonPartitionedTopic(asyncResponse, subName, position, authoritative);
         }).exceptionally(ex -> {
             // If the exception is not redirect exception we need to log it.
             if (!isRedirectException(ex)) {

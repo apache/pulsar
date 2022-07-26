@@ -45,6 +45,9 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.admin.impl.PersistentTopicsBase;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.web.RestException;
@@ -1706,12 +1709,21 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Subscription", required = true)
             @PathParam("subName") String encodedSubName,
+            @ApiParam(name = "position", value = "messageId to start the analysis")
+            ResetCursorData position,
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
+            Optional<Position> positionImpl;
+            if (position != null) {
+                positionImpl = Optional.of(new PositionImpl(position.getLedgerId(),
+                        position.getEntryId()));
+            } else {
+                positionImpl = Optional.empty();
+            }
             validateTopicName(tenant, namespace, encodedTopic);
             internalAnalyzeSubscriptionBacklog(asyncResponse, decode(encodedSubName),
-                    authoritative);
+                    positionImpl, authoritative);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
         } catch (Exception e) {

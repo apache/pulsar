@@ -20,6 +20,7 @@ package org.apache.pulsar.common.stats;
 
 import lombok.Data;
 import lombok.ToString;
+import org.apache.pulsar.client.api.MessageId;
 
 @Data
 @ToString
@@ -36,5 +37,7 @@ public class AnalyzeSubscriptionBacklogResult {
     private long filterRescheduledMessages;
 
     private boolean aborted;
+    private MessageId firstMessageId;
+    private MessageId lastMessageId;
 
 }

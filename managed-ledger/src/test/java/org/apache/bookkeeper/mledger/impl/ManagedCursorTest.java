@@ -1865,14 +1865,14 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                 + "_" +batchSize);
 
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
-
+        List<Position> positions = new ArrayList<>();
         for (int i = 0; i < numEntries; i++) {
-            ledger.addEntry(("a" + i).getBytes(Encoding));
+            positions.add(ledger.addEntry(("a" + i).getBytes(Encoding)));
         }
 
         List<String> contents = new CopyOnWriteArrayList<>();
 
-        assertEquals(ScanOutcome.COMPLETED, c1.scan((entry -> {
+        assertEquals(ScanOutcome.COMPLETED, c1.scan(Optional.empty(), (entry -> {
             contents.add(new String(entry.getData(), StandardCharsets.UTF_8));
             return true;
         }), batchSize, Long.MAX_VALUE, Long.MAX_VALUE).get());
@@ -1886,12 +1886,25 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             return;
         }
 
-        assertEquals(ScanOutcome.USER_INTERRUPTED, c1.scan((entry -> {
+        List<String> contentsFromHalf = new CopyOnWriteArrayList<>();
+        int half = numEntries / 2;
+        Position halfPosition = positions.get(half);
+        assertEquals(ScanOutcome.COMPLETED, c1.scan(Optional.of(halfPosition), (entry -> {
+            contentsFromHalf.add(new String(entry.getData(), StandardCharsets.UTF_8));
+            return true;
+        }), batchSize, Long.MAX_VALUE, Long.MAX_VALUE).get());
+
+        for (int i = half; i < numEntries; i++) {
+            assertEquals(contentsFromHalf.get(i - half), ("a" + i));
+        }
+        assertEquals(contentsFromHalf.size(), numEntries - half);
+
+        assertEquals(ScanOutcome.USER_INTERRUPTED, c1.scan(Optional.empty(), (entry -> {
             return false;
         }), batchSize, Long.MAX_VALUE, Long.MAX_VALUE).get());
 
         // max entries
-        assertEquals(ScanOutcome.ABORTED, c1.scan((entry -> {
+        assertEquals(ScanOutcome.ABORTED, c1.scan(Optional.empty(), (entry -> {
             return true;
         }), batchSize, 1, Long.MAX_VALUE).get());
 
@@ -1901,7 +1914,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         // so with a big batchSize this test would take too much
         // we are skipping this check if batchSize is too big
         if (batchSize <= 5) {
-            assertEquals(ScanOutcome.ABORTED, c1.scan((entry -> {
+            assertEquals(ScanOutcome.ABORTED, c1.scan(Optional.empty(), (entry -> {
                 try {
                     Thread.sleep(1000);
                 } catch (InterruptedException ie) {
@@ -1911,7 +1924,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         }
         // user code exception
         AtomicReference<Throwable> error = new AtomicReference<>();
-        c1.scan((entry -> {
+        c1.scan(Optional.empty(), (entry -> {
             throw new RuntimeException("dummy!");
         }), batchSize, Long.MAX_VALUE, Long.MAX_VALUE).handle((___, err) -> {
             error.set(err);
@@ -1923,8 +1936,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
 
         // test deleted entries
-        List<Position> positions = new ArrayList<>();
-        assertEquals(ScanOutcome.COMPLETED, c1.scan((entry -> {
+        positions.clear();
+        assertEquals(ScanOutcome.COMPLETED, c1.scan(Optional.empty(), (entry -> {
             positions.add(entry.getPosition());
             return true;
         }), batchSize, Long.MAX_VALUE, Long.MAX_VALUE).get());
@@ -1934,7 +1947,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         c1.delete(positions.get(2));
 
         List<Position> positionsAfterDelete = new ArrayList<>();
-        assertEquals(ScanOutcome.COMPLETED, c1.scan((entry -> {
+        assertEquals(ScanOutcome.COMPLETED, c1.scan(Optional.empty(), (entry -> {
             positionsAfterDelete.add(entry.getPosition());
             return true;
         }), batchSize, Long.MAX_VALUE, Long.MAX_VALUE).get());
@@ -1946,7 +1959,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         }
 
         List<Position> positionsFinal = new ArrayList<>();
-        assertEquals(ScanOutcome.COMPLETED, c1.scan((entry -> {
+        assertEquals(ScanOutcome.COMPLETED, c1.scan(Optional.empty(), (entry -> {
             positionsFinal.add(entry.getPosition());
             return true;
         }), batchSize, Long.MAX_VALUE, Long.MAX_VALUE).get());

@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import lombok.Data;
 import lombok.ToString;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.ScanOutcome;
 
 @Data
@@ -38,5 +39,8 @@ public final class AnalyzeBacklogResult {
     private long filterRescheduledMessages;
 
     private ScanOutcome scanOutcome;
+
+    private Position firstPosition;
+    private Position lastPosition;
 
 }
