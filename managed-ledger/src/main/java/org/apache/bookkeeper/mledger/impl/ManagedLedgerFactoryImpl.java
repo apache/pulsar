@@ -80,6 +80,7 @@ import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.Runnables;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
@@ -203,13 +204,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 .toNanos(config.getCacheEvictionTimeThresholdMillis());
 
         long evictionTaskInterval = config.getCacheEvictionIntervalMs();
-        cacheEvictionExecutor.scheduleWithFixedDelay(() -> {
-                    try {
-                        doCacheEviction();
-                    }  catch (Throwable t) {
-                        log.warn("Exception while performing cache eviction: {}", t.getMessage(), t);
-                    }
-                }, evictionTaskInterval, evictionTaskInterval, TimeUnit.MILLISECONDS);
+        cacheEvictionExecutor.scheduleWithFixedDelay(Runnables.catchingAndLoggingThrowables(this::doCacheEviction),
+                evictionTaskInterval, evictionTaskInterval, TimeUnit.MILLISECONDS);
         closed = false;
 
         metadataStore.registerSessionListener(this::handleMetadataStoreNotification);
@@ -261,24 +257,6 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         });
 
         lastStatTimestamp = now;
-    }
-
-    private void cacheEvictionTask() {
-        double evictionFrequency = Math.max(Math.min(config.getCacheEvictionFrequency(), 1000.0), 0.001);
-        long waitTimeMillis = (long) (1000 / evictionFrequency);
-
-        while (!closed) {
-            try {
-                doCacheEviction();
-
-                Thread.sleep(waitTimeMillis);
-            } catch (InterruptedException e) {
-                // Factory is shutting down
-                return;
-            } catch (Throwable t) {
-                log.warn("Exception while performing cache eviction: {}", t.getMessage(), t);
-            }
-        }
     }
 
     private synchronized void doCacheEviction() {
