@@ -480,7 +480,7 @@ The following static methods are available for the message id object:
 
 ### Configuration
 
-If you want to use the end-to-end encryption feature in the Node.js client, you need to configure `publicKeyPath` and `privateKeyPath` for both producer and consumer.
+If you want to use the end-to-end encryption feature in the Node.js client, you need to configure `publicKeyPath` for producer and `privateKeyPath` for consumer.
 
 ```
 
@@ -531,7 +531,6 @@ This section provides step-by-step instructions on how to use the end-to-end enc
        sendTimeoutMs: 30000,
        batchingEnabled: true,
        publicKeyPath: "./public.pem",
-       privateKeyPath: "./private.pem",
        encryptionKey: "encryption-key"
      });
 
@@ -573,7 +572,6 @@ This section provides step-by-step instructions on how to use the end-to-end enc
        subscription: 'sub1',
        subscriptionType: 'Shared',
        ackTimeoutMs: 10000,
-       publicKeyPath: "./public.pem",
        privateKeyPath: "./private.pem"
      });
 

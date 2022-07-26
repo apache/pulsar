@@ -53,7 +53,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker-admin-v2")
+@Test(groups = "broker-admin")
 public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
     private static final Logger log = LoggerFactory.getLogger(NamespacesV2Test.class);
 

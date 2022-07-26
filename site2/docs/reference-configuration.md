@@ -142,6 +142,7 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |statsUpdateFrequencyInSecs||60|
 |statsUpdateInitialDelayInSecs||60|
 |metadataStoreUrl| Metadata store quorum connection string  ||
+| metadataStoreConfigPath | The configuration file path of the local metadata store. See [Configure metadata store](administration-metadata-store.md) for details. |N/A|
 |metadataStoreCacheExpirySeconds|Metadata store cache expiry time in seconds|300|
 |configurationMetadataStoreUrl| Configuration store connection string (as a comma-separated list) ||
 |brokerServicePort| Broker data port  |6650|
@@ -181,6 +182,7 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |metadataStoreSessionTimeoutMillis| Metadata store session timeout in milliseconds |30000|
 |brokerShutdownTimeoutMs| Time to wait for broker graceful shutdown. After this time elapses, the process will be killed  |60000|
 |skipBrokerShutdownOnOOM| Flag to skip broker shutdown when broker handles Out of memory error. |false|
+|topicFactoryClassName| Factory class-name to create topic with custom workflow. ||
 |backlogQuotaCheckEnabled|  Enable backlog quota check. Enforces action on topic when the quota is reached  |true|
 |backlogQuotaCheckIntervalInSeconds|  How often to check for topics that have reached the quota |60|
 |backlogQuotaDefaultLimitBytes| The default per-topic backlog quota limit. Being less than 0 means no limitation. By default, it is -1. | -1 |
@@ -515,6 +517,7 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |metadataStoreOperationTimeoutSeconds|Metadata store operation timeout in seconds.|30|
 |brokerShutdownTimeoutMs| The time to wait for graceful broker shutdown. After this time elapses, the process will be killed. |60000|
 |skipBrokerShutdownOnOOM| Flag to skip broker shutdown when broker handles Out of memory error. |false|
+|topicFactoryClassName| Factory class-name to create topic with custom workflow. ||
 |backlogQuotaCheckEnabled|  Enable the backlog quota check, which enforces a specified action when the quota is reached.  |true|
 |backlogQuotaCheckIntervalInSeconds|  How often to check for topics that have reached the backlog quota.  |60|
 |backlogQuotaDefaultLimitBytes| The default per-topic backlog quota limit. Being less than 0 means no limitation. By default, it is -1. |-1|
@@ -729,13 +732,21 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |transactionBufferClientOperationTimeoutInMills| The transaction buffer client's operation timeout in milliseconds.|3000|
 |transactionBufferSnapshotMaxTransactionCount| Transaction buffer takes a snapshot after the number of transaction operations reaches this value.|1000|
 |transactionBufferSnapshotMinTimeInMillis| The interval between two snapshots that the transaction buffer takes (in milliseconds).|5000|
+|transactionLogBatchedWriteEnabled| Provide a mechanism allowing the Transaction Log Store to aggregate multiple records into a batched record and persist into a single BK entry. This will make Pulsar transactions work more  efficiently, aka batched log. see: https://github.com/apache/pulsar/issues/15370  |false|
+|transactionLogBatchedWriteMaxRecords| If enabled the feature that transaction log batch, this attribute means maximum log records count in a batch  |512|
+|transactionLogBatchedWriteMaxSize| If enabled the feature that transaction log batch, this attribute means bytes size in a batch. |4m|
+|transactionLogBatchedWriteMaxDelayInMillis| If enabled the feature that transaction log batch, this attribute means maximum wait time(in millis) for the first record in a batch |1|
+|transactionPendingAckBatchedWriteEnabled| Provide a mechanism allowing the Pending Ack Store to aggregate multiple records into a batched record and persist into a single BK entry. This will make Pulsar transactions work more efficiently, aka batched log. see: https://github.com/apache/pulsar/issues/15370 |false|
+|transactionPendingAckBatchedWriteMaxRecords| If enabled the feature that transaction pending ack log batch, this attribute means maximum log records count in a batch. |512|
+|transactionPendingAckBatchedWriteMaxSize| If enabled the feature that transaction pending ack log batch, this attribute means bytes size in a batch. |4m|
+|transactionPendingAckBatchedWriteMaxDelayInMillis| If enabled the feature that transaction pending ack log batch, this attribute means maximum wait time(in millis) for the first record in a batch |1|
 |defaultRetentionTimeInMinutes|   |0|
 |defaultRetentionSizeInMB|    |0|
 |keepAliveIntervalSeconds|    |30|
 |haProxyProtocolEnabled | Enable or disable the [HAProxy](http://www.haproxy.org/) protocol. |false|
 |bookieId | If you want to custom a bookie ID or use a dynamic network address for a bookie, you can set the `bookieId`. <br /><br />Bookie advertises itself using the `bookieId` rather than the `BookieSocketAddress` (`hostname:port` or `IP:port`).<br /><br /> The `bookieId` is a non-empty string that can contain ASCII digits and letters ([a-zA-Z9-0]), colons, dashes, and dots. <br /><br />For more information about `bookieId`, see [here](http://bookkeeper.apache.org/bps/BP-41-bookieid/).|/|
 | maxTopicsPerNamespace | The maximum number of persistent topics that can be created in the namespace. When the number of topics reaches this threshold, the broker rejects the request of creating a new topic, including the auto-created topics by the producer or consumer, until the number of connected consumers decreases. The default value 0 disables the check. | 0 |
-| metadataStoreConfigPath | The configuration file path of the local metadata store. Standalone Pulsar uses [RocksDB](http://rocksdb.org/) as the local metadata store. The format is `/xxx/xx/rocksdb.ini`. |N/A|
+| metadataStoreConfigPath | The configuration file path of the local metadata store. See [Configure metadata store](administration-metadata-store.md) for details. |N/A|
 |schemaRegistryStorageClassName|The schema storage implementation used by this broker.|org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorageFactory|
 |isSchemaValidationEnforced| Whether to enable schema validation, when schema validation is enabled, if a producer without a schema attempts to produce the message to a topic with schema, the producer is rejected and disconnected.|false|
 |isAllowAutoUpdateSchemaEnabled|Allow schema to be auto updated at broker level.|true|

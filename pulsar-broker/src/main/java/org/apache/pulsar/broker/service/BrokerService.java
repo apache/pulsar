@@ -276,6 +276,7 @@ public class BrokerService implements Closeable {
     private final LongAdder pausedConnections = new LongAdder();
     private BrokerInterceptor interceptor;
     private ImmutableMap<String, EntryFilterWithClassLoader> entryFilters;
+    private TopicFactory topicFactory;
 
     private Set<BrokerEntryMetadataInterceptor> brokerEntryMetadataInterceptors;
     private Set<ManagedLedgerPayloadProcessor> brokerEntryPayloadProcessors;
@@ -346,6 +347,7 @@ public class BrokerService implements Closeable {
         this.authenticationService = new AuthenticationService(pulsar.getConfiguration());
         this.blockedDispatchers =
                 ConcurrentOpenHashSet.<PersistentDispatcherMultipleConsumers>newBuilder().build();
+        this.topicFactory = createPersistentTopicFactory();
         // update dynamic configuration and register-listener
         updateConfigurationAndRegisterListeners();
         this.lookupRequestSemaphore = new AtomicReference<Semaphore>(
@@ -1127,7 +1129,13 @@ public class BrokerService implements Closeable {
                     new NotAllowedException("Broker is not unable to load non-persistent topic"));
         }
         final long topicCreateTimeMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
-        NonPersistentTopic nonPersistentTopic = new NonPersistentTopic(topic, this);
+        NonPersistentTopic nonPersistentTopic;
+        try {
+            nonPersistentTopic = newTopic(topic, null, this, NonPersistentTopic.class);
+        } catch (Exception e) {
+            log.warn("Failed to create topic {}", topic, e);
+            return FutureUtil.failedFuture(e);
+        }
         CompletableFuture<Void> isOwner = checkTopicNsOwnership(topic);
         isOwner.thenRun(() -> {
             nonPersistentTopic.initialize()
@@ -1412,7 +1420,7 @@ public class BrokerService implements Closeable {
                             try {
                                 PersistentTopic persistentTopic = isSystemTopic(topic)
                                         ? new SystemTopic(topic, ledger, BrokerService.this)
-                                        : new PersistentTopic(topic, ledger, BrokerService.this);
+                                        : newTopic(topic, ledger, BrokerService.this, PersistentTopic.class);
                                 persistentTopic
                                         .initialize()
                                         .thenCompose(__ -> persistentTopic.preCreateSubscriptionForCompactionIfNeeded())
@@ -1602,6 +1610,12 @@ public class BrokerService implements Closeable {
                             serviceConfig.getManagedLedgerInactiveLedgerRolloverTimeSeconds(), TimeUnit.SECONDS);
                     managedLedgerConfig.setCacheEvictionByMarkDeletedPosition(
                             serviceConfig.isCacheEvictionByMarkDeletedPosition());
+                    managedLedgerConfig.setMinimumBacklogCursorsForCaching(
+                            serviceConfig.getManagedLedgerMinimumBacklogCursorsForCaching());
+                    managedLedgerConfig.setMinimumBacklogEntriesForCaching(
+                            serviceConfig.getManagedLedgerMinimumBacklogEntriesForCaching());
+                    managedLedgerConfig.setMaxBacklogBetweenCursorsForCaching(
+                            serviceConfig.getManagedLedgerMaxBacklogBetweenCursorsForCaching());
 
                     OffloadPoliciesImpl nsLevelOffloadPolicies =
                             (OffloadPoliciesImpl) policies.map(p -> p.offload_policies).orElse(null);
@@ -3053,6 +3067,37 @@ public class BrokerService implements Closeable {
 
     public long getPausedConnections() {
         return pausedConnections.longValue();
+    }
+
+    @SuppressWarnings("unchecked")
+    private <T extends Topic> T newTopic(String topic, ManagedLedger ledger, BrokerService brokerService,
+            Class<T> topicClazz) throws PulsarServerException {
+        if (topicFactory != null) {
+            try {
+                Topic newTopic = topicFactory.create(topic, ledger, brokerService, topicClazz);
+                if (newTopic != null) {
+                    return (T) newTopic;
+                }
+            } catch (Throwable e) {
+                log.warn("Failed to create persistent topic using factory {}", topic, e);
+                throw new PulsarServerException("Topic factory failed to create topic ", e);
+            }
+        }
+        return topicClazz == NonPersistentTopic.class ? (T) new NonPersistentTopic(topic, BrokerService.this)
+                : (T) new PersistentTopic(topic, ledger, brokerService);
+    }
+
+    private TopicFactory createPersistentTopicFactory() throws Exception {
+        String topicFactoryClassName = pulsar.getConfig().getTopicFactoryClassName();
+        if (StringUtils.isNotBlank(topicFactoryClassName)) {
+            try {
+                return (TopicFactory) Class.forName(topicFactoryClassName).newInstance();
+            } catch (Exception e) {
+                log.warn("Failed to initialize topic factory class {}", topicFactoryClassName, e);
+                throw e;
+            }
+        }
+        return null;
     }
 
     @VisibleForTesting

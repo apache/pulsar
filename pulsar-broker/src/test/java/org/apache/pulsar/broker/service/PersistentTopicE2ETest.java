@@ -25,9 +25,8 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import com.google.common.collect.Sets;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.socket.SocketChannel;
+
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -43,16 +42,15 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import lombok.Cleanup;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.ToString;
+
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.cache.EntryCache;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.service.persistent.MessageRedeliveryController;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
@@ -96,6 +94,15 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import com.google.common.collect.Sets;
+
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.socket.SocketChannel;
+import lombok.Cleanup;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
+
 @Test(groups = "flaky")
 public class PersistentTopicE2ETest extends BrokerTestBase {
     private final List<AutoCloseable> closeables = new ArrayList<>();
@@ -103,6 +110,11 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
     private AtomicInteger activeCount;
 
     private AtomicInteger inactiveCount;
+
+    @DataProvider(name = "topic")
+    public Object[][] isPersistent() {
+        return new Object[][] { { true }, { false } };
+    }
 
     @BeforeMethod(alwaysRun = true)
     @Override
@@ -1972,6 +1984,49 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         public void channelInactive(ChannelHandlerContext ctx) throws Exception {
             super.channelInactive(ctx);
             PersistentTopicE2ETest.this.inactiveCount.incrementAndGet();
+        }
+    }
+
+    @Test(dataProvider = "topic")
+    public void testPersistentTopicFactory(boolean isPersistent) throws Exception {
+        conf.setTopicFactoryClassName(MyTopicFactory.class.getName());
+        restartBroker();
+
+        final String topicName = (isPersistent ? "persistent" : "non-persistent") + "://prop/ns-abc/factoryTopic"
+                + isPersistent;
+        MyTopicFactory.count.set(0);
+
+        // 1. producer connect
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition).create();
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-sub").subscribe();
+
+        assertTrue(MyTopicFactory.count.get() > 0);
+        producer.close();
+        consumer.close();
+    }
+
+    public static class MyTopicFactory implements TopicFactory {
+        private static AtomicInteger count = new AtomicInteger(0);
+
+        @Override
+        public <T extends Topic> T create(String topic, ManagedLedger ledger, BrokerService brokerService,
+                Class<T> topicClazz) {
+            try {
+                count.incrementAndGet();
+                if(topicClazz == NonPersistentTopic.class) {
+                    return (T) new NonPersistentTopic(topic, brokerService);
+                }else {
+                    return (T) new PersistentTopic(topic, ledger, brokerService); 
+                }
+            } catch (Exception e) {
+                throw new IllegalStateException(e);
+            }
+        }
+
+        @Override
+        public void close() throws IOException {
+            // No-op
         }
     }
 }

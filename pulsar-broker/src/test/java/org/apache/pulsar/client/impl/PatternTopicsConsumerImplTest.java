@@ -469,11 +469,6 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
             .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition)
             .create();
 
-        List<String> topicNames = Lists.newArrayList(topicName1, topicName2, topicName3);
-        NamespaceService nss = pulsar.getNamespaceService();
-        doReturn(CompletableFuture.completedFuture(topicNames)).when(nss)
-                .getListOfPersistentTopics(NamespaceName.get("my-property/my-ns"));
-
         // 5. call recheckTopics to subscribe each added topics above
         log.debug("recheck topics change");
         PatternMultiTopicsConsumerImpl<byte[]> consumer1 = ((PatternMultiTopicsConsumerImpl<byte[]>) consumer);
@@ -512,6 +507,40 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         producer1.close();
         producer2.close();
         producer3.close();
+    }
+
+    @Test(timeOut = testTimeout)
+    public void testAutoSubscribePatterConsumerFromBrokerWatcher() throws Exception {
+        String key = "AutoSubscribePatternConsumer";
+        String subscriptionName = "my-ex-subscription-" + key;
+
+        Pattern pattern = Pattern.compile("persistent://my-property/my-ns/pattern-topic.*");
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topicsPattern(pattern)
+                // Disable automatic discovery.
+                .patternAutoDiscoveryPeriod(1000)
+                .subscriptionName(subscriptionName)
+                .subscriptionType(SubscriptionType.Shared)
+                .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+                .receiverQueueSize(4)
+                .subscribe();
+
+        // 1. create partition
+        String topicName = "persistent://my-property/my-ns/pattern-topic-1-" + key;
+        TenantInfoImpl tenantInfo = createDefaultTenantInfo();
+        admin.tenants().createTenant("prop", tenantInfo);
+        admin.topics().createPartitionedTopic(topicName, 4);
+
+        // 2. verify consumer get methods. There is no need to trigger discovery, because the broker will push the
+        // changes to update(CommandWatchTopicUpdate).
+        assertSame(pattern, ((PatternMultiTopicsConsumerImpl<?>) consumer).getPattern());
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitions().size(), 4);
+            assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getConsumers().size(), 4);
+            assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitionedTopics().size(), 1);
+        });
+
+        consumer.close();
     }
 
     // simulate subscribe a pattern which has 3 topics, but then matched topic added in.
@@ -589,11 +618,6 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
             .enableBatching(false)
             .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition)
             .create();
-
-        List<String> topicNames = Lists.newArrayList(topicName1, topicName2, topicName3, topicName4);
-        NamespaceService nss = pulsar.getNamespaceService();
-        doReturn(CompletableFuture.completedFuture(topicNames)).when(nss)
-                .getListOfPersistentTopics(NamespaceName.get("my-property/my-ns"));
 
         // 7. call recheckTopics to subscribe each added topics above, verify topics number: 10=1+2+3+4
         log.debug("recheck topics change");

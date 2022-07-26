@@ -152,7 +152,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             };
 
     @Override
-    protected void sendMessagesToConsumers(ReadType readType, List<Entry> entries) {
+    protected synchronized void sendMessagesToConsumers(ReadType readType, List<Entry> entries) {
         long totalMessagesSent = 0;
         long totalBytesSent = 0;
         long totalEntries = 0;
@@ -236,7 +236,11 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             Consumer consumer = current.getKey();
             List<Entry> entriesWithSameKey = current.getValue();
             int entriesWithSameKeyCount = entriesWithSameKey.size();
-            final int availablePermits = consumer == null ? 0 : Math.max(consumer.getAvailablePermits(), 0);
+            int availablePermits = consumer == null ? 0 : Math.max(consumer.getAvailablePermits(), 0);
+            if (consumer != null && consumer.getMaxUnackedMessages() > 0) {
+                availablePermits = Math.min(availablePermits,
+                        consumer.getMaxUnackedMessages() - consumer.getUnackedMessages());
+            }
             int maxMessagesForC = Math.min(entriesWithSameKeyCount, availablePermits);
             int messagesForC = getRestrictedMaxEntriesForConsumer(consumer, entriesWithSameKey, maxMessagesForC,
                     readType, consumerStickyKeyHashesMap.get(consumer));
@@ -403,13 +407,19 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     }
 
     @Override
-    public synchronized void markDeletePositionMoveForward() {
-        if (recentlyJoinedConsumers != null && !recentlyJoinedConsumers.isEmpty()
-                && removeConsumersFromRecentJoinedConsumers()) {
-            // After we process acks, we need to check whether the mark-delete position was advanced and we can finally
-            // read more messages. It's safe to call readMoreEntries() multiple times.
-            readMoreEntries();
-        }
+    public void markDeletePositionMoveForward() {
+        // Execute the notification in different thread to avoid a mutex chain here
+        // from the delete operation that was completed
+        topic.getBrokerService().getTopicOrderedExecutor().execute(() -> {
+            synchronized (PersistentStickyKeyDispatcherMultipleConsumers.this) {
+                if (recentlyJoinedConsumers != null && !recentlyJoinedConsumers.isEmpty()
+                        && removeConsumersFromRecentJoinedConsumers()) {
+                    // After we process acks, we need to check whether the mark-delete position was advanced and we
+                    // can finally read more messages. It's safe to call readMoreEntries() multiple times.
+                    readMoreEntries();
+                }
+            }
+        });
     }
 
     private boolean removeConsumersFromRecentJoinedConsumers() {

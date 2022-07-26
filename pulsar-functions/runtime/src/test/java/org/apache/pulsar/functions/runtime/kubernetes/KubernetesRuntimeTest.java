@@ -33,6 +33,8 @@ import io.kubernetes.client.openapi.models.V1Service;
 import io.kubernetes.client.openapi.models.V1StatefulSet;
 import io.kubernetes.client.openapi.models.V1Toleration;
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.SystemUtils;
+import org.apache.commons.lang3.JavaVersion;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
@@ -48,6 +50,7 @@ import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.worker.ConnectorsManager;
 import org.apache.pulsar.functions.worker.FunctionsManager;
 import org.apache.pulsar.functions.worker.WorkerConfig;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -380,8 +383,13 @@ public class KubernetesRuntimeTest {
     }
 
     private void verifyJavaInstance(InstanceConfig config, String depsDir, boolean secretsAttached, String downloadDirectory) throws Exception {
-        KubernetesRuntime container = factory.createContainer(config, userJarFile, userJarFile, 30l);
-        List<String> args = container.getProcessArgs();
+        KubernetesRuntime container;
+        List<String> args;
+        try (MockedStatic<SystemUtils> systemUtils = Mockito.mockStatic(SystemUtils.class, Mockito.CALLS_REAL_METHODS)) {
+            systemUtils.when(() -> SystemUtils.isJavaVersionAtLeast(JavaVersion.JAVA_9)).thenReturn(true);
+            container = factory.createContainer(config, userJarFile, userJarFile, 30L);
+            args = container.getProcessArgs();
+        }
 
         String classpath = javaInstanceJarFile;
         String extraDepsEnv;
@@ -392,14 +400,14 @@ public class KubernetesRuntimeTest {
         if (null != depsDir) {
             extraDepsEnv = " -Dpulsar.functions.extra.dependencies.dir=" + depsDir;
             classpath = classpath + ":" + depsDir + "/*";
-            totalArgs = 40;
-            portArg = 26;
-            metricsPortArg = 28;
+            totalArgs = 42;
+            portArg = 28;
+            metricsPortArg = 30;
         } else {
             extraDepsEnv = "";
-            portArg = 25;
-            metricsPortArg = 27;
-            totalArgs = 39;
+            portArg = 27;
+            metricsPortArg = 29;
+            totalArgs = 41;
         }
         if (secretsAttached) {
             totalArgs += 4;
@@ -430,6 +438,7 @@ public class KubernetesRuntimeTest {
                 + "-Dpulsar.function.log.dir=" + logDirectory + "/" + FunctionCommon.getFullyQualifiedName(config.getFunctionDetails())
                 + " -Dpulsar.function.log.file=" + config.getFunctionDetails().getName() + "-$SHARD_ID"
                 + " -Dio.netty.tryReflectionSetAccessible=true -Xmx" + String.valueOf(RESOURCES.getRam())
+                + " --add-opens java.base/sun.net=ALL-UNNAMED"
                 + " org.apache.pulsar.functions.instance.JavaInstanceMain"
                 + " --jar " + jarLocation + " --instance_id "
                 + "$SHARD_ID" + " --function_id " + config.getFunctionId()

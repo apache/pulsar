@@ -712,9 +712,11 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
                 messageId.getLedgerId(), messageId.getEntryId(), null);
          assertEquals(result.state, PositionInPendingAckStats.State.PendingAck);
          transaction.commit().get();
-         result = admin.transactions().getPositionStatsInPendingAck(topic, subName,
-                 messageId.getLedgerId(), messageId.getEntryId(), null);
-         assertEquals(result.state, PositionInPendingAckStats.State.MarkDelete);
+         Awaitility.await().untilAsserted(() -> {
+             PositionInPendingAckStats r = admin.transactions().getPositionStatsInPendingAck(topic, subName,
+                     messageId.getLedgerId(), messageId.getEntryId(), null);
+             assertEquals(r.state, PositionInPendingAckStats.State.MarkDelete);
+         });
     }
 
     @Test

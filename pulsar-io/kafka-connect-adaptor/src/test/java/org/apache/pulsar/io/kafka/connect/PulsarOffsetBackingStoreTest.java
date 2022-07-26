@@ -62,13 +62,10 @@ public class PulsarOffsetBackingStoreTest extends ProducerConsumerBase {
 
         this.topicName = "persistent://my-property/my-ns/offset-topic";
         this.defaultProps.put(PulsarKafkaWorkerConfig.OFFSET_STORAGE_TOPIC_CONFIG, topicName);
-        this.distributedConfig = new PulsarKafkaWorkerConfig(this.defaultProps);
         this.client = PulsarClient.builder()
                 .serviceUrl(brokerUrl.toString())
                 .build();
         this.offsetBackingStore = new PulsarOffsetBackingStore(client);
-        this.offsetBackingStore.configure(distributedConfig);
-        this.offsetBackingStore.start();
     }
 
     @AfterMethod(alwaysRun = true)
@@ -82,8 +79,19 @@ public class PulsarOffsetBackingStoreTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
+    private void testOffsetBackingStore(boolean testWithReaderConfig) throws Exception {
+        if (testWithReaderConfig) {
+            this.defaultProps.put(PulsarKafkaWorkerConfig.OFFSET_STORAGE_READER_CONFIG,
+                    "{\"subscriptionName\":\"my-subscription\"}");
+        }
+        this.distributedConfig = new PulsarKafkaWorkerConfig(this.defaultProps);
+        this.offsetBackingStore.configure(distributedConfig);
+        this.offsetBackingStore.start();
+    }
+
     @Test
     public void testGetFromEmpty() throws Exception {
+        testOffsetBackingStore(false);
         assertTrue(offsetBackingStore.get(
             Arrays.asList(ByteBuffer.wrap("empty-key".getBytes(UTF_8)))
         ).get().isEmpty());
@@ -91,6 +99,7 @@ public class PulsarOffsetBackingStoreTest extends ProducerConsumerBase {
 
     @Test(timeOut = 60000)
     public void testGetSetNullValue() throws Exception {
+        testOffsetBackingStore(false);
         Map<ByteBuffer, ByteBuffer> kvs = new HashMap<>();
         ByteBuffer keyToSet = ByteBuffer.wrap(("test-key").getBytes(UTF_8));
         kvs.put(keyToSet, null);
@@ -113,11 +122,13 @@ public class PulsarOffsetBackingStoreTest extends ProducerConsumerBase {
 
     @Test
     public void testGetSet() throws Exception {
+        testOffsetBackingStore(false);
         testGetSet(false);
     }
 
     @Test
     public void testGetSetCallback() throws Exception {
+        testOffsetBackingStore(false);
         testGetSet(true);
     }
 
@@ -158,5 +169,13 @@ public class PulsarOffsetBackingStoreTest extends ProducerConsumerBase {
             byte[] valData = ByteBufUtil.getBytes(Unpooled.wrappedBuffer(value));
             assertEquals(new String(valData, UTF_8), "test-val-" + idx);
         });
+    }
+
+    @Test
+    public void testWithReaderConfig() throws Exception {
+        testOffsetBackingStore(true);
+        testGetSet(false);
+        List<String> subscriptions = admin.topics().getSubscriptions(topicName);
+        assertTrue(subscriptions.contains("my-subscription"));
     }
 }

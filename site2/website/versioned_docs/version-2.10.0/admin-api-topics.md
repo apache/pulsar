@@ -637,7 +637,7 @@ You can get the detailed statistics of a topic.
 
       -   **ledgerId**: The ID of this ledger.
 
-      -   **entries**: The total number of entries belong to this ledger.
+      -   **entries**: The total number of entries that belong to this ledger.
 
       -   **size**: The size of messages written to this ledger (in bytes).
 
@@ -649,7 +649,7 @@ You can get the detailed statistics of a topic.
   
       -   **ledgerId**: The ID of this ledger.
   
-      -   **entries**: The total number of entries belong to this ledger.
+      -   **entries**: The total number of entries that belong to this ledger.
   
       -   **size**: The size of messages written to this ledger (in bytes).
   
@@ -661,7 +661,7 @@ You can get the detailed statistics of a topic.
  
       -   **ledgerId**: The ID of this ledger.
      
-      -   **entries**: The total number of entries belong to this ledger.
+      -   **entries**: The total number of entries that belong to this ledger.
      
       -   **size**: The size of messages written to this ledger (in bytes).
      

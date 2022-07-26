@@ -74,5 +74,5 @@ public interface ShellCommandsProvider {
      * @param args arguments for the command. Note that the first word of the user command is omitted.
      * @throws Exception if any error occurs. The shell session will not be closed.
      */
-    void runCommand(String[] args) throws Exception;
+    boolean runCommand(String[] args) throws Exception;
 }

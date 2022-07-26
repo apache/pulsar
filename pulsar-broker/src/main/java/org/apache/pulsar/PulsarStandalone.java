@@ -443,6 +443,7 @@ public class PulsarStandalone implements AutoCloseable {
                 .bkPort(bkPort)
                 .numBookies(numOfBk)
                 .dataDir(bkDir)
+                .clearOldData(wipeData)
                 .build();
         config.setBookkeeperNumberOfChannelsPerBookie(1);
         config.setMetadataStoreUrl(metadataStoreUrl);
@@ -458,8 +459,7 @@ public class PulsarStandalone implements AutoCloseable {
                 this.getNumOfBk(), this.getZkPort(), this.getBkPort(), this.getStreamStoragePort(), this.getZkDir(),
                 this.getBkDir(), this.isWipeData(), "127.0.0.1");
         bkEnsemble.startStandalone(bkServerConf, !this.isNoStreamStorage());
-
-        config.setZookeeperServers("127.0.0.1:" + zkPort);
+        config.setMetadataStoreUrl("zk:127.0.0.1:" + zkPort);
     }
 
     private static void processTerminator(int exitCode) {

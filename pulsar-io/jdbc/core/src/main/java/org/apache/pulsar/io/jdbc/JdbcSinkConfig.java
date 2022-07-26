@@ -85,6 +85,12 @@ public class JdbcSinkConfig implements Serializable {
         help = "The batch size of updates made to the database"
     )
     private int batchSize = 200;
+    @FieldDoc(
+            required = false,
+            defaultValue = "true",
+            help = "Enable transactions of the database."
+    )
+    private boolean useTransactions = true;
 
     @FieldDoc(
             required = false,
