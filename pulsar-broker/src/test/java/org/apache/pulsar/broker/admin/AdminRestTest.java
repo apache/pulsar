@@ -62,26 +62,31 @@ public class AdminRestTest extends MockedPulsarServiceBaseTest {
         data.put("retention_size_in_mb", -1);
         data.put("retention_time_in_minutes", 40320);
         // Configuration default, response success.
-        Response response = target.request(MediaType.APPLICATION_JSON_TYPE).buildPost(Entity.json(data)).invoke();
-        Assert.assertTrue(response.getStatus() / 200 == 1);
+        Response response1 = target.request(MediaType.APPLICATION_JSON_TYPE).buildPost(Entity.json(data)).invoke();
+        Assert.assertTrue(response1.getStatus() / 200 == 1);
         // Enabled feature, bad request response.
         admin.brokers().updateDynamicConfiguration("httpRequestsFailOnUnknownPropertiesEnabled", "true");
         Awaitility.await().atMost(2, TimeUnit.SECONDS).until(
                 () -> !pulsar.getWebService().getSharedUnknownPropertyHandler().isSkipUnknownProperty()
         );
-        response = target.request(MediaType.APPLICATION_JSON_TYPE).buildPost(Entity.json(data)).invoke();
-        Assert.assertEquals(MediaType.valueOf(MediaType.TEXT_PLAIN), response.getMediaType());
-        String responseBody = parseResponseEntity(response.getEntity());
+        Response response2 = target.request(MediaType.APPLICATION_JSON_TYPE).buildPost(Entity.json(data)).invoke();
+        Assert.assertEquals(MediaType.valueOf(MediaType.TEXT_PLAIN), response2.getMediaType());
+        String responseBody = parseResponseEntity(response2.getEntity());
         Assert.assertEquals(responseBody, "Unknown property retention_time_in_minutes, perhaps you want to use"
                 + " one of these: [retentionSizeInMB, retentionTimeInMinutes]");
-        Assert.assertEquals(response.getStatus(), 400);
+        Assert.assertEquals(response2.getStatus(), 400);
         // Disabled feature, response success.
         admin.brokers().updateDynamicConfiguration("httpRequestsFailOnUnknownPropertiesEnabled", "false");
         Awaitility.await().atMost(2, TimeUnit.SECONDS).until(
                 () -> pulsar.getWebService().getSharedUnknownPropertyHandler().isSkipUnknownProperty()
         );
-        response = target.request(MediaType.APPLICATION_JSON_TYPE).buildPost(Entity.json(data)).invoke();
-        Assert.assertTrue(response.getStatus() / 200 == 1);
+        Response response3 = target.request(MediaType.APPLICATION_JSON_TYPE).buildPost(Entity.json(data)).invoke();
+        Assert.assertTrue(response3.getStatus() / 200 == 1);
+        // cleanup.
+        response1.close();
+        response2.close();
+        response3.close();
+        client.close();
     }
 
     private String parseResponseEntity(Object entity) throws Exception {
