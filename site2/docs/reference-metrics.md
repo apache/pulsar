@@ -97,14 +97,15 @@ in the `bookkeeper.conf` configuration file.
 | auditor_NUM_LEDGERS_HAVING_NO_REPLICA_OF_AN_ENTRY | Gauge | Gauge for number of ledgers having an entry with all the replicas missing. |
 | auditor_NUM_LEDGERS_HAVING_LESS_THAN_AQ_REPLICAS_OF_AN_ENTRY | Gauge | Gauge for number of ledgers having an entry with less than AQ number of replicas, this doesn't include ledgers counted towards numLedgersHavingNoReplicaOfAnEntry. |
 | auditor_NUM_LEDGERS_HAVING_LESS_THAN_WQ_REPLICAS_OF_AN_ENTRY | Gauge | Gauge for number of ledgers having an entry with less than WQ number of replicas, this doesn't include ledgers counted towards numLedgersHavingLessThanAQReplicasOfAnEntry. |
+| election_attempts | Counter | The number of auditor election attempts. |
 | replication_worker_NUM_BYTES_READ | Summary | The distribution of size of entries read by the replicator. |
 | replication_worker_NUM_ENTRIES_READ | Counter | Number of entries read by the replicator. |
 | replication_worker_NUM_ENTRIES_WRITTEN | Counter | Number of entries written by the replicator. |
 | replication_worker_NUM_BYTES_WRITTEN | Summary | The distribution of size of entries written by the replicator. |
 | replication_worker_READ_DATA_LATENCY | Summary | The distribution of latency of read entries by the replicator. |
 | replication_worker_WRITE_DATA_LATENCY | Summary | The distribution of latency of write entries by the replicator. |
-| replication_worker_REPLICATE_EXCEPTION | Summary | Replication related exceptions. |
-| replication_worker_REREPLICATE_OP | Summary | Operation stats of re-replicating ledgers. |
+| replication_worker_exceptions | Summary | Replication related exceptions. |
+| replication_worker_rereplicate | Summary | Operation stats of re-replicating ledgers. |
 | replication_worker_NUM_FULL_OR_PARTIAL_LEDGERS_REPLICATED | Counter | The number of ledgers re-replicated. |
 | replication_worker_NUM_DEFER_LEDGER_LOCK_RELEASE_OF_FAILED_LEDGER | Counter | The number of defer-ledger-lock-releases of failed ledgers. |
 | replication_worker_NUM_ENTRIES_UNABLE_TO_READ_FOR_REPLICATION | Counter | The number of entries ReplicationWorker unable to read. |
@@ -454,6 +455,7 @@ All the consumer metrics are labelled with the following labels:
 | pulsar_consumer_unacked_messages | Gauge | The total number of unacknowledged messages of a consumer (messages). |
 | pulsar_consumer_blocked_on_unacked_messages | Gauge | Indicate whether a consumer is blocked on unacknowledged messages or not. <br /> <ul><li>1 means the consumer is blocked on waiting unacknowledged messages to be acked.</li><li>0 means the consumer is not blocked on waiting unacknowledged messages to be acked.</li></ul> |
 | pulsar_consumer_msg_rate_out | Gauge | The total message dispatch rate for a consumer (message per second). |
+| pulsar_consumer_msg_ack_rate | Gauge | The total rate of message ack (message per second). |
 | pulsar_consumer_msg_throughput_out | Gauge | The total message dispatch throughput for a consumer (byte per second). |
 | pulsar_consumer_available_permits | Gauge | The available permits for for a consumer. |
 

@@ -152,7 +152,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             };
 
     @Override
-    protected void sendMessagesToConsumers(ReadType readType, List<Entry> entries) {
+    protected synchronized void sendMessagesToConsumers(ReadType readType, List<Entry> entries) {
         long totalMessagesSent = 0;
         long totalBytesSent = 0;
         long totalEntries = 0;
@@ -236,7 +236,11 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             Consumer consumer = current.getKey();
             List<Entry> entriesWithSameKey = current.getValue();
             int entriesWithSameKeyCount = entriesWithSameKey.size();
-            final int availablePermits = consumer == null ? 0 : Math.max(consumer.getAvailablePermits(), 0);
+            int availablePermits = consumer == null ? 0 : Math.max(consumer.getAvailablePermits(), 0);
+            if (consumer != null && consumer.getMaxUnackedMessages() > 0) {
+                availablePermits = Math.min(availablePermits,
+                        consumer.getMaxUnackedMessages() - consumer.getUnackedMessages());
+            }
             int maxMessagesForC = Math.min(entriesWithSameKeyCount, availablePermits);
             int messagesForC = getRestrictedMaxEntriesForConsumer(consumer, entriesWithSameKey, maxMessagesForC,
                     readType, consumerStickyKeyHashesMap.get(consumer));

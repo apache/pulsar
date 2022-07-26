@@ -191,6 +191,8 @@ public interface Topic {
      */
     void checkBackloggedCursors();
 
+    void checkCursorsToCacheEntries();
+
     void checkDeduplicationSnapshot();
 
     void checkMessageExpiry();

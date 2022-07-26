@@ -201,6 +201,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     private long entriesReadSize;
     private int individualDeletedMessagesSerializedSize;
     private static final String COMPACTION_CURSOR_NAME = "__compaction";
+    private volatile boolean cacheReadEntry = false;
 
     class MarkDeleteEntry {
         final PositionImpl newPosition;
@@ -3274,6 +3275,14 @@ public class ManagedCursorImpl implements ManagedCursor {
     @VisibleForTesting
     public void setState(State state) {
         this.state = state;
+    }
+
+    public void setCacheReadEntry(boolean cacheReadEntry) {
+        this.cacheReadEntry = cacheReadEntry;
+    }
+
+    public boolean isCacheReadEntry() {
+        return cacheReadEntry;
     }
 
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorImpl.class);
