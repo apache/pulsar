@@ -1490,7 +1490,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category =  CATEGORY_HTTP,
             dynamic = true,
-            doc = "Admin API fail on unknown request parameter in request-body. see PIP-178. Default false."
+            doc = "Admin API fail on unknown request parameter in request-body. see PIP-179. Default false."
         )
     private boolean httpRequestsFailOnUnknownPropertiesEnabled = false;
 
