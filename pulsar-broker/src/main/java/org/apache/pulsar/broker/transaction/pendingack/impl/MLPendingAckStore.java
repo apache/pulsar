@@ -19,6 +19,8 @@
 package org.apache.pulsar.broker.transaction.pendingack.impl;
 
 import static org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriter.BATCHED_ENTRY_DATA_PREFIX_MAGIC_NUMBER;
+import static org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriter.BATCHED_ENTRY_DATA_PREFIX_MAGIC_NUMBER_LEN;
+import static org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriter.BATCHED_ENTRY_DATA_PREFIX_VERSION_LEN;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ComparisonChain;
 import io.netty.buffer.ByteBuf;
@@ -447,7 +449,7 @@ public class MLPendingAckStore implements PendingAckStore {
         buffer.resetReaderIndex();
         if (magicNum == BATCHED_ENTRY_DATA_PREFIX_MAGIC_NUMBER){
             // skip version
-            buffer.skipBytes(4);
+            buffer.skipBytes(BATCHED_ENTRY_DATA_PREFIX_MAGIC_NUMBER_LEN + BATCHED_ENTRY_DATA_PREFIX_VERSION_LEN);
             BatchedPendingAckMetadataEntry batchedPendingAckMetadataEntry = new BatchedPendingAckMetadataEntry();
             batchedPendingAckMetadataEntry.parseFrom(buffer, buffer.readableBytes());
             return batchedPendingAckMetadataEntry.getPendingAckLogsList();

@@ -209,7 +209,7 @@ public class MLPendingAckStoreTest extends TransactionTestBase {
             }
         }).when(pendingAckHandle).completeHandleFuture();
         mlPendingAckStoreForRead.replayAsync(pendingAckHandle, internalPinnedExecutor);
-        Awaitility.await().atMost(200, TimeUnit.SECONDS).until(() -> processController.get() == 1);
+        Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> processController.get() == 1);
         // Verify build sparse indexes correct after replay.
         Assert.assertEquals(mlPendingAckStoreForRead.pendingAckLogIndex.size(),
                 mlPendingAckStoreForWrite.pendingAckLogIndex.size());
