@@ -589,8 +589,15 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                         acceptedMessages.addAndGet(numMessages);
                         break;
                 }
-                entries.incrementAndGet();
+                long num = entries.incrementAndGet();
                 messages.addAndGet(numMessages);
+
+                if (num % 1000 == 0) {
+                    long end = System.currentTimeMillis();
+                    log.info(
+                            "[{}][{}] scan running since {} ms - scanned {} entries",
+                            topicName, subName, end - start, num);
+                }
 
                 return true;
             }

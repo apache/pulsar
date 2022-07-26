@@ -37,7 +37,7 @@ public class AnalyzeSubscriptionBacklogResult {
     private long filterRescheduledMessages;
 
     private boolean aborted;
-    private MessageId firstMessageId;
-    private MessageId lastMessageId;
+    private String firstMessageId;
+    private String lastMessageId;
 
 }

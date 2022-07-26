@@ -1610,17 +1610,16 @@ public class PersistentTopicsBase extends AdminResource {
                         AnalyzeSubscriptionBacklogResult result = new AnalyzeSubscriptionBacklogResult();
 
                         if (rawResult.getFirstPosition() != null) {
-                            result.setFirstMessageId(new MessageIdImpl(
-                                    rawResult.getFirstPosition().getLedgerId(),
-                                    rawResult.getFirstPosition().getEntryId(),
-                                    topicName.getPartitionIndex()));
+                            result.setFirstMessageId(
+                                    rawResult.getFirstPosition().getLedgerId() +
+                                    ":" +
+                                    rawResult.getFirstPosition().getEntryId());
                         }
 
                         if (rawResult.getLastPosition() != null) {
-                            result.setLastMessageId(new MessageIdImpl(
-                                    rawResult.getLastPosition().getLedgerId(),
-                                    rawResult.getLastPosition().getEntryId(),
-                                    topicName.getPartitionIndex()));
+                            result.setLastMessageId(rawResult.getLastPosition().getLedgerId() +
+                                    ":" +
+                                    rawResult.getLastPosition().getEntryId());
                         }
 
                         result.setEntries(rawResult.getEntries());

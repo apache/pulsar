@@ -35,6 +35,7 @@ import org.testng.annotations.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -154,7 +155,7 @@ public class AnalyzeBacklogSubscriptionTest extends ProducerConsumerBase {
 
     private void verifyBacklog(String topic, String subscription, int numEntries, int numMessages) throws Exception {
         AnalyzeSubscriptionBacklogResult analyzeSubscriptionBacklogResult
-                = admin.topics().analyzeSubscriptionBacklog(topic, subscription);
+                = admin.topics().analyzeSubscriptionBacklog(topic, subscription, Optional.empty());
 
         assertEquals(numEntries, analyzeSubscriptionBacklogResult.getEntries());
         assertEquals(numEntries, analyzeSubscriptionBacklogResult.getFilterAcceptedEntries());
@@ -181,12 +182,12 @@ public class AnalyzeBacklogSubscriptionTest extends ProducerConsumerBase {
 
         // you cannot use this feature on a partitioned topic
         assertThrows(PulsarAdminException.NotAllowedException.class, () -> {
-            admin.topics().analyzeSubscriptionBacklog(topic, "sub-1");
+            admin.topics().analyzeSubscriptionBacklog(topic, "sub-1", Optional.empty());
         });
 
         // you can access single partitions
         AnalyzeSubscriptionBacklogResult analyzeSubscriptionBacklogResult
-                = admin.topics().analyzeSubscriptionBacklog(topic + "-partition-0", "sub-1");
+                = admin.topics().analyzeSubscriptionBacklog(topic + "-partition-0", "sub-1", Optional.empty());
         assertEquals(0, analyzeSubscriptionBacklogResult.getEntries());
     }
 

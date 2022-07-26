@@ -29,6 +29,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
@@ -1665,20 +1666,31 @@ public class TopicsImpl extends BaseResource implements Topics {
 
 
     @Override
-    public AnalyzeSubscriptionBacklogResult analyzeSubscriptionBacklog(String topic, String subscriptionName)
+    public AnalyzeSubscriptionBacklogResult analyzeSubscriptionBacklog(String topic,
+                                                                       String subscriptionName,
+                                                                       Optional<MessageId> startPosition)
             throws PulsarAdminException {
-        return sync(() -> analyzeSubscriptionBacklogAsync(topic, subscriptionName));
+        return sync(() -> analyzeSubscriptionBacklogAsync(topic, subscriptionName, startPosition));
     }
 
     @Override
     public CompletableFuture<AnalyzeSubscriptionBacklogResult> analyzeSubscriptionBacklogAsync(String topic,
-                                                                                String subscriptionName) {
+                                                                                String subscriptionName,
+                                                                                Optional<MessageId> startPosition) {
         TopicName topicName = validateTopic(topic);
         String encodedSubName = Codec.encode(subscriptionName);
         WebTarget path = topicPath(topicName, "subscription", encodedSubName, "analyzeBacklog");
 
         final CompletableFuture<AnalyzeSubscriptionBacklogResult> future = new CompletableFuture<>();
-        asyncGetRequest(path, new InvocationCallback<AnalyzeSubscriptionBacklogResult>() {
+        Entity entity = null;
+        if (startPosition.isPresent()) {
+            ResetCursorData resetCursorData = new ResetCursorData(startPosition.get());
+            entity = Entity.entity(resetCursorData, MediaType.APPLICATION_JSON);
+        } else {
+            entity = null;
+        }
+
+        asyncPostRequestWithResponse(path, entity, new InvocationCallback<AnalyzeSubscriptionBacklogResult>() {
             @Override
             public void completed(AnalyzeSubscriptionBacklogResult res) {
                 future.complete(res);

@@ -1686,7 +1686,7 @@ public class PersistentTopics extends PersistentTopicsBase {
         }
     }
 
-    @GET
+    @POST
     @Path("/{tenant}/{namespace}/{topic}/subscription/{subName}/analyzeBacklog")
     @ApiOperation(value = "Analyse a subscription, by scanning all the unprocessed messages")
     @ApiResponses(value = {

@@ -29,6 +29,7 @@ import com.google.common.collect.ImmutableMap;
 import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -365,7 +366,7 @@ public class FilterEntryTest extends BrokerTestBase {
                                int numEntriesRescheduled, int numMessagesRescheduled
                                ) throws Exception {
         AnalyzeSubscriptionBacklogResult a1
-                = admin.topics().analyzeSubscriptionBacklog(topic, subscription);
+                = admin.topics().analyzeSubscriptionBacklog(topic, subscription, Optional.empty());
 
         Assert.assertEquals(numEntries, a1.getEntries());
         Assert.assertEquals(numEntriesAccepted, a1.getFilterAcceptedEntries());

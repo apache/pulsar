@@ -20,6 +20,7 @@ package org.apache.pulsar.client.admin;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
@@ -2061,11 +2062,14 @@ public interface Topics {
      *            Topic name
      * @param subscriptionName
      *            the subscription
+     * @param startPosition
+     *           the position to start the scan from (empty means the last processed message)
      * @return an accurate analysis of the backlog
      * @throws PulsarAdminException
      *            Unexpected error
      */
-    AnalyzeSubscriptionBacklogResult analyzeSubscriptionBacklog(String topic, String subscriptionName)
+    AnalyzeSubscriptionBacklogResult analyzeSubscriptionBacklog(String topic, String subscriptionName,
+                                                                Optional<MessageId> startPosition)
             throws PulsarAdminException;
 
     /**
@@ -2078,12 +2082,15 @@ public interface Topics {
      *            Topic name
      * @param subscriptionName
      *            the subscription
+     * @param startPosition
+     *           the position to start the scan from (empty means the last processed message)
      * @return an accurate analysis of the backlog
      * @throws PulsarAdminException
      *            Unexpected error
      */
     CompletableFuture<AnalyzeSubscriptionBacklogResult> analyzeSubscriptionBacklogAsync(String topic,
-                                                                                        String subscriptionName);
+                                                                                        String subscriptionName,
+                                                                                        Optional<MessageId> startPosition);
 
     /**
      * Get backlog size by a message ID.
