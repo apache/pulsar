@@ -735,6 +735,7 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |transactionLogBatchedWriteEnabled| Provide a mechanism allowing the Transaction Log Store to aggregate multiple records into a batched record and persist into a single BK entry. This will make Pulsar transactions work more  efficiently, aka batched log. see: https://github.com/apache/pulsar/issues/15370  |false|
 |transactionLogBatchedWriteMaxRecords| If enabled the feature that transaction log batch, this attribute means maximum log records count in a batch  |512|
 |transactionLogBatchedWriteMaxSize| If enabled the feature that transaction log batch, this attribute means bytes size in a batch. |4m|
+|httpRequestsFailOnUnknownPropertiesEnabled| Admin API fail on unknown request parameter in request-body. |false|
 |transactionLogBatchedWriteMaxDelayInMillis| If enabled the feature that transaction log batch, this attribute means maximum wait time(in millis) for the first record in a batch |1|
 |transactionPendingAckBatchedWriteEnabled| Provide a mechanism allowing the Pending Ack Store to aggregate multiple records into a batched record and persist into a single BK entry. This will make Pulsar transactions work more efficiently, aka batched log. see: https://github.com/apache/pulsar/issues/15370 |false|
 |transactionPendingAckBatchedWriteMaxRecords| If enabled the feature that transaction pending ack log batch, this attribute means maximum log records count in a batch. |512|

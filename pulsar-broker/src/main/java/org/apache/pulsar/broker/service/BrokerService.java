@@ -2344,6 +2344,11 @@ public class BrokerService implements Closeable {
             this.updateMaxNumPartitionsPerPartitionedTopic((int) maxNumPartitions);
         });
 
+        // add listener to notify web service httpRequestsFailOnUnknownPropertiesEnabled changed.
+        registerConfigurationListener("httpRequestsFailOnUnknownPropertiesEnabled", enabled -> {
+            pulsar.getWebService().updateHttpRequestsFailOnUnknownPropertiesEnabled((boolean) enabled);
+        });
+
         // add more listeners here
     }
 
