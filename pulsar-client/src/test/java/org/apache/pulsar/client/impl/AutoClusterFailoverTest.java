@@ -291,46 +291,4 @@ public class AutoClusterFailoverTest {
                 .updateTlsTrustStorePathAndPassword(primaryTlsTrustStorePath, primaryTlsTrustStorePassword);
 
     }
-
-    @Test
-    public void testUrl() throws Exception {
-        Random random = new Random(42);
-        String serviceUrl = "pulsar://localhost:" + random.nextInt(65535);
-
-
-        PulsarServiceNameResolver resolver = new PulsarServiceNameResolver();
-
-        try {
-            resolver.updateServiceUrl(serviceUrl);
-            InetSocketAddress inetSocketAddress = new InetSocketAddress(resolver.resolveHost().getHostName(), resolver.resolveHost().getPort());
-            Socket socket = new Socket();
-            socket.connect(inetSocketAddress, 30);
-            socket.close();
-            fail();
-        } catch (Exception e) {
-            log.warn("Failed to probe available, url: {}", serviceUrl, e);
-            if (e instanceof UnknownHostException) {
-                fail();
-            }
-
-            if (e instanceof ConnectException) {
-                log.info("expected.");
-            }
-        }
-
-        try {
-            resolver.updateServiceUrl(serviceUrl);
-            Socket socket = new Socket();
-            socket.connect(resolver.resolveHost(), 30);
-            socket.close();
-            fail();
-        } catch (Exception e) {
-            log.warn("Failed to probe available, url: {}", serviceUrl, e);
-            if (e instanceof UnknownHostException) {
-                // expected.
-            } else {
-                fail();
-            }
-        }
-    }
 }
