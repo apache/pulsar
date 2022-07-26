@@ -189,6 +189,11 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
             remainingMessagesToReceive.add(messageBody);
         }
 
+        // Wait all msg show in dlqTopic.
+        Awaitility.await().untilAsserted(()-> {
+            assertEquals(admin.topics().getLastMessageId(dlqTopic).toString(),"10:1:-1:8");
+        });
+
         //4 All messages should enter DLQ
         for (int i = 0; i < totalMsgs; i++) {
             Message<String> message = consumer.receive(10, TimeUnit.SECONDS);
