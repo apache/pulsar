@@ -705,7 +705,7 @@ public abstract class NamespacesBase extends AdminResource {
                     .thenCompose(__ -> authService.grantSubscriptionPermissionAsync(namespaceName, subscription,
                             roles, null))
                     .thenAccept(unused -> {
-                        log.info("[{}] Successfully granted permssion on subscription for role {}:{} - "
+                        log.info("[{}] Successfully granted permission on subscription for role {}:{} - "
                                 + "namespaceName {}", clientAppId(), roles, subscription, namespaceName);
                     })
                     .exceptionally(ex -> {
@@ -1136,7 +1136,7 @@ public abstract class NamespacesBase extends AdminResource {
                                 && (splitBoundaries == null || splitBoundaries.size() == 0)) {
                             throw new RestException(Status.PRECONDITION_FAILED,
                                     "With specified_positions_divide split algorithm, splitBoundaries must not be "
-                                            + "emtpy");
+                                            + "empty");
                         }
                     }
                 })
