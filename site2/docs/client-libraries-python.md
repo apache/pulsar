@@ -542,7 +542,7 @@ consumer = client.subscribe(
 
 ### Configuration
 
-To use the end-to-end encryption feature in the Python client, you need to configure `publicKeyPath` and `privateKeyPath` for both producer and consumer.
+To use the end-to-end encryption feature in the Python client, you need to configure `publicKeyPath` for producer and `privateKeyPath` for consumer.
 
 ```
 
@@ -581,7 +581,7 @@ This section provides step-by-step instructions on how to use the end-to-end enc
    import pulsar
 
    publicKeyPath = "./public.pem"
-   privateKeyPath = "./private.pem"
+   privateKeyPath = ""
    crypto_key_reader = pulsar.CryptoKeyReader(publicKeyPath, privateKeyPath)
    client = pulsar.Client('pulsar://localhost:6650')
    producer = client.create_producer(topic='encryption', encryption_key='encryption', crypto_key_reader=crypto_key_reader)
@@ -600,7 +600,7 @@ This section provides step-by-step instructions on how to use the end-to-end enc
    
    import pulsar
 
-   publicKeyPath = "./public.pem"
+   publicKeyPath = ""
    privateKeyPath = "./private.pem"
    crypto_key_reader = pulsar.CryptoKeyReader(publicKeyPath, privateKeyPath)
    client = pulsar.Client('pulsar://localhost:6650')
