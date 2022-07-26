@@ -104,42 +104,50 @@ public class FunctionCommon {
         return getFunctionTypes(functionClass, isWindowConfigPresent);
     }
 
-    public static Class<?>[] getFunctionTypes(Class userClass, boolean isWindowConfigPresent) {
-        Class<?>[] typeArgs;
+    public static Class<?>[] getFunctionTypes(Class<?> userClass, boolean isWindowConfigPresent) {
+        Class<?> classParent = getFunctionClassParent(userClass, isWindowConfigPresent);
+        Class<?>[] typeArgs = TypeResolver.resolveRawArguments(classParent, userClass);
         // if window function
         if (isWindowConfigPresent) {
-            if (WindowFunction.class.isAssignableFrom(userClass)) {
-                typeArgs = getFunctionTypesUnwrappingRecordIfNeeded(WindowFunction.class, userClass);
-            } else {
-                typeArgs = getFunctionTypesUnwrappingRecordIfNeeded(java.util.function.Function.class, userClass);
+            if (classParent.equals(java.util.function.Function.class)) {
                 if (!typeArgs[0].equals(Collection.class)) {
                     throw new IllegalArgumentException("Window function must take a collection as input");
                 }
-                Type type = TypeResolver.resolveGenericType(java.util.function.Function.class, userClass);
-                Type collectionType = ((ParameterizedType) type).getActualTypeArguments()[0];
-                Type actualInputType = ((ParameterizedType) collectionType).getActualTypeArguments()[0];
-                typeArgs[0] = (Class<?>) actualInputType;
+                typeArgs[0] = (Class<?>) unwrapType(classParent, userClass, 0);
             }
-        } else {
-            if (Function.class.isAssignableFrom(userClass)) {
-                typeArgs = getFunctionTypesUnwrappingRecordIfNeeded(Function.class, userClass);
-            } else {
-                typeArgs = getFunctionTypesUnwrappingRecordIfNeeded(java.util.function.Function.class, userClass);
-            }
+        }
+        if (typeArgs[1].equals(Record.class)) {
+            typeArgs[1] = (Class<?>) unwrapType(classParent, userClass, 1);
         }
 
         return typeArgs;
     }
 
-    private static Class<?>[] getFunctionTypesUnwrappingRecordIfNeeded(Class<?> type, Class<?> subType) {
-        Class<?>[] typeArgs = TypeResolver.resolveRawArguments(type, subType);
-        if (typeArgs[1].equals(Record.class)) {
-            Type genericType = TypeResolver.resolveGenericType(type, subType);
-            Type recordType = ((ParameterizedType) genericType).getActualTypeArguments()[1];
-            Type actualInputType = ((ParameterizedType) recordType).getActualTypeArguments()[0];
-            typeArgs[1] = (Class<?>) actualInputType;
+    public static Class<?>[] getRawFunctionTypes(Class<?> userClass, boolean isWindowConfigPresent) {
+        Class<?> classParent = getFunctionClassParent(userClass, isWindowConfigPresent);
+        return TypeResolver.resolveRawArguments(classParent, userClass);
+    }
+
+    public static Class<?> getFunctionClassParent(Class<?> userClass, boolean isWindowConfigPresent) {
+        if (isWindowConfigPresent) {
+            if (WindowFunction.class.isAssignableFrom(userClass)) {
+                return WindowFunction.class;
+            } else {
+                return java.util.function.Function.class;
+            }
+        } else {
+            if (Function.class.isAssignableFrom(userClass)) {
+                return Function.class;
+            } else {
+                return java.util.function.Function.class;
+            }
         }
-        return typeArgs;
+    }
+
+    private static Type unwrapType(Class<?> type, Class<?> subType, int position) {
+        Type genericType = TypeResolver.resolveGenericType(type, subType);
+        Type argType = ((ParameterizedType) genericType).getActualTypeArguments()[position];
+        return ((ParameterizedType) argType).getActualTypeArguments()[0];
     }
 
     public static Object createInstance(String userClassName, ClassLoader classLoader) {

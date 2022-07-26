@@ -24,6 +24,7 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
@@ -64,6 +65,8 @@ import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.apache.pulsar.common.util.RestException;
+import org.apache.pulsar.functions.api.examples.ExclamationFunction;
+import org.apache.pulsar.functions.api.examples.RecordFunction;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.proto.Function;
@@ -716,15 +719,18 @@ public class SinkApiV3ResourceTest {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(false);
 
         NarClassLoader mockedClassLoader = mock(NarClassLoader.class);
+        doReturn(RecordFunction.class).when(mockedClassLoader).loadClass("RecordFunction");
         mockStatic(FunctionCommon.class, ctx -> {
             ctx.when(FunctionCommon::createPkgTempFile).thenCallRealMethod();
-            ctx.when(() -> FunctionCommon.getFunctionTypes(any(), anyBoolean())).thenReturn(new Class[]{String.class, String.class});
+            ctx.when(() -> FunctionCommon.getRawFunctionTypes(any(), anyBoolean())).thenCallRealMethod();
+            ctx.when(() -> FunctionCommon.getFunctionTypes(any(), anyBoolean())).thenCallRealMethod();
+            ctx.when(() -> FunctionCommon.getFunctionClassParent(any(), anyBoolean())).thenCallRealMethod();
             ctx.when(() -> FunctionCommon.getClassLoaderFromPackage(any(), any(), any(), any())).thenCallRealMethod();
             ctx.when(() -> FunctionCommon.extractNarClassLoader(any(), any())).thenReturn(mockedClassLoader);
         });
 
         mockStatic(FunctionUtils.class, ctx -> {
-            ctx.when(() -> FunctionUtils.getFunctionClass(any())).thenReturn("DummyFunction");
+            ctx.when(() -> FunctionUtils.getFunctionClass(any())).thenReturn("RecordFunction");
         });
 
         FunctionsManager mockedFunctionsManager = mock(FunctionsManager.class);
@@ -749,6 +755,60 @@ public class SinkApiV3ResourceTest {
                     null,
                     sinkConfig,
                     null, null);
+        }
+    }
+
+    @Test(expectedExceptions = RestException.class,
+            expectedExceptionsMessageRegExp = "Sink preprocess function output must be of type Record")
+    public void testRegisterSinkFailureWithInvalidPreprocessFunction() throws Exception {
+        mockInstanceUtils();
+        mockWorkerUtils();
+
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(false);
+
+        NarClassLoader mockedClassLoader = mock(NarClassLoader.class);
+        doReturn(ExclamationFunction.class).when(mockedClassLoader).loadClass("ExclamationFunction");
+        mockStatic(FunctionCommon.class, ctx -> {
+            ctx.when(FunctionCommon::createPkgTempFile).thenCallRealMethod();
+            ctx.when(() -> FunctionCommon.getRawFunctionTypes(any(), anyBoolean())).thenCallRealMethod();
+            ctx.when(() -> FunctionCommon.getFunctionTypes(any(), anyBoolean())).thenCallRealMethod();
+            ctx.when(() -> FunctionCommon.getFunctionClassParent(any(), anyBoolean())).thenCallRealMethod();
+            ctx.when(() -> FunctionCommon.getClassLoaderFromPackage(any(), any(), any(), any())).thenCallRealMethod();
+            ctx.when(() -> FunctionCommon.extractNarClassLoader(any(), any())).thenReturn(mockedClassLoader);
+        });
+
+        mockStatic(FunctionUtils.class, ctx -> {
+            ctx.when(() -> FunctionUtils.getFunctionClass(any())).thenReturn("ExclamationFunction");
+        });
+
+        FunctionsManager mockedFunctionsManager = mock(FunctionsManager.class);
+        FunctionArchive functionArchive = FunctionArchive.builder()
+                .classLoader(mockedClassLoader)
+                .build();
+        when(mockedFunctionsManager.getFunction("preprocess")).thenReturn(functionArchive);
+
+        when(mockedWorkerService.getFunctionsManager()).thenReturn(mockedFunctionsManager);
+
+        SinkConfig sinkConfig = createDefaultSinkConfig();
+        sinkConfig.setPreprocessFunction("builtin://preprocess");
+        sinkConfig.setPreprocessFunctionConfig("{\"dummy\": \"dummy\"}");
+
+        try {
+            try (FileInputStream inputStream = new FileInputStream(getPulsarIOCassandraNar())) {
+                resource.registerSink(
+                        tenant,
+                        namespace,
+                        sink,
+                        inputStream,
+                        mockedFormData,
+                        null,
+                        sinkConfig,
+                        null, null);
+            }
+        } catch (RestException e) {
+            // expected exception
+            assertEquals(e.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
+            throw e;
         }
     }
 
@@ -1155,10 +1215,13 @@ public class SinkApiV3ResourceTest {
         sinkConfig.setPreprocessFunctionConfig("{\"dummy\": \"dummy\"}");
 
         NarClassLoader mockedClassLoader = mock(NarClassLoader.class);
+        doReturn(RecordFunction.class).when(mockedClassLoader).loadClass("DummyFunction");
         mockStatic(FunctionCommon.class, ctx -> {
-            ctx.when(() -> FunctionCommon.createPkgTempFile()).thenCallRealMethod();
+            ctx.when(FunctionCommon::createPkgTempFile).thenCallRealMethod();
+            ctx.when(() -> FunctionCommon.getRawFunctionTypes(any(), anyBoolean())).thenCallRealMethod();
+            ctx.when(() -> FunctionCommon.getFunctionTypes(any(), anyBoolean())).thenCallRealMethod();
+            ctx.when(() -> FunctionCommon.getFunctionClassParent(any(), anyBoolean())).thenCallRealMethod();
             ctx.when(() -> FunctionCommon.getClassLoaderFromPackage(any(), any(), any(), any())).thenCallRealMethod();
-            ctx.when(() -> FunctionCommon.getFunctionTypes(any(), anyBoolean())).thenReturn(new Class[]{String.class, String.class});
             ctx.when(() -> FunctionCommon.extractNarClassLoader(any(), any())).thenReturn(mockedClassLoader);
         });
 

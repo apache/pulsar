@@ -23,6 +23,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.functions.utils.FunctionCommon.convertFromFunctionDetailsSubscriptionPosition;
 import static org.apache.pulsar.functions.utils.FunctionCommon.convertProcessingGuarantee;
 import static org.apache.pulsar.functions.utils.FunctionCommon.getFunctionTypes;
+import static org.apache.pulsar.functions.utils.FunctionCommon.getRawFunctionTypes;
 import static org.apache.pulsar.functions.utils.FunctionCommon.getSinkType;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.gson.Gson;
@@ -51,6 +52,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.config.validation.ConfigValidation;
+import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
@@ -477,6 +479,9 @@ public class SinkConfigUtils {
                         String.format("Function class %s not found in class loader", functionClassName), e);
             }
             // extract type from preprocess function class
+            if (!getRawFunctionTypes(functionClass, false)[1].equals(Record.class)) {
+                throw new IllegalArgumentException("Sink preprocess function output must be of type Record");
+            }
             typeArg = getFunctionTypes(functionClass, false)[0];
             inputClassLoader = functionClassLoader;
         } else {
