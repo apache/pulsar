@@ -1595,7 +1595,7 @@ public class PersistentTopicsBase extends AdminResource {
                                                                           Optional<Position> position,
                                                                           boolean authoritative) {
         validateTopicOwnershipAsync(topicName, authoritative)
-                .thenRun(() -> validateTopicOperation(topicName, TopicOperation.CONSUME))
+                .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.CONSUME))
                 .thenCompose(__ -> getTopicReferenceAsync(topicName))
                 .thenCompose(topic -> {
                             Subscription sub = topic.getSubscription(subName);
