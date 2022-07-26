@@ -990,6 +990,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int dispatcherMaxReadBatchSize = 100;
 
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_SERVER,
+            doc = "Dispatch messages and execute broker side filters in a per-subscription thread"
+    )
+    private boolean dispatcherDispatchMessagesInSubscriptionThread = true;
+
     // <-- dispatcher read settings -->
     @FieldContext(
         dynamic = true,
