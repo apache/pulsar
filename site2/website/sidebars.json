@@ -338,7 +338,25 @@
       "items": [
         "reference-terminology",
         "reference-cli-tools",
-        "reference-configuration",
+        {
+          "type": "category",
+          "label": "Pulsar Configuration",
+          "link": {
+            "type": "doc",
+            "id": "reference-configuration"
+          },
+          "items": [
+            "reference-configuration-bookkeeper",
+            "reference-configuration-broker",
+            "reference-configuration-client",
+            "reference-configuration-log4j",
+            "reference-configuration-log4j-shell",
+            "reference-configuration-standalone",
+            "reference-configuration-websocket",
+            "reference-configuration-pulsar-proxy",
+            "reference-configuration-zookeeper"
+          ]
+        },
         "reference-metrics",
         "reference-rest-api-overview"
       ]
