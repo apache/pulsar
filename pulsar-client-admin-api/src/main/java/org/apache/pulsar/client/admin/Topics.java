@@ -2089,8 +2089,8 @@ public interface Topics {
      *            Unexpected error
      */
     CompletableFuture<AnalyzeSubscriptionBacklogResult> analyzeSubscriptionBacklogAsync(String topic,
-                                                                                        String subscriptionName,
-                                                                                        Optional<MessageId> startPosition);
+                                                                           String subscriptionName,
+                                                                           Optional<MessageId> startPosition);
 
     /**
      * Get backlog size by a message ID.

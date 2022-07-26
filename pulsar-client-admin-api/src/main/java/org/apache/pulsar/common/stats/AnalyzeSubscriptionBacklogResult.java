@@ -20,7 +20,6 @@ package org.apache.pulsar.common.stats;
 
 import lombok.Data;
 import lombok.ToString;
-import org.apache.pulsar.client.api.MessageId;
 
 @Data
 @ToString
