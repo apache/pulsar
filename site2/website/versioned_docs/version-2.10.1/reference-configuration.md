@@ -428,11 +428,7 @@ You can use the [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool
 | tlsTrustStoreType | TLS TrustStore type configuration. <li>JKS </li><li>PKCS12 </li>|JKS|
 | tlsTrustStore | TLS TrustStore path. | |
 | tlsTrustStorePassword | TLS TrustStore password. | |
-
-
-
-
-
+| webserviceTlsProvider | The TLS provider for the web service. <br />When TLS authentication with CACert is used, the valid value is either `OPENSSL` or `JDK`.<br />When TLS authentication with KeyStore is used, available options can be `SunJSSE`, `Conscrypt` and so on. | N/A |
 
 ## Log4j
 
