@@ -19,34 +19,31 @@
 package org.apache.pulsar.broker.authentication;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-
+import com.google.common.annotations.VisibleForTesting;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.Jwt;
+import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.JwtParser;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.RequiredTypeException;
+import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.security.SignatureException;
+import io.prometheus.client.Counter;
+import io.prometheus.client.Histogram;
 import java.io.IOException;
 import java.net.SocketAddress;
 import java.security.Key;
-
 import java.util.Date;
 import java.util.List;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
-
-import com.google.common.annotations.VisibleForTesting;
-import io.jsonwebtoken.ExpiredJwtException;
-import io.jsonwebtoken.RequiredTypeException;
-import io.jsonwebtoken.JwtParser;
-import io.prometheus.client.Counter;
-import io.prometheus.client.Histogram;
+import javax.servlet.http.HttpServletRequest;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.common.api.AuthData;
-
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwt;
-import io.jsonwebtoken.JwtException;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.security.SignatureException;
 
 public class AuthenticationProviderToken implements AuthenticationProvider {
 
@@ -363,6 +360,27 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
         @Override
         public boolean isExpired() {
             return expiration < System.currentTimeMillis();
+        }
+    }
+    public static final class HttpServletRequestWrapper extends javax.servlet.http.HttpServletRequestWrapper {
+        private final HttpServletRequest request;
+
+        public HttpServletRequestWrapper(HttpServletRequest request) {
+            super(request);
+            this.request = request;
+        }
+
+        @Override
+        public String getHeader(String name) {
+            // The browser javascript WebSocket client couldn't add the auth param to the request header, use the
+            // query param `token` to transport the auth token for the browser javascript WebSocket client.
+            if (name.equals(HTTP_HEADER_NAME) && request.getHeader(HTTP_HEADER_NAME) == null) {
+                String token = request.getParameter(TOKEN);
+                if (token != null) {
+                    return !token.startsWith(HTTP_HEADER_VALUE_PREFIX) ? HTTP_HEADER_VALUE_PREFIX + token : token;
+                }
+            }
+            return super.getHeader(name);
         }
     }
 }
