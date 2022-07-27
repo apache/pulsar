@@ -743,7 +743,7 @@ public class TransactionMetaStoreHandler extends HandlerState
         });
     }
 
-    ClientCnx cnx() {
+    private ClientCnx cnx() {
         return this.connectionHandler.cnx();
     }
 

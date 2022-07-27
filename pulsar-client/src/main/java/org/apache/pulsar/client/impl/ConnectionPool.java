@@ -43,7 +43,6 @@ import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import org.apache.commons.lang3.StringUtils;
@@ -435,24 +434,19 @@ public class ConnectionPool implements AutoCloseable {
                 if (future.isCompletedExceptionally()) {
                     continue;
                 }
-                try {
-                    final ClientCnx clientCnx = future.get();
-                    if (clientCnx == null) {
-                        continue;
-                    }
-                    // Detect connection idle-stat.
-                    ClientCnxIdleStateManager.doIdleDetect(clientCnx, connectionMaxIdleSeconds);
-                    // Try release useless connection.
-                    if (ClientCnxIdleStateManager.isReleasing(clientCnx)) {
-                        releaseIdleConnectionTaskList.add(() -> {
-                            if (ClientCnxIdleStateManager.tryMarkReleasedAndCloseConnection(clientCnx)) {
-                                cleanupConnection(entry.getKey(), entry0.getKey(), future);
-                            }
-                        });
-                    }
-                } catch (InterruptedException | ExecutionException e) {
-                    // It will not go through this case because it has already been verified
-                    log.error("It will not go through this case because it has already been verified", e);
+                final ClientCnx clientCnx = future.join();
+                if (clientCnx == null) {
+                    continue;
+                }
+                // Detect connection idle-stat.
+                ClientCnxIdleStateManager.doIdleDetect(clientCnx, connectionMaxIdleSeconds);
+                // Try release useless connection.
+                if (ClientCnxIdleStateManager.isReleasing(clientCnx)) {
+                    releaseIdleConnectionTaskList.add(() -> {
+                        if (ClientCnxIdleStateManager.tryMarkReleasedAndCloseConnection(clientCnx)) {
+                            cleanupConnection(entry.getKey(), entry0.getKey(), future);
+                        }
+                    });
                 }
             }
         }
