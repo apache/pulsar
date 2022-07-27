@@ -135,7 +135,7 @@ public class ConnectionPool implements AutoCloseable {
                                 + IDLE_DETECTION_INTERVAL_SECONDS_MIN);
                 this.idleDetectionIntervalSeconds = IDLE_DETECTION_INTERVAL_SECONDS_MIN;
             }
-            asyncReleaseUselessConnectionsTask = eventLoopGroup.scheduleAtFixedRate(() -> {
+            asyncReleaseUselessConnectionsTask = eventLoopGroup.scheduleWithFixedDelay(() -> {
                 try {
                     doMarkAndReleaseUselessConnections();
                 } catch (Exception e) {
