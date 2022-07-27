@@ -1611,15 +1611,15 @@ public class PersistentTopicsBase extends AdminResource {
 
                         if (rawResult.getFirstPosition() != null) {
                             result.setFirstMessageId(
-                                    rawResult.getFirstPosition().getLedgerId() +
-                                    ":" +
-                                    rawResult.getFirstPosition().getEntryId());
+                                    rawResult.getFirstPosition().getLedgerId()
+                                    + ":"
+                                    + rawResult.getFirstPosition().getEntryId());
                         }
 
                         if (rawResult.getLastPosition() != null) {
-                            result.setLastMessageId(rawResult.getLastPosition().getLedgerId() +
-                                    ":" +
-                                    rawResult.getLastPosition().getEntryId());
+                            result.setLastMessageId(rawResult.getLastPosition().getLedgerId()
+                                    + ":"
+                                    + rawResult.getLastPosition().getEntryId());
                         }
 
                         result.setEntries(rawResult.getEntries());
