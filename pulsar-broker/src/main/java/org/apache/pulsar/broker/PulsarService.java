@@ -1432,9 +1432,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 initialConf.setMemoryLimitBytes(0);
                 initialConf.setStatsIntervalSeconds(0);
 
-                // Disabled auto release useless connections
-                initialConf.setConnectionMaxIdleSeconds(-1);
-
                 // Apply all arbitrary configuration. This must be called before setting any fields annotated as
                 // @Secret on the ClientConfigurationData object because of the way they are serialized.
                 // See https://github.com/apache/pulsar/issues/8509 for more information.
@@ -1442,6 +1439,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         .filterAndMapProperties(this.getConfiguration().getProperties(), "brokerClient_");
                 ClientConfigurationData conf =
                         ConfigurationDataUtils.loadData(overrides, initialConf, ClientConfigurationData.class);
+
+                // Disabled auto release useless connections
+                conf.setConnectionMaxIdleSeconds(-1);
 
                 boolean tlsEnabled = this.getConfiguration().isBrokerClientTlsEnabled();
                 conf.setServiceUrl(tlsEnabled ? this.brokerServiceUrlTls : this.brokerServiceUrl);
