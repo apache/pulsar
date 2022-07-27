@@ -1280,8 +1280,7 @@ public class ClientCnx extends PulsarHandler {
     private static final Logger log = LoggerFactory.getLogger(ClientCnx.class);
 
     /**
-     * Check client connection is now free. This method may change the state to idle.
-     * This method will not change the state to idle.
+     * Check client connection is now free. This method will not change the state to idle.
      * @return true if the connection is eligible.
      */
     public boolean idleCheck(){
