@@ -98,6 +98,8 @@ public class ConsumerStatsImpl implements ConsumerStats {
     public long lastAckedTimestamp;
     public long lastConsumedTimestamp;
 
+    public long lastConsumedFlowTimestamp;
+
     /** Hash ranges assigned to this consumer if is Key_Shared sub mode. **/
     public List<String> keyHashRanges;
 

@@ -207,6 +207,7 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
                 "readPositionWhenJoining",
                 "lastAckedTimestamp",
                 "lastConsumedTimestamp",
+                "lastConsumedFlowTimestamp",
                 "keyHashRanges",
                 "metadata",
                 "address",
@@ -224,8 +225,10 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
 
         TopicStats stats = admin.topics().getStats(topicName);
         ObjectMapper mapper = ObjectMapperFactory.create();
-        JsonNode node = mapper.readTree(mapper.writer().writeValueAsString(stats.getSubscriptions()
-                .get(subName).getConsumers().get(0)));
+        ConsumerStats consumerStats = stats.getSubscriptions()
+                .get(subName).getConsumers().get(0);
+        Assert.assertTrue(consumerStats.getLastConsumedFlowTimestamp() > 0);
+        JsonNode node = mapper.readTree(mapper.writer().writeValueAsString(consumerStats));
         Iterator<String> itr = node.fieldNames();
         while (itr.hasNext()) {
             String field = itr.next();
