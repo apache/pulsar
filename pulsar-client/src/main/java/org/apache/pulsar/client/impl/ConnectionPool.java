@@ -216,13 +216,13 @@ public class ConnectionPool implements AutoCloseable {
                 .computeIfAbsent(randomKey, k -> createConnection(logicalAddress, physicalAddress, randomKey));
         return completableFuture.thenCompose(clientCnx -> {
             // If connection already release, create a new one.
-            if (clientCnx.alreadyRelease()){
+            if (ClientCnxIdleStateManager.isReleased(clientCnx)){
                 cleanupConnection(logicalAddress, randomKey, completableFuture);
                 return innerPool
                         .computeIfAbsent(randomKey, k -> createConnection(logicalAddress, physicalAddress, randomKey));
             }
             // Try use exists connection.
-            if (clientCnx.tryMarkReuse()){
+            if (ClientCnxIdleStateManager.tryMarkUsingAndClearIdleTime(clientCnx)){
                 return CompletableFuture.completedFuture(clientCnx);
             } else {
                 // If connection already release, create a new one.
@@ -441,11 +441,11 @@ public class ConnectionPool implements AutoCloseable {
                         continue;
                     }
                     // Detect connection idle-stat.
-                    clientCnx.doIdleDetect(connectionMaxIdleSeconds);
+                    ClientCnxIdleStateManager.doIdleDetect(clientCnx, connectionMaxIdleSeconds);
                     // Try release useless connection.
-                    if (clientCnx.isWillBeRelease()) {
+                    if (ClientCnxIdleStateManager.isReleasing(clientCnx)) {
                         releaseIdleConnectionTaskList.add(() -> {
-                            if (clientCnx.tryRelease()) {
+                            if (ClientCnxIdleStateManager.tryMarkReleasedAndCloseConnection(clientCnx)) {
                                 cleanupConnection(entry.getKey(), entry0.getKey(), future);
                             }
                         });
