@@ -11,7 +11,7 @@ The highlight of the 2.9.3 release is introducing 30+ transaction fixes and impr
 This blog walks through the most noteworthy changes. For the complete list including all feature enhancements and bug fixes, check out the [Pulsar 2.9.3 Release Notes](https://pulsar.apache.org/release-notes/versioned/pulsar-2.9.3/).
 
 
-### Enable cursor data compression to reduce persistent cursor data size. [14542](https://github.com/apache/pulsar/pull/14542)
+### Enabled cursor data compression to reduce persistent cursor data size. [14542](https://github.com/apache/pulsar/pull/14542)
 
 #### Issue
 The cursor data is managed by the ZooKeeper/Etcd metadata store. When the data size increases, it may take too much time to pull the data, and brokers may end up writing large chunks of data to the ZooKeeper/Etcd metadata store.
@@ -20,18 +20,18 @@ The cursor data is managed by the ZooKeeper/Etcd metadata store. When the data s
 Provide the ability to enable compression mechanisms to reduce cursor data size and the pulling time.
 
 
-### Reduce the memory occupied by `metadataPositions` and avoid OOM. [15137](https://github.com/apache/pulsar/pull/15137)
+### Reduced the memory occupied by `metadataPositions` and avoid OOM. [15137](https://github.com/apache/pulsar/pull/15137)
 
 #### Issue
-The map `metadataPositions` in MLPendingAckStore is used to clear useless data in PendingAck, where the key is the position that is persistent in PendingAck and the value is the max position acked by an operation. It judges whether the max subscription cursor position is smaller than the subscription cursor’s `markDeletePosition`. If the max position is smaller, then the log cursor will mark to delete the position. There are two main issues:
-In normal cases, this map stores all transaction ack operations. This is a waste of memory and CPU.
-If a transaction that has not been committed for a long time acks a message in a later position, the map will not be cleaned up, which finally leads to OOM (out-of-memory).
+The map `metadataPositions` in MLPendingAckStore is used to clear useless data in PendingAck, where the key is the position that is persistent in PendingAck and the value is the max position acked by an operation. It judges whether the max subscription cursor position is smaller than the subscription cursor’s `markDeletePosition`. If the max position is smaller, then the log cursor will mark to delete the position. It causes two main issues:
+* In normal cases, this map stores all transaction ack operations. This is a waste of memory and CPU.
+* If a transaction that has not been committed for a long time acks a message in a later position, the map will not be cleaned up, which finally leads to OOM (out-of-memory).
 
 #### Resolution
 Regularly store a small amount of data according to certain rules. For more detailed implementation, refer to [PIP-153](https://github.com/apache/pulsar/issues/15073).
 
 
-### Check `lowWaterMark` before appending transaction entries to Transaction Buffer. [15424](https://github.com/apache/pulsar/pull/15424)
+### Checked `lowWaterMark` before appending transaction entries to Transaction Buffer. [15424](https://github.com/apache/pulsar/pull/15424)
 
 #### Issue
 When a client sends messages using a previously committed transaction, these messages are visible to consumers unexpectedly.
