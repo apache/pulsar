@@ -357,14 +357,16 @@ public class WebServiceTest {
         String metricsUrl = pulsar.getWebServiceAddress() + "/metrics";
         
         @Cleanup
-        AsyncHttpClient client = new DefaultAsyncHttpClient();
+        AsyncHttpClient statsClient = new DefaultAsyncHttpClient();
 
-        Response statsRes = client.prepareGet(statsUrl).execute().get();
+        Response statsRes = statsClient.prepareGet(statsUrl).execute().get();
         assertEquals(statsRes.getStatusCode(), 200);
         assertEquals(statsRes.getHeader("Vary"), null);
         assertEquals(statsRes.getHeader("Transfer-Encoding"), null);
 
-        Response metricsRes = client.prepareGet(metricsUrl).execute().get();
+        @Cleanup
+        AsyncHttpClient metricsClient = new DefaultAsyncHttpClient();
+        Response metricsRes = metricsClient.prepareGet(metricsUrl).execute().get();
         assertEquals(metricsRes.getStatusCode(), 200);
         assertEquals(metricsRes.getHeader("Vary"), "Accept-Encoding");
         assertEquals(metricsRes.getHeader("Transfer-Encoding"), "chunked");
