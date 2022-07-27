@@ -24,6 +24,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.impl.AbstractMetadataStore;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
@@ -31,11 +32,17 @@ import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+@Slf4j
 public class PulsarServiceMockSupport {
 
     /**
-     * Running mock {@param mockTask} in meta-thread, because the meta-thread has access
-     * {@link PulsarService#getPulsarResources()} and other attributes when executing that notification by zk-watcher.
+     * see: https://github.com/apache/pulsar/pull/16821.
+     * While executing "doReturn(pulsarResources).when(pulsar).getPulsarResources()", Meta Store Thread also accesses
+     * variable PulsarService.getPulsarResources() asynchronously in logic: "notification by zk-watcher".
+     * So execute mock-cmd in meta-thread (The executor of MetaStore is a single thread pool executor, so all things
+     * will be thread safety).
+     * Note: If the MetaStore's executor is no longer single-threaded, should mock as single-threaded if you need to
+     * execute this method.
      */
     public static void mockPulsarServiceProps(final PulsarService pulsarService, Runnable mockTask)
             throws ExecutionException, InterruptedException, TimeoutException {
