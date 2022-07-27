@@ -22,6 +22,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufInputStream;
 import io.netty.buffer.Unpooled;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
@@ -45,7 +46,6 @@ import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.impl.schema.AbstractSchema;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
-import org.apache.pulsar.client.util.ReadonlyByteBufInputStream;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.api.proto.KeyValue;
@@ -490,9 +490,9 @@ public class MessageImpl<T> implements Message<T> {
             return value;
         }
         if (null == schemaVersion) {
-            return schema.decode(new ReadonlyByteBufInputStream(payload));
+            return schema.decode(new ByteBufInputStream(payload));
         } else {
-            return schema.decode(new ReadonlyByteBufInputStream(payload), schemaVersion);
+            return schema.decode(new ByteBufInputStream(payload), schemaVersion);
         }
     }
 
