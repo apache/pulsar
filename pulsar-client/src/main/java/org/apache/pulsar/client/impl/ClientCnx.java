@@ -1283,20 +1283,20 @@ public class ClientCnx extends PulsarHandler {
      * Check client connection is now free. This method will not change the state to idle.
      * @return true if the connection is eligible.
      */
-    public boolean idleCheck(){
-        if (pendingRequests != null && !pendingRequests.isEmpty()){
+    public boolean idleCheck() {
+        if (pendingRequests != null && !pendingRequests.isEmpty()) {
             return false;
         }
-        if (waitingLookupRequests != null  && !waitingLookupRequests.isEmpty()){
+        if (waitingLookupRequests != null  && !waitingLookupRequests.isEmpty()) {
             return false;
         }
-        if (!consumers.isEmpty()){
+        if (!consumers.isEmpty()) {
             return false;
         }
-        if (!producers.isEmpty()){
+        if (!producers.isEmpty()) {
             return false;
         }
-        if (!transactionMetaStoreHandlers.isEmpty()){
+        if (!transactionMetaStoreHandlers.isEmpty()) {
             return false;
         }
         return true;
@@ -1305,14 +1305,14 @@ public class ClientCnx extends PulsarHandler {
      * Get idle-stat.
      * @return connection idle-stat
      */
-    public IdleState getIdleStat(){
+    public IdleState getIdleStat() {
         return STATE_UPDATER.get(this);
     }
     /**
      * Compare and switch idle-stat.
      * @return Whether the update is successful.Because there may be other threads competing, possible return false.
      */
-    boolean compareAndSetIdleStat(IdleState originalStat, IdleState newStat){
+    boolean compareAndSetIdleStat(IdleState originalStat, IdleState newStat) {
         return STATE_UPDATER.compareAndSet(this, originalStat, newStat);
     }
 

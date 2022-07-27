@@ -216,13 +216,13 @@ public class ConnectionPool implements AutoCloseable {
                 .computeIfAbsent(randomKey, k -> createConnection(logicalAddress, physicalAddress, randomKey));
         return completableFuture.thenCompose(clientCnx -> {
             // If connection already release, create a new one.
-            if (ClientCnxIdleStateManager.isReleased(clientCnx)){
+            if (ClientCnxIdleStateManager.isReleased(clientCnx)) {
                 cleanupConnection(logicalAddress, randomKey, completableFuture);
                 return innerPool
                         .computeIfAbsent(randomKey, k -> createConnection(logicalAddress, physicalAddress, randomKey));
             }
             // Try use exists connection.
-            if (ClientCnxIdleStateManager.tryMarkUsingAndClearIdleTime(clientCnx)){
+            if (ClientCnxIdleStateManager.tryMarkUsingAndClearIdleTime(clientCnx)) {
                 return CompletableFuture.completedFuture(clientCnx);
             } else {
                 // If connection already release, create a new one.
@@ -398,7 +398,7 @@ public class ConnectionPool implements AutoCloseable {
         if (shouldCloseDnsResolver) {
             addressResolver.close();
         }
-        if (asyncReleaseUselessConnectionsTask != null && !asyncReleaseUselessConnectionsTask.isCancelled()){
+        if (asyncReleaseUselessConnectionsTask != null && !asyncReleaseUselessConnectionsTask.isCancelled()) {
             asyncReleaseUselessConnectionsTask.cancel(false);
         }
     }
@@ -426,13 +426,13 @@ public class ConnectionPool implements AutoCloseable {
         for (Map.Entry<InetSocketAddress, ConcurrentMap<Integer, CompletableFuture<ClientCnx>>> entry :
                 pool.entrySet()){
             ConcurrentMap<Integer, CompletableFuture<ClientCnx>> innerPool = entry.getValue();
-            for (Map.Entry<Integer, CompletableFuture<ClientCnx>> entry0 : innerPool.entrySet()){
+            for (Map.Entry<Integer, CompletableFuture<ClientCnx>> entry0 : innerPool.entrySet()) {
                 CompletableFuture<ClientCnx> future = entry0.getValue();
                 // Ensure connection has been connected.
-                if (!future.isDone()){
+                if (!future.isDone()) {
                     continue;
                 }
-                if (future.isCompletedExceptionally()){
+                if (future.isCompletedExceptionally()) {
                     continue;
                 }
                 try {
@@ -450,7 +450,7 @@ public class ConnectionPool implements AutoCloseable {
                             }
                         });
                     }
-                } catch (InterruptedException | ExecutionException e){
+                } catch (InterruptedException | ExecutionException e) {
                     // It will not go through this case because it has already been verified
                     log.error("It will not go through this case because it has already been verified", e);
                 }

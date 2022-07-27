@@ -23,28 +23,28 @@ public class ClientCnxIdleStateManager {
     /**
      * @return Whether this connection is in use.
      */
-    public static boolean isUsing(ClientCnx clientCnx){
+    public static boolean isUsing(ClientCnx clientCnx) {
         return clientCnx.getIdleStat() == ClientCnx.IdleState.USING;
     }
 
     /**
      * @return Whether this connection is in idle.
      */
-    public static boolean isIdle(ClientCnx clientCnx){
+    public static boolean isIdle(ClientCnx clientCnx) {
         return clientCnx.getIdleStat() == ClientCnx.IdleState.IDLE;
     }
 
     /**
      * @return Whether this connection is in idle and will be released soon.
      */
-    public static boolean isReleasing(ClientCnx clientCnx){
+    public static boolean isReleasing(ClientCnx clientCnx) {
         return clientCnx.getIdleStat() == ClientCnx.IdleState.RELEASING;
     }
 
     /**
      * @return Whether this connection has already been released.
      */
-    public static boolean isReleased(ClientCnx clientCnx){
+    public static boolean isReleased(ClientCnx clientCnx) {
         return clientCnx.getIdleStat() == ClientCnx.IdleState.RELEASED;
     }
 
@@ -53,8 +53,8 @@ public class ClientCnxIdleStateManager {
      * transformed to #{@link ClientCnx.IdleState#IDLE} from state  #{@link ClientCnx.IdleState#USING}. if the state
      * is successfully transformed, "idleMarkTime" will be  assigned to current time.
      */
-    public static void tryMarkIdleAndInitIdleTime(ClientCnx clientCnx){
-        if (clientCnx.compareAndSetIdleStat(ClientCnx.IdleState.USING, ClientCnx.IdleState.IDLE)){
+    public static void tryMarkIdleAndInitIdleTime(ClientCnx clientCnx) {
+        if (clientCnx.compareAndSetIdleStat(ClientCnx.IdleState.USING, ClientCnx.IdleState.IDLE)) {
             clientCnx.idleMarkTime = System.currentTimeMillis();
         }
     }
@@ -66,18 +66,18 @@ public class ClientCnxIdleStateManager {
      * @return Whether change idle-stat to #{@link ClientCnx.IdleState#USING} success. False is returned only if the
      * connection has already been released.
      */
-    public static boolean tryMarkUsingAndClearIdleTime(ClientCnx clientCnx){
-        while (true){
+    public static boolean tryMarkUsingAndClearIdleTime(ClientCnx clientCnx) {
+        while (true) {
             // Ensure not released
-            if (isReleased(clientCnx)){
+            if (isReleased(clientCnx)) {
                 return false;
             }
             // Try mark release
-            if (clientCnx.compareAndSetIdleStat(ClientCnx.IdleState.IDLE, ClientCnx.IdleState.USING)){
+            if (clientCnx.compareAndSetIdleStat(ClientCnx.IdleState.IDLE, ClientCnx.IdleState.USING)) {
                 clientCnx.idleMarkTime = 0;
                 return true;
             }
-            if (clientCnx.compareAndSetIdleStat(ClientCnx.IdleState.RELEASING, ClientCnx.IdleState.USING)){
+            if (clientCnx.compareAndSetIdleStat(ClientCnx.IdleState.RELEASING, ClientCnx.IdleState.USING)) {
                 clientCnx.idleMarkTime = 0;
                 return true;
             }
@@ -92,7 +92,7 @@ public class ClientCnxIdleStateManager {
      * connection from the #{@link ClientCnx.IdleState#IDLE} state to the #{@link ClientCnx.IdleState#RELEASING} state.
      * @return Whether change idle-stat to #{@link ClientCnx.IdleState#RELEASING} success.
      */
-    public static boolean tryMarkReleasing(ClientCnx clientCnx){
+    public static boolean tryMarkReleasing(ClientCnx clientCnx) {
         return clientCnx.compareAndSetIdleStat(ClientCnx.IdleState.IDLE, ClientCnx.IdleState.RELEASING);
     }
 
@@ -102,8 +102,8 @@ public class ClientCnxIdleStateManager {
      * state, and close {@param clientCnx} if change state to #{@link ClientCnx.IdleState#RELEASED} success.
      * @return Whether change idle-stat to #{@link ClientCnx.IdleState#RELEASED} and close connection success.
      */
-    public static boolean tryMarkReleasedAndCloseConnection(ClientCnx clientCnx){
-        if (!clientCnx.compareAndSetIdleStat(ClientCnx.IdleState.RELEASING, ClientCnx.IdleState.RELEASED)){
+    public static boolean tryMarkReleasedAndCloseConnection(ClientCnx clientCnx) {
+        if (!clientCnx.compareAndSetIdleStat(ClientCnx.IdleState.RELEASING, ClientCnx.IdleState.RELEASED)) {
             return false;
         }
         clientCnx.close();
@@ -115,17 +115,17 @@ public class ClientCnxIdleStateManager {
      * If the state is already idle and the {@param maxIdleSeconds} is reached, set the state to
      * #{@link ClientCnx.IdleState#RELEASING}.
      */
-    public static void doIdleDetect(ClientCnx clientCnx, long maxIdleSeconds){
-        if (isReleasing(clientCnx)){
+    public static void doIdleDetect(ClientCnx clientCnx, long maxIdleSeconds) {
+        if (isReleasing(clientCnx)) {
             return;
         }
-        if (isIdle(clientCnx)){
-            if (maxIdleSeconds * 1000 + clientCnx.idleMarkTime < System.currentTimeMillis()){
+        if (isIdle(clientCnx)) {
+            if (maxIdleSeconds * 1000 + clientCnx.idleMarkTime < System.currentTimeMillis()) {
                 tryMarkReleasing(clientCnx);
             }
             return;
         }
-        if (clientCnx.idleCheck()){
+        if (clientCnx.idleCheck()) {
             tryMarkIdleAndInitIdleTime(clientCnx);
         }
     }
