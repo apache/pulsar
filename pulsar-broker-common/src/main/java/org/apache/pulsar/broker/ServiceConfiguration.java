@@ -105,6 +105,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @Category
     private static final String CATEGORY_PLUGIN = "Broker Plugin";
 
+    private static final double MIN_ML_CACHE_EVICTION_FREQUENCY = 0.001;
+    private static final double MAX_ML_CACHE_EVICTION_FREQUENCY = 1000.0;
+    private static final long MAX_ML_CACHE_EVICTION_INTERVAL_MS = 1000000L;
+
     /***** --- pulsar configuration. --- ****/
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -3027,7 +3031,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public long getManagedLedgerCacheEvictionIntervalMs() {
         return managedLedgerCacheEvictionFrequency > 0
-                ? (long) (1000 / Math.max(Math.min(managedLedgerCacheEvictionFrequency, 1000.0), 0.001))
-                : Math.min(1000000, managedLedgerCacheEvictionIntervalMs);
+                ? (long) (1000 / Math.max(
+                        Math.min(managedLedgerCacheEvictionFrequency, MAX_ML_CACHE_EVICTION_FREQUENCY),
+                                                                                        MIN_ML_CACHE_EVICTION_FREQUENCY))
+                : Math.min(MAX_ML_CACHE_EVICTION_INTERVAL_MS, managedLedgerCacheEvictionIntervalMs);
     }
 }
