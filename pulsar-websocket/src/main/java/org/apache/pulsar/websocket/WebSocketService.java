@@ -198,14 +198,14 @@ public class WebSocketService implements Closeable {
                 .allowTlsInsecureConnection(config.isTlsAllowInsecureConnection()) //
                 .tlsTrustCertsFilePath(config.getBrokerClientTrustCertsFilePath()) //
                 .ioThreads(config.getWebSocketNumIoThreads()) //
-                // Disabled auto release useless connection.
-                .connectionMaxIdleSeconds(-1)
                 .connectionsPerBroker(config.getWebSocketConnectionsPerBroker());
 
         // Apply all arbitrary configuration. This must be called before setting any fields annotated as
         // @Secret on the ClientConfigurationData object because of the way they are serialized.
         // See https://github.com/apache/pulsar/issues/8509 for more information.
         clientBuilder.loadConf(PropertiesUtils.filterAndMapProperties(config.getProperties(), "brokerClient_"));
+        // Disabled auto release useless connection.
+        clientBuilder.connectionMaxIdleSeconds(-1);
 
         if (isNotBlank(config.getBrokerClientAuthenticationPlugin())
                 && isNotBlank(config.getBrokerClientAuthenticationParameters())) {
