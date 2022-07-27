@@ -20,8 +20,6 @@ package org.apache.pulsar.sql.presto.decoder.json;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
-import static io.trino.spi.type.DateType.DATE;
-import static io.trino.spi.type.TimeType.TIME;
 import static io.trino.spi.type.VarcharType.createUnboundedVarcharType;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
@@ -33,12 +31,14 @@ import io.trino.spi.connector.ColumnMetadata;
 import io.trino.spi.type.ArrayType;
 import io.trino.spi.type.BigintType;
 import io.trino.spi.type.BooleanType;
+import io.trino.spi.type.DateType;
 import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.DoubleType;
 import io.trino.spi.type.IntegerType;
 import io.trino.spi.type.RealType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.StandardTypes;
+import io.trino.spi.type.TimeType;
 import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeManager;
@@ -140,14 +140,14 @@ public class PulsarJsonRowDecoderFactory implements PulsarRowDecoderFactory {
                 return VarbinaryType.VARBINARY;
             case INT:
                 if (logicalType == LogicalTypes.timeMillis()) {
-                    return TIME;
+                    return TimeType.TIME_MILLIS;
                 } else if (logicalType == LogicalTypes.date()) {
-                    return DATE;
+                    return DateType.DATE;
                 }
                 return IntegerType.INTEGER;
             case LONG:
                 if (logicalType == LogicalTypes.timestampMillis()) {
-                    return TimestampType.TIMESTAMP;
+                    return TimestampType.TIMESTAMP_MILLIS;
                 }
                 return BigintType.BIGINT;
             case FLOAT:

@@ -22,21 +22,9 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.trino.decoder.DecoderErrorCode.DECODER_CONVERSION_NOT_SUPPORTED;
-import static io.trino.spi.type.BigintType.BIGINT;
-import static io.trino.spi.type.BooleanType.BOOLEAN;
-import static io.trino.spi.type.DateType.DATE;
-import static io.trino.spi.type.DoubleType.DOUBLE;
-import static io.trino.spi.type.IntegerType.INTEGER;
-import static io.trino.spi.type.RealType.REAL;
-import static io.trino.spi.type.SmallintType.SMALLINT;
-import static io.trino.spi.type.TimeType.TIME;
-import static io.trino.spi.type.TimestampType.TIMESTAMP;
-import static io.trino.spi.type.TinyintType.TINYINT;
 import static io.trino.spi.type.Varchars.truncateToLength;
 import static java.lang.Double.parseDouble;
 import static java.lang.Float.floatToIntBits;
-import static java.lang.Float.parseFloat;
-import static java.lang.Long.parseLong;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -66,6 +54,7 @@ import io.trino.spi.type.RowType;
 import io.trino.spi.type.SmallintType;
 import io.trino.spi.type.TimeType;
 import io.trino.spi.type.TimestampType;
+import io.trino.spi.type.Timestamps;
 import io.trino.spi.type.TinyintType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.VarbinaryType;
@@ -105,14 +94,14 @@ public class PulsarJsonFieldDecoder
     }
 
     private static Pair<Long, Long> getNumRangeByType(Type type) {
-        if (type == TINYINT) {
+        if (type == TinyintType.TINYINT) {
             return Pair.of((long) Byte.MIN_VALUE, (long) Byte.MAX_VALUE);
-        } else if (type == SMALLINT) {
+        } else if (type == SmallintType.SMALLINT) {
             return Pair.of((long) Short.MIN_VALUE, (long) Short.MAX_VALUE);
-        } else if (type == INTEGER) {
+        } else if (type == IntegerType.INTEGER) {
             return Pair.of((long) Integer.MIN_VALUE, (long) Integer.MAX_VALUE);
-        } else if (type == BIGINT) {
-            return Pair.of((long) Long.MIN_VALUE, (long) Long.MAX_VALUE);
+        } else if (type == BigintType.BIGINT) {
+            return Pair.of(Long.MIN_VALUE, Long.MAX_VALUE);
         } else {
             // those values will not be used if column type is not one of mentioned above
             return Pair.of(Long.MIN_VALUE, Long.MAX_VALUE);
@@ -127,16 +116,16 @@ public class PulsarJsonFieldDecoder
             return true;
         }
         if (ImmutableList.of(
-                BIGINT,
-                INTEGER,
-                SMALLINT,
-                TINYINT,
-                BOOLEAN,
-                DOUBLE,
-                TIMESTAMP,
-                DATE,
-                TIME,
-                REAL
+                BigintType.BIGINT,
+                IntegerType.INTEGER,
+                SmallintType.SMALLINT,
+                TinyintType.TINYINT,
+                BooleanType.BOOLEAN,
+                DoubleType.DOUBLE,
+                TimestampType.TIMESTAMP_MILLIS,
+                DateType.DATE,
+                TimeType.TIME_MILLIS,
+                RealType.REAL
         ).contains(type)) {
             return true;
         }
@@ -228,27 +217,33 @@ public class PulsarJsonFieldDecoder
         public static long getLong(JsonNode value, Type type, String columnName, long minValue, long maxValue) {
             try {
                 if (type instanceof RealType) {
-                    return floatToIntBits((Float) parseFloat(value.asText()));
+                    return floatToIntBits(Float.parseFloat(value.asText()));
                 }
 
                 // If it is decimalType, need to eliminate the decimal point,
                 // and give it to presto to set the decimal point
                 if (type instanceof DecimalType) {
                     String decimalLong = value.asText().replace(".", "");
-                    return Long.valueOf(decimalLong);
+                    return Long.parseLong(decimalLong);
                 }
 
-                long longValue;
+                Long longValue;
                 if (value.isIntegralNumber() && !value.isBigInteger()) {
                     longValue = value.longValue();
-                    if (longValue >= minValue && longValue <= maxValue) {
-                        return longValue;
-                    }
                 } else if (value.isValueNode()) {
-                    longValue = parseLong(value.asText());
-                    if (longValue >= minValue && longValue <= maxValue) {
-                        return longValue;
+                    longValue = Long.parseLong(value.asText());
+                } else {
+                    longValue = null;
+                }
+
+                if (longValue != null && longValue >= minValue && longValue <= maxValue) {
+                    if (TimestampType.TIMESTAMP_MILLIS.equals(type)) {
+                        return longValue * Timestamps.MICROSECONDS_PER_MILLISECOND;
                     }
+                    if (TimeType.TIME_MILLIS.equals(type)) {
+                        return longValue * Timestamps.PICOSECONDS_PER_MILLISECOND;
+                    }
+                    return longValue;
                 }
             } catch (NumberFormatException ignore) {
                 // ignore

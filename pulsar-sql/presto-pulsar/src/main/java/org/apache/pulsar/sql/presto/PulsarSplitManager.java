@@ -384,13 +384,11 @@ public class PulsarSplitManager implements ConnectorSplitManager {
 
                             if (!range.isHighUnbounded()) {
                                 Block block = Utils.nativeValueToBlock(range.getType(), range.getHighBoundedValue());
-                                // Trino timestamp payload is in micros
                                 upperBoundTs = block.getLong(0, 0) / 1000;
                             }
 
                             if (!range.isLowUnbounded()) {
                                 Block block = Utils.nativeValueToBlock(range.getType(), range.getLowBoundedValue());
-                                // Trino timestamp payload is in micros
                                 lowerBoundTs = block.getLong(0, 0) / 1000;
                             }
 

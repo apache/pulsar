@@ -104,9 +104,9 @@ public class PulsarPrimitiveRowDecoderFactory implements PulsarRowDecoderFactory
             case DATE:
                 return DateType.DATE;
             case TIME:
-                return TimeType.TIME;
+                return TimeType.TIME_MILLIS;
             case TIMESTAMP:
-                return TimestampType.TIMESTAMP;
+                return TimestampType.TIMESTAMP_MILLIS;
             default:
                 log.error("Can't convert type: %s for %s", pulsarType, fieldName);
                 return null;

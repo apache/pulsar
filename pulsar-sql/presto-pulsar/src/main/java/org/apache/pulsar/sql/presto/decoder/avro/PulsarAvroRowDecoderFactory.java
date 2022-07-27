@@ -20,8 +20,6 @@ package org.apache.pulsar.sql.presto.decoder.avro;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
-import static io.trino.spi.type.DateType.DATE;
-import static io.trino.spi.type.TimeType.TIME;
 import static io.trino.spi.type.VarcharType.createUnboundedVarcharType;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
@@ -33,12 +31,14 @@ import io.trino.spi.connector.ColumnMetadata;
 import io.trino.spi.type.ArrayType;
 import io.trino.spi.type.BigintType;
 import io.trino.spi.type.BooleanType;
+import io.trino.spi.type.DateType;
 import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.DoubleType;
 import io.trino.spi.type.IntegerType;
 import io.trino.spi.type.RealType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.StandardTypes;
+import io.trino.spi.type.TimeType;
 import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeManager;
@@ -68,7 +68,7 @@ import org.apache.pulsar.sql.presto.PulsarRowDecoderFactory;
  */
 public class PulsarAvroRowDecoderFactory implements PulsarRowDecoderFactory {
 
-    private TypeManager typeManager;
+    private final TypeManager typeManager;
 
     public PulsarAvroRowDecoderFactory(TypeManager typeManager) {
         this.typeManager = typeManager;
@@ -116,7 +116,7 @@ public class PulsarAvroRowDecoderFactory implements PulsarRowDecoderFactory {
         return columnMetadata;
     }
 
-    private Type parseAvroPrestoType(String fieldname, Schema schema) {
+    private Type parseAvroPrestoType(String fieldName, Schema schema) {
         Schema.Type type = schema.getType();
         LogicalType logicalType  = schema.getLogicalType();
         switch (type) {
@@ -126,7 +126,7 @@ public class PulsarAvroRowDecoderFactory implements PulsarRowDecoderFactory {
             case NULL:
                 throw new UnsupportedOperationException(
                         format("field '%s' NULL type code should not be reached,"
-                                + "please check the schema or report the bug.", fieldname));
+                                + "please check the schema or report the bug.", fieldName));
             case FIXED:
             case BYTES:
                 //  When the precision <= 0, throw Exception.
@@ -140,16 +140,15 @@ public class PulsarAvroRowDecoderFactory implements PulsarRowDecoderFactory {
                 return VarbinaryType.VARBINARY;
             case INT:
                 if (logicalType == LogicalTypes.timeMillis()) {
-                    return TIME;
+                    return TimeType.TIME_MILLIS;
                 } else if (logicalType == LogicalTypes.date()) {
-                    return DATE;
+                    return DateType.DATE;
                 }
                 return IntegerType.INTEGER;
             case LONG:
                 if (logicalType == LogicalTypes.timestampMillis()) {
-                    return TimestampType.TIMESTAMP;
+                    return TimestampType.TIMESTAMP_MILLIS;
                 }
-                //TODO: support timestamp_microseconds logicalType : https://github.com/trinodb/trino/issues/1284
                 return BigintType.BIGINT;
             case FLOAT:
                 return RealType.REAL;
@@ -158,10 +157,10 @@ public class PulsarAvroRowDecoderFactory implements PulsarRowDecoderFactory {
             case BOOLEAN:
                 return BooleanType.BOOLEAN;
             case ARRAY:
-                return new ArrayType(parseAvroPrestoType(fieldname, schema.getElementType()));
+                return new ArrayType(parseAvroPrestoType(fieldName, schema.getElementType()));
             case MAP:
                 //The key for an avro map must be string
-                TypeSignature valueType = parseAvroPrestoType(fieldname, schema.getValueType()).getTypeSignature();
+                TypeSignature valueType = parseAvroPrestoType(fieldName, schema.getValueType()).getTypeSignature();
                 return typeManager.getParameterizedType(StandardTypes.MAP,
                         ImmutableList.of(TypeSignatureParameter.typeParameter(VarcharType.VARCHAR.getTypeSignature()),
                                 TypeSignatureParameter.typeParameter(valueType)));
@@ -174,16 +173,16 @@ public class PulsarAvroRowDecoderFactory implements PulsarRowDecoderFactory {
                 } else {
                     throw new UnsupportedOperationException(format(
                             "field '%s' of record type has no fields, "
-                                    + "please check schema definition. ", fieldname));
+                                    + "please check schema definition. ", fieldName));
                 }
             case UNION:
                 for (Schema nestType : schema.getTypes()) {
                     if (nestType.getType() != Schema.Type.NULL) {
-                        return parseAvroPrestoType(fieldname, nestType);
+                        return parseAvroPrestoType(fieldName, nestType);
                     }
                 }
                 throw new UnsupportedOperationException(format(
-                        "field '%s' of UNION type must contains not NULL type.", fieldname));
+                        "field '%s' of UNION type must contains not NULL type.", fieldName));
             default:
                 throw new UnsupportedOperationException(format(
                         "Can't convert from schema type '%s' (%s) to presto type.",

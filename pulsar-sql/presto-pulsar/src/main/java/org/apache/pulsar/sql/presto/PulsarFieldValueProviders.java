@@ -19,6 +19,7 @@
 package org.apache.pulsar.sql.presto;
 
 import io.trino.decoder.FieldValueProvider;
+import io.trino.spi.type.Timestamps;
 
 /**
  * custom FieldValueProvider for Pulsar.
@@ -42,12 +43,11 @@ public class PulsarFieldValueProviders {
     /**
      * FieldValueProvider for Time (Data, Timestamp etc.) with indicate Null instead of longValueProvider.
      */
-    public static FieldValueProvider timeValueProvider(long value, boolean isNull) {
+    public static FieldValueProvider timeValueProvider(long millis, boolean isNull) {
         return new FieldValueProvider() {
             @Override
             public long getLong() {
-                // Pulsar timestamp is in millis, while Trino timestamp is in micros.
-                return value * 1000;
+                return millis * Timestamps.MICROSECONDS_PER_MILLISECOND;
             }
 
             @Override

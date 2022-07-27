@@ -50,6 +50,7 @@ import io.trino.spi.type.RowType;
 import io.trino.spi.type.RowType.Field;
 import io.trino.spi.type.SmallintType;
 import io.trino.spi.type.TimestampType;
+import io.trino.spi.type.Timestamps;
 import io.trino.spi.type.TinyintType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.VarbinaryType;
@@ -70,7 +71,7 @@ public class PulsarProtobufNativeColumnDecoder {
             RealType.REAL,
             DoubleType.DOUBLE,
             VarbinaryType.VARBINARY,
-            TimestampType.TIMESTAMP);
+            TimestampType.TIMESTAMP_MILLIS);
 
     private final Type columnType;
     private final String columnMapping;
@@ -195,12 +196,13 @@ public class PulsarProtobufNativeColumnDecoder {
             }
 
             //return millisecond which parsed from protobuf/timestamp
-            if (columnType instanceof TimestampType && value instanceof DynamicMessage) {
+            if (TimestampType.TIMESTAMP_MILLIS.equals(columnType) && value instanceof DynamicMessage) {
                 DynamicMessage message = (DynamicMessage) value;
                 int nanos = (int) message.getField(message.getDescriptorForType().findFieldByName("nanos"));
                 long seconds = (long) message.getField(message.getDescriptorForType().findFieldByName("seconds"));
                 //maybe an exception here, but seems will never happen in hundred years.
-                return seconds * MILLIS_PER_SECOND + nanos / NANOS_PER_MILLISECOND;
+                long millis = seconds * MILLIS_PER_SECOND + nanos / NANOS_PER_MILLISECOND;
+                return millis * Timestamps.MICROSECONDS_PER_MILLISECOND;
             }
 
             throw new TrinoException(DECODER_CONVERSION_NOT_SUPPORTED,

@@ -149,7 +149,7 @@ public class PulsarProtobufNativeRowDecoderFactory implements PulsarRowDecoderFa
                 } else {
                     if (TimestampProto.getDescriptor().toProto().getName().equals(msg.getFile().toProto().getName())) {
                         //if msg type is protobuf/timestamp
-                        dataType = TimestampType.TIMESTAMP;
+                        dataType = TimestampType.TIMESTAMP_MILLIS;
                     } else {
                         //row
                         dataType = RowType.from(msg.getFields().stream()

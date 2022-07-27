@@ -51,6 +51,7 @@ import io.trino.spi.type.RowType.Field;
 import io.trino.spi.type.SmallintType;
 import io.trino.spi.type.TimeType;
 import io.trino.spi.type.TimestampType;
+import io.trino.spi.type.Timestamps;
 import io.trino.spi.type.TinyintType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.VarbinaryType;
@@ -80,9 +81,9 @@ public class PulsarAvroColumnDecoder {
             BigintType.BIGINT,
             RealType.REAL,
             DoubleType.DOUBLE,
-            TimestampType.TIMESTAMP,
+            TimestampType.TIMESTAMP_MILLIS,
             DateType.DATE,
-            TimeType.TIME,
+            TimeType.TIME_MILLIS,
             VarbinaryType.VARBINARY);
 
     private final Type columnType;
@@ -201,7 +202,14 @@ public class PulsarAvroColumnDecoder {
         @Override
         public long getLong() {
             if (value instanceof Long || value instanceof Integer) {
-                return ((Number) value).longValue();
+                final long payload = ((Number) value).longValue();
+                if (TimestampType.TIMESTAMP_MILLIS.equals(columnType)) {
+                    return payload * Timestamps.MICROSECONDS_PER_MILLISECOND;
+                }
+                if (TimeType.TIME_MILLIS.equals(columnType)) {
+                    return payload * Timestamps.PICOSECONDS_PER_MILLISECOND;
+                }
+                return payload;
             }
 
             if (columnType instanceof RealType) {
@@ -304,11 +312,20 @@ public class PulsarAvroColumnDecoder {
             return;
         }
 
-        if ((value instanceof Integer || value instanceof Long)
-                && (type instanceof BigintType || type instanceof IntegerType
-                || type instanceof SmallintType || type instanceof TinyintType)) {
-            type.writeLong(blockBuilder, ((Number) value).longValue());
-            return;
+        if (value instanceof Integer || value instanceof Long) {
+            final long payload = ((Number) value).longValue();
+            if (type instanceof BigintType || type instanceof IntegerType || type instanceof SmallintType || type instanceof TinyintType) {
+                type.writeLong(blockBuilder, payload);
+                return;
+            }
+            if (TimestampType.TIMESTAMP_MILLIS.equals(type)) {
+                type.writeLong(blockBuilder, payload * Timestamps.MICROSECONDS_PER_MILLISECOND);
+                return;
+            }
+            if (TimeType.TIME_MILLIS.equals(type)) {
+                type.writeLong(blockBuilder, payload * Timestamps.PICOSECONDS_PER_MILLISECOND);
+                return;
+            }
         }
 
         if (type instanceof DoubleType) {
@@ -323,11 +340,6 @@ public class PulsarAvroColumnDecoder {
 
         if (type instanceof VarcharType || type instanceof VarbinaryType) {
             type.writeSlice(blockBuilder, getSlice(value, type, columnName));
-            return;
-        }
-
-        if (type instanceof TimestampType) {
-            type.writeLong(blockBuilder, (Long) value);
             return;
         }
 

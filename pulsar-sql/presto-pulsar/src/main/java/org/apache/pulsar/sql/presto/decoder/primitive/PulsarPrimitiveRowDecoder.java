@@ -35,6 +35,7 @@ import io.trino.spi.type.RealType;
 import io.trino.spi.type.SmallintType;
 import io.trino.spi.type.TimeType;
 import io.trino.spi.type.TimestampType;
+import io.trino.spi.type.Timestamps;
 import io.trino.spi.type.TinyintType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.VarbinaryType;
@@ -89,11 +90,12 @@ public class PulsarPrimitiveRowDecoder implements PulsarRowDecoder {
             } else if (type instanceof DateType) {
                 primitiveColumn.put(columnHandle, longValueProvider(((Date) value).getTime()));
             } else if (type instanceof TimeType) {
-                primitiveColumn.put(columnHandle, longValueProvider(((Time) value).getTime()));
+                final long millis = ((Time) value).getTime();
+                final long picos = millis * Timestamps.PICOSECONDS_PER_MILLISECOND;
+                primitiveColumn.put(columnHandle, longValueProvider(picos));
             } else if (type instanceof TimestampType) {
                 final long millis = ((Timestamp) value).getTime();
-                // Trino timestamp payload is in micros
-                final long micros = millis * 1000;
+                final long micros = millis * Timestamps.MICROSECONDS_PER_MILLISECOND;
                 primitiveColumn.put(columnHandle, longValueProvider(micros));
             } else {
                 primitiveColumn.put(columnHandle, bytesValueProvider(value.toString().getBytes()));
