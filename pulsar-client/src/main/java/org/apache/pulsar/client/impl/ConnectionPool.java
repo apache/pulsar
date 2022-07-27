@@ -128,7 +128,7 @@ public class ConnectionPool implements AutoCloseable {
         if (autoReleaseIdleConnectionsEnabled) {
             // Start async task for release useless connections.
             this.idleDetectionIntervalSeconds = connectionMaxIdleSeconds;
-            if (this.idleDetectionIntervalSeconds < 30){
+            if (this.idleDetectionIntervalSeconds < IDLE_DETECTION_INTERVAL_SECONDS_MIN){
                 log.warn("Connection idle detect interval seconds default same as max idle seconds, but max idle"
                                 + " seconds less than " + IDLE_DETECTION_INTERVAL_SECONDS_MIN + ", to avoid checking"
                                 + " connection status too much, use default value : "
