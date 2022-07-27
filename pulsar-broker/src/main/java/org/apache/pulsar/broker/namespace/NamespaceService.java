@@ -1271,8 +1271,6 @@ public class NamespaceService implements AutoCloseable {
         return namespaceClients.computeIfAbsent(cluster, key -> {
             try {
                 ClientBuilder clientBuilder = PulsarClient.builder()
-                        // Disabled auto release useless connection.
-                        .connectionMaxIdleSeconds(-1)
                         .memoryLimit(0, SizeUnit.BYTES)
                         .enableTcpNoDelay(false)
                         .statsInterval(0, TimeUnit.SECONDS);
@@ -1281,6 +1279,9 @@ public class NamespaceService implements AutoCloseable {
                 // @Secret on the ClientConfigurationData object because of the way they are serialized.
                 // See https://github.com/apache/pulsar/issues/8509 for more information.
                 clientBuilder.loadConf(PropertiesUtils.filterAndMapProperties(config.getProperties(), "brokerClient_"));
+
+                // Disabled auto release useless connection.
+                clientBuilder.connectionMaxIdleSeconds(-1);
 
                 if (pulsar.getConfiguration().isAuthenticationEnabled()) {
                     clientBuilder.authentication(pulsar.getConfiguration().getBrokerClientAuthenticationPlugin(),

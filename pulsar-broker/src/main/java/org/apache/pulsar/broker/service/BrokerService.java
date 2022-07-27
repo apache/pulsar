@@ -1184,8 +1184,6 @@ public class BrokerService implements Closeable {
                         .orElseThrow(() -> new MetadataStoreException.NotFoundException(cluster));
                 ClientBuilder clientBuilder = PulsarClient.builder()
                         .enableTcpNoDelay(false)
-                        // Disabled auto release useless connection.
-                        .connectionMaxIdleSeconds(-1)
                         .connectionsPerBroker(pulsar.getConfiguration().getReplicationConnectionsPerBroker())
                         .statsInterval(0, TimeUnit.SECONDS);
 
@@ -1197,6 +1195,9 @@ public class BrokerService implements Closeable {
                 // See https://github.com/apache/pulsar/issues/8509 for more information.
                 clientBuilder.loadConf(PropertiesUtils.filterAndMapProperties(pulsar.getConfiguration().getProperties(),
                         "brokerClient_"));
+
+                // Disabled auto release useless connection.
+                clientBuilder.connectionMaxIdleSeconds(-1);
 
                 if (data.getAuthenticationPlugin() != null && data.getAuthenticationParameters() != null) {
                     clientBuilder.authentication(data.getAuthenticationPlugin(), data.getAuthenticationParameters());
