@@ -1037,8 +1037,11 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             ownership.set(pulsar.getNamespaceService(), MockOwnershipCache);
             RetentionPolicies retention = new RetentionPolicies(10, 10);
             namespaces.setRetention(this.testTenant, this.testLocalCluster, bundledNsLocal, retention);
-            RetentionPolicies retention2 = namespaces.getRetention(this.testTenant, this.testLocalCluster,
-                    bundledNsLocal);
+            AsyncResponse response = mock(AsyncResponse.class);
+            namespaces.getRetention(response, this.testTenant, this.testLocalCluster, bundledNsLocal);
+            ArgumentCaptor<RetentionPolicies> captor = ArgumentCaptor.forClass(RetentionPolicies.class);
+            verify(response, timeout(5000).times(1)).resume(captor.capture());
+            RetentionPolicies retention2 = captor.getValue();
             assertEquals(retention, retention2);
         } catch (RestException e) {
             fail("ValidateNamespaceOwnershipWithBundles failed");

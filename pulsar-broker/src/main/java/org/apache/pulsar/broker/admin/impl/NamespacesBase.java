@@ -1293,13 +1293,6 @@ public abstract class NamespacesBase extends AdminResource {
         }));
     }
 
-    protected PublishRate internalGetPublishRate() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.RATE, PolicyOperation.READ);
-
-        Policies policies = getNamespacePolicies(namespaceName);
-        return policies.publishMaxMessageRate.get(pulsar().getConfiguration().getClusterName());
-    }
-
     protected CompletableFuture<PublishRate> internalGetPublishRateAsync() {
         return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.RATE, PolicyOperation.READ)
                 .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
@@ -1363,14 +1356,6 @@ public abstract class NamespacesBase extends AdminResource {
                     namespaceName);
             return policies;
         }));
-    }
-
-    @SuppressWarnings("deprecation")
-    protected DispatchRate internalGetTopicDispatchRate() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.RATE, PolicyOperation.READ);
-
-        Policies policies = getNamespacePolicies(namespaceName);
-        return policies.topicDispatchRate.get(pulsar().getConfiguration().getClusterName());
     }
 
     @SuppressWarnings("deprecation")
@@ -1825,11 +1810,6 @@ public abstract class NamespacesBase extends AdminResource {
         return policies.encryption_required;
     }
 
-    protected DelayedDeliveryPolicies internalGetDelayedDelivery() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.DELAYED_DELIVERY, PolicyOperation.READ);
-        return getNamespacePolicies(namespaceName).delayed_delivery_policies;
-    }
-
     protected void internalSetInactiveTopic(InactiveTopicPolicies inactiveTopicPolicies) {
         validateSuperUserAccess();
         validatePoliciesReadOnlyAccess();
@@ -1955,13 +1935,6 @@ public abstract class NamespacesBase extends AdminResource {
             log.warn("Failed to list of properties/namespace from global-zk", e);
             throw new RestException(e);
         }
-    }
-
-    protected RetentionPolicies internalGetRetention() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.RETENTION, PolicyOperation.READ);
-
-        Policies policies = getNamespacePolicies(namespaceName);
-        return policies.retention_policies;
     }
 
     private boolean checkQuotas(Policies policies, RetentionPolicies retention) {
@@ -2244,11 +2217,6 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected Integer internalGetMaxUnackedMessagesPerConsumer() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_UNACKED, PolicyOperation.READ);
-        return getNamespacePolicies(namespaceName).max_unacked_messages_per_consumer;
-    }
-
     protected void internalSetMaxUnackedMessagesPerConsumer(Integer maxUnackedMessagesPerConsumer) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_UNACKED, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
@@ -2271,16 +2239,6 @@ public abstract class NamespacesBase extends AdminResource {
                     clientAppId(), namespaceName, e);
             throw new RestException(e);
         }
-    }
-
-    protected Integer internalGetMaxUnackedMessagesPerSubscription() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_UNACKED, PolicyOperation.READ);
-        return getNamespacePolicies(namespaceName).max_unacked_messages_per_subscription;
-    }
-
-    protected Integer internalGetMaxSubscriptionsPerTopic() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_SUBSCRIPTIONS, PolicyOperation.READ);
-        return getNamespacePolicies(namespaceName).max_subscriptions_per_topic;
     }
 
     protected void internalSetMaxSubscriptionsPerTopic(Integer maxSubscriptionsPerTopic){
@@ -2397,14 +2355,6 @@ public abstract class NamespacesBase extends AdminResource {
         validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY,
                 PolicyOperation.READ);
         return getNamespacePolicies(namespaceName).schema_auto_update_compatibility_strategy;
-    }
-
-    protected SchemaCompatibilityStrategy internalGetSchemaCompatibilityStrategy() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY,
-                PolicyOperation.READ);
-        Policies policies = getNamespacePolicies(namespaceName);
-
-        return policies.schema_compatibility_strategy;
     }
 
     @Deprecated
@@ -2613,12 +2563,6 @@ public abstract class NamespacesBase extends AdminResource {
             throw new RestException(Status.PRECONDITION_FAILED,
                     "The bucket must be specified for namespace offload.");
         }
-    }
-
-    protected int internalGetMaxTopicsPerNamespace() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_TOPICS, PolicyOperation.READ);
-        return getNamespacePolicies(namespaceName).max_topics_per_namespace != null
-                ? getNamespacePolicies(namespaceName).max_topics_per_namespace : 0;
     }
 
    protected void internalRemoveMaxTopicsPerNamespace() {
