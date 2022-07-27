@@ -142,6 +142,7 @@ import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.compaction.CompactedTopic;
 import org.apache.pulsar.compaction.CompactedTopicContext;
 import org.apache.pulsar.compaction.Compactor;
+import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.zookeeper.ZooKeeper;
 import org.mockito.ArgumentCaptor;
@@ -162,7 +163,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
     private SchemaRegistryService schemaRegistryService;
     private ManagedLedgerFactory mlFactoryMock;
     private ServerCnx serverCnx;
-    private ZKMetadataStore store;
+    private MetadataStore store;
     private ManagedLedger ledgerMock;
     private ManagedCursor cursorMock;
 
