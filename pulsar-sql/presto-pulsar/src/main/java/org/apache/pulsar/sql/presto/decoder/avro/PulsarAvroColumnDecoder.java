@@ -314,7 +314,8 @@ public class PulsarAvroColumnDecoder {
 
         if (value instanceof Integer || value instanceof Long) {
             final long payload = ((Number) value).longValue();
-            if (type instanceof BigintType || type instanceof IntegerType || type instanceof SmallintType || type instanceof TinyintType) {
+            if (type instanceof BigintType || type instanceof IntegerType
+                    || type instanceof SmallintType || type instanceof TinyintType) {
                 type.writeLong(blockBuilder, payload);
                 return;
             }
