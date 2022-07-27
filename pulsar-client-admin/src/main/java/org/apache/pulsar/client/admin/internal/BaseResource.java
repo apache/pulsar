@@ -141,8 +141,8 @@ public abstract class BaseResource {
         return future;
     }
 
-    public <I, T> void asyncPostRequestWithResponse(final WebTarget target, Entity<I> entity,
-                                                                    InvocationCallback<T> callback) {
+    public <T, R> void asyncPostRequestWithResponse(final WebTarget target, Entity<T> entity,
+                                                                    InvocationCallback<R> callback) {
         try {
             request(target).async().post(entity, callback);
         } catch (PulsarAdminException cae) {
