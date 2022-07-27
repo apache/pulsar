@@ -16,24 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.service.persistent;
+package org.apache.pulsar.broker.web;
 
-import org.apache.pulsar.broker.service.PersistentTopicTest;
-import org.apache.pulsar.broker.service.streamingdispatch.StreamingDispatcher;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
+import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.ext.ExceptionMapper;
 
-/**
- * PersistentTopicTest with {@link StreamingDispatcher}
- */
-@Test(groups = "broker")
-public class PersistentTopicStreamingDispatcherTest extends PersistentTopicTest {
+public class UnrecognizedPropertyExceptionMapper implements ExceptionMapper<UnrecognizedPropertyException> {
 
-    @BeforeMethod(alwaysRun = true)
-    public void setup() throws Exception {
-        super.setup();
-        pulsar.getConfiguration().setTopicLevelPoliciesEnabled(false);
-        pulsar.getConfiguration().setSystemTopicEnabled(false);
-        pulsar.getConfiguration().setStreamingDispatch(true);
+    @Override
+    public Response toResponse(UnrecognizedPropertyException exception) {
+        String response = String.format("Unknown property %s, perhaps you want to use one of these: %s",
+                exception.getPropertyName(), String.valueOf(exception.getKnownPropertyIds()));
+        return Response.status(Response.Status.BAD_REQUEST).entity(response).type(MediaType.TEXT_PLAIN).build();
     }
 }

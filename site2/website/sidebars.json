@@ -228,6 +228,7 @@
         "administration-metadata-store",
         "administration-geo",
         "administration-pulsar-manager",
+        "administration-pulsar-shell",
         "administration-stats",
         "administration-load-balance",
         "administration-proxy",

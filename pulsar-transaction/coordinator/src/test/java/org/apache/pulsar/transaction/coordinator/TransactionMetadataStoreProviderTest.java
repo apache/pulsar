@@ -22,12 +22,13 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+import io.netty.util.HashedWheelTimer;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.InvalidTxnStatusException;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.TransactionNotFoundException;
@@ -56,7 +57,8 @@ public class TransactionMetadataStoreProviderTest {
     private TransactionMetadataStoreProvider provider;
     private TransactionCoordinatorID tcId;
     private TransactionMetadataStore store;
-    private ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(2);
+    private HashedWheelTimer transactionTimer = new HashedWheelTimer(new DefaultThreadFactory("transaction-timer"),
+            1, TimeUnit.MILLISECONDS);
 
     @Factory(dataProvider = "providers")
     public TransactionMetadataStoreProviderTest(String providerClassName) throws Exception {
@@ -69,12 +71,12 @@ public class TransactionMetadataStoreProviderTest {
         this.tcId = new TransactionCoordinatorID(1L);
         this.store = this.provider.openStore(tcId, null, null,
                 null, new MLTransactionMetadataStoreTest.TransactionRecoverTrackerImpl(), 0L,
-                new TxnLogBufferedWriterConfig(), scheduledExecutorService).get();
+                new TxnLogBufferedWriterConfig(), transactionTimer).get();
     }
 
     @AfterClass
     public void cleanup(){
-        scheduledExecutorService.shutdown();
+        transactionTimer.stop();
     }
 
     @Test

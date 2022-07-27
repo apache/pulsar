@@ -18,10 +18,10 @@
  */
 package org.apache.pulsar.broker.stats;
 
+import io.netty.util.HashedWheelTimer;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.List;
 import java.util.Map.Entry;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import com.google.common.collect.Sets;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -99,7 +99,8 @@ public class ManagedLedgerMetricsTest extends BrokerTestBase {
     public void testTransactionTopic() throws Exception {
         TxnLogBufferedWriterConfig txnLogBufferedWriterConfig = new TxnLogBufferedWriterConfig();
         txnLogBufferedWriterConfig.setBatchEnabled(false);
-        ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(2);
+        HashedWheelTimer transactionTimer = new HashedWheelTimer(new DefaultThreadFactory("transaction-timer"),
+                1, TimeUnit.MILLISECONDS);
         admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
                 new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
@@ -108,13 +109,13 @@ public class ManagedLedgerMetricsTest extends BrokerTestBase {
         managedLedgerConfig.setMaxEntriesPerLedger(2);
         MLTransactionLogImpl mlTransactionLog = new MLTransactionLogImpl(TransactionCoordinatorID.get(0),
                 pulsar.getManagedLedgerFactory(), managedLedgerConfig, txnLogBufferedWriterConfig,
-                scheduledExecutorService);
+                transactionTimer);
         mlTransactionLog.initialize().get(2, TimeUnit.SECONDS);
         ManagedLedgerMetrics metrics = new ManagedLedgerMetrics(pulsar);
         metrics.generate();
         // cleanup.
         mlTransactionLog.closeAsync().get();
-        scheduledExecutorService.shutdown();
+        transactionTimer.stop();
     }
 
 }

@@ -1298,10 +1298,20 @@ public class Namespaces extends NamespacesBase {
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification") })
-    public PersistencePolicies getPersistence(@PathParam("tenant") String tenant,
+    public void getPersistence(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        return internalGetPersistence();
+        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.PERSISTENCE, PolicyOperation.READ)
+                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+                .thenAccept(policies -> asyncResponse.resume(policies.persistence))
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to get persistence configuration for a namespace {}", clientAppId(),
+                            namespaceName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @POST
@@ -1425,10 +1435,20 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Get subscription auth mode in a namespace")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or namespace doesn't exist")})
-    public SubscriptionAuthMode getSubscriptionAuthMode(@PathParam("tenant") String tenant,
-                                           @PathParam("namespace") String namespace) {
+    public void getSubscriptionAuthMode(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        return internalGetSubscriptionAuthMode();
+        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.SUBSCRIPTION_AUTH_MODE, PolicyOperation.READ)
+                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+                .thenAccept(policies -> asyncResponse.resume(policies.subscription_auth_mode))
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to get subscription auth mode in a namespace {}", clientAppId(),
+                            namespaceName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @POST
@@ -1451,10 +1471,19 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Get message encryption required status in a namespace")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or namespace doesn't exist")})
-    public Boolean getEncryptionRequired(@PathParam("tenant") String tenant,
-                                          @PathParam("namespace") String namespace) {
+    public void getEncryptionRequired(@Suspended AsyncResponse asyncResponse,
+                                      @PathParam("tenant") String tenant,
+                                      @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        return internalGetEncryptionRequired();
+        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.ENCRYPTION, PolicyOperation.READ)
+                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+                .thenAccept(policies -> asyncResponse.resume(policies.encryption_required))
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to get message encryption required status in a namespace {}", clientAppId(),
+                            namespaceName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET
@@ -1499,10 +1528,19 @@ public class Namespaces extends NamespacesBase {
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
             @ApiResponse(code = 409, message = "Concurrent modification"), })
-    public InactiveTopicPolicies getInactiveTopicPolicies(@PathParam("tenant") String tenant,
-                                                              @PathParam("namespace") String namespace) {
+    public void getInactiveTopicPolicies(@Suspended final AsyncResponse asyncResponse,
+                                         @PathParam("tenant") String tenant,
+                                         @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        return internalGetInactiveTopic();
+        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.INACTIVE_TOPIC, PolicyOperation.READ)
+                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+                .thenAccept(policies -> asyncResponse.resume(policies.inactive_topic_policies))
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to get inactive topic policies config on a namespace {}", clientAppId(),
+                            namespaceName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @DELETE
