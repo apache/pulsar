@@ -546,7 +546,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         }
     }
 
-    protected synchronized void sendMessagesToConsumers(ReadType readType, List<Entry> entries) {
+    protected final synchronized void sendMessagesToConsumers(ReadType readType, List<Entry> entries) {
         sendInProgress = true;
         try {
             trySendMessagesToConsumers(readType, entries);
@@ -556,6 +556,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         readMoreEntries();
     }
 
+    /*
+     * This method is overridden by other classes, please take a look to other implementations
+     * if you need to change it.
+     */
     protected synchronized void trySendMessagesToConsumers(ReadType readType, List<Entry> entries) {
         if (needTrimAckedMessages()) {
             cursor.trimDeletedEntries(entries);
