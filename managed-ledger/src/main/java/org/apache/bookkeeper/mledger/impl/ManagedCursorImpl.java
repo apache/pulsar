@@ -1874,7 +1874,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                         // Create ledger failure, execute "callback.fail".
                         mdEntry.callback.markDeleteFailed((ManagedLedgerException) ex, mdEntry.ctx);
                     } else {
-                        // Create ledger and already set ledger-state to "Open" success, so goto the case: State.open.
+                        // Create ledger and already set state to "Open" success, so goto the case: State.open.
                         internalAsyncMarkDelete(newPosition, properties, callback, ctx);
                     }
                 });
