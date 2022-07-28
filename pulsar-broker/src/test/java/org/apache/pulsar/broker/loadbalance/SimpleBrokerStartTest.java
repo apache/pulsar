@@ -21,15 +21,12 @@ package org.apache.pulsar.broker.loadbalance;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import com.google.common.base.Charsets;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Optional;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.SystemUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -106,36 +103,23 @@ public class SimpleBrokerStartTest {
 
     @Test
     public void testCGroupMetrics() throws IOException {
-        if (!SystemUtils.IS_OS_LINUX) {
+        if (!LinuxInfoUtils.isLinux()) {
             return;
         }
 
-        boolean existsCGroup = Files.exists(Paths.get("/sys/fs/cgroup/cpu/cpuacct.usage"));
+        boolean existsCGroup = Files.exists(Paths.get("/sys/fs/cgroup"));
         boolean cGroupEnabled = LinuxInfoUtils.isCGroupEnabled();
         Assert.assertEquals(cGroupEnabled, existsCGroup);
 
         double totalCpuLimit = LinuxInfoUtils.getTotalCpuLimit(cGroupEnabled);
-        double expectTotalCpuLimit = getTotalCpuLimit(cGroupEnabled);
-        Assert.assertEquals(totalCpuLimit, expectTotalCpuLimit);
+        log.info("totalCpuLimit: {}", totalCpuLimit);
+        Assert.assertTrue(totalCpuLimit > 0.0);
 
         if (cGroupEnabled) {
-            double cpuUsageForCGroup = LinuxInfoUtils.getCpuUsageForCGroup();
+            long cpuUsageForCGroup = LinuxInfoUtils.getCpuUsageForCGroup();
             log.info("cpuUsageForCGroup: {}", cpuUsageForCGroup);
+            Assert.assertTrue(cpuUsageForCGroup > 0);
         }
-    }
-
-    public static double getTotalCpuLimit(boolean isCGroupsEnabled) throws IOException {
-        if (isCGroupsEnabled) {
-            long quota = Long.parseLong(
-                    Files.readString(Path.of("/sys/fs/cgroup/cpu/cpu.cfs_quota_us"), Charsets.UTF_8).trim());
-            long period = Long.parseLong(
-                    Files.readString(Path.of("/sys/fs/cgroup/cpu/cpu.cfs_period_us"), Charsets.UTF_8).trim());
-            if (quota > 0) {
-                return 100.0 * quota / period;
-            }
-        }
-        // Fallback to JVM reported CPU quota
-        return 100 * Runtime.getRuntime().availableProcessors();
     }
 
 }

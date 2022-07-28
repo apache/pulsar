@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.loadbalance;
 
 import com.google.common.base.Charsets;
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -29,11 +30,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import jdk.internal.platform.Container;
-import jdk.internal.platform.Metrics;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.SystemUtils;
@@ -49,10 +49,29 @@ public class LinuxInfoUtils {
     private static final int ARPHRD_ETHER = 1;
     private static final String NIC_SPEED_TEMPLATE = "/sys/class/net/%s/speed";
 
-    private static final Metrics METRICS;
+    private static Object /*jdk.internal.platform.Metrics*/ metrics;
+    private static Method getMetricsProviderMethod;
+    private static Method getCpuQuotaMethod;
+    private static Method getCpuPeriodMethod;
+    private static Method getCpuUsageMethod;
 
     static {
-        METRICS = Container.metrics();
+        try {
+            metrics = Class.forName("jdk.internal.platform.Container").getMethod("metrics")
+                    .invoke(null);
+            if (metrics != null) {
+                getMetricsProviderMethod = metrics.getClass().getMethod("getProvider");
+                getMetricsProviderMethod.setAccessible(true);
+                getCpuQuotaMethod = metrics.getClass().getMethod("getCpuQuota");
+                getCpuQuotaMethod.setAccessible(true);
+                getCpuPeriodMethod = metrics.getClass().getMethod("getCpuPeriod");
+                getCpuPeriodMethod.setAccessible(true);
+                getCpuUsageMethod = metrics.getClass().getMethod("getCpuUsage");
+                getCpuUsageMethod.setAccessible(true);
+            }
+        } catch (Throwable e) {
+            log.warn("Failed to get runtime metrics", e);
+        }
     }
 
     /**
@@ -68,10 +87,10 @@ public class LinuxInfoUtils {
      */
     public static boolean isCGroupEnabled() {
         try {
-            if (METRICS == null) {
+            if (metrics == null) {
                 return false;
             }
-            String provider = METRICS.getProvider();
+            String provider = (String) getMetricsProviderMethod.invoke(metrics);
             log.info("[LinuxInfo] The system metrics provider is: {}", provider);
             return provider.contains("cgroup");
         } catch (Exception e) {
@@ -85,10 +104,11 @@ public class LinuxInfoUtils {
      * @param isCGroupsEnabled Whether CGroup is enabled
      * @return Total cpu limit
      */
+    @SneakyThrows
     public static double getTotalCpuLimit(boolean isCGroupsEnabled) {
         if (isCGroupsEnabled) {
-            long quota = METRICS.getCpuQuota();
-            long period = METRICS.getCpuPeriod();
+            long quota = (long) getCpuQuotaMethod.invoke(metrics);
+            long period = (long) getCpuPeriodMethod.invoke(metrics);
             if (quota > 0) {
                 return 100.0 * quota / period;
             }
@@ -101,8 +121,12 @@ public class LinuxInfoUtils {
      * Get CGroup cpu usage.
      * @return Cpu usage
      */
-    public static double getCpuUsageForCGroup() {
-        return METRICS.getCpuUsage();
+    @SneakyThrows
+    public static long getCpuUsageForCGroup() {
+        if (getCpuUsageMethod == null) {
+            return  -1;
+        }
+        return (long) getCpuUsageMethod.invoke(metrics);
     }
 
 
