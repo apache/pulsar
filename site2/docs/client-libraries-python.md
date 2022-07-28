@@ -288,9 +288,9 @@ The schema definition is like this.
 
 ```json
 {
-  'name': 'NamespaceDemo', 'namespace': 'xxx.xxx.xxx', 'type': 'record', 'fields': [
-    {'name': 'x', 'type': ['null', 'string']}, 
-    {'name': 'y', 'type': ['null', 'int']}
+  "name": "NamespaceDemo", "namespace": "xxx.xxx.xxx", "type": "record", "fields": [
+    {"name": "x", "type": ["null", "string"]}, 
+    {"name": "y", "type": ["null", "int"]}
   ]
 }
 ```
