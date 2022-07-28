@@ -1030,9 +1030,11 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         parameters1.put("min_limit", "1");
         parameters1.put("usage_threshold", "100");
 
+        final List<String> primaryList = new ArrayList<>();
+        primaryList.add(brokerName + ".*");
         NamespaceIsolationData nsPolicyData1 = NamespaceIsolationData.builder()
                 .namespaces(Collections.singletonList(ns1Name))
-                .primary(Collections.singletonList(brokerName + ".*"))
+                .primary(primaryList)
                 .autoFailoverPolicy(AutoFailoverPolicyData.builder()
                         .policyType(AutoFailoverPolicyType.min_available)
                         .parameters(parameters1)
