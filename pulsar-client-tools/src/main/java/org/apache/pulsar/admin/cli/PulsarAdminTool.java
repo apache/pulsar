@@ -87,6 +87,12 @@ public class PulsarAdminTool {
                 description = "Enable TLS common name verification")
         Boolean tlsEnableHostnameVerification;
 
+        @Parameter(names = {"--tls-provider"}, description = "Set up TLS provider. "
+                + "When TLS authentication with CACert is used, the valid value is either OPENSSL or JDK. "
+                + "When TLS authentication with KeyStore is used, available options can be SunJSSE, Conscrypt "
+                + "and so on.")
+        String tlsProvider;
+
         @Parameter(names = { "-v", "--version" }, description = "Get version of pulsar admin client")
         boolean version;
 
@@ -245,6 +251,12 @@ public class PulsarAdminTool {
             adminBuilder.serviceHttpUrl(rootParams.serviceUrl);
             adminBuilder.authentication(rootParams.authPluginClassName, rootParams.authParams);
             adminBuilder.requestTimeout(rootParams.requestTimeout, TimeUnit.SECONDS);
+            if (isBlank(rootParams.tlsProvider)) {
+                rootParams.tlsProvider = properties.getProperty("webserviceTlsProvider");
+            }
+            if (isNotBlank(rootParams.tlsProvider)) {
+                adminBuilder.sslProvider(rootParams.tlsProvider);
+            }
         } catch (Exception e) {
             System.err.println(e.getMessage());
             System.err.println();
