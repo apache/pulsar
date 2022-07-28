@@ -101,7 +101,9 @@ class LoggerWrapper : public Logger, public CaptivePythonObjectMixin {
 
    public:
     LoggerWrapper(PyObject* pyLogger, int pythonLogLevel, Logger* fallbackLogger)
-        : CaptivePythonObjectMixin(pyLogger), _pythonLogLevel(pythonLogLevel), _fallbackLogger(fallbackLogger) {
+        : CaptivePythonObjectMixin(pyLogger),
+          _pythonLogLevel(pythonLogLevel),
+          _fallbackLogger(fallbackLogger) {
         PyGILState_STATE state = PyGILState_Ensure();
         _loggerModule = py::import("logging");
         PyGILState_Release(state);
@@ -130,6 +132,7 @@ class LoggerWrapper : public Logger, public CaptivePythonObjectMixin {
                 break;
         }
     }
+
    private:
     void log(Level level, int line, const char* method, const std::string& message) {
         if (!Py_IsInitialized()) {
