@@ -1584,13 +1584,6 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected PersistencePolicies internalGetPersistence() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.PERSISTENCE, PolicyOperation.READ);
-
-        Policies policies = getNamespacePolicies(namespaceName);
-        return policies.persistence;
-    }
-
     protected void internalClearNamespaceBacklog(AsyncResponse asyncResponse, boolean authoritative) {
         validateNamespaceOperation(namespaceName, NamespaceOperation.CLEAR_BACKLOG);
 
@@ -1808,12 +1801,6 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected SubscriptionAuthMode internalGetSubscriptionAuthMode() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.SUBSCRIPTION_AUTH_MODE, PolicyOperation.READ);
-        Policies policies = getNamespacePolicies(namespaceName);
-        return policies.subscription_auth_mode;
-    }
-
     protected void internalModifyEncryptionRequired(boolean encryptionRequired) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.ENCRYPTION, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
@@ -1841,13 +1828,6 @@ public abstract class NamespacesBase extends AdminResource {
     protected DelayedDeliveryPolicies internalGetDelayedDelivery() {
         validateNamespacePolicyOperation(namespaceName, PolicyName.DELAYED_DELIVERY, PolicyOperation.READ);
         return getNamespacePolicies(namespaceName).delayed_delivery_policies;
-    }
-
-    protected InactiveTopicPolicies internalGetInactiveTopic() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.INACTIVE_TOPIC, PolicyOperation.READ);
-
-        Policies policies = getNamespacePolicies(namespaceName);
-        return policies.inactive_topic_policies;
     }
 
     protected void internalSetInactiveTopic(InactiveTopicPolicies inactiveTopicPolicies) {
