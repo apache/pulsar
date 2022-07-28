@@ -127,6 +127,12 @@ public interface ClientBuilder extends Serializable, Cloneable {
     ClientBuilder listenerName(String name);
 
     /**
+     * Release the connection if it is not used for more than {@param connectionMaxIdleSeconds} seconds.
+     * @return the client builder instance
+     */
+    ClientBuilder connectionMaxIdleSeconds(int connectionMaxIdleSeconds);
+
+    /**
      * Set the authentication provider to use in the Pulsar client instance.
      *
      * <p>Example:
