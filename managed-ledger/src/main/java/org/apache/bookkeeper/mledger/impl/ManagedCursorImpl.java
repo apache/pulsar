@@ -1868,16 +1868,9 @@ public class ManagedCursorImpl implements ManagedCursor {
                 return;
 
             case NoLedger:
-                // We need to create a new ledger to write into
-                startCreatingNewMetadataLedger().whenComplete((ignore, ex) -> {
-                    if (ex != null){
-                        // Create ledger failure, execute "callback.fail".
-                        mdEntry.callback.markDeleteFailed((ManagedLedgerException) ex, mdEntry.ctx);
-                    } else {
-                        // Create ledger and already set state to "Open" success, so goto the case: State.open.
-                        internalAsyncMarkDelete(newPosition, properties, callback, ctx);
-                    }
-                });
+                pendingMarkDeleteOps.add(mdEntry);
+                // We need to create a new ledger to write into.
+                startCreatingNewMetadataLedger();
                 break;
                 // fall through
             case SwitchingLedger:
@@ -2548,21 +2541,21 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     // //////////////////////////////////////////////////
 
-    CompletableFuture<Void> startCreatingNewMetadataLedger() {
+    void startCreatingNewMetadataLedger() {
         // Change the state so that new mark-delete ops will be queued and not immediately submitted
         State oldState = STATE_UPDATER.getAndSet(this, State.SwitchingLedger);
         if (oldState == State.SwitchingLedger) {
             // Ignore double request
-
-        } else if (PENDING_MARK_DELETED_SUBMITTED_COUNT_UPDATER.get(this) == 0) {
-            // Check if we can immediately switch to a new metadata ledger
-            return createNewMetadataLedger();
+            return;
         }
-        return CompletableFuture.completedFuture(null);
+
+        // Check if we can immediately switch to a new metadata ledger
+        if (PENDING_MARK_DELETED_SUBMITTED_COUNT_UPDATER.get(this) == 0) {
+            createNewMetadataLedger();
+        }
     }
 
-    CompletableFuture<Void> createNewMetadataLedger() {
-        CompletableFuture<Void> completableFuture = new CompletableFuture();
+    void createNewMetadataLedger() {
         createNewMetadataLedger(new VoidCallback() {
             @Override
             public void operationComplete() {
@@ -2573,7 +2566,6 @@ public class ManagedCursorImpl implements ManagedCursor {
                     // Resume normal mark-delete operations
                     STATE_UPDATER.set(ManagedCursorImpl.this, State.Open);
                 }
-                completableFuture.complete(null);
             }
 
             @Override
@@ -2589,10 +2581,8 @@ public class ManagedCursorImpl implements ManagedCursor {
                     // At this point we don't have a ledger ready
                     STATE_UPDATER.set(ManagedCursorImpl.this, State.NoLedger);
                 }
-                completableFuture.completeExceptionally(exception);
             }
         });
-        return completableFuture;
     }
 
     private void flushPendingMarkDeletes() {
