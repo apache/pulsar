@@ -1512,6 +1512,15 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         } finally {
             // dump function logs so that it's easier to investigate failures
             pulsarCluster.dumpFunctionLogs(functionName);
+            ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
+                    PulsarCluster.ADMIN_SCRIPT,
+                    "functions",
+                    "stats",
+                    "--tenant", "public",
+                    "--namespace", "default",
+                    "--name", functionName
+            );
+            log.info("FAIL FUNCTION STATS: {}", result.getStdout());
         }
 
         // get function status
