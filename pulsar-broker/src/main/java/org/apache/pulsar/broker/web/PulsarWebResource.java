@@ -786,9 +786,9 @@ public abstract class PulsarWebResource {
                     validationFuture.complete(null);
                 }
             } else {
-                String msg = String.format("Policies not found for %s namespace", namespace.toString());
+                String msg = String.format("Namespace %s not found", namespace.toString());
                 log.warn(msg);
-                validationFuture.completeExceptionally(new RestException(Status.NOT_FOUND, msg));
+                validationFuture.completeExceptionally(new RestException(Status.NOT_FOUND, "Namespace not found"));
             }
         }).exceptionally(ex -> {
             String msg = String.format("Failed to validate global cluster configuration : cluster=%s ns=%s  emsg=%s",
