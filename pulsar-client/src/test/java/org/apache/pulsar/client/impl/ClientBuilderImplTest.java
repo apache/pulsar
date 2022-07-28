@@ -22,7 +22,6 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.junit.Assert;
-import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
 public class ClientBuilderImplTest {
