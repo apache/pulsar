@@ -21,7 +21,7 @@ package org.apache.pulsar.client.impl.schema;
 import static com.google.common.base.Preconditions.checkState;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.avro.Schema.Type.RECORD;
-import java.io.InputStream;
+import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -122,11 +122,11 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
     }
 
     @Override
-    public GenericRecord decode(InputStream input, byte[] schemaVersion) {
+    public GenericRecord decode(ByteBuffer buffer, byte[] schemaVersion) {
         SchemaVersion sv = getSchemaVersion(schemaVersion);
         fetchSchemaIfNeeded(sv);
         ensureSchemaInitialized(sv);
-        return adapt(schemaMap.get(sv).decode(input, schemaVersion), schemaVersion);
+        return adapt(schemaMap.get(sv).decode(buffer, schemaVersion), schemaVersion);
     }
 
     @Override

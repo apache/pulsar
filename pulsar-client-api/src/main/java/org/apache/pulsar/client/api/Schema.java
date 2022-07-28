@@ -19,8 +19,6 @@
 package org.apache.pulsar.client.api;
 
 import static org.apache.pulsar.client.internal.PulsarClientImplementationBinding.getBytes;
-import java.io.IOException;
-import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.sql.Time;
 import java.sql.Timestamp;
@@ -42,7 +40,6 @@ import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
-import org.apache.pulsar.common.utils.IOUtils;
 
 /**
  * Message schema definition.
@@ -124,33 +121,17 @@ public interface Schema<T> extends Cloneable {
     }
 
     /**
-     * Decode a byte array into an object using the schema definition and deserializer implementation.
+     * Decode a ByteBuffer into an object using a given version. <br/>
      *
-     * @param input the inputstream to decode
+     * @param data
+     *            the ByteBuffer to decode
      * @return the deserialized object
      */
-    default T decode(InputStream input) {
-        try {
-            return decode(IOUtils.readAllBytes(input));
-        } catch (IOException ex) {
-            throw new SchemaSerializationException(ex);
+    default T decode(ByteBuffer data) {
+        if (data == null) {
+            return null;
         }
-    }
-
-    /**
-     * Decode a byte array into an object using a given version.
-     *
-     * @param input the inputstream to decode
-     * @param schemaVersion
-     *            the schema version to decode the object. null indicates using latest version.
-     * @return the deserialized object
-     */
-    default T decode(InputStream input, byte[] schemaVersion) {
-        try {
-            return decode(IOUtils.readAllBytes(input), schemaVersion);
-        } catch (IOException ex) {
-            throw new SchemaSerializationException(ex);
-        }
+        return decode(getBytes(data));
     }
 
     /**

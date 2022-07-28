@@ -22,7 +22,6 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufInputStream;
 import io.netty.buffer.Unpooled;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
@@ -489,11 +488,19 @@ public class MessageImpl<T> implements Message<T> {
         if (value != null) {
             return value;
         }
+
         if (null == schemaVersion) {
-            return schema.decode(new ByteBufInputStream(payload));
+            return schema.decode(getByteBuffer());
         } else {
-            return schema.decode(new ByteBufInputStream(payload), schemaVersion);
+            return schema.decode(getByteBuffer(), schemaVersion);
         }
+    }
+
+    private ByteBuffer getByteBuffer() {
+        if (msgMetadata.isNullValue()) {
+            return null;
+        }
+        return this.payload.nioBuffer();
     }
 
     private T getKeyValueBySchemaVersion() {
