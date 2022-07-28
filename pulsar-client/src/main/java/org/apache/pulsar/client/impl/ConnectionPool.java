@@ -215,13 +215,13 @@ public class ConnectionPool implements AutoCloseable {
                 .computeIfAbsent(randomKey, k -> createConnection(logicalAddress, physicalAddress, randomKey));
         return completableFuture.thenCompose(clientCnx -> {
             // If connection already release, create a new one.
-            if (ClientCnxIdleStateManager.isReleased(clientCnx)) {
+            if (clientCnx.getIdleState().isReleased()) {
                 cleanupConnection(logicalAddress, randomKey, completableFuture);
                 return innerPool
                         .computeIfAbsent(randomKey, k -> createConnection(logicalAddress, physicalAddress, randomKey));
             }
             // Try use exists connection.
-            if (ClientCnxIdleStateManager.tryMarkUsingAndClearIdleTime(clientCnx)) {
+            if (clientCnx.getIdleState().tryMarkUsingAndClearIdleTime()) {
                 return CompletableFuture.completedFuture(clientCnx);
             } else {
                 // If connection already release, create a new one.
@@ -439,11 +439,11 @@ public class ConnectionPool implements AutoCloseable {
                     continue;
                 }
                 // Detect connection idle-stat.
-                ClientCnxIdleStateManager.doIdleDetect(clientCnx, connectionMaxIdleSeconds);
+                clientCnx.getIdleState().doIdleDetect(connectionMaxIdleSeconds);
                 // Try release useless connection.
-                if (ClientCnxIdleStateManager.isReleasing(clientCnx)) {
+                if (clientCnx.getIdleState().isReleasing()) {
                     releaseIdleConnectionTaskList.add(() -> {
-                        if (ClientCnxIdleStateManager.tryMarkReleasedAndCloseConnection(clientCnx)) {
+                        if (clientCnx.getIdleState().tryMarkReleasedAndCloseConnection()) {
                             cleanupConnection(entry.getKey(), entry0.getKey(), future);
                         }
                     });

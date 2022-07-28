@@ -44,7 +44,6 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
-import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import lombok.AccessLevel;
 import lombok.Getter;
 import org.apache.commons.lang3.exception.ExceptionUtils;
@@ -173,15 +172,9 @@ public class ClientCnx extends PulsarHandler {
     private TransactionBufferHandler transactionBufferHandler;
     private boolean supportsTopicWatchers;
 
-    /** Create time. **/
-    private final long createTime;
-    /** The time when marks the connection is idle. **/
-    long idleMarkTime;
-    /** Stat. **/
-    private volatile IdleState idleState;
-
-    private static final AtomicReferenceFieldUpdater<ClientCnx, IdleState> STATE_UPDATER =
-            AtomicReferenceFieldUpdater.newUpdater(ClientCnx.class, IdleState.class, "idleState");
+    /** Idle stat. **/
+    @Getter
+    private final ClientCnxIdleState idleState;
 
     enum State {
         None, SentConnectFrame, Ready, Failed, Connecting
@@ -240,8 +233,7 @@ public class ClientCnx extends PulsarHandler {
         this.operationTimeoutMs = conf.getOperationTimeoutMs();
         this.state = State.None;
         this.protocolVersion = protocolVersion;
-        this.createTime = System.currentTimeMillis();
-        this.idleState = IdleState.USING;
+        this.idleState = new ClientCnxIdleState(this);
     }
 
     @Override
@@ -1300,33 +1292,5 @@ public class ClientCnx extends PulsarHandler {
             return false;
         }
         return true;
-    }
-    /**
-     * Get idle-stat.
-     * @return connection idle-stat
-     */
-    public IdleState getIdleStat() {
-        return STATE_UPDATER.get(this);
-    }
-    /**
-     * Compare and switch idle-stat.
-     * @return Whether the update is successful.Because there may be other threads competing, possible return false.
-     */
-    boolean compareAndSetIdleStat(IdleState originalStat, IdleState newStat) {
-        return STATE_UPDATER.compareAndSet(this, originalStat, newStat);
-    }
-
-    /**
-     * Indicates the usage status of the connection and whether it has been released.
-     */
-    public enum IdleState {
-        /** It was using at the time of last check. At current time may be idle. **/
-        USING,
-        /** The connection is in idle. **/
-        IDLE,
-        /** The connection is in idle and will be released soon. In this state, the connection can still be used. **/
-        RELEASING,
-        /** The connection has already been released. **/
-        RELEASED;
     }
 }
