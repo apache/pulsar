@@ -12,7 +12,7 @@ import TabItem from '@theme/TabItem';
 
 In Pulsar, when namespaces (more specifically, namespace bundles) are assigned dynamically to brokers, the namespace isolation policy limits the set of brokers that can be used for assignment. Before topics are assigned to brokers, you can set the namespace isolation policy with a primary or a secondary regex to select desired brokers.
 
-You can set a namespace isolation policy for a cluster using one of the following methods. 
+You can set a namespace isolation policy for a broker cluster using one of the following methods. 
 
 ````mdx-code-block
 <Tabs 
@@ -55,3 +55,10 @@ For how to set namespace isolation policy using Java admin API, see [code](https
 
 </Tabs>
 ````
+
+
+:::tip
+
+To guarantee all the data that belongs to a namespace is stored in desired bookies, you can isolate the data of the namespace into user-defined groups of bookies. See [configure bookie affinity groups](#configure-bookie-affinity-groups) for more details.
+
+:::

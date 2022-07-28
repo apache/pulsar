@@ -11,7 +11,8 @@ The multi-layer and segment-centric architecture and hierarchical resource manag
 
 
 ## Isolation methods
-To enforce resource isolation within Pulsar, you can use the following methods of isolating broker and bookie resources:
+
+Pulsar supports isolation at both broker level and BookKeeper level. To enforce resource isolation within Pulsar, you can use the following methods of isolating broker and bookie resources:
 * [Isolate brokers](administration-isolation-broker.md)
 * [Isolate bookies](administration-isolation-bookie.md)
 
