@@ -29,6 +29,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import jdk.internal.platform.Container;
+import jdk.internal.platform.Metrics;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -40,10 +42,6 @@ import org.apache.pulsar.broker.BitRateUnit;
 @Slf4j
 public class LinuxInfoUtils {
 
-    // CGROUP
-    private static final String CGROUPS_CPU_USAGE_PATH = "/sys/fs/cgroup/cpu/cpuacct.usage";
-    private static final String CGROUPS_CPU_LIMIT_QUOTA_PATH = "/sys/fs/cgroup/cpu/cpu.cfs_quota_us";
-    private static final String CGROUPS_CPU_LIMIT_PERIOD_PATH = "/sys/fs/cgroup/cpu/cpu.cfs_period_us";
     // proc states
     private static final String PROC_STAT_PATH = "/proc/stat";
     private static final String NIC_PATH = "/sys/class/net/";
@@ -51,6 +49,11 @@ public class LinuxInfoUtils {
     private static final int ARPHRD_ETHER = 1;
     private static final String NIC_SPEED_TEMPLATE = "/sys/class/net/%s/speed";
 
+    private static final Metrics METRICS;
+
+    static {
+        METRICS = Container.metrics();
+    }
 
     /**
      * Determine whether the OS is the linux kernel.
@@ -65,9 +68,14 @@ public class LinuxInfoUtils {
      */
     public static boolean isCGroupEnabled() {
         try {
-            return Files.exists(Paths.get(CGROUPS_CPU_USAGE_PATH));
+            if (METRICS == null) {
+                return false;
+            }
+            String provider = METRICS.getProvider();
+            log.info("[LinuxInfo] The system metrics provider is: {}", provider);
+            return provider.contains("cgroup");
         } catch (Exception e) {
-            log.warn("[LinuxInfo] Failed to check cgroup CPU usage file: {}", e.getMessage());
+            log.warn("[LinuxInfo] Failed to check cgroup CPU: {}", e.getMessage());
             return false;
         }
     }
@@ -79,15 +87,10 @@ public class LinuxInfoUtils {
      */
     public static double getTotalCpuLimit(boolean isCGroupsEnabled) {
         if (isCGroupsEnabled) {
-            try {
-                long quota = readLongFromFile(Paths.get(CGROUPS_CPU_LIMIT_QUOTA_PATH));
-                long period = readLongFromFile(Paths.get(CGROUPS_CPU_LIMIT_PERIOD_PATH));
-                if (quota > 0) {
-                    return 100.0 * quota / period;
-                }
-            } catch (IOException e) {
-                log.warn("[LinuxInfo] Failed to read CPU quotas from cgroups", e);
-                // Fallback to availableProcessors
+            long quota = METRICS.getCpuQuota();
+            long period = METRICS.getCpuPeriod();
+            if (quota > 0) {
+                return 100.0 * quota / period;
             }
         }
         // Fallback to JVM reported CPU quota
@@ -99,12 +102,7 @@ public class LinuxInfoUtils {
      * @return Cpu usage
      */
     public static double getCpuUsageForCGroup() {
-        try {
-            return readLongFromFile(Paths.get(CGROUPS_CPU_USAGE_PATH));
-        } catch (IOException e) {
-            log.error("[LinuxInfo] Failed to read CPU usage from {}", CGROUPS_CPU_USAGE_PATH, e);
-            return -1;
-        }
+        return METRICS.getCpuUsage();
     }
 
 
