@@ -559,7 +559,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         }
     }
 
-    /*
+    /**
+     * Dispatch the messages to the Consumers.
+     * @return true if you want to trigger a new read.
      * This method is overridden by other classes, please take a look to other implementations
      * if you need to change it.
      */
