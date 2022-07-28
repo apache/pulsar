@@ -19,7 +19,7 @@
 package org.apache.pulsar.zookeeper;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-
+import com.google.common.base.Strings;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
@@ -28,7 +28,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.bookkeeper.client.ITopologyAwareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.RackChangeNotifier;
 import org.apache.bookkeeper.conf.ClientConfiguration;
@@ -197,7 +196,9 @@ public class ZkBookieRackAffinityMapping extends AbstractDNSToSwitchMapping
             }
         }
 
-        if (bi != null) {
+        if (bi != null
+                && !Strings.isNullOrEmpty(bi.getRack())
+                && !bi.getRack().trim().equals("/")) {
             String rack = bi.getRack();
             if (!rack.startsWith("/")) {
                 rack = "/" + rack;

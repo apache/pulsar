@@ -18,11 +18,12 @@
  */
 package org.apache.pulsar.admin.cli;
 
-import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.common.policies.data.BookieInfo;
-
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
+import com.google.common.base.Strings;
+import lombok.NonNull;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.common.policies.data.BookieInfo;
 
 @Parameters(commandDescription = "Operations about bookies rack placement")
 public class CmdBookies extends CmdBase {
@@ -62,6 +63,8 @@ public class CmdBookies extends CmdBase {
 
     @Parameters(commandDescription = "Updates the rack placement information for a specific bookie in the cluster (note. bookie address format:`address:port`)")
     private class UpdateBookie extends CliCommand {
+        private static final String PATH_SEPARATOR = "/";
+
         @Parameter(names = { "-g", "--group" }, description = "Bookie group name", required = false)
         private String group = "default";
 
@@ -76,7 +79,15 @@ public class CmdBookies extends CmdBase {
 
         @Override
         void run() throws Exception {
+            checkArgument(!Strings.isNullOrEmpty(bookieRack) && !bookieRack.trim().equals(PATH_SEPARATOR),
+                    "rack name is invalid, it should not be null, empty or '/'");
             admin.bookies().updateBookieRackInfo(bookieAddress, group, new BookieInfo(bookieRack, bookieHost));
+        }
+
+        private void checkArgument(boolean expression, @NonNull Object errorMessage) {
+            if (!expression) {
+                throw new IllegalArgumentException(String.valueOf(errorMessage));
+            }
         }
     }
 
