@@ -1,0 +1,20 @@
+autolabeler:
+  - label: 'doc'
+    files:
+      - '*.md'
+    title:
+      - '/\[docs\]/i'
+  - label: 'type/bug'
+    branch:
+      - '/fix\/.+/'
+    title:
+      - '/\[fix\]/i'
+  - label: 'type/feature'
+    title:
+      - '/\[feat\]/i'
+  - label: 'type/refactor'
+    title:
+      - '/\[refactor\]/i'
+  - label: 'type/cleanup'
+    title:
+      - '/\[cleanup\]/i'
