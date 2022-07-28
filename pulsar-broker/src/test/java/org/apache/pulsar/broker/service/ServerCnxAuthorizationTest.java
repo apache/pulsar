@@ -53,6 +53,7 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.PulsarServiceMockSupport;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSubscription;
@@ -116,7 +117,10 @@ public class ServerCnxAuthorizationTest {
         doReturn(new DefaultSchemaRegistryService()).when(pulsar).getSchemaRegistryService();
 
         doReturn(svcConfig).when(pulsar).getConfiguration();
-        doReturn(mock(PulsarResources.class)).when(pulsar).getPulsarResources();
+        PulsarServiceMockSupport.mockPulsarServiceProps(pulsar, () -> {
+            doReturn(mock(PulsarResources.class)).when(pulsar).getPulsarResources();
+        });
+
 
         ManagedLedgerFactory mlFactoryMock = mock(ManagedLedgerFactory.class);
         doReturn(mlFactoryMock).when(pulsar).getManagedLedgerFactory();
@@ -132,7 +136,9 @@ public class ServerCnxAuthorizationTest {
         doReturn(store).when(pulsar).getConfigurationMetadataStore();
 
         pulsarResources = spyWithClassAndConstructorArgs(PulsarResources.class, store, store);
-        doReturn(pulsarResources).when(pulsar).getPulsarResources();
+        PulsarServiceMockSupport.mockPulsarServiceProps(pulsar, () -> {
+            doReturn(pulsarResources).when(pulsar).getPulsarResources();
+        });
         NamespaceResources namespaceResources =
                 spyWithClassAndConstructorArgs(NamespaceResources.class, store, store, 30);
         doReturn(namespaceResources).when(pulsarResources).getNamespaceResources();
@@ -146,8 +152,10 @@ public class ServerCnxAuthorizationTest {
         brokerService = spyWithClassAndConstructorArgs(BrokerService.class, pulsar, eventLoopGroup);
         BrokerInterceptor interceptor = mock(BrokerInterceptor.class);
         doReturn(interceptor).when(brokerService).getInterceptor();
-        doReturn(brokerService).when(pulsar).getBrokerService();
-        doReturn(executor).when(pulsar).getOrderedExecutor();
+        PulsarServiceMockSupport.mockPulsarServiceProps(pulsar, () -> {
+            doReturn(brokerService).when(pulsar).getBrokerService();
+            doReturn(executor).when(pulsar).getOrderedExecutor();
+        });
     }
 
     @Test
