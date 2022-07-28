@@ -133,6 +133,10 @@ class TopicStats {
                 stats.managedLedgerStats.storageLogicalSize, splitTopicAndPartitionIndexLabel);
         metric(stream, cluster, namespace, topic, "pulsar_msg_backlog", stats.msgBacklog,
                 splitTopicAndPartitionIndexLabel);
+        metric(stream, cluster, namespace, topic, "pulsar_storage_write_rate",
+                stats.managedLedgerStats.storageWriteRate, splitTopicAndPartitionIndexLabel);
+        metric(stream, cluster, namespace, topic, "pulsar_storage_read_rate", stats.managedLedgerStats.storageReadRate,
+                splitTopicAndPartitionIndexLabel);
         metric(stream, cluster, namespace, topic, "pulsar_storage_backlog_size",
                 stats.managedLedgerStats.backlogSize, splitTopicAndPartitionIndexLabel);
         metric(stream, cluster, namespace, topic, "pulsar_publish_rate_limit_times", stats.publishRateLimitedTimes,
