@@ -130,7 +130,6 @@ public class UniformLoadShedder implements LoadSheddingStrategy {
             if (overloadedBrokerData.getBundles().size() > 1
                 && (msgRateRequiredFromUnloadedBundles.getValue() >= MIN_UNLOAD_MESSAGE
                     || msgThroughputRequiredFromUnloadedBundles.getValue() >= MIN_UNLOAD_THROUGHPUT)) {
-                MutableInt unloadBundleCount = new MutableInt(0);
                 // Sort bundles by throughput, then pick the bundle which can help to reduce load uniformly with
                 // under-loaded broker
                 loadBundleData.entrySet().stream()
@@ -146,7 +145,7 @@ public class UniformLoadShedder implements LoadSheddingStrategy {
                         }).filter(e -> !recentlyUnloadedBundles.containsKey(e.getLeft()))
                         .sorted((e1, e2) -> Double.compare(e2.getRight(), e1.getRight())).forEach((e) -> {
                             if (conf.getMaxUnloadBundleNumPerShedding() != -1
-                                    && unloadBundleCount.getValue() >= conf.getMaxUnloadBundleNumPerShedding()) {
+                                    && selectedBundlesCache.size() >= conf.getMaxUnloadBundleNumPerShedding()) {
                                 return;
                             }
                             String bundle = e.getLeft();
@@ -161,14 +160,12 @@ public class UniformLoadShedder implements LoadSheddingStrategy {
                                     log.info("Found bundle to unload with msgRate {}", bundleMsgRate);
                                     msgRateRequiredFromUnloadedBundles.add(-bundleMsgRate);
                                     selectedBundlesCache.put(overloadedBroker.getValue(), bundle);
-                                    unloadBundleCount.increment();
                                 }
                             } else {
                                 if (throughput <= (msgThroughputRequiredFromUnloadedBundles.getValue())) {
                                     log.info("Found bundle to unload with throughput {}", throughput);
                                     msgThroughputRequiredFromUnloadedBundles.add(-throughput);
                                     selectedBundlesCache.put(overloadedBroker.getValue(), bundle);
-                                    unloadBundleCount.increment();
                                 }
                             }
                         });
