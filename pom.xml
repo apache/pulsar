@@ -1772,6 +1772,9 @@ flexible messaging model and an intuitive client API.</description>
           <version>${maven-compiler-plugin.version}</version>
           <configuration>
             <release>${pulsar.broker.compiler.release}</release>
+            <compilerArgs>
+              <arg>--add-opens java.base/jdk.internal.platform=ALL-UNNAMED</arg>
+            </compilerArgs>
           </configuration>
         </plugin>
         <plugin>

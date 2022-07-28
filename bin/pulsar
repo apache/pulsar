@@ -291,6 +291,8 @@ if [[ -z "$IS_JAVA_8" ]]; then
   # netty.DnsResolverUtil
   # JvmDefaultGCMetricsLogger
   OPTS="$OPTS --add-opens java.base/sun.net=ALL-UNNAMED --add-opens java.management/sun.management=ALL-UNNAMED"
+  # LinuxInfoUtils
+  OPTS="$OPTS --add-opens java.base/jdk.internal.platform=ALL-UNNAMED"
 fi
 
 OPTS="-cp $PULSAR_CLASSPATH $OPTS"
