@@ -65,7 +65,7 @@ public class AutoCloseUselessClientConMultiPartTest extends AutoCloseUselessClie
         connectionToEveryBrokerWithUnloadBundle(pulsarClient);
         try {
             // Ensure that the consumer has reconnected finish after unload-bundle
-            Awaitility.waitAtMost(Duration.ofSeconds(30)).until(consumer::isConnected);
+            Awaitility.waitAtMost(Duration.ofSeconds(5)).until(consumer::isConnected);
         } catch (Exception e){
             // When consumer reconnect failure, create a new one.
             consumer.close();
@@ -77,7 +77,7 @@ public class AutoCloseUselessClientConMultiPartTest extends AutoCloseUselessClie
         }
         try {
             // Ensure that the producer has reconnected finish after unload-bundle
-            Awaitility.waitAtMost(Duration.ofSeconds(30)).until(producer::isConnected);
+            Awaitility.waitAtMost(Duration.ofSeconds(5)).until(producer::isConnected);
         } catch (Exception e){
             // When producer reconnect failure, create a new one.
             producer.close();
@@ -87,7 +87,7 @@ public class AutoCloseUselessClientConMultiPartTest extends AutoCloseUselessClie
         }
         // Assert "auto release works"
         trigReleaseConnection(pulsarClient);
-        Awaitility.waitAtMost(Duration.ofSeconds(30)).until(()-> {
+        Awaitility.waitAtMost(Duration.ofSeconds(5)).until(()-> {
             // wait for async task done, then assert auto release success
             return pulsarClient.getCnxPool().getPoolSize() <= 2;
         });

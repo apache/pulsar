@@ -58,7 +58,7 @@ import org.slf4j.LoggerFactory;
 
 public class ConnectionPool implements AutoCloseable {
 
-    private static final int IDLE_DETECTION_INTERVAL_SECONDS_MIN = 60;
+    public static final int IDLE_DETECTION_INTERVAL_SECONDS_MIN = 60;
 
     protected final ConcurrentHashMap<InetSocketAddress, ConcurrentMap<Integer, CompletableFuture<ClientCnx>>> pool;
 

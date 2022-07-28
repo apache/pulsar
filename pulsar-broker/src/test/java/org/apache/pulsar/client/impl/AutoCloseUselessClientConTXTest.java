@@ -147,7 +147,7 @@ public class AutoCloseUselessClientConTXTest extends AutoCloseUselessClientConSu
         Assert.assertTrue(pulsarClient.getCnxPool().getPoolSize() >= 5);
         // Assert "auto release works"
         trigReleaseConnection(pulsarClient);
-        Awaitility.waitAtMost(Duration.ofSeconds(30)).until(()-> {
+        Awaitility.waitAtMost(Duration.ofSeconds(5)).until(()-> {
             // Wait for async task done, then assert auto release success
             return pulsarClient.getCnxPool().getPoolSize() <= 3;
         });

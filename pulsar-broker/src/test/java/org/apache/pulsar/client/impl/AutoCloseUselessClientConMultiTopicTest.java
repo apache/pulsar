@@ -74,7 +74,7 @@ public class AutoCloseUselessClientConMultiTopicTest extends AutoCloseUselessCli
         // Ensure that the client has reconnected finish after unload-bundle
         try {
             // Ensure that the consumer has reconnected finish after unload-bundle
-            Awaitility.waitAtMost(Duration.ofSeconds(30)).until(consumer::isConnected);
+            Awaitility.waitAtMost(Duration.ofSeconds(5)).until(consumer::isConnected);
         } catch (Exception e){
             // When consumer reconnect failure, create a new one.
             consumer.close();
@@ -86,7 +86,7 @@ public class AutoCloseUselessClientConMultiTopicTest extends AutoCloseUselessCli
         }
         try {
             // Ensure that the producer has reconnected finish after unload-bundle
-            Awaitility.waitAtMost(Duration.ofSeconds(30)).until(producer_1::isConnected);
+            Awaitility.waitAtMost(Duration.ofSeconds(5)).until(producer_1::isConnected);
         } catch (Exception e){
             // When producer reconnect failure, create a new one.
             producer_1.close();
@@ -96,7 +96,7 @@ public class AutoCloseUselessClientConMultiTopicTest extends AutoCloseUselessCli
         }
         try {
             // Ensure that the producer has reconnected finish after unload-bundle
-            Awaitility.waitAtMost(Duration.ofSeconds(30)).until(producer_2::isConnected);
+            Awaitility.waitAtMost(Duration.ofSeconds(5)).until(producer_2::isConnected);
         } catch (Exception e){
             // When producer reconnect failure, create a new one.
             producer_2.close();

@@ -79,7 +79,7 @@ public class AutoCloseUselessClientConSupports extends MultiBrokerBaseTest {
                         CompletableFuture<ClientCnx>>>) field.get(pulsarClient.getCnxPool());
         final List<CompletableFuture<ClientCnx>> clientCnxWrapList =
                 pool.values().stream().flatMap(c -> c.values().stream()).collect(Collectors.toList());
-        Awaitility.waitAtMost(Duration.ofSeconds(15)).until(() -> {
+        Awaitility.waitAtMost(Duration.ofSeconds(5)).until(() -> {
             for (CompletableFuture<ClientCnx> clientCnxWrapFuture : clientCnxWrapList){
                 if (!clientCnxWrapFuture.isDone()){
                     continue;

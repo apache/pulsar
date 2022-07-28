@@ -104,6 +104,10 @@ public class ClientBuilderImpl implements ClientBuilder {
 
     @Override
     public ClientBuilder connectionMaxIdleSeconds(int connectionMaxIdleSeconds) {
+        checkArgument(connectionMaxIdleSeconds < 0
+                        || connectionMaxIdleSeconds >= ConnectionPool.IDLE_DETECTION_INTERVAL_SECONDS_MIN,
+                "Connection idle detect interval seconds at least "
+                        + ConnectionPool.IDLE_DETECTION_INTERVAL_SECONDS_MIN + ".");
         conf.setConnectionMaxIdleSeconds(connectionMaxIdleSeconds);
         return this;
     }
