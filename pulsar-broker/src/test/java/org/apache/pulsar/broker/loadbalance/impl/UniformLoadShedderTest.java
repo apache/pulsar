@@ -24,6 +24,7 @@ import org.apache.pulsar.broker.loadbalance.LoadData;
 import org.apache.pulsar.policies.data.loadbalancer.*;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 
 @Test(groups = "broker")
@@ -39,6 +40,45 @@ public class UniformLoadShedderTest {
     @BeforeMethod
     public void setup() {
         uniformLoadShedder = new UniformLoadShedder();
+    }
+
+    @Test
+    public void testMaxUnloadBundleNumPerShedding(){
+        conf.setMaxUnloadBundleNumPerShedding(2);
+        int numBundles = 20;
+        LoadData loadData = new LoadData();
+
+        LocalBrokerData broker1 = new LocalBrokerData();
+        LocalBrokerData broker2 = new LocalBrokerData();
+
+        String broker2Name = "broker2";
+
+        double brokerThroughput = 0;
+
+        for (int i = 1; i <= numBundles; ++i) {
+            broker1.getBundles().add("bundle-" + i);
+
+            BundleData bundle = new BundleData();
+
+            TimeAverageMessageData timeAverageMessageData = new TimeAverageMessageData();
+
+            double throughput = 1 * 1024 * 1024;
+            timeAverageMessageData.setMsgThroughputIn(throughput);
+            timeAverageMessageData.setMsgThroughputOut(throughput);
+            bundle.setShortTermData(timeAverageMessageData);
+            loadData.getBundleData().put("bundle-" + i, bundle);
+
+            brokerThroughput += throughput;
+        }
+
+        broker1.setMsgThroughputIn(brokerThroughput);
+        broker1.setMsgThroughputOut(brokerThroughput);
+
+        loadData.getBrokerData().put("broker-1", new BrokerData(broker1));
+        loadData.getBrokerData().put(broker2Name, new BrokerData(broker2));
+
+        Multimap<String, String> bundlesToUnload = uniformLoadShedder.findBundlesForUnloading(loadData, conf);
+        assertEquals(bundlesToUnload.size(),2);
     }
 
     @Test

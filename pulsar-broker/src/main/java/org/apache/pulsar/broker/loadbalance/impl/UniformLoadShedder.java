@@ -146,7 +146,7 @@ public class UniformLoadShedder implements LoadSheddingStrategy {
                         }).filter(e -> !recentlyUnloadedBundles.containsKey(e.getLeft()))
                         .sorted((e1, e2) -> Double.compare(e2.getRight(), e1.getRight())).forEach((e) -> {
                             if (conf.getMaxUnloadBundleNumPerShedding() != -1
-                                    && unloadBundleCount.getValue() > conf.getMaxUnloadBundleNumPerShedding()) {
+                                    && unloadBundleCount.getValue() >= conf.getMaxUnloadBundleNumPerShedding()) {
                                 return;
                             }
                             String bundle = e.getLeft();
