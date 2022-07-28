@@ -23,6 +23,8 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import io.prometheus.client.CollectorRegistry;
+import io.prometheus.client.Counter;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -62,6 +64,13 @@ import org.testng.annotations.Test;
 
 @Slf4j
 public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
+
+    /** Default metrics definitions. **/
+    private String[] metricsLabelNames = new String[]{"coordinatorId"};
+    private String[] metricsLabelValues = new String[]{"1"};
+    private String metricsComponent = TxnLogBufferedWriterMetricsDefinition.COMPONENT_TRANSACTION_COORDINATOR;
+    private TxnLogBufferedWriterMetricsDefinition metricsDefinition =
+            new TxnLogBufferedWriterMetricsDefinition(true, metricsComponent, metricsLabelNames, metricsLabelValues);
 
     /**
      * Overridden cases:
@@ -613,9 +622,343 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         }
     }
 
+    private static class RandomLenSumStrDataSerializer extends JsonDataSerializer {
+
+        @Getter
+        private int totalSize;
+
+        /**
+         * After the test, when {@link TxnLogBufferedWriterConfig#getBatchedWriteMaxRecords()} = 256
+         *   and {@link TxnLogBufferedWriterConfig#getBatchedWriteMaxSize()} = 1024,
+         *   and {@link TxnLogBufferedWriterConfig#getBatchedWriteMaxDelayInMillis()} = 1, the random-size baseline
+         *   was set as 9, and there was maximum probability that all three thresholds could be hit.
+         */
+        @Override
+        public int getSerializedSize(Integer data) {
+            int size = new Random().nextInt(9);
+            totalSize += size;
+            return size;
+        }
+    }
+
     public enum BookieErrorType{
         NO_ERROR,
         ALWAYS_ERROR,
         SOMETIMES_ERROR;
+    }
+
+    /**
+     * 1. Verify Transaction buffered writer stats correct when enabled batch feature, exclusive
+     *    {@link TxnLogBufferedWriterMetricsStats#pulsarBatchedLogTriggeringCountByForce}, this property
+     *    verified by {@link #testMetricsStatsWhenForceFlush()}.
+     * 2. Verify metrics will be release after {@link TxnLogBufferedWriterMetricsStats#clone()}.
+     */
+    @Test
+    public void testMetricsStatsWhenEnabled() throws Exception {
+        // Mock managed ledger to get the count of refresh event.
+        AtomicInteger refreshCount = new AtomicInteger();
+        String managedLedgerName = "-";
+        ManagedLedger managedLedger = Mockito.mock(ManagedLedger.class);
+        Mockito.when(managedLedger.getName()).thenReturn(managedLedgerName);
+        Mockito.doAnswer(new Answer() {
+            @Override
+            public Object answer(InvocationOnMock invocation) throws Throwable {
+                refreshCount.incrementAndGet();
+                AsyncCallbacks.AddEntryCallback callback =
+                        (AsyncCallbacks.AddEntryCallback) invocation.getArguments()[1];
+                callback.addComplete(PositionImpl.get(1,1), (ByteBuf)invocation.getArguments()[0],
+                        invocation.getArguments()[2]);
+                return null;
+            }
+        }).when(managedLedger).asyncAddEntry(Mockito.any(ByteBuf.class), Mockito.any(), Mockito.any());
+        // Mock addDataCallbackCount to get the count of add data finish count;
+        AtomicInteger addDataCallbackFinishCount = new AtomicInteger();
+        AtomicInteger addDataCallbackFailureCount = new AtomicInteger();
+        TxnLogBufferedWriter.AddDataCallback addDataCallback = new TxnLogBufferedWriter.AddDataCallback(){
+            @Override
+            public void addComplete(Position position, Object context) {
+                addDataCallbackFinishCount.incrementAndGet();
+            }
+            @Override
+            public void addFailed(ManagedLedgerException exception, Object ctx) {
+                addDataCallbackFailureCount.incrementAndGet();
+            }
+        };
+        // Create TxnLogBufferedWriter.
+        OrderedExecutor orderedExecutor =  OrderedExecutor.newBuilder()
+                .numThreads(5).name("tx-threads").build();
+        HashedWheelTimer transactionTimer = new HashedWheelTimer(new DefaultThreadFactory("transaction-timer"),
+                1, TimeUnit.MILLISECONDS);
+        RandomLenSumStrDataSerializer dataSerializer = new RandomLenSumStrDataSerializer();
+        TxnLogBufferedWriter<Integer> txnLogBufferedWriter = new TxnLogBufferedWriter<Integer>(
+                managedLedger, orderedExecutor, transactionTimer,
+                dataSerializer, 256, 1024,
+                1, true, metricsDefinition);
+        // Add some data.
+        int writeCount = 3000;
+        for (int i = 0; i < writeCount; i++){
+            txnLogBufferedWriter.asyncAddData(1, addDataCallback, "");
+        }
+        // Wait for all data write finish.
+        Awaitility.await().atMost(1, TimeUnit.SECONDS).until(
+                () -> addDataCallbackFinishCount.get() + addDataCallbackFailureCount.get() == writeCount
+        );
+        Assert.assertEquals(addDataCallbackFailureCount.get(), 0);
+        /** Assert metrics stats correct. **/
+        Assert.assertEquals(getCounterValue(String.format("%s_batched_log_triggering_count_by_force", metricsComponent)), 0D);
+        Assert.assertEquals(
+                getCounterValue(String.format("%s_batched_log_triggering_count_by_records", metricsComponent))
+                + getCounterValue(String.format("%s_batched_log_triggering_count_by_size", metricsComponent))
+                + getCounterValue(String.format("%s_batched_log_triggering_count_by_delay_time", metricsComponent)),
+                (double)refreshCount.get());
+        Assert.assertEquals(
+                getHistogramCount(String.format("%s_batched_log_records_count_per_entry", metricsComponent)),
+                refreshCount.get());
+        Assert.assertEquals(
+                getHistogramSum(String.format("%s_batched_log_records_count_per_entry", metricsComponent)),
+                writeCount);
+        Assert.assertEquals(
+                getHistogramCount(String.format("%s_batched_log_entry_size_bytes", metricsComponent)),
+                refreshCount.get());
+        Assert.assertEquals(
+                getHistogramSum(String.format("%s_batched_log_entry_size_bytes", metricsComponent)),
+                dataSerializer.getTotalSize());
+        Assert.assertEquals(
+                getHistogramCount(String.format("%s_batched_log_oldest_record_delay_time_seconds", metricsComponent)),
+                refreshCount.get());
+        Assert.assertTrue(
+                getHistogramCount(String.format("%s_batched_log_oldest_record_delay_time_seconds", metricsComponent)) <=
+                        refreshCount.get());
+        /**
+         * Assert all metrics will be released after {@link TxnLogBufferedWriter#close()}
+         *   1. Register another {@link TxnLogBufferedWriter}
+         *   2. Close first {@link TxnLogBufferedWriter}, verify the labels of metrics will be released after
+         *      {@link TxnLogBufferedWriter#close()}
+         *   3. Close second {@link TxnLogBufferedWriter},verify all metrics will be released after all
+         *      {@link TxnLogBufferedWriter#close()}
+         */
+        TxnLogBufferedWriterMetricsDefinition anotherMetricsDefinition = new TxnLogBufferedWriterMetricsDefinition(
+                true, metricsComponent, metricsLabelNames, new String[]{"2"});
+        TxnLogBufferedWriter<Integer> anotherTxnLogBufferedWriter = new TxnLogBufferedWriter<Integer>(
+                managedLedger, orderedExecutor, transactionTimer,
+                dataSerializer, 256, 1024,
+                1, true, metricsDefinition);
+        anotherTxnLogBufferedWriter.asyncAddData(1, addDataCallback, "");
+        Awaitility.await().atMost(1, TimeUnit.SECONDS).until(
+                () -> addDataCallbackFinishCount.get() + addDataCallbackFailureCount.get() == writeCount + 1
+        );
+        // Close first-writer, verify the labels will be released after writer-close.
+        txnLogBufferedWriter.close();
+        Awaitility.await().atMost(2, TimeUnit.SECONDS).until(
+                () -> getHistogramCount(
+                        String.format("%s_batched_log_oldest_record_delay_time_seconds", metricsComponent)) == 0
+        );
+        Assert.assertEquals(
+                getCounterValue(String.format("%s_batched_log_triggering_count_by_records", metricsComponent)),
+                0D
+        );
+        Assert.assertEquals(
+                getCounterValue(String.format("%s_batched_log_triggering_count_by_size", metricsComponent)),
+                0D
+        );
+        Assert.assertEquals(
+                getCounterValue(String.format("%s_batched_log_triggering_count_by_delay_time", metricsComponent)),
+                0D
+        );
+        Assert.assertEquals(
+                getHistogramCount(String.format("%s_batched_log_records_count_per_entry", metricsComponent)),
+                0D
+        );
+        Assert.assertEquals(
+                getHistogramCount(String.format("%s_batched_log_entry_size_bytes", metricsComponent)),
+                0D
+        );
+        Assert.assertEquals(
+                getHistogramCount(String.format("%s_batched_log_oldest_record_delay_time_seconds", metricsComponent)),
+                0D
+        );
+        Assert.assertTrue(
+                getHistogramCount(String.format("%s_batched_log_oldest_record_delay_time_seconds", metricsComponent)) <=
+                        0D
+        );
+        // Close second-writer, verify all metrics will be released after all writer-close.
+        anotherTxnLogBufferedWriter.close();
+        Awaitility.await().atMost(2, TimeUnit.SECONDS).until(
+                () -> {
+                    IllegalArgumentException ex = null;
+                    Counter counter = null;
+                    try {
+                        counter = new Counter.Builder()
+                                .name(String.format("%s_batched_log_triggering_count_by_records", metricsComponent))
+                                .labelNames(metricsDefinition.labelNames)
+                                .help("-")
+                                .register(CollectorRegistry.defaultRegistry);
+                    } catch (IllegalArgumentException illegalArgumentException){
+                        ex = illegalArgumentException;
+                    }
+                    boolean registerSuccess = ex == null;
+                    // cleanup.
+                    if (registerSuccess){
+                        CollectorRegistry.defaultRegistry.unregister(counter);
+                    }
+                    return registerSuccess;
+                }
+        );
+        // cleanup.
+        transactionTimer.stop();
+        managedLedger.close();
+        orderedExecutor.shutdown();
+    }
+
+    private double getCounterValue(String name) {
+        Double d = CollectorRegistry.defaultRegistry.getSampleValue(
+                name + "_total",
+                metricsLabelNames,
+                metricsLabelValues);
+        return d == null ? 0: d.doubleValue();
+    }
+
+    private double getHistogramCount(String name) {
+        Double d = CollectorRegistry.defaultRegistry.getSampleValue(
+                name + "_count",
+                metricsLabelNames,
+                metricsLabelValues);
+        return d == null ? 0: d.doubleValue();
+    }
+
+    private double getHistogramSum(String name) {
+        Double d = CollectorRegistry.defaultRegistry.getSampleValue(
+                name + "_sum",
+                metricsLabelNames,
+                metricsLabelValues);
+        return d == null ? 0: d.doubleValue();
+    }
+
+    /**
+     * Test Transaction buffered writer stats when disabled batch feature.
+     */
+    @Test
+    public void testMetricsStatsWhenDisabled() throws Exception {
+        ManagedLedger managedLedger = factory.open("tx_test_ledger");
+        // Mock addDataCallbackCount to get the count of add data finish count;
+        AtomicInteger addDataCallbackFinishCount = new AtomicInteger();
+        AtomicInteger addDataCallbackFailureCount = new AtomicInteger();
+        TxnLogBufferedWriter.AddDataCallback addDataCallback = new TxnLogBufferedWriter.AddDataCallback(){
+            @Override
+            public void addComplete(Position position, Object context) {
+                addDataCallbackFinishCount.incrementAndGet();
+            }
+            @Override
+            public void addFailed(ManagedLedgerException exception, Object ctx) {
+                addDataCallbackFailureCount.incrementAndGet();
+            }
+        };
+        // Create TxnLogBufferedWriter.
+        OrderedExecutor orderedExecutor =  OrderedExecutor.newBuilder()
+                .numThreads(5).name("txn-threads").build();
+        HashedWheelTimer transactionTimer = new HashedWheelTimer(new DefaultThreadFactory("transaction-timer"),
+                1, TimeUnit.MILLISECONDS);
+        RandomLenSumStrDataSerializer dataSerializer = new RandomLenSumStrDataSerializer();
+        TxnLogBufferedWriter<Integer> txnLogBufferedWriter = new TxnLogBufferedWriter<Integer>(
+                managedLedger, orderedExecutor, transactionTimer,
+                dataSerializer, 256, 1024,
+                1, false, metricsDefinition);
+        // Add some data.
+        int writeCount = 1000;
+        for (int i = 0; i < writeCount; i++){
+            txnLogBufferedWriter.asyncAddData(1, addDataCallback, "");
+        }
+        // Wait for all data write finish.
+        Awaitility.await().atMost(2, TimeUnit.SECONDS).until(
+                () -> addDataCallbackFinishCount.get() + addDataCallbackFailureCount.get() == writeCount
+        );
+        Assert.assertEquals(addDataCallbackFailureCount.get(), 0);
+        // Assert metrics stat.
+        Assert.assertEquals(getCounterValue(String.format("%s_batched_log_triggering_count_by_force", metricsComponent)), 0D);
+        Assert.assertEquals(
+                getCounterValue(String.format("%s_batched_log_triggering_count_by_records", metricsComponent))
+                    + getCounterValue(String.format("%s_batched_log_triggering_count_by_size", metricsComponent))
+                    + getCounterValue(String.format("%s_batched_log_triggering_count_by_delay_time", metricsComponent)),
+                0D);
+        Assert.assertEquals(
+                getHistogramCount(String.format("%s_batched_log_records_count_per_entry", metricsComponent)),
+                0D);
+        Assert.assertEquals(
+                getHistogramCount(String.format("%s_batched_log_entry_size_bytes", metricsComponent)),
+                0D);
+        Assert.assertEquals(
+                getHistogramCount(String.format("%s_batched_log_oldest_record_delay_time_seconds", metricsComponent)),
+                0D);
+        // cleanup.
+        txnLogBufferedWriter.close();
+        transactionTimer.stop();
+        orderedExecutor.shutdown();
+    }
+
+    /**
+     * Test the result property {@link TxnLogBufferedWriterMetricsStats#pulsarBatchedLogTriggeringCountByForce} of
+     * {@link TxnLogBufferedWriter#getMetricsStats()}.
+     */
+    @Test
+    public void testMetricsStatsWhenForceFlush() throws Exception {
+        // Mock managed ledger to get the count of refresh event.
+        AtomicInteger refreshCount = new AtomicInteger();
+        String managedLedgerName = "-";
+        ManagedLedger managedLedger = Mockito.mock(ManagedLedger.class);
+        Mockito.when(managedLedger.getName()).thenReturn(managedLedgerName);
+        Mockito.doAnswer(new Answer() {
+            @Override
+            public Object answer(InvocationOnMock invocation) throws Throwable {
+                refreshCount.incrementAndGet();
+                AsyncCallbacks.AddEntryCallback callback =
+                        (AsyncCallbacks.AddEntryCallback) invocation.getArguments()[1];
+                callback.addComplete(PositionImpl.get(1,1), (ByteBuf)invocation.getArguments()[0],
+                        invocation.getArguments()[2]);
+                return null;
+            }
+        }).when(managedLedger).asyncAddEntry(Mockito.any(ByteBuf.class), Mockito.any(), Mockito.any());
+        // Mock addDataCallbackCount to get the count of add data finish count;
+        AtomicInteger addDataCallbackFinishCount = new AtomicInteger();
+        AtomicInteger addDataCallbackFailureCount = new AtomicInteger();
+        TxnLogBufferedWriter.AddDataCallback addDataCallback = new TxnLogBufferedWriter.AddDataCallback(){
+            @Override
+            public void addComplete(Position position, Object context) {
+                addDataCallbackFinishCount.incrementAndGet();
+            }
+            @Override
+            public void addFailed(ManagedLedgerException exception, Object ctx) {
+                addDataCallbackFailureCount.incrementAndGet();
+            }
+        };
+        // Create TxnLogBufferedWriter.
+        OrderedExecutor orderedExecutor =  OrderedExecutor.newBuilder()
+                .numThreads(5).name("txn-threads").build();
+        HashedWheelTimer transactionTimer = new HashedWheelTimer(new DefaultThreadFactory("transaction-timer"),
+                1, TimeUnit.MILLISECONDS);
+        RandomLenSumStrDataSerializer dataSerializer = new RandomLenSumStrDataSerializer();
+        TxnLogBufferedWriter<Integer> txnLogBufferedWriter = new TxnLogBufferedWriter<Integer>(
+                managedLedger, orderedExecutor, transactionTimer,
+                dataSerializer, 256, 1024,
+                3600 * 1000, true, metricsDefinition);
+        // Add some data.
+        int writeCount = 1000;
+        for (int i = 0; i < writeCount; i++){
+            txnLogBufferedWriter.asyncAddData(1, addDataCallback, "");
+            txnLogBufferedWriter.trigFlush(true, false);
+        }
+        // Wait for all data write finish.
+        Awaitility.await().atMost(2, TimeUnit.SECONDS).until(
+                () -> addDataCallbackFinishCount.get() + addDataCallbackFailureCount.get() == writeCount
+        );
+        Assert.assertEquals(addDataCallbackFailureCount.get(), 0);
+        // Assert metrics stat.
+        Assert.assertEquals(
+                getCounterValue(String.format("%s_batched_log_triggering_count_by_force", metricsComponent)),
+                refreshCount.get()
+        );
+        // cleanup.
+        txnLogBufferedWriter.close();
+        transactionTimer.stop();
+        orderedExecutor.shutdown();
     }
 }

@@ -89,15 +89,15 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
     /**
      * Caches “write requests” for a certain for a certain number, if reach this threshold, will trig Bookie writes.
      */
-    private final int batchedWriteMaxRecords;
+    final int batchedWriteMaxRecords;
 
     /**
      * Caches “write requests” for a certain size of request data, if reach this threshold, will trig Bookie writes.
      */
-    private final int batchedWriteMaxSize;
+    final int batchedWriteMaxSize;
 
     /** Maximum delay for writing to bookie for the earliest request in the batch. **/
-    private final int batchedWriteMaxDelayInMillis;
+    final int batchedWriteMaxDelayInMillis;
 
     /** Data cached in the current batch. Will reset to null after each batched writes. **/
     private final ArrayList<T> dataArray;
@@ -116,6 +116,17 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
             AtomicReferenceFieldUpdater
                     .newUpdater(TxnLogBufferedWriter.class, TxnLogBufferedWriter.State.class, "state");
 
+    /** Metrics. **/
+    private final TxnLogBufferedWriterMetricsDefinition metricsDefinition;
+    private final TxnLogBufferedWriterMetricsStats metricsStats;
+
+    public TxnLogBufferedWriter(ManagedLedger managedLedger, OrderedExecutor orderedExecutor, Timer timer,
+                                DataSerializer<T> dataSerializer,
+                                int batchedWriteMaxRecords, int batchedWriteMaxSize, int batchedWriteMaxDelayInMillis,
+                                boolean batchEnabled){
+        this(managedLedger, orderedExecutor, timer, dataSerializer, batchedWriteMaxRecords, batchedWriteMaxSize,
+                batchedWriteMaxDelayInMillis, batchEnabled, TxnLogBufferedWriterMetricsDefinition.DISABLED);
+    }
 
     /**
      * Constructor.
@@ -132,7 +143,7 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
     public TxnLogBufferedWriter(ManagedLedger managedLedger, OrderedExecutor orderedExecutor, Timer timer,
                                 DataSerializer<T> dataSerializer,
                                 int batchedWriteMaxRecords, int batchedWriteMaxSize, int batchedWriteMaxDelayInMillis,
-                                boolean batchEnabled){
+                                boolean batchEnabled, TxnLogBufferedWriterMetricsDefinition metricsDefinition){
         this.batchEnabled = batchEnabled;
         this.managedLedger = managedLedger;
         this.singleThreadExecutorForWrite = orderedExecutor.chooseThread(
@@ -144,8 +155,20 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
         this.flushContext = FlushContext.newInstance();
         this.dataArray = new ArrayList<>();
         this.state = State.OPEN;
-        this.timer = timer;
+        // Metrics.
+        // Why copy metricsDefinition ?
+        // Object TxnLogBufferedWriterMetricsStats bindings on object metricsDefinition, stats will be released when
+        // there are no metricsDefinition dependencies on. If there are two TxnLogBufferedWriter using the same
+        // metricsDefinition object, when close one，will be mistaken for the stats were not cited, the stats will be
+        // released in error.
+        this.metricsDefinition = metricsDefinition.copy();
+        if (this.metricsDefinition.isEnabled()) {
+            this.metricsStats = TxnLogBufferedWriterMetricsStats.getInstance(metricsDefinition);
+        } else {
+            this.metricsStats = null;
+        }
         // scheduler task.
+        this.timer = timer;
         if (this.batchEnabled) {
             nextTimingTrigger();
         }
@@ -212,6 +235,12 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
                 doTrigFlush(true, false);
             }
             ByteBuf byteBuf = dataSerializer.serialize(data);
+            /**
+             * Why not add a {@link TxnLogBufferedWriterMetricsStats} property indicate that a single record is too big
+             * so directly write to Bookie?
+             * Because property {@link TxnLogBufferedWriterMetricsStats#pulsarBatchedLogTriggeringCountByForce} can
+             * represent it.
+             */
             managedLedger.asyncAddEntry(byteBuf, DisabledBatchCallback.INSTANCE,
                     AsyncAddArgs.newInstance(callback, ctx, System.currentTimeMillis(), byteBuf));
             return;
@@ -272,23 +301,48 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
                 return;
             }
             if (force) {
+                if (this.metricsDefinition.isEnabled()) {
+                    metricsStats.pulsarBatchedLogTriggeringCountByForce.labels(metricsDefinition.labelValues)
+                            .inc();
+                    appendMetricsHistogram();
+                }
                 doFlush();
                 return;
             }
             if (byScheduleThreads) {
+                if (this.metricsDefinition.isEnabled()) {
+                    metricsStats.pulsarBatchedLogTriggeringCountByDelayTime.labels(metricsDefinition.labelValues)
+                            .inc();
+                    appendMetricsHistogram();
+                }
                 doFlush();
                 return;
             }
             AsyncAddArgs firstAsyncAddArgs = flushContext.asyncAddArgsList.get(0);
             if (System.currentTimeMillis() - firstAsyncAddArgs.addedTime >= batchedWriteMaxDelayInMillis) {
+                if (this.metricsDefinition.isEnabled()) {
+                    metricsStats.pulsarBatchedLogTriggeringCountByDelayTime.labels(metricsDefinition.labelValues)
+                            .inc();
+                    appendMetricsHistogram();
+                }
                 doFlush();
                 return;
             }
             if (this.flushContext.asyncAddArgsList.size() >= batchedWriteMaxRecords) {
+                if (this.metricsDefinition.isEnabled()) {
+                    metricsStats.pulsarBatchedLogTriggeringCountByRecords.labels(metricsDefinition.labelValues)
+                            .inc();
+                    appendMetricsHistogram();
+                }
                 doFlush();
                 return;
             }
             if (this.bytesSize >= batchedWriteMaxSize) {
+                if (this.metricsDefinition.isEnabled()) {
+                    metricsStats.pulsarBatchedLogTriggeringCountBySize.labels(metricsDefinition.labelValues)
+                            .inc();
+                    appendMetricsHistogram();
+                }
                 doFlush();
             }
         } finally {
@@ -317,6 +371,18 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
         this.dataArray.clear();
         this.flushContext = FlushContext.newInstance();
         this.bytesSize = 0;
+    }
+
+    /**
+     * Append the metrics which is type of histogram.
+     */
+    private void appendMetricsHistogram(){
+        metricsStats.pulsarBatchedLogRecordsCountPerEntry.labels(metricsDefinition.labelValues)
+                .observe(this.flushContext.asyncAddArgsList.size());
+        metricsStats.pulsarBatchedLogEntrySizeBytes.labels(metricsDefinition.labelValues)
+                .observe(this.bytesSize);
+        metricsStats.pulsarBatchedLogOldestRecordDelayTimeSeconds.labels(metricsDefinition.labelValues)
+                .observe(System.currentTimeMillis() - flushContext.asyncAddArgsList.get(0).addedTime);
     }
 
     /**
@@ -391,6 +457,9 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
                     log.error("Cancel timeout-task that schedule at fixed rate trig flush failure. The state will"
                             + " stay at CLOSING. managedLedger: " + managedLedger.getName());
                 }
+            }
+            if (state == State.CLOSING || state == State.CLOSED){
+                TxnLogBufferedWriterMetricsStats.releaseReference(metricsDefinition);
             }
         });
     }
@@ -589,5 +658,9 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
                 asyncAddArgs.recycle();
             }
         }
+    }
+
+    public TxnLogBufferedWriterMetricsStats getMetricsStats(){
+        return metricsStats;
     }
 }
