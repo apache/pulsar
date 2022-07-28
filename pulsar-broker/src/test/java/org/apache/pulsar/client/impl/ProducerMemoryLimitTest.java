@@ -23,6 +23,8 @@ import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SizeUnit;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -45,6 +47,31 @@ public class ProducerMemoryLimitTest extends ProducerConsumerBase {
     @AfterMethod(alwaysRun = true)
     protected void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @Test(timeOut = 10_000)
+    public void testProducerInvalidMessageMemoryRelease() throws Exception {
+        initClientWithMemoryLimit();
+        @Cleanup
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
+                .topic("testProducerMemoryLimit")
+                .sendTimeout(5, TimeUnit.SECONDS)
+                .batchingMaxPublishDelay(100, TimeUnit.MILLISECONDS)
+                .batchingMaxBytes(10240)
+                .enableBatching(true)
+                .create();
+        this.stopBroker();
+        try {
+            try (MockedStatic<ClientCnx> mockedStatic = Mockito.mockStatic(ClientCnx.class)) {
+                mockedStatic.when(ClientCnx::getMaxMessageSize).thenReturn(8);
+                producer.send("memory-test".getBytes(StandardCharsets.UTF_8));
+            }
+            throw new IllegalStateException("can not reach here");
+        } catch (PulsarClientException.InvalidMessageException ex) {
+            PulsarClientImpl clientImpl = (PulsarClientImpl) this.pulsarClient;
+            final MemoryLimitController memoryLimitController = clientImpl.getMemoryLimitController();
+            Assert.assertEquals(memoryLimitController.currentUsage(), 0);
+        }
     }
 
     @Test(timeOut = 10_000)

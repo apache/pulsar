@@ -199,6 +199,8 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
     public OpSendMsg createOpSendMsg() throws IOException {
         ByteBuf encryptedPayload = producer.encryptMessage(messageMetadata, getCompressedBatchMetadataAndPayload());
         if (encryptedPayload.readableBytes() > ClientCnx.getMaxMessageSize()) {
+            messages.forEach(msg -> producer.client.getMemoryLimitController()
+                    .releaseMemory(msg.getUncompressedSize()));
             discard(new PulsarClientException.InvalidMessageException(
                     "Message size is bigger than " + ClientCnx.getMaxMessageSize() + " bytes"));
             return null;
