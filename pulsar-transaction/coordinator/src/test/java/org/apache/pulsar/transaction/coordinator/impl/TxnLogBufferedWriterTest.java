@@ -726,9 +726,6 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         Assert.assertEquals(
                 getHistogramCount(String.format("%s_batched_log_oldest_record_delay_time_seconds", metricsComponent)),
                 refreshCount.get());
-        Assert.assertTrue(
-                getHistogramCount(String.format("%s_batched_log_oldest_record_delay_time_seconds", metricsComponent)) <=
-                        refreshCount.get());
         /**
          * Assert all metrics will be released after {@link TxnLogBufferedWriter#close()}
          *   1. Register another {@link TxnLogBufferedWriter}
