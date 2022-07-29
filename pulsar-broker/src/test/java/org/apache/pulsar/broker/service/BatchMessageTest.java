@@ -880,7 +880,7 @@ public class BatchMessageTest extends BrokerTestBase {
         String msg = "my-message";
         MessageId messageId = producer.send(msg.getBytes());
 
-        Assert.assertFalse(messageId instanceof BatchMessageIdImpl);
+        Assert.assertTrue(messageId instanceof BatchMessageIdImpl);
 
         Message<byte[]> received = consumer.receive();
         assertEquals(received.getSequenceId(), 0);
