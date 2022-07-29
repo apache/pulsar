@@ -40,6 +40,7 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class SharedConsumerAssignorTest {
 
     private final ConsumerSelector roundRobinConsumerSelector = new ConsumerSelector();
