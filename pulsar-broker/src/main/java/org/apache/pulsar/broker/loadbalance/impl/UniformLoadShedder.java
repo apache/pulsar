@@ -140,6 +140,10 @@ public class UniformLoadShedder implements LoadSheddingStrategy {
                             return Triple.of(bundle, bundleData, throughput);
                         }).filter(e -> !recentlyUnloadedBundles.containsKey(e.getLeft()))
                         .sorted((e1, e2) -> Double.compare(e2.getRight(), e1.getRight())).forEach((e) -> {
+                            if (conf.getMaxUnloadBundleNumPerShedding() != -1
+                                    && selectedBundlesCache.size() >= conf.getMaxUnloadBundleNumPerShedding()) {
+                                return;
+                            }
                             String bundle = e.getLeft();
                             BundleData bundleData = e.getMiddle();
                             TimeAverageMessageData shortTermData = bundleData.getShortTermData();
