@@ -163,7 +163,7 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
         // released in error.
         this.metricsDefinition = metricsDefinition.copy();
         if (this.metricsDefinition.isEnabled()) {
-            this.metricsStats = TxnLogBufferedWriterMetricsStats.getInstance(metricsDefinition);
+            this.metricsStats = TxnLogBufferedWriterMetricsStats.getInstance(this.metricsDefinition);
         } else {
             this.metricsStats = null;
         }
