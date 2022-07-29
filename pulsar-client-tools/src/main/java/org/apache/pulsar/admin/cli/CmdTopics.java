@@ -55,6 +55,7 @@ import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.cli.NoSplitter;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
@@ -960,7 +961,7 @@ public class CmdTopics extends CmdBase {
         private boolean replicated = false;
 
         @Parameter(names = {"--property", "-p"}, description = "key value pair properties(-p a=b -p c=d)",
-                required = false)
+                required = false, splitter = NoSplitter.class)
         private java.util.List<String> properties;
 
         @Override
@@ -989,7 +990,7 @@ public class CmdTopics extends CmdBase {
         private String subscriptionName;
 
         @Parameter(names = {"--property", "-p"}, description = "key value pair properties(-p a=b -p c=d)",
-                required = false)
+                required = false, splitter = NoSplitter.class)
         private java.util.List<String> properties;
 
         @Parameter(names = {"--clear", "-c"}, description = "Remove all properties",
