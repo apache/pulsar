@@ -946,6 +946,29 @@ public abstract class PulsarWebResource {
         }
     }
 
+    public CompletableFuture<Void> validateNamespaceOperationAsync(NamespaceName namespaceName,
+                                                                   NamespaceOperation operation) {
+        if (pulsar().getConfiguration().isAuthenticationEnabled()
+                && pulsar().getBrokerService().isAuthorizationEnabled()) {
+            if (!isClientAuthenticated(clientAppId())) {
+                return FutureUtil.failedFuture(
+                        new RestException(Status.FORBIDDEN, "Need to authenticate to perform the request"));
+            }
+
+            return pulsar().getBrokerService().getAuthorizationService()
+                    .allowNamespaceOperationAsync(namespaceName, operation, originalPrincipal(),
+                            clientAppId(), clientAuthData())
+                    .thenAccept(isAuthorized -> {
+                        if (!isAuthorized) {
+                            throw new RestException(Status.FORBIDDEN,
+                                    String.format("Unauthorized to validateNamespaceOperation for"
+                                          + " operation [%s] on namespace [%s]", operation.toString(), namespaceName));
+                        }
+                    });
+        }
+        return CompletableFuture.completedFuture(null);
+    }
+
     public void validateNamespacePolicyOperation(NamespaceName namespaceName,
                                                  PolicyName policy,
                                                  PolicyOperation operation) {

@@ -84,7 +84,8 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
         statsProvider.start(configuration);
         StatsLogger statsLogger = statsProvider.getStatsLogger("pulsar_managedLedger_client");
 
-        this.defaultBkClient = bookkeeperProvider.create(conf, zkClient, eventLoopGroup, Optional.empty(), null);
+        this.defaultBkClient =
+                bookkeeperProvider.create(conf, zkClient, eventLoopGroup, Optional.empty(), null, statsLogger);
 
         BookkeeperFactoryForCustomEnsemblePlacementPolicy bkFactory = (
                 EnsemblePlacementPolicyConfig ensemblePlacementPolicyConfig) -> {
@@ -95,7 +96,7 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
                     try {
                         return bookkeeperProvider.create(conf, zkClient, eventLoopGroup,
                                 Optional.ofNullable(ensemblePlacementPolicyConfig.getPolicyClass()),
-                                ensemblePlacementPolicyConfig.getProperties());
+                                ensemblePlacementPolicyConfig.getProperties(), statsLogger);
                     } catch (Exception e) {
                         log.error("Failed to initialize bk-client for policy {}, properties {}",
                                 ensemblePlacementPolicyConfig.getPolicyClass(),

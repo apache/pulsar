@@ -300,8 +300,6 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
         Multimap<String, PrometheusMetricsTest.Metric> metricsMap = PrometheusMetricsTest.parseMetrics(metricStr);
         Collection<PrometheusMetricsTest.Metric> ackRateMetric = metricsMap.get("pulsar_consumer_msg_ack_rate");
 
-        Collection<PrometheusMetricsTest.Metric> subAckRate = metricsMap.get("pulsar_subscription_msg_ack_rate");
-
         String rateOutMetricName = exposeTopicLevelMetrics ? "pulsar_consumer_msg_rate_out" : "pulsar_rate_out";
         Collection<PrometheusMetricsTest.Metric> rateOutMetric = metricsMap.get(rateOutMetricName);
         Assert.assertTrue(ackRateMetric.size() > 0);

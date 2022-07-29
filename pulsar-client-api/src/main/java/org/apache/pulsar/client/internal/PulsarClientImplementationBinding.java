@@ -252,5 +252,6 @@ public interface PulsarClientImplementationBinding {
         return array;
     }
 
-    SchemaInfo newSchemaInfoImpl(String name, byte[] schema, SchemaType type, Map<String, String> propertiesValue);
+    SchemaInfo newSchemaInfoImpl(String name, byte[] schema, SchemaType type, long timestamp,
+                                 Map<String, String> propertiesValue);
 }

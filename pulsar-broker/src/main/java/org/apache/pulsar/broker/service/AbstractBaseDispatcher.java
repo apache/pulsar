@@ -22,14 +22,17 @@ package org.apache.pulsar.broker.service;
 import io.netty.buffer.ByteBuf;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
+import org.apache.pulsar.broker.service.persistent.CompactorSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
@@ -128,15 +131,13 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
                 if (Markers.isTxnMarker(msgMetadata)) {
                     // because consumer can receive message is smaller than maxReadPosition,
                     // so this marker is useless for this subscription
-                    subscription.acknowledgeMessage(Collections.singletonList(entry.getPosition()), AckType.Individual,
-                            Collections.emptyMap());
+                    individualAcknowledgeMessageIfNeeded(entry.getPosition(), Collections.emptyMap());
                     entries.set(i, null);
                     entry.release();
                     continue;
                 } else if (((PersistentTopic) subscription.getTopic())
                         .isTxnAborted(new TxnID(msgMetadata.getTxnidMostBits(), msgMetadata.getTxnidLeastBits()))) {
-                    subscription.acknowledgeMessage(Collections.singletonList(entry.getPosition()), AckType.Individual,
-                            Collections.emptyMap());
+                    individualAcknowledgeMessageIfNeeded(entry.getPosition(), Collections.emptyMap());
                     entries.set(i, null);
                     entry.release();
                     continue;
@@ -151,11 +152,9 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
 
                 entries.set(i, null);
                 entry.release();
-                subscription.acknowledgeMessage(Collections.singletonList(pos), AckType.Individual,
-                        Collections.emptyMap());
+                individualAcknowledgeMessageIfNeeded(pos, Collections.emptyMap());
                 continue;
-            } else if (msgMetadata.hasDeliverAtTime()
-                    && trackDelayedDelivery(entry.getLedgerId(), entry.getEntryId(), msgMetadata)) {
+            } else if (trackDelayedDelivery(entry.getLedgerId(), entry.getEntryId(), msgMetadata)) {
                 // The message is marked for delayed delivery. Ignore for now.
                 entries.set(i, null);
                 entry.release();
@@ -186,6 +185,12 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
         sendMessageInfo.setTotalMessages(totalMessages);
         sendMessageInfo.setTotalBytes(totalBytes);
         sendMessageInfo.setTotalChunkedMessages(totalChunkedMessages);
+    }
+
+    private void individualAcknowledgeMessageIfNeeded(Position position, Map<String, Long> properties) {
+        if (!(subscription instanceof CompactorSubscription)) {
+            subscription.acknowledgeMessage(Collections.singletonList(position), AckType.Individual, properties);
+        }
     }
 
     /**

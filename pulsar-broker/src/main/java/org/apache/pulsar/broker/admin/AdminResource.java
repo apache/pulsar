@@ -746,14 +746,15 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     protected void resumeAsyncResponseExceptionally(AsyncResponse asyncResponse, Throwable throwable) {
-        if (throwable instanceof WebApplicationException) {
-            asyncResponse.resume(throwable);
-        } else if (throwable instanceof BrokerServiceException.NotAllowedException) {
-            asyncResponse.resume(new RestException(Status.CONFLICT, throwable));
-        } else if (throwable instanceof PulsarAdminException) {
-            asyncResponse.resume(new RestException(((PulsarAdminException) throwable)));
+        Throwable realCause = FutureUtil.unwrapCompletionException(throwable);
+        if (realCause instanceof WebApplicationException) {
+            asyncResponse.resume(realCause);
+        } else if (realCause instanceof BrokerServiceException.NotAllowedException) {
+            asyncResponse.resume(new RestException(Status.CONFLICT, realCause));
+        } else if (realCause instanceof PulsarAdminException) {
+            asyncResponse.resume(new RestException(((PulsarAdminException) realCause)));
         } else {
-            asyncResponse.resume(new RestException(throwable));
+            asyncResponse.resume(new RestException(realCause));
         }
     }
 

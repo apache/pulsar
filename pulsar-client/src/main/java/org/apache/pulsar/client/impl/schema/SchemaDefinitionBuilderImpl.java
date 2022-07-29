@@ -43,6 +43,11 @@ public class SchemaDefinitionBuilderImpl<T> implements SchemaDefinitionBuilder<T
     private  Class<T> clazz;
 
     /**
+     * the classLoader definition class.
+     */
+    private ClassLoader classLoader;
+
+    /**
      * The flag of schema type always allow null
      *
      * If it's true, will make all of the pojo field generate schema
@@ -103,6 +108,12 @@ public class SchemaDefinitionBuilderImpl<T> implements SchemaDefinitionBuilder<T
     }
 
     @Override
+    public SchemaDefinitionBuilder<T> withClassLoader(ClassLoader classLoader) {
+        this.classLoader = classLoader;
+        return this;
+    }
+
+    @Override
     public SchemaDefinitionBuilder<T> withJsonDef(String jsonDef) {
         this.jsonDef = jsonDef;
         return this;
@@ -151,8 +162,8 @@ public class SchemaDefinitionBuilderImpl<T> implements SchemaDefinitionBuilder<T
 
         properties.put(ALWAYS_ALLOW_NULL, String.valueOf(this.alwaysAllowNull));
         properties.put(JSR310_CONVERSION_ENABLED, String.valueOf(this.jsr310ConversionEnabled));
-        return new SchemaDefinitionImpl(clazz, jsonDef, alwaysAllowNull, properties, supportSchemaVersioning,
-                jsr310ConversionEnabled, reader, writer);
+        return new SchemaDefinitionImpl(clazz, jsonDef, classLoader,
+                alwaysAllowNull, properties, supportSchemaVersioning, jsr310ConversionEnabled, reader, writer);
 
     }
 }

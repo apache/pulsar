@@ -49,6 +49,11 @@ public interface SchemaInfo {
      */
     Map<String, String> getProperties();
 
+    /**
+     * The created time of schema.
+     */
+    long getTimestamp();
+
     String getSchemaDefinition();
 
     static SchemaInfoBuilder builder() {
@@ -61,6 +66,7 @@ public interface SchemaInfo {
         private SchemaType type;
         private Map<String, String> properties;
         private boolean propertiesSet;
+        private long timestamp;
 
         SchemaInfoBuilder() {
         }
@@ -86,6 +92,11 @@ public interface SchemaInfo {
             return this;
         }
 
+        public SchemaInfoBuilder timestamp(long timestamp) {
+            this.timestamp = timestamp;
+            return this;
+        }
+
         public SchemaInfo build() {
             Map<String, String> propertiesValue = this.properties;
             if (!this.propertiesSet) {
@@ -93,7 +104,7 @@ public interface SchemaInfo {
             }
             return DefaultImplementation
                     .getDefaultImplementation()
-                    .newSchemaInfoImpl(name, schema, type, propertiesValue);
+                    .newSchemaInfoImpl(name, schema, type, timestamp, propertiesValue);
         }
     }
 }
