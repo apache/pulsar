@@ -38,6 +38,7 @@
         <presto.version>332</presto.version>
         <jersey.version>2.31</jersey.version>
         <airlift.version>0.170</airlift.version>
+        <aircompressor.version>0.20</aircompressor.version>
         <objenesis.version>2.6</objenesis.version>
         <objectsize.version>0.0.12</objectsize.version>
         <guice.version>4.2.0</guice.version>
@@ -134,6 +135,18 @@
             <groupId>io.prestosql</groupId>
             <artifactId>presto-cli</artifactId>
             <version>${presto.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.airlift</groupId>
+            <artifactId>aircompressor</artifactId>
+            <version>${aircompressor.version}</version>
+            <exclusions>
+              <exclusion>
+                <groupId>org.openjdk.jol</groupId>
+                <artifactId>jol-core</artifactId>
+              </exclusion>
+            </exclusions>
         </dependency>
 
         <dependency>
