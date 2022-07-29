@@ -1063,7 +1063,9 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     });
 
                     removeTopic(topicName);
-                    ((UnAckedTopicMessageTracker) unAckedMessageTracker).removeTopicMessages(topicName);
+                    if (unAckedMessageTracker instanceof UnAckedTopicMessageTracker) {
+                        ((UnAckedTopicMessageTracker) unAckedMessageTracker).removeTopicMessages(topicName);
+                    }
 
                     unsubscribeFuture.complete(null);
                     log.info("[{}] [{}] [{}] Unsubscribed Topics Consumer, allTopicPartitionsNumber: {}",
@@ -1111,7 +1113,9 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     });
 
                     removeTopic(topicName);
-                    ((UnAckedTopicMessageTracker) unAckedMessageTracker).removeTopicMessages(topicName);
+                    if (unAckedMessageTracker instanceof UnAckedTopicMessageTracker) {
+                        ((UnAckedTopicMessageTracker) unAckedMessageTracker).removeTopicMessages(topicName);
+                    }
 
                     unsubscribeFuture.complete(null);
                     log.info("[{}] [{}] [{}] Removed Topics Consumer, allTopicPartitionsNumber: {}",
