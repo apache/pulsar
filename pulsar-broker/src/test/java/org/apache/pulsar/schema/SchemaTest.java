@@ -24,6 +24,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import static org.testng.internal.junit.ArrayAsserts.assertArrayEquals;
@@ -1254,13 +1255,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(test, message1.getValue());
         Message<User> message2 = consumer.receive();
 
-        boolean exceptionHappened = false;
-        try {
-            message2.getValue();
-        } catch (SchemaSerializationException e) {
-            exceptionHappened = true;
-        }
-        Assert.assertTrue(exceptionHappened);
+        assertThrows(SchemaSerializationException.class, message2::getValue);
     }
 
     @EqualsAndHashCode
