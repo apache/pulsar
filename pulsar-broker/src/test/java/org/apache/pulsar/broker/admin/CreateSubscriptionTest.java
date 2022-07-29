@@ -32,6 +32,8 @@ import java.util.concurrent.TimeUnit;
 import java.io.IOException;
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.core.Response.Status;
+
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.http.HttpResponse;
@@ -63,6 +65,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-admin")
+@Slf4j
 public class CreateSubscriptionTest extends ProducerConsumerBase {
 
     @BeforeMethod
@@ -480,4 +483,5 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
         ManagedLedgerImpl ml = (ManagedLedgerImpl)(topicRef.getManagedLedger());
         assertEquals(ml.getWaitingCursorsCount(), 0);
     }
+
 }
