@@ -1835,31 +1835,18 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                 c1.findNewestMatching(entry -> Arrays.equals(entry.getDataAndRelease(), "expired".getBytes(Encoding))));
     }
 
-    @Test(timeOut = 20000)
-    void testScanSingleEntry() throws Exception {
-        testScan(10,1);
+    @DataProvider(name = "testScanValues")
+    public static Object[][] testScanValues() {
+        return new Object[][] {
+                { 10, 1 }, // single entry
+                { 10, 3 }, // batches with remainder
+                { 10, 5 }, // batches, half
+                { 10, 1000 }, // big batch size, scan whole ledger in one round
+                { 0, 10 } // empty ledger
+        };
     }
 
-    @Test(timeOut = 30000)
-    void testScanBatchesWithSomeRemainder() throws Exception {
-        testScan(10,3);
-    }
-
-    @Test(timeOut = 30000)
-    void testScanBatches() throws Exception {
-        testScan(10,5);
-    }
-
-    @Test(timeOut = 30000)
-    void testScanBatchWholeLedger() throws Exception {
-        testScan(10,1000);
-    }
-
-    @Test(timeOut = 1000)
-    void testScanBatchEmptyLedger() throws Exception {
-        testScan(0,10);
-    }
-
+    @Test(dataProvider = "testScanValues", timeOut = 30000)
     void testScan(int numEntries, int batchSize) throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger_scan_" + numEntries
                 + "_" +batchSize);

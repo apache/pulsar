@@ -36,7 +36,6 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.PositionBound;
 class OpScan implements ReadEntriesCallback {
     private final ManagedCursorImpl cursor;
     private final ManagedLedgerImpl ledger;
-    private final PositionImpl startPosition;
     private final ScanCallback callback;
     private final Predicate<Entry> condition;
     private final Object ctx;
@@ -57,7 +56,6 @@ class OpScan implements ReadEntriesCallback {
         }
         this.cursor = Objects.requireNonNull(cursor);
         this.ledger = cursor.ledger;
-        this.startPosition = startPosition;
         this.callback = callback;
         this.condition = condition;
         this.ctx = ctx;
