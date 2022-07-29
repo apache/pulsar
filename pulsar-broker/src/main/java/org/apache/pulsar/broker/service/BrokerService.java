@@ -1196,6 +1196,9 @@ public class BrokerService implements Closeable {
                 clientBuilder.loadConf(PropertiesUtils.filterAndMapProperties(pulsar.getConfiguration().getProperties(),
                         "brokerClient_"));
 
+                // Disabled auto release useless connection.
+                clientBuilder.connectionMaxIdleSeconds(-1);
+
                 if (data.getAuthenticationPlugin() != null && data.getAuthenticationParameters() != null) {
                     clientBuilder.authentication(data.getAuthenticationPlugin(), data.getAuthenticationParameters());
                 } else if (pulsar.getConfiguration().isAuthenticationEnabled()) {
@@ -2342,6 +2345,11 @@ public class BrokerService implements Closeable {
         // add listener to notify partitioned topic maxNumPartitionsPerPartitionedTopic changed
         registerConfigurationListener("maxNumPartitionsPerPartitionedTopic", maxNumPartitions -> {
             this.updateMaxNumPartitionsPerPartitionedTopic((int) maxNumPartitions);
+        });
+
+        // add listener to notify web service httpRequestsFailOnUnknownPropertiesEnabled changed.
+        registerConfigurationListener("httpRequestsFailOnUnknownPropertiesEnabled", enabled -> {
+            pulsar.getWebService().updateHttpRequestsFailOnUnknownPropertiesEnabled((boolean) enabled);
         });
 
         // add more listeners here

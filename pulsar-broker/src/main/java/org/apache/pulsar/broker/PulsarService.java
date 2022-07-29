@@ -1440,6 +1440,11 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 ClientConfigurationData conf =
                         ConfigurationDataUtils.loadData(overrides, initialConf, ClientConfigurationData.class);
 
+                // Disabled auto release useless connections
+                // The automatic release connection feature is not yet perfect for transaction scenarios, so turn it
+                // off first.
+                conf.setConnectionMaxIdleSeconds(-1);
+
                 boolean tlsEnabled = this.getConfiguration().isBrokerClientTlsEnabled();
                 conf.setServiceUrl(tlsEnabled ? this.brokerServiceUrlTls : this.brokerServiceUrl);
 

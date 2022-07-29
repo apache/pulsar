@@ -316,7 +316,8 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     /**
      * Run the task in the executor thread and fail the future if the executor is shutting down.
      */
-    protected void execute(Runnable task, CompletableFuture<?> future) {
+    @VisibleForTesting
+    public void execute(Runnable task, CompletableFuture<?> future) {
         try {
             executor.execute(task);
         } catch (Throwable t) {

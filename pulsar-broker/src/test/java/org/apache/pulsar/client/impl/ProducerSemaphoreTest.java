@@ -25,12 +25,15 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -50,6 +53,29 @@ public class ProducerSemaphoreTest extends ProducerConsumerBase {
     @AfterMethod(alwaysRun = true)
     public void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @Test(timeOut = 10_000)
+    public void testProducerSemaphoreInvalidMessage() throws Exception {
+        final int pendingQueueSize = 100;
+
+        @Cleanup
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
+                .topic("testProducerSemaphoreAcquire")
+                .maxPendingMessages(pendingQueueSize)
+                .enableBatching(false)
+                .create();
+
+        this.stopBroker();
+        try {
+            try (MockedStatic<ClientCnx> mockedStatic = Mockito.mockStatic(ClientCnx.class)) {
+                mockedStatic.when(ClientCnx::getMaxMessageSize).thenReturn(2);
+                producer.send("semaphore-test".getBytes(StandardCharsets.UTF_8));
+            }
+            throw new IllegalStateException("can not reach here");
+        } catch (PulsarClientException.InvalidMessageException ex) {
+            Assert.assertEquals(producer.getSemaphore().get().availablePermits(), pendingQueueSize);
+        }
     }
 
     @Test(timeOut = 30000)

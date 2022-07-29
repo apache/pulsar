@@ -41,14 +41,14 @@ flexible messaging model and an intuitive client API.</description>
 
   <organization>
     <name>Apache Software Foundation</name>
-    <url>http://www.apache.org/</url>
+    <url>https://www.apache.org/</url>
   </organization>
   <inceptionYear>2017</inceptionYear>
 
   <developers>
     <developer>
       <organization>Apache Pulsar developers</organization>
-      <organizationUrl>http://pulsar.apache.org/</organizationUrl>
+      <organizationUrl>https://pulsar.apache.org/</organizationUrl>
     </developer>
   </developers>
 
