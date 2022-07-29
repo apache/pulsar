@@ -24,7 +24,6 @@ import io.netty.buffer.Unpooled;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.prometheus.client.CollectorRegistry;
-import io.prometheus.client.Counter;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collections;
