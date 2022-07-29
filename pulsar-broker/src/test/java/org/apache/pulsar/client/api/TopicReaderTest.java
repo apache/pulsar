@@ -1092,10 +1092,11 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
         //For batch-messages with single message, the type of client messageId should be the same as that of broker
         MessageIdImpl messageId = (MessageIdImpl) producer.send("msg".getBytes());
-        assertTrue(messageId instanceof MessageIdImpl);
+        assertTrue(messageId instanceof BatchMessageIdImpl);
         ReaderImpl<byte[]> reader = (ReaderImpl<byte[]>)pulsarClient.newReader().topic(topicName)
                 .startMessageId(messageId).startMessageIdInclusive().create();
         MessageIdImpl lastMsgId = (MessageIdImpl) reader.getConsumer().getLastMessageId();
+        assertFalse(lastMsgId instanceof BatchMessageIdImpl);
         assertEquals(lastMsgId.getLedgerId(), messageId.getLedgerId());
         assertEquals(lastMsgId.getEntryId(), messageId.getEntryId());
         reader.close();
