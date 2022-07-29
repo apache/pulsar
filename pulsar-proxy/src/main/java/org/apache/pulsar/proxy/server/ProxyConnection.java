@@ -565,8 +565,10 @@ public class ProxyConnection extends PulsarHandler {
 
     ClientConfigurationData createClientConfiguration() {
         ClientConfigurationData initialConf = new ClientConfigurationData();
-        initialConf.setServiceUrl(service.getServiceUrl());
         ProxyConfiguration proxyConfig = service.getConfiguration();
+        initialConf.setServiceUrl(
+                proxyConfig.isTlsEnabledWithBroker() ? service.getServiceUrlTls() : service.getServiceUrl());
+
         // Apply all arbitrary configuration. This must be called before setting any fields annotated as
         // @Secret on the ClientConfigurationData object because of the way they are serialized.
         // See https://github.com/apache/pulsar/issues/8509 for more information.
