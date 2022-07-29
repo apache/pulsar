@@ -53,7 +53,7 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
     @BeforeClass
     @Override
     protected void setup() throws Exception {
-        conf.setManagedLedgerCacheEvictionFrequency(0.1);
+        conf.setManagedLedgerCacheEvictionIntervalMs(10000);
         super.internalSetup();
         super.producerBaseSetup();
     }
