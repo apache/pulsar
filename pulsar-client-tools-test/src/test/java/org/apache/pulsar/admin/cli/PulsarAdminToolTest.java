@@ -1417,9 +1417,10 @@ public class PulsarAdminToolTest {
         
         // jcommander is stateful, you cannot parse the same command twice
         cmdTopics = new CmdTopics(() -> admin);
-        cmdTopics.run(split("create-subscription persistent://myprop/clust/ns1/ds1 -s sub1 --messageId earliest --property a=b"));
+        cmdTopics.run(split("create-subscription persistent://myprop/clust/ns1/ds1 -s sub1 --messageId earliest --property a=b -p x=y,z"));
         Map<String, String> props = new HashMap<>();
         props.put("a", "b");
+        props.put("x", "y,z");
         verify(mockTopics).createSubscription("persistent://myprop/clust/ns1/ds1", "sub1", MessageId.earliest, false, props);
 
         cmdTopics = new CmdTopics(() -> admin);
@@ -1434,7 +1435,8 @@ public class PulsarAdminToolTest {
         props = new HashMap<>();
         props.put("a", "b");
         props.put("c", "d");
-        cmdTopics.run(split("update-subscription-properties persistent://myprop/clust/ns1/ds1 -s sub1 -p a=b -p c=d"));
+        props.put("x", "y,z");
+        cmdTopics.run(split("update-subscription-properties persistent://myprop/clust/ns1/ds1 -s sub1 -p a=b -p c=d -p x=y,z"));
         verify(mockTopics).updateSubscriptionProperties("persistent://myprop/clust/ns1/ds1", "sub1", props);
 
         cmdTopics = new CmdTopics(() -> admin);
@@ -1828,10 +1830,11 @@ public class PulsarAdminToolTest {
         topics.run(split("expire-messages-all-subscriptions persistent://myprop/clust/ns1/ds1 -t 100"));
         verify(mockTopics).expireMessagesForAllSubscriptions("persistent://myprop/clust/ns1/ds1", 100);
 
-        topics.run(split("create-subscription persistent://myprop/clust/ns1/ds1 -s sub1 --messageId earliest -p a=b --property c=d"));
+        topics.run(split("create-subscription persistent://myprop/clust/ns1/ds1 -s sub1 --messageId earliest -p a=b --property c=d -p x=y,z"));
         Map<String, String> props = new HashMap<>();
         props.put("a", "b");
         props.put("c", "d");
+        props.put("x", "y,z");
         verify(mockTopics).createSubscription("persistent://myprop/clust/ns1/ds1", "sub1", MessageId.earliest, false, props);
 
         // jcommander is stateful, you cannot parse the same command twice
