@@ -26,6 +26,7 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
+import com.google.common.annotations.VisibleForTesting;
 import java.io.FileInputStream;
 import java.util.Arrays;
 import java.util.Properties;
@@ -239,6 +240,11 @@ public class PulsarClientTool {
             }
             return -1;
         }
+    }
+
+    @VisibleForTesting
+    public CmdProduce getProduceCommand() {
+        return produceCommand;
     }
 
     public static void main(String[] args) throws Exception {
