@@ -1886,8 +1886,10 @@ public class ManagedCursorImpl implements ManagedCursor {
                 return;
 
             case NoLedger:
-                // We need to create a new ledger to write into
+                pendingMarkDeleteOps.add(mdEntry);
+                // We need to create a new ledger to write into.
                 startCreatingNewMetadataLedger();
+                break;
                 // fall through
             case SwitchingLedger:
                 pendingMarkDeleteOps.add(mdEntry);
