@@ -2412,44 +2412,16 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 .thenCompose(topicExists -> {
                     return fetchPartitionedTopicMetadataAsync(topicName)
                             .thenCompose(metadata -> {
-                                CompletableFuture<PartitionedTopicMetadata> future = new CompletableFuture<>();
-
-                                // There are a couple of potentially blocking calls, which we cannot make from the
-                                // MetadataStore callback thread.
-                                pulsar.getExecutor().execute(() -> {
-                                    // If topic is already exist, creating partitioned topic is not allowed.
-
-                                    if (metadata.partitions == 0
-                                            && !topicExists
-                                            && !topicName.isPartitioned()
-                                            && pulsar.getBrokerService().isAllowAutoTopicCreation(topicName)
-                                            && pulsar.getBrokerService().isDefaultTopicTypePartitioned(topicName)) {
-
-                                        pulsar.getBrokerService().createDefaultPartitionedTopicAsync(topicName)
-                                                .thenAccept(md -> future.complete(md))
-                                                .exceptionally(ex -> {
-                                                    if (ex.getCause()
-                                                            instanceof MetadataStoreException.AlreadyExistsException) {
-                                                        // The partitioned topic might be created concurrently
-                                                        fetchPartitionedTopicMetadataAsync(topicName)
-                                                                .whenComplete((metadata2, ex2) -> {
-                                                                    if (ex2 == null) {
-                                                                        future.complete(metadata2);
-                                                                    } else {
-                                                                        future.completeExceptionally(ex2);
-                                                                    }
-                                                                });
-                                                    } else {
-                                                        future.completeExceptionally(ex);
-                                                    }
-                                                    return null;
-                                                });
-                                    } else {
-                                        future.complete(metadata);
-                                    }
-                                });
-
-                                return future;
+                                // If topic is already exist, creating partitioned topic is not allowed.
+                                if (metadata.partitions == 0
+                                        && !topicExists
+                                        && !topicName.isPartitioned()
+                                        && pulsar.getBrokerService().isAllowAutoTopicCreation(topicName)
+                                        && pulsar.getBrokerService().isDefaultTopicTypePartitioned(topicName)) {
+                                    return pulsar.getBrokerService().createDefaultPartitionedTopicAsync(topicName);
+                                } else {
+                                    return CompletableFuture.completedFuture(metadata);
+                                }
                             });
                 });
     }
