@@ -3033,7 +3033,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         return managedLedgerCacheEvictionFrequency > 0
                 ? (long) (1000 / Math.max(
                         Math.min(managedLedgerCacheEvictionFrequency, MAX_ML_CACHE_EVICTION_FREQUENCY),
-                                                                                        MIN_ML_CACHE_EVICTION_FREQUENCY))
+                                   MIN_ML_CACHE_EVICTION_FREQUENCY))
                 : Math.min(MAX_ML_CACHE_EVICTION_INTERVAL_MS, managedLedgerCacheEvictionIntervalMs);
     }
 }
