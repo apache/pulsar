@@ -170,7 +170,7 @@ Both processing time and event time are supported.
  * Event time is defined based on the timestamps that come with the event record. It guarantees event time correctness but also offers more data buffering and a limited completeness guarantee.
 
 Delivery Semantic Guarantees.
- * Currently, window function does not support `Effectively-once` delivery semantics.
+ * Currently, window function does not support `MANUAL` and  `Effectively-once` delivery semantics.
    
 :::
 

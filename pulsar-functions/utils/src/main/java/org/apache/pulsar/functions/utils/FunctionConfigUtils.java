@@ -308,10 +308,12 @@ public class FunctionConfigUtils {
         // windowing related
         WindowConfig windowConfig = functionConfig.getWindowConfig();
         if (windowConfig != null) {
-            // Windows Function not support EFFECTIVELY_ONCE
-            if (functionConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
+            // Windows Function not support MANUAL and EFFECTIVELY_ONCE.
+            if (functionConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE
+                    || functionConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.MANUAL) {
                 throw new IllegalArgumentException(
-                        "Windows Function not support EFFECTIVELY_ONCE delivery semantics.");
+                        "Windows Function not support "
+                                + functionConfig.getProcessingGuarantees() + " delivery semantics.");
             } else {
                 // Override functionConfig.getProcessingGuarantees to MANUAL, and set windowsFunction is guarantees
                 windowConfig.setProcessingGuarantees(WindowConfig.ProcessingGuarantees
@@ -487,11 +489,6 @@ public class FunctionConfigUtils {
                     (new Gson().toJson(userConfig.get(WindowConfig.WINDOW_CONFIG_KEY))),
                     WindowConfig.class);
             userConfig.remove(WindowConfig.WINDOW_CONFIG_KEY);
-            // Windows Function not support EFFECTIVELY_ONCE
-            if (functionDetails.getProcessingGuarantees() == Function.ProcessingGuarantees.EFFECTIVELY_ONCE) {
-                throw new IllegalArgumentException(
-                        "Windows Function not support EFFECTIVELY_ONCE Guarantees.");
-            }
             // If it is a query requirement, The configuration of the restore function.
             if (windowConfig.getProcessingGuarantees() != null) {
                 functionConfig.setProcessingGuarantees(
@@ -499,9 +496,15 @@ public class FunctionConfigUtils {
             } else {
                 // If it is an update requirement.
                 // Override functionConfig.getProcessingGuarantees to MANUAL, and set windowsFunction is guarantees
-                windowConfig.setProcessingGuarantees(WindowConfig.ProcessingGuarantees
-                        .valueOf(functionDetails.getProcessingGuarantees().name()));
-                functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.MANUAL);
+                if (functionConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE
+                        || functionConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.MANUAL) {
+                    throw new IllegalArgumentException("Windows Function not support "
+                                    + functionConfig.getProcessingGuarantees() + " delivery semantics.");
+                } else {
+                    windowConfig.setProcessingGuarantees(WindowConfig.ProcessingGuarantees
+                            .valueOf(functionDetails.getProcessingGuarantees().name()));
+                    functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.MANUAL);
+                }
             }
             functionConfig.setClassName(windowConfig.getActualWindowFunctionClassName());
             functionConfig.setWindowConfig(windowConfig);
