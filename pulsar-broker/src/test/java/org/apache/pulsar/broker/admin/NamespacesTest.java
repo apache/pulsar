@@ -1062,8 +1062,11 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         NamespaceName testNs = this.testLocalNamespaces.get(0);
         PersistencePolicies persistence1 = new PersistencePolicies(3, 2, 1, 0.0);
         namespaces.setPersistence(testNs.getTenant(), testNs.getCluster(), testNs.getLocalName(), persistence1);
-        PersistencePolicies persistence2 = namespaces.getPersistence(testNs.getTenant(), testNs.getCluster(),
-                testNs.getLocalName());
+        AsyncResponse response = mock(AsyncResponse.class);
+        namespaces.getPersistence(response, testNs.getTenant(), testNs.getCluster(), testNs.getLocalName());
+        ArgumentCaptor<PersistencePolicies> captor = ArgumentCaptor.forClass(PersistencePolicies.class);
+        verify(response, timeout(5000).times(1)).resume(captor.capture());
+        PersistencePolicies persistence2 =  captor.getValue();
         assertEquals(persistence2, persistence1);
     }
 

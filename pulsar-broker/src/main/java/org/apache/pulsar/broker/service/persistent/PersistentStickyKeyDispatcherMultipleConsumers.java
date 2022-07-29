@@ -152,7 +152,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             };
 
     @Override
-    protected synchronized void sendMessagesToConsumers(ReadType readType, List<Entry> entries) {
+    protected synchronized boolean trySendMessagesToConsumers(ReadType readType, List<Entry> entries) {
         long totalMessagesSent = 0;
         long totalBytesSent = 0;
         long totalEntries = 0;
@@ -160,14 +160,13 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
 
         // Trigger read more messages
         if (entriesCount == 0) {
-            readMoreEntries();
-            return;
+            return true;
         }
 
         if (consumerSet.isEmpty()) {
             entries.forEach(Entry::release);
             cursor.rewind();
-            return;
+            return false;
         }
 
         // A corner case that we have to retry a readMoreEntries in order to preserver order delivery.
@@ -201,8 +200,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                         } else if (readType == ReadType.Replay) {
                             entries.forEach(Entry::release);
                         }
-                        readMoreEntries();
-                        return;
+                        return true;
                     }
                 }
             }
@@ -331,14 +329,17 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             }
             // readMoreEntries should run regardless whether or not stuck is caused by
             // stuckConsumers for avoid stopping dispatch.
+            sendInProgress = false;
             topic.getBrokerService().executor().execute(() -> readMoreEntries());
         }  else if (currentThreadKeyNumber == 0) {
+            sendInProgress = false;
             topic.getBrokerService().executor().schedule(() -> {
                 synchronized (PersistentStickyKeyDispatcherMultipleConsumers.this) {
                     readMoreEntries();
                 }
             }, 100, TimeUnit.MILLISECONDS);
         }
+        return false;
     }
 
     private int getRestrictedMaxEntriesForConsumer(Consumer consumer, List<Entry> entries, int maxMessages,

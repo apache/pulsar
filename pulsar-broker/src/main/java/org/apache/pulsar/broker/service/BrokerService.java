@@ -1196,6 +1196,9 @@ public class BrokerService implements Closeable {
                 clientBuilder.loadConf(PropertiesUtils.filterAndMapProperties(pulsar.getConfiguration().getProperties(),
                         "brokerClient_"));
 
+                // Disabled auto release useless connection.
+                clientBuilder.connectionMaxIdleSeconds(-1);
+
                 if (data.getAuthenticationPlugin() != null && data.getAuthenticationParameters() != null) {
                     clientBuilder.authentication(data.getAuthenticationPlugin(), data.getAuthenticationParameters());
                 } else if (pulsar.getConfiguration().isAuthenticationEnabled()) {

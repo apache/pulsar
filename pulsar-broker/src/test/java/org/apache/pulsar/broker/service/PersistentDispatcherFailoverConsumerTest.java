@@ -65,6 +65,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.PulsarServiceMockSupport;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.PulsarResources;
@@ -124,24 +125,32 @@ public class PersistentDispatcherFailoverConsumerTest {
         svcConfig.setSystemTopicEnabled(false);
         svcConfig.setTopicLevelPoliciesEnabled(false);
         pulsar = spyWithClassAndConstructorArgs(PulsarService.class, svcConfig);
-        doReturn(svcConfig).when(pulsar).getConfiguration();
+        store = MetadataStoreFactory.create("memory:local", MetadataStoreConfig.builder().build());
+        doReturn(store).when(pulsar).getLocalMetadataStore();
+        doReturn(store).when(pulsar).getConfigurationMetadataStore();
+
+        PulsarServiceMockSupport.mockPulsarServiceProps(pulsar, () -> {
+            doReturn(svcConfig).when(pulsar).getConfiguration();
+        });
 
         mlFactoryMock = mock(ManagedLedgerFactory.class);
-        doReturn(mlFactoryMock).when(pulsar).getManagedLedgerFactory();
+        PulsarServiceMockSupport.mockPulsarServiceProps(pulsar, () -> {
+            doReturn(mlFactoryMock).when(pulsar).getManagedLedgerFactory();
+        });
 
         doReturn(TransactionTestBase.createMockBookKeeper(executor))
                 .when(pulsar).getBookKeeperClient();
         eventLoopGroup = new NioEventLoopGroup();
 
-        store = MetadataStoreFactory.create("memory:local", MetadataStoreConfig.builder().build());
-        doReturn(store).when(pulsar).getLocalMetadataStore();
-        doReturn(store).when(pulsar).getConfigurationMetadataStore();
-
         PulsarResources pulsarResources = new PulsarResources(store, store);
-        doReturn(pulsarResources).when(pulsar).getPulsarResources();
+        PulsarServiceMockSupport.mockPulsarServiceProps(pulsar, () -> {
+            doReturn(pulsarResources).when(pulsar).getPulsarResources();
+        });
 
         brokerService = spyWithClassAndConstructorArgs(BrokerService.class, pulsar, eventLoopGroup);
-        doReturn(brokerService).when(pulsar).getBrokerService();
+        PulsarServiceMockSupport.mockPulsarServiceProps(pulsar, () -> {
+            doReturn(brokerService).when(pulsar).getBrokerService();
+        });
 
         consumerChanges = new LinkedBlockingQueue<>();
         this.channelCtx = mock(ChannelHandlerContext.class);
@@ -187,7 +196,9 @@ public class PersistentDispatcherFailoverConsumerTest {
                 .when(serverCnxWithOldVersion).getCommandSender();
 
         NamespaceService nsSvc = mock(NamespaceService.class);
-        doReturn(nsSvc).when(pulsar).getNamespaceService();
+        PulsarServiceMockSupport.mockPulsarServiceProps(pulsar, () -> {
+            doReturn(nsSvc).when(pulsar).getNamespaceService();
+        });
         doReturn(true).when(nsSvc).isServiceUnitOwned(any(NamespaceBundle.class));
         doReturn(true).when(nsSvc).isServiceUnitActive(any(TopicName.class));
         doReturn(CompletableFuture.completedFuture(true)).when(nsSvc).checkTopicOwnership(any(TopicName.class));

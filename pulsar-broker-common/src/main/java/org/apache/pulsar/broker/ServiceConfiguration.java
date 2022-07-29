@@ -105,6 +105,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @Category
     private static final String CATEGORY_PLUGIN = "Broker Plugin";
 
+    private static final double MIN_ML_CACHE_EVICTION_FREQUENCY = 0.001;
+    private static final double MAX_ML_CACHE_EVICTION_FREQUENCY = 1000.0;
+    private static final long MAX_ML_CACHE_EVICTION_INTERVAL_MS = 1000000L;
+
     /***** --- pulsar configuration. --- ****/
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -1817,8 +1821,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private double managedLedgerCacheEvictionWatermark = 0.9;
     @FieldContext(category = CATEGORY_STORAGE_ML,
-            doc = "Configure the cache eviction frequency for the managed ledger cache. Default is 100/s")
-    private double managedLedgerCacheEvictionFrequency = 100.0;
+            doc = "Configure the cache eviction frequency for the managed ledger cache.")
+    @Deprecated
+    private double managedLedgerCacheEvictionFrequency = 0;
+
+    @FieldContext(category = CATEGORY_STORAGE_ML,
+            doc = "Configure the cache eviction interval in milliseconds for the managed ledger cache, default is 10ms")
+    private long managedLedgerCacheEvictionIntervalMs = 10;
+
     @FieldContext(category = CATEGORY_STORAGE_ML,
             dynamic = true,
             doc = "All entries that have stayed in cache for more than the configured time, will be evicted")
@@ -2145,6 +2155,27 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int loadBalancerAverageResourceUsageDifferenceThresholdPercentage = 10;
 
     @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "In the UniformLoadShedder strategy, the minimum message that triggers unload."
+    )
+    private int minUnloadMessage = 1000;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "In the UniformLoadShedder strategy, the minimum throughput that triggers unload."
+    )
+    private int minUnloadMessageThroughput = 1 * 1024 * 1024;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "In the UniformLoadShedder strategy, the maximum unload ratio."
+    )
+    private double maxUnloadPercentage = 0.2;
+
+    @FieldContext(
         dynamic = true,
         category = CATEGORY_LOAD_BALANCER,
         doc = "Message-rate percentage threshold between highest and least loaded brokers for "
@@ -2162,6 +2193,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
                 + "from broker-1 to broker-2)"
     )
     private double loadBalancerMsgThroughputMultiplierDifferenceShedderThreshold = 4;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "For each uniform balanced unload, the maximum number of bundles that can be unloaded."
+                    + " The default value is -1, which means no limit"
+    )
+    private int maxUnloadBundleNumPerShedding = -1;
 
     @FieldContext(
             dynamic = true,
@@ -3027,5 +3066,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public int getMetadataStoreCacheExpirySeconds() {
         return zooKeeperCacheExpirySeconds > 0 ? zooKeeperCacheExpirySeconds : metadataStoreCacheExpirySeconds;
+    }
+
+    public long getManagedLedgerCacheEvictionIntervalMs() {
+        return managedLedgerCacheEvictionFrequency > 0
+                ? (long) (1000 / Math.max(
+                        Math.min(managedLedgerCacheEvictionFrequency, MAX_ML_CACHE_EVICTION_FREQUENCY),
+                                   MIN_ML_CACHE_EVICTION_FREQUENCY))
+                : Math.min(MAX_ML_CACHE_EVICTION_INTERVAL_MS, managedLedgerCacheEvictionIntervalMs);
     }
 }

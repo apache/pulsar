@@ -89,7 +89,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     protected volatile PositionImpl minReplayedPosition = null;
     protected boolean shouldRewindBeforeReadingOrReplaying = false;
     protected final String name;
-
+    protected boolean sendInProgress;
     protected static final AtomicIntegerFieldUpdater<PersistentDispatcherMultipleConsumers>
             TOTAL_AVAILABLE_PERMITS_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(PersistentDispatcherMultipleConsumers.class,
@@ -240,6 +240,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     public synchronized void readMoreEntries() {
+        if (sendInProgress) {
+            // we cannot read more entries while sending the previous batch
+            // otherwise we could re-read the same entries and send duplicates
+            return;
+        }
         if (shouldPauseDeliveryForDelayTracker()) {
             return;
         }
@@ -496,7 +501,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     @Override
-    public synchronized void readEntriesComplete(List<Entry> entries, Object ctx) {
+    public final synchronized void readEntriesComplete(List<Entry> entries, Object ctx) {
         ReadType readType = (ReadType) ctx;
         if (readType == ReadType.Normal) {
             havePendingRead = false;
@@ -528,18 +533,39 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             log.debug("[{}] Distributing {} messages to {} consumers", name, entries.size(), consumerList.size());
         }
 
+        // dispatch messages to a separate thread, but still in order for this subscription
+        // sendMessagesToConsumers is responsible for running broker-side filters
+        // that may be quite expensive
         if (serviceConfig.isDispatcherDispatchMessagesInSubscriptionThread()) {
-            // dispatch messages to a separate thread, but still in order for this subscription
-            // sendMessagesToConsumers is responsible for running broker-side filters
-            // that may be quite expensive
+            // setting sendInProgress here, because sendMessagesToConsumers will be executed
+            // in a separate thread, and we want to prevent more reads
+            sendInProgress = true;
             dispatchMessagesThread.execute(safeRun(() -> sendMessagesToConsumers(readType, entries)));
         } else {
             sendMessagesToConsumers(readType, entries);
         }
     }
 
-    protected synchronized void sendMessagesToConsumers(ReadType readType, List<Entry> entries) {
+    protected final synchronized void sendMessagesToConsumers(ReadType readType, List<Entry> entries) {
+        sendInProgress = true;
+        boolean readMoreEntries;
+        try {
+            readMoreEntries = trySendMessagesToConsumers(readType, entries);
+        } finally {
+            sendInProgress = false;
+        }
+        if (readMoreEntries) {
+            readMoreEntries();
+        }
+    }
 
+    /**
+     * Dispatch the messages to the Consumers.
+     * @return true if you want to trigger a new read.
+     * This method is overridden by other classes, please take a look to other implementations
+     * if you need to change it.
+     */
+    protected synchronized boolean trySendMessagesToConsumers(ReadType readType, List<Entry> entries) {
         if (needTrimAckedMessages()) {
             cursor.trimDeletedEntries(entries);
         }
@@ -547,8 +573,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         int entriesToDispatch = entries.size();
         // Trigger read more messages
         if (entriesToDispatch == 0) {
-            readMoreEntries();
-            return;
+            return true;
         }
         final MessageMetadata[] metadataArray = entries.stream()
                 .map(entry -> Commands.peekAndCopyMessageMetadata(entry.getDataBuffer(), subscription.toString(), -1))
@@ -578,7 +603,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 log.info("[{}] rewind because no available consumer found from total {}", name, consumerList.size());
                 entries.subList(start, entries.size()).forEach(Entry::release);
                 cursor.rewind();
-                return;
+                return false;
             }
 
             // round-robin dispatch batch size for this consumer
@@ -623,7 +648,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             entriesToDispatch -= messagesForC;
             TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this,
                     -(msgSent - batchIndexesAcks.getTotalAckedIndexCount()));
-            if (log.isDebugEnabled()){
+            if (log.isDebugEnabled()) {
                 log.debug("[{}] Added -({} minus {}) permits to TOTAL_AVAILABLE_PERMITS_UPDATER in "
                                 + "PersistentDispatcherMultipleConsumers",
                         name, msgSent, batchIndexesAcks.getTotalAckedIndexCount());
@@ -658,7 +683,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 entry.release();
             });
         }
-        readMoreEntries();
+        return true;
     }
 
     @Override

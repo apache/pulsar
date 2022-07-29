@@ -172,6 +172,10 @@ public class ClientCnx extends PulsarHandler {
     private TransactionBufferHandler transactionBufferHandler;
     private boolean supportsTopicWatchers;
 
+    /** Idle stat. **/
+    @Getter
+    private final ClientCnxIdleState idleState;
+
     enum State {
         None, SentConnectFrame, Ready, Failed, Connecting
     }
@@ -229,6 +233,7 @@ public class ClientCnx extends PulsarHandler {
         this.operationTimeoutMs = conf.getOperationTimeoutMs();
         this.state = State.None;
         this.protocolVersion = protocolVersion;
+        this.idleState = new ClientCnxIdleState(this);
     }
 
     @Override
@@ -1265,4 +1270,27 @@ public class ClientCnx extends PulsarHandler {
     }
 
     private static final Logger log = LoggerFactory.getLogger(ClientCnx.class);
+
+    /**
+     * Check client connection is now free. This method will not change the state to idle.
+     * @return true if the connection is eligible.
+     */
+    public boolean idleCheck() {
+        if (pendingRequests != null && !pendingRequests.isEmpty()) {
+            return false;
+        }
+        if (waitingLookupRequests != null  && !waitingLookupRequests.isEmpty()) {
+            return false;
+        }
+        if (!consumers.isEmpty()) {
+            return false;
+        }
+        if (!producers.isEmpty()) {
+            return false;
+        }
+        if (!transactionMetaStoreHandlers.isEmpty()) {
+            return false;
+        }
+        return true;
+    }
 }
