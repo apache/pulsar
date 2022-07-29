@@ -742,7 +742,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         TxnLogBufferedWriter<Integer> anotherTxnLogBufferedWriter = new TxnLogBufferedWriter<Integer>(
                 managedLedger, orderedExecutor, transactionTimer,
                 dataSerializer, 256, 1024,
-                1, true, metricsDefinition);
+                1, true, anotherMetricsDefinition);
         anotherTxnLogBufferedWriter.asyncAddData(1, addDataCallback, "");
         Awaitility.await().atMost(1, TimeUnit.SECONDS).until(
                 () -> addDataCallbackFinishCount.get() + addDataCallbackFailureCount.get() == writeCount + 1
@@ -773,35 +773,11 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
                 getHistogramCount(String.format("%s_batched_log_entry_size_bytes", metricsComponent)),
                 0D
         );
-        Assert.assertEquals(
-                getHistogramCount(String.format("%s_batched_log_oldest_record_delay_time_seconds", metricsComponent)),
-                0D
-        );
-        Assert.assertTrue(
-                getHistogramCount(String.format("%s_batched_log_oldest_record_delay_time_seconds", metricsComponent)) <=
-                        0D
-        );
         // Close second-writer, verify all metrics will be released after all writer-close.
         anotherTxnLogBufferedWriter.close();
         Awaitility.await().atMost(2, TimeUnit.SECONDS).until(
                 () -> {
-                    IllegalArgumentException ex = null;
-                    Counter counter = null;
-                    try {
-                        counter = new Counter.Builder()
-                                .name(String.format("%s_batched_log_triggering_count_by_records", metricsComponent))
-                                .labelNames(metricsDefinition.labelNames)
-                                .help("-")
-                                .register(CollectorRegistry.defaultRegistry);
-                    } catch (IllegalArgumentException illegalArgumentException){
-                        ex = illegalArgumentException;
-                    }
-                    boolean registerSuccess = ex == null;
-                    // cleanup.
-                    if (registerSuccess){
-                        CollectorRegistry.defaultRegistry.unregister(counter);
-                    }
-                    return registerSuccess;
+                    return TxnLogBufferedWriterMetricsStats.METRICS_REGISTRY.size() == 0;
                 }
         );
         // cleanup.
@@ -958,6 +934,11 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         );
         // cleanup.
         txnLogBufferedWriter.close();
+        Awaitility.await().atMost(2, TimeUnit.SECONDS).until(
+                () -> {
+                    return TxnLogBufferedWriterMetricsStats.METRICS_REGISTRY.size() == 0;
+                }
+        );
         transactionTimer.stop();
         orderedExecutor.shutdown();
     }

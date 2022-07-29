@@ -121,6 +121,7 @@ public class TxnLogBufferedWriterMetricsStats {
         List<TxnLogBufferedWriterMetricsDefinition> list =
                 METRICS_INSTANCE_REFERENCE.get(metricsDefinition.getComponent());
         if (CollectionUtils.isEmpty(list)){
+            METRICS_REGISTRY.remove(metricsDefinition.getComponent());
             return;
         }
         int removeCount = 0;
@@ -151,6 +152,7 @@ public class TxnLogBufferedWriterMetricsStats {
             CollectorRegistry.defaultRegistry.unregister(stats.pulsarBatchedLogTriggeringCountBySize);
             CollectorRegistry.defaultRegistry.unregister(stats.pulsarBatchedLogTriggeringCountByDelayTime);
             CollectorRegistry.defaultRegistry.unregister(stats.pulsarBatchedLogTriggeringCountByForce);
+            METRICS_REGISTRY.remove(metricsDefinition.getComponent());
         }
     }
 
