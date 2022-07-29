@@ -489,22 +489,9 @@ public class FunctionConfigUtils {
                     (new Gson().toJson(userConfig.get(WindowConfig.WINDOW_CONFIG_KEY))),
                     WindowConfig.class);
             userConfig.remove(WindowConfig.WINDOW_CONFIG_KEY);
-            // If it is a query requirement, The configuration of the restore function.
             if (windowConfig.getProcessingGuarantees() != null) {
                 functionConfig.setProcessingGuarantees(
                         FunctionConfig.ProcessingGuarantees.valueOf(windowConfig.getProcessingGuarantees().name()));
-            } else {
-                // If it is an update requirement.
-                // Override functionConfig.getProcessingGuarantees to MANUAL, and set windowsFunction is guarantees
-                if (functionConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE
-                        || functionConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.MANUAL) {
-                    throw new IllegalArgumentException("Windows Function not support "
-                                    + functionConfig.getProcessingGuarantees() + " delivery semantics.");
-                } else {
-                    windowConfig.setProcessingGuarantees(WindowConfig.ProcessingGuarantees
-                            .valueOf(functionDetails.getProcessingGuarantees().name()));
-                    functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.MANUAL);
-                }
             }
             functionConfig.setClassName(windowConfig.getActualWindowFunctionClassName());
             functionConfig.setWindowConfig(windowConfig);
