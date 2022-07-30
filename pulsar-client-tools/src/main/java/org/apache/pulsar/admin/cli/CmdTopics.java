@@ -39,6 +39,7 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -243,6 +244,7 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("set-replicated-subscription-status", new SetReplicatedSubscriptionStatus());
         jcommander.addCommand("get-replicated-subscription-status", new GetReplicatedSubscriptionStatus());
         jcommander.addCommand("get-backlog-size", new GetBacklogSizeByMessageId());
+        jcommander.addCommand("analyze-backlog", new AnalyzeBacklog());
 
         jcommander.addCommand("get-replication-clusters", new GetReplicationClusters());
         jcommander.addCommand("set-replication-clusters", new SetReplicationClusters());
@@ -2918,6 +2920,33 @@ public class CmdTopics extends CmdBase {
                 messageId = validateMessageIdString(messagePosition);
             }
             print(getTopics().getBacklogSizeByMessageId(persistentTopic, messageId));
+
+        }
+    }
+
+
+    @Parameters(commandDescription = "Analyze the backlog of a subscription.")
+    private class AnalyzeBacklog extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-s", "--subscription" }, description = "Subscription to be analyzed", required = true)
+        private String subName;
+
+        @Parameter(names = { "--position",
+                "-p" }, description = "message position to start the scan from (ledgerId:entryId)", required = false)
+        private String messagePosition;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            Optional<MessageId> startPosition = Optional.empty();
+            if (isNotBlank(messagePosition)) {
+                int partitionIndex = TopicName.get(persistentTopic).getPartitionIndex();
+                MessageId messageId = validateMessageIdString(messagePosition, partitionIndex);
+                startPosition = Optional.of(messageId);
+            }
+            print(getTopics().analyzeSubscriptionBacklog(persistentTopic, subName, startPosition));
 
         }
     }

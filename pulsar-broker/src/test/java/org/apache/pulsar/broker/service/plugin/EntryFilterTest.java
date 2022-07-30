@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service.plugin;
 
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -35,7 +36,7 @@ public class EntryFilterTest implements EntryFilter {
             return FilterResult.ACCEPT;
         }
         Consumer consumer = context.getConsumer();
-        Map<String, String> metadata = consumer.getMetadata();
+        Map<String, String> metadata = consumer != null ? consumer.getMetadata() : Collections.emptyMap();
         log.info("filterEntry for {}", metadata);
         String matchValueAccept = metadata.getOrDefault("matchValueAccept", "ACCEPT");
         String matchValueReject = metadata.getOrDefault("matchValueReject", "REJECT");

@@ -72,6 +72,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.FindEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.ScanCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.SkipEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -83,6 +84,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorAlreadyClosedE
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.ScanOutcome;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.PositionBound;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
@@ -1035,6 +1037,29 @@ public class ManagedCursorImpl implements ManagedCursor {
     @Override
     public Position findNewestMatching(Predicate<Entry> condition) throws InterruptedException, ManagedLedgerException {
         return findNewestMatching(FindPositionConstraint.SearchActiveEntries, condition);
+    }
+
+    @Override
+    public CompletableFuture<ScanOutcome> scan(Optional<Position> position,
+                                               Predicate<Entry> condition,
+                                               int batchSize, long maxEntries, long timeOutMs) {
+        PositionImpl startPosition = (PositionImpl) position.orElseGet(
+                () -> ledger.getNextValidPosition(markDeletePosition));
+        CompletableFuture<ScanOutcome> future = new CompletableFuture<>();
+        OpScan op = new OpScan(this, batchSize, startPosition, condition, new ScanCallback() {
+            @Override
+            public void scanComplete(Position position, ScanOutcome scanOutcome, Object ctx) {
+                future.complete(scanOutcome);
+            }
+
+            @Override
+            public void scanFailed(ManagedLedgerException exception,
+                                   Optional<Position> failedReadPosition, Object ctx) {
+                future.completeExceptionally(exception);
+            }
+        }, null, maxEntries, timeOutMs);
+        op.find();
+        return future;
     }
 
     @Override

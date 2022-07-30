@@ -626,6 +626,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int activeConsumerFailoverDelayTimeMillis = 1000;
     @FieldContext(
+            category = CATEGORY_POLICIES,
+            doc = "Maximum time to spend while scanning a subscription to calculate the accurate backlog"
+    )
+    private long subscriptionBacklogScanMaxTimeMs = 1000 * 60 * 2L;
+    @FieldContext(
+            category = CATEGORY_POLICIES,
+            doc = "Maximum number of entries to process while scanning a subscription to calculate the accurate backlog"
+    )
+    private long subscriptionBacklogScanMaxEntries = 10_000;
+    @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "How long to delete inactive subscriptions from last consuming."
             + " When it is 0, inactive subscriptions are not deleted automatically"
