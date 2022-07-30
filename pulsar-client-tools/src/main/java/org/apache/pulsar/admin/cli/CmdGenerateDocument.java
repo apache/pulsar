@@ -85,7 +85,7 @@ public class CmdGenerateDocument extends CmdBase {
             StringBuilder sb = new StringBuilder();
             if (modules == null || modules.isEmpty()) {
                 baseJcommander.getCommands().forEach((k, v) ->
-                        this.generateDocument(sb, k, v)
+                    this.generateDocument(sb, k, v)
                 );
             } else {
                 String module = getOneArgument(modules);

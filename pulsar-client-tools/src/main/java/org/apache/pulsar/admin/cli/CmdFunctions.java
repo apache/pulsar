@@ -897,8 +897,8 @@ public class CmdFunctions extends CmdBase {
             if (isBlank(instanceId)) {
                 print(getAdmin().functions().getFunctionStats(tenant, namespace, functionName));
             } else {
-                print(getAdmin().functions()
-                        .getFunctionStats(tenant, namespace, functionName, Integer.parseInt(instanceId)));
+               print(getAdmin().functions()
+                       .getFunctionStats(tenant, namespace, functionName, Integer.parseInt(instanceId)));
             }
         }
     }
@@ -1041,7 +1041,7 @@ public class CmdFunctions extends CmdBase {
             do {
                 try {
                     FunctionState functionState = getAdmin().functions()
-                            .getFunctionState(tenant, namespace, functionName, key);
+                                                       .getFunctionState(tenant, namespace, functionName, key);
                     Gson gson = new GsonBuilder().setPrettyPrinting().create();
                     System.out.println(gson.toJson(functionState));
                 } catch (PulsarAdminException pae) {
