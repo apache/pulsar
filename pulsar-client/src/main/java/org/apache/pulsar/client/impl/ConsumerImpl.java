@@ -792,35 +792,46 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             }
             log.warn("[{}][{}] Failed to subscribe to topic on {}", topic, subscription, cnx.channel().remoteAddress());
 
-            if (e.getCause() instanceof PulsarClientException
-                    && PulsarClientException.isRetriableError(e.getCause())
-                    && System.currentTimeMillis() < SUBSCRIBE_DEADLINE_UPDATER.get(ConsumerImpl.this)) {
-                reconnectLater(e.getCause());
-            } else if (!subscribeFuture.isDone()) {
-                // unable to create new consumer, fail operation
-                setState(State.Failed);
-                closeConsumerTasks();
-                subscribeFuture.completeExceptionally(
-                    PulsarClientException.wrap(e, String.format("Failed to subscribe the topic %s with subscription " +
-                        "name %s when connecting to the broker", topicName.toString(), subscription)));
-                client.cleanupConsumer(this);
-            } else if (e.getCause() instanceof TopicDoesNotExistException) {
-                // The topic was deleted after the consumer was created, and we're
-                // not allowed to recreate the topic. This can happen in few cases:
-                //  * Regex consumer getting error after topic gets deleted
-                //  * Regular consumer after topic is manually delete and with
-                //    auto-topic-creation set to false
-                // No more retries are needed in this case.
-                setState(State.Failed);
-                closeConsumerTasks();
-                client.cleanupConsumer(this);
-                log.warn("[{}][{}] Closed consumer because topic does not exist anymore {}", topic, subscription, cnx.channel().remoteAddress());
-            } else {
-                // consumer was subscribed and connected but we got some error, keep trying
-                reconnectLater(e.getCause());
-            }
-            return null;
-        });
+                if (e.getCause() instanceof PulsarClientException.TimeoutException) {
+                    // Creating the consumer has timed out. We need to ensure the broker closes the consumer
+                    // in case it was indeed created, otherwise it might prevent new create consumer operation,
+                    // since we are not necessarily closing the connection.
+                    long closeRequestId = client.newRequestId();
+                    ByteBuf cmd = Commands.newCloseConsumer(consumerId, closeRequestId);
+                    cnx.sendRequestWithId(cmd, closeRequestId);
+                }
+
+                if (e.getCause() instanceof PulsarClientException
+                        && PulsarClientException.isRetriableError(e.getCause())
+                        && System.currentTimeMillis() < SUBSCRIBE_DEADLINE_UPDATER.get(ConsumerImpl.this)) {
+                    reconnectLater(e.getCause());
+                } else if (!subscribeFuture.isDone()) {
+                    // unable to create new consumer, fail operation
+                    setState(State.Failed);
+                    closeConsumerTasks();
+                    subscribeFuture.completeExceptionally(
+                            PulsarClientException.wrap(e, String.format("Failed to subscribe the topic %s "
+                                            + "with subscription name %s when connecting to the broker",
+                                    topicName.toString(), subscription)));
+                    client.cleanupConsumer(this);
+                } else if (e.getCause() instanceof TopicDoesNotExistException) {
+                    // The topic was deleted after the consumer was created, and we're
+                    // not allowed to recreate the topic. This can happen in few cases:
+                    //  * Regex consumer getting error after topic gets deleted
+                    //  * Regular consumer after topic is manually delete and with
+                    //    auto-topic-creation set to false
+                    // No more retries are needed in this case.
+                    setState(State.Failed);
+                    closeConsumerTasks();
+                    client.cleanupConsumer(this);
+                    log.warn("[{}][{}] Closed consumer because topic does not exist anymore {}",
+                            topic, subscription, cnx.channel().remoteAddress());
+                } else {
+                    // consumer was subscribed and connected but we got some error, keep trying
+                    reconnectLater(e.getCause());
+                }
+                return null;
+            });
     }
 
     protected void consumerIsReconnectedToBroker(ClientCnx cnx, int currentQueueSize) {
