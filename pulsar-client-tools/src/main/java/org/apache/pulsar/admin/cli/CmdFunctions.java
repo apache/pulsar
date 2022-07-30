@@ -100,8 +100,7 @@ public class CmdFunctions extends CmdBase {
             runCmd();
         }
 
-        void processArguments() throws Exception {
-        }
+        void processArguments() throws Exception {}
 
         abstract void runCmd() throws Exception;
     }
@@ -200,7 +199,7 @@ public class CmdFunctions extends CmdBase {
         protected String deprecatedClassName;
         @Parameter(names = "--classname", description = "The class name of a Pulsar Function #Java,Python")
         protected String className;
-        @Parameter(names = {"-t", "--function-type"}, description = "The built-in Pulsar Function type")
+        @Parameter(names = { "-t", "--function-type" }, description = "The built-in Pulsar Function type")
         protected String functionType;
         @Parameter(names = "--jar", description = "Path to the JAR file for the function "
                 + "(if the function is written in Java). It also supports URL path [http/https/file "
@@ -466,26 +465,22 @@ public class CmdFunctions extends CmdBase {
                 functionConfig.setInputs(inputTopics);
             }
             if (null != customSerdeInputString) {
-                Type type = new TypeToken<Map<String, String>>() {
-                }.getType();
+                Type type = new TypeToken<Map<String, String>>() {}.getType();
                 Map<String, String> customSerdeInputMap = new Gson().fromJson(customSerdeInputString, type);
                 functionConfig.setCustomSerdeInputs(customSerdeInputMap);
             }
             if (null != customSchemaInputString) {
-                Type type = new TypeToken<Map<String, String>>() {
-                }.getType();
+                Type type = new TypeToken<Map<String, String>>() {}.getType();
                 Map<String, String> customschemaInputMap = new Gson().fromJson(customSchemaInputString, type);
                 functionConfig.setCustomSchemaInputs(customschemaInputMap);
             }
             if (null != customSchemaOutputString) {
-                Type type = new TypeToken<Map<String, String>>() {
-                }.getType();
+                Type type = new TypeToken<Map<String, String>>() {}.getType();
                 Map<String, String> customSchemaOutputMap = new Gson().fromJson(customSchemaOutputString, type);
                 functionConfig.setCustomSchemaOutputs(customSchemaOutputMap);
             }
             if (null != inputSpecs) {
-                Type type = new TypeToken<Map<String, ConsumerConfig>>() {
-                }.getType();
+                Type type = new TypeToken<Map<String, ConsumerConfig>>() {}.getType();
                 functionConfig.setInputSpecs(new Gson().fromJson(inputSpecs, type));
             }
             if (null != topicsPattern) {
@@ -495,8 +490,7 @@ public class CmdFunctions extends CmdBase {
                 functionConfig.setOutput(output);
             }
             if (null != producerConfig) {
-                Type type = new TypeToken<ProducerConfig>() {
-                }.getType();
+                Type type = new TypeToken<ProducerConfig>() {}.getType();
                 functionConfig.setProducerConfig(new Gson().fromJson(producerConfig, type));
             }
             if (null != logTopic) {
@@ -541,8 +535,7 @@ public class CmdFunctions extends CmdBase {
             }
 
             if (null != userConfigString) {
-                Type type = new TypeToken<Map<String, Object>>() {
-                }.getType();
+                Type type = new TypeToken<Map<String, Object>>() {}.getType();
                 Map<String, Object> userConfigMap = new Gson().fromJson(userConfigString, type);
                 if (userConfigMap == null) {
                     userConfigMap = new HashMap<>();
@@ -588,8 +581,7 @@ public class CmdFunctions extends CmdBase {
             }
 
             if (secretsString != null) {
-                Type type = new TypeToken<Map<String, Object>>() {
-                }.getType();
+                Type type = new TypeToken<Map<String, Object>>() {}.getType();
                 Map<String, Object> secretsMap = new Gson().fromJson(secretsString, type);
                 if (secretsMap == null) {
                     secretsMap = Collections.emptyMap();
@@ -1034,10 +1026,10 @@ public class CmdFunctions extends CmdBase {
     @Parameters(commandDescription = "Fetch the current state associated with a Pulsar Function")
     class StateGetter extends FunctionCommand {
 
-        @Parameter(names = {"-k", "--key"}, description = "Key name of State")
+        @Parameter(names = { "-k", "--key" }, description = "Key name of State")
         private String key = null;
 
-        @Parameter(names = {"-w", "--watch"}, description = "Watch for changes in the value associated with a key "
+        @Parameter(names = { "-w", "--watch" }, description = "Watch for changes in the value associated with a key "
                 + "for a Pulsar Function")
         private boolean watch = false;
 
@@ -1069,13 +1061,12 @@ public class CmdFunctions extends CmdBase {
     @Parameters(commandDescription = "Put the state associated with a Pulsar Function")
     class StatePutter extends FunctionCommand {
 
-        @Parameter(names = {"-s", "--state"}, description = "The FunctionState that needs to be put", required = true)
+        @Parameter(names = { "-s", "--state" }, description = "The FunctionState that needs to be put", required = true)
         private String state = null;
 
         @Override
         void runCmd() throws Exception {
-            TypeReference<FunctionState> typeRef = new TypeReference<FunctionState>() {
-            };
+            TypeReference<FunctionState> typeRef = new TypeReference<FunctionState>() {};
             FunctionState stateRepr = ObjectMapperFactory.getThreadLocal().readValue(state, typeRef);
             getAdmin().functions()
                     .putFunctionState(tenant, namespace, functionName, stateRepr);
