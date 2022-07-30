@@ -327,6 +327,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + "(0 to disable limiting)")
     private int maxHttpServerConnections = 2048;
 
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "enable compression metrics data when the HTTP service responds to the client"
+    )
+    private boolean enableCompressMetricsData = false;
+
     @FieldContext(category = CATEGORY_SERVER, doc = "Whether to enable the delayed delivery for messages.")
     private boolean delayedDeliveryEnabled = true;
 
