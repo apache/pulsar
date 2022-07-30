@@ -157,7 +157,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     @SuppressWarnings("unused")
     private volatile long usageCount = 0;
 
-
     static final String DEDUPLICATION_CURSOR_NAME = "pulsar.dedup";
 
     private static final double MESSAGE_EXPIRY_THRESHOLD = 1.5;
@@ -1156,72 +1155,68 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             log.debug("[{}] Checking replication status", name);
         }
 
-        return brokerService.pulsar().getConfigurationCache().policiesCache()
-                .getAsync(AdminResource.path(POLICIES, name.getNamespace()))
-                .thenCompose(optPolicies -> {
-                    if (!optPolicies.isPresent()) {
-                        return FutureUtil.failedFuture(
-                                new ServerMetadataException("Namespace not found: " + name.getNamespace()));
-                    }
+        Policies policies = null;
+        try {
+            policies = brokerService.pulsar().getConfigurationCache().policiesCache()
+                    .get(AdminResource.path(POLICIES, name.getNamespace()))
+                    .orElseThrow(() -> new KeeperException.NoNodeException());
+        } catch (Exception e) {
+            CompletableFuture<Void> future = new CompletableFuture<>();
+            future.completeExceptionally(new ServerMetadataException(e));
+            return future;
+        }
+        //Ignore current broker's config for messageTTL for replication.
+        final int newMessageTTLinSeconds;
+        try {
+            newMessageTTLinSeconds = getMessageTTL();
+        } catch (Exception e) {
+            return FutureUtil.failedFuture(new ServerMetadataException(e));
+        }
 
-                    Policies policies = optPolicies.get();
+        Set<String> configuredClusters;
+        if (policies.replication_clusters != null) {
+            configuredClusters = Sets.newTreeSet(policies.replication_clusters);
+        } else {
+            configuredClusters = Collections.emptySet();
+        }
 
-                    //Ignore current broker's config for messageTTL for replication.
-                    final int newMessageTTLinSeconds;
-                    try {
-                        newMessageTTLinSeconds = getMessageTTL();
-                    } catch (Exception e) {
-                        return FutureUtil.failedFuture(new ServerMetadataException(e));
-                    }
+        String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
 
-                    Set<String> configuredClusters;
-                    if (policies.replication_clusters != null) {
-                        configuredClusters = Sets.newTreeSet(policies.replication_clusters);
-                    } else {
-                        configuredClusters = Collections.emptySet();
-                    }
+        // if local cluster is removed from global namespace cluster-list : then delete topic forcefully because pulsar
+        // doesn't serve global topic without local repl-cluster configured.
+        if (TopicName.get(topic).isGlobal() && !configuredClusters.contains(localCluster)) {
+            log.info("Deleting topic [{}] because local cluster is not part of global namespace repl list {}",
+                    topic, configuredClusters);
+            return deleteForcefully();
+        }
 
-                    String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
+        List<CompletableFuture<Void>> futures = Lists.newArrayList();
 
-                    // if local cluster is removed from global namespace cluster-list : then delete topic forcefully
-                    // because pulsar
-                    // doesn't serve global topic without local repl-cluster configured.
-                    if (TopicName.get(topic).isGlobal() && !configuredClusters.contains(localCluster)) {
-                        log.info(
-                                "Deleting topic [{}] because local cluster is not part of global namespace repl list "
-                                        + "{}",
-                                topic, configuredClusters);
-                        return deleteForcefully();
-                    }
+        // Check for missing replicators
+        for (String cluster : configuredClusters) {
+            if (cluster.equals(localCluster)) {
+                continue;
+            }
 
-                    List<CompletableFuture<Void>> futures = Lists.newArrayList();
+            if (!replicators.containsKey(cluster)) {
+                futures.add(startReplicator(cluster));
+            }
+        }
 
-                    // Check for missing replicators
-                    for (String cluster : configuredClusters) {
-                        if (cluster.equals(localCluster)) {
-                            continue;
-                        }
+        // Check for replicators to be stopped
+        replicators.forEach((cluster, replicator) -> {
+            // Update message TTL
+            ((PersistentReplicator) replicator).updateMessageTTL(newMessageTTLinSeconds);
 
-                        if (!replicators.containsKey(cluster)) {
-                            futures.add(startReplicator(cluster));
-                        }
-                    }
+            if (!cluster.equals(localCluster)) {
+                if (!configuredClusters.contains(cluster)) {
+                    futures.add(removeReplicator(cluster));
+                }
+            }
 
-                    // Check for replicators to be stopped
-                    replicators.forEach((cluster, replicator) -> {
-                        // Update message TTL
-                        ((PersistentReplicator) replicator).updateMessageTTL(newMessageTTLinSeconds);
+        });
 
-                        if (!cluster.equals(localCluster)) {
-                            if (!configuredClusters.contains(cluster)) {
-                                futures.add(removeReplicator(cluster));
-                            }
-                        }
-
-                    });
-
-                    return FutureUtil.waitForAll(futures);
-                });
+        return FutureUtil.waitForAll(futures);
     }
 
     @Override
