@@ -25,6 +25,7 @@ import io.prometheus.client.Counter;
 import io.prometheus.client.Histogram;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import lombok.Data;
 import org.apache.commons.collections4.CollectionUtils;
@@ -125,9 +126,12 @@ public class TxnLogBufferedWriterMetricsStats {
             return;
         }
         int removeCount = 0;
-        while (list.contains(metricsDefinition)) {
-            list.remove(metricsDefinition);
-            removeCount++;
+        Iterator<TxnLogBufferedWriterMetricsDefinition> iterator = list.iterator();
+        while (iterator.hasNext()){
+            if (iterator.next() == metricsDefinition){
+                iterator.remove();
+                removeCount++;
+            }
         }
         // Remove label values.
         TxnLogBufferedWriterMetricsStats stats = METRICS_REGISTRY.get(metricsDefinition.getComponent());

@@ -863,6 +863,11 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
                 0D);
         // cleanup.
         txnLogBufferedWriter.close();
+        Awaitility.await().atMost(2, TimeUnit.SECONDS).until(
+                () -> {
+                    return TxnLogBufferedWriterMetricsStats.METRICS_REGISTRY.size() == 0;
+                }
+        );
         transactionTimer.stop();
         orderedExecutor.shutdown();
     }

@@ -162,7 +162,7 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
         // metricsDefinition object, when close one，will be mistaken for the stats were not cited, the stats will be
         // released in error.
         this.metricsDefinition = metricsDefinition.copy();
-        if (this.metricsDefinition.isEnabled()) {
+        if (this.metricsDefinition.isEnabled() && this.batchEnabled) {
             this.metricsStats = TxnLogBufferedWriterMetricsStats.getInstance(this.metricsDefinition);
         } else {
             this.metricsStats = null;
