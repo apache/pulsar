@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import lombok.Cleanup;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
@@ -128,6 +129,17 @@ public class RetryTopicTest extends ProducerConsumerBase {
         checkConsumer.close();
     }
 
+    // if only one message in a batch, the producer returned messageId is `BatchMessageIdImpl`, and the consumer
+    // returned messageId is `MessageImpl`
+    private Set<String> transConsumerMessageIdStr(Set<String> source) {
+        return source.stream().map(s -> {
+            if (s.split(":").length == 3) {
+                return s + ":0";
+            }
+            return s;
+        }).collect(Collectors.toSet());
+    }
+
     @Test(timeOut = 60000)
     public void testRetryTopicProperties() throws Exception {
         final String topic = "persistent://my-property/my-ns/retry-topic";
@@ -180,7 +192,7 @@ public class RetryTopicTest extends ProducerConsumerBase {
         } while (totalReceived < sendMessages * (maxRedeliveryCount + 1));
 
         // check the REAL_TOPIC property
-        assertEquals(retryMessageIds, originMessageIds);
+        assertEquals(transConsumerMessageIdStr(retryMessageIds), originMessageIds);
 
         int totalInDeadLetter = 0;
         Set<String> deadLetterMessageIds = Sets.newHashSet();
@@ -198,7 +210,7 @@ public class RetryTopicTest extends ProducerConsumerBase {
             totalInDeadLetter++;
         } while (totalInDeadLetter < sendMessages);
 
-        assertEquals(deadLetterMessageIds, originMessageIds);
+        assertEquals(transConsumerMessageIdStr(deadLetterMessageIds), originMessageIds);
 
         deadLetterConsumer.close();
 
