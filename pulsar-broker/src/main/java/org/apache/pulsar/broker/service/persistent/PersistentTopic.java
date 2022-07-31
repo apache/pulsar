@@ -2475,10 +2475,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         TopicName name = TopicName.get(topic);
         TopicPolicies topicPolicies = getTopicPolicies(name);
         Policies policies = brokerService.pulsar().getConfigurationCache().policiesCache()
-                .getDataIfPresent(AdminResource.path(POLICIES, name.getNamespace()));
-        if (policies == null) {
-          throw new KeeperException.NoNodeException();
-        }
+                .get(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()))
+                .orElseThrow(() -> new KeeperException.NoNodeException());
         if (topicPolicies != null && topicPolicies.isMessageTTLSet()) {
             return topicPolicies.getMessageTTLInSeconds();
         }
