@@ -722,8 +722,7 @@ TEST(ConsumerTest, testIsConnected) {
 
 TEST(ConsumerTest, testPartitionsWithCloseUnblock) {
     Client client(lookupUrl);
-    const std::string partitionedTopic =
-        "testPartitionsWithCloseUnblock" + std::to_string(time(nullptr));
+    const std::string partitionedTopic = "testPartitionsWithCloseUnblock" + std::to_string(time(nullptr));
     constexpr int numPartitions = 2;
 
     int res =
@@ -758,7 +757,7 @@ TEST(ConsumerTest, testPartitionsWithCloseUnblock) {
 
     consumer.close();
 
-    bool wasUnblocked = latch.wait(std::chrono::milliseconds (100));
+    bool wasUnblocked = latch.wait(std::chrono::milliseconds(100));
 
     ASSERT_TRUE(wasUnblocked);
     thread.join();
