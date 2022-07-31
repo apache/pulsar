@@ -231,7 +231,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
     }
 
-    @Test//(timeOut = 100000)
+    @Test(timeOut = 100000)
     public void testPublishTimestampBatchEnabled() throws Exception {
 
         log.info("-- Starting {} test --", methodName);

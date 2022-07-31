@@ -31,10 +31,10 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
-import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataEvent;
 import org.apache.pulsar.metadata.api.MetadataEventSynchronizer;
@@ -115,7 +115,7 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
 
     private void startProducer() {
         log.info("[{}] Starting producer", topicName);
-        client.newProducer(AvroSchema.of(MetadataEvent.class)).topic(topicName)
+        client.newProducer(Schema.AVRO(MetadataEvent.class)).topic(topicName)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition).enableBatching(false).enableBatching(false)
                 .sendTimeout(0, TimeUnit.SECONDS) //
                 .maxPendingMessages(MAX_PRODUCER_PENDING_SIZE).createAsync().thenAccept(prod -> {
@@ -136,7 +136,7 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
         if (consumer != null) {
             return;
         }
-        ConsumerBuilder<MetadataEvent> consumerBuilder = client.newConsumer(AvroSchema.of(MetadataEvent.class))
+        ConsumerBuilder<MetadataEvent> consumerBuilder = client.newConsumer(Schema.AVRO(MetadataEvent.class))
                 .topic(topicName).subscriptionName(SUBSCRIPTION_NAME).ackTimeout(60, TimeUnit.SECONDS)
                 .subscriptionType(SubscriptionType.Failover).messageListener((c, msg) -> {
                     log.info("Processing metadata event for {} with listeners {}", msg.getValue().getPath(),
