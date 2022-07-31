@@ -279,8 +279,8 @@ public class PersistentTopicTest extends BrokerTestBase {
     @DataProvider(name = "topicAndMetricsLevel")
     public Object[][] indexPatternTestData() {
         return new Object[][]{
-                new Object[] {"persistent://prop/autoNs/test_delayed_message_metric", "true"},
-                new Object[] {"persistent://prop/autoNs/test_delayed_message_metric", "false"},
+                new Object[] {"persistent://prop/autoNs/test_delayed_message_metric", true},
+                new Object[] {"persistent://prop/autoNs/test_delayed_message_metric", false},
         };
     }
 
