@@ -1186,10 +1186,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             NamespaceName namespace = topicName.getNamespaceObject();
             ServiceConfiguration serviceConfig = pulsar.getConfiguration();
 
-            // Get persistence policy for this topic
-            Optional<Policies> policies = Optional.empty();
-            Optional<LocalPolicies> localPolicies = Optional.empty();
-
             PersistencePolicies tmpPersistencePolicies = null;
             RetentionPolicies tmpRetentionPolicies = null;
             OffloadPolicies tmpTopicLevelOffloadPolicies = null;
@@ -1218,8 +1214,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             String path = joinPath(LOCAL_POLICIES_ROOT, topicName.getNamespaceObject().toString());
             CompletableFuture<Optional<LocalPolicies>> localPoliciesFuture =
                     pulsar().getLocalZkCacheService().policiesCache().getAsync(path);
-
-            policiesFuture.thenCombine(localPoliciesFuture, (optPolicies, optLocalPolicies) -> {
+            policiesFuture.thenCombine(localPoliciesFuture, (policies, localPolicies) -> {
                 PersistencePolicies persistencePolicies = finalPersistencePolicies;
                 RetentionPolicies retentionPolicies = finalRetentionPolicies;
                 OffloadPolicies topicLevelOffloadPolicies = finalTopicLevelOffloadPolicies;
