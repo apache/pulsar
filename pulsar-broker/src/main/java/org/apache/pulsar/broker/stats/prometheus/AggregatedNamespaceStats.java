@@ -59,7 +59,7 @@ public class AggregatedNamespaceStats {
     long compactionCompactedEntriesCount;
     long compactionCompactedEntriesSize;
     StatsBuckets compactionLatencyBuckets = new StatsBuckets(CompactionRecord.WRITE_LATENCY_BUCKETS_USEC);
-    public int delayedTrackerMemoryUsage;
+    int delayedTrackerMemoryUsage;
 
     void updateStats(TopicStats stats) {
         topicsCount++;
