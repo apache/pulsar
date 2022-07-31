@@ -344,7 +344,7 @@ public class PersistentTopicTest extends BrokerTestBase {
             Assert.assertEquals(0, namespaceLevelNum);
         } else {
             Assert.assertTrue(namespaceLevelNum > 0);
-            Assert.assertEquals(namespaceLevelNum, 0);
+            Assert.assertEquals(topicLevelNum, 0);
         }
     }
 }
