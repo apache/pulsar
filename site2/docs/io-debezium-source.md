@@ -29,7 +29,7 @@ The configuration of Debezium source connector has the following properties.
 | `offset.storage.topic` | true | null | Record the last committed offsets that the connector successfully completes. |
 | `json-with-envelope` | false | false | Present the message only consist of payload. |
 | `database.history.pulsar.reader.config` | false | null | The configs of the reader for the database schema history topic, in the form of a JSON string with key-value pairs. |
-| `offset.storage.reader.config` | false | null | The configs of the reader for the kafka connector offsets topic, in the form of a JSON string with key-value pairs. |
+| `offset.storage.reader.config` | false | null | The configs of the reader for the kafka connector offsets topic, in the form of a JSON string with key-value pairs. | 
 
 ### Converter Options
 
