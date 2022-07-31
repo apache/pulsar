@@ -162,6 +162,7 @@ brew install protobuf boost boost-python log4cxx jsoncpp
 cd $HOME
 git clone https://github.com/google/googletest.git
 cd googletest
+git checkout release-1.12.1
 cmake .
 make install
 # Refer gtest documentation in case you get stuck somewhere

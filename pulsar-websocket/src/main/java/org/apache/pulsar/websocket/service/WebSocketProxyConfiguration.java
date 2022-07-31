@@ -245,6 +245,11 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     )
     private Set<String> webServiceTlsCiphers = new TreeSet<>();
 
+    @FieldContext(
+            doc = "CryptoKeyReader factory classname to support encryption at websocket."
+    )
+    private String cryptoKeyReaderFactoryClassName;
+
     @FieldContext(doc = "Key-value properties. Types are all String")
     private Properties properties = new Properties();
 

@@ -270,6 +270,7 @@ $ brew install protobuf boost boost-python log4cxx
 # Google Test installation
 $ git clone https://github.com/google/googletest.git
 $ cd googletest
+$ git checkout release-1.12.1
 $ cmake .
 $ make install
 

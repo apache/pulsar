@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.metadata.bookkeeper;
 
+import static org.apache.commons.io.FileUtils.cleanDirectory;
 import java.io.File;
 import java.io.IOException;
 import java.net.NetworkInterface;
@@ -75,6 +76,8 @@ public class BKCluster implements AutoCloseable {
         private String dataDir;
         private int bkPort = 0;
 
+        private boolean clearOldData;
+
         public BKClusterConf metadataServiceUri(String metadataServiceUri) {
             this.metadataServiceUri = metadataServiceUri;
             return this;
@@ -92,6 +95,11 @@ public class BKCluster implements AutoCloseable {
 
         public BKClusterConf bkPort(int bkPort) {
             this.bkPort = bkPort;
+            return this;
+        }
+
+        public BKClusterConf clearOldData(boolean clearOldData) {
+            this.clearOldData = clearOldData;
             return this;
         }
 
@@ -196,6 +204,10 @@ public class BKCluster implements AutoCloseable {
         } else {
             // Use temp dir and clean it up later
             dataDir = createTempDir("bookie", "test");
+        }
+
+        if (clusterConf.clearOldData) {
+            cleanDirectory(dataDir);
         }
 
         int port;

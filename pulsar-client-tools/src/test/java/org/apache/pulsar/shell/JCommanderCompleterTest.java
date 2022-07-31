@@ -44,7 +44,7 @@ public class JCommanderCompleterTest {
 
     private void createAndCheckCompleters(AdminShell shell, String mainCommand) {
         final List<Completer> completers = JCommanderCompleter.createCompletersForCommand(mainCommand,
-                shell.getJCommander());
+                shell.getJCommander(), null);
         assertFalse(completers.isEmpty());
         for (Completer completer : completers) {
             assertTrue(completer instanceof OptionStrictArgumentCompleter);

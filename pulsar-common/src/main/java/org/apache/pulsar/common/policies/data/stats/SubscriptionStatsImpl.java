@@ -104,7 +104,7 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
     /** Last acked message timestamp. */
     public long lastAckedTimestamp;
 
-    /** Last MarkDelete position advanced timesetamp. */
+    /** Last MarkDelete position advanced timestamp. */
     public long lastMarkDeleteAdvancedTimestamp;
 
     /** List of connected consumers on this subscription w/ their stats. */
