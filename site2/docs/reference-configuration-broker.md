@@ -2383,6 +2383,25 @@ Configuration file path for local metadata store. It's supported by RocksdbMetad
 
 **Category**: Server
 
+### metadataSyncEventTopic
+Event topic to sync metadata between separate pulsar clusters on different cloud platforms.
+
+**Default**: `null`
+
+**Dynamic**: `true`
+
+**Category**: Server
+
+
+### configurationMetadataSyncEventTopic
+Event topic to sync configuration-metadata between separate pulsar clusters on different cloud platforms.
+
+**Default**: `null`
+
+**Dynamic**: `true`
+
+**Category**: Server
+
 ### metadataStoreOperationTimeoutSeconds
 Metadata store operation timeout in seconds.
 

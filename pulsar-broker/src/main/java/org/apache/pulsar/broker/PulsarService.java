@@ -101,6 +101,7 @@ import org.apache.pulsar.broker.resources.ClusterResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.rest.Topics;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.PulsarMetadataEventSynchronizer;
 import org.apache.pulsar.broker.service.SystemTopicBaseTxnBufferSnapshotService;
 import org.apache.pulsar.broker.service.SystemTopicBasedTopicPoliciesService;
 import org.apache.pulsar.broker.service.Topic;
@@ -256,10 +257,12 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private List<PrometheusRawMetricsProvider> pendingMetricsProviders;
 
     private MetadataStoreExtended localMetadataStore;
+    private PulsarMetadataEventSynchronizer localMetadataSynchronizer;
     private CoordinationService coordinationService;
     private TransactionBufferSnapshotService transactionBufferSnapshotService;
 
     private MetadataStore configurationMetadataStore;
+    private PulsarMetadataEventSynchronizer configMetadataSynchronizer;
     private boolean shouldShutdownConfigurationMetadataStore;
 
     private PulsarResources pulsarResources;
@@ -350,7 +353,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         this.offloaderStats = LedgerOffloaderStats.create(false, false, null, 0);
     }
 
-    public MetadataStore createConfigurationMetadataStore() throws MetadataStoreException {
+    public MetadataStore createConfigurationMetadataStore(PulsarMetadataEventSynchronizer synchronizer)
+            throws MetadataStoreException {
         return MetadataStoreFactory.create(config.getConfigurationMetadataStoreUrl(),
                 MetadataStoreConfig.builder()
                         .sessionTimeoutMillis((int) config.getMetadataStoreSessionTimeoutMillis())
@@ -360,6 +364,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         .batchingMaxDelayMillis(config.getMetadataStoreBatchingMaxDelayMillis())
                         .batchingMaxOperations(config.getMetadataStoreBatchingMaxOperations())
                         .batchingMaxSizeKb(config.getMetadataStoreBatchingMaxSizeKb())
+                        .synchronizer(synchronizer)
                         .build());
     }
 
@@ -537,6 +542,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             closeLocalMetadataStore();
             if (configurationMetadataStore != null && shouldShutdownConfigurationMetadataStore) {
                 configurationMetadataStore.close();
+                if (configMetadataSynchronizer != null) {
+                    configMetadataSynchronizer.close();
+                    configMetadataSynchronizer = null;
+                }
             }
 
             if (transactionExecutorProvider != null) {
@@ -695,13 +704,19 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         + "[loadBalancerOverrideBrokerNicSpeedGbps] to override it when load balancer is enabled.");
             }
 
-            localMetadataStore = createLocalMetadataStore();
+            localMetadataSynchronizer = StringUtils.isNotBlank(config.getMetadataSyncEventTopic())
+                    ? new PulsarMetadataEventSynchronizer(this, config.getMetadataSyncEventTopic())
+                    : null;
+            localMetadataStore = createLocalMetadataStore(localMetadataSynchronizer);
             localMetadataStore.registerSessionListener(this::handleMetadataSessionEvent);
 
             coordinationService = new CoordinationServiceImpl(localMetadataStore);
 
             if (config.isConfigurationStoreSeparated()) {
-                configurationMetadataStore = createConfigurationMetadataStore();
+                configMetadataSynchronizer = StringUtils.isNotBlank(config.getConfigurationMetadataSyncEventTopic())
+                        ? new PulsarMetadataEventSynchronizer(this, config.getConfigurationMetadataSyncEventTopic())
+                        : null;
+                configurationMetadataStore = createConfigurationMetadataStore(configMetadataSynchronizer);
                 shouldShutdownConfigurationMetadataStore = true;
             } else {
                 configurationMetadataStore = localMetadataStore;
@@ -857,6 +872,12 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 this.resourceUsageTransportManager = (ResourceUsageTopicTransportManager) object;
             }
             this.resourceGroupServiceManager = new ResourceGroupService(this);
+            if (localMetadataSynchronizer != null) {
+                localMetadataSynchronizer.start();
+            }
+            if (configMetadataSynchronizer != null) {
+                configMetadataSynchronizer.start();
+            }
 
             long currentTimestamp = System.currentTimeMillis();
             final long bootstrapTimeSeconds = TimeUnit.MILLISECONDS.toSeconds(currentTimestamp - startTimestamp);
@@ -1012,7 +1033,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         }
     }
 
-    public MetadataStoreExtended createLocalMetadataStore() throws MetadataStoreException {
+    public MetadataStoreExtended createLocalMetadataStore(PulsarMetadataEventSynchronizer synchronizer)
+            throws MetadataStoreException, PulsarServerException {
         return MetadataStoreExtended.create(config.getMetadataStoreUrl(),
                 MetadataStoreConfig.builder()
                         .sessionTimeoutMillis((int) config.getMetadataStoreSessionTimeoutMillis())
@@ -1022,12 +1044,17 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         .batchingMaxDelayMillis(config.getMetadataStoreBatchingMaxDelayMillis())
                         .batchingMaxOperations(config.getMetadataStoreBatchingMaxOperations())
                         .batchingMaxSizeKb(config.getMetadataStoreBatchingMaxSizeKb())
+                        .synchronizer(synchronizer)
                         .build());
     }
 
     protected void closeLocalMetadataStore() throws Exception {
         if (localMetadataStore != null) {
             localMetadataStore.close();
+        }
+        if (localMetadataSynchronizer != null) {
+            localMetadataSynchronizer.close();
+            localMetadataSynchronizer = null;
         }
     }
 
