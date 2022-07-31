@@ -349,6 +349,29 @@ public class WebServiceTest {
         assertEquals(res.getResponseBody(), "ok");
     }
 
+    @Test
+    public void testCompressMetricsData() throws Exception {
+        setupEnv(true, "1.0", true, false, false, false, -1, false);
+
+        String statsUrl = pulsar.getWebServiceAddress() + "/admin/v2/brokers/ready";
+        String metricsUrl = pulsar.getWebServiceAddress() + "/metrics";
+
+        @Cleanup
+        AsyncHttpClient statsClient = new DefaultAsyncHttpClient();
+
+        Response statsRes = statsClient.prepareGet(statsUrl).execute().get();
+        assertEquals(statsRes.getStatusCode(), 200);
+        assertEquals(statsRes.getHeader("Vary"), null);
+        assertEquals(statsRes.getHeader("Transfer-Encoding"), null);
+
+        @Cleanup
+        AsyncHttpClient metricsClient = new DefaultAsyncHttpClient();
+        Response metricsRes = metricsClient.prepareGet(metricsUrl).execute().get();
+        assertEquals(metricsRes.getStatusCode(), 200);
+        assertEquals(metricsRes.getHeader("Vary"), "Accept-Encoding");
+        assertEquals(metricsRes.getHeader("Transfer-Encoding"), "chunked");
+    }
+
     private String makeHttpRequest(boolean useTls, boolean useAuth) throws Exception {
         InputStream response = null;
         try {
