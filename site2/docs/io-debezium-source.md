@@ -27,7 +27,9 @@ The configuration of Debezium source connector has the following properties.
 | `database.history.pulsar.topic` | true | null | The name of the database history topic where the connector writes and recovers DDL statements. <br /><br />**Note: this topic is for internal use only and should not be used by consumers.** |
 | `database.history.pulsar.service.url` | true | null | Pulsar cluster service URL for history topic. |
 | `offset.storage.topic` | true | null | Record the last committed offsets that the connector successfully completes. |
-| `json-with-envelope` | false | false | Present the message only consist of payload.
+| `json-with-envelope` | false | false | Present the message only consist of payload. |
+| `database.history.pulsar.reader.config` | false | null | The configs of the reader for the database schema history topic, in the form of a JSON string with key-value pairs. |
+| `offset.storage.reader.config` | false | null | The configs of the reader for the kafka connector offsets topic, in the form of a JSON string with key-value pairs. |
 
 ### Converter Options
 
@@ -54,7 +56,32 @@ Schema.AUTO_CONSUME(), KeyValueEncodingType.SEPARATED)`, and the message consist
 | `mongodb.password` | true | null | Password to be used when connecting to MongoDB. This is required only when MongoDB is configured to use authentication. |
 | `mongodb.task.id` | true | null | The taskId of the MongoDB connector that attempts to use a separate task for each replica set. |
 
+### Customize the Reader config for the metadata topics
 
+The Debezium Connector exposes `database.history.pulsar.reader.config` and `offset.storage.reader.config` to configure the reader of database schema history topic and the kafka connector offsets topic. For example, it can be used to configure the subscription name and other reader configurations. The available configuration can be found at [ReaderConfigurationData](https://github.com/apache/pulsar/blob/master/pulsar-client/src/main/java/org/apache/pulsar/client/impl/conf/ReaderConfigurationData.java).
+
+For example, to configure the subscription name for both Reader, you can add the following configuration:
+
+* JSON
+
+   ```json
+   {
+     "configs": {
+        "database.history.pulsar.reader.config": "{\"subscriptionName\":\"history-reader\"}",
+        "offset.storage.reader.config": "{\"subscriptionName\":\"offset-reader\"}",
+     }
+   }
+   ```
+
+* YAML
+
+   ```yaml
+   
+   configs:
+      database.history.pulsar.reader.config: "{\"subscriptionName\":\"history-reader\"}"
+      offset.storage.reader.config: "{\"subscriptionName\":\"offset-reader\"}"
+
+   ```
 
 ## Example of MySQL
 
