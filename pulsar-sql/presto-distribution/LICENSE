@@ -273,7 +273,7 @@ The Apache Software License, Version 2.0
   * CGLIB Nodep
     - cglib-nodep-3.3.0.jar
   * Airlift
-    - aircompressor-0.16.jar
+    - aircompressor-0.20.jar
     - airline-0.8.jar
     - bootstrap-0.199.jar
     - bootstrap-0.195.jar
