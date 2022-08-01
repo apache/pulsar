@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.authentication;
 
 import java.security.cert.X509Certificate;
-
 import javax.servlet.http.HttpServletRequest;
 
 public class AuthenticationDataHttps extends AuthenticationDataHttp {
@@ -27,7 +26,7 @@ public class AuthenticationDataHttps extends AuthenticationDataHttp {
     protected final X509Certificate[] certificates;
 
     public AuthenticationDataHttps(HttpServletRequest request) {
-        super(request);
+        super(new AuthenticationProviderToken.HttpServletRequestWrapper(request));
         certificates = (X509Certificate[]) request.getAttribute("javax.servlet.request.X509Certificate");
     }
 

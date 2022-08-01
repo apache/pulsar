@@ -18,13 +18,13 @@
  */
 package org.apache.pulsar.broker.authentication;
 
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import com.google.common.collect.Lists;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwt;
@@ -33,25 +33,23 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
-import java.security.Key;
-import java.util.List;
-import lombok.Cleanup;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.security.Key;
 import java.security.KeyPair;
 import java.security.PrivateKey;
 import java.sql.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
-
 import javax.crypto.SecretKey;
 import javax.naming.AuthenticationException;
-
+import javax.servlet.http.HttpServletRequest;
+import lombok.Cleanup;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.common.api.AuthData;
@@ -799,5 +797,56 @@ public class AuthenticationProviderTokenTest {
         });
         assertEquals(subject, SUBJECT);
         provider.close();
+    }
+
+    @Test
+    public void testTokenFromHttpParams() throws Exception {
+        SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
+
+        @Cleanup
+        AuthenticationProviderToken provider = new AuthenticationProviderToken();
+
+        Properties properties = new Properties();
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_SECRET_KEY,
+                AuthTokenUtils.encodeKeyBase64(secretKey));
+
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setProperties(properties);
+        provider.initialize(conf);
+
+        String token = AuthTokenUtils.createToken(secretKey, SUBJECT, Optional.empty());
+        HttpServletRequest servletRequest = mock(HttpServletRequest.class);
+        doReturn(token).when(servletRequest).getParameter("token");
+        doReturn(null).when(servletRequest).getHeader("Authorization");
+        doReturn("127.0.0.1").when(servletRequest).getRemoteAddr();
+        doReturn(0).when(servletRequest).getRemotePort();
+
+        AuthenticationDataHttps authenticationDataHttps = new AuthenticationDataHttps(servletRequest);
+        provider.authenticate(authenticationDataHttps);
+    }
+
+    @Test
+    public void testTokenFromHttpHeaders() throws Exception {
+        SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
+
+        @Cleanup
+        AuthenticationProviderToken provider = new AuthenticationProviderToken();
+
+        Properties properties = new Properties();
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_SECRET_KEY,
+                AuthTokenUtils.encodeKeyBase64(secretKey));
+
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setProperties(properties);
+        provider.initialize(conf);
+
+        String token = AuthTokenUtils.createToken(secretKey, SUBJECT, Optional.empty());
+        HttpServletRequest servletRequest = mock(HttpServletRequest.class);
+        doReturn("Bearer " + token).when(servletRequest).getHeader("Authorization");
+        doReturn("127.0.0.1").when(servletRequest).getRemoteAddr();
+        doReturn(0).when(servletRequest).getRemotePort();
+
+        AuthenticationDataHttps authenticationDataHttps = new AuthenticationDataHttps(servletRequest);
+        provider.authenticate(authenticationDataHttps);
     }
 }
