@@ -68,9 +68,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
     /** Default metrics definitions. **/
     private String[] metricsLabelNames = new String[]{"coordinatorId"};
     private String[] metricsLabelValues = new String[]{"1"};
-    private String metricsComponent = TxnLogBufferedWriterMetricsDefinition.COMPONENT_TRANSACTION_COORDINATOR;
-    private TxnLogBufferedWriterMetricsDefinition metricsDefinition =
-            new TxnLogBufferedWriterMetricsDefinition(true, metricsComponent, metricsLabelNames, metricsLabelValues);
+    private String metricsPrefix = "pulsar_txn_tc";
 
     /**
      * Overridden cases:
@@ -648,13 +646,15 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
     }
 
     /**
-     * 1. Verify Transaction buffered writer stats correct when enabled batch feature, exclusive
-     *    {@link TxnLogBufferedWriterMetricsStats#pulsarBatchedLogTriggeringCountByForce}, this property
-     *    verified by {@link #testMetricsStatsWhenForceFlush()}.
+     * 1. Verify Transaction buffered writer stats correct when enabled batch feature. Exclusive "triggerByForceFlush",
+     *    this property verified by {@link #testMetricsStatsWhenForceFlush()}.
      * 2. Verify metrics will be release after {@link TxnLogBufferedWriterMetricsStats#clone()}.
      */
     @Test
     public void testMetricsStatsWhenEnabled() throws Exception {
+        TxnLogBufferedWriterMetricsStats metricsStats = new TxnLogBufferedWriterMetricsStats(
+                metricsPrefix, metricsLabelNames, metricsLabelValues, CollectorRegistry.defaultRegistry
+        );
         // Mock managed ledger to get the count of refresh event.
         AtomicInteger refreshCount = new AtomicInteger();
         String managedLedgerName = "-";
@@ -693,7 +693,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         TxnLogBufferedWriter<Integer> txnLogBufferedWriter = new TxnLogBufferedWriter<Integer>(
                 managedLedger, orderedExecutor, transactionTimer,
                 dataSerializer, 256, 1024,
-                1, true, metricsDefinition);
+                1, true, metricsStats);
         // Add some data.
         int writeCount = 3000;
         for (int i = 0; i < writeCount; i++){
@@ -705,26 +705,26 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         );
         Assert.assertEquals(addDataCallbackFailureCount.get(), 0);
         /** Assert metrics stats correct. **/
-        Assert.assertEquals(getCounterValue(String.format("%s_batched_log_triggering_count_by_force", metricsComponent)), 0D);
+        Assert.assertEquals(getCounterValue(String.format("%s_batched_log_triggering_count_by_force", metricsPrefix)), 0D);
         Assert.assertEquals(
-                getCounterValue(String.format("%s_batched_log_triggering_count_by_records", metricsComponent))
-                + getCounterValue(String.format("%s_batched_log_triggering_count_by_size", metricsComponent))
-                + getCounterValue(String.format("%s_batched_log_triggering_count_by_delay_time", metricsComponent)),
+                getCounterValue(String.format("%s_batched_log_triggering_count_by_records", metricsPrefix))
+                + getCounterValue(String.format("%s_batched_log_triggering_count_by_size", metricsPrefix))
+                + getCounterValue(String.format("%s_batched_log_triggering_count_by_delay_time", metricsPrefix)),
                 (double)refreshCount.get());
         Assert.assertEquals(
-                getHistogramCount(String.format("%s_batched_log_records_count_per_entry", metricsComponent)),
+                getHistogramCount(String.format("%s_batched_log_records_count_per_entry", metricsPrefix)),
                 refreshCount.get());
         Assert.assertEquals(
-                getHistogramSum(String.format("%s_batched_log_records_count_per_entry", metricsComponent)),
+                getHistogramSum(String.format("%s_batched_log_records_count_per_entry", metricsPrefix)),
                 writeCount);
         Assert.assertEquals(
-                getHistogramCount(String.format("%s_batched_log_entry_size_bytes", metricsComponent)),
+                getHistogramCount(String.format("%s_batched_log_entry_size_bytes", metricsPrefix)),
                 refreshCount.get());
         Assert.assertEquals(
-                getHistogramSum(String.format("%s_batched_log_entry_size_bytes", metricsComponent)),
+                getHistogramSum(String.format("%s_batched_log_entry_size_bytes", metricsPrefix)),
                 dataSerializer.getTotalSize());
         Assert.assertEquals(
-                getHistogramCount(String.format("%s_batched_log_oldest_record_delay_time_seconds", metricsComponent)),
+                getHistogramCount(String.format("%s_batched_log_oldest_record_delay_time_seconds", metricsPrefix)),
                 refreshCount.get());
         /**
          * Assert all metrics will be released after {@link TxnLogBufferedWriter#close()}
@@ -734,49 +734,46 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
          *   3. Close second {@link TxnLogBufferedWriter},verify all metrics will be released after all
          *      {@link TxnLogBufferedWriter#close()}
          */
-        TxnLogBufferedWriterMetricsDefinition anotherMetricsDefinition = new TxnLogBufferedWriterMetricsDefinition(
-                true, metricsComponent, metricsLabelNames, new String[]{"2"});
+        TxnLogBufferedWriterMetricsStats anotherMetricsStat = new TxnLogBufferedWriterMetricsStats(
+                metricsPrefix, metricsLabelNames, new String[]{"2"}, CollectorRegistry.defaultRegistry);
         TxnLogBufferedWriter<Integer> anotherTxnLogBufferedWriter = new TxnLogBufferedWriter<Integer>(
                 managedLedger, orderedExecutor, transactionTimer,
                 dataSerializer, 256, 1024,
-                1, true, anotherMetricsDefinition);
+                1, true, anotherMetricsStat);
         anotherTxnLogBufferedWriter.asyncAddData(1, addDataCallback, "");
         Awaitility.await().atMost(1, TimeUnit.SECONDS).until(
                 () -> addDataCallbackFinishCount.get() + addDataCallbackFailureCount.get() == writeCount + 1
         );
         // Close first-writer, verify the labels will be released after writer-close.
         txnLogBufferedWriter.close();
+        metricsStats.close();
         Awaitility.await().atMost(2, TimeUnit.SECONDS).until(
                 () -> getHistogramCount(
-                        String.format("%s_batched_log_oldest_record_delay_time_seconds", metricsComponent)) == 0
+                        String.format("%s_batched_log_oldest_record_delay_time_seconds", metricsPrefix)) == 0
         );
         Assert.assertEquals(
-                getCounterValue(String.format("%s_batched_log_triggering_count_by_records", metricsComponent)),
+                getCounterValue(String.format("%s_batched_log_triggering_count_by_records", metricsPrefix)),
                 0D
         );
         Assert.assertEquals(
-                getCounterValue(String.format("%s_batched_log_triggering_count_by_size", metricsComponent)),
+                getCounterValue(String.format("%s_batched_log_triggering_count_by_size", metricsPrefix)),
                 0D
         );
         Assert.assertEquals(
-                getCounterValue(String.format("%s_batched_log_triggering_count_by_delay_time", metricsComponent)),
+                getCounterValue(String.format("%s_batched_log_triggering_count_by_delay_time", metricsPrefix)),
                 0D
         );
         Assert.assertEquals(
-                getHistogramCount(String.format("%s_batched_log_records_count_per_entry", metricsComponent)),
+                getHistogramCount(String.format("%s_batched_log_records_count_per_entry", metricsPrefix)),
                 0D
         );
         Assert.assertEquals(
-                getHistogramCount(String.format("%s_batched_log_entry_size_bytes", metricsComponent)),
+                getHistogramCount(String.format("%s_batched_log_entry_size_bytes", metricsPrefix)),
                 0D
         );
         // Close second-writer, verify all metrics will be released after all writer-close.
         anotherTxnLogBufferedWriter.close();
-        Awaitility.await().atMost(2, TimeUnit.SECONDS).until(
-                () -> {
-                    return TxnLogBufferedWriterMetricsStats.METRICS_REGISTRY.size() == 0;
-                }
-        );
+        anotherMetricsStat.close();
         // cleanup.
         transactionTimer.stop();
         managedLedger.close();
@@ -812,6 +809,9 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
      */
     @Test
     public void testMetricsStatsWhenDisabled() throws Exception {
+        TxnLogBufferedWriterMetricsStats metricsStats = new TxnLogBufferedWriterMetricsStats(
+                metricsPrefix, metricsLabelNames, metricsLabelValues, CollectorRegistry.defaultRegistry
+        );
         ManagedLedger managedLedger = factory.open("tx_test_ledger");
         // Mock addDataCallbackCount to get the count of add data finish count;
         AtomicInteger addDataCallbackFinishCount = new AtomicInteger();
@@ -835,7 +835,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         TxnLogBufferedWriter<Integer> txnLogBufferedWriter = new TxnLogBufferedWriter<Integer>(
                 managedLedger, orderedExecutor, transactionTimer,
                 dataSerializer, 256, 1024,
-                1, false, metricsDefinition);
+                1, false, metricsStats);
         // Add some data.
         int writeCount = 1000;
         for (int i = 0; i < writeCount; i++){
@@ -847,38 +847,36 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         );
         Assert.assertEquals(addDataCallbackFailureCount.get(), 0);
         // Assert metrics stat.
-        Assert.assertEquals(getCounterValue(String.format("%s_batched_log_triggering_count_by_force", metricsComponent)), 0D);
+        Assert.assertEquals(getCounterValue(String.format("%s_batched_log_triggering_count_by_force", metricsPrefix)), 0D);
         Assert.assertEquals(
-                getCounterValue(String.format("%s_batched_log_triggering_count_by_records", metricsComponent))
-                    + getCounterValue(String.format("%s_batched_log_triggering_count_by_size", metricsComponent))
-                    + getCounterValue(String.format("%s_batched_log_triggering_count_by_delay_time", metricsComponent)),
+                getCounterValue(String.format("%s_batched_log_triggering_count_by_records", metricsPrefix))
+                    + getCounterValue(String.format("%s_batched_log_triggering_count_by_size", metricsPrefix))
+                    + getCounterValue(String.format("%s_batched_log_triggering_count_by_delay_time", metricsPrefix)),
                 0D);
         Assert.assertEquals(
-                getHistogramCount(String.format("%s_batched_log_records_count_per_entry", metricsComponent)),
+                getHistogramCount(String.format("%s_batched_log_records_count_per_entry", metricsPrefix)),
                 0D);
         Assert.assertEquals(
-                getHistogramCount(String.format("%s_batched_log_entry_size_bytes", metricsComponent)),
+                getHistogramCount(String.format("%s_batched_log_entry_size_bytes", metricsPrefix)),
                 0D);
         Assert.assertEquals(
-                getHistogramCount(String.format("%s_batched_log_oldest_record_delay_time_seconds", metricsComponent)),
+                getHistogramCount(String.format("%s_batched_log_oldest_record_delay_time_seconds", metricsPrefix)),
                 0D);
         // cleanup.
         txnLogBufferedWriter.close();
-        Awaitility.await().atMost(2, TimeUnit.SECONDS).until(
-                () -> {
-                    return TxnLogBufferedWriterMetricsStats.METRICS_REGISTRY.size() == 0;
-                }
-        );
+        metricsStats.close();
         transactionTimer.stop();
         orderedExecutor.shutdown();
     }
 
     /**
-     * Test the result property {@link TxnLogBufferedWriterMetricsStats#pulsarBatchedLogTriggeringCountByForce} of
-     * {@link TxnLogBufferedWriter#getMetricsStats()}.
+     * Test {@link TxnLogBufferedWriterMetricsStats#triggerFlushByForce(int, long, long)}.
      */
     @Test
     public void testMetricsStatsWhenForceFlush() throws Exception {
+        TxnLogBufferedWriterMetricsStats metricsStats = new TxnLogBufferedWriterMetricsStats(
+                metricsPrefix, metricsLabelNames, metricsLabelValues, CollectorRegistry.defaultRegistry
+        );
         // Mock managed ledger to get the count of refresh event.
         AtomicInteger refreshCount = new AtomicInteger();
         String managedLedgerName = "-";
@@ -917,7 +915,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         TxnLogBufferedWriter<Integer> txnLogBufferedWriter = new TxnLogBufferedWriter<Integer>(
                 managedLedger, orderedExecutor, transactionTimer,
                 dataSerializer, 256, 1024,
-                3600 * 1000, true, metricsDefinition);
+                3600 * 1000, true, metricsStats);
         // Add some data.
         int writeCount = 1000;
         for (int i = 0; i < writeCount; i++){
@@ -931,16 +929,12 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         Assert.assertEquals(addDataCallbackFailureCount.get(), 0);
         // Assert metrics stat.
         Assert.assertEquals(
-                getCounterValue(String.format("%s_batched_log_triggering_count_by_force", metricsComponent)),
+                getCounterValue(String.format("%s_batched_log_triggering_count_by_force", metricsPrefix)),
                 refreshCount.get()
         );
         // cleanup.
         txnLogBufferedWriter.close();
-        Awaitility.await().atMost(2, TimeUnit.SECONDS).until(
-                () -> {
-                    return TxnLogBufferedWriterMetricsStats.METRICS_REGISTRY.size() == 0;
-                }
-        );
+        metricsStats.close();
         transactionTimer.stop();
         orderedExecutor.shutdown();
     }

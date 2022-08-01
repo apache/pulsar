@@ -117,7 +117,6 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
                     .newUpdater(TxnLogBufferedWriter.class, TxnLogBufferedWriter.State.class, "state");
 
     /** Metrics. **/
-    private final TxnLogBufferedWriterMetricsDefinition metricsDefinition;
     private final TxnLogBufferedWriterMetricsStats metricsStats;
 
     public TxnLogBufferedWriter(ManagedLedger managedLedger, OrderedExecutor orderedExecutor, Timer timer,
@@ -125,7 +124,7 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
                                 int batchedWriteMaxRecords, int batchedWriteMaxSize, int batchedWriteMaxDelayInMillis,
                                 boolean batchEnabled){
         this(managedLedger, orderedExecutor, timer, dataSerializer, batchedWriteMaxRecords, batchedWriteMaxSize,
-                batchedWriteMaxDelayInMillis, batchEnabled, TxnLogBufferedWriterMetricsDefinition.DISABLED);
+                batchedWriteMaxDelayInMillis, batchEnabled, null);
     }
 
     /**
@@ -143,7 +142,7 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
     public TxnLogBufferedWriter(ManagedLedger managedLedger, OrderedExecutor orderedExecutor, Timer timer,
                                 DataSerializer<T> dataSerializer,
                                 int batchedWriteMaxRecords, int batchedWriteMaxSize, int batchedWriteMaxDelayInMillis,
-                                boolean batchEnabled, TxnLogBufferedWriterMetricsDefinition metricsDefinition){
+                                boolean batchEnabled, TxnLogBufferedWriterMetricsStats metricsStats){
         this.batchEnabled = batchEnabled;
         this.managedLedger = managedLedger;
         this.singleThreadExecutorForWrite = orderedExecutor.chooseThread(
@@ -156,17 +155,7 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
         this.dataArray = new ArrayList<>();
         this.state = State.OPEN;
         // Metrics.
-        // Why copy metricsDefinition ?
-        // Object TxnLogBufferedWriterMetricsStats bindings on object metricsDefinition, stats will be released when
-        // there are no metricsDefinition dependencies on. If there are two TxnLogBufferedWriter using the same
-        // metricsDefinition object, when close one，will be mistaken for the stats were not cited, the stats will be
-        // released in error.
-        this.metricsDefinition = metricsDefinition.copy();
-        if (this.metricsDefinition.isEnabled() && this.batchEnabled) {
-            this.metricsStats = TxnLogBufferedWriterMetricsStats.getInstance(this.metricsDefinition);
-        } else {
-            this.metricsStats = null;
-        }
+        this.metricsStats = metricsStats;
         // scheduler task.
         this.timer = timer;
         if (this.batchEnabled) {
@@ -301,47 +290,42 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
                 return;
             }
             if (force) {
-                if (this.metricsDefinition.isEnabled()) {
-                    metricsStats.pulsarBatchedLogTriggeringCountByForce.labels(metricsDefinition.labelValues)
-                            .inc();
-                    appendMetricsHistogram();
+                if (metricsStats != null) {
+                    metricsStats.triggerFlushByForce(this.flushContext.asyncAddArgsList.size(), this.bytesSize,
+                            System.currentTimeMillis() - flushContext.asyncAddArgsList.get(0).addedTime);
                 }
                 doFlush();
                 return;
             }
             if (byScheduleThreads) {
-                if (this.metricsDefinition.isEnabled()) {
-                    metricsStats.pulsarBatchedLogTriggeringCountByDelayTime.labels(metricsDefinition.labelValues)
-                            .inc();
-                    appendMetricsHistogram();
+                if (metricsStats != null) {
+                    metricsStats.triggerFlushByByMaxDelay(this.flushContext.asyncAddArgsList.size(), this.bytesSize,
+                            System.currentTimeMillis() - flushContext.asyncAddArgsList.get(0).addedTime);
                 }
                 doFlush();
                 return;
             }
             AsyncAddArgs firstAsyncAddArgs = flushContext.asyncAddArgsList.get(0);
             if (System.currentTimeMillis() - firstAsyncAddArgs.addedTime >= batchedWriteMaxDelayInMillis) {
-                if (this.metricsDefinition.isEnabled()) {
-                    metricsStats.pulsarBatchedLogTriggeringCountByDelayTime.labels(metricsDefinition.labelValues)
-                            .inc();
-                    appendMetricsHistogram();
+                if (metricsStats != null) {
+                    metricsStats.triggerFlushByByMaxDelay(this.flushContext.asyncAddArgsList.size(), this.bytesSize,
+                            System.currentTimeMillis() - flushContext.asyncAddArgsList.get(0).addedTime);
                 }
                 doFlush();
                 return;
             }
             if (this.flushContext.asyncAddArgsList.size() >= batchedWriteMaxRecords) {
-                if (this.metricsDefinition.isEnabled()) {
-                    metricsStats.pulsarBatchedLogTriggeringCountByRecords.labels(metricsDefinition.labelValues)
-                            .inc();
-                    appendMetricsHistogram();
+                if (metricsStats != null) {
+                    metricsStats.triggerFlushByRecordsCount(this.flushContext.asyncAddArgsList.size(), this.bytesSize,
+                            System.currentTimeMillis() - flushContext.asyncAddArgsList.get(0).addedTime);
                 }
                 doFlush();
                 return;
             }
             if (this.bytesSize >= batchedWriteMaxSize) {
-                if (this.metricsDefinition.isEnabled()) {
-                    metricsStats.pulsarBatchedLogTriggeringCountBySize.labels(metricsDefinition.labelValues)
-                            .inc();
-                    appendMetricsHistogram();
+                if (metricsStats != null) {
+                    metricsStats.triggerFlushByBytesSize(this.flushContext.asyncAddArgsList.size(), this.bytesSize,
+                            System.currentTimeMillis() - flushContext.asyncAddArgsList.get(0).addedTime);
                 }
                 doFlush();
             }
@@ -371,18 +355,6 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
         this.dataArray.clear();
         this.flushContext = FlushContext.newInstance();
         this.bytesSize = 0;
-    }
-
-    /**
-     * Append the metrics which is type of histogram.
-     */
-    private void appendMetricsHistogram(){
-        metricsStats.pulsarBatchedLogRecordsCountPerEntry.labels(metricsDefinition.labelValues)
-                .observe(this.flushContext.asyncAddArgsList.size());
-        metricsStats.pulsarBatchedLogEntrySizeBytes.labels(metricsDefinition.labelValues)
-                .observe(this.bytesSize);
-        metricsStats.pulsarBatchedLogOldestRecordDelayTimeSeconds.labels(metricsDefinition.labelValues)
-                .observe(System.currentTimeMillis() - flushContext.asyncAddArgsList.get(0).addedTime);
     }
 
     /**
@@ -457,9 +429,6 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
                     log.error("Cancel timeout-task that schedule at fixed rate trig flush failure. The state will"
                             + " stay at CLOSING. managedLedger: " + managedLedger.getName());
                 }
-            }
-            if (state == State.CLOSING || state == State.CLOSED){
-                TxnLogBufferedWriterMetricsStats.releaseReference(metricsDefinition);
             }
         });
     }

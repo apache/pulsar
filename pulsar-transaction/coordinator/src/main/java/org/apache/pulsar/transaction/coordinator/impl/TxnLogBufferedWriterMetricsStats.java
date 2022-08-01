@@ -18,17 +18,13 @@
  */
 package org.apache.pulsar.transaction.coordinator.impl;
 
-import com.google.common.annotations.VisibleForTesting;
 import io.prometheus.client.Collector;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Histogram;
-import java.util.ArrayList;
+import java.io.Closeable;
 import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
 import lombok.Data;
-import org.apache.commons.collections4.CollectionUtils;
 
 /***
  * Describes the working status of the {@link TxnLogBufferedWriter}, helps users tune the thresholds of
@@ -44,7 +40,7 @@ import org.apache.commons.collections4.CollectionUtils;
  *    batch to improve throughput, but that does not work.
  */
 @Data
-public class TxnLogBufferedWriterMetricsStats {
+public class TxnLogBufferedWriterMetricsStats implements Closeable {
 
     /**
      * Key is the name we used to create {@link TxnLogBufferedWriterMetricsStats}, and now there are two kinds:
@@ -52,16 +48,7 @@ public class TxnLogBufferedWriterMetricsStats {
      * {@link TxnLogBufferedWriterMetricsStats}, such as The Transaction Coordinator using coordinatorId as label and
      * The Transaction Pending Ack Store using subscriptionName as label.
      */
-    @VisibleForTesting
-    static final HashMap<String, TxnLogBufferedWriterMetricsStats> METRICS_REGISTRY = new HashMap<>();
-    /**
-     * Marks all references to instance {@link TxnLogBufferedWriterMetricsStats}, after all objects that depend on the
-     * {@link TxnLogBufferedWriterMetricsStats} are closed, the {@link TxnLogBufferedWriterMetricsStats} will call
-     * {@link CollectorRegistry#unregister(Collector)} for release.
-     */
-    @VisibleForTesting
-    static final HashMap<String, List<TxnLogBufferedWriterMetricsDefinition>> METRICS_INSTANCE_REFERENCE =
-            new HashMap<>();
+    private static final HashMap<String, Collector> METRICS_REGISTRY = new HashMap<>();
 
     static final double[] RECORD_COUNT_PER_ENTRY_BUCKETS = { 10, 50, 100, 200, 500, 1_000};
 
@@ -70,141 +57,180 @@ public class TxnLogBufferedWriterMetricsStats {
 
     static final double[] MAX_DELAY_TIME_BUCKETS = { 1, 5, 10 };
 
+    private final String metricsPrefix;
+
+    private final String[] labelNames;
+
+    private final String[] labelValues;
+
     /** Count of records in per transaction log batch. **/
-    Histogram pulsarBatchedLogRecordsCountPerEntry;
+    private final Histogram pulsarBatchedLogRecordsCountPerEntry;
+    private final Histogram.Child pulsarBatchedLogRecordsCountPerEntryChild;
 
     /** Bytes size per transaction log batch. **/
-    Histogram pulsarBatchedLogEntrySizeBytes;
+    private final Histogram pulsarBatchedLogEntrySizeBytes;
+    private final Histogram.Child pulsarBatchedLogEntrySizeBytesChild;
 
     /** The time of the oldest transaction log spent in the buffer before being sent. **/
-    Histogram pulsarBatchedLogOldestRecordDelayTimeSeconds;
+    private final  Histogram pulsarBatchedLogOldestRecordDelayTimeSeconds;
+    private final Histogram.Child pulsarBatchedLogOldestRecordDelayTimeSecondsChild;
 
     /**
      * The count of the triggering transaction log batch flush actions by
      * {@link TxnLogBufferedWriter#batchedWriteMaxRecords}.
      */
-    Counter pulsarBatchedLogTriggeringCountByRecords;
+    private final Counter pulsarBatchedLogTriggeringCountByRecords;
+    private final Counter.Child pulsarBatchedLogTriggeringCountByRecordsChild;
 
     /**
      * The count of the triggering transaction log batch flush actions by
      * {@link TxnLogBufferedWriter#batchedWriteMaxSize}.
      */
-    Counter pulsarBatchedLogTriggeringCountBySize;
+    private final Counter pulsarBatchedLogTriggeringCountBySize;
+    private final Counter.Child pulsarBatchedLogTriggeringCountBySizeChild;
 
     /**
      * The count of the triggering transaction log batch flush actions by
      * {@link TxnLogBufferedWriter#batchedWriteMaxDelayInMillis}.
      */
-    Counter pulsarBatchedLogTriggeringCountByDelayTime;
+    private final Counter pulsarBatchedLogTriggeringCountByDelayTime;
+    private final Counter.Child pulsarBatchedLogTriggeringCountByDelayTimeChild;
 
     /**
      * The count of the triggering transaction log batch flush actions by force-flush. In addition to manual flush,
      * force flush is triggered only if the log record bytes size reaches the TxnLogBufferedWriter#batchedWriteMaxSize}
      * limit.
      */
-    Counter pulsarBatchedLogTriggeringCountByForce;
+    private final  Counter pulsarBatchedLogTriggeringCountByForce;
+    private final Counter.Child pulsarBatchedLogTriggeringCountByForceChild;
 
-    public static synchronized TxnLogBufferedWriterMetricsStats getInstance(
-                                                            TxnLogBufferedWriterMetricsDefinition metricsDefinition){
-        // Mark who references stats.
-        METRICS_INSTANCE_REFERENCE.computeIfAbsent(metricsDefinition.getComponent(), n -> new ArrayList<>());
-        METRICS_INSTANCE_REFERENCE.get(metricsDefinition.getComponent()).add(metricsDefinition);
-        // Get or create stats.
-        return METRICS_REGISTRY.computeIfAbsent(
-                metricsDefinition.getComponent(),
-                n -> new TxnLogBufferedWriterMetricsStats(n, metricsDefinition.labelNames,
-                        CollectorRegistry.defaultRegistry)
-        );
+    public void close(){
+        pulsarBatchedLogRecordsCountPerEntry.remove(labelValues);
+        pulsarBatchedLogEntrySizeBytes.remove(labelValues);
+        pulsarBatchedLogOldestRecordDelayTimeSeconds.remove(labelValues);
+        pulsarBatchedLogTriggeringCountByRecords.remove(labelValues);
+        pulsarBatchedLogTriggeringCountBySize.remove(labelValues);
+        pulsarBatchedLogTriggeringCountByDelayTime.remove(labelValues);
+        pulsarBatchedLogTriggeringCountByForce.remove(labelValues);
     }
 
-    public static synchronized void releaseReference(TxnLogBufferedWriterMetricsDefinition metricsDefinition){
-        // Remove reference.
-        List<TxnLogBufferedWriterMetricsDefinition> list =
-                METRICS_INSTANCE_REFERENCE.get(metricsDefinition.getComponent());
-        if (CollectionUtils.isEmpty(list)){
-            METRICS_REGISTRY.remove(metricsDefinition.getComponent());
-            return;
-        }
-        int removeCount = 0;
-        Iterator<TxnLogBufferedWriterMetricsDefinition> iterator = list.iterator();
-        while (iterator.hasNext()){
-            if (iterator.next() == metricsDefinition){
-                iterator.remove();
-                removeCount++;
-            }
-        }
-        // Remove label values.
-        TxnLogBufferedWriterMetricsStats stats = METRICS_REGISTRY.get(metricsDefinition.getComponent());
-        if (stats == null){
-            return;
-        }
-        if (removeCount > 0){
-            stats.pulsarBatchedLogRecordsCountPerEntry.remove(metricsDefinition.labelValues);
-            stats.pulsarBatchedLogEntrySizeBytes.remove(metricsDefinition.labelValues);
-            stats.pulsarBatchedLogOldestRecordDelayTimeSeconds.remove(metricsDefinition.labelValues);
-            stats.pulsarBatchedLogTriggeringCountByRecords.remove(metricsDefinition.labelValues);
-            stats.pulsarBatchedLogTriggeringCountBySize.remove(metricsDefinition.labelValues);
-            stats.pulsarBatchedLogTriggeringCountByDelayTime.remove(metricsDefinition.labelValues);
-            stats.pulsarBatchedLogTriggeringCountByForce.remove(metricsDefinition.labelValues);
-        }
-        // Release metrics.
-        if (CollectionUtils.isEmpty(list)){
-            CollectorRegistry.defaultRegistry.unregister(stats.pulsarBatchedLogRecordsCountPerEntry);
-            CollectorRegistry.defaultRegistry.unregister(stats.pulsarBatchedLogEntrySizeBytes);
-            CollectorRegistry.defaultRegistry.unregister(stats.pulsarBatchedLogOldestRecordDelayTimeSeconds);
-            CollectorRegistry.defaultRegistry.unregister(stats.pulsarBatchedLogTriggeringCountByRecords);
-            CollectorRegistry.defaultRegistry.unregister(stats.pulsarBatchedLogTriggeringCountBySize);
-            CollectorRegistry.defaultRegistry.unregister(stats.pulsarBatchedLogTriggeringCountByDelayTime);
-            CollectorRegistry.defaultRegistry.unregister(stats.pulsarBatchedLogTriggeringCountByForce);
-            METRICS_REGISTRY.remove(metricsDefinition.getComponent());
-        }
+    public TxnLogBufferedWriterMetricsStats(String metricsPrefix, String[] labelNames, String[] labelValues,
+                                              CollectorRegistry registry){
+        this.metricsPrefix = metricsPrefix;
+        this.labelNames = labelNames;
+        this.labelValues = labelValues;
+
+        String pulsarBatchedLogRecordsCountPerEntryName =
+                String.format("%s_batched_log_records_count_per_entry", metricsPrefix);
+        pulsarBatchedLogRecordsCountPerEntry = (Histogram) METRICS_REGISTRY.computeIfAbsent(
+                pulsarBatchedLogRecordsCountPerEntryName,
+                k -> new Histogram.Builder()
+                            .name(pulsarBatchedLogRecordsCountPerEntryName)
+                            .labelNames(labelNames)
+                            .help("A metrics for how many records in per batch")
+                            .buckets(RECORD_COUNT_PER_ENTRY_BUCKETS)
+                            .register(registry));
+
+        pulsarBatchedLogRecordsCountPerEntryChild = pulsarBatchedLogRecordsCountPerEntry.labels(labelValues);
+
+        String pulsarBatchedLogEntrySizeBytesName = String.format("%s_batched_log_entry_size_bytes", metricsPrefix);
+        pulsarBatchedLogEntrySizeBytes = (Histogram) METRICS_REGISTRY.computeIfAbsent(
+                pulsarBatchedLogEntrySizeBytesName,
+                k -> new Histogram.Builder()
+                        .name(pulsarBatchedLogEntrySizeBytesName)
+                        .labelNames(labelNames)
+                        .help("A metrics for how many bytes in per batch")
+                        .buckets(RECORD_COUNT_PER_ENTRY_BUCKETS)
+                        .register(registry));
+        pulsarBatchedLogEntrySizeBytesChild = pulsarBatchedLogEntrySizeBytes.labels(labelValues);
+
+        String pulsarBatchedLogOldestRecordDelayTimeSecondsName =
+                String.format("%s_batched_log_oldest_record_delay_time_seconds", metricsPrefix);
+        pulsarBatchedLogOldestRecordDelayTimeSeconds = (Histogram) METRICS_REGISTRY.computeIfAbsent(
+                pulsarBatchedLogOldestRecordDelayTimeSecondsName,
+                k -> new Histogram.Builder()
+                        .name(pulsarBatchedLogOldestRecordDelayTimeSecondsName)
+                        .labelNames(labelNames)
+                        .help("A metrics for the max latency in per batch")
+                        .buckets(RECORD_COUNT_PER_ENTRY_BUCKETS)
+                        .register(registry));
+        pulsarBatchedLogOldestRecordDelayTimeSecondsChild =
+                pulsarBatchedLogOldestRecordDelayTimeSeconds.labels(labelValues);
+
+        String pulsarBatchedLogTriggeringCountByRecordsName =
+                String.format("%s_batched_log_triggering_count_by_records", metricsPrefix);
+        pulsarBatchedLogTriggeringCountByRecords = (Counter) METRICS_REGISTRY.computeIfAbsent(
+                pulsarBatchedLogTriggeringCountByRecordsName,
+                k -> new Counter.Builder()
+                        .name(pulsarBatchedLogTriggeringCountByRecordsName)
+                        .labelNames(labelNames)
+                        .help("A metrics for how many batches were triggered due to threshold"
+                                + " \"batchedWriteMaxRecords\"")
+                        .register(registry));
+        pulsarBatchedLogTriggeringCountByRecordsChild = pulsarBatchedLogTriggeringCountByRecords.labels(labelValues);
+
+        String pulsarBatchedLogTriggeringCountBySizeName =
+                String.format("%s_batched_log_triggering_count_by_size", metricsPrefix);
+        pulsarBatchedLogTriggeringCountBySize = (Counter) METRICS_REGISTRY.computeIfAbsent(
+                pulsarBatchedLogTriggeringCountBySizeName,
+                k -> new Counter.Builder()
+                        .name(pulsarBatchedLogTriggeringCountBySizeName)
+                        .labelNames(labelNames)
+                        .help("A metrics for how many batches were triggered due to threshold \"batchedWriteMaxSize\"")
+                        .register(registry));
+        pulsarBatchedLogTriggeringCountBySizeChild = pulsarBatchedLogTriggeringCountBySize.labels(labelValues);
+
+        String pulsarBatchedLogTriggeringCountByDelayTimeName =
+                String.format("%s_batched_log_triggering_count_by_delay_time", metricsPrefix);
+        pulsarBatchedLogTriggeringCountByDelayTime = (Counter) METRICS_REGISTRY.computeIfAbsent(
+                pulsarBatchedLogTriggeringCountByDelayTimeName,
+                k -> new Counter.Builder()
+                        .name(pulsarBatchedLogTriggeringCountByDelayTimeName)
+                        .labelNames(labelNames)
+                        .help("A metrics for how many batches were triggered due to threshold"
+                                + " \"batchedWriteMaxDelayInMillis\"")
+                        .register(registry));
+        pulsarBatchedLogTriggeringCountByDelayTimeChild =
+                pulsarBatchedLogTriggeringCountByDelayTime.labels(labelValues);
+
+        String pulsarBatchedLogTriggeringCountByForcename =
+                String.format("%s_batched_log_triggering_count_by_force", metricsPrefix);
+        pulsarBatchedLogTriggeringCountByForce = (Counter) METRICS_REGISTRY.computeIfAbsent(
+                pulsarBatchedLogTriggeringCountByForcename,
+                k -> new Counter.Builder()
+                        .name(pulsarBatchedLogTriggeringCountByForcename)
+                        .labelNames(labelNames)
+                        .help("A metrics for how many batches were triggered due to threshold \"forceFlush\"")
+                        .register(registry));
+        pulsarBatchedLogTriggeringCountByForceChild = pulsarBatchedLogTriggeringCountByForce.labels(labelValues);
     }
 
-    private TxnLogBufferedWriterMetricsStats(String component, String[] labelNames, CollectorRegistry registry){
-        pulsarBatchedLogRecordsCountPerEntry = new Histogram.Builder()
-                .name(String.format("%s_batched_log_records_count_per_entry", component))
-                .labelNames(labelNames)
-                .help(String.format("%s_batched_log_records_count_per_entry A metrics for how many records in per batch"
-                        + " written by the component[%s] per batch", component, component))
-                .buckets(RECORD_COUNT_PER_ENTRY_BUCKETS)
-                .register(registry);
-        pulsarBatchedLogEntrySizeBytes = new Histogram.Builder()
-                .name(String.format("%s_batched_log_entry_size_bytes", component))
-                .labelNames(labelNames)
-                .help(String.format("%s_batched_log_records_count_per_entry A metrics for how many bytes in per batch"
-                        + " written by the component[%s] per batch", component, component))
-                .buckets(BYTES_SIZE_PER_ENTRY_BUCKETS)
-                .register(registry);
-        pulsarBatchedLogOldestRecordDelayTimeSeconds = new Histogram.Builder()
-                .name(String.format("%s_batched_log_oldest_record_delay_time_seconds", component))
-                .labelNames(labelNames)
-                .help(String.format("%s_batched_log_records_count_per_entry A metrics for the max latency in per batch"
-                        + " written by the component[%s] per batch", component, component))
-                .buckets(MAX_DELAY_TIME_BUCKETS)
-                .register(registry);
-        pulsarBatchedLogTriggeringCountByRecords = new Counter.Builder()
-                .name(String.format("%s_batched_log_triggering_count_by_records", component))
-                .labelNames(labelNames)
-                .help(String.format("%s_batched_log_records_count_per_entry A metrics for how many batches of component"
-                        + " %s were triggered due to threshold \"batchedWriteMaxRecords\"", component, component))
-                .register(registry);
-        pulsarBatchedLogTriggeringCountBySize = new Counter.Builder()
-                .name(String.format("%s_batched_log_triggering_count_by_size", component))
-                .labelNames(labelNames)
-                .help(String.format("%s_batched_log_records_count_per_entry A metrics for how many batches of component"
-                        + " %s were triggered due to threshold \"batchedWriteMaxSize\"", component, component))
-                .register(registry);
-        pulsarBatchedLogTriggeringCountByDelayTime = new Counter.Builder()
-                .name(String.format("%s_batched_log_triggering_count_by_delay_time", component))
-                .labelNames(labelNames)
-                .help(String.format("%s_batched_log_records_count_per_entry A metrics for how many batches of component"
-                        + " %s were triggered due to threshold \"batchedWriteMaxDelayInMillis\"", component, component))
-                .register(registry);
-        pulsarBatchedLogTriggeringCountByForce = new Counter.Builder()
-                .name(String.format("%s_batched_log_triggering_count_by_force", component))
-                .labelNames(labelNames)
-                .help(String.format("%s_batched_log_records_count_per_entry A metrics for how many batches of component"
-                        + " %s were triggered due to threshold \"forceFlush\"", component, component))
-                .register(registry);
+    public void triggerFlushByRecordsCount(int recordCount, long bytesSize, long delayMillis){
+        pulsarBatchedLogTriggeringCountByRecordsChild.inc();
+        observeHistogram(recordCount, bytesSize, delayMillis);
+    }
+
+    public void triggerFlushByBytesSize(int recordCount, long bytesSize, long delayMillis){
+        pulsarBatchedLogTriggeringCountBySizeChild.inc();
+        observeHistogram(recordCount, bytesSize, delayMillis);
+    }
+
+    public void triggerFlushByByMaxDelay(int recordCount, long bytesSize, long delayMillis){
+        pulsarBatchedLogTriggeringCountByDelayTimeChild.inc();
+        observeHistogram(recordCount, bytesSize, delayMillis);
+    }
+
+    public void triggerFlushByForce(int recordCount, long bytesSize, long delayMillis){
+        pulsarBatchedLogTriggeringCountByForceChild.inc();
+        observeHistogram(recordCount, bytesSize, delayMillis);
+    }
+
+    /**
+     * Append the metrics which is type of histogram.
+     */
+    private void observeHistogram(int recordCount, long bytesSize, long delayMillis){
+        pulsarBatchedLogRecordsCountPerEntryChild.observe(recordCount);
+        pulsarBatchedLogEntrySizeBytesChild.observe(bytesSize);
+        pulsarBatchedLogOldestRecordDelayTimeSecondsChild.observe(delayMillis);
     }
 }
