@@ -19,18 +19,13 @@
 package org.apache.pulsar.common.protocol;
 
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
-
 import io.netty.buffer.ByteBuf;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarMarkers;
@@ -139,14 +134,6 @@ public class MarkersTest {
         }
 
         ByteBuf buf = Markers.newTxnCommitMarker(sequenceId, mostBits, leastBits, messageIdDataList);
-        for (MessageIdData messageIdData : messageIdDataList) {
-            try {
-                messageIdData.recycle();
-                fail("message id data should be recycled after create the marker bytebuf.");
-            } catch (Exception e) {
-                assertTrue(e instanceof java.lang.IllegalStateException);
-            }
-        }
         MessageMetadata msgMetadata = Commands.parseMessageMetadata(buf);
 
         assertEquals(msgMetadata.getMarkerType(), PulsarMarkers.MarkerType.TXN_COMMIT_VALUE);
