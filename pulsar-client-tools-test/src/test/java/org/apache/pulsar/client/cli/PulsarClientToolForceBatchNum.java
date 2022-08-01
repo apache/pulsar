@@ -22,9 +22,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.MessageId;
@@ -37,14 +36,23 @@ import org.mockito.stubbing.Answer;
 import org.testng.Assert;
 
 /**
- * An implement of {@link PulsarClientTool} for test, which will catch the messageIds when sending message.
+ * An implement of {@link PulsarClientTool} for test, which will publish messages iff there is enough messages
+ * in the batch.
  */
-public class PulsarClientToolWithMsgIds extends PulsarClientTool{
+public class PulsarClientToolForceBatchNum extends PulsarClientTool{
     private final String topic;
-    private final List<MessageId> msgIdList = new ArrayList<>();
-    public PulsarClientToolWithMsgIds(Properties properties, String topic) {
+    private final int batchNum;
+
+    /**
+     *
+     * @param properties properties
+     * @param topic topic
+     * @param batchNum iff there is batchNum messages in the batch, the producer will flush and send.
+     */
+    public PulsarClientToolForceBatchNum(Properties properties, String topic, int batchNum) {
         super(properties);
         this.topic = topic;
+        this.batchNum = batchNum;
     }
 
     @Override
@@ -63,13 +71,13 @@ public class PulsarClientToolWithMsgIds extends PulsarClientTool{
         jcommander.addCommand("produce", produceCommand);
     }
 
-    public List<MessageId> getMessageIds() {
-        return msgIdList;
-    }
-
     private ClientBuilder mockClientBuilder(ClientBuilder newBuilder) throws Exception {
         PulsarClientImpl client = (PulsarClientImpl) newBuilder.build();
-        ProducerBuilder<byte[]> producerBuilder = client.newProducer().topic(topic);
+        ProducerBuilder<byte[]> producerBuilder = client.newProducer()
+            .batchingMaxBytes(Integer.MAX_VALUE)
+            .batchingMaxMessages(batchNum)
+            .batchingMaxPublishDelay(Long.MAX_VALUE, TimeUnit.MILLISECONDS)
+            .topic(topic);
         Producer<byte[]> producer = producerBuilder.create();
 
         PulsarClientImpl mockClient = spy(client);
@@ -80,10 +88,10 @@ public class PulsarClientToolWithMsgIds extends PulsarClientTool{
         doAnswer((Answer<TypedMessageBuilder>) invocation -> {
             TypedMessageBuilder typedMessageBuilder = spy((TypedMessageBuilder) invocation.callRealMethod());
             doAnswer((Answer<MessageId>) invocation1 -> {
-                MessageId msgId = (MessageId) invocation1.callRealMethod();
-                // catch the messageId when TypedMessageBuilder#send
-                msgIdList.add(msgId);
-                return msgId;
+                TypedMessageBuilder mock = ((TypedMessageBuilder) invocation1.getMock());
+                // using sendAsync() to replace send()
+                mock.sendAsync();
+                return null;
             }).when(typedMessageBuilder).send();
             return typedMessageBuilder;
         }).when(mockProducer).newMessage();

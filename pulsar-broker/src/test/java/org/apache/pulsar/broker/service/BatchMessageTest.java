@@ -56,6 +56,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.ConsumerImpl;
+import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
@@ -880,7 +881,8 @@ public class BatchMessageTest extends BrokerTestBase {
         String msg = "my-message";
         MessageId messageId = producer.send(msg.getBytes());
 
-        Assert.assertTrue(messageId instanceof BatchMessageIdImpl);
+        Assert.assertTrue(messageId instanceof MessageIdImpl);
+        Assert.assertFalse(messageId instanceof BatchMessageIdImpl);
 
         Message<byte[]> received = consumer.receive();
         assertEquals(received.getSequenceId(), 0);

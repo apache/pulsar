@@ -18,12 +18,12 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static java.util.Collections.singletonList;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.ReferenceCountUtil;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import lombok.Getter;
 import lombok.Setter;
@@ -213,7 +213,7 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
             // Because when invoke `ProducerImpl.processOpSendMsg` on flush,
             // if `op.msg != null && isBatchMessagingEnabled()` checks true, it will call `batchMessageAndSend` to flush
             // messageContainers before publishing this one-batch message.
-            op = OpSendMsg.create(Collections.singletonList(msg), cmd, messageMetadata.getSequenceId(), firstCallback);
+            op = OpSendMsg.create(singletonList(msg), cmd, messageMetadata.getSequenceId(), firstCallback);
 
             // NumMessagesInBatch and BatchSizeByte will not be serialized to the binary cmd. It's just useful for the
             // ProducerStats
