@@ -353,16 +353,7 @@ public class WebServiceTest {
     public void testCompressMetricsData() throws Exception {
         setupEnv(true, "1.0", true, false, false, false, -1, false);
 
-        String statsUrl = pulsar.getWebServiceAddress() + "/admin/v2/brokers/ready";
         String metricsUrl = pulsar.getWebServiceAddress() + "/metrics";
-
-        @Cleanup
-        AsyncHttpClient statsClient = new DefaultAsyncHttpClient();
-
-        Response statsRes = statsClient.prepareGet(statsUrl).execute().get();
-        assertEquals(statsRes.getStatusCode(), 200);
-        assertEquals(statsRes.getHeader("Vary"), null);
-        assertEquals(statsRes.getHeader("Transfer-Encoding"), null);
 
         @Cleanup
         AsyncHttpClient metricsClient = new DefaultAsyncHttpClient();
