@@ -10,22 +10,24 @@ import TabItem from '@theme/TabItem';
 ````
 
 
-Isolating bookies equals to isolating message storage. You need to select a [data isolation policy](#understand-bookie-data-isolation-policy) based on your requirements, enable the policy on BookKeeper clients, and configure it on bookie instances.
-
-:::tip
+Isolating bookies equals isolating message storage, which is a data storage mechanism that provides isolation and safety for specific topics. 
 
 Bookie isolation is controlled by BookKeeper clients. For Pulsar, there are two kinds of BookKeeper clients to read and write data. 
 *  BookKeeper clients on the broker side
   Pulsar brokers use these BookKeeper clients to read and write topic messages. 
 *  BookKeeper clients on the bookie auto-recovery side
-  * The bookie auditor checks whether ledger replicas fulfill the configured isolation policy;
-  * The bookie replication worker writes ledger replicas to target bookies according to the configured isolation policy.
+   * The bookie auditor checks whether ledger replicas fulfill the configured isolation policy;
+   * The bookie replication worker writes ledger replicas to target bookies according to the configured isolation policy.
 
-:::
+To isolate bookies, you need to complete the following tasks.
+1. Select a [data isolation policy](#understand-bookie-data-isolation-policies) based on your requirements.
+2. [Enable the policy on BookKeeper clients](#enable-bookie-data-placement-policy).
+3. [Configure the policy on bookie instances](#configure-data-placement-policy-on-bookie-instances).
+
 
 ## Understand bookie data isolation policy
 
-Bookie data isolation policy is defined on top of the existing BookKeeper rack-aware placement policy. The “rack” concept can be anything, for example, racks, regions, availability zones. It writes the configured isolation policy into ZooKeeper. Both BookKeeper clients on the broker and bookie auto-recovery side read the configured isolation policy from ZooKeeper and apply it when choosing bookies to store messages.
+Bookie data isolation policy is defined on top of the existing BookKeeper rack-aware placement policy. The “rack” concept can be anything, for example, racks, regions, availability zones. It writes the configured isolation policy into the metadata store. Both BookKeeper clients on the broker and bookie auto-recovery side read the configured isolation policy from the metadata store and apply it when choosing bookies to store messages.
 
 BookKeeper provides three kinds of data isolation policy for disaster tolerance.
 * Rack-aware placement policy (default)
@@ -53,7 +55,7 @@ When the available rack size of bookies can meet the requirements configured on 
 For example, the BookKeeper cluster has 4 racks and 13 bookie instances as shown the following diagram. When a topic is configured with `EnsembleSize=3, WriteQuorum=3, AckQuorum=2`, the BookKeeper client chooses one bookie instance from different three racks to write data to, such as Bookie2, Bookie8, and Bookie12.
 
 
-![Rack-aware placement policy](/assets/rack-aware-placement-policy1.svg)
+![Rack-aware placement policy](/assets/rack-aware-placement-policy-1.svg)
 
 #### Enforced minimum rack size of bookies
 
@@ -67,11 +69,11 @@ For example, you have the same BookKeeper cluster with the same topic requiremen
 
 * If you have configured `EnforceMinNumRacksPerWriteQuorum=true` and `MinNumRacksPerWriteQuorum=2`, the BookKeeper client chooses one bookie from Rack1 and Rack2 to recover old ledgers, such as bookie1 and bookie5, to place 2 replicas for Bookie8 and Bookie12. For new ledger creation, it chooses one bookie from Rack1 and Rack2, such as Bookie4 and Bookie7, and a random bookie from either Rack1 or Rack2 to place the last replica.
 
-![Rack-aware placement policy with an enforced minimum rack size of bookies](/assets/rack-aware-placement-policy2.svg)
+![Rack-aware placement policy with an enforced minimum rack size of bookies](/assets/rack-aware-placement-policy-2.svg)
 
 * If you have configured `EnforceMinNumRacksPerWriteQuorum=false`, the BookKeeper client tries its best-effort to apply the placement policy depending on the available number of racks and bookies. It may still work as the above diagram or the following diagram. 
 
-![Rack-aware placement policy without an enforced minimum rack size of bookies](/assets/rack-aware-placement-policy3.svg)
+![Rack-aware placement policy without an enforced minimum rack size of bookies](/assets/rack-aware-placement-policy-3.svg)
 
 ### Region-aware placement policy
 
@@ -87,7 +89,7 @@ When two regions failed, such as Region B and Region C, as shown in the followin
 
 ## Enable bookie data placement policy
 
-By default, the rack-aware placement policy is enabled on both broker and bookie side. If you want to switch to the region-aware placement policy, you need to enable the region-aware placement policy on both broker and bookie side. 
+By default, the rack-aware placement policy is enabled on both broker and bookie sides. If you want to switch to the region-aware placement policy, you need to enable the region-aware placement policy on both broker and bookie sides. 
 
 ### Enable region-aware placement policy on broker
 
@@ -109,7 +111,7 @@ To balance the ledger disk usage of different bookies, you can enable the disk w
 ```conf
 bookkeeperDiskWeightBasedPlacementEnabled=true
 ```
-### Enable region-aware placement policy on bookie
+### Enable region-aware placement policy on the auto-recovery instances (pods)
 
 Configure the following fields in the `conf/bookkeeper.conf` file.
 
@@ -133,7 +135,17 @@ diskWeightBasedPlacementEnabled=true
 
 ## Configure data placement policy on bookie instances
 
-To configure a data placement policy on bookie instances, you can use the `bin/pulsar-admin bookies set-bookie-rack` command and specify the rack name to represent which region or rack this bookie belongs to. 
+To configure a data placement policy on bookie instances, you can use one of the following methods.
+
+````mdx-code-block
+<Tabs 
+  defaultValue="Pulsar-admin CLI"
+  values={[{"label":"Pulsar-admin CLI","value":"Pulsar-admin CLI"},{"label":"REST API","value":"REST API"}]}>
+
+<TabItem value="Pulsar-admin CLI">
+
+
+Specify the rack name to represent which region or rack this bookie belongs to. 
 
 ```bash
 bin/pulsar-admin bookies set-bookie-rack
@@ -153,7 +165,23 @@ Usage: set-bookie-rack [options]
       Bookie rack name
 ```
 
-In addition, you can also group bookies across racks or regions to serve broker-level isolation. When using the `bin/pulsar-admin bookies set-bookie-rack` command, you can specify a group name for each bookie and assign the group name to a specific namespace. See [configure bookie affinity groups](#configure-bookie-affinity-groups) for more details.
+
+:::tip
+
+In addition, you can also group bookies across racks or regions to serve broker-level isolation by specifying a group name for each bookie and assigning the group name to a specific namespace. See [configure bookie affinity groups](#configure-bookie-affinity-groups) for more details.
+
+:::
+
+</TabItem>
+<TabItem value="REST API">
+
+{@inject: endpoint|POST|/admin/v2/bookies/racks-info/:bookie|operation/updateBookieRackInfo?version=@pulsar:version_number@}
+
+</TabItem>
+
+</Tabs>
+````
+
 
 #### Example of configuring rack-aware placement policy
 
@@ -194,10 +222,10 @@ To configure bookie affinity groups, you can use one of the following methods.
 
 ````mdx-code-block
 <Tabs 
-  defaultValue="Admin CLI"
-  values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java admin API","value":"Java admin API"}]}>
+  defaultValue="Pulsar-admin CLI"
+  values={[{"label":"Pulsar-admin CLI","value":"Pulsar-admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java admin API","value":"Java admin API"}]}>
 
-<TabItem value="Admin CLI">
+<TabItem value="Pulsar-admin CLI">
 
 ```
 
@@ -234,7 +262,7 @@ For the bookie rack name restrictions, see [pulsar-admin bookies set-bookie-rack
 </TabItem>
 <TabItem value="REST API">
 
-[POST /admin/v2/namespaces/{tenant}/{namespace}/persistence/bookieAffinity](https://pulsar.apache.org/admin-rest-api/?version=master&apiversion=v2#operation/setBookieAffinityGroup)
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/persistence/bookieAffinity|operation/setBookieAffinityGroup?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java admin API">
