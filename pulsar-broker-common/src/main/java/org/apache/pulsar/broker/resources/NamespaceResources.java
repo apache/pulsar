@@ -21,8 +21,12 @@ package org.apache.pulsar.broker.resources;
 import com.fasterxml.jackson.core.type.TypeReference;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+
 import lombok.Getter;
 
+import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -43,6 +47,10 @@ public class NamespaceResources extends BaseResources<Policies> {
         partitionedTopicResources = new PartitionedTopicResources(configurationStore, operationTimeoutSec);
     }
 
+    public CompletableFuture<Optional<Policies>> getPoliciesAsync(NamespaceName ns) {
+        return getCache().get(joinPath(BASE_POLICIES_PATH, ns.toString()));
+    }
+
     public static class IsolationPolicyResources extends BaseResources<Map<String, NamespaceIsolationDataImpl>> {
         public IsolationPolicyResources(MetadataStoreExtended store, int operationTimeoutSec) {
             super(store, new TypeReference<Map<String, NamespaceIsolationDataImpl>>() {
@@ -56,8 +64,15 @@ public class NamespaceResources extends BaseResources<Policies> {
     }
 
     public static class PartitionedTopicResources extends BaseResources<PartitionedTopicMetadata> {
+        private static final String PARTITIONED_TOPIC_PATH = "/admin/partitioned-topics";
+
         public PartitionedTopicResources(MetadataStoreExtended configurationStore, int operationTimeoutSec) {
             super(configurationStore, PartitionedTopicMetadata.class, operationTimeoutSec);
+        }
+
+        public CompletableFuture<Void> createPartitionedTopicAsync(TopicName tn, PartitionedTopicMetadata tm) {
+            return createAsync(joinPath(PARTITIONED_TOPIC_PATH, tn.getNamespace(), tn.getDomain().value(),
+                    tn.getEncodedLocalName()), tm);
         }
     }
 }

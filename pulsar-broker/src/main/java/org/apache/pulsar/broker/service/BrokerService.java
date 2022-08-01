@@ -141,6 +141,7 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
@@ -2412,16 +2413,39 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 .thenCompose(topicExists -> {
                     return fetchPartitionedTopicMetadataAsync(topicName)
                             .thenCompose(metadata -> {
+                                CompletableFuture<PartitionedTopicMetadata> future = new CompletableFuture<>();
+
                                 // If topic is already exist, creating partitioned topic is not allowed.
                                 if (metadata.partitions == 0
                                         && !topicExists
                                         && !topicName.isPartitioned()
                                         && pulsar.getBrokerService().isAllowAutoTopicCreation(topicName)
                                         && pulsar.getBrokerService().isDefaultTopicTypePartitioned(topicName)) {
-                                    return pulsar.getBrokerService().createDefaultPartitionedTopicAsync(topicName);
+
+                                    pulsar.getBrokerService().createDefaultPartitionedTopicAsync(topicName)
+                                            .thenAccept(md -> future.complete(md))
+                                            .exceptionally(ex -> {
+                                                if (ex.getCause()
+                                                        instanceof MetadataStoreException.AlreadyExistsException) {
+                                                    // The partitioned topic might be created concurrently
+                                                    fetchPartitionedTopicMetadataAsync(topicName)
+                                                            .whenComplete((metadata2, ex2) -> {
+                                                                if (ex2 == null) {
+                                                                    future.complete(metadata2);
+                                                                } else {
+                                                                    future.completeExceptionally(ex2);
+                                                                }
+                                                            });
+                                                } else {
+                                                    future.completeExceptionally(ex);
+                                                }
+                                                return null;
+                                            });
                                 } else {
-                                    return CompletableFuture.completedFuture(metadata);
+                                    future.complete(metadata);
                                 }
+
+                                return future;
                             });
                 });
     }
@@ -2436,28 +2460,17 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 "Number of partitions should be less than or equal to " + maxPartitions);
 
         PartitionedTopicMetadata configMetadata = new PartitionedTopicMetadata(defaultNumPartitions);
-        CompletableFuture<PartitionedTopicMetadata> partitionedTopicFuture = futureWithDeadline();
 
-        if (!checkMaxTopicsPerNamespace(topicName, defaultNumPartitions, partitionedTopicFuture)) {
-            return partitionedTopicFuture;
-        }
-
-        try {
-            PartitionedTopicResources partitionResources = pulsar.getPulsarResources().getNamespaceResources()
-                    .getPartitionedTopicResources();
-            partitionResources.createAsync(partitionedTopicPath(topicName), configMetadata).thenAccept((r) -> {
-                log.info("partitioned metadata successfully created for {}", topicName);
-                partitionedTopicFuture.complete(configMetadata);
-            }).exceptionally(ex -> {
-                partitionedTopicFuture.completeExceptionally(ex.getCause());
-                return null;
-            });
-        } catch (Exception e) {
-            log.error("Failed to create default partitioned topic.", e);
-            return FutureUtil.failedFuture(e);
-        }
-
-        return partitionedTopicFuture;
+        return checkMaxTopicsPerNamespace(topicName, defaultNumPartitions)
+                .thenCompose(__ -> {
+                    PartitionedTopicResources partitionResources = pulsar.getPulsarResources().getNamespaceResources()
+                            .getPartitionedTopicResources();
+                    return partitionResources.createPartitionedTopicAsync(topicName, configMetadata)
+                            .thenApply(v -> {
+                                log.info("partitioned metadata successfully created for {}", topicName);
+                                return configMetadata;
+                            });
+                });
     }
 
     public CompletableFuture<PartitionedTopicMetadata> fetchPartitionedTopicMetadataAsync(TopicName topicName) {
@@ -2727,6 +2740,11 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         return SystemTopicClient.isSystemTopic(TopicName.get(topic));
     }
 
+    public boolean isSystemTopic(TopicName topicName) {
+        return NamespaceService.isSystemServiceNamespace(topicName.getNamespace())
+                || SystemTopicNames.isSystemTopic(topicName);
+    }
+
     /**
      * Get {@link TopicPolicies} for the parameterized topic.
      * @param topicName
@@ -2744,8 +2762,39 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         }
     }
 
+    private CompletableFuture<Void> checkMaxTopicsPerNamespace(TopicName topicName, int numPartitions) {
+        return pulsar.getPulsarResources().getNamespaceResources()
+                .getPoliciesAsync(topicName.getNamespaceObject())
+                .thenCompose(optPolicies -> {
+                    int maxTopicsPerNamespace = optPolicies.map(p -> p.max_topics_per_namespace)
+                            .orElse(pulsar.getConfig().getMaxTopicsPerNamespace());
+
+                    if (maxTopicsPerNamespace > 0 && !isSystemTopic(topicName)) {
+                        return pulsar().getPulsarResources().getTopicResources()
+                                .getExistingPartitions(topicName)
+                                .thenCompose(topics -> {
+                                    // exclude created system topic
+                                    long topicsCount = topics.stream()
+                                            .filter(t -> !isSystemTopic(TopicName.get(t)))
+                                            .count();
+                                    if (topicsCount + numPartitions > maxTopicsPerNamespace) {
+                                        log.error("Failed to create persistent topic {}, "
+                                                + "exceed maximum number of topics in namespace", topicName);
+                                        return FutureUtil.failedFuture(
+                                                new RestException(Response.Status.PRECONDITION_FAILED,
+                                                        "Exceed maximum number of topics in namespace."));
+                                    } else {
+                                        return CompletableFuture.completedFuture(null);
+                                    }
+                                });
+                    } else {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                });
+    }
+
     private <T> boolean checkMaxTopicsPerNamespace(TopicName topicName, int numPartitions,
-                                            CompletableFuture<T> topicFuture) {
+                                                   CompletableFuture<T> topicFuture) {
         Integer maxTopicsPerNamespace;
         try {
             maxTopicsPerNamespace = pulsar.getConfigurationCache().policiesCache()
