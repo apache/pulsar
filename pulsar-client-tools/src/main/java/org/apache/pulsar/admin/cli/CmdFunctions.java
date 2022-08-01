@@ -757,7 +757,8 @@ public class CmdFunctions extends CmdBase {
         @Parameter(names = "--hostname_verification_enabled",
                 description = "Enable hostname verification", hidden = true)
         protected Boolean deprecatedTlsHostNameVerificationEnabled = null;
-        @Parameter(names = "--hostname-verification-enabled", description = "Enable hostname verification #Java, Python")
+        @Parameter(names = "--hostname-verification-enabled", description = "Enable hostname verification"
+                + " #Java, Python")
         protected boolean tlsHostNameVerificationEnabled;
         // for backwards compatibility purposes
         @Parameter(names = "--tls_trust_cert_path", description = "tls trust cert file path", hidden = true)
