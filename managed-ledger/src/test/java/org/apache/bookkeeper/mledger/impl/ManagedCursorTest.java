@@ -102,15 +102,28 @@ import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
+import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
+import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
+import org.testng.IObjectFactory;
 import org.testng.annotations.DataProvider;
+import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
 
+@PrepareForTest(OpReadEntry.class)
+@PowerMockIgnore({"org.apache.logging.log4j.*"})
 public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     private static final Charset Encoding = Charsets.UTF_8;
+
+    @ObjectFactory
+    public IObjectFactory getObjectFactory() {
+        return new org.powermock.modules.testng.PowerMockObjectFactory();
+    }
+
 
     @DataProvider(name = "useOpenRangeSet")
     public static Object[][] useOpenRangeSet() {
@@ -3696,8 +3709,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             return mockedOpReadEntry;
         };
 
-        @Cleanup final MockedStatic<OpReadEntry> mockedStaticOpReadEntry = Mockito.mockStatic(OpReadEntry.class);
-        mockedStaticOpReadEntry.when(() -> OpReadEntry.create(any(), any(), anyInt(), any(), any(), any()))
+        PowerMockito.mockStatic(OpReadEntry.class);
+        PowerMockito.when(OpReadEntry.create(any(), any(), anyInt(), any(), any(), any()))
                 .thenAnswer(__ -> createOpReadEntry.get());
 
         final ManagedLedgerConfig ledgerConfig = new ManagedLedgerConfig();
