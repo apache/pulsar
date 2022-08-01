@@ -72,6 +72,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.FindEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.ScanCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.SkipEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -83,6 +84,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorAlreadyClosedE
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.ScanOutcome;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.PositionBound;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
@@ -201,6 +203,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     private long entriesReadSize;
     private int individualDeletedMessagesSerializedSize;
     private static final String COMPACTION_CURSOR_NAME = "__compaction";
+    private volatile boolean cacheReadEntry = false;
 
     class MarkDeleteEntry {
         final PositionImpl newPosition;
@@ -646,19 +649,18 @@ public class ManagedCursorImpl implements ManagedCursor {
             log.debug("[{}] Consumer {} cursor initialized with counters: consumed {} mdPos {} rdPos {}",
                     ledger.getName(), name, messagesConsumedCounter, markDeletePosition, readPosition);
         }
-
-        createNewMetadataLedger(new VoidCallback() {
-            @Override
-            public void operationComplete() {
-                STATE_UPDATER.set(ManagedCursorImpl.this, State.Open);
-                callback.operationComplete();
-            }
-
-            @Override
-            public void operationFailed(ManagedLedgerException exception) {
-                callback.operationFailed(exception);
-            }
-        });
+        persistPositionMetaStore(cursorLedger != null ? cursorLedger.getId() : -1L, position, properties,
+                new MetaStoreCallback<>() {
+                    @Override
+                    public void operationComplete(Void result, Stat stat) {
+                        STATE_UPDATER.set(ManagedCursorImpl.this, State.NoLedger);
+                        callback.operationComplete();
+                    }
+                    @Override
+                    public void operationFailed(MetaStoreException e) {
+                        callback.operationFailed(e);
+                    }
+        }, false);
     }
 
     @Override
@@ -858,8 +860,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
             if (!WAITING_READ_OP_UPDATER.compareAndSet(this, null, op)) {
                 op.recycle();
-                callback.readEntriesFailed(new ManagedLedgerException("We can only have a single waiting callback"),
-                        ctx);
+                callback.readEntriesFailed(new ManagedLedgerException.ConcurrentWaitCallbackException(), ctx);
                 return;
             }
 
@@ -1036,6 +1037,29 @@ public class ManagedCursorImpl implements ManagedCursor {
     @Override
     public Position findNewestMatching(Predicate<Entry> condition) throws InterruptedException, ManagedLedgerException {
         return findNewestMatching(FindPositionConstraint.SearchActiveEntries, condition);
+    }
+
+    @Override
+    public CompletableFuture<ScanOutcome> scan(Optional<Position> position,
+                                               Predicate<Entry> condition,
+                                               int batchSize, long maxEntries, long timeOutMs) {
+        PositionImpl startPosition = (PositionImpl) position.orElseGet(
+                () -> ledger.getNextValidPosition(markDeletePosition));
+        CompletableFuture<ScanOutcome> future = new CompletableFuture<>();
+        OpScan op = new OpScan(this, batchSize, startPosition, condition, new ScanCallback() {
+            @Override
+            public void scanComplete(Position position, ScanOutcome scanOutcome, Object ctx) {
+                future.complete(scanOutcome);
+            }
+
+            @Override
+            public void scanFailed(ManagedLedgerException exception,
+                                   Optional<Position> failedReadPosition, Object ctx) {
+                future.completeExceptionally(exception);
+            }
+        }, null, maxEntries, timeOutMs);
+        op.find();
+        return future;
     }
 
     @Override
@@ -1869,8 +1893,10 @@ public class ManagedCursorImpl implements ManagedCursor {
                 return;
 
             case NoLedger:
-                // We need to create a new ledger to write into
+                pendingMarkDeleteOps.add(mdEntry);
+                // We need to create a new ledger to write into.
                 startCreatingNewMetadataLedger();
+                break;
                 // fall through
             case SwitchingLedger:
                 pendingMarkDeleteOps.add(mdEntry);
@@ -3276,6 +3302,14 @@ public class ManagedCursorImpl implements ManagedCursor {
     @VisibleForTesting
     public void setState(State state) {
         this.state = state;
+    }
+
+    public void setCacheReadEntry(boolean cacheReadEntry) {
+        this.cacheReadEntry = cacheReadEntry;
+    }
+
+    public boolean isCacheReadEntry() {
+        return cacheReadEntry;
     }
 
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorImpl.class);

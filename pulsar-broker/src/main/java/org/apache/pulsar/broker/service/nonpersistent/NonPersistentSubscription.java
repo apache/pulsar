@@ -22,6 +22,7 @@ import com.google.common.base.MoreObjects;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import org.apache.bookkeeper.mledger.Entry;
@@ -29,6 +30,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.service.AbstractSubscription;
+import org.apache.pulsar.broker.service.AnalyzeBacklogResult;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
@@ -509,6 +511,14 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         completableFuture.completeExceptionally(
                 new Exception("Unsupported operation end txn for NonPersistentSubscription"));
+        return completableFuture;
+    }
+
+    @Override
+    public CompletableFuture<AnalyzeBacklogResult> analyzeBacklog(Optional<Position> position) {
+        CompletableFuture<AnalyzeBacklogResult> completableFuture = new CompletableFuture<>();
+        completableFuture.completeExceptionally(
+                new Exception("Unsupported operation analyzeBacklog for NonPersistentSubscription"));
         return completableFuture;
     }
 

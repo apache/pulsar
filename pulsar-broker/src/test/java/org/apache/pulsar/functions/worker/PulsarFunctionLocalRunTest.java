@@ -209,7 +209,7 @@ public class PulsarFunctionLocalRunTest {
         config.setSuperUserRoles(superUsers);
         config.setWebServicePort(Optional.of(0));
         config.setWebServicePortTls(Optional.of(0));
-        config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
         config.setBrokerShutdownTimeoutMs(0L);
         config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         config.setBrokerServicePort(Optional.of(0));
@@ -987,7 +987,7 @@ public class PulsarFunctionLocalRunTest {
                 assertFalse(metrics.isEmpty());
                 PulsarFunctionTestUtils.Metric m = metrics.get("pulsar_sink_sink_exceptions_total");
                 if (m == null) {
-                    m = metrics.get("pulsar_sink_sink_exceptions_total_1min");
+                    m = metrics.get("pulsar_sink_sink_exceptions_1min_total");
                 }
                 assertEquals(m.value, 0);
             }

@@ -667,4 +667,9 @@ public interface ManagedLedger {
      * roll over that ledger if inactive.
      */
     void checkInactiveLedgerAndRollOver();
+
+    /**
+     * Check if managed ledger should cache backlog reads.
+     */
+    void checkCursorsToCacheEntries();
 }

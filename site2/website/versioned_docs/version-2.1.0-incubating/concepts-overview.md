@@ -17,7 +17,7 @@ Pulsar's key features include:
 * Guaranteed message delivery with [persistent message storage](concepts-architecture-overview.md#persistent-storage) provided by [Apache BookKeeper](http://bookkeeper.apache.org/)
 * A serverless lightweight computing framework [Pulsar Functions](functions-overview) offers stream native data processing.
 * A serverless connector framework [Pulsar IO](io-overview) built on-top-of Pulsar Functions to make moving data in and out Apache Pulsar easier.
-* [Tiered Storage](concepts-tiered-storage) offloads data from hot/warn storage to cold/longterm storage (such as S3 and GCS) when the data is aging out.
+* [Tiered Storage](concepts-tiered-storage) offloads data from hot/warn storage to cold/long-term storage (such as S3 and GCS) when the data is aging out.
 
 ## Contents
 

@@ -1298,6 +1298,7 @@ public class FunctionApiV2ResourceTest {
                 .setName(function)
                 .setNamespace(namespace)
                 .setProcessingGuarantees(ProcessingGuarantees.ATMOST_ONCE)
+                .setAutoAck(true)
                 .setTenant(tenant)
                 .setParallelism(parallelism)
                 .setSource(SourceSpec.newBuilder().setSubscriptionType(subscriptionType)

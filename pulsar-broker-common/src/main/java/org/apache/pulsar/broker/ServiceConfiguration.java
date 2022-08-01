@@ -105,6 +105,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @Category
     private static final String CATEGORY_PLUGIN = "Broker Plugin";
 
+    private static final double MIN_ML_CACHE_EVICTION_FREQUENCY = 0.001;
+    private static final double MAX_ML_CACHE_EVICTION_FREQUENCY = 1000.0;
+    private static final long MAX_ML_CACHE_EVICTION_INTERVAL_MS = 1000000L;
+
     /***** --- pulsar configuration. --- ****/
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -479,6 +483,29 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private String metadataStoreConfigPath = null;
 
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_SERVER,
+            doc = "Event topic to sync metadata between separate pulsar "
+                    + "clusters on different cloud platforms."
+    )
+    private String metadataSyncEventTopic = null;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_SERVER,
+            doc = "Event topic to sync configuration-metadata between separate pulsar "
+                    + "clusters on different cloud platforms."
+    )
+    private String configurationMetadataSyncEventTopic = null;
+
+    @FieldContext(
+            dynamic = true,
+            doc = "Factory class-name to create topic with custom workflow"
+        )
+    private String topicFactoryClassName;
+
     @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "Enable backlog quota check. Enforces actions on topic when the quota is reached"
@@ -506,7 +533,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @Deprecated
     @FieldContext(
         category = CATEGORY_POLICIES,
-        doc = "@deprecated - Use backlogQuotaDefaultLimitByte instead.\""
+        doc = "@deprecated - Use backlogQuotaDefaultLimitByte instead."
     )
     private double backlogQuotaDefaultLimitGB = -1;
 
@@ -616,6 +643,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int activeConsumerFailoverDelayTimeMillis = 1000;
     @FieldContext(
+            category = CATEGORY_POLICIES,
+            doc = "Maximum time to spend while scanning a subscription to calculate the accurate backlog"
+    )
+    private long subscriptionBacklogScanMaxTimeMs = 1000 * 60 * 2L;
+    @FieldContext(
+            category = CATEGORY_POLICIES,
+            doc = "Maximum number of entries to process while scanning a subscription to calculate the accurate backlog"
+    )
+    private long subscriptionBacklogScanMaxEntries = 10_000;
+    @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "How long to delete inactive subscriptions from last consuming."
             + " When it is 0, inactive subscriptions are not deleted automatically"
@@ -646,7 +683,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_POLICIES,
         dynamic = true,
-        doc = "Enable Key_Shared subscription (default is enabled)"
+        doc = "Enable Key_Shared subscription (default is enabled).\n"
+            + "@deprecated - use subscriptionTypesEnabled instead."
     )
     private boolean subscriptionKeySharedEnable = true;
 
@@ -983,6 +1021,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int dispatcherMaxReadBatchSize = 100;
 
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_SERVER,
+            doc = "Dispatch messages and execute broker side filters in a per-subscription thread"
+    )
+    private boolean dispatcherDispatchMessagesInSubscriptionThread = true;
+
     // <-- dispatcher read settings -->
     @FieldContext(
         dynamic = true,
@@ -1020,6 +1065,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "The read failure backoff mandatory stop time in milliseconds. By default it is 0s."
     )
     private int dispatcherReadFailureBackoffMandatoryStopTimeInMs = 0;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_SERVER,
+            doc = "Time in milliseconds to delay the new delivery of a message when an EntryFilter returns RESCHEDULE."
+    )
+    private int dispatcherEntryFilterRescheduledMessageDelay = 1000;
 
     @FieldContext(
         dynamic = true,
@@ -1474,6 +1526,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private double httpRequestsMaxPerSecond = 100.0;
 
     @FieldContext(
+            category =  CATEGORY_HTTP,
+            dynamic = true,
+            doc = "Admin API fail on unknown request parameter in request-body. see PIP-179. Default false."
+        )
+    private boolean httpRequestsFailOnUnknownPropertiesEnabled = false;
+
+    @FieldContext(
         category = CATEGORY_SASL_AUTH,
         doc = "This is a regexp, which limits the range of possible ids which can connect to the Broker using SASL.\n"
             + " Default value is: \".*pulsar.*\", so only clients whose id contains 'pulsar' are allowed to connect."
@@ -1779,8 +1838,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private double managedLedgerCacheEvictionWatermark = 0.9;
     @FieldContext(category = CATEGORY_STORAGE_ML,
-            doc = "Configure the cache eviction frequency for the managed ledger cache. Default is 100/s")
-    private double managedLedgerCacheEvictionFrequency = 100.0;
+            doc = "Configure the cache eviction frequency for the managed ledger cache.")
+    @Deprecated
+    private double managedLedgerCacheEvictionFrequency = 0;
+
+    @FieldContext(category = CATEGORY_STORAGE_ML,
+            doc = "Configure the cache eviction interval in milliseconds for the managed ledger cache, default is 10ms")
+    private long managedLedgerCacheEvictionIntervalMs = 10;
+
     @FieldContext(category = CATEGORY_STORAGE_ML,
             dynamic = true,
             doc = "All entries that have stayed in cache for more than the configured time, will be evicted")
@@ -1896,7 +1961,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
         deprecated = true,
         doc = "Max number of `acknowledgment holes` that can be stored in Zookeeper.\n\n"
             + "If number of unack message range is higher than this limit then broker will persist"
-            + " unacked ranges into bookkeeper to avoid additional data overhead into zookeeper.")
+            + " unacked ranges into bookkeeper to avoid additional data overhead into zookeeper.\n"
+            + "@deprecated - use managedLedgerMaxUnackedRangesToPersistInMetadataStore.")
     private int managedLedgerMaxUnackedRangesToPersistInZooKeeper = -1;
     @FieldContext(
             category = CATEGORY_STORAGE_ML,
@@ -1963,13 +2029,35 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "If value is invalid or NONE, then save the ManagedLedgerInfo bytes data directly.")
     private String managedLedgerInfoCompressionType = "NONE";
 
+
     @FieldContext(category = CATEGORY_STORAGE_ML,
             doc = "ManagedCursorInfo compression type, option values (NONE, LZ4, ZLIB, ZSTD, SNAPPY). \n"
                     + "If value is NONE, then save the ManagedCursorInfo bytes data directly.")
     private String managedCursorInfoCompressionType = "NONE";
 
-    /*** --- Load balancer. --- ****/
     @FieldContext(
+            dynamic = true,
+            category = CATEGORY_STORAGE_ML,
+            doc = "Minimum cursors that must be in backlog state to cache and reuse the read entries."
+                    + "(Default =0 to disable backlog reach cache)"
+    )
+    private int managedLedgerMinimumBacklogCursorsForCaching = 0;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_STORAGE_ML,
+            doc = "Minimum backlog entries for any cursor before start caching reads"
+    )
+    private int managedLedgerMinimumBacklogEntriesForCaching = 1000;
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_STORAGE_ML,
+            doc = "Maximum backlog entry difference to prevent caching entries that can't be reused"
+    )
+    private int managedLedgerMaxBacklogBetweenCursorsForCaching = 1000;
+
+    /*** --- Load balancer. --- ****/
+     @FieldContext(
             category = CATEGORY_LOAD_BALANCER,
             doc = "Enable load balancer"
     )
@@ -2084,6 +2172,27 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int loadBalancerAverageResourceUsageDifferenceThresholdPercentage = 10;
 
     @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "In the UniformLoadShedder strategy, the minimum message that triggers unload."
+    )
+    private int minUnloadMessage = 1000;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "In the UniformLoadShedder strategy, the minimum throughput that triggers unload."
+    )
+    private int minUnloadMessageThroughput = 1 * 1024 * 1024;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "In the UniformLoadShedder strategy, the maximum unload ratio."
+    )
+    private double maxUnloadPercentage = 0.2;
+
+    @FieldContext(
         dynamic = true,
         category = CATEGORY_LOAD_BALANCER,
         doc = "Message-rate percentage threshold between highest and least loaded brokers for "
@@ -2101,6 +2210,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
                 + "from broker-1 to broker-2)"
     )
     private double loadBalancerMsgThroughputMultiplierDifferenceShedderThreshold = 4;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "For each uniform balanced unload, the maximum number of bundles that can be unloaded."
+                    + " The default value is -1, which means no limit"
+    )
+    private int maxUnloadBundleNumPerShedding = -1;
 
     @FieldContext(
             dynamic = true,
@@ -2305,7 +2422,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_POLICIES,
         deprecated = true,
         doc = "How often broker checks for inactive topics to be deleted (topics with no subscriptions and no one "
-                + "connected) Deprecated in favor of using `brokerDeleteInactiveTopicsFrequencySeconds`"
+                + "connected) Deprecated in favor of using `brokerDeleteInactiveTopicsFrequencySeconds`\n"
+                + "@deprecated - unused."
     )
     private int brokerServicePurgeInactiveFrequencyInSeconds = 60;
     @FieldContext(
@@ -2653,6 +2771,67 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private long transactionPendingAckLogIndexMinLag = 500L;
 
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            dynamic = true,
+            doc = "Provide a mechanism allowing the Transaction Log Store to aggregate multiple records into a batched"
+                    + " record and persist into a single BK entry. This will make Pulsar transactions work more"
+                    + " efficiently, aka batched log. see: https://github.com/apache/pulsar/issues/15370. Default false"
+    )
+    private boolean transactionLogBatchedWriteEnabled = false;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "If enabled the feature that transaction log batch, this attribute means maximum log records count"
+                    + " in a batch, default 512."
+    )
+    private int transactionLogBatchedWriteMaxRecords = 512;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "If enabled the feature that transaction log batch, this attribute means bytes size in a"
+                    + " batch, default 4m."
+    )
+    private int transactionLogBatchedWriteMaxSize = 1024 * 1024 * 4;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "If enabled the feature that transaction log batch, this attribute means maximum wait time(in millis)"
+                    + " for the first record in a batch, default 1 millisecond."
+    )
+    private int transactionLogBatchedWriteMaxDelayInMillis = 1;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            dynamic = true,
+            doc = "Provide a mechanism allowing the transaction pending ack Log Store to aggregate multiple records"
+                    + " into a batched record and persist into a single BK entry. This will make Pulsar transactions"
+                    + " work more efficiently, aka batched log. see: https://github.com/apache/pulsar/issues/15370."
+                    + " Default false."
+    )
+    private boolean transactionPendingAckBatchedWriteEnabled = false;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "If enabled the feature that transaction log batch, this attribute means maximum log records count"
+                    + " in a batch, default 512."
+    )
+    private int transactionPendingAckBatchedWriteMaxRecords = 512;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "If enabled the feature that transaction pending ack log batch, this attribute means bytes size in"
+                    + " a batch, default 4m."
+    )
+    private int transactionPendingAckBatchedWriteMaxSize = 1024 * 1024 * 4;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "If enabled the feature that transaction pending ack log batch, this attribute means maximum wait"
+                    + " time(in millis) for the first record in a batch, default 1 millisecond."
+    )
+    private int transactionPendingAckBatchedWriteMaxDelayInMillis = 1;
+
     /**** --- KeyStore TLS config variables. --- ****/
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
@@ -2796,12 +2975,22 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private Set<String> additionalServlets = new TreeSet<>();
 
+    /**
+     * @deprecated Use {@link #getSubscriptionTypesEnabled()} instead
+     */
+    @Deprecated
+    public boolean isSubscriptionKeySharedEnable() {
+        return subscriptionKeySharedEnable && subscriptionTypesEnabled.contains("Key_Shared");
+    }
+
     public String getMetadataStoreUrl() {
         if (StringUtils.isNotBlank(metadataStoreUrl)) {
             return metadataStoreUrl;
-        } else {
+        } else if (StringUtils.isNotBlank(zookeeperServers)) {
             // Fallback to old setting
-            return zookeeperServers;
+            return ZKMetadataStore.ZK_SCHEME_IDENTIFIER + zookeeperServers;
+        } else {
+            return "";
         }
     }
 
@@ -2839,15 +3028,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
         } else {
             // Fallback to same metadata service used by broker, adding the "metadata-store" to specify the BK
             // metadata adapter
-            String suffix;
-            if (StringUtils.isNotBlank(metadataStoreUrl)) {
-                suffix = metadataStoreUrl;
-            } else {
-                // Fallback to old setting
-                // Note: chroot is not settable by using 'zookeeperServers' config.
-                suffix = ZKMetadataStore.ZK_SCHEME_IDENTIFIER + zookeeperServers;
-            }
-            return "metadata-store:" + suffix + BookKeeperConstants.DEFAULT_ZK_LEDGERS_ROOT_PATH;
+            // Note: chroot is not settable by using 'zookeeperServers' config.
+            return "metadata-store:" + getMetadataStoreUrl() + BookKeeperConstants.DEFAULT_ZK_LEDGERS_ROOT_PATH;
         }
     }
 
@@ -2901,5 +3083,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public int getMetadataStoreCacheExpirySeconds() {
         return zooKeeperCacheExpirySeconds > 0 ? zooKeeperCacheExpirySeconds : metadataStoreCacheExpirySeconds;
+    }
+
+    public long getManagedLedgerCacheEvictionIntervalMs() {
+        return managedLedgerCacheEvictionFrequency > 0
+                ? (long) (1000 / Math.max(
+                        Math.min(managedLedgerCacheEvictionFrequency, MAX_ML_CACHE_EVICTION_FREQUENCY),
+                                   MIN_ML_CACHE_EVICTION_FREQUENCY))
+                : Math.min(MAX_ML_CACHE_EVICTION_INTERVAL_MS, managedLedgerCacheEvictionIntervalMs);
     }
 }

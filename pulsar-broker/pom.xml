@@ -269,11 +269,6 @@
 
     <dependency>
       <groupId>org.slf4j</groupId>
-      <artifactId>jul-to-slf4j</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>org.slf4j</groupId>
       <artifactId>jcl-over-slf4j</artifactId>
     </dependency>
 
@@ -690,6 +685,23 @@
                   </info>
                   <swaggerDirectory>${basedir}/target/docs</swaggerDirectory>
                   <swaggerFileName>swagger</swaggerFileName>
+                </apiSource>
+                <apiSource>
+                  <springmvc>false</springmvc>
+                  <locations>org.apache.pulsar.broker.lookup.v2</locations>
+                  <schemes>http,https</schemes>
+                  <basePath>/lookup/v2</basePath>
+                  <info>
+                    <title>Pulsar Lookup REST API</title>
+                    <version>v2</version>
+                    <description>This provides the REST API for lookup operations</description>
+                    <license>
+                      <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
+                      <name>Apache 2.0</name>
+                    </license>
+                  </info>
+                  <swaggerDirectory>${basedir}/target/docs</swaggerDirectory>
+                  <swaggerFileName>swaggerlookup</swaggerFileName>
                 </apiSource>
                 <apiSource>
                   <springmvc>false</springmvc>

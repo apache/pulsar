@@ -18,6 +18,8 @@
  */
 package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import io.netty.buffer.ByteBuf;
 import java.io.DataInputStream;
 import java.io.IOException;
@@ -49,12 +51,19 @@ import org.slf4j.LoggerFactory;
 
 public class BlobStoreBackedReadHandleImpl implements ReadHandle {
     private static final Logger log = LoggerFactory.getLogger(BlobStoreBackedReadHandleImpl.class);
+    private static final int CACHE_TTL_SECONDS =
+            Integer.getInteger("pulsar.jclouds.readhandleimpl.offsetsscache.ttl.seconds", 30 * 60);
 
     private final long ledgerId;
     private final OffloadIndexBlock index;
     private final BackedInputStream inputStream;
     private final DataInputStream dataStream;
     private final ExecutorService executor;
+    // this Cache is accessed only by one thread
+    private final Cache<Long, Long> entryOffsets = CacheBuilder
+            .newBuilder()
+            .expireAfterAccess(CACHE_TTL_SECONDS, TimeUnit.SECONDS)
+            .build();
 
     enum State {
         Opened,
@@ -90,6 +99,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                 try {
                     index.close();
                     inputStream.close();
+                    entryOffsets.invalidateAll();
                     state = State.Closed;
                     promise.complete(null);
                 } catch (IOException t) {
@@ -101,7 +111,10 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
 
     @Override
     public CompletableFuture<LedgerEntries> readAsync(long firstEntry, long lastEntry) {
-        log.debug("Ledger {}: reading {} - {}", getId(), firstEntry, lastEntry);
+        if (log.isDebugEnabled()) {
+            log.debug("Ledger {}: reading {} - {} ({} entries}",
+                    getId(), firstEntry, lastEntry, (1 + lastEntry - firstEntry));
+        }
         CompletableFuture<LedgerEntries> promise = new CompletableFuture<>();
         executor.execute(() -> {
             List<LedgerEntry> entries = new ArrayList<LedgerEntry>();
@@ -121,7 +134,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                 if (dataStream.available() < 12) {
                     log.warn("There hasn't enough data to read, current available data has {} bytes,"
                         + " seek to the first entry {} to avoid EOF exception", inputStream.available(), firstEntry);
-                    inputStream.seek(index.getIndexEntryForEntry(firstEntry).getDataOffset());
+                    seekToEntry(firstEntry);
                 }
 
                 while (entriesToRead > 0) {
@@ -130,14 +143,16 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                                 ledgerId, firstEntry, lastEntry);
                         throw new BKException.BKUnexpectedConditionException();
                     }
+                    long currentPosition = inputStream.getCurrentPosition();
                     int length = dataStream.readInt();
                     if (length < 0) { // hit padding or new block
-                        inputStream.seek(index.getIndexEntryForEntry(nextExpectedId).getDataOffset());
+                        seekToEntry(nextExpectedId);
                         continue;
                     }
                     long entryId = dataStream.readLong();
 
                     if (entryId == nextExpectedId) {
+                        entryOffsets.put(entryId, currentPosition);
                         ByteBuf buf = PulsarByteBufAllocator.DEFAULT.buffer(length, length);
                         entries.add(LedgerEntryImpl.create(ledgerId, entryId, length, buf));
                         int toWrite = length;
@@ -149,18 +164,18 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                     } else if (entryId > nextExpectedId && entryId < lastEntry) {
                         log.warn("The read entry {} is not the expected entry {} but in the range of {} - {},"
                             + " seeking to the right position", entryId, nextExpectedId, nextExpectedId, lastEntry);
-                        inputStream.seek(index.getIndexEntryForEntry(nextExpectedId).getDataOffset());
+                        seekToEntry(nextExpectedId);
                     } else if (entryId < nextExpectedId
                         && !index.getIndexEntryForEntry(nextExpectedId).equals(index.getIndexEntryForEntry(entryId))) {
                         log.warn("Read an unexpected entry id {} which is smaller than the next expected entry id {}"
                         + ", seeking to the right position", entryId, nextExpectedId);
-                        inputStream.seek(index.getIndexEntryForEntry(nextExpectedId).getDataOffset());
+                        seekToEntry(nextExpectedId);
                     } else if (entryId > lastEntry) {
                         // in the normal case, the entry id should increment in order. But if there has random access in
                         // the read method, we should allow to seek to the right position and the entry id should
                         // never over to the last entry again.
                         if (!seeked) {
-                            inputStream.seek(index.getIndexEntryForEntry(nextExpectedId).getDataOffset());
+                            seekToEntry(nextExpectedId);
                             seeked = true;
                             continue;
                         }
@@ -179,6 +194,18 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
             }
         });
         return promise;
+    }
+
+    private void seekToEntry(long nextExpectedId) throws IOException {
+        Long knownOffset = entryOffsets.getIfPresent(nextExpectedId);
+        if (knownOffset != null) {
+            inputStream.seek(knownOffset);
+        } else {
+            // we don't know the exact position
+            // we seek to somewhere before the entry
+            long dataOffset = index.getIndexEntryForEntry(nextExpectedId).getDataOffset();
+            inputStream.seek(dataOffset);
+        }
     }
 
     @Override

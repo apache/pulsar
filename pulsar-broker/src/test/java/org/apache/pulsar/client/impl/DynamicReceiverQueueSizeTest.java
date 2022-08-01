@@ -109,7 +109,6 @@ public class DynamicReceiverQueueSizeTest extends MockedPulsarServiceBaseTest {
             Assert.assertEquals(c.getCurrentReceiverQueueSize(), 5);
         }
         Awaitility.await().untilAsserted(() -> {
-            Assert.assertEquals(consumer.getAvailablePermits(), 0);
             Assert.assertTrue(consumer.getTotalIncomingMessages() >= 5);
             Assert.assertTrue(consumer.getTotalIncomingMessages() < 30);
         });

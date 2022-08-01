@@ -76,7 +76,7 @@ public class PulsarFunctionTlsTest {
     protected String testNamespace = testTenant + "/my-ns";
     private PulsarFunctionTestTemporaryDirectory[] tempDirectories = new PulsarFunctionTestTemporaryDirectory[BROKER_COUNT];
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     void setup() throws Exception {
         log.info("---- Initializing TopicOwnerTest -----");
         // Start local bookkeeper ensemble
@@ -97,7 +97,7 @@ public class PulsarFunctionTlsTest {
             config.setBrokerServicePortTls(Optional.of(brokerPort));
             config.setClusterName("my-cluster");
             config.setAdvertisedAddress("localhost");
-            config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+            config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
             config.setDefaultNumberOfNamespaceBundles(1);
             config.setLoadBalancerEnabled(false);
             Set<String> superUsers = Sets.newHashSet("superUser", "admin");

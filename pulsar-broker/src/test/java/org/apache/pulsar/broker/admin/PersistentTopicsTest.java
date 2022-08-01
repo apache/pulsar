@@ -270,7 +270,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
         // 1) produce numberOfMessages message to pulsar
         for (int i = 0; i < numberOfMessages; i++) {
-            System.out.println(producer.send(new byte[10]));
+            log.info("Produce messages: " + producer.send(new byte[10]).toString());
         }
 
         // 2) Create a subscription from earliest position
@@ -288,7 +288,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         verify(response, timeout(5000).times(1)).resume(statCaptor.capture());
         TopicStats topicStats = statCaptor.getValue();
         long msgBacklog = topicStats.getSubscriptions().get(SUB_EARLIEST).getMsgBacklog();
-        System.out.println("Message back log for " + SUB_EARLIEST + " is :" + msgBacklog);
+        log.info("Message back log for " + SUB_EARLIEST + " is :" + msgBacklog);
         Assert.assertEquals(msgBacklog, numberOfMessages);
 
         // 3) Create a subscription with form latest position
@@ -306,7 +306,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         verify(response, timeout(5000).times(1)).resume(statCaptor.capture());
         topicStats = statCaptor.getValue();
         msgBacklog = topicStats.getSubscriptions().get(SUB_LATEST).getMsgBacklog();
-        System.out.println("Message back log for " + SUB_LATEST + " is :" + msgBacklog);
+        log.info("Message back log for " + SUB_LATEST + " is :" + msgBacklog);
         Assert.assertEquals(msgBacklog, 0);
 
         // 4) Create a subscription without position
@@ -324,7 +324,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         verify(response, timeout(5000).times(1)).resume(statCaptor.capture());
         topicStats = statCaptor.getValue();
         msgBacklog = topicStats.getSubscriptions().get(SUB_NONE_MESSAGE_ID).getMsgBacklog();
-        System.out.println("Message back log for " + SUB_NONE_MESSAGE_ID + " is :" + msgBacklog);
+        log.info("Message back log for " + SUB_NONE_MESSAGE_ID + " is :" + msgBacklog);
         Assert.assertEquals(msgBacklog, 0);
 
         // 5) Create replicated subscription
@@ -639,8 +639,11 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         // 2) create non partitioned topic and unload
         response = mock(AsyncResponse.class);
         persistentTopics.createNonPartitionedTopic(response, testTenant, testNamespace, topicName, true, null);
-        persistentTopics.unloadTopic(response, testTenant, testNamespace, topicName, true);
         ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
+        persistentTopics.unloadTopic(response, testTenant, testNamespace, topicName, true);
+        responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
 
@@ -1445,6 +1448,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         doReturn(brokerService).when(pulsar).getBrokerService();
         CompletableFuture<Optional<Topic>> completableFuture = new CompletableFuture<>();
         doReturn(completableFuture).when(brokerService).getTopicIfExists(topic);
+        completableFuture.completeExceptionally(new RuntimeException("TimeoutException"));
         try {
             admin.topics().resetCursor(topic, "my-sub", System.currentTimeMillis());
             Assert.fail();

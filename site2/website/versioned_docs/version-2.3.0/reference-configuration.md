@@ -219,6 +219,7 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 
 
 
+
 ## Client
 
 The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used to publish messages to Pulsar and consume messages from Pulsar topics. This tool can be used in lieu of a client library.

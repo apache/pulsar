@@ -21,6 +21,8 @@ package org.apache.pulsar.broker.service.persistent;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isEventSystemTopic;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
+import com.google.common.base.Predicate;
+import io.netty.buffer.ByteBuf;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -30,6 +32,8 @@ import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
@@ -44,6 +48,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ConcurrentFindCursorPositionException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.InvalidCursorPositionException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.ScanOutcome;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -52,6 +57,7 @@ import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.service.AbstractSubscription;
+import org.apache.pulsar.broker.service.AnalyzeBacklogResult;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
@@ -60,8 +66,10 @@ import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionFence
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionInvalidCursorPosition;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
+import org.apache.pulsar.broker.service.EntryFilterSupport;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.plugin.EntryFilter;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandle;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleDisabled;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
@@ -70,6 +78,7 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
 import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.naming.TopicName;
@@ -77,6 +86,7 @@ import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.stats.PositionInPendingAckStats;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
@@ -510,6 +520,109 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         }
 
         return "Null";
+    }
+
+    @Override
+    public CompletableFuture<AnalyzeBacklogResult> analyzeBacklog(Optional<Position> position) {
+
+        long start = System.currentTimeMillis();
+        if (log.isDebugEnabled()) {
+            log.debug("[{}][{}] Starting to analyze backlog", topicName, subName);
+        }
+
+        AtomicLong entries = new AtomicLong();
+        AtomicLong accepted = new AtomicLong();
+        AtomicLong rejected = new AtomicLong();
+        AtomicLong rescheduled = new AtomicLong();
+        AtomicLong messages = new AtomicLong();
+        AtomicLong acceptedMessages = new AtomicLong();
+        AtomicLong rejectedMessages = new AtomicLong();
+        AtomicLong rescheduledMessages = new AtomicLong();
+
+        Position currentPosition = cursor.getMarkDeletedPosition();
+
+        if (log.isDebugEnabled()) {
+            log.debug("[{}][{}] currentPosition {}",
+                    topicName, subName, currentPosition);
+        }
+        final EntryFilterSupport entryFilterSupport = dispatcher != null
+                ? (EntryFilterSupport) dispatcher : new EntryFilterSupport(this);
+        // we put some hard limits on the scan, in order to prevent denial of services
+        ServiceConfiguration configuration = topic.getBrokerService().getPulsar().getConfiguration();
+        long maxEntries = configuration.getSubscriptionBacklogScanMaxEntries();
+        long timeOutMs = configuration.getSubscriptionBacklogScanMaxTimeMs();
+        int batchSize = configuration.getDispatcherMaxReadBatchSize();
+        AtomicReference<Position> firstPosition = new AtomicReference<>();
+        AtomicReference<Position> lastPosition = new AtomicReference<>();
+        return cursor.scan(position, new Predicate<Entry>() {
+            @Override
+            public boolean apply(Entry entry) {
+                if (log.isDebugEnabled()) {
+                    log.debug("found {}", entry);
+                }
+                Position entryPosition = entry.getPosition();
+                firstPosition.compareAndSet(null, entryPosition);
+                lastPosition.set(entryPosition);
+                ByteBuf metadataAndPayload = entry.getDataBuffer();
+                MessageMetadata messageMetadata = Commands.peekMessageMetadata(metadataAndPayload, "", -1);
+                int numMessages = 1;
+                if (messageMetadata.hasNumMessagesInBatch()) {
+                    numMessages = messageMetadata.getNumMessagesInBatch();
+                }
+                EntryFilter.FilterResult filterResult = entryFilterSupport
+                        .runFiltersForEntry(entry, messageMetadata, null);
+
+                if (filterResult == null) {
+                    filterResult = EntryFilter.FilterResult.ACCEPT;
+                }
+                switch (filterResult) {
+                    case REJECT:
+                        rejected.incrementAndGet();
+                        rejectedMessages.addAndGet(numMessages);
+                        break;
+                    case RESCHEDULE:
+                        rescheduled.incrementAndGet();
+                        rescheduledMessages.addAndGet(numMessages);
+                        break;
+                    default:
+                        accepted.incrementAndGet();
+                        acceptedMessages.addAndGet(numMessages);
+                        break;
+                }
+                long num = entries.incrementAndGet();
+                messages.addAndGet(numMessages);
+
+                if (num % 1000 == 0) {
+                    long end = System.currentTimeMillis();
+                    log.info(
+                            "[{}][{}] scan running since {} ms - scanned {} entries",
+                            topicName, subName, end - start, num);
+                }
+
+                return true;
+            }
+        }, batchSize, maxEntries, timeOutMs).thenApply((ScanOutcome outcome) -> {
+            long end = System.currentTimeMillis();
+            AnalyzeBacklogResult result = new AnalyzeBacklogResult();
+            result.setFirstPosition(firstPosition.get());
+            result.setLastPosition(lastPosition.get());
+            result.setEntries(entries.get());
+            result.setMessages(messages.get());
+            result.setFilterAcceptedEntries(accepted.get());
+            result.setFilterAcceptedMessages(acceptedMessages.get());
+            result.setFilterRejectedEntries(rejected.get());
+            result.setFilterRejectedMessages(rejectedMessages.get());
+            result.setFilterRescheduledEntries(rescheduled.get());
+            result.setFilterRescheduledMessages(rescheduledMessages.get());
+            // sometimes we abort the execution due to a timeout or
+            // when we reach a maximum number of entries
+            result.setScanOutcome(outcome);
+            log.info(
+                    "[{}][{}] scan took {} ms - {}",
+                    topicName, subName, end - start, result);
+            return result;
+        });
+
     }
 
     @Override
@@ -1192,4 +1305,5 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentSubscription.class);
+
 }

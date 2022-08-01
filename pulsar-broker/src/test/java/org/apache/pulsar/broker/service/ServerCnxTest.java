@@ -23,11 +23,15 @@ import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMo
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockZooKeeper;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.matches;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
@@ -44,6 +48,7 @@ import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -91,6 +96,7 @@ import org.apache.pulsar.common.api.proto.AuthMethod;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.BaseCommand.Type;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.CommandAuthResponse;
 import org.apache.pulsar.common.api.proto.CommandConnected;
 import org.apache.pulsar.common.api.proto.CommandError;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
@@ -117,6 +123,8 @@ import org.apache.pulsar.common.protocol.PulsarHandler;
 import org.apache.pulsar.common.topics.TopicList;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
+import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
+import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.zookeeper.ZooKeeper;
@@ -238,12 +246,13 @@ public class ServerCnxTest {
         if (channel != null) {
             channel.close();
         }
-        pulsar.close();
         brokerService.close();
-        executor.shutdownNow();
-        if (eventLoopGroup != null) {
-            eventLoopGroup.shutdownGracefully().get();
-        }
+        pulsar.close();
+        GracefulExecutorServicesShutdown.initiate()
+                .timeout(Duration.ZERO)
+                .shutdown(executor)
+                .handle().get();
+        EventLoopUtil.shutdownGracefully(eventLoopGroup).get();
         store.close();
     }
 
@@ -2125,5 +2134,23 @@ public class ServerCnxTest {
             assertTrue(channel.isOpen());
             channel.finish();
         }
+    }
+
+    @Test
+    public void testHandleAuthResponseWithoutClientVersion() {
+        ServerCnx cnx = mock(ServerCnx.class, CALLS_REAL_METHODS);
+        CommandAuthResponse authResponse = mock(CommandAuthResponse.class);
+        org.apache.pulsar.common.api.proto.AuthData authData = mock(org.apache.pulsar.common.api.proto.AuthData.class);
+        when(authResponse.getResponse()).thenReturn(authData);
+        when(authResponse.hasResponse()).thenReturn(true);
+        when(authResponse.getResponse().hasAuthMethodName()).thenReturn(true);
+        when(authResponse.getResponse().hasAuthData()).thenReturn(true);
+        when(authResponse.hasClientVersion()).thenReturn(false);
+        try {
+            cnx.handleAuthResponse(authResponse);
+        } catch (Exception ignore) {
+        }
+        verify(authResponse, times(1)).hasClientVersion();
+        verify(authResponse, times(0)).getClientVersion();
     }
 }
