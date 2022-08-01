@@ -48,7 +48,7 @@ public class TxnLogBufferedWriterMetricsStats implements Closeable {
      * {@link TxnLogBufferedWriterMetricsStats}, such as The Transaction Coordinator using coordinatorId as label and
      * The Transaction Pending Ack Store using subscriptionName as label.
      */
-    private static final HashMap<String, Collector> METRICS_REGISTRY = new HashMap<>();
+    private static final HashMap<String, Collector> COLLECTOR_CACHE = new HashMap<>();
 
     static final double[] RECORD_COUNT_PER_ENTRY_BUCKETS = { 10, 50, 100, 200, 500, 1_000};
 
@@ -122,7 +122,7 @@ public class TxnLogBufferedWriterMetricsStats implements Closeable {
 
         String pulsarBatchedLogRecordsCountPerEntryName =
                 String.format("%s_batched_log_records_count_per_entry", metricsPrefix);
-        pulsarBatchedLogRecordsCountPerEntry = (Histogram) METRICS_REGISTRY.computeIfAbsent(
+        pulsarBatchedLogRecordsCountPerEntry = (Histogram) COLLECTOR_CACHE.computeIfAbsent(
                 pulsarBatchedLogRecordsCountPerEntryName,
                 k -> new Histogram.Builder()
                             .name(pulsarBatchedLogRecordsCountPerEntryName)
@@ -134,7 +134,7 @@ public class TxnLogBufferedWriterMetricsStats implements Closeable {
         pulsarBatchedLogRecordsCountPerEntryChild = pulsarBatchedLogRecordsCountPerEntry.labels(labelValues);
 
         String pulsarBatchedLogEntrySizeBytesName = String.format("%s_batched_log_entry_size_bytes", metricsPrefix);
-        pulsarBatchedLogEntrySizeBytes = (Histogram) METRICS_REGISTRY.computeIfAbsent(
+        pulsarBatchedLogEntrySizeBytes = (Histogram) COLLECTOR_CACHE.computeIfAbsent(
                 pulsarBatchedLogEntrySizeBytesName,
                 k -> new Histogram.Builder()
                         .name(pulsarBatchedLogEntrySizeBytesName)
@@ -146,7 +146,7 @@ public class TxnLogBufferedWriterMetricsStats implements Closeable {
 
         String pulsarBatchedLogOldestRecordDelayTimeSecondsName =
                 String.format("%s_batched_log_oldest_record_delay_time_seconds", metricsPrefix);
-        pulsarBatchedLogOldestRecordDelayTimeSeconds = (Histogram) METRICS_REGISTRY.computeIfAbsent(
+        pulsarBatchedLogOldestRecordDelayTimeSeconds = (Histogram) COLLECTOR_CACHE.computeIfAbsent(
                 pulsarBatchedLogOldestRecordDelayTimeSecondsName,
                 k -> new Histogram.Builder()
                         .name(pulsarBatchedLogOldestRecordDelayTimeSecondsName)
@@ -159,7 +159,7 @@ public class TxnLogBufferedWriterMetricsStats implements Closeable {
 
         String pulsarBatchedLogTriggeringCountByRecordsName =
                 String.format("%s_batched_log_triggering_count_by_records", metricsPrefix);
-        pulsarBatchedLogTriggeringCountByRecords = (Counter) METRICS_REGISTRY.computeIfAbsent(
+        pulsarBatchedLogTriggeringCountByRecords = (Counter) COLLECTOR_CACHE.computeIfAbsent(
                 pulsarBatchedLogTriggeringCountByRecordsName,
                 k -> new Counter.Builder()
                         .name(pulsarBatchedLogTriggeringCountByRecordsName)
@@ -171,7 +171,7 @@ public class TxnLogBufferedWriterMetricsStats implements Closeable {
 
         String pulsarBatchedLogTriggeringCountBySizeName =
                 String.format("%s_batched_log_triggering_count_by_size", metricsPrefix);
-        pulsarBatchedLogTriggeringCountBySize = (Counter) METRICS_REGISTRY.computeIfAbsent(
+        pulsarBatchedLogTriggeringCountBySize = (Counter) COLLECTOR_CACHE.computeIfAbsent(
                 pulsarBatchedLogTriggeringCountBySizeName,
                 k -> new Counter.Builder()
                         .name(pulsarBatchedLogTriggeringCountBySizeName)
@@ -182,7 +182,7 @@ public class TxnLogBufferedWriterMetricsStats implements Closeable {
 
         String pulsarBatchedLogTriggeringCountByDelayTimeName =
                 String.format("%s_batched_log_triggering_count_by_delay_time", metricsPrefix);
-        pulsarBatchedLogTriggeringCountByDelayTime = (Counter) METRICS_REGISTRY.computeIfAbsent(
+        pulsarBatchedLogTriggeringCountByDelayTime = (Counter) COLLECTOR_CACHE.computeIfAbsent(
                 pulsarBatchedLogTriggeringCountByDelayTimeName,
                 k -> new Counter.Builder()
                         .name(pulsarBatchedLogTriggeringCountByDelayTimeName)
@@ -195,7 +195,7 @@ public class TxnLogBufferedWriterMetricsStats implements Closeable {
 
         String pulsarBatchedLogTriggeringCountByForcename =
                 String.format("%s_batched_log_triggering_count_by_force", metricsPrefix);
-        pulsarBatchedLogTriggeringCountByForce = (Counter) METRICS_REGISTRY.computeIfAbsent(
+        pulsarBatchedLogTriggeringCountByForce = (Counter) COLLECTOR_CACHE.computeIfAbsent(
                 pulsarBatchedLogTriggeringCountByForcename,
                 k -> new Counter.Builder()
                         .name(pulsarBatchedLogTriggeringCountByForcename)
