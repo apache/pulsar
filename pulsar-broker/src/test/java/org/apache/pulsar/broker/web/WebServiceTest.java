@@ -430,6 +430,7 @@ public class WebServiceTest {
         config.setAdvertisedAddress("localhost"); // TLS certificate expects localhost
         config.setMetadataStoreUrl("zk:localhost:2181");
         config.setHttpMaxRequestSize(10 * 1024);
+        config.setEnableCompressMetricsData(true);
         config.setDisableHttpDebugMethods(disableTrace);
         if (rateLimit > 0) {
             config.setHttpRequestsLimitEnabled(true);
