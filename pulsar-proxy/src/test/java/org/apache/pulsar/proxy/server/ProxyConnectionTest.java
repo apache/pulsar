@@ -23,6 +23,7 @@ import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.testng.annotations.Test;
 
@@ -40,7 +41,7 @@ public class ProxyConnectionTest {
                 .matchesHostAndPort("pulsar://", "pulsar://1.2.3.4:12345", "1.2.3.4:1234"));
     }
     @Test
-    public void testCreateClientConfiguration() {
+    public void testCreateClientConfiguration() throws PulsarClientException.UnsupportedAuthenticationException {
         ProxyConfiguration proxyConfiguration = new ProxyConfiguration();
         proxyConfiguration.setTlsEnabledWithBroker(true);
         String proxyUrlTls = "pulsar+ssl://proxy:6651";
