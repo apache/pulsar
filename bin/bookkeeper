@@ -182,10 +182,10 @@ fi
 
 OPTS="-cp $BOOKIE_CLASSPATH $OPTS"
 
-OPTS="$OPTS $BOOKIE_MEM $BOOKIE_GC $BOOKIE_GC_LOG $BOOKIE_EXTRA_OPTS"
-
 # Disable ipv6 as it can cause issues
 OPTS="$OPTS -Djava.net.preferIPv4Stack=true"
+
+OPTS="$OPTS $BOOKIE_MEM $BOOKIE_GC $BOOKIE_GC_LOG $BOOKIE_EXTRA_OPTS"
 
 # log directory & file
 BOOKIE_LOG_APPENDER=${BOOKIE_LOG_APPENDER:-"Console"}
