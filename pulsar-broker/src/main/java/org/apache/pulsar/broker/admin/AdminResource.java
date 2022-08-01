@@ -340,7 +340,7 @@ public abstract class AdminResource extends PulsarWebResource {
         } catch (IllegalArgumentException e) {
             throw new RestException(Status.PRECONDITION_FAILED, "Tenant name or namespace is not valid");
         } catch (RestException re) {
-            throw new RestException(Status.PRECONDITION_FAILED, "Namespace does not have any clusters configured");
+            throw re;
         } catch (Exception e) {
             log.warn("Failed to validate global cluster configuration : ns={}  emsg={}", namespace, e.getMessage());
             throw new RestException(Status.SERVICE_UNAVAILABLE, "Failed to validate global cluster configuration");
