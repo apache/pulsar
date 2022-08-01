@@ -117,18 +117,16 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                             : Commands.peekAndCopyMessageMetadata(metadataAndPayload, subscription.toString(), -1)
                     );
             EntryFilter.FilterResult filterResult = runFiltersForEntry(entry, msgMetadata, consumer);
-            if (CollectionUtils.isNotEmpty(entryFilters)) {
-                if (filterResult == EntryFilter.FilterResult.REJECT) {
-                    entriesToFiltered.add(entry.getPosition());
-                    entries.set(i, null);
-                    entry.release();
-                    continue;
-                } else if (filterResult == EntryFilter.FilterResult.RESCHEDULE) {
-                    entriesToRedeliver.add((PositionImpl) entry.getPosition());
-                    entries.set(i, null);
-                    entry.release();
-                    continue;
-                }
+            if (filterResult == EntryFilter.FilterResult.REJECT) {
+                entriesToFiltered.add(entry.getPosition());
+                entries.set(i, null);
+                entry.release();
+                continue;
+            } else if (filterResult == EntryFilter.FilterResult.RESCHEDULE) {
+                entriesToRedeliver.add((PositionImpl) entry.getPosition());
+                entries.set(i, null);
+                entry.release();
+                continue;
             }
             if (!isReplayRead && msgMetadata != null && msgMetadata.hasTxnidMostBits()
                     && msgMetadata.hasTxnidLeastBits()) {
