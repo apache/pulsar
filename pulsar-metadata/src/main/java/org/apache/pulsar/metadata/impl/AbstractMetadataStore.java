@@ -25,9 +25,13 @@ import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import java.time.Instant;
+import java.util.Collections;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
@@ -43,6 +47,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataCache;
+import org.apache.pulsar.metadata.api.MetadataEvent;
+import org.apache.pulsar.metadata.api.MetadataEventSynchronizer;
 import org.apache.pulsar.metadata.api.MetadataSerde;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Notification;
@@ -120,6 +126,89 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                         }
                     }
                 });
+    }
+
+    protected void registerSyncLister(Optional<MetadataEventSynchronizer> synchronizer) {
+        if (synchronizer.isPresent()) {
+            synchronizer.get().registerSyncListener(event -> {
+                CompletableFuture<Void> result = new CompletableFuture<>();
+                get(event.getPath()).thenApply(res -> {
+                    Set<CreateOption> options = event.getOptions() != null ? event.getOptions()
+                            : Collections.emptySet();
+                    if (res.isPresent()) {
+                        GetResult existingValue = res.get();
+                        if (shouldIgnoreEvent(event, existingValue)) {
+                            result.complete(null);
+                            return result;
+                        }
+                    }
+                    // else update the event
+                    CompletableFuture<?> updateResult = (event.getType() == NotificationType.Deleted)
+                            ? deleteInternal(event.getPath(), Optional.ofNullable(event.getExpectedVersion()))
+                            : putInternal(event.getPath(), event.getValue(),
+                                    Optional.ofNullable(event.getExpectedVersion()), options);
+                    updateResult.thenApply(stat -> {
+                        if (log.isDebugEnabled()) {
+                            log.debug("successfully updated {}", event.getPath());
+                        }
+                        return result.complete(null);
+                    }).exceptionally(ex -> {
+                        log.warn("Failed to update metadata {}", event.getPath(), ex.getCause());
+                        if (ex.getCause() instanceof MetadataStoreException.BadVersionException) {
+                            result.complete(null);
+                        } else {
+                            result.completeExceptionally(ex);
+                        }
+                        return false;
+                    });
+                    return result;
+                });
+                return result;
+            });
+        }
+    }
+
+    @VisibleForTesting
+    protected boolean shouldIgnoreEvent(MetadataEvent event, GetResult existingValue) {
+        long existingVersion = existingValue.getStat() != null ? existingValue.getStat().getVersion() : -1;
+        long existingTimestamp = existingValue.getStat() != null ? existingValue.getStat().getModificationTimestamp()
+                : -1;
+        String sourceClusterName = event.getSourceCluster();
+        Set<CreateOption> options = event.getOptions() != null ? event.getOptions()
+                : Collections.emptySet();
+        String currentClusterName = getMetadataEventSynchronizer().get().getClusterName();
+        // ignore event from the unknown cluster
+        if (sourceClusterName == null || currentClusterName == null) {
+            return true;
+        }
+        // ignore event if metadata is ephemeral or
+        // sequential
+        if (options.contains(CreateOption.Ephemeral) || event.getOptions().contains(CreateOption.Sequential)) {
+            return true;
+        }
+        // ignore the event if event occurred before the
+        // existing update
+        if (event.getLastUpdatedTimestamp() < existingTimestamp) {
+            return true;
+        }
+        if (currentClusterName.equals(sourceClusterName)) {
+            // if expected version doesn't exist then ignore the
+            // event
+            if ((event.getExpectedVersion() != null && event.getExpectedVersion() > 0)
+                    && event.getExpectedVersion() != existingVersion) {
+                return true;
+            }
+
+        } else if ((event.getLastUpdatedTimestamp() == existingTimestamp
+                && sourceClusterName.compareTo(currentClusterName) < 0)) {
+            // ignore: if event is older than existing store
+            // metadata
+            // or if timestamp is same for both the event then
+            // larger cluster-name according to lexical sorting
+            // should win for the update.
+            return true;
+        }
+        return false;
     }
 
     @Override
@@ -227,17 +316,28 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         if (!isValidPath(path)) {
             return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
         }
-        // Ensure caches are invalidated before the operation is confirmed
-        return storeDelete(path, expectedVersion)
-                .thenRun(() -> {
-                    existsCache.synchronous().invalidate(path);
-                    String parent = parent(path);
-                    if (parent != null) {
-                        childrenCache.synchronous().invalidate(parent);
-                    }
+        if (getMetadataEventSynchronizer().isPresent()) {
+            MetadataEvent event = new MetadataEvent(path, null, new HashSet<>(),
+                    expectedVersion.orElse(null), Instant.now().toEpochMilli(),
+                    getMetadataEventSynchronizer().get().getClusterName(), NotificationType.Deleted);
+            return getMetadataEventSynchronizer().get().notify(event)
+                    .thenCompose(__ -> deleteInternal(path, expectedVersion));
+        } else {
+            return deleteInternal(path, expectedVersion);
+        }
+    }
 
-                    metadataCaches.forEach(c -> c.invalidate(path));
-                });
+    private CompletableFuture<Void> deleteInternal(String path, Optional<Long> expectedVersion) {
+        // Ensure caches are invalidated before the operation is confirmed
+        return storeDelete(path, expectedVersion).thenRun(() -> {
+            existsCache.synchronous().invalidate(path);
+            String parent = parent(path);
+            if (parent != null) {
+                childrenCache.synchronous().invalidate(parent);
+            }
+
+            metadataCaches.forEach(c -> c.invalidate(path));
+        });
     }
 
     @Override
@@ -266,8 +366,25 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         if (!isValidPath(path)) {
             return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
         }
+        HashSet<CreateOption> ops = new HashSet<>(options);
+        if (getMetadataEventSynchronizer().isPresent()) {
+            Long version = optExpectedVersion.isPresent() && optExpectedVersion.get() < 0 ? null
+                    : optExpectedVersion.orElse(null);
+            MetadataEvent event = new MetadataEvent(path, data, ops, version,
+                    Instant.now().toEpochMilli(), getMetadataEventSynchronizer().get().getClusterName(),
+                    NotificationType.Modified);
+            return getMetadataEventSynchronizer().get().notify(event)
+                    .thenCompose(__ -> putInternal(path, data, optExpectedVersion, options));
+        } else {
+            return putInternal(path, data, optExpectedVersion, options);
+        }
+
+    }
+    public final CompletableFuture<Stat> putInternal(String path, byte[] data, Optional<Long> optExpectedVersion,
+            Set<CreateOption> options) {
         // Ensure caches are invalidated before the operation is confirmed
-        return storePut(path, data, optExpectedVersion, options)
+        return storePut(path, data, optExpectedVersion,
+                (options != null && !options.isEmpty()) ? EnumSet.copyOf(options) : EnumSet.noneOf(CreateOption.class))
                 .thenApply(stat -> {
                     NotificationType type = stat.getVersion() == 0 ? NotificationType.Created
                             : NotificationType.Modified;

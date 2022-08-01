@@ -705,7 +705,7 @@ public abstract class NamespacesBase extends AdminResource {
                     .thenCompose(__ -> authService.grantSubscriptionPermissionAsync(namespaceName, subscription,
                             roles, null))
                     .thenAccept(unused -> {
-                        log.info("[{}] Successfully granted permssion on subscription for role {}:{} - "
+                        log.info("[{}] Successfully granted permission on subscription for role {}:{} - "
                                 + "namespaceName {}", clientAppId(), roles, subscription, namespaceName);
                     })
                     .exceptionally(ex -> {
@@ -1136,7 +1136,7 @@ public abstract class NamespacesBase extends AdminResource {
                                 && (splitBoundaries == null || splitBoundaries.size() == 0)) {
                             throw new RestException(Status.PRECONDITION_FAILED,
                                     "With specified_positions_divide split algorithm, splitBoundaries must not be "
-                                            + "emtpy");
+                                            + "empty");
                         }
                     }
                 })
@@ -2116,16 +2116,6 @@ public abstract class NamespacesBase extends AdminResource {
                         + "specific limit. To disable retention both limits must be set to 0.");
     }
 
-    protected Integer internalGetMaxProducersPerTopic() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_PRODUCERS, PolicyOperation.READ);
-        return getNamespacePolicies(namespaceName).max_producers_per_topic;
-    }
-
-    protected Integer internalGetDeduplicationSnapshotInterval() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.DEDUPLICATION_SNAPSHOT, PolicyOperation.READ);
-        return getNamespacePolicies(namespaceName).deduplicationSnapshotIntervalSeconds;
-    }
-
     protected void internalSetDeduplicationSnapshotInterval(Integer interval) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.DEDUPLICATION_SNAPSHOT, PolicyOperation.WRITE);
         if (interval != null && interval < 0) {
@@ -2162,11 +2152,6 @@ public abstract class NamespacesBase extends AdminResource {
         return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.DEDUPLICATION, PolicyOperation.READ)
                 .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
                 .thenApply(policies -> policies.deduplicationEnabled);
-    }
-
-    protected Integer internalGetMaxConsumersPerTopic() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_CONSUMERS, PolicyOperation.READ);
-        return getNamespacePolicies(namespaceName).max_consumers_per_topic;
     }
 
     protected void internalSetMaxConsumersPerTopic(Integer maxConsumersPerTopic) {
@@ -2382,17 +2367,6 @@ public abstract class NamespacesBase extends AdminResource {
                 "schemaCompatibilityStrategy");
     }
 
-    protected boolean internalGetSchemaValidationEnforced(boolean applied) {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY,
-                PolicyOperation.READ);
-        boolean schemaValidationEnforced = getNamespacePolicies(namespaceName).schema_validation_enforced;
-        if (!schemaValidationEnforced && applied) {
-            return pulsar().getConfiguration().isSchemaValidationEnforced();
-        } else {
-            return schemaValidationEnforced;
-        }
-    }
-
     protected void internalSetSchemaValidationEnforced(boolean schemaValidationEnforced) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY,
                 PolicyOperation.WRITE);
@@ -2405,15 +2379,6 @@ public abstract class NamespacesBase extends AdminResource {
                 "schemaValidationEnforced");
     }
 
-    protected boolean internalGetIsAllowAutoUpdateSchema() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY,
-                PolicyOperation.READ);
-        if (getNamespacePolicies(namespaceName).is_allow_auto_update_schema == null) {
-            return pulsar().getConfig().isAllowAutoUpdateSchemaEnabled();
-        }
-        return getNamespacePolicies(namespaceName).is_allow_auto_update_schema;
-    }
-
     protected void internalSetIsAllowAutoUpdateSchema(boolean isAllowAutoUpdateSchema) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY,
                 PolicyOperation.WRITE);
@@ -2424,15 +2389,6 @@ public abstract class NamespacesBase extends AdminResource {
                     return policies;
                 }, (policies) -> policies.is_allow_auto_update_schema,
                 "isAllowAutoUpdateSchema");
-    }
-
-    protected Set<SubscriptionType> internalGetSubscriptionTypesEnabled() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.SUBSCRIPTION_AUTH_MODE,
-                PolicyOperation.READ);
-        Set<SubscriptionType> subscriptionTypes = new HashSet<>();
-        getNamespacePolicies(namespaceName).subscription_types_enabled.forEach(subType ->
-                subscriptionTypes.add(SubscriptionType.valueOf(subType)));
-        return subscriptionTypes;
     }
 
     protected void internalSetSubscriptionTypesEnabled(Set<SubscriptionType> subscriptionTypesEnabled) {

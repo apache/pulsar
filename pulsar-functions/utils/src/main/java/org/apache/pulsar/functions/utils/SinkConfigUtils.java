@@ -177,6 +177,7 @@ public class SinkConfigUtils {
         } else {
             functionDetailsBuilder.setAutoAck(true);
         }
+
         if (sinkConfig.getTimeoutMs() != null) {
             sourceSpecBuilder.setTimeoutMs(sinkConfig.getTimeoutMs());
         }
@@ -253,7 +254,7 @@ public class SinkConfigUtils {
             functionDetailsBuilder.setCustomRuntimeOptions(sinkConfig.getCustomRuntimeOptions());
         }
 
-        return functionDetailsBuilder.build();
+        return FunctionConfigUtils.validateFunctionDetails(functionDetailsBuilder.build());
     }
 
     public static SinkConfig convertFromDetails(FunctionDetails functionDetails) {

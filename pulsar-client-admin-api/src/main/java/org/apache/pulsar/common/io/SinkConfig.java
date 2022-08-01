@@ -74,6 +74,8 @@ public class SinkConfig {
     private Boolean retainOrdering;
     private Boolean retainKeyOrdering;
     private Resources resources;
+    // Deprecated since, see https://github.com/apache/pulsar/issues/15560
+    @Deprecated
     private Boolean autoAck;
     private Long timeoutMs;
     private Long negativeAckRedeliveryDelayMs;

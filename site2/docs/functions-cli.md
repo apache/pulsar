@@ -38,7 +38,7 @@ You can configure a function by using a predefined YAML file. The following tabl
 | outputSchemaType     | String                     | `-st`, `--schema-type`     | The built-in schema type or custom schema class name used for message outputs.   |
 | outputSerdeClassName | String                     | `--output-serde-classname` | The SerDe class used for message outputs. |
 | logTopic             | String                     | `--log-topic`              | The topic that the logs of a function are produced to.  |
-| processingGuarantees | String | `--processing-guarantees` | The processing guarantees (delivery semantics) applied to a function. Available values: `ATLEAST_ONCE`, `ATMOST_ONCE`, `EFFECTIVELY_ONCE`.|
+| processingGuarantees | String | `--processing-guarantees` | The processing guarantees (delivery semantics) applied to a function. Available values: `ATLEAST_ONCE`, `ATMOST_ONCE`, `EFFECTIVELY_ONCE`, `MANUAL`.|
 | retainOrdering       | Boolean                    | `--retain-ordering`	     | Whether functions consume and process messages in order or not. |
 | retainKeyOrdering    | Boolean                    | `--retain-key-ordering`    | Whether functions consume and process messages in key order or not. |
 | batchBuilder         | String           | `--batch-builder` | Use `producerConfig.batchBuilder` instead. <br />**Note**: `batchBuilder` will be deprecated in code soon. |
@@ -46,7 +46,7 @@ You can configure a function by using a predefined YAML file. The following tabl
 | userConfig           | Map`<String,Object>`         | `--user-config`         	 | User-defined config key/values. |
 | secrets       | Map`<String,Object>` | `--secrets`	| The mapping from secretName to objects that encapsulate how the secret is fetched by the underlying secrets provider. |
 | runtime       | String             | N/A          | The runtime of a function. Available values: `java`,`python`, `go`. |
-| autoAck       | Boolean            | `--auto-ack` | Whether the framework acknowledges messages automatically or not. |
+| autoAck       | Boolean            | `--auto-ack` | Whether the framework acknowledges messages automatically or not. <br /><br />**Tip**: This configuration will be deprecated. If the user specifies delivery semantics, the framework will automatically ack messages. If you do not want the framework to ack messages, set the **processingGuarantees** to `MANUAL`. |
 | maxMessageRetries    | Int      |	`--max-message-retries` | The number of retries to process a message before giving up. |
 | deadLetterTopic      | String   | `--dead-letter-topic`   | The topic used for storing messages that are not processed successfully. |
 | subName              | String   | `--subs-name`           | The name of Pulsar source subscription used for input-topic consumers if required.|
