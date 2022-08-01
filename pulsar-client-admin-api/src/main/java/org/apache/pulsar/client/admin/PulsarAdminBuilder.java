@@ -37,6 +37,29 @@ public interface PulsarAdminBuilder {
     PulsarAdmin build() throws PulsarClientException;
 
     /**
+     * Load the configuration from provided <tt>config</tt> map.
+     *
+     * <p>Example:
+     *
+     * <pre>
+     * {@code
+     * Map<String, Object> config = new HashMap<>();
+     * config.put("serviceHttpUrl", "http://localhost:6650");
+     *
+     * PulsarAdminBuilder builder = ...;
+     * builder = builder.loadConf(config);
+     *
+     * PulsarAdmin client = builder.build();
+     * }
+     * </pre>
+     *
+     * @param config
+     *            configuration to load
+     * @return the client builder instance
+     */
+    PulsarAdminBuilder loadConf(Map<String, Object> config);
+
+    /**
      * Create a copy of the current client builder.
      * <p/>
      * Cloning the builder can be used to share an incomplete configuration and specialize it multiple times. For

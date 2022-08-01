@@ -20,6 +20,9 @@
 
 # shell function library for Pulsar CI builds
 
+set -e
+set -o pipefail
+
 ARTIFACT_RETENTION_DAYS="${ARTIFACT_RETENTION_DAYS:-3}"
 
 # lists all available functions in this tool
@@ -64,24 +67,6 @@ function ci_install_tool() {
 function fail() {
   echo "$*" >&2
   exit 1
-}
-
-# function to retry a given commend 3 times with a backoff of 10 seconds in between
-function ci_retry() {
-  local n=1
-  local max=3
-  local delay=10
-  while true; do
-    "$@" && break || {
-      if [[ $n -lt $max ]]; then
-        ((n++))
-        echo "::warning::Command failed. Attempt $n/$max:"
-        sleep $delay
-      else
-        fail "::error::The command has failed after $n attempts."
-      fi
-    }
-  done
 }
 
 # saves a given image (1st parameter) to the GitHub Actions Artifacts with the given name (2nd parameter)

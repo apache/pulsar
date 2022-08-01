@@ -53,7 +53,7 @@ public abstract class ElasticSearchClientTests extends ElasticSearchTestBase {
     public final static String INDEX = "myindex";
 
     static ElasticsearchContainer container;
-    static Network network = Network.newNetwork();
+    static Network network;
 
     public ElasticSearchClientTests(String elasticImageName) {
         super(elasticImageName);
@@ -64,6 +64,7 @@ public abstract class ElasticSearchClientTests extends ElasticSearchTestBase {
         if (container != null) {
             return;
         }
+        network = Network.newNetwork();
         container = createElasticsearchContainer().withNetwork(network);
         container.start();
     }
@@ -71,7 +72,9 @@ public abstract class ElasticSearchClientTests extends ElasticSearchTestBase {
     @AfterClass(alwaysRun = true)
     public static void closeAfterClass() {
         container.close();
+        container = null;
         network.close();
+        network = null;
     }
 
     static class MockRecord<T> implements Record<T> {
@@ -204,6 +207,7 @@ public abstract class ElasticSearchClientTests extends ElasticSearchTestBase {
                 .setElasticSearchUrl("http://"+container.getHttpHostAddress())
                 .setIndexName(index)
                 .setBulkEnabled(true)
+                .setBulkFlushIntervalInMs(-1L)
                 .setMalformedDocAction(ElasticSearchConfig.MalformedDocAction.FAIL);
         try (ElasticSearchClient client = new ElasticSearchClient(config);) {
             MockRecord<GenericObject> mockRecord = new MockRecord<>();
@@ -227,6 +231,7 @@ public abstract class ElasticSearchClientTests extends ElasticSearchTestBase {
                 .setElasticSearchUrl("http://"+container.getHttpHostAddress())
                 .setIndexName(index)
                 .setBulkEnabled(true)
+                .setBulkFlushIntervalInMs(-1)
                 .setMalformedDocAction(ElasticSearchConfig.MalformedDocAction.IGNORE);
         try (ElasticSearchClient client = new ElasticSearchClient(config);) {
             MockRecord<GenericObject> mockRecord = new MockRecord<>();
@@ -338,15 +343,42 @@ public abstract class ElasticSearchClientTests extends ElasticSearchTestBase {
                     log.info("elapsed = {}", elapsed);
                     assertTrue(elapsed > 29000); // bulkIndex was blocking while elasticsearch was down or busy
 
-                    Thread.sleep(3000L);
-                    assertEquals(mockRecord.acked, 15);
-                    assertEquals(mockRecord.failed, 0);
-                    assertEquals(client.records.size(), 0);
+                    Awaitility.await().untilAsserted(() -> {
+                        assertEquals(mockRecord.acked, 15);
+                        assertEquals(mockRecord.failed, 0);
+                    });
 
                 } finally {
                     client.getRestClient().deleteIndex(index);
                 }
             }
+        }
+    }
+
+    @Test
+    public void testBulkIndexAndDelete() throws Exception {
+        final String index = "indexbulktest-" + UUID.randomUUID();
+        ElasticSearchConfig config = new ElasticSearchConfig()
+                .setElasticSearchUrl("http://"+container.getHttpHostAddress())
+                .setIndexName(index)
+                .setBulkEnabled(true)
+                .setBulkActions(10)
+                .setBulkFlushIntervalInMs(-1L);
+
+        try (ElasticSearchClient client = new ElasticSearchClient(config)) {
+            assertTrue(client.createIndexIfNeeded(index));
+            MockRecord<GenericObject> mockRecord = new MockRecord<>();
+            for (int i = 0; i < 5; i++) {
+                client.bulkIndex(mockRecord, Pair.of("key" + i, "{\"a\":" + i + "}"));
+                client.bulkDelete(mockRecord, "key" + i);
+            }
+            assertEquals(mockRecord.acked, 10);
+            assertEquals(mockRecord.failed, 0);
+            assertEquals(client.getRestClient().totalHits(index), 0);
+            // no effect
+            client.flush();
+
+            assertEquals(mockRecord.acked, 10);
         }
     }
 

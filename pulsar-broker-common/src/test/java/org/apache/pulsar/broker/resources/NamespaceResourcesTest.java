@@ -19,16 +19,17 @@
 
 package org.apache.pulsar.broker.resources;
 
-import org.junit.Assert;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
 import org.testng.annotations.Test;
 
 
 public class NamespaceResourcesTest {
     @Test
     public void test_pathIsFromNamespace() {
-        Assert.assertFalse(NamespaceResources.pathIsFromNamespace("/admin/clusters"));
-        Assert.assertFalse(NamespaceResources.pathIsFromNamespace("/admin/policies"));
-        Assert.assertFalse(NamespaceResources.pathIsFromNamespace("/admin/policies/my-tenant"));
-        Assert.assertTrue(NamespaceResources.pathIsFromNamespace("/admin/policies/my-tenant/my-ns"));
+        assertFalse(NamespaceResources.pathIsFromNamespace("/admin/clusters"));
+        assertFalse(NamespaceResources.pathIsFromNamespace("/admin/policies"));
+        assertFalse(NamespaceResources.pathIsFromNamespace("/admin/policies/my-tenant"));
+        assertTrue(NamespaceResources.pathIsFromNamespace("/admin/policies/my-tenant/my-ns"));
     }
 }

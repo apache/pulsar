@@ -25,7 +25,7 @@ pulsar-functions/worker/src/test/resources/
 .recommenders/
 .factorypath
 
-# Intellij
+# IntelliJ
 .idea/
 *.iml
 *.iws
@@ -43,6 +43,7 @@ nb-configuration.xml
 # Maven
 log/
 target/
+.mvn/wrapper/maven-wrapper.jar
 
 # Python
 *.pyc

@@ -65,6 +65,7 @@ import org.slf4j.LoggerFactory;
 
 public class ProducerHandler extends AbstractWebSocketHandler {
 
+    private WebSocketService service;
     private Producer<byte[]> producer;
     private final LongAdder numMsgsSent;
     private final LongAdder numMsgsFailed;
@@ -83,6 +84,7 @@ public class ProducerHandler extends AbstractWebSocketHandler {
         this.numBytesSent = new LongAdder();
         this.numMsgsFailed = new LongAdder();
         this.publishLatencyStatsUSec = new StatsBuckets(ENTRY_LATENCY_BUCKETS_USEC);
+        this.service = service;
 
         if (!checkAuth(response)) {
             return;
@@ -328,6 +330,14 @@ public class ProducerHandler extends AbstractWebSocketHandler {
             builder.compressionType(CompressionType.valueOf(queryParams.get("compressionType")));
         }
 
+        if (queryParams.containsKey("encryptionKeys")) {
+            builder.cryptoKeyReader(service.getCryptoKeyReader().orElseThrow(() -> new IllegalStateException(
+                    "Can't add encryption key without configuring cryptoKeyReaderFactoryClassName")));
+            String[] keys = queryParams.get("encryptionKeys").split(",");
+            for (String key : keys) {
+                builder.addEncryptionKey(key);
+            }
+        }
         return builder;
     }
 

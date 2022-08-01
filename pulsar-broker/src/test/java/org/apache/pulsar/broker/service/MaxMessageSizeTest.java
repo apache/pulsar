@@ -65,6 +65,7 @@ public class MaxMessageSizeTest {
             configuration.setWebServicePort(Optional.of(0));
             configuration.setClusterName("max_message_test");
             configuration.setBrokerShutdownTimeoutMs(0L);
+            configuration.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
             configuration.setBrokerServicePort(Optional.of(0));
             configuration.setAuthorizationEnabled(false);
             configuration.setAuthenticationEnabled(false);

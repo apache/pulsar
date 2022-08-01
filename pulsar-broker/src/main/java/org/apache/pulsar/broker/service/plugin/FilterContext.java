@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service.plugin;
 
 import lombok.Data;
+import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 
@@ -26,10 +27,12 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 public class FilterContext {
     private Subscription subscription;
     private MessageMetadata msgMetadata;
+    private Consumer consumer;
 
     public void reset() {
         subscription = null;
         msgMetadata = null;
+        consumer = null;
     }
 
     public static final FilterContext FILTER_CONTEXT_DISABLED = new FilterContext();

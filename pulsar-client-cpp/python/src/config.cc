@@ -217,6 +217,7 @@ void export_config() {
         .def("tls_allow_insecure_connection", &ClientConfiguration::setTlsAllowInsecureConnection,
              return_self<>())
         .def("tls_validate_hostname", &ClientConfiguration::setValidateHostName, return_self<>())
+        .def("listener_name", &ClientConfiguration::setListenerName, return_self<>())
         .def("set_logger", &ClientConfiguration_setLogger, return_self<>());
 
     class_<ProducerConfiguration>("ProducerConfiguration")

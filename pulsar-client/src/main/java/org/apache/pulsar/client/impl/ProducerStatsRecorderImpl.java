@@ -104,8 +104,7 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
 
         try {
             log.info("Starting Pulsar producer perf with config: {}", w.writeValueAsString(conf));
-            log.info("Pulsar client config: {}",
-                    w.withoutAttribute("authentication").writeValueAsString(pulsarClient.getConfiguration()));
+            log.info("Pulsar client config: {}", w.writeValueAsString(pulsarClient.getConfiguration()));
         } catch (IOException e) {
             log.error("Failed to dump config info", e);
         }
@@ -182,7 +181,8 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
                             + "BatchSize: med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - max: {} --- "
                             + "MsgSize: med: {} bytes - 95pct: {} bytes - 99pct: {} bytes - 99.9pct: {} bytes "
                             + "- max: {} bytes --- "
-                            + "Ack received rate: {} ack/s --- Failed messages: {}", producer.getTopic(),
+                            + "Ack received rate: {} ack/s --- Failed messages: {} --- Pending messages: {}",
+                    producer.getTopic(),
                     producer.getProducerName(), producer.getPendingQueueSize(),
                     THROUGHPUT_FORMAT.format(sendMsgsRate),
                     THROUGHPUT_FORMAT.format(sendBytesRate / 1024 / 1024 * 8),
@@ -195,7 +195,8 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
                     DEC.format(msgSizePctValues[0]), DEC.format(msgSizePctValues[2]),
                     DEC.format(msgSizePctValues[3]), DEC.format(msgSizePctValues[4]),
                     DEC.format(msgSizePctValues[5]),
-                    THROUGHPUT_FORMAT.format(currentNumAcksReceived / elapsed), currentNumSendFailedMsgs);
+                    THROUGHPUT_FORMAT.format(currentNumAcksReceived / elapsed), currentNumSendFailedMsgs,
+                    getPendingQueueSize());
         }
     }
 

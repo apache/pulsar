@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl;
 
 import static org.mockito.Mockito.spy;
-
 import com.google.common.collect.Sets;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -27,8 +26,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -42,28 +44,13 @@ import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 // TLS test without authentication and authorization based on KeyStore type config.
 @Slf4j
 @Test(groups = "broker-impl")
 public class KeyStoreTlsProducerConsumerTestWithoutAuthTest extends ProducerConsumerBase {
-    protected final String BROKER_KEYSTORE_FILE_PATH =
-            "./src/test/resources/authentication/keystoretls/broker.keystore.jks";
-    protected final String BROKER_TRUSTSTORE_FILE_PATH =
-            "./src/test/resources/authentication/keystoretls/broker.truststore.jks";
-    protected final String BROKER_KEYSTORE_PW = "111111";
-    protected final String BROKER_TRUSTSTORE_PW = "111111";
-
-    protected final String CLIENT_KEYSTORE_FILE_PATH =
-            "./src/test/resources/authentication/keystoretls/client.keystore.jks";
-    protected final String CLIENT_TRUSTSTORE_FILE_PATH =
-            "./src/test/resources/authentication/keystoretls/client.truststore.jks";
-    protected final String CLIENT_KEYSTORE_PW = "111111";
-    protected final String CLIENT_TRUSTSTORE_PW = "111111";
-
-    protected final String KEYSTORE_TYPE = "JKS";
-
     private final String clusterName = "use";
     Set<String> tlsProtocols = Sets.newConcurrentHashSet();
 
@@ -148,7 +135,7 @@ public class KeyStoreTlsProducerConsumerTestWithoutAuthTest extends ProducerCons
                 .brokerServiceUrlTls(pulsar.getBrokerServiceUrlTls())
                 .build());
         admin.tenants().createTenant("my-property",
-                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(clusterName)));
         admin.namespaces().createNamespace("my-property/my-ns");
     }
 
@@ -257,4 +244,49 @@ public class KeyStoreTlsProducerConsumerTestWithoutAuthTest extends ProducerCons
         }
     }
 
+    private final Authentication tlsAuth =
+            new AuthenticationKeyStoreTls(KEYSTORE_TYPE, CLIENT_KEYSTORE_FILE_PATH, CLIENT_KEYSTORE_PW);
+
+    @DataProvider
+    public Object[][] keyStoreTlsTransport() {
+        Supplier<String> webServiceAddressTls = () -> pulsar.getWebServiceAddressTls();
+        Supplier<String> brokerServiceUrlTls = () -> pulsar.getBrokerServiceUrlTls();
+
+        return new Object[][]{
+                // Set TLS transport directly.
+                {webServiceAddressTls, null},
+                {brokerServiceUrlTls, null},
+                // Using TLS authentication data to set up TLS transport.
+                {webServiceAddressTls, tlsAuth},
+                {brokerServiceUrlTls, tlsAuth},
+        };
+    }
+
+    @Test(dataProvider = "keyStoreTlsTransport")
+    public void testKeyStoreTlsTransport(Supplier<String> url, Authentication auth) throws Exception {
+        final String topicName = "persistent://my-property/my-ns/my-topic-1";
+
+        internalSetUpForNamespace();
+
+        ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(url.get())
+                .useKeyStoreTls(true)
+                .tlsTrustStoreType(KEYSTORE_TYPE)
+                .tlsTrustStorePath(BROKER_TRUSTSTORE_FILE_PATH)
+                .tlsTrustStorePassword(BROKER_TRUSTSTORE_PW)
+                .allowTlsInsecureConnection(false)
+                .enableTlsHostnameVerification(false)
+                .authentication(auth);
+
+        if (auth == null) {
+            clientBuilder.tlsKeyStoreType(KEYSTORE_TYPE)
+                    .tlsKeyStorePath(CLIENT_KEYSTORE_FILE_PATH)
+                    .tlsKeyStorePassword(CLIENT_KEYSTORE_PW);
+        }
+
+        @Cleanup
+        PulsarClient client = clientBuilder.build();
+
+        @Cleanup
+        Producer<byte[]> ignored = client.newProducer().topic(topicName).create();
+    }
 }

@@ -24,15 +24,19 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.functions.utils.FunctionCommon.createPkgTempFile;
 import static org.apache.pulsar.functions.utils.FunctionCommon.getStateNamespace;
 import static org.apache.pulsar.functions.utils.FunctionCommon.getUniquePackageName;
 import static org.apache.pulsar.functions.utils.FunctionCommon.isFunctionCodeBuiltin;
 import static org.apache.pulsar.functions.worker.rest.RestUtils.throwUnavailableException;
+import static org.apache.pulsar.functions.worker.rest.api.FunctionsImpl.downloadPackageFile;
+import com.google.common.base.Utf8;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -43,6 +47,7 @@ import java.util.Base64;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.TreeMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -96,8 +101,8 @@ import org.apache.pulsar.functions.utils.ComponentTypeUtils;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.utils.FunctionMetaDataUtils;
+import org.apache.pulsar.functions.utils.functions.FunctionArchive;
 import org.apache.pulsar.functions.utils.functions.FunctionUtils;
-import org.apache.pulsar.functions.utils.functions.Functions;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeInfo;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
@@ -105,6 +110,8 @@ import org.apache.pulsar.functions.worker.PulsarWorkerService;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.functions.worker.service.api.Component;
+import org.apache.pulsar.packages.management.core.common.PackageMetadata;
+import org.apache.pulsar.packages.management.core.common.PackageName;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 
 @Slf4j
@@ -293,58 +300,101 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         PackageLocationMetaData.Builder packageLocationMetaDataBuilder = PackageLocationMetaData.newBuilder();
         boolean isBuiltin = isFunctionCodeBuiltin(functionDetails);
         boolean isPkgUrlProvided = isNotBlank(functionPkgUrl);
+        boolean isPackageManagementEnabled = worker().getWorkerConfig().isFunctionsWorkerEnablePackageManagement();
+        PackageName packageName = PackageName.get(functionDetails.getComponentType().name(),
+                tenant,
+                namespace,
+                componentName,
+                String.valueOf(functionMetaData.getVersion()));
+        PackageMetadata metadata = PackageMetadata.builder()
+                .createTime(functionMetaData.getCreateTime()).build();
         if (worker().getFunctionRuntimeManager().getRuntimeFactory().externallyManaged()) {
             // For externally managed schedulers, the pkgUrl/builtin stuff can be copied to bk
             // if the function worker image does not include connectors
             if (isBuiltin) {
                 if (worker().getWorkerConfig().getUploadBuiltinSinksSources()) {
-                    File sinkOrSource;
-                    if (componentType == FunctionDetails.ComponentType.SOURCE) {
-                        String archiveName = functionDetails.getSource().getBuiltin();
-                        sinkOrSource = worker().getConnectorsManager().getSourceArchive(archiveName).toFile();
-                    } else {
-                        String archiveName = functionDetails.getSink().getBuiltin();
-                        sinkOrSource = worker().getConnectorsManager().getSinkArchive(archiveName).toFile();
-                    }
+                    File component;
+                    String archiveName;
+                    switch (componentType) {
+                        case SOURCE:
+                            archiveName = functionDetails.getSource().getBuiltin();
+                            component = worker().getConnectorsManager().getSourceArchive(archiveName).toFile();
+                            break;
+                        case SINK:
+                            archiveName = functionDetails.getSink().getBuiltin();
+                            component = worker().getConnectorsManager().getSinkArchive(archiveName).toFile();
+                            break;
+                        default:
+                            archiveName = functionDetails.getBuiltin();
+                            component = worker().getFunctionsManager().getFunctionArchive(archiveName).toFile();
+                            break;
+                        }
                     packageLocationMetaDataBuilder.setPackagePath(createPackagePath(tenant, namespace, componentName,
-                            sinkOrSource.getName()));
-                    packageLocationMetaDataBuilder.setOriginalFileName(sinkOrSource.getName());
+                            component.getName()));
+                    packageLocationMetaDataBuilder.setOriginalFileName(component.getName());
+                    if (isPackageManagementEnabled) {
+                        packageLocationMetaDataBuilder.setPackagePath(packageName.toString());
+                        worker().getBrokerAdmin().packages().upload(metadata,
+                                packageName.toString(), component.getAbsolutePath());
+                    } else {
+                        WorkerUtils.uploadFileToBookkeeper(packageLocationMetaDataBuilder.getPackagePath(),
+                                component, worker().getDlogNamespace());
+                    }
                     log.info("Uploading {} package to {}", ComponentTypeUtils.toString(componentType),
                             packageLocationMetaDataBuilder.getPackagePath());
-                    WorkerUtils.uploadFileToBookkeeper(packageLocationMetaDataBuilder.getPackagePath(), sinkOrSource,
-                            worker().getDlogNamespace());
                 } else {
                     log.info("Skipping upload for the built-in package {}", ComponentTypeUtils.toString(componentType));
                     packageLocationMetaDataBuilder
                             .setPackagePath("builtin://" + getFunctionCodeBuiltin(functionDetails));
                 }
             } else if (isPkgUrlProvided) {
-                packageLocationMetaDataBuilder.setPackagePath(createPackagePath(tenant, namespace, componentName,
-                        uploadedInputStreamAsFile.getName()));
                 packageLocationMetaDataBuilder.setOriginalFileName(uploadedInputStreamAsFile.getName());
+                if (isPackageManagementEnabled) {
+                    packageLocationMetaDataBuilder.setPackagePath(functionPkgUrl);
+                    if (!Utils.hasPackageTypePrefix(functionPkgUrl)) {
+                        packageLocationMetaDataBuilder.setPackagePath(packageName.toString());
+                        worker().getBrokerAdmin().packages().upload(metadata,
+                                packageName.toString(), uploadedInputStreamAsFile.getAbsolutePath());
+                    }
+                } else {
+                    packageLocationMetaDataBuilder.setPackagePath(createPackagePath(tenant, namespace, componentName,
+                            uploadedInputStreamAsFile.getName()));
+                    WorkerUtils.uploadFileToBookkeeper(packageLocationMetaDataBuilder.getPackagePath(),
+                            uploadedInputStreamAsFile, worker().getDlogNamespace());
+                }
                 log.info("Uploading {} package to {}", ComponentTypeUtils.toString(componentType),
                         packageLocationMetaDataBuilder.getPackagePath());
-                WorkerUtils.uploadFileToBookkeeper(packageLocationMetaDataBuilder.getPackagePath(),
-                        uploadedInputStreamAsFile, worker().getDlogNamespace());
             } else if (functionMetaData.getPackageLocation().getPackagePath().startsWith(Utils.HTTP)
                     || functionMetaData.getPackageLocation().getPackagePath().startsWith(Utils.FILE)) {
                 String fileName =
                         new File(new URL(functionMetaData.getPackageLocation().getPackagePath()).toURI()).getName();
-                packageLocationMetaDataBuilder.setPackagePath(createPackagePath(tenant, namespace, componentName,
-                        fileName));
                 packageLocationMetaDataBuilder.setOriginalFileName(fileName);
+                if (isPackageManagementEnabled) {
+                    packageLocationMetaDataBuilder.setPackagePath(packageName.toString());
+                    worker().getBrokerAdmin().packages().upload(metadata,
+                            packageName.toString(), uploadedInputStreamAsFile.getAbsolutePath());
+                } else {
+                    packageLocationMetaDataBuilder.setPackagePath(createPackagePath(tenant, namespace, componentName,
+                            fileName));
+                    WorkerUtils.uploadFileToBookkeeper(packageLocationMetaDataBuilder.getPackagePath(),
+                            uploadedInputStreamAsFile, worker().getDlogNamespace());
+                }
                 log.info("Uploading {} package to {}", ComponentTypeUtils.toString(componentType),
                         packageLocationMetaDataBuilder.getPackagePath());
-                WorkerUtils.uploadFileToBookkeeper(packageLocationMetaDataBuilder.getPackagePath(),
-                        uploadedInputStreamAsFile, worker().getDlogNamespace());
             } else {
-                packageLocationMetaDataBuilder.setPackagePath(createPackagePath(tenant, namespace, componentName,
-                        fileDetail.getFileName()));
                 packageLocationMetaDataBuilder.setOriginalFileName(fileDetail.getFileName());
+                if (isPackageManagementEnabled) {
+                    packageLocationMetaDataBuilder.setPackagePath(packageName.toString());
+                    worker().getBrokerAdmin().packages().upload(metadata,
+                            packageName.toString(), uploadedInputStreamAsFile.getAbsolutePath());
+                } else {
+                    packageLocationMetaDataBuilder.setPackagePath(createPackagePath(tenant, namespace, componentName,
+                            fileDetail.getFileName()));
+                    WorkerUtils.uploadFileToBookkeeper(packageLocationMetaDataBuilder.getPackagePath(),
+                            uploadedInputStreamAsFile, worker().getDlogNamespace());
+                }
                 log.info("Uploading {} package to {}", ComponentTypeUtils.toString(componentType),
                         packageLocationMetaDataBuilder.getPackagePath());
-                WorkerUtils.uploadFileToBookkeeper(packageLocationMetaDataBuilder.getPackagePath(),
-                        uploadedInputStreamAsFile, worker().getDlogNamespace());
             }
         } else {
             // For pulsar managed schedulers, the pkgUrl/builtin stuff should be copied to bk
@@ -356,13 +406,19 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                     || functionMetaData.getPackageLocation().getPackagePath().startsWith(Utils.FILE)) {
                 packageLocationMetaDataBuilder.setPackagePath(functionMetaData.getPackageLocation().getPackagePath());
             } else {
-                packageLocationMetaDataBuilder
-                        .setPackagePath(createPackagePath(tenant, namespace, componentName, fileDetail.getFileName()));
                 packageLocationMetaDataBuilder.setOriginalFileName(fileDetail.getFileName());
+                if (isPackageManagementEnabled) {
+                    packageLocationMetaDataBuilder.setPackagePath(packageName.toString());
+                    worker().getBrokerAdmin().packages().upload(metadata,
+                            packageName.toString(), uploadedInputStreamAsFile.getAbsolutePath());
+                } else {
+                    packageLocationMetaDataBuilder.setPackagePath(createPackagePath(tenant, namespace, componentName,
+                                    fileDetail.getFileName()));
+                    WorkerUtils.uploadFileToBookkeeper(packageLocationMetaDataBuilder.getPackagePath(),
+                            uploadedInputStreamAsFile, worker().getDlogNamespace());
+                }
                 log.info("Uploading {} package to {}", ComponentTypeUtils.toString(componentType),
                         packageLocationMetaDataBuilder.getPackagePath());
-                WorkerUtils.uploadFileToBookkeeper(packageLocationMetaDataBuilder.getPackagePath(),
-                        uploadedInputStreamAsFile, worker().getDlogNamespace());
             }
         }
         return packageLocationMetaDataBuilder;
@@ -449,13 +505,23 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         if (!functionPackagePath.startsWith(Utils.HTTP)
                 && !functionPackagePath.startsWith(Utils.FILE)
                 && !functionPackagePath.startsWith(Utils.BUILTIN)) {
-            try {
-                WorkerUtils.deleteFromBookkeeper(worker().getDlogNamespace(),
-                        functionMetaData.getPackageLocation().getPackagePath());
-            } catch (IOException e) {
-                log.error("{}/{}/{} Failed to cleanup package in BK with path {}", tenant, namespace, componentName,
-                        functionMetaData.getPackageLocation().getPackagePath(), e);
+            if (worker().getWorkerConfig().isFunctionsWorkerEnablePackageManagement()) {
+                try {
+                    worker().getBrokerAdmin().packages().delete(functionPackagePath);
+                } catch (PulsarAdminException e) {
+                    log.error("{}/{}/{} Failed to cleanup package in package managemanet with url {}", tenant,
+                            namespace, componentName, functionMetaData.getPackageLocation().getPackagePath(), e);
+                }
+            } else {
+                try {
+                    WorkerUtils.deleteFromBookkeeper(worker().getDlogNamespace(),
+                            functionMetaData.getPackageLocation().getPackagePath());
+                } catch (IOException e) {
+                    log.error("{}/{}/{} Failed to cleanup package in BK with path {}", tenant, namespace, componentName,
+                            functionMetaData.getPackageLocation().getPackagePath(), e);
+                }
             }
+
         }
 
         deleteStatestoreTableAsync(getStateNamespace(tenant, namespace), componentName);
@@ -1205,13 +1271,13 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                     if (kv.isNumber()) {
                         value = new FunctionState(key, null, null, kv.numberValue(), kv.version());
                     } else {
-                        try {
-                            value = new FunctionState(key, new String(ByteBufUtil
-                                    .getBytes(kv.value(), kv.value().readerIndex(), kv.value().readableBytes()), UTF_8),
+                        byte[] bytes = ByteBufUtil.getBytes(kv.value());
+                        if (Utf8.isWellFormed(bytes)) {
+                            value = new FunctionState(key, new String(bytes, UTF_8),
                                     null, null, kv.version());
-                        } catch (Exception e) {
+                        } else {
                             value = new FunctionState(
-                                    key, null, ByteBufUtil.getBytes(kv.value()), null, kv.version());
+                                    key, null, bytes, null, kv.version());
                         }
                     }
                 }
@@ -1336,8 +1402,17 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         // Upload to bookkeeper
         try {
             log.info("Uploading function package to {}", path);
-            WorkerUtils.uploadToBookKeeper(worker().getDlogNamespace(), uploadedInputStream, path);
-        } catch (IOException e) {
+            if (worker().getWorkerConfig().isFunctionsWorkerEnablePackageManagement()) {
+                File tempFile = createPkgTempFile();
+                tempFile.deleteOnExit();
+                FileOutputStream out = new FileOutputStream(tempFile);
+                IOUtils.copy(uploadedInputStream, out);
+                PackageMetadata metadata = PackageMetadata.builder().createTime(System.currentTimeMillis()).build();
+                worker().getBrokerAdmin().packages().upload(metadata, path, tempFile.getAbsolutePath());
+            } else {
+                WorkerUtils.uploadToBookKeeper(worker().getDlogNamespace(), uploadedInputStream, path);
+            }
+        } catch (IOException | PulsarAdminException e) {
             log.error("Error uploading file {}", path, e);
             throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
         }
@@ -1392,8 +1467,9 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                 String sType = pkgPath.replaceFirst("^builtin://", "");
                 final String connectorsDir = worker().getWorkerConfig().getConnectorsDirectory();
                 log.warn("Processing package {} ; looking at the dir {}", pkgPath, connectorsDir);
-                Functions sinksOrSources = FunctionUtils.searchForFunctions(connectorsDir, true);
-                Path narPath = sinksOrSources.getFunctions().get(sType);
+                TreeMap<String, FunctionArchive> sinksOrSources =
+                        FunctionUtils.searchForFunctions(connectorsDir, true);
+                Path narPath = sinksOrSources.get(sType).getArchivePath();
                 if (narPath == null) {
                     throw new IllegalStateException("Didn't find " + pkgPath + " in " + connectorsDir);
                 }
@@ -1401,6 +1477,17 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                 try (InputStream in = new FileInputStream(narPath.toString())) {
                     IOUtils.copy(in, output, 1024);
                     output.flush();
+                }
+            } else if (worker().getWorkerConfig().isFunctionsWorkerEnablePackageManagement()) {
+                try {
+                    File file = downloadPackageFile(worker(), pkgPath);
+                    try (InputStream in = new FileInputStream(file)) {
+                        IOUtils.copy(in, output, 1024);
+                        output.flush();
+                    }
+                } catch (Exception e) {
+                    log.error("Failed download package {} from packageMangment Service", pkgPath, e);
+
                 }
             } else {
                 WorkerUtils.downloadFromBookkeeper(worker().getDlogNamespace(), output, pkgPath);
@@ -1531,6 +1618,10 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
             if (!isEmpty(sinkSpec.getBuiltin())) {
                 return sinkSpec.getBuiltin();
             }
+        }
+
+        if (!isEmpty(functionDetails.getBuiltin())) {
+            return functionDetails.getBuiltin();
         }
 
         return null;

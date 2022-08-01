@@ -74,7 +74,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     static final String TOKEN = "token";
 
     private static final Counter expiredTokenMetrics = Counter.build()
-            .name("pulsar_expired_token_count")
+            .name("pulsar_expired_token_total")
             .help("Pulsar expired token")
             .register();
 
@@ -168,7 +168,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
 
     @Override
     public AuthenticationState newHttpAuthState(HttpServletRequest request) throws AuthenticationException {
-        return new TokenAuthenticationState(this, request);
+        return new TokenAuthenticationState(this, new HttpServletRequestWrapper(request));
     }
 
     public static String getToken(AuthenticationDataSource authData) throws AuthenticationException {
@@ -356,7 +356,8 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
          */
         @Override
         public AuthData authenticate(AuthData authData) throws AuthenticationException {
-            // There's no additional auth stage required
+            String token = new String(authData.getBytes(), UTF_8);
+            checkExpiration(token);
             return null;
         }
 
@@ -384,6 +385,28 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
         @Override
         public boolean isExpired() {
             return expiration < System.currentTimeMillis();
+        }
+    }
+
+    private static final class HttpServletRequestWrapper extends javax.servlet.http.HttpServletRequestWrapper {
+        private final HttpServletRequest request;
+
+        public HttpServletRequestWrapper(HttpServletRequest request) {
+            super(request);
+            this.request = request;
+        }
+
+        @Override
+        public String getHeader(String name) {
+            // The browser javascript WebSocket client couldn't add the auth param to the request header, use the
+            // query param `token` to transport the auth token for the browser javascript WebSocket client.
+            if (name.equals(HTTP_HEADER_NAME) && request.getHeader(HTTP_HEADER_NAME) == null) {
+                String token = request.getParameter(TOKEN);
+                if (token != null) {
+                    return !token.startsWith(HTTP_HEADER_VALUE_PREFIX) ? HTTP_HEADER_VALUE_PREFIX + token : token;
+                }
+            }
+            return super.getHeader(name);
         }
     }
 }

@@ -26,9 +26,8 @@ ROOT_DIR=$(git rev-parse --show-toplevel)
 cd $ROOT_DIR/pulsar-client-cpp
 
 IMAGE="${BUILD_IMAGE_NAME:-apachepulsar/pulsar-cpp-build-centos7}"
-cd ./docker/centos-7
-docker build -t "${IMAGE}" .
-cd -
+
+docker pull "${IMAGE}"
 
 VOLUME_OPTION=${VOLUME_OPTION:-"-v $ROOT_DIR:/pulsar"}
 COMMAND="cd /pulsar/pulsar-client-cpp && mkdir -p _builds && cd _builds &&

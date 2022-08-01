@@ -19,6 +19,7 @@
 #
 
 set -e
+git config --global --add safe.directory /pulsar
 
 ROOT_DIR=$(git rev-parse --show-toplevel)
 cd $ROOT_DIR/pulsar-client-cpp
@@ -44,7 +45,7 @@ if [ -f /gtest-parallel/gtest-parallel ]; then
         tests="--gtest_filter=$1"
         echo "Running tests: $1"
     fi
-    /gtest-parallel/gtest-parallel $tests --dump_json_test_results=/tmp/gtest_parallel_results.json \
+    python3 /gtest-parallel/gtest-parallel $tests --dump_json_test_results=/tmp/gtest_parallel_results.json \
       --workers=$gtest_workers --retry_failed=$RETRY_FAILED -d /tmp \
       ./main
     RES=$?
@@ -58,18 +59,14 @@ popd
 if [ $RES -eq 0 ]; then
     pushd python
     echo "---- Build Python Wheel file"
-    python setup.py bdist_wheel
+    python3 setup.py bdist_wheel
 
     echo "---- Installing Python Wheel file"
     ls -lha dist
     WHEEL_FILE=$(ls dist/ | grep whl)
     echo "${WHEEL_FILE}"
     echo "dist/${WHEEL_FILE}[all]"
-    # Protobuf 3.18 only works with Python3. Since we're still using Python2 in CI, 
-    # let's pin the Python version to the previous one
-    pip install protobuf==3.17.3
-
-    pip install dist/${WHEEL_FILE}[all]
+    pip3 install dist/${WHEEL_FILE}[all]
 
     echo "---- Running Python unit tests"
 
@@ -78,14 +75,11 @@ if [ $RES -eq 0 ]; then
     cp *_test.py /tmp
     pushd /tmp
 
-    # TODO: this test requires asyncio module that is supported by Python >= 3.3.
-    #  Hoeever, CI doesn't support Python3 yet, we should uncomment following
-    #  lines after Python3 CI script is added.
-    #python custom_logger_test.py
-    #RES=$?
-    #echo "custom_logger_test.py: $RES"
+    python3 custom_logger_test.py
+    RES=$?
+    echo "custom_logger_test.py: $RES"
 
-    python pulsar_test.py
+    python3 pulsar_test.py
     RES=$?
     echo "pulsar_test.py: $RES"
 

@@ -126,11 +126,13 @@ public class NamespaceStatsAggregator {
         subsStats.lastConsumedFlowTimestamp = subscriptionStats.lastConsumedFlowTimestamp;
         subsStats.lastConsumedTimestamp = subscriptionStats.lastConsumedTimestamp;
         subsStats.lastMarkDeleteAdvancedTimestamp = subscriptionStats.lastMarkDeleteAdvancedTimestamp;
+        subsStats.consumersCount = subscriptionStats.consumers.size();
         subscriptionStats.consumers.forEach(cStats -> {
             stats.consumersCount++;
             subsStats.unackedMessages += cStats.unackedMessages;
             subsStats.msgRateRedeliver += cStats.msgRateRedeliver;
             subsStats.msgRateOut += cStats.msgRateOut;
+            subsStats.messageAckRate += cStats.messageAckRate;
             subsStats.msgThroughputOut += cStats.msgThroughputOut;
             subsStats.bytesOutCounter += cStats.bytesOutCounter;
             subsStats.msgOutCounter += cStats.msgOutCounter;
@@ -240,6 +242,7 @@ public class NamespaceStatsAggregator {
                     consumerStats.unackedMessages = conStats.unackedMessages;
                     consumerStats.msgRateRedeliver = conStats.msgRateRedeliver;
                     consumerStats.msgRateOut = conStats.msgRateOut;
+                    consumerStats.msgAckRate = conStats.messageAckRate;
                     consumerStats.msgThroughputOut = conStats.msgThroughputOut;
                     consumerStats.bytesOutCounter = conStats.bytesOutCounter;
                     consumerStats.msgOutCounter = conStats.msgOutCounter;
@@ -250,15 +253,18 @@ public class NamespaceStatsAggregator {
         }
 
         topic.getReplicators().forEach((cluster, replicator) -> {
-            AggregatedReplicationStats aggReplStats = stats.replicationStats.computeIfAbsent(cluster,
-                    k -> new AggregatedReplicationStats());
-
             ReplicatorStatsImpl replStats = replicator.getStats();
+            AggregatedReplicationStats aggReplStats = stats.replicationStats.get(replicator.getRemoteCluster());
+            if (aggReplStats == null) {
+                aggReplStats = new AggregatedReplicationStats();
+                stats.replicationStats.put(replicator.getRemoteCluster(), aggReplStats);
+                aggReplStats.msgRateIn = replStats.msgRateIn;
+                aggReplStats.msgThroughputIn = replStats.msgThroughputIn;
+            }
+
             aggReplStats.msgRateOut += replStats.msgRateOut;
             aggReplStats.msgThroughputOut += replStats.msgThroughputOut;
             aggReplStats.replicationBacklog += replStats.replicationBacklog;
-            aggReplStats.msgRateIn += replStats.msgRateIn;
-            aggReplStats.msgThroughputIn += replStats.msgThroughputIn;
             aggReplStats.msgRateExpired += replStats.msgRateExpired;
             aggReplStats.connectedCount += replStats.connected ? 1 : 0;
             aggReplStats.replicationDelayInSeconds += replStats.replicationDelayInSeconds;
@@ -324,6 +330,7 @@ public class NamespaceStatsAggregator {
         metric(stream, cluster, namespace, "pulsar_rate_out", stats.rateOut);
         metric(stream, cluster, namespace, "pulsar_throughput_in", stats.throughputIn);
         metric(stream, cluster, namespace, "pulsar_throughput_out", stats.throughputOut);
+        metric(stream, cluster, namespace, "pulsar_consumer_msg_ack_rate", stats.messageAckRate);
 
         metric(stream, cluster, namespace, "pulsar_in_bytes_total", stats.bytesInCounter);
         metric(stream, cluster, namespace, "pulsar_in_messages_total", stats.msgInCounter);

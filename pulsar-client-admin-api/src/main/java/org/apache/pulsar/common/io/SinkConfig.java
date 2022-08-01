@@ -74,9 +74,13 @@ public class SinkConfig {
     private Boolean retainOrdering;
     private Boolean retainKeyOrdering;
     private Resources resources;
+    // Deprecated since, see https://github.com/apache/pulsar/issues/15560
+    @Deprecated
     private Boolean autoAck;
     private Long timeoutMs;
     private Long negativeAckRedeliveryDelayMs;
+
+    private String sinkType;
     private String archive;
     // Whether the subscriptions the functions created/used should be deleted when the functions is deleted
     private Boolean cleanupSubscription;

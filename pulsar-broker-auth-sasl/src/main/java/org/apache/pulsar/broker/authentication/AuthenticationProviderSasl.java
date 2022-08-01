@@ -35,10 +35,12 @@ import static org.apache.pulsar.common.sasl.SaslConstants.SASL_STATE_SERVER;
 import static org.apache.pulsar.common.sasl.SaslConstants.SASL_STATE_SERVER_CHECK_TOKEN;
 import java.io.IOException;
 import java.net.SocketAddress;
+import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
@@ -48,6 +50,7 @@ import javax.security.auth.login.LoginException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.sasl.JAASCredentialsContainer;
@@ -81,7 +84,7 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
         try {
             this.allowedIdsPattern = Pattern.compile(allowedIdsPatternRegExp);
         } catch (PatternSyntaxException error) {
-            log.error("Invalid regular expression for id " + allowedIdsPatternRegExp, error);
+            log.error("Invalid regular expression for id {}", allowedIdsPatternRegExp, error);
             throw new IOException(error);
         }
 
@@ -98,8 +101,15 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
                 throw new IOException(e);
             }
         }
-
-        this.signer = new SaslRoleTokenSigner(Long.toString(new Random().nextLong()).getBytes());
+        String saslJaasServerRoleTokenSignerSecretPath = config.getSaslJaasServerRoleTokenSignerSecretPath();
+        byte[] secret = null;
+        if (StringUtils.isNotBlank(saslJaasServerRoleTokenSignerSecretPath)) {
+            secret = readSecretFromUrl(saslJaasServerRoleTokenSignerSecretPath);
+        } else {
+            String msg = "saslJaasServerRoleTokenSignerSecretPath parameter is empty";
+            throw new IllegalArgumentException(msg);
+        }
+        this.signer = new SaslRoleTokenSigner(secret);
     }
 
     @Override
@@ -173,6 +183,19 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
                 token, token.getUserRole(), token.getSession(), token.getExpires(), signed);
         }
         return signed;
+    }
+
+    private byte[] readSecretFromUrl(String secretConfUrl) throws IOException {
+        if (secretConfUrl.startsWith("file:")) {
+            URI filePath = URI.create(secretConfUrl);
+            return Files.readAllBytes(Paths.get(filePath));
+        } else if (Files.exists(Paths.get(secretConfUrl))) {
+            // Assume the key content was passed in a valid file path
+            return Files.readAllBytes(Paths.get(secretConfUrl));
+        } else {
+            String msg = "Role token signer secret file " + secretConfUrl + " doesn't exist";
+            throw new IllegalArgumentException(msg);
+        }
     }
 
     private ConcurrentHashMap<Long, AuthenticationState> authStates = new ConcurrentHashMap<>();

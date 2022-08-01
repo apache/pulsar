@@ -19,6 +19,7 @@
 package org.apache.pulsar.functions.source.batch;
 
 
+import static org.awaitility.Awaitility.await;
 import static org.testng.Assert.fail;
 import com.google.gson.Gson;
 import java.util.HashMap;
@@ -378,6 +379,8 @@ public class BatchSourceExecutorTest {
     }
     Assert.assertEquals(testBatchSource.getRecordCount(), 6);
     Assert.assertEquals(testBatchSource.getDiscoverCount(), 1);
+
+    awaitDiscoverNotInProgress();
     triggerQueue.put("trigger");
     completedQueue.take();
     Assert.assertTrue(testBatchSource.getDiscoverCount() == 2);
@@ -397,6 +400,8 @@ public class BatchSourceExecutorTest {
     }
     Assert.assertEquals(testBatchPushSource.getRecordCount(), 5);
     Assert.assertEquals(testBatchPushSource.getDiscoverCount(), 1);
+
+    awaitDiscoverNotInProgress();
     triggerQueue.put("trigger");
     completedQueue.take();
     Assert.assertEquals(testBatchPushSource.getDiscoverCount(), 2);
@@ -414,6 +419,10 @@ public class BatchSourceExecutorTest {
       Thread.sleep(100);
     }
     fail("should have thrown an exception");
+  }
+
+  private void awaitDiscoverNotInProgress() {
+    await().until(() -> !batchSourceExecutor.discoverInProgress);
   }
 
 }

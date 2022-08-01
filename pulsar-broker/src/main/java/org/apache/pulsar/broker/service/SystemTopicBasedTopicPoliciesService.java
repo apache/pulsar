@@ -236,8 +236,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     public CompletableFuture<Void> addOwnedNamespaceBundleAsync(NamespaceBundle namespaceBundle) {
         CompletableFuture<Void> result = new CompletableFuture<>();
         NamespaceName namespace = namespaceBundle.getNamespaceObject();
-        if (NamespaceService.checkHeartbeatNamespace(namespace) != null
-                || NamespaceService.checkHeartbeatNamespaceV2(namespace) != null) {
+        if (NamespaceService.isHeartbeatNamespace(namespace)) {
             result.complete(null);
             return result;
         }
@@ -421,7 +420,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                             ? globalPoliciesCache.putIfAbsent(topicName, event.getPolicies())
                             : policiesCache.putIfAbsent(topicName, event.getPolicies());
                     if (old != null) {
-                        log.warn("Policy insert failed, the topic: {}' policy already exist", topicName);
+                        log.warn("Policy insert failed, the topic: {} policy already exist", topicName);
                     }
                     break;
                 case UPDATE:

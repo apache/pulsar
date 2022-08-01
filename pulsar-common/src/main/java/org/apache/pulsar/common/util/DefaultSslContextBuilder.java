@@ -18,11 +18,8 @@
  */
 package org.apache.pulsar.common.util;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.security.GeneralSecurityException;
 import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLException;
 
 @SuppressWarnings("checkstyle:JavadocType")
 public class DefaultSslContextBuilder extends SslContextAutoRefreshBuilder<SSLContext> {
@@ -31,23 +28,37 @@ public class DefaultSslContextBuilder extends SslContextAutoRefreshBuilder<SSLCo
     protected final boolean tlsAllowInsecureConnection;
     protected final FileModifiedTimeUpdater tlsTrustCertsFilePath, tlsCertificateFilePath, tlsKeyFilePath;
     protected final boolean tlsRequireTrustedClientCertOnConnect;
+    private final String providerName;
 
     public DefaultSslContextBuilder(boolean allowInsecure, String trustCertsFilePath, String certificateFilePath,
-            String keyFilePath, boolean requireTrustedClientCertOnConnect, long certRefreshInSec)
-            throws SSLException, FileNotFoundException, GeneralSecurityException, IOException {
+                                    String keyFilePath, boolean requireTrustedClientCertOnConnect,
+                                    long certRefreshInSec) {
         super(certRefreshInSec);
         this.tlsAllowInsecureConnection = allowInsecure;
         this.tlsTrustCertsFilePath = new FileModifiedTimeUpdater(trustCertsFilePath);
         this.tlsCertificateFilePath = new FileModifiedTimeUpdater(certificateFilePath);
         this.tlsKeyFilePath = new FileModifiedTimeUpdater(keyFilePath);
         this.tlsRequireTrustedClientCertOnConnect = requireTrustedClientCertOnConnect;
+        this.providerName = null;
+    }
+
+    public DefaultSslContextBuilder(boolean allowInsecure, String trustCertsFilePath, String certificateFilePath,
+                                    String keyFilePath, boolean requireTrustedClientCertOnConnect,
+                                    long certRefreshInSec, String providerName) {
+        super(certRefreshInSec);
+        this.tlsAllowInsecureConnection = allowInsecure;
+        this.tlsTrustCertsFilePath = new FileModifiedTimeUpdater(trustCertsFilePath);
+        this.tlsCertificateFilePath = new FileModifiedTimeUpdater(certificateFilePath);
+        this.tlsKeyFilePath = new FileModifiedTimeUpdater(keyFilePath);
+        this.tlsRequireTrustedClientCertOnConnect = requireTrustedClientCertOnConnect;
+        this.providerName = providerName;
     }
 
     @Override
     public synchronized SSLContext update() throws GeneralSecurityException {
         this.sslContext = SecurityUtility.createSslContext(tlsAllowInsecureConnection,
                 tlsTrustCertsFilePath.getFileName(), tlsCertificateFilePath.getFileName(),
-                tlsKeyFilePath.getFileName());
+                tlsKeyFilePath.getFileName(), this.providerName);
         return this.sslContext;
     }
 

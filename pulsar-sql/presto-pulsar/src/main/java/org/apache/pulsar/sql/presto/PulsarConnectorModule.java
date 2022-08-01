@@ -55,6 +55,7 @@ public class PulsarConnectorModule implements Module {
         binder.bind(PulsarMetadata.class).in(Scopes.SINGLETON);
         binder.bind(PulsarSplitManager.class).in(Scopes.SINGLETON);
         binder.bind(PulsarRecordSetProvider.class).in(Scopes.SINGLETON);
+        binder.bind(PulsarAuth.class).in(Scopes.SINGLETON);
 
         binder.bind(PulsarDispatchingRowDecoderFactory.class).in(Scopes.SINGLETON);
 

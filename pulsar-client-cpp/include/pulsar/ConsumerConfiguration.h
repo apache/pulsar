@@ -40,6 +40,7 @@ class PulsarWrapper;
 /// Callback definition for non-data operation
 typedef std::function<void(Result result)> ResultCallback;
 typedef std::function<void(Result, const Message& msg)> ReceiveCallback;
+typedef std::function<void(Result result, MessageId messageId)> GetLastMessageIdCallback;
 
 /// Callback definition for MessageListener
 typedef std::function<void(Consumer consumer, const Message& msg)> MessageListener;
@@ -423,6 +424,21 @@ class PULSAR_PUBLIC ConsumerConfiguration {
      * Add all the properties in the provided map
      */
     ConsumerConfiguration& setProperties(const std::map<std::string, std::string>& properties);
+
+    /**
+     * Get all the subscription properties attached to this subscription.
+     */
+    std::map<std::string, std::string>& getSubscriptionProperties() const;
+
+    /**
+     * Sets a new subscription properties for this subscription.
+     * Notice: SubscriptionProperties are immutable, and consumers under the same subscription will fail to
+     * create a subscription if they use different properties.
+     *
+     * @param subscriptionProperties all the subscription properties in the provided map
+     */
+    ConsumerConfiguration& setSubscriptionProperties(
+        const std::map<std::string, std::string>& subscriptionProperties);
 
     /**
      * Set the Priority Level for consumer (0 is the default value and means the highest priority).

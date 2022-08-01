@@ -160,93 +160,53 @@ TEST(ProducerTest, testSendAsyncAfterCloseAsyncWithLazyProducers) {
     ASSERT_EQ(ResultOk, result);
 }
 
-TEST(ProducerTest, testSendAsyncCloseAsyncConcurrentlyWithLazyProducers) {
-    // run sendAsync and closeAsync concurrently and verify that all sendAsync callbacks are called
-    // and that messages sent after closeAsync is invoked receive ResultAlreadyClosed.
-    for (int run = 0; run < 20; run++) {
-        LOG_INFO("Start of run " << run);
-        Client client(serviceUrl);
-        const std::string partitionedTopic =
-            "testProducerIsConnectedPartitioned-" + std::to_string(time(nullptr));
-
-        int res = makePutRequest(
-            adminUrl + "admin/v2/persistent/public/default/" + partitionedTopic + "/partitions", "10");
-        ASSERT_TRUE(res == 204 || res == 409) << "res: " << res;
-
-        ProducerConfiguration producerConfiguration;
-        producerConfiguration.setLazyStartPartitionedProducers(true);
-        producerConfiguration.setPartitionsRoutingMode(ProducerConfiguration::UseSinglePartition);
-        producerConfiguration.setBatchingEnabled(true);
-        Producer producer;
-        ASSERT_EQ(ResultOk, client.createProducer(partitionedTopic, producerConfiguration, producer));
-
-        int sendCount = 100;
-        std::vector<Promise<Result, MessageId>> promises(sendCount);
-        Promise<bool, Result> promiseClose;
-
-        // only call closeAsync once at least 10 messages have been sent
-        Latch sendStartLatch(10);
-        Latch closeLatch(1);
-        int closedAt = 0;
-
-        std::thread t1([&]() {
-            for (int i = 0; i < sendCount; i++) {
-                sendStartLatch.countdown();
-                Message msg = MessageBuilder().setContent("test").build();
-
-                if (closeLatch.getCount() == 0 && closedAt == 0) {
-                    closedAt = i;
-                    LOG_INFO("closedAt set to " << closedAt)
-                }
-
-                producer.sendAsync(msg, WaitForCallbackValue<MessageId>(promises[i]));
-                std::this_thread::sleep_for(std::chrono::milliseconds(1));
-            }
-        });
-
-        std::thread t2([&]() {
-            sendStartLatch.wait(std::chrono::milliseconds(1000));
-            LOG_INFO("Closing");
-            producer.closeAsync(WaitForCallback(promiseClose));
-            LOG_INFO("Close called");
-            closeLatch.countdown();
-            Result result;
-            promiseClose.getFuture().get(result);
-            ASSERT_EQ(ResultOk, result);
-            LOG_INFO("Closed");
-        });
-
-        t1.join();
-        t2.join();
-
-        // make sure that all messages after the moment when closeAsync was invoked
-        // return AlreadyClosed
-        for (int i = 0; i < sendCount; i++) {
-            LOG_DEBUG("Checking " << i)
-
-            // whether a message was sent successfully or not, it's callback
-            // must have been invoked
-            ASSERT_EQ(true, promises[i].isComplete());
-            MessageId mi;
-            Result res = promises[i].getFuture().get(mi);
-            LOG_DEBUG("Result is " << res);
-
-            // for the messages sent after closeAsync was invoked, they
-            // should all return ResultAlreadyClosed
-            if (i >= closedAt) {
-                ASSERT_EQ(ResultAlreadyClosed, res);
-            }
-        }
-
-        client.close();
-        LOG_INFO("End of run " << run);
-    }
-}
-
 TEST(ProducerTest, testGetNumOfChunks) {
     ASSERT_EQ(ProducerImpl::getNumOfChunks(11, 5), 3);
     ASSERT_EQ(ProducerImpl::getNumOfChunks(10, 5), 2);
     ASSERT_EQ(ProducerImpl::getNumOfChunks(8, 5), 2);
     ASSERT_EQ(ProducerImpl::getNumOfChunks(4, 5), 1);
     ASSERT_EQ(ProducerImpl::getNumOfChunks(1, 0), 1);
+}
+
+TEST(ProducerTest, testBacklogQuotasExceeded) {
+    std::string ns = "public/test-backlog-quotas";
+    std::string topic = ns + "/testBacklogQuotasExceeded" + std::to_string(time(nullptr));
+
+    int res = makePutRequest(adminUrl + "admin/v2/persistent/" + topic + "/partitions", "5");
+    ASSERT_TRUE(res == 204 || res == 409) << "res: " << res;
+    LOG_INFO("Created topic " << topic << " with 5 partitions");
+
+    auto setBacklogPolicy = [&ns](const std::string& policy, int limitSize) {
+        const auto body = R"({"policy":")" + policy + R"(","limitSize":)" + std::to_string(limitSize) + "}";
+        int res = makePostRequest(adminUrl + "admin/v2/namespaces/" + ns + "/backlogQuota", body);
+        LOG_INFO(res << " | Change the backlog policy to: " << body);
+        ASSERT_TRUE(res == 204 || res == 409);
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    };
+
+    Client client(serviceUrl);
+
+    // Create a topic with backlog size that is greater than 1024
+    Consumer consumer;
+    ASSERT_EQ(ResultOk, client.subscribe(topic, "sub", consumer));  // create a cursor
+    Producer producer;
+
+    const auto partition = topic + "-partition-0";
+    ASSERT_EQ(ResultOk, client.createProducer(partition, producer));
+    ASSERT_EQ(ResultOk, producer.send(MessageBuilder().setContent(std::string(1024L, 'a')).build()));
+    ASSERT_EQ(ResultOk, producer.close());
+
+    setBacklogPolicy("producer_request_hold", 1024);
+    ASSERT_EQ(ResultProducerBlockedQuotaExceededError, client.createProducer(topic, producer));
+    ASSERT_EQ(ResultProducerBlockedQuotaExceededError, client.createProducer(partition, producer));
+
+    setBacklogPolicy("producer_exception", 1024);
+    ASSERT_EQ(ResultProducerBlockedQuotaExceededException, client.createProducer(topic, producer));
+    ASSERT_EQ(ResultProducerBlockedQuotaExceededException, client.createProducer(partition, producer));
+
+    setBacklogPolicy("consumer_backlog_eviction", 1024);
+    ASSERT_EQ(ResultOk, client.createProducer(topic, producer));
+    ASSERT_EQ(ResultOk, client.createProducer(partition, producer));
+
+    client.close();
 }

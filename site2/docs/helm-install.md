@@ -1,7 +1,7 @@
 ---
 id: helm-install
 title: Install Apache Pulsar using Helm
-sidebar_label: Install 
+sidebar_label: "Install "
 ---
 
 Install Apache Pulsar on Kubernetes with the official Pulsar Helm chart.

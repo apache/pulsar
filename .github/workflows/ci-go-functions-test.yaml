@@ -45,7 +45,7 @@ jobs:
     name: Run Go Tests
     strategy:
       matrix:
-        go-version: [1.11.x, 1.12.x, 1.13.x, 1.14.x]
+        go-version: [1.15, 1.16, 1.17]
         platform: [ubuntu-latest]
     runs-on: ${{ matrix.platform }}
     timeout-minutes: 120
@@ -79,4 +79,5 @@ jobs:
         if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
         run: |
           cd pulsar-function-go
+          export GO111MODULE=on
           go test -v $(go list ./... | grep -v examples)

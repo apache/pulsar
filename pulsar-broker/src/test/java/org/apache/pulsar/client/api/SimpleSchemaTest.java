@@ -18,12 +18,6 @@
  */
 package org.apache.pulsar.client.api;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Cleanup;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
@@ -31,13 +25,22 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
+import java.io.ByteArrayInputStream;
+import java.io.EOFException;
+import java.nio.ByteBuffer;
+import java.util.Arrays;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Cleanup;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.Schema.Parser;
-import org.apache.pulsar.client.impl.MessageImpl;
-import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
-import org.apache.pulsar.common.schema.LongSchemaVersion;
+import org.apache.avro.reflect.ReflectData;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException.IncompatibleSchemaException;
 import org.apache.pulsar.client.api.PulsarClientException.InvalidMessageException;
@@ -45,13 +48,16 @@ import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.impl.BinaryProtoLookupService;
 import org.apache.pulsar.client.impl.HttpLookupService;
 import org.apache.pulsar.client.impl.LookupService;
+import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
+import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.client.impl.schema.reader.AvroReader;
 import org.apache.pulsar.client.impl.schema.writer.AvroWriter;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
+import org.apache.pulsar.common.schema.LongSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.Assert;
@@ -60,14 +66,6 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
-
-import java.io.ByteArrayInputStream;
-import java.nio.ByteBuffer;
-import java.util.Arrays;
-import java.util.List;
-import java.util.UUID;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 
 @Test(groups = "broker-api")
 @Slf4j
@@ -305,7 +303,13 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
                             + " if SchemaValidationEnabled is enabled");
                 }
                 Message<V2Data> msg3 = c.receive();
-                Assert.assertEquals(msg3.getSchemaVersion(), SchemaVersion.Empty.bytes());
+                assertNull(msg3.getSchemaVersion());
+                try {
+                    msg3.getValue();
+                    fail("Schema should be incompatible");
+                } catch (SchemaSerializationException e) {
+                    assertTrue(e.getCause() instanceof EOFException);
+                }
             } catch (PulsarClientException e) {
                 if (schemaValidationEnforced) {
                     Assert.assertTrue(e instanceof IncompatibleSchemaException);
@@ -366,7 +370,13 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
                             + " if SchemaValidationEnabled is enabled");
                 }
                 Message<V2Data> msg3 = c.receive();
-                Assert.assertEquals(msg3.getSchemaVersion(), SchemaVersion.Empty.bytes());
+                assertNull(msg3.getSchemaVersion());
+                try {
+                    msg3.getValue();
+                    fail("Schema should be incompatible");
+                } catch (SchemaSerializationException e) {
+                    assertTrue(e.getCause() instanceof EOFException);
+                }
             } catch (PulsarClientException e) {
                 if (schemaValidationEnforced) {
                     Assert.assertTrue(e instanceof IncompatibleSchemaException);
@@ -443,6 +453,9 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         }
 
         List<SchemaInfo> allSchemas = admin.schemas().getAllSchemas(topic);
+        allSchemas.forEach(schemaInfo -> {
+            ((SchemaInfoImpl)schemaInfo).setTimestamp(0);
+        });
         Assert.assertEquals(allSchemas, Arrays.asList(v1Schema.getSchemaInfo(),
                 v2Schema.getSchemaInfo()));
     }
@@ -481,6 +494,9 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         }
 
         List<SchemaInfo> allSchemas = admin.schemas().getAllSchemas(topic);
+        allSchemas.forEach(schemaInfo -> {
+            ((SchemaInfoImpl)schemaInfo).setTimestamp(0);
+        });
         Assert.assertEquals(allSchemas, Arrays.asList(v1Schema.getSchemaInfo(),
                 v2Schema.getSchemaInfo()));
     }
@@ -1252,5 +1268,39 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
 
 
         }
+    }
+
+    @Test
+    public void testConsumeAvroMessagesWithoutSchema() throws Exception {
+        if (schemaValidationEnforced) {
+            return;
+        }
+        final String topic = "test-consume-avro-messages-without-schema-" + UUID.randomUUID();
+        final Schema<V1Data> schema = Schema.AVRO(V1Data.class);
+        final Consumer<V1Data> consumer = pulsarClient.newConsumer(schema)
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+        final Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .create();
+
+        final int numMessages = 5;
+        for (int i = 0; i < numMessages; i++) {
+            producer.send(schema.encode(new V1Data(i)));
+        }
+
+        for (int i = 0; i < numMessages; i++) {
+            final Message<V1Data> msg = consumer.receive(3, TimeUnit.SECONDS);
+            assertNotNull(msg);
+            log.info("Received {} from {}", msg.getValue().i, topic);
+            assertEquals(msg.getValue().i, i);
+            assertEquals(msg.getReaderSchema().orElse(Schema.BYTES).getSchemaInfo(), schema.getSchemaInfo());
+            consumer.acknowledge(msg);
+        }
+
+        producer.close();
+        consumer.close();
     }
 }

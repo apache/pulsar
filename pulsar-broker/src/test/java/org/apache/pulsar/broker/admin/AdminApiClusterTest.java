@@ -18,9 +18,8 @@
  */
 package org.apache.pulsar.broker.admin;
 
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThrows;
-
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertThrows;
 import com.google.common.collect.Sets;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;

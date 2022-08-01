@@ -825,7 +825,7 @@ public interface TopicPolicies {
     /**
      * Set subscription-message-dispatch-rate for the topic.
      * <p/>
-     * Subscriptions under this namespace can dispatch this many messages per second
+     * Subscriptions of this topic can dispatch this many messages per second
      *
      * @param topic
      * @param dispatchRate
@@ -838,7 +838,7 @@ public interface TopicPolicies {
     /**
      * Set subscription-message-dispatch-rate for the topic asynchronously.
      * <p/>
-     * Subscriptions under this namespace can dispatch this many messages per second.
+     * Subscriptions of this topic can dispatch this many messages per second.
      *
      * @param topic
      * @param dispatchRate
@@ -849,31 +849,31 @@ public interface TopicPolicies {
     /**
      * Get applied subscription-message-dispatch-rate.
      * <p/>
-     * Subscriptions under this namespace can dispatch this many messages per second.
+     * Subscriptions of this topic can dispatch this many messages per second.
      *
-     * @param namespace
+     * @param topic
      * @returns DispatchRate
      *            number of messages per second
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    DispatchRate getSubscriptionDispatchRate(String namespace, boolean applied) throws PulsarAdminException;
+    DispatchRate getSubscriptionDispatchRate(String topic, boolean applied) throws PulsarAdminException;
 
     /**
      * Get applied subscription-message-dispatch-rate asynchronously.
      * <p/>
-     * Subscriptions under this namespace can dispatch this many messages per second.
+     * Subscriptions in this topic can dispatch this many messages per second.
      *
-     * @param namespace
+     * @param topic
      * @returns DispatchRate
      *            number of messages per second
      */
-    CompletableFuture<DispatchRate> getSubscriptionDispatchRateAsync(String namespace, boolean applied);
+    CompletableFuture<DispatchRate> getSubscriptionDispatchRateAsync(String topic, boolean applied);
 
     /**
      * Get subscription-message-dispatch-rate for the topic.
      * <p/>
-     * Subscriptions under this namespace can dispatch this many messages per second.
+     * Subscriptions of this topic can dispatch this many messages per second.
      *
      * @param topic
      * @returns DispatchRate
@@ -886,7 +886,7 @@ public interface TopicPolicies {
     /**
      * Get subscription-message-dispatch-rate asynchronously.
      * <p/>
-     * Subscriptions under this namespace can dispatch this many messages per second.
+     * Subscriptions of this topic can dispatch this many messages per second.
      *
      * @param topic
      * @returns DispatchRate
@@ -909,6 +909,51 @@ public interface TopicPolicies {
      *            Topic name
      */
     CompletableFuture<Void> removeSubscriptionDispatchRateAsync(String topic);
+
+    /**
+     * Set dispatch rate limiter for a specific subscription.
+     */
+    void setSubscriptionDispatchRate(String topic, String subscriptionName, DispatchRate dispatchRate)
+            throws PulsarAdminException;
+
+    /**
+     * Async version of {@link #setSubscriptionDispatchRate(String, String, DispatchRate)}.
+     */
+    CompletableFuture<Void> setSubscriptionDispatchRateAsync(String topic, String subscriptionName,
+                                                             DispatchRate dispatchRate);
+
+    /**
+     * If applied is true, get dispatch rate limiter for a specific subscription.
+     * Or else, return subscription level setting.
+     */
+    DispatchRate getSubscriptionDispatchRate(String topic, String subscriptionName, boolean applied)
+            throws PulsarAdminException;
+
+    /**
+     * Async version of {@link #getSubscriptionDispatchRate(String, String, boolean)}.
+     */
+    CompletableFuture<DispatchRate> getSubscriptionDispatchRateAsync(String topic, String subscriptionName,
+                                                                     boolean applied);
+
+    /**
+     * Get subscription level dispatch rate limiter setting for a specific subscription.
+     */
+    DispatchRate getSubscriptionDispatchRate(String topic, String subscriptionName) throws PulsarAdminException;
+
+    /**
+     * Async version of {@link #getSubscriptionDispatchRate(String, String)}.
+     */
+    CompletableFuture<DispatchRate> getSubscriptionDispatchRateAsync(String topic, String subscriptionName);
+
+    /**
+     * Remove subscription level dispatch rate limiter setting for a specific subscription.
+     */
+    void removeSubscriptionDispatchRate(String topic, String subscriptionName) throws PulsarAdminException;
+
+    /**
+     * Async version of {@link #removeSubscriptionDispatchRate(String, String)}.
+     */
+    CompletableFuture<Void> removeSubscriptionDispatchRateAsync(String topic, String subscriptionName);
 
     /**
      * Set replicatorDispatchRate for the topic.

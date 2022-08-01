@@ -38,10 +38,10 @@ ARG UBUNTU_MIRROR=mirror://mirrors.ubuntu.com/mirrors.txt
 RUN sed -i "s|http://archive\.ubuntu\.com/ubuntu/|${UBUNTU_MIRROR:-mirror://mirrors.ubuntu.com/mirrors.txt}|g" /etc/apt/sources.list \
      && apt-get update \
      && apt-get -y dist-upgrade \
-     && apt-get -y install openjdk-11-jdk-headless
+     && apt-get -y install openjdk-17-jdk-headless
 
-ENV JAVA_HOME /usr/lib/jvm/java-11-openjdk-amd64
-RUN echo networkaddress.cache.ttl=1 >> /usr/lib/jvm/java-11-openjdk-amd64/conf/security/java.security
+ENV JAVA_HOME /usr/lib/jvm/java-17-openjdk-amd64
+RUN echo networkaddress.cache.ttl=1 >> /usr/lib/jvm/java-17-openjdk-amd64/conf/security/java.security
 
 # /pulsar/bin/watch-znode.py requires python3-kazoo
 # /pulsar/bin/pulsar-managed-ledger-admin requires python3-protobuf

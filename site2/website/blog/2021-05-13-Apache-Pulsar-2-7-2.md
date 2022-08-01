@@ -1,7 +1,7 @@
 ---
 author: Enrico Olivelli
 authorURL: https://twitter.com/eolivelli
-title: Apache Pulsar 2.7.2
+title: "Apache Pulsar 2.7.2"
 ---
 We are very glad to see the Apache Pulsar community has successfully released the 2.7.2 version.
 This is a minor release that introduces stability fixes and a few new features without breaking changes.

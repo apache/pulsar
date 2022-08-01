@@ -20,12 +20,14 @@ package org.apache.pulsar.metadata.api;
 
 import lombok.Builder;
 import lombok.Getter;
+import lombok.ToString;
 
 /**
  * The configuration builder for a {@link MetadataStore} config.
  */
 @Builder
 @Getter
+@ToString
 public class MetadataStoreConfig {
 
     /**
@@ -69,4 +71,10 @@ public class MetadataStoreConfig {
      */
     @Builder.Default
     private final int batchingMaxSizeKb = 128;
+
+    /**
+     * Pluggable MetadataEventSynchronizer to sync metadata events across the
+     * separate clusters.
+     */
+    private MetadataEventSynchronizer synchronizer;
 }

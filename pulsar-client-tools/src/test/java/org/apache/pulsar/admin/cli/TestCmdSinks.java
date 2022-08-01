@@ -478,6 +478,16 @@ public class TestCmdSinks {
         testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
     }
 
+    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Invalid sink type 'foo' " +
+            "-- Available sinks are: \\[\\]")
+    public void testCmdSinkConfigFileInvalidSinkType() throws Exception {
+        SinkConfig testSinkConfig = getSinkConfig();
+        // sinkType is prior than archive
+        testSinkConfig.setSinkType("foo");
+
+        testCmdSinkConfigFile(testSinkConfig, null);
+    }
+
     private void testCmdSinkConfigFile(SinkConfig testSinkConfig, SinkConfig expectedSinkConfig) throws Exception {
 
         File file = Files.createTempFile("", "").toFile();

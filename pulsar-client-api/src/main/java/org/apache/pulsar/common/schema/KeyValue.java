@@ -56,7 +56,7 @@ public class KeyValue<K, V> {
         if (!(obj instanceof KeyValue)) {
             return false;
         }
-        KeyValue<K, V> another = (KeyValue<K, V>) obj;
+        @SuppressWarnings("unchecked") KeyValue<K, V> another = (KeyValue<K, V>) obj;
         return Objects.equals(key, another.key)
             && Objects.equals(value, another.value);
     }

@@ -90,6 +90,35 @@ public class TransactionProduceTest extends TransactionTestBase {
     }
 
     @Test
+    public void testDeleteNamespaceBeforeCommit() throws Exception {
+        final String topic = NAMESPACE1 + "/testDeleteTopicBeforeCommit";
+        PulsarClient pulsarClient = this.pulsarClient;
+        Transaction tnx = pulsarClient.newTransaction()
+                .withTransactionTimeout(60, TimeUnit.SECONDS)
+                .build().get();
+        long txnIdMostBits = ((TransactionImpl) tnx).getTxnIdMostBits();
+        long txnIdLeastBits = ((TransactionImpl) tnx).getTxnIdLeastBits();
+        Assert.assertTrue(txnIdMostBits > -1);
+        Assert.assertTrue(txnIdLeastBits > -1);
+
+        @Cleanup
+        Producer<byte[]> outProducer = pulsarClient
+                .newProducer()
+                .topic(topic)
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .enableBatching(false)
+                .create();
+
+        String content = "Hello Txn";
+        outProducer.newMessage(tnx).value(content.getBytes(UTF_8)).send();
+
+        try {
+            admin.namespaces().deleteNamespace(NAMESPACE1, true);
+        } catch (Exception ignore) {}
+        tnx.commit().get();
+    }
+
+    @Test
     public void produceAndAbortTest() throws Exception {
         produceTest(false);
     }

@@ -18,11 +18,14 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.MediaType;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Transactions;
 import org.apache.pulsar.client.api.Authentication;
@@ -36,6 +39,7 @@ import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionMetadata;
 import org.apache.pulsar.common.policies.data.TransactionPendingAckInternalStats;
 import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
+import org.apache.pulsar.common.stats.PositionInPendingAckStats;
 
 public class TransactionsImpl extends BaseResource implements Transactions {
     private final WebTarget adminV3Transactions;
@@ -180,9 +184,11 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     }
 
     @Override
-    public CompletableFuture<TransactionBufferStats> getTransactionBufferStatsAsync(String topic) {
+    public CompletableFuture<TransactionBufferStats> getTransactionBufferStatsAsync(String topic,
+                                                                                    boolean lowWaterMarks) {
         WebTarget path = adminV3Transactions.path("transactionBufferStats");
         path = path.path(TopicName.get(topic).getRestPath(false));
+        path = path.queryParam("lowWaterMarks", lowWaterMarks);
         final CompletableFuture<TransactionBufferStats> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<TransactionBufferStats>() {
@@ -200,15 +206,18 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     }
 
     @Override
-    public TransactionBufferStats getTransactionBufferStats(String topic) throws PulsarAdminException {
-        return sync(() -> getTransactionBufferStatsAsync(topic));
+    public TransactionBufferStats getTransactionBufferStats(String topic,
+                                                            boolean lowWaterMarks) throws PulsarAdminException {
+        return sync(() -> getTransactionBufferStatsAsync(topic, lowWaterMarks));
     }
 
     @Override
-    public CompletableFuture<TransactionPendingAckStats> getPendingAckStatsAsync(String topic, String subName) {
+    public CompletableFuture<TransactionPendingAckStats> getPendingAckStatsAsync(String topic, String subName,
+                                                                                 boolean lowWaterMarks) {
         WebTarget path = adminV3Transactions.path("pendingAckStats");
         path = path.path(TopicName.get(topic).getRestPath(false));
         path = path.path(subName);
+        path = path.queryParam("lowWaterMarks", lowWaterMarks);
         final CompletableFuture<TransactionPendingAckStats> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<TransactionPendingAckStats>() {
@@ -226,8 +235,9 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     }
 
     @Override
-    public TransactionPendingAckStats getPendingAckStats(String topic, String subName) throws PulsarAdminException {
-        return sync(() -> getPendingAckStatsAsync(topic, subName));
+    public TransactionPendingAckStats getPendingAckStats(String topic, String subName, boolean lowWaterMarks)
+            throws PulsarAdminException {
+        return sync(() -> getPendingAckStatsAsync(topic, subName, lowWaterMarks));
     }
 
     @Override
@@ -335,4 +345,53 @@ public class TransactionsImpl extends BaseResource implements Transactions {
         return sync(() -> getPendingAckInternalStatsAsync(topic, subName, metadata));
     }
 
+    @Override
+    public void scaleTransactionCoordinators(int replicas) throws PulsarAdminException {
+         sync(() -> scaleTransactionCoordinatorsAsync(replicas));
+    }
+
+    @Override
+    public CompletableFuture<Void> scaleTransactionCoordinatorsAsync(int replicas) {
+        checkArgument(replicas > 0, "Number of transaction coordinators must be more than 0");
+        WebTarget path = adminV3Transactions.path("transactionCoordinator");
+        path = path.path("replicas");
+        return asyncPostRequest(path, Entity.entity(replicas, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public CompletableFuture<PositionInPendingAckStats> getPositionStatsInPendingAckAsync(String topic,
+                                                                                          String subName,
+                                                                                          Long ledgerId,
+                                                                                          Long entryId,
+                                                                                          Integer batchIndex) {
+        TopicName tn = TopicName.get(topic);
+        WebTarget path = adminV3Transactions.path("positionStatsInPendingAck");
+        path = path.path(tn.getRestPath(false));
+        path = path.path(subName);
+        path = path.path(ledgerId.toString());
+        path = path.path(entryId.toString());
+        path = path.queryParam("batchIndex", batchIndex);
+        final CompletableFuture<PositionInPendingAckStats> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<PositionInPendingAckStats>() {
+                    @Override
+                    public void completed(PositionInPendingAckStats stats) {
+                        future.complete(stats);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
+
+    @Override
+    public PositionInPendingAckStats getPositionStatsInPendingAck(String topic, String subName, Long ledgerId,
+                                                                  Long entryId, Integer batchIndex)
+            throws PulsarAdminException {
+        return sync(() -> getPositionStatsInPendingAckAsync(topic, subName, ledgerId, entryId, batchIndex));
+    }
 }

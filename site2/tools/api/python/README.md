@@ -30,5 +30,5 @@ directory.
 When starting in the root directory of the project, you can run:
 
 ```shell
-PULSAR_VERSION=2.8.3 ./site2/tools/python-client/build-docs-in-docker.sh
+PULSAR_VERSION=2.9.2 ./site2/tools/api/python/build-docs-in-docker.sh
 ```

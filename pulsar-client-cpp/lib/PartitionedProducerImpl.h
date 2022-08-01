@@ -30,7 +30,7 @@ namespace pulsar {
 class PartitionedProducerImpl : public ProducerImplBase,
                                 public std::enable_shared_from_this<PartitionedProducerImpl> {
    public:
-    enum PartitionedProducerState
+    enum State
     {
         Pending,
         Ready,
@@ -73,8 +73,6 @@ class PartitionedProducerImpl : public ProducerImplBase,
 
     void notifyResult(CloseCallback closeCallback);
 
-    void setState(PartitionedProducerState state);
-
     friend class PulsarFriend;
 
    private:
@@ -83,7 +81,7 @@ class PartitionedProducerImpl : public ProducerImplBase,
     const TopicNamePtr topicName_;
     const std::string topic_;
 
-    unsigned int numProducersCreated_ = 0;
+    std::atomic_uint numProducersCreated_{0};
 
     /*
      * set when one or more Single Partition Creation fails, close will cleanup and fail the create callbackxo
@@ -99,10 +97,7 @@ class PartitionedProducerImpl : public ProducerImplBase,
     mutable std::mutex producersMutex_;
     MessageRoutingPolicyPtr routerPolicy_;
 
-    // mutex_ is used to share state_, and numProducersCreated_
-    mutable std::mutex mutex_;
-
-    PartitionedProducerState state_ = Pending;
+    std::atomic<State> state_{Pending};
 
     // only set this promise to value, when producers on all partitions are created.
     Promise<Result, ProducerImplBaseWeakPtr> partitionedProducerCreatedPromise_;
@@ -124,7 +119,6 @@ class PartitionedProducerImpl : public ProducerImplBase,
     void runPartitionUpdateTask();
     void getPartitionMetadata();
     void handleGetPartitions(const Result result, const LookupDataResultPtr& partitionMetadata);
-    bool assertState(const PartitionedProducerState state);
 };
 
 }  // namespace pulsar

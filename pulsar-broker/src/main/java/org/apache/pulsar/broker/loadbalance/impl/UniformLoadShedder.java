@@ -26,13 +26,13 @@ import org.apache.commons.lang3.mutable.MutableDouble;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.commons.lang3.tuple.Triple;
-import org.apache.pulsar.broker.BrokerData;
-import org.apache.pulsar.broker.BundleData;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.TimeAverageMessageData;
 import org.apache.pulsar.broker.loadbalance.LoadData;
 import org.apache.pulsar.broker.loadbalance.LoadSheddingStrategy;
+import org.apache.pulsar.policies.data.loadbalancer.BrokerData;
+import org.apache.pulsar.policies.data.loadbalancer.BundleData;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
+import org.apache.pulsar.policies.data.loadbalancer.TimeAverageMessageData;
 
 /**
  * This strategy tends to distribute load uniformly across all brokers. This strategy checks load difference between
@@ -44,11 +44,6 @@ import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
  */
 @Slf4j
 public class UniformLoadShedder implements LoadSheddingStrategy {
-
-    private static final int MB = 1024 * 1024;
-    private static final double MAX_UNLOAD_PERCENTAGE = 0.2;
-    private static final int MIN_UNLOAD_MESSAGE = 1000;
-    private static final int MIN_UNLOAD_THROUGHPUT = 1 * MB;
     private final Multimap<String, String> selectedBundlesCache = ArrayListMultimap.create();
     private static final double EPS = 1e-6;
 
@@ -75,11 +70,6 @@ public class UniformLoadShedder implements LoadSheddingStrategy {
         MutableDouble minMsgRate = new MutableDouble(Integer.MAX_VALUE);
         MutableDouble minThroughputRate = new MutableDouble(Integer.MAX_VALUE);
         brokersData.forEach((broker, data) -> {
-            //broker with one bundle can't be considered for bundle unloading
-            if (data.getLocalData().getBundles().size() <= 1) {
-                return;
-            }
-
             double msgRate = data.getLocalData().getMsgRateIn() + data.getLocalData().getMsgRateOut();
             double throughputRate = data.getLocalData().getMsgThroughputIn()
                     + data.getLocalData().getMsgThroughputOut();
@@ -127,14 +117,15 @@ public class UniformLoadShedder implements LoadSheddingStrategy {
                         underloadedBroker.getValue(), minMsgRate.getValue(), minThroughputRate.getValue());
             }
             MutableInt msgRateRequiredFromUnloadedBundles = new MutableInt(
-                    (int) ((maxMsgRate.getValue() - minMsgRate.getValue()) * MAX_UNLOAD_PERCENTAGE));
+                    (int) ((maxMsgRate.getValue() - minMsgRate.getValue()) * conf.getMaxUnloadPercentage()));
             MutableInt msgThroughputRequiredFromUnloadedBundles = new MutableInt(
-                    (int) ((maxThroughputRate.getValue() - minThroughputRate.getValue()) * MAX_UNLOAD_PERCENTAGE));
+                    (int) ((maxThroughputRate.getValue() - minThroughputRate.getValue())
+                            * conf.getMaxUnloadPercentage()));
             LocalBrokerData overloadedBrokerData = brokersData.get(overloadedBroker.getValue()).getLocalData();
 
             if (overloadedBrokerData.getBundles().size() > 1
-                && (msgRateRequiredFromUnloadedBundles.getValue() >= MIN_UNLOAD_MESSAGE
-                    || msgThroughputRequiredFromUnloadedBundles.getValue() >= MIN_UNLOAD_THROUGHPUT)) {
+                && (msgRateRequiredFromUnloadedBundles.getValue() >= conf.getMinUnloadMessage()
+                    || msgThroughputRequiredFromUnloadedBundles.getValue() >= conf.getMinUnloadMessageThroughput())) {
                 // Sort bundles by throughput, then pick the bundle which can help to reduce load uniformly with
                 // under-loaded broker
                 loadBundleData.entrySet().stream()
@@ -149,6 +140,10 @@ public class UniformLoadShedder implements LoadSheddingStrategy {
                             return Triple.of(bundle, bundleData, throughput);
                         }).filter(e -> !recentlyUnloadedBundles.containsKey(e.getLeft()))
                         .sorted((e1, e2) -> Double.compare(e2.getRight(), e1.getRight())).forEach((e) -> {
+                            if (conf.getMaxUnloadBundleNumPerShedding() != -1
+                                    && selectedBundlesCache.size() >= conf.getMaxUnloadBundleNumPerShedding()) {
+                                return;
+                            }
                             String bundle = e.getLeft();
                             BundleData bundleData = e.getMiddle();
                             TimeAverageMessageData shortTermData = bundleData.getShortTermData();

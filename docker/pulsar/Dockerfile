@@ -33,10 +33,14 @@ COPY scripts/pulsar-zookeeper-ruok.sh /pulsar/bin
 COPY scripts/watch-znode.py /pulsar/bin
 COPY scripts/install-pulsar-client.sh /pulsar/bin
 
-# In order to support running this docker image as a container on OpenShift
-# the final image needs to give the root group sufficient permission.
+# The final image needs to give the root group sufficient permission for Pulsar components
+# to write to specific directories within /pulsar
 # The file permissions are preserved when copying files from this builder image to the target image.
-RUN chmod -R g+w /pulsar/conf
+RUN for SUBDIRECTORY in conf data download logs; do \
+     [ -d /pulsar/$SUBDIRECTORY ] || mkdir /pulsar/$SUBDIRECTORY; \
+     chmod -R g+w /pulsar/$SUBDIRECTORY; \
+     done
+
 # Presto writes logs to this directory (at least during tests), so we need to give the process permission
 # to create those log directories. This should be removed when presto is removed.
 RUN chmod g+w /pulsar/lib/presto
@@ -54,15 +58,15 @@ RUN sed -i "s|http://archive\.ubuntu\.com/ubuntu/|${UBUNTU_MIRROR:-mirror://mirr
      && echo 'Acquire::http::Timeout "30";\nAcquire::ftp::Timeout "30";\nAcquire::Retries "3";' > /etc/apt/apt.conf.d/99timeout_and_retries \
      && apt-get update \
      && apt-get -y dist-upgrade \
-     && apt-get -y install --no-install-recommends openjdk-11-jdk-headless netcat dnsutils less procps iputils-ping \
-                 python3 python3-yaml python3-kazoo python3-pip \
+     && apt-get -y install --no-install-recommends openjdk-17-jdk-headless netcat dnsutils less procps iputils-ping \
+                 python3 python3-kazoo python3-pip \
                  curl ca-certificates \
      && apt-get -y --purge autoremove \
      && apt-get autoclean \
      && apt-get clean \
      && rm -rf /var/lib/apt/lists/*
 
-RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 10
+RUN pip3 install pyyaml==5.4.1
 
 # Pulsar currently writes to the below directories, assuming the default configuration.
 # Note that number 4 is the reason that pulsar components need write access to the /pulsar directory.
@@ -72,8 +76,8 @@ RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 10
 # 4. /pulsar - hadoop writes to this directory
 RUN mkdir /pulsar && chmod g+w /pulsar
 
-ENV JAVA_HOME /usr/lib/jvm/java-11-openjdk-amd64
-RUN echo networkaddress.cache.ttl=1 >> /usr/lib/jvm/java-11-openjdk-amd64/conf/security/java.security
+ENV JAVA_HOME /usr/lib/jvm/java-17-openjdk-amd64
+RUN echo networkaddress.cache.ttl=1 >> /usr/lib/jvm/java-17-openjdk-amd64/conf/security/java.security
 ADD target/python-client/ /pulsar/pulsar-client
 
 ENV PULSAR_ROOT_LOGGER=INFO,CONSOLE

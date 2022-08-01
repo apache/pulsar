@@ -42,12 +42,13 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-impl")
 public class ConsumerAckResponseTest extends ProducerConsumerBase {
 
-    private static final TransactionImpl transaction = mock(TransactionImpl.class);
+    private TransactionImpl transaction;
 
-    @BeforeClass
+    @BeforeClass(alwaysRun = true)
     public void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
+        transaction = mock(TransactionImpl.class);
         doReturn(1L).when(transaction).getTxnIdLeastBits();
         doReturn(1L).when(transaction).getTxnIdMostBits();
         doReturn(TransactionImpl.State.OPEN).when(transaction).getState();

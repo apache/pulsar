@@ -59,13 +59,15 @@ public class PrometheusMetricsGeneratorUtils {
             Collector.MetricFamilySamples metricFamily = metricFamilySamples.nextElement();
 
             // Write type of metric
-            stream.write("# TYPE ").write(metricFamily.name).write(' ')
+            stream.write("# TYPE ").write(metricFamily.name).write(getTypeNameSuffix(metricFamily.type)).write(' ')
                     .write(getTypeStr(metricFamily.type)).write('\n');
 
             for (int i = 0; i < metricFamily.samples.size(); i++) {
                 Collector.MetricFamilySamples.Sample sample = metricFamily.samples.get(i);
                 stream.write(sample.name);
-                stream.write("{cluster=\"").write(cluster).write('"');
+                if (!sample.labelNames.contains("cluster")) {
+                    stream.write("{cluster=\"").write(cluster).write('"');
+                }
                 for (int j = 0; j < sample.labelNames.size(); j++) {
                     String labelValue = sample.labelValues.get(j);
                     if (labelValue != null) {
@@ -86,19 +88,27 @@ public class PrometheusMetricsGeneratorUtils {
         }
     }
 
+    static String getTypeNameSuffix(Collector.Type type) {
+        if (type.equals(Collector.Type.INFO)) {
+            return "_info";
+        }
+        return "";
+    }
+
     static String getTypeStr(Collector.Type type) {
         switch (type) {
             case COUNTER:
                 return "counter";
             case GAUGE:
+            case INFO:
                 return "gauge";
-            case SUMMARY        :
+            case SUMMARY:
                 return "summary";
             case HISTOGRAM:
                 return "histogram";
-            case UNTYPED:
+            case UNKNOWN:
             default:
-                return "untyped";
+                return "unknown";
         }
     }
 

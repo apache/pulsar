@@ -45,7 +45,8 @@ public enum JdbcDriverType {
     SQLLITE("jdbc:sqlite:", "org.sqlite.JDBC"),
     SQLSERVER("jdbc:sqlserver:", "com.microsoft.sqlserver.jdbc.SQLServerDriver"),
     SYBASE("jdbc:sybase:", "com.sybase.jdbc4.jdbc.SybDriver"),
-    TEST_CONTAINERS("jdbc:tc:", "org.testcontainers.jdbc.ContainerDatabaseDriver");
+    TEST_CONTAINERS("jdbc:tc:", "org.testcontainers.jdbc.ContainerDatabaseDriver"),
+    OPENMLDB("jdbc:openmldb:", "com._4paradigm.openmldb.jdbc.SQLDriver");
 
     JdbcDriverType(String prefix, String driverClass) {
         this.prefix = prefix;

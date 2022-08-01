@@ -108,6 +108,13 @@ public interface LongPairSet {
     long size();
 
     /**
+     * Returns capacity of the set.
+     *
+     * @return
+     */
+    long capacity();
+
+    /**
      * Checks if given (item1,item2) composite value exists into set.
      *
      * @param item1

@@ -21,12 +21,12 @@ package org.apache.pulsar.broker.loadbalance.impl;
 import com.github.zafarkhaja.semver.Version;
 import java.util.Iterator;
 import java.util.Set;
-import org.apache.pulsar.broker.BrokerData;
-import org.apache.pulsar.broker.BundleData;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.BrokerFilter;
 import org.apache.pulsar.broker.loadbalance.BrokerFilterBadVersionException;
 import org.apache.pulsar.broker.loadbalance.LoadData;
+import org.apache.pulsar.policies.data.loadbalancer.BrokerData;
+import org.apache.pulsar.policies.data.loadbalancer.BundleData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

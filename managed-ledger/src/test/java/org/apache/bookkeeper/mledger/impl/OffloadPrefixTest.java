@@ -85,7 +85,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
             ledger.offloadPrefix(p);
             fail("Should have thrown an exception");
         } catch (ManagedLedgerException e) {
-            assertEquals(e.getCause().getClass(), CompletionException.class);
+            assertEquals(e.getMessage(), "NullLedgerOffloader");
         }
         assertEquals(ledger.getLedgersInfoAsList().size(), 5);
         assertEquals(ledger.getLedgersInfoAsList().stream()

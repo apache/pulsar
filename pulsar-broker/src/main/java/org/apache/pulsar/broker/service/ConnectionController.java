@@ -36,7 +36,7 @@ public interface ConnectionController {
      * @param remoteAddress
      * @return
      */
-    Sate increaseConnection(SocketAddress remoteAddress);
+    State increaseConnection(SocketAddress remoteAddress);
 
     /**
      * Decrease the number of connections counter.
@@ -44,7 +44,7 @@ public interface ConnectionController {
      */
     void decreaseConnection(SocketAddress remoteAddress);
 
-    enum Sate {
+    enum State {
         OK, REACH_MAX_CONNECTION_PER_IP, REACH_MAX_CONNECTION;
     }
 
@@ -68,13 +68,13 @@ public interface ConnectionController {
         }
 
         @Override
-        public Sate increaseConnection(SocketAddress remoteAddress) {
+        public State increaseConnection(SocketAddress remoteAddress) {
             if (!maxConnectionsLimitEnabled && !maxConnectionsLimitPerIpEnabled) {
-                return Sate.OK;
+                return State.OK;
             }
             if (!(remoteAddress instanceof InetSocketAddress)
                     || !isLegalIpAddress(((InetSocketAddress) remoteAddress).getHostString())) {
-                return Sate.OK;
+                return State.OK;
             }
             lock.lock();
             try {
@@ -88,20 +88,20 @@ public interface ConnectionController {
                 if (maxConnectionsLimitEnabled && totalConnectionNum > maxConnections) {
                     log.info("Reject connect request from {}, because reached the maximum number of connections {}",
                             remoteAddress, totalConnectionNum);
-                    return Sate.REACH_MAX_CONNECTION;
+                    return State.REACH_MAX_CONNECTION;
                 }
                 if (maxConnectionsLimitPerIpEnabled && CONNECTIONS.get(ip).getValue() > maxConnectionPerIp) {
                     log.info("Reject connect request from {}, because reached the maximum number "
                                     + "of connections per Ip {}",
                             remoteAddress, CONNECTIONS.get(ip).getValue());
-                    return Sate.REACH_MAX_CONNECTION_PER_IP;
+                    return State.REACH_MAX_CONNECTION_PER_IP;
                 }
             } catch (Exception e) {
                 log.error("increase connection failed", e);
             } finally {
                 lock.unlock();
             }
-            return Sate.OK;
+            return State.OK;
         }
 
         @Override

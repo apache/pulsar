@@ -47,6 +47,11 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
     /** Total rate of messages redelivered on this subscription (msg/s). */
     public double msgRateRedeliver;
 
+    /**
+     * Total rate of message ack(msg/s).
+     */
+    public double messageAckRate;
+
     /** Chunked message dispatch rate. */
     public int chunkedMessageRate;
 
@@ -68,10 +73,14 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
     /** Number of delayed messages currently being tracked. */
     public long msgDelayed;
 
-    /** Number of unacknowledged messages for the subscription. */
+    /**
+     * Number of unacknowledged messages for the subscription, where an unacknowledged message is one that has been
+     * sent to a consumer but not yet acknowledged. Calculated by summing all {@link ConsumerStatsImpl#unackedMessages}
+     * for this subscription. See {@link ConsumerStatsImpl#unackedMessages} for additional details.
+     */
     public long unackedMessages;
 
-    /** Whether this subscription is Exclusive or Shared or Failover. */
+    /** The subscription type as defined by {@link org.apache.pulsar.client.api.SubscriptionType}.  */
     public String type;
 
     /** The name of the consumer that is active for single active consumer subscriptions i.e. failover or exclusive. */
@@ -95,7 +104,7 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
     /** Last acked message timestamp. */
     public long lastAckedTimestamp;
 
-    /** Last MarkDelete position advanced timesetamp. */
+    /** Last MarkDelete position advanced timestamp. */
     public long lastMarkDeleteAdvancedTimestamp;
 
     /** List of connected consumers on this subscription w/ their stats. */

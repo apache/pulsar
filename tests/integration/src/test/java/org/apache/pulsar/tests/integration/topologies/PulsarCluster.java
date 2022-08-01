@@ -84,7 +84,7 @@ public class PulsarCluster {
     @Getter
     private final String clusterName;
     private final Network network;
-    private final ZKContainer zkContainer;
+    private final ZKContainer<?> zkContainer;
     private final CSContainer csContainer;
     private final boolean sharedCsContainer;
     private final Map<String, BKContainer> bookieContainers;
@@ -171,6 +171,7 @@ public class PulsarCluster {
                         .withEnv("configurationStoreServers", CSContainer.NAME + ":" + CS_PORT)
                         .withEnv("clusterName", clusterName)
                         .withEnv("brokerServiceCompactionMonitorIntervalInSeconds", "1")
+                        .withEnv("loadBalancerOverrideBrokerNicSpeedGbps", "1")
                         // used in s3 tests
                         .withEnv("AWS_ACCESS_KEY_ID", "accesskey")
                         .withEnv("AWS_SECRET_KEY", "secretkey")
@@ -213,7 +214,7 @@ public class PulsarCluster {
         Iterator<BrokerContainer> brokers = getBrokers().iterator();
         while (brokers.hasNext()) {
             BrokerContainer broker = brokers.next();
-            multiUrl += broker.getContainerIpAddress() + ":" + broker.getMappedPort(BROKER_HTTP_PORT);
+            multiUrl += broker.getHost() + ":" + broker.getMappedPort(BROKER_HTTP_PORT);
             if (brokers.hasNext()) {
                 multiUrl += ",";
             }
@@ -222,11 +223,11 @@ public class PulsarCluster {
     }
 
     public String getZKConnString() {
-        return zkContainer.getContainerIpAddress() + ":" + zkContainer.getMappedPort(ZK_PORT);
+        return zkContainer.getHost() + ":" + zkContainer.getMappedPort(ZK_PORT);
     }
 
     public String getCSConnString() {
-        return csContainer.getContainerIpAddress() + ":" + csContainer.getMappedPort(CS_PORT);
+        return csContainer.getHost() + ":" + csContainer.getMappedPort(CS_PORT);
     }
 
     public Network getNetwork() {

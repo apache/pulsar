@@ -1,7 +1,7 @@
 ---
-id: version-2.1.0-incubating-functions-metrics
+id: functions-metrics
 title: Metrics for Pulsar Functions
-sidebar_label: Metrics
+sidebar_label: "Metrics"
 original_id: functions-metrics
 ---
 
@@ -12,19 +12,22 @@ Pulsar Functions can publish arbitrary metrics to the metrics interface which ca
 
 ## Accessing metrics
 
-For a guide to accessing metrics created by Pulsar Functions, see the guide to [Monitoring](deploy-monitoring.md) in Pulsar.
+For a guide to accessing metrics created by Pulsar Functions, see the guide to [Monitoring](deploy-monitoring) in Pulsar.
 
 ## Java SDK
 
 If you're creating a Pulsar Function using the [Java SDK](functions-api.md#java-sdk-functions), the {@inject: javadoc:Context:/pulsar-functions/org/apache/pulsar/functions/api/Context} object has a `recordMetric` method that you can use to register both a name for the metric and a value. Here's the signature for that method:
 
 ```java
+
 void recordMetric(String metricName, double value);
+
 ```
 
 Here's an example function:
 
 ```java
+
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 
@@ -35,6 +38,7 @@ public class MetricRecordingFunction implements Function<String, Void> {
         return null;
     }
 }
+
 ```
 
 This function counts the length of each incoming message (of type `String`) and then registers that under the `number-of-characters` metric.

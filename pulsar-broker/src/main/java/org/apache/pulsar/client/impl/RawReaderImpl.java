@@ -117,6 +117,7 @@ public class RawReaderImpl implements RawReader {
                     client.externalExecutorProvider(),
                     TopicName.getPartitionIndex(conf.getSingleTopic()),
                     false,
+                    false,
                     consumerFuture,
                     MessageId.earliest,
                     0 /* startMessageRollbackDurationInSec */,
@@ -154,6 +155,9 @@ public class RawReaderImpl implements RawReader {
                     messageAndCnx.msg.close();
                     closeAsync();
                 }
+                MessageIdData messageId = messageAndCnx.msg.getMessageIdData();
+                lastDequeuedMessageId = new BatchMessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(),
+                    messageId.getPartition(), numMsg - 1);
 
                 ClientCnx currentCnx = cnx();
                 if (currentCnx == messageAndCnx.cnx) {
@@ -210,9 +214,10 @@ public class RawReaderImpl implements RawReader {
                 log.debug("[{}][{}] Received raw message: {}/{}/{}", topic, subscription,
                         messageId.getEntryId(), messageId.getLedgerId(), messageId.getPartition());
             }
+
             incomingRawMessages.add(
-                    new RawMessageAndCnx(new RawMessageImpl(messageId, headersAndPayload), cnx));
-            tryCompletePending();
+                new RawMessageAndCnx(new RawMessageImpl(messageId, headersAndPayload), cnx));
+            internalPinnedExecutor.execute(this::tryCompletePending);
         }
     }
 

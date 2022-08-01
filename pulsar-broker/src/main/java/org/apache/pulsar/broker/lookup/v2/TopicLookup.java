@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.lookup.v2;
 
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import javax.ws.rs.DefaultValue;
@@ -31,11 +33,15 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.lookup.TopicLookupBase;
+import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.naming.TopicName;
 
 @Path("/v2/topic")
+@Api(value = "lookup", tags = "lookup")
+@Slf4j
 public class TopicLookup extends TopicLookupBase {
 
     static final String LISTENERNAME_HEADER = "X-Pulsar-ListenerName";
@@ -43,24 +49,41 @@ public class TopicLookup extends TopicLookupBase {
     @GET
     @Path("{topic-domain}/{tenant}/{namespace}/{topic}")
     @Produces(MediaType.APPLICATION_JSON)
+    @ApiOperation(
+            value = "Get the owner broker of the given topic.",
+            response = LookupData.class
+    )
     @ApiResponses(value = { @ApiResponse(code = 307,
             message = "Current broker doesn't serve the namespace of this topic") })
-    public void lookupTopicAsync(@PathParam("topic-domain") String topicDomain, @PathParam("tenant") String tenant,
+    public void lookupTopicAsync(
+            @Suspended AsyncResponse asyncResponse,
+            @PathParam("topic-domain") String topicDomain, @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-            @Suspended AsyncResponse asyncResponse,
             @QueryParam("listenerName") String listenerName,
             @HeaderParam(LISTENERNAME_HEADER) String listenerNameHeader) {
         TopicName topicName = getTopicName(topicDomain, tenant, namespace, encodedTopic);
         if (StringUtils.isEmpty(listenerName) && StringUtils.isNotEmpty(listenerNameHeader)) {
             listenerName = listenerNameHeader;
         }
-        internalLookupTopicAsync(topicName, authoritative, asyncResponse, listenerName);
+        internalLookupTopicAsync(topicName, authoritative, listenerName)
+                .thenAccept(lookupData -> asyncResponse.resume(lookupData))
+                .exceptionally(ex -> {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Failed to check exist for topic {} when lookup", topicName, ex);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET
     @Path("{topic-domain}/{tenant}/{namespace}/{topic}/bundle")
     @Produces(MediaType.APPLICATION_JSON)
+    @ApiOperation(
+            value = "Get the namespace bundle which the given topic belongs to.",
+            response = String.class
+    )
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 405, message = "Invalid topic domain type") })
     public String getNamespaceBundle(@PathParam("topic-domain") String topicDomain,

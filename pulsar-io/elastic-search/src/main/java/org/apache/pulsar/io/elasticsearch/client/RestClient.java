@@ -29,13 +29,19 @@ import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.SSLContext;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.http.Header;
+import org.apache.http.HttpHeaders;
 import org.apache.http.HttpHost;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
@@ -44,11 +50,13 @@ import org.apache.http.config.Registry;
 import org.apache.http.config.RegistryBuilder;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
+import org.apache.http.conn.ssl.TrustAllStrategy;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
 import org.apache.http.impl.nio.conn.PoolingNHttpClientConnectionManager;
 import org.apache.http.impl.nio.reactor.DefaultConnectingIOReactor;
 import org.apache.http.impl.nio.reactor.IOReactorConfig;
+import org.apache.http.message.BasicHeader;
 import org.apache.http.nio.conn.NHttpClientConnectionManager;
 import org.apache.http.nio.conn.NoopIOSessionStrategy;
 import org.apache.http.nio.conn.SchemeIOSessionStrategy;
@@ -61,6 +69,7 @@ import org.apache.pulsar.io.elasticsearch.ElasticSearchConnectionException;
 import org.apache.pulsar.io.elasticsearch.ElasticSearchSslConfig;
 import org.elasticsearch.client.RestClientBuilder;
 
+@Slf4j
 public abstract class RestClient implements Closeable {
 
     protected final ElasticSearchConfig config;
@@ -92,6 +101,7 @@ public abstract class RestClient implements Closeable {
     public abstract boolean deleteDocument(String index, String documentId) throws IOException;
 
     public abstract long totalHits(String index) throws IOException;
+    public abstract long totalHits(String index, String query) throws IOException;
 
     public abstract BulkProcessor getBulkProcessor();
 
@@ -99,10 +109,12 @@ public abstract class RestClient implements Closeable {
             org.opensearch.client.RestClientBuilder.HttpClientConfigCallback {
         final NHttpClientConnectionManager connectionManager;
         final CredentialsProvider credentialsProvider;
+        final List<Header> defaultHeaders;
 
         public ConfigCallback() {
             this.connectionManager = buildConnectionManager(RestClient.this.config);
             this.credentialsProvider = buildCredentialsProvider(RestClient.this.config);
+            this.defaultHeaders = buildDefaultHeaders(RestClient.this.config);
         }
 
         @Override
@@ -113,6 +125,9 @@ public abstract class RestClient implements Closeable {
 
             if (this.credentialsProvider != null) {
                 builder.setDefaultCredentialsProvider(credentialsProvider);
+            }
+            if (defaultHeaders != null) {
+                builder.setDefaultHeaders(defaultHeaders);
             }
             return builder;
         }
@@ -127,9 +142,14 @@ public abstract class RestClient implements Closeable {
                 PoolingNHttpClientConnectionManager connManager;
                 if (config.getSsl().isEnabled()) {
                     ElasticSearchSslConfig sslConfig = config.getSsl();
-                    HostnameVerifier hostnameVerifier = config.getSsl().isHostnameVerification()
-                            ? SSLConnectionSocketFactory.getDefaultHostnameVerifier()
-                            : new NoopHostnameVerifier();
+                    final boolean hostnameVerification = config.getSsl().isHostnameVerification();
+                    HostnameVerifier hostnameVerifier;
+                    if (hostnameVerification) {
+                        hostnameVerifier = SSLConnectionSocketFactory.getDefaultHostnameVerifier();
+                    } else {
+                        hostnameVerifier = NoopHostnameVerifier.INSTANCE;
+                        log.warn("Hostname verification is disabled.");
+                    }
                     String[] cipherSuites = null;
                     if (!Strings.isNullOrEmpty(sslConfig.getCipherSuites())) {
                         cipherSuites = sslConfig.getCipherSuites().split(",");
@@ -172,6 +192,10 @@ public abstract class RestClient implements Closeable {
                 sslContextBuilder.loadTrustMaterial(new File(sslConfig.getTruststorePath()),
                         sslConfig.getTruststorePassword().toCharArray());
             }
+            if (sslConfig.isDisableCertificateValidation()) {
+                sslContextBuilder.loadTrustMaterial(null, TrustAllStrategy.INSTANCE);
+                log.warn("Certificate validation is disabled, the identity of the target server will not be verified.");
+            }
             if (!Strings.isNullOrEmpty(sslConfig.getKeystorePath())
                     && !Strings.isNullOrEmpty(sslConfig.getKeystorePassword())) {
                 sslContextBuilder.loadKeyMaterial(new File(sslConfig.getKeystorePath()),
@@ -190,6 +214,21 @@ public abstract class RestClient implements Closeable {
                     new UsernamePasswordCredentials(config.getUsername(), config.getPassword()));
             return credentialsProvider;
         }
+
+        private List<Header> buildDefaultHeaders(ElasticSearchConfig config) {
+            if (StringUtils.isEmpty(config.getToken()) && StringUtils.isEmpty(config.getApiKey())) {
+                return null;
+            }
+            List<Header> headers = new ArrayList<>();
+            String authHeaderValue;
+            if (!StringUtils.isEmpty(config.getToken())) {
+                authHeaderValue = "Bearer " + config.getToken();
+            } else {
+                authHeaderValue = "ApiKey " + config.getApiKey();
+            }
+            headers.add(new BasicHeader(HttpHeaders.AUTHORIZATION, authHeaderValue));
+            return Collections.unmodifiableList(headers);
+        }
     }
 
     protected HttpHost[] getHttpHosts() {
@@ -205,8 +244,11 @@ public abstract class RestClient implements Closeable {
         }).toArray(HttpHost[]::new);
     }
 
+    protected abstract void closeClient();
+
     @Override
     public void close() {
         executorService.shutdown();
+        closeClient();
     }
 }

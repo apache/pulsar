@@ -44,8 +44,18 @@ public class PrometheusStatsLogger implements StatsLogger {
     }
 
     @Override
+    public OpStatsLogger getThreadScopedOpStatsLogger(String name) {
+        throw new RuntimeException("not implemented");
+    }
+
+    @Override
     public Counter getCounter(String name) {
         return provider.counters.computeIfAbsent(completeName(name), x -> new LongAdderCounter());
+    }
+
+    @Override
+    public Counter getThreadScopedCounter(String name) {
+        throw new RuntimeException("not implemented");
     }
 
     @Override

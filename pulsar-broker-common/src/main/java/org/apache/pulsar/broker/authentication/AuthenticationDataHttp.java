@@ -34,7 +34,7 @@ public class AuthenticationDataHttp implements AuthenticationDataSource {
             throw new IllegalArgumentException();
         }
         this.request = request;
-        this.remoteAddress = new InetSocketAddress(request.getRemoteAddr(), request.getRemotePort());
+        this.remoteAddress = InetSocketAddress.createUnresolved(request.getRemoteAddr(), request.getRemotePort());
     }
 
     /*

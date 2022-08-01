@@ -104,8 +104,8 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
 
                 // attempt to acquire exclusive publishers to both the metadata topic and assignments topic
                 // we should keep trying to acquire exclusive producers as long as we are still the leader
-                Supplier<Boolean> checkIsStillLeader = () -> membershipManager
-                        .getLeader().getWorkerId().equals(workerConfig.getWorkerId());
+                Supplier<Boolean> checkIsStillLeader = WorkerUtils.getIsStillLeaderSupplier(membershipManager,
+                        workerConfig.getWorkerId());
                 Producer<byte[]> scheduleManagerExclusiveProducer = null;
                 Producer<byte[]> functionMetaDataManagerExclusiveProducer = null;
                 try {

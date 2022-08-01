@@ -146,7 +146,7 @@ abstract class AbstractHierarchicalLedgerManager {
                     }
                     final T dataToProcess = data.get(next);
                     final AsyncCallback.VoidCallback stub = this;
-                    scheduler.submit(() -> processor.process(dataToProcess, stub));
+                    scheduler.execute(() -> processor.process(dataToProcess, stub));
                 }
             });
         }

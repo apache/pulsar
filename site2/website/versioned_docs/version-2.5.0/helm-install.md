@@ -1,7 +1,7 @@
 ---
-id: version-2.5.0-helm-install
+id: helm-install
 title: Install Apache Pulsar using Helm
-sidebar_label: Install 
+sidebar_label: "Install "
 original_id: helm-install
 ---
 
@@ -21,7 +21,7 @@ Before proceeding to deploying Pulsar, you need to prepare your environment.
 
 ### Tools
 
-`helm` and `kubectl` need to be [installed on your computer](helm-tools.md).
+`helm` and `kubectl` need to be [installed on your computer](helm-tools).
 
 ## Cloud cluster preparation
 
@@ -33,8 +33,8 @@ Follow the instructions to create and connect to the Kubernetes cluster of your 
 
 ## Deploy Pulsar
 
-With the environment set up and configuration generated, you can now proceed to the [deployment of Pulsar](helm-deploy.md).
+With the environment set up and configuration generated, you can now proceed to the [deployment of Pulsar](helm-deploy).
 
 ## Upgrade Pulsar
 
-If you are upgrading an existing Kubernetes installation, follow the [upgrade documentation](helm-upgrade.md) instead.
+If you are upgrading an existing Kubernetes installation, follow the [upgrade documentation](helm-upgrade) instead.

@@ -22,6 +22,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -366,8 +367,6 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
 
     @Test(timeOut = 20000)
     public void testTopicLevelInActiveTopicApi() throws Exception {
-        conf.setSystemTopicEnabled(true);
-        conf.setTopicLevelPoliciesEnabled(true);
         super.baseSetup();
         final String topicName = "persistent://prop/ns-abc/testMaxInactiveDuration-" + UUID.randomUUID().toString();
         admin.topics().createPartitionedTopic(topicName, 3);
@@ -394,8 +393,6 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
 
     @Test(timeOut = 30000)
     public void testTopicLevelInactivePolicyUpdateAndClean() throws Exception {
-        conf.setSystemTopicEnabled(true);
-        conf.setTopicLevelPoliciesEnabled(true);
         conf.setBrokerDeleteInactiveTopicsEnabled(true);
         conf.setBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(1000);
         conf.setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
@@ -460,7 +457,7 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         });
         admin.topics().removeInactiveTopicPolicies(topic2);
         // The cache has been updated, but the system-event may not be consumed yet
-        // ，so wait for topic-policies update event
+        // , so wait for topic-policies update event
         Awaitility.await().untilAsserted(() -> {
             InactiveTopicPolicies nsPolicies = ((PersistentTopic) pulsar.getBrokerService()
                     .getTopic(topic2, false).get().get()).getInactiveTopicPolicies();
@@ -472,8 +469,6 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
     @Test(timeOut = 30000)
     public void testDeleteWhenNoSubscriptionsWithTopicLevelPolicies() throws Exception {
         final String namespace = "prop/ns-abc";
-        conf.setSystemTopicEnabled(true);
-        conf.setTopicLevelPoliciesEnabled(true);
         conf.setBrokerDeleteInactiveTopicsEnabled(true);
         conf.setBrokerDeleteInactiveTopicsFrequencySeconds(1);
         super.baseSetup();
@@ -527,8 +522,6 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
 
     @Test(timeOut = 30000)
     public void testInactiveTopicApplied() throws Exception {
-        conf.setSystemTopicEnabled(true);
-        conf.setTopicLevelPoliciesEnabled(true);
         super.baseSetup();
 
         final String namespace = "prop/ns-abc";
@@ -578,7 +571,6 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
 
     @Test(timeOut = 30000)
     public void testHealthTopicInactiveNotClean() throws Exception {
-        conf.setSystemTopicEnabled(true);
         conf.setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
         conf.setBrokerDeleteInactiveTopicsFrequencySeconds(1);
         super.baseSetup();
@@ -605,4 +597,63 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         Assert.assertTrue(V1Partitions.contains(healthCheckTopicV1));
         Assert.assertTrue(V2Partitions.contains(healthCheckTopicV2));
     }
+
+    @Test
+    public void testDynamicConfigurationBrokerDeleteInactiveTopicsEnabled() throws Exception {
+        conf.setBrokerDeleteInactiveTopicsEnabled(true);
+        super.baseSetup();
+        admin.brokers().updateDynamicConfiguration("brokerDeleteInactiveTopicsEnabled", "false");
+        Awaitility.await().atMost(2, TimeUnit.SECONDS).untilAsserted(()->{
+            assertFalse(conf.isBrokerDeleteInactiveTopicsEnabled());
+        });
+    }
+
+    @Test
+    public void testDynamicConfigurationBrokerDeleteInactiveTopicsFrequencySeconds() throws Exception {
+        conf.setBrokerDeleteInactiveTopicsFrequencySeconds(30);
+        super.baseSetup();
+        admin.brokers()
+                .updateDynamicConfiguration("brokerDeleteInactiveTopicsFrequencySeconds", "60");
+        Awaitility.await().atMost(2, TimeUnit.SECONDS).untilAsserted(()->{
+            assertEquals(conf.getBrokerDeleteInactiveTopicsFrequencySeconds(), 60);
+        });
+    }
+
+    @Test
+    public void testDynamicConfigurationBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds() throws Exception {
+        conf.setBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(30);
+        super.baseSetup();
+        admin.brokers()
+                .updateDynamicConfiguration("brokerDeleteInactiveTopicsMaxInactiveDurationSeconds", "60");
+        Awaitility.await().atMost(2, TimeUnit.SECONDS).untilAsserted(()->{
+            assertEquals(conf.getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(), 60);
+        });
+    }
+
+    @Test
+    public void testDynamicConfigurationBrokerDeleteInactiveTopicsMode() throws Exception {
+        conf.setBrokerDeleteInactiveTopicsMode (InactiveTopicDeleteMode.delete_when_no_subscriptions);
+        super.baseSetup();
+        String expect = InactiveTopicDeleteMode.delete_when_subscriptions_caught_up.toString();
+        admin.brokers()
+                .updateDynamicConfiguration("brokerDeleteInactiveTopicsMode",
+                        expect);
+        Awaitility.await().atMost(2, TimeUnit.SECONDS).untilAsserted(()->{
+            assertEquals(conf.getBrokerDeleteInactiveTopicsMode().toString(), expect);
+        });
+    }
+
+    @Test
+    public void testBrokerDeleteInactivePartitionedTopicMetadataEnabled() throws Exception {
+        conf.setBrokerDeleteInactivePartitionedTopicMetadataEnabled(false);
+        super.baseSetup();
+        admin.brokers()
+                .updateDynamicConfiguration("brokerDeleteInactivePartitionedTopicMetadataEnabled",
+                        "true");
+        Awaitility.await().atMost(2, TimeUnit.SECONDS).untilAsserted(()->{
+            assertTrue(conf.isBrokerDeleteInactivePartitionedTopicMetadataEnabled());
+        });
+    }
+
+
 }

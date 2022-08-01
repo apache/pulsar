@@ -21,10 +21,10 @@ package org.apache.pulsar.broker.loadbalance;
 import java.util.Set;
 import java.util.TreeSet;
 
-import org.apache.pulsar.broker.BrokerData;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.impl.BrokerVersionFilter;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
+import org.apache.pulsar.policies.data.loadbalancer.BrokerData;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 

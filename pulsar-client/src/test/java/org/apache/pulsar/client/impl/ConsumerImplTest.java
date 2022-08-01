@@ -35,6 +35,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Messages;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
@@ -216,6 +217,18 @@ public class ConsumerImplTest {
                 true);
 
         Assert.assertTrue(consumer.paused);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testCreateConsumerWhenSchemaIsNull() throws PulsarClientException {
+        PulsarClient client = PulsarClient.builder()
+            .serviceUrl("pulsar://127.0.0.1:6650")
+            .build();
+
+        client.newConsumer(null)
+            .topic("topic_testCreateConsumerWhenSchemaIsNull")
+            .subscriptionName("testCreateConsumerWhenSchemaIsNull")
+            .subscribe();
     }
 
     @Test

@@ -20,6 +20,8 @@
 #define _PULSAR_EXECUTOR_SERVICE_HEADER_
 
 #include <atomic>
+#include <condition_variable>
+#include <chrono>
 #include <memory>
 #include <boost/asio.hpp>
 #include <boost/asio/ssl.hpp>
@@ -50,7 +52,8 @@ class PULSAR_PUBLIC ExecutorService : public std::enable_shared_from_this<Execut
     DeadlineTimerPtr createDeadlineTimer();
     void postWork(std::function<void(void)> task);
 
-    void close();
+    // See TimeoutProcessor for the semantics of the parameter.
+    void close(long timeoutMs = 3000);
 
     IOService &getIOService() { return io_service_; }
     bool isClosed() const noexcept { return closed_; }
@@ -68,6 +71,9 @@ class PULSAR_PUBLIC ExecutorService : public std::enable_shared_from_this<Execut
     IOService::work work_{io_service_};
 
     std::atomic_bool closed_{false};
+    std::mutex mutex_;
+    std::condition_variable cond_;
+    std::atomic_bool ioServiceDone_{false};
 
     ExecutorService();
 
@@ -82,7 +88,8 @@ class PULSAR_PUBLIC ExecutorServiceProvider {
 
     ExecutorServicePtr get();
 
-    void close();
+    // See TimeoutProcessor for the semantics of the parameter.
+    void close(long timeoutMs = 3000);
 
    private:
     typedef std::vector<ExecutorServicePtr> ExecutorList;

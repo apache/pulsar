@@ -134,6 +134,24 @@ public class RateLimiterTest {
     }
 
     @Test
+    public void testTryAcquireMoreThanPermits() {
+        final long rateTimeMSec = 1000;
+        RateLimiter rate = RateLimiter.builder().permits(3).rateTime(rateTimeMSec).timeUnit(TimeUnit.MILLISECONDS)
+                .build();
+        assertTrue(rate.tryAcquire(2));
+        assertEquals(rate.getAvailablePermits(), 1);
+
+        //try to acquire failed, not decrease availablePermits.
+        assertFalse(rate.tryAcquire(2));
+        assertEquals(rate.getAvailablePermits(), 1);
+
+        assertTrue(rate.tryAcquire(1));
+        assertEquals(rate.getAvailablePermits(), 0);
+
+        rate.close();
+    }
+
+    @Test
     public void testMultipleTryAcquire() {
         final long rateTimeMSec = 1000;
         final int permits = 100;
@@ -189,7 +207,7 @@ public class RateLimiterTest {
 
         Thread.sleep(rateTimeMSec);
         // check after three rate-time: acquiredPermits is 0
-        assertEquals(rate.getAvailablePermits() > 0, true);
+        assertTrue(rate.getAvailablePermits() > 0);
 
         rate.close();
     }

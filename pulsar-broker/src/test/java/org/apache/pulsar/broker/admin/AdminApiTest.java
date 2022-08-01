@@ -40,6 +40,7 @@ import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import java.lang.reflect.Field;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -167,6 +168,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     @Override
     public void setup() throws Exception {
+        conf.setSystemTopicEnabled(false);
+        conf.setTopicLevelPoliciesEnabled(false);
         conf.setLoadBalancerEnabled(true);
         conf.setBrokerServicePortTls(Optional.of(0));
         conf.setWebServicePortTls(Optional.of(0));
@@ -467,6 +470,10 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         List<String> list = admin.brokers().getActiveBrokers("test");
         Assert.assertNotNull(list);
         Assert.assertEquals(list.size(), 1);
+
+        List<String> list1 = admin.brokers().getActiveBrokers();
+        Assert.assertNotNull(list1);
+        Assert.assertEquals(list1.size(), 1);
 
         List<String> list2 = otheradmin.brokers().getActiveBrokers("test");
         Assert.assertNotNull(list2);
@@ -906,6 +913,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         try {
             admin.topics().skipAllMessages(persistentTopicName, subName);
         } catch (NotFoundException e) {
+            assertTrue(e.getMessage().contains(subName));
         }
 
         admin.topics().delete(persistentTopicName);
@@ -914,6 +922,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             admin.topics().delete(persistentTopicName);
             fail("Should have received 404");
         } catch (NotFoundException e) {
+            assertTrue(e.getMessage().contains(persistentTopicName));
         }
 
         assertEquals(admin.topics().getList("prop-xyz/ns1"), Lists.newArrayList());
@@ -1114,6 +1123,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             admin.topics().deletePartitionedTopic(anotherTopic);
             fail("Should have failed as the partitioned topic was not created");
         } catch (NotFoundException nfe) {
+            assertTrue(nfe.getMessage().contains(anotherTopic));
         }
 
         admin.topics().deletePartitionedTopic(partitionedTopicName);
@@ -1707,7 +1717,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         try {
             admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0xffffffff", false, null);
         } catch (Exception e) {
-            fail("split bundle shouldn't have thrown exception");
+            fail("split bundle shouldn't have thrown exception", e);
         }
 
         // bundle-factory cache must have updated split bundles
@@ -1735,7 +1745,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                 f.get();
             }
         } catch (Exception e) {
-            fail("split bundle shouldn't have thrown exception");
+            fail("split bundle shouldn't have thrown exception", e);
         }
 
         Awaitility.await().untilAsserted(() ->
@@ -1770,7 +1780,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                 f.get();
             }
         } catch (Exception e) {
-            fail("split bundle shouldn't have thrown exception");
+            fail("split bundle shouldn't have thrown exception", e);
         }
         Awaitility.await().untilAsserted(() ->
                 assertEquals(bundleFactory.getBundles(NamespaceName.get(namespace)).getBundles().size(), 8));
@@ -2125,7 +2135,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             admin.topics().getStats("persistent://prop-xyz/ns1/ghostTopic");
             fail("The topic doesn't exist");
         } catch (NotFoundException e) {
-            // OK
+            assertTrue(e.getMessage().contains("persistent://prop-xyz/ns1/ghostTopic"));
         }
     }
 
@@ -2214,6 +2224,20 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(admin.topics().getList("prop-xyz/ns1"), Lists.newArrayList());
 
         topicName = "persistent://prop-xyz/ns1/" + topicName;
+
+        try {
+            admin.topics().resetCursor(topicName, "my-sub", System.currentTimeMillis());
+        } catch (PulsarAdminException.NotFoundException e) {
+            assertTrue(e.getMessage().contains(topicName));
+        }
+
+        admin.topics().createNonPartitionedTopic(topicName);
+
+        try {
+            admin.topics().resetCursor(topicName, "my-sub", System.currentTimeMillis());
+        } catch (PulsarAdminException.NotFoundException e) {
+            assertTrue(e.getMessage().contains("my-sub"));
+        }
 
         // create consumer and subscription
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
@@ -2407,7 +2431,19 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().setRetention("prop-xyz/ns1", new RetentionPolicies(10, 10));
         topicName = "persistent://prop-xyz/ns1/" + topicName;
 
+        try {
+            admin.topics().resetCursor(topicName, "my-sub", System.currentTimeMillis());
+        } catch (PulsarAdminException.NotFoundException e) {
+            assertTrue(e.getMessage().contains(topicName));
+        }
+
         admin.topics().createPartitionedTopic(topicName, 4);
+
+        try {
+            admin.topics().resetCursor(topicName, "my-sub", System.currentTimeMillis());
+        } catch (PulsarAdminException.NotFoundException e) {
+            assertTrue(e.getMessage().contains("my-sub"));
+        }
 
         // create consumer and subscription
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
@@ -2709,10 +2745,10 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testNamespaceNotExist() {
-        final String nonPartitionedtopic = "persistent://prop-xyz/no-exist/non-partitioned-topic";
+        final String nonPartitionedTopic = "persistent://prop-xyz/no-exist/non-partitioned-topic";
         try {
-            admin.topics().createNonPartitionedTopic(nonPartitionedtopic);
-            fail("should falied for namespaces not exist");
+            admin.topics().createNonPartitionedTopic(nonPartitionedTopic);
+            fail("should failed for namespaces not exist");
         } catch (Exception e) {
             assertTrue(e instanceof NotFoundException);
             assertTrue(e.getMessage().equals("Namespace not found"));
@@ -3242,8 +3278,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     public void testPartitionedTopicTruncate() throws Exception {
         final String topicName = "persistent://prop-xyz/ns1/testTruncateTopic-" + UUID.randomUUID().toString();
         final String subName = "my-sub";
-        this.conf.setTopicLevelPoliciesEnabled(true);
-        this.conf.setSystemTopicEnabled(true);
         admin.topics().createPartitionedTopic(topicName,6);
         admin.namespaces().setRetention("prop-xyz/ns1", new RetentionPolicies(60, 50));
         List<MessageId> messageIds = publishMessagesOnPersistentTopic(topicName, 10);
@@ -3326,5 +3360,28 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             assertEquals(peekedMessages.get(i).getMessageId(), receivedMessages.get(i).getMessageId());
             assertEquals(peekedMessages.get(i).getData(), receivedMessages.get(i).getData());
         }
+    }
+
+    @Test
+    public void testGetPartitionStatsWithEarliestTimeInBacklog() throws PulsarAdminException, PulsarClientException {
+        final String topicName = "persistent://prop-xyz/ns1/testPeekEncryptedMessages-" + UUID.randomUUID();
+        final String subName = "my-sub";
+        admin.topics().createPartitionedTopic(topicName, 3);
+        PartitionedTopicStats partitionedStats =
+                admin.topics().getPartitionedStats(topicName, true, true, true, true);
+        long value1 = partitionedStats.getEarliestMsgPublishTimeInBacklogs();
+        Assert.assertEquals(value1, 0);
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .create();
+        producer.send("Test".getBytes(StandardCharsets.UTF_8));
+        @Cleanup
+        Consumer<byte[]> subscribe = pulsarClient.newConsumer()
+                .subscriptionName(subName)
+                .topic(topicName)
+                .subscribe();
+        long value2 = partitionedStats.getEarliestMsgPublishTimeInBacklogs();
+        Assert.assertNotEquals(value2, 0);
     }
 }

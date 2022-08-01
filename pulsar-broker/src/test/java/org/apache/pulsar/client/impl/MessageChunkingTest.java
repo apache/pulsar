@@ -52,6 +52,8 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Reader;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.client.impl.MessageImpl.SchemaState;
 import org.apache.pulsar.client.impl.ProducerImpl.OpSendMsg;
@@ -217,6 +219,8 @@ public class MessageChunkingTest extends ProducerConsumerBase {
                 .isAckReceiptEnabled(ackReceiptEnabled)
                 .ackTimeout(5, TimeUnit.SECONDS).subscribe();
 
+        Reader<byte[]> reader = pulsarClient.newReader().topic(topicName).startMessageId(MessageId.earliest).create();
+
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topicName);
 
         Producer<byte[]> producer = producerBuilder.enableChunking(true).enableBatching(false).create();
@@ -232,6 +236,15 @@ public class MessageChunkingTest extends ProducerConsumerBase {
 
         Message<byte[]> msg = null;
         Set<String> messageSet = Sets.newHashSet();
+        for (int i = 0; i < totalMessages; i++) {
+            msg = reader.readNext(5, TimeUnit.SECONDS);
+            String receivedMessage = new String(msg.getData());
+            log.info("Received message: [{}]", receivedMessage);
+            String expectedMessage = publishedMessages.get(i);
+            testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
+        }
+
+        messageSet.clear();
         for (int i = 0; i < totalMessages; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
@@ -268,6 +281,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
 
         consumer.close();
         producer.close();
+        reader.close();
         log.info("-- Exiting {} test --", methodName);
 
     }
@@ -384,6 +398,8 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         producer.cnx().registerProducer(producerId, producer); // registered spy ProducerImpl
         ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName("my-sub").subscribe();
+        ReaderImpl<byte[]> reader = (ReaderImpl<byte[]>) pulsarClient.newReader().topic(topicName)
+                .startMessageId(MessageId.earliest).create();
 
         TypedMessageBuilderImpl<byte[]> msg = (TypedMessageBuilderImpl<byte[]>) producer.newMessage().value("message-1".getBytes());
         ByteBuf payload = Unpooled.wrappedBuffer(msg.getContent());
@@ -397,17 +413,22 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         producer.processOpSendMsg(op);
 
         retryStrategically((test) -> {
-            return consumer.chunkedMessagesMap.size() > 0;
+            return reader.getConsumer().chunkedMessagesMap.size() > 0 && consumer.chunkedMessagesMap.size() > 0;
         }, 5, 500);
         assertEquals(consumer.chunkedMessagesMap.size(), 1);
+        assertEquals(reader.getConsumer().chunkedMessagesMap.size(), 1);
 
         consumer.expireTimeOfIncompleteChunkedMessageMillis = 1;
+        reader.getConsumer().expireTimeOfIncompleteChunkedMessageMillis = 1;
         Thread.sleep(10);
         consumer.removeExpireIncompleteChunkedMessages();
+        reader.getConsumer().removeExpireIncompleteChunkedMessages();
         assertEquals(consumer.chunkedMessagesMap.size(), 0);
+        assertEquals(reader.getConsumer().chunkedMessagesMap.size(), 0);
 
         producer.close();
         consumer.close();
+        reader.close();
         producer = null; // clean reference of mocked producer
     }
 
@@ -500,11 +521,56 @@ public class MessageChunkingTest extends ProducerConsumerBase {
             assertEquals(msgIds.get(i), msgAfterSeek.getMessageId());
         }
 
+        Reader<byte[]> reader = pulsarClient.newReader()
+                .topic(topicName)
+                .startMessageIdInclusive()
+                .startMessageId(msgIds.get(1))
+                .create();
+
+        Message<byte[]> readMsg = reader.readNext(5, TimeUnit.SECONDS);
+        assertEquals(msgIds.get(1), readMsg.getMessageId());
+
         consumer1.close();
         consumer2.close();
         producer.close();
 
         log.info("-- Exiting {} test --", methodName);
+    }
+
+    @Test
+    public void testReaderChunkingConfiguration() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+        final String topicName = "persistent://my-property/my-ns/my-topic1";
+        ReaderImpl<byte[]> reader = (ReaderImpl<byte[]>) pulsarClient.newReader().topic(topicName)
+                .startMessageId(MessageId.earliest).maxPendingChunkedMessage(12)
+                .autoAckOldestChunkedMessageOnQueueFull(true)
+                .expireTimeOfIncompleteChunkedMessage(12, TimeUnit.MILLISECONDS).create();
+        ConsumerImpl<byte[]> consumer = reader.getConsumer();
+        assertEquals(consumer.conf.getMaxPendingChunkedMessage(), 12);
+        assertTrue(consumer.conf.isAutoAckOldestChunkedMessageOnQueueFull());
+        assertEquals(consumer.conf.getExpireTimeOfIncompleteChunkedMessageMillis(), 12);
+    }
+
+    @Test
+    public void testChunkSize() throws Exception {
+        final int maxMessageSize = 50;
+        final int payloadChunkSize = maxMessageSize - 32/* the default message metadata size for string schema */;
+        this.conf.setMaxMessageSize(maxMessageSize);
+
+        final Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic("my-property/my-ns/test-chunk-size")
+                .enableChunking(true)
+                .enableBatching(false)
+                .create();
+        for (int size = 1; size <= maxMessageSize; size++) {
+            final MessageId messageId = producer.send(createMessagePayload(size));
+            log.info("Send {} bytes to {}", size, messageId);
+            if (size <= payloadChunkSize) {
+                assertEquals(messageId.getClass(), MessageIdImpl.class);
+            } else {
+                assertEquals(messageId.getClass(), ChunkMessageIdImpl.class);
+            }
+        }
     }
 
     private String createMessagePayload(int size) {
@@ -515,5 +581,5 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         }
         return str.toString();
     }
- 
+
 }

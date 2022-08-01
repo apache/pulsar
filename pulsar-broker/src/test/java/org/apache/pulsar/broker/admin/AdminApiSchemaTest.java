@@ -20,10 +20,11 @@ package org.apache.pulsar.broker.admin;
 
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.US_ASCII;
-import static org.junit.Assert.assertNull;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doReturn;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
@@ -41,6 +42,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
+import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.client.impl.schema.StringSchema;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
@@ -49,7 +51,9 @@ import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaInfoWithVersion;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.awaitility.Awaitility;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
@@ -68,6 +72,8 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     @Override
     public void setup() throws Exception {
+        conf.setSystemTopicEnabled(false);
+        conf.setTopicLevelPoliciesEnabled(false);
         super.internalSetup();
 
         // Setup namespaces
@@ -168,11 +174,13 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
         SchemaInfo readSi = admin.schemas().getSchemaInfo(topicName);
         log.info("Read schema of topic {} : {}", topicName, readSi);
 
+        ((SchemaInfoImpl)readSi).setTimestamp(0);
         assertEquals(readSi, si);
 
         readSi = admin.schemas().getSchemaInfo(topicName + "-partition-0");
         log.info("Read schema of topic {} : {}", topicName, readSi);
 
+        ((SchemaInfoImpl)readSi).setTimestamp(0);
         assertEquals(readSi, si);
 
     }
@@ -208,7 +216,7 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
             admin.schemas().createSchema(topicName, fooSchemaInfo);
             fail("Should have failed");
         } catch (PulsarAdminException.NotFoundException e) {
-            assertTrue(e.getMessage().contains("HTTP 404"));
+            assertTrue(e.getMessage().contains("Namespace does not exist"));
         }
     }
 
@@ -221,12 +229,14 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
         SchemaInfoWithVersion readSi = admin.schemas().getSchemaInfoWithVersion(topicName);
         log.info("Read schema of topic {} : {}", topicName, readSi);
 
+        ((SchemaInfoImpl)readSi.getSchemaInfo()).setTimestamp(0);
         assertEquals(readSi.getSchemaInfo(), si);
         assertEquals(readSi.getVersion(), 0);
 
         readSi = admin.schemas().getSchemaInfoWithVersion(topicName + "-partition-0");
         log.info("Read schema of topic {} : {}", topicName, readSi);
 
+        ((SchemaInfoImpl)readSi.getSchemaInfo()).setTimestamp(0);
         assertEquals(readSi.getSchemaInfo(), si);
         assertEquals(readSi.getVersion(), 0);
 
@@ -238,11 +248,38 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
                 "test");
         String topicName = "persistent://"+namespace + "/test-key-value-schema";
         Schema keyValueSchema = Schema.KeyValue(Schema.AVRO(Foo.class), Schema.AVRO(Foo.class));
-        admin.schemas().createSchema(topicName,
-                keyValueSchema.getSchemaInfo());
+        admin.schemas().createSchema(topicName, keyValueSchema.getSchemaInfo());
         SchemaInfo schemaInfo = admin.schemas().getSchemaInfo(topicName);
 
+        long timestamp = schemaInfo.getTimestamp();
+        assertNotEquals(keyValueSchema.getSchemaInfo().getTimestamp(), timestamp);
+        assertNotEquals(0, timestamp);
+
+        ((SchemaInfoImpl)keyValueSchema.getSchemaInfo()).setTimestamp(schemaInfo.getTimestamp());
         assertEquals(keyValueSchema.getSchemaInfo(), schemaInfo);
+
+        admin.schemas().createSchema(topicName, keyValueSchema.getSchemaInfo());
+        SchemaInfo schemaInfo2 = admin.schemas().getSchemaInfo(topicName);
+        assertEquals(timestamp, schemaInfo2.getTimestamp());
+    }
+
+
+    @Test(dataProvider = "version")
+    public void testInvalidSchemaDataException(ApiVersion version) {
+        String namespace = format("%s%s%s", "schematest", (ApiVersion.V1.equals(version) ? "/" + cluster + "/" : "/"),
+                "test");
+        String topicName = "persistent://"+ namespace + "/test-invalid-schema-data-exception";
+        SchemaInfo schemaInfo = SchemaInfo.builder()
+                .schema(new byte[0])
+                .type(SchemaType.AVRO)
+                .name("test")
+                .build();
+        try {
+            admin.schemas().createSchema(topicName, schemaInfo);
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 422);
+            Assert.assertEquals(e.getMessage(), "HTTP 422 Invalid schema definition data for AVRO schema");
+        }
     }
 
     @Test

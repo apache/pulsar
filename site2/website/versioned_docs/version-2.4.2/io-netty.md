@@ -1,7 +1,7 @@
 ---
-id: version-2.4.2-io-netty
+id: io-netty
 title: Netty Tcp or Udp Connector
-sidebar_label: Netty Tcp or Udp Connector
+sidebar_label: "Netty Tcp or Udp Connector"
 original_id: io-netty
 ---
 
@@ -26,21 +26,26 @@ Otherwise, if the connector is running in process or thread mode, the instances 
 Here is a configuration Json example:
 
 ```$json
+
 {
     "type": "tcp",
     "host": "127.0.0.1",
     "port": "10911",
     "numberOfThreads": "5"
 }
+
 ```
+
 Here is a configuration Yaml example:
 
 ```$yaml
+
 configs:
     type: "tcp"
     host: "127.0.0.1"
     port: 10999
     numberOfThreads: 1
+
 ```
 
 ### Usage example
@@ -49,8 +54,10 @@ configs:
 - Start pulsar standalone
 
 ```$bash
+
 docker pull apachepulsar/pulsar:2.4.0
 docker run -d -it -p 6650:6650 -p 8080:8080 -v $PWD/data:/pulsar/data --name pulsar-netty-standalone apachepulsar/pulsar:2.4.0 bin/pulsar standalone
+
 ```
 
 - Start pulsar-io in standalone
@@ -60,37 +67,46 @@ docker run -d -it -p 6650:6650 -p 8080:8080 -v $PWD/data:/pulsar/data --name pul
 - Config file netty-source-config.yaml
 
 ```$yaml
+
 configs:
     type: "tcp"
     host: "127.0.0.1"
     port: 10999
     numberOfThreads: 1
+
 ```
 
 - Copy configuration file to pulsar server
 
 ```$bash
+
 docker cp netty-source-config.yaml pulsar-netty-standalone:/pulsar/conf/
+
 ```
 
 - Download netty connector and start netty connector
 
 ```$bash
+
 docker exec -it pulsar-netty-standalone /bin/bash
 curl -O http://mirror-hk.koddos.net/apache/pulsar/pulsar-2.4.0/connectors/pulsar-io-netty-2.4.0.nar
-./bin/pulsar-admin sources localrun --archive pulsar-io-{{pulsar:version}}.nar --tenant public --namespace default --name netty --destination-topic-name netty-topic --source-config-file netty-source-config.yaml --parallelism 1
+./bin/pulsar-admin sources localrun --archive pulsar-io-@pulsar:version@.nar --tenant public --namespace default --name netty --destination-topic-name netty-topic --source-config-file netty-source-config.yaml --parallelism 1
+
 ```
 
 - Consume data 
 
 ```$bash
+
 docker exec -it pulsar-netty-standalone /bin/bash
 ./bin/pulsar-client consume -t Exclusive -s netty-sub netty-topic -n 0
+
 ```
 
 - Open another window for send data to netty source
 
 ```$bash
+
 docker exec -it pulsar-netty-standalone /bin/bash
 apt-get update
 apt-get -y install telnet
@@ -100,6 +116,7 @@ Connected to 127.0.0.1.
 Escape character is '^]'.
 hello
 world
+
 ```
 
 - Verification results
@@ -107,11 +124,13 @@ world
 In the consumer window just opened, you can see the following data
 
 ```bash
+
 ----- got message -----
 hello
 
 ----- got message -----
 world
+
 ```
 
 #### Http example
@@ -119,23 +138,30 @@ world
 - Config file netty-source-config.yaml
 
 ```$yaml
+
 configs:
     type: "http"
     host: "127.0.0.1"
     port: 10999
     numberOfThreads: 1
+
 ```
+
 - Start netty source
 
 ```$bash
+
 docker exec -it pulsar-netty-standalone /bin/bash
-./bin/pulsar-admin sources localrun --archive pulsar-io-{{pulsar:version}}.nar --tenant public --namespace default --name netty --destination-topic-name netty-topic --source-config-file netty-source-config.yaml --parallelism 1
+./bin/pulsar-admin sources localrun --archive pulsar-io-@pulsar:version@.nar --tenant public --namespace default --name netty --destination-topic-name netty-topic --source-config-file netty-source-config.yaml --parallelism 1
+
 ```
 
 - Verification results
 
 ```bash
+
 curl -X POST --data 'hello, world!' http://127.0.0.1:10999/
+
 ```
 
 - Verification results
@@ -143,6 +169,9 @@ curl -X POST --data 'hello, world!' http://127.0.0.1:10999/
 In the consumer window just opened, you can see the following data
 
 ```bash
+
 ----- got message -----
 hello, world!
+
 ```
+

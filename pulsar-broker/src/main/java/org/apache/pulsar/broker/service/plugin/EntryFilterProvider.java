@@ -19,11 +19,13 @@
 package org.apache.pulsar.broker.service.plugin;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import lombok.extern.slf4j.Slf4j;
@@ -36,7 +38,8 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 @Slf4j
 public class EntryFilterProvider {
 
-    static final String ENTRY_FILTER_DEFINITION_FILE = "entry_filter.yml";
+    @VisibleForTesting
+    static final String ENTRY_FILTER_DEFINITION_FILE = "entry_filter";
 
     /**
      * create entry filter instance.
@@ -112,8 +115,15 @@ public class EntryFilterProvider {
         }
     }
 
-    private static EntryFilterDefinition getEntryFilterDefinition(NarClassLoader ncl) throws IOException {
-        String configStr = ncl.getServiceDefinition(ENTRY_FILTER_DEFINITION_FILE);
+    @VisibleForTesting
+    static EntryFilterDefinition getEntryFilterDefinition(NarClassLoader ncl) throws IOException {
+        String configStr;
+
+        try {
+            configStr = ncl.getServiceDefinition(ENTRY_FILTER_DEFINITION_FILE + ".yaml");
+        } catch (NoSuchFileException e) {
+            configStr = ncl.getServiceDefinition(ENTRY_FILTER_DEFINITION_FILE + ".yml");
+        }
 
         return ObjectMapperFactory.getThreadLocalYaml().readValue(
                 configStr, EntryFilterDefinition.class

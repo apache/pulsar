@@ -83,4 +83,25 @@ public interface PackagesStorage {
      * @return
      */
     CompletableFuture<Void> closeAsync();
+
+    /**
+     * The extra path for saving package data.
+     *
+     * For example, we have a package function://public/default/package@v0.1,
+     * it will save the meta to the path function/public/default/package/v0.1/meta,
+     * and save the data to the path function/public/default/package/v0.1.
+     * By default, we are using distributed log as the package storage, and it supports
+     * saving data at a directory.
+     * But some storage like filesystem don't have the similar ability, it needs another path
+     * for saving the data.
+     * This api provides the ability to support saving the data in another place.
+     * If you specify the data path as `/data`, the package will saved into
+     * function/public/default/package/v0.1/data.
+     *
+     * @return
+     *      the data path
+     */
+    default String dataPath() {
+        return "";
+    }
 }

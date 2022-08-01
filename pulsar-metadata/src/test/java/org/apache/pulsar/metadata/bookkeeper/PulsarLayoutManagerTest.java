@@ -18,9 +18,9 @@
  */
 package org.apache.pulsar.metadata.bookkeeper;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import java.io.IOException;
 import java.util.UUID;
 import java.util.function.Supplier;
@@ -80,7 +80,7 @@ public class PulsarLayoutManagerTest extends BaseMetadataStoreTest {
 
         // read the layout
         LedgerLayout readLayout = layoutManager.readLedgerLayout();
-        assertEquals(layout, readLayout);
+        assertEquals(readLayout, layout);
 
         // attempts to create the layout again and it should fail
         LedgerLayout newLayout = new LedgerLayout(

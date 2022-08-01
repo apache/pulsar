@@ -18,7 +18,11 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertSame;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
@@ -399,5 +403,23 @@ public class KeyValueSchemaTest {
         KeyValueSchemaImpl<String, String> keyValueSchema2 = (KeyValueSchemaImpl<String,String>)
                 AutoConsumeSchema.getSchema(keyValueSchema.getSchemaInfo());
         assertEquals(keyValueSchema.getKeyValueEncodingType(), keyValueSchema2.getKeyValueEncodingType());
+    }
+
+    @Test
+    public void testKeyValueSchemaCache() {
+        Schema<Foo> keySchema = spy(Schema.AVRO(Foo.class));
+        Schema<Foo> valueSchema = spy(Schema.AVRO(Foo.class));
+        KeyValueSchemaImpl<Foo, Foo> keyValueSchema = (KeyValueSchemaImpl<Foo,Foo>)
+                KeyValueSchemaImpl.of(keySchema, valueSchema, KeyValueEncodingType.SEPARATED);
+
+        KeyValueSchemaImpl<Foo, Foo> schema1 =
+                (KeyValueSchemaImpl<Foo, Foo>) keyValueSchema.atSchemaVersion(new byte[0]);
+        KeyValueSchemaImpl<Foo, Foo> schema2 =
+                (KeyValueSchemaImpl<Foo, Foo>) keyValueSchema.atSchemaVersion(new byte[0]);
+
+        assertSame(schema1, schema2);
+
+        verify(((AbstractSchema)keySchema), times(1)).atSchemaVersion(new byte[0]);
+        verify(((AbstractSchema)valueSchema), times(1)).atSchemaVersion(new byte[0]);
     }
 }

@@ -380,7 +380,7 @@ void MultiTopicsConsumerImpl::closeAsync(ResultCallback callback) {
         return;
     }
 
-    // fail pending recieve
+    // fail pending receive
     failPendingReceiveCallback();
 }
 
@@ -436,8 +436,8 @@ void MultiTopicsConsumerImpl::messageReceived(Consumer consumer, const Message& 
         if (messages_.full()) {
             lock.unlock();
         }
-        messages_.push(msg);
-        if (messageListener_) {
+
+        if (messages_.push(msg) && messageListener_) {
             unAckedMessageTrackerPtr_->add(msg.getMessageId());
             listenerExecutor_->postWork(
                 std::bind(&MultiTopicsConsumerImpl::internalListener, shared_from_this(), consumer));
@@ -520,6 +520,9 @@ void MultiTopicsConsumerImpl::receiveAsync(ReceiveCallback& callback) {
 
 void MultiTopicsConsumerImpl::failPendingReceiveCallback() {
     Message msg;
+
+    messages_.close();
+
     Lock lock(pendingReceiveMutex_);
     while (!pendingReceives_.empty()) {
         ReceiveCallback callback = pendingReceives_.front();

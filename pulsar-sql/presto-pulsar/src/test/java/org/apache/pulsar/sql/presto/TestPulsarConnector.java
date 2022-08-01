@@ -25,6 +25,7 @@ import io.prestosql.spi.connector.ColumnMetadata;
 import io.prestosql.spi.connector.ConnectorContext;
 import io.prestosql.spi.predicate.TupleDomain;
 import io.prestosql.testing.TestingConnectorContext;
+import java.math.BigDecimal;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -96,6 +97,8 @@ public abstract class TestPulsarConnector {
 
     protected PulsarMetadata pulsarMetadata;
 
+    protected PulsarAuth pulsarAuth;
+
     protected PulsarAdmin pulsarAdmin;
 
     protected Schemas schemas;
@@ -166,6 +169,8 @@ public abstract class TestPulsarConnector {
         public int time;
         @org.apache.avro.reflect.AvroSchema("{ \"type\": \"int\", \"logicalType\": \"date\" }")
         public int date;
+        @org.apache.avro.reflect.AvroSchema("{ \"type\": \"bytes\", \"logicalType\": \"decimal\", \"precision\": 4, \"scale\": 2 }")
+        public BigDecimal decimal;
         public TestPulsarConnector.Bar bar;
         public TestEnum field7;
     }
@@ -253,6 +258,7 @@ public abstract class TestPulsarConnector {
             fooFieldNames.add("date");
             fooFieldNames.add("bar");
             fooFieldNames.add("field7");
+            fooFieldNames.add("decimal");
 
 
             ConnectorContext prestoConnectorContext = new TestingConnectorContext();
@@ -313,6 +319,7 @@ public abstract class TestPulsarConnector {
                 LocalDate epoch = LocalDate.ofEpochDay(0);
                 return Math.toIntExact(ChronoUnit.DAYS.between(epoch, localDate));
             });
+            fooFunctions.put("decimal", integer -> BigDecimal.valueOf(1234, 2));
             fooFunctions.put("bar.field1", integer -> integer % 3 == 0 ? null : integer + 1);
             fooFunctions.put("bar.field2", integer -> integer % 2 == 0 ? null : String.valueOf(integer + 2));
             fooFunctions.put("bar.field3", integer -> integer + 3.0f);
@@ -331,7 +338,6 @@ public abstract class TestPulsarConnector {
      * @param schemaInfo
      * @param handleKeyValueType
      * @param includeInternalColumn
-     * @param dispatchingRowDecoderFactory
      * @return
      */
     protected static List<PulsarColumnHandle> getColumnColumnHandles(TopicName topicName, SchemaInfo schemaInfo,
@@ -363,7 +369,9 @@ public abstract class TestPulsarConnector {
         pulsarConnectorConfig.setMaxSplitMessageQueueSize(100);
         PulsarDispatchingRowDecoderFactory dispatchingRowDecoderFactory =
                 new PulsarDispatchingRowDecoderFactory(prestoConnectorContext.getTypeManager());
-        PulsarMetadata pulsarMetadata = new PulsarMetadata(pulsarConnectorId, pulsarConnectorConfig, dispatchingRowDecoderFactory);
+        PulsarAuth pulsarAuth = new PulsarAuth(pulsarConnectorConfig);
+        PulsarMetadata pulsarMetadata =
+                new PulsarMetadata(pulsarConnectorId, pulsarConnectorConfig, dispatchingRowDecoderFactory, pulsarAuth);
         return pulsarMetadata;
     }
 
@@ -393,6 +401,7 @@ public abstract class TestPulsarConnector {
             LocalDate localDate = LocalDate.now();
             LocalDate epoch = LocalDate.ofEpochDay(0);
             foo.date = Math.toIntExact(ChronoUnit.DAYS.between(epoch, localDate));
+            foo.decimal= BigDecimal.valueOf(count, 2);
 
             MessageMetadata messageMetadata = new MessageMetadata()
                     .setProducerName("test-producer").setSequenceId(i)
@@ -534,7 +543,11 @@ public abstract class TestPulsarConnector {
         doReturn(schemas).when(pulsarAdmin).schemas();
         doReturn(pulsarAdmin).when(this.pulsarConnectorConfig).getPulsarAdmin();
 
-        this.pulsarMetadata = new PulsarMetadata(pulsarConnectorId, this.pulsarConnectorConfig, dispatchingRowDecoderFactory);
+        this.pulsarAuth = mock(PulsarAuth.class);
+
+        this.pulsarMetadata =
+                new PulsarMetadata(pulsarConnectorId, this.pulsarConnectorConfig, dispatchingRowDecoderFactory,
+                        this.pulsarAuth);
         this.pulsarSplitManager = Mockito.spy(new PulsarSplitManager(pulsarConnectorId, this.pulsarConnectorConfig));
 
         ManagedLedgerFactory managedLedgerFactory = mock(ManagedLedgerFactory.class);
@@ -609,6 +622,7 @@ public abstract class TestPulsarConnector {
                                     foo.timestamp = (long) fooFunctions.get("timestamp").apply(count);
                                     foo.time = (int) fooFunctions.get("time").apply(count);
                                     foo.date = (int) fooFunctions.get("date").apply(count);
+                                    foo.decimal = (BigDecimal) fooFunctions.get("decimal").apply(count);
                                     foo.bar = bar;
                                     foo.field7 = (Foo.TestEnum) fooFunctions.get("field7").apply(count);
 
@@ -693,10 +707,10 @@ public abstract class TestPulsarConnector {
         when(PulsarConnectorCache.instance.getManagedLedgerFactory()).thenReturn(managedLedgerFactory);
 
         for (Map.Entry<TopicName, PulsarSplit> split : splits.entrySet()) {
-            PulsarRecordCursor pulsarRecordCursor = spy(new PulsarRecordCursor(
+            PulsarRecordCursor pulsarRecordCursor = new PulsarRecordCursor(
                     topicsToColumnHandles.get(split.getKey()), split.getValue(),
                     pulsarConnectorConfig, managedLedgerFactory, new ManagedLedgerConfig(),
-                    new PulsarConnectorMetricsTracker(new NullStatsProvider()),dispatchingRowDecoderFactory));
+                    new PulsarConnectorMetricsTracker(new NullStatsProvider()),dispatchingRowDecoderFactory);
             this.pulsarRecordCursors.put(split.getKey(), pulsarRecordCursor);
         }
     }

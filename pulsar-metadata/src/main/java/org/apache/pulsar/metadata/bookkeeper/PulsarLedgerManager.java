@@ -161,6 +161,7 @@ public class PulsarLedgerManager implements LedgerManager {
                             log.debug("No such ledger: {} at path {}", ledgerId, ledgerPath);
                         }
                         promise.completeExceptionally(new BKException.BKNoSuchLedgerExistsOnMetadataServerException());
+                        return;
                     }
 
                     Stat stat = optRes.get().getStat();
@@ -377,7 +378,7 @@ public class PulsarLedgerManager implements LedgerManager {
                     if (log.isDebugEnabled()) {
                         log.debug("Ledger metadata is changed for {} : {}.", ledgerId, result);
                     }
-                    scheduler.submit(() -> {
+                    scheduler.execute(() -> {
                         synchronized (listenerSet) {
                             for (BookkeeperInternalCallbacks.LedgerMetadataListener listener : listenerSet) {
                                 listener.onChanged(ledgerId, result);
