@@ -186,18 +186,18 @@ public class CmdFunctions extends CmdBase {
     @Getter
     abstract class FunctionDetailsCommand extends BaseCommand {
         @Parameter(names = "--fqfn", description = "The Fully Qualified Function Name (FQFN) for the function"
-                + " #Java,Python")
+                + " #Java, Python")
         protected String fqfn;
-        @Parameter(names = "--tenant", description = "The tenant of a Pulsar Function #Java,Python,Go")
+        @Parameter(names = "--tenant", description = "The tenant of a Pulsar Function #Java, Python, Go")
         protected String tenant;
-        @Parameter(names = "--namespace", description = "The namespace of a Pulsar Function #Java,Python,Go")
+        @Parameter(names = "--namespace", description = "The namespace of a Pulsar Function #Java, Python, Go")
         protected String namespace;
-        @Parameter(names = "--name", description = "The name of a Pulsar Function #Java,Python,Go")
+        @Parameter(names = "--name", description = "The name of a Pulsar Function #Java, Python, Go")
         protected String functionName;
         // for backwards compatibility purposes
         @Parameter(names = "--className", description = "The class name of a Pulsar Function", hidden = true)
         protected String deprecatedClassName;
-        @Parameter(names = "--classname", description = "The class name of a Pulsar Function #Java,Python")
+        @Parameter(names = "--classname", description = "The class name of a Pulsar Function #Java, Python")
         protected String className;
         @Parameter(names = { "-t", "--function-type" }, description = "The built-in Pulsar Function type")
         protected String functionType;
@@ -220,7 +220,7 @@ public class CmdFunctions extends CmdBase {
         protected String goFile;
         @Parameter(names = {"-i", "--inputs"}, description = "The input topic or "
                 + "topics (multiple topics can be specified as a comma-separated list) of a Pulsar Function"
-                + " #Java,Python,Go")
+                + " #Java, Python, Go")
         protected String inputs;
         // for backwards compatibility purposes
         @Parameter(names = "--topicsPattern", description = "TopicsPattern to consume from list of topics "
@@ -231,12 +231,12 @@ public class CmdFunctions extends CmdBase {
         @Parameter(names = "--topics-pattern", description = "The topic pattern to consume from list of topics "
                 + "under a namespace that match the pattern. [--input] and [--topic-pattern] are mutually exclusive. "
                 + "Add SerDe class name for a pattern in --custom-serde-inputs (supported for java fun only)"
-                + " #Java,Python")
+                + " #Java, Python")
         protected String topicsPattern;
 
         @Parameter(names = {"-o", "--output"},
                 description = "The output topic of a Pulsar Function (If none is specified, no output is written)"
-                        + " #Java,Python,Go")
+                        + " #Java, Python, Go")
         protected String output;
         @Parameter(names = "--producer-config", description = "The custom producer configuration (as a JSON string)"
                 + " #Java")
@@ -246,7 +246,7 @@ public class CmdFunctions extends CmdBase {
                 description = "The topic to which the logs of a Pulsar Function are produced", hidden = true)
         protected String deprecatedLogTopic;
         @Parameter(names = "--log-topic", description = "The topic to which the logs of a Pulsar Function are produced"
-                + " #Java,Python,Go")
+                + " #Java, Python, Go")
         protected String logTopic;
 
         @Parameter(names = {"-st", "--schema-type"}, description = "The builtin schema type or "
@@ -258,23 +258,23 @@ public class CmdFunctions extends CmdBase {
                 description = "The map of input topics to SerDe class names (as a JSON string)", hidden = true)
         protected String deprecatedCustomSerdeInputString;
         @Parameter(names = "--custom-serde-inputs",
-                description = "The map of input topics to SerDe class names (as a JSON string) #Java,Python")
+                description = "The map of input topics to SerDe class names (as a JSON string) #Java, Python")
         protected String customSerdeInputString;
         @Parameter(names = "--custom-schema-inputs",
-                description = "The map of input topics to Schema properties (as a JSON string) #Java,Python")
+                description = "The map of input topics to Schema properties (as a JSON string) #Java, Python")
         protected String customSchemaInputString;
         @Parameter(names = "--custom-schema-outputs",
                 description = "The map of input topics to Schema properties (as a JSON string) #Java")
         protected String customSchemaOutputString;
         @Parameter(names = "--input-specs",
-                description = "The map of inputs to custom configuration (as a JSON string) #Java,Python,Go")
+                description = "The map of inputs to custom configuration (as a JSON string) #Java, Python, Go")
         protected String inputSpecs;
         // for backwards compatibility purposes
         @Parameter(names = "--outputSerdeClassName",
                 description = "The SerDe class to be used for messages output by the function", hidden = true)
         protected String deprecatedOutputSerdeClassName;
         @Parameter(names = "--output-serde-classname",
-                description = "The SerDe class to be used for messages output by the function #Java,Python")
+                description = "The SerDe class to be used for messages output by the function #Java, Python")
         protected String outputSerdeClassName;
         // for backwards compatibility purposes
         @Parameter(names = "--functionConfigFile", description = "The path to a YAML config file that specifies "
@@ -282,7 +282,7 @@ public class CmdFunctions extends CmdBase {
         protected String deprecatedFnConfigFile;
         @Parameter(names = "--function-config-file",
                 description = "The path to a YAML config file that specifies the configuration of a Pulsar Function"
-                        + " #Java,Python,Go")
+                        + " #Java, Python, Go")
         protected String fnConfigFile;
         // for backwards compatibility purposes
         @Parameter(names = "--processingGuarantees", description = "The processing guarantees (aka delivery semantics) "
@@ -290,12 +290,12 @@ public class CmdFunctions extends CmdBase {
         protected FunctionConfig.ProcessingGuarantees deprecatedProcessingGuarantees;
         @Parameter(names = "--processing-guarantees",
                 description = "The processing guarantees (aka delivery semantics) applied to the function"
-                        + " #Java,Python,Go")
+                        + " #Java, Python, Go")
         protected FunctionConfig.ProcessingGuarantees processingGuarantees;
         // for backwards compatibility purposes
         @Parameter(names = "--userConfig", description = "User-defined config key/values", hidden = true)
         protected String deprecatedUserConfigString;
-        @Parameter(names = "--user-config", description = "User-defined config key/values #Java,Python,Go")
+        @Parameter(names = "--user-config", description = "User-defined config key/values #Java, Python, Go")
         protected String userConfigString;
         @Parameter(names = "--retainOrdering",
                 description = "Function consumes and processes messages in order", hidden = true)
@@ -312,7 +312,7 @@ public class CmdFunctions extends CmdBase {
                 + "to output topic when processing (use false to disable it) #Java", arity = 1)
         protected Boolean forwardSourceMessageProperty = true;
         @Parameter(names = "--subs-name", description = "Pulsar source subscription name if user wants a specific "
-                + "subscription-name for input-topic consumer #Java,Python,Go")
+                + "subscription-name for input-topic consumer #Java, Python, Go")
         protected String subsName;
         @Parameter(names = "--subs-position", description = "Pulsar source subscription position if user wants to "
                 + "consume messages from the specified location #Java")
@@ -362,12 +362,12 @@ public class CmdFunctions extends CmdBase {
         protected Boolean deprecatedAutoAck = null;
         @Parameter(names = "--auto-ack",
                 description = "Whether or not the framework acknowledges messages automatically"
-                        + " #Java,Python,Go", arity = 1)
+                        + " #Java, Python, Go", arity = 1)
         protected Boolean autoAck;
         // for backwards compatibility purposes
         @Parameter(names = "--timeoutMs", description = "The message timeout in milliseconds", hidden = true)
         protected Long deprecatedTimeoutMs;
-        @Parameter(names = "--timeout-ms", description = "The message timeout in milliseconds #Java,Python")
+        @Parameter(names = "--timeout-ms", description = "The message timeout in milliseconds #Java, Python")
         protected Long timeoutMs;
         @Parameter(names = "--max-message-retries",
                 description = "How many times should we try to process a message before giving up #Java")
@@ -376,7 +376,7 @@ public class CmdFunctions extends CmdBase {
                 + "customize the runtime, see docs for configured runtime for details #Java")
         protected String customRuntimeOptions;
         @Parameter(names = "--secrets", description = "The map of secretName to an object that encapsulates "
-                + "how the secret is fetched by the underlying secrets provider #Java,Python")
+                + "how the secret is fetched by the underlying secrets provider #Java, Python")
         protected String secretsString;
         @Parameter(names = "--dead-letter-topic",
                 description = "The topic where messages that are not processed successfully are sent to #Java")
@@ -721,14 +721,14 @@ public class CmdFunctions extends CmdBase {
                 + "(the default is Apache BookKeeper)", hidden = true)
         protected String deprecatedStateStorageServiceUrl;
         @Parameter(names = "--state-storage-service-url", description = "The URL for the state storage service "
-                + "(the default is Apache BookKeeper) #Java,Python")
+                + "(the default is Apache BookKeeper) #Java, Python")
         protected String stateStorageServiceUrl;
         // for backwards compatibility purposes
         @Parameter(names = "--brokerServiceUrl", description = "The URL for Pulsar broker", hidden = true)
         protected String deprecatedBrokerServiceUrl;
-        @Parameter(names = "--broker-service-url", description = "The URL for Pulsar broker #Java,Python,Go")
+        @Parameter(names = "--broker-service-url", description = "The URL for Pulsar broker #Java, Python, Go")
         protected String brokerServiceUrl;
-        @Parameter(names = "--web-service-url", description = "The URL for Pulsar web service #Java,Python")
+        @Parameter(names = "--web-service-url", description = "The URL for Pulsar web service #Java, Python")
         protected String webServiceUrl = null;
         // for backwards compatibility purposes
         @Parameter(names = "--clientAuthPlugin", description = "Client authentication plugin using "
@@ -736,49 +736,49 @@ public class CmdFunctions extends CmdBase {
         protected String deprecatedClientAuthPlugin;
         @Parameter(names = "--client-auth-plugin",
                 description = "Client authentication plugin using which function-process can connect to broker"
-                        + " #Java,Python")
+                        + " #Java, Python")
         protected String clientAuthPlugin;
         // for backwards compatibility purposes
         @Parameter(names = "--clientAuthParams", description = "Client authentication param", hidden = true)
         protected String deprecatedClientAuthParams;
-        @Parameter(names = "--client-auth-params", description = "Client authentication param #Java,Python")
+        @Parameter(names = "--client-auth-params", description = "Client authentication param #Java, Python")
         protected String clientAuthParams;
         // for backwards compatibility purposes
         @Parameter(names = "--use_tls", description = "Use tls connection", hidden = true)
         protected Boolean deprecatedUseTls = null;
-        @Parameter(names = "--use-tls", description = "Use tls connection #Java,Python")
+        @Parameter(names = "--use-tls", description = "Use tls connection #Java, Python")
         protected boolean useTls;
         // for backwards compatibility purposes
         @Parameter(names = "--tls_allow_insecure", description = "Allow insecure tls connection", hidden = true)
         protected Boolean deprecatedTlsAllowInsecureConnection = null;
-        @Parameter(names = "--tls-allow-insecure", description = "Allow insecure tls connection #Java,Python")
+        @Parameter(names = "--tls-allow-insecure", description = "Allow insecure tls connection #Java, Python")
         protected boolean tlsAllowInsecureConnection;
         // for backwards compatibility purposes
         @Parameter(names = "--hostname_verification_enabled",
                 description = "Enable hostname verification", hidden = true)
         protected Boolean deprecatedTlsHostNameVerificationEnabled = null;
-        @Parameter(names = "--hostname-verification-enabled", description = "Enable hostname verification #Java,Python")
+        @Parameter(names = "--hostname-verification-enabled", description = "Enable hostname verification #Java, Python")
         protected boolean tlsHostNameVerificationEnabled;
         // for backwards compatibility purposes
         @Parameter(names = "--tls_trust_cert_path", description = "tls trust cert file path", hidden = true)
         protected String deprecatedTlsTrustCertFilePath;
-        @Parameter(names = "--tls-trust-cert-path", description = "tls trust cert file path #Java,Python")
+        @Parameter(names = "--tls-trust-cert-path", description = "tls trust cert file path #Java, Python")
         protected String tlsTrustCertFilePath;
         // for backwards compatibility purposes
         @Parameter(names = "--instanceIdOffset", description = "Start the instanceIds from this offset", hidden = true)
         protected Integer deprecatedInstanceIdOffset = null;
-        @Parameter(names = "--instance-id-offset", description = "Start the instanceIds from this offset #Java,Python")
+        @Parameter(names = "--instance-id-offset", description = "Start the instanceIds from this offset #Java, Python")
         protected Integer instanceIdOffset = 0;
         @Parameter(names = "--runtime", description = "either THREAD or PROCESS. Only applies for Java functions #Java")
         protected String runtime;
         @Parameter(names = "--secrets-provider-classname", description = "Whats the classname for secrets provider"
-                + " #Java,Python")
+                + " #Java, Python")
         protected String secretsProviderClassName;
         @Parameter(names = "--secrets-provider-config",
-                description = "Config that needs to be passed to secrets provider #Java,Python")
+                description = "Config that needs to be passed to secrets provider #Java, Python")
         protected String secretsProviderConfig;
         @Parameter(names = "--metrics-port-start", description = "The starting port range for metrics server"
-                + " #Java,Python,Go")
+                + " #Java, Python, Go")
         protected String metricsPortStart;
 
         private void mergeArgs() {
@@ -982,7 +982,7 @@ public class CmdFunctions extends CmdBase {
     @Parameters(commandDescription = "Update a Pulsar Function that has been deployed to a Pulsar cluster")
     class UpdateFunction extends FunctionDetailsCommand {
 
-        @Parameter(names = "--update-auth-data", description = "Whether or not to update the auth data #Java,Python")
+        @Parameter(names = "--update-auth-data", description = "Whether or not to update the auth data #Java, Python")
         protected boolean updateAuthData;
 
         @Override
