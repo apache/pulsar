@@ -203,7 +203,7 @@ public class BKCluster implements AutoCloseable {
             dataDir = new File(clusterConf.dataDir);
         } else {
             // Use temp dir and clean it up later
-            dataDir = createTempDir("bookie", index + "test");
+            dataDir = createTempDir("bookie",  "test-" + index);
         }
 
         if (clusterConf.clearOldData) {
