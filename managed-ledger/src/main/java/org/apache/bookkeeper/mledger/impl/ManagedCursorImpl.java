@@ -37,15 +37,7 @@ import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.RateLimiter;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.time.Clock;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
@@ -1421,7 +1413,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 log.warn("[{}][{}] Error while replaying entries", ledger.getName(), name, mle);
                 if (exception.compareAndSet(null, mle)) {
                     // release the entries just once, any further read success will release the entry straight away
-                    entries.forEach(Entry::release);
+                    entries.stream().filter(Objects::nonNull).forEach(Entry::release);
                 }
                 if (--pendingCallbacks == 0) {
                     callback.readEntriesFailed(exception.get(), ctx);
