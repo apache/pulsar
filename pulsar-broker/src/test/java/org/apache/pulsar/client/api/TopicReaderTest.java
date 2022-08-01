@@ -1080,7 +1080,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
     }
 
     @Test(timeOut = 20000)
-    public void testHasMessageAvailableWithBatch() throws Exception {
+    public void testHasMessageAvailable() throws Exception {
         final String topicName = "persistent://my-property/my-ns/testHasMessageAvailableWithBatch";
         final int numOfMessage = 10;
 

@@ -43,7 +43,6 @@ import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.ClientBuilder;
-import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -148,7 +147,6 @@ public class CmdProduce {
     private ClientBuilder clientBuilder;
     private Authentication authentication;
     private String serviceURL;
-    private List<MessageId> messageIds = new ArrayList<>();
 
     public CmdProduce() {
         // Do nothing
@@ -306,7 +304,7 @@ public class CmdProduce {
                             message.disableReplication();
                         }
 
-                        messageIds.add(message.send());
+                        message.send();
 
 
                         numMessagesSent++;
@@ -322,11 +320,6 @@ public class CmdProduce {
         }
 
         return returnCode;
-    }
-
-    @VisibleForTesting
-    public List<MessageId> getMessageIds() {
-        return messageIds;
     }
 
     static Schema<?> buildSchema(String keySchema, String schema, String keyValueEncodingType) {

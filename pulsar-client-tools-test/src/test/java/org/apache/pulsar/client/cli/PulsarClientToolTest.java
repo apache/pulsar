@@ -21,8 +21,6 @@ package org.apache.pulsar.client.cli;
 import static org.testng.Assert.assertEquals;
 
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -37,7 +35,6 @@ import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
@@ -248,30 +245,27 @@ public class PulsarClientToolTest extends BrokerTestBase {
 
         final String topicName = getTopicWithRandomSuffix("disable-batching");
         final int numberOfMessages = 5;
-        final List<MessageId> messageIdList = new ArrayList<>(numberOfMessages * 2);
 
         @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("sub").subscribe();
 
-        PulsarClientTool pulsarClientTool1 = new PulsarClientTool(properties);
+        PulsarClientToolWithMsgIds pulsarClientTool1 = new PulsarClientToolWithMsgIds(properties, topicName);
         String[] args1 = {"produce", "-m", "batched", "-n", Integer.toString(numberOfMessages), topicName};
         Assert.assertEquals(pulsarClientTool1.run(args1), 0);
-        messageIdList.addAll(pulsarClientTool1.getProduceCommand().getMessageIds());
 
-        PulsarClientTool pulsarClientTool2 = new PulsarClientTool(properties);
+        PulsarClientToolWithMsgIds pulsarClientTool2 = new PulsarClientToolWithMsgIds(properties, topicName);
         String[] args2 = {"produce", "-m", "non-batched", "-n", Integer.toString(numberOfMessages), "-db", topicName};
         Assert.assertEquals(pulsarClientTool2.run(args2), 0);
-        messageIdList.addAll(pulsarClientTool2.getProduceCommand().getMessageIds());
 
         for (int i = 0; i < numberOfMessages * 2; i++) {
             Message<byte[]> msg = consumer.receive(10, TimeUnit.SECONDS);
             Assert.assertNotNull(msg);
             if (i < numberOfMessages) {
                 Assert.assertEquals(new String(msg.getData()), "batched");
-                Assert.assertTrue(messageIdList.get(i) instanceof BatchMessageIdImpl);
+                Assert.assertTrue(pulsarClientTool1.getMessageIds().get(i) instanceof BatchMessageIdImpl);
             } else {
                 Assert.assertEquals(new String(msg.getData()), "non-batched");
-                Assert.assertFalse(messageIdList.get(i) instanceof BatchMessageIdImpl);
+                Assert.assertFalse(pulsarClientTool2.getMessageIds().get(i - 5) instanceof BatchMessageIdImpl);
             }
         }
     }

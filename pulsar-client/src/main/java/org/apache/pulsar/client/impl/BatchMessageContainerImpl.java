@@ -204,11 +204,6 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
             ByteBuf encryptedPayload = producer.encryptMessage(
                 messageMetadata,
                 producer.applyCompression(msg.getDataBuffer()));
-            if (encryptedPayload.readableBytes() > ClientCnx.getMaxMessageSize()) {
-                discard(new PulsarClientException.InvalidMessageException(
-                    "Message size is bigger than " + ClientCnx.getMaxMessageSize() + " bytes"));
-                return null;
-            }
             ByteBufPair cmd = producer.sendMessage(producer.producerId, messageMetadata.getSequenceId(),
                 1, messageMetadata, encryptedPayload);
             final OpSendMsg op;
@@ -224,6 +219,12 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
             // ProducerStats
             op.setNumMessagesInBatch(1);
             op.setBatchSizeByte(encryptedPayload.readableBytes());
+
+            if (op.getMessageHeaderAndPayloadSize() > ClientCnx.getMaxMessageSize()) {
+                discard(new PulsarClientException.InvalidMessageException(
+                    "Message size is bigger than " + ClientCnx.getMaxMessageSize() + " bytes"));
+                return null;
+            }
             return op;
         }
 
