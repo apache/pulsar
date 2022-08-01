@@ -97,6 +97,18 @@ def main():
     args.function_details = args.function_details[:-1]
   json_format.Parse(args.function_details, function_details)
 
+  if function_details.processingGuarantees == "EFFECTIVELY_ONCE":
+    print("Python instance current not support EFFECTIVELY_ONCE processing guarantees.")
+    sys.exit(1)
+
+  if function_details.autoAck == False and function_details.processingGuarantees == "ATMOST_ONCE" \
+          or function_details.processingGuarantees == "ATLEAST_ONCE":
+    print("When Guarantees == " + function_details.processingGuarantees + ", autoAck must be equal to true, "
+          "This is a contradictory configuration, autoAck will be removed later,"
+          "If you want not to automatically ack, please configure the processing guarantees as MANUAL."
+          "This is a contradictory configuration, autoAck will be removed later," 
+          "Please refer to PIP: https://github.com/apache/pulsar/issues/15560")
+    sys.exit(1)
   if os.path.splitext(str(args.py))[1] == '.whl':
     if args.install_usercode_dependencies:
       cmd = "pip install -t %s" % os.path.dirname(str(args.py))

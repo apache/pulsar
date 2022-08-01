@@ -38,6 +38,8 @@ import java.util.Map;
 import java.util.Optional;
 
 import io.kubernetes.client.openapi.models.V1PodSpec;
+import org.apache.commons.lang3.JavaVersion;
+import org.apache.commons.lang3.SystemUtils;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
@@ -50,6 +52,7 @@ import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.worker.ConnectorsManager;
 import org.apache.pulsar.functions.worker.FunctionsManager;
 import org.apache.pulsar.functions.worker.WorkerConfig;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
@@ -283,14 +286,19 @@ public class ProcessRuntimeTest {
     }
 
     private void verifyJavaInstance(InstanceConfig config, Path depsDir, String webServiceUrl) throws Exception {
-        ProcessRuntime container = factory.createContainer(config, userJarFile, null, 30l);
-        List<String> args = container.getProcessArgs();
+        List<String> args;
+        try (MockedStatic<SystemUtils> systemUtils = Mockito.mockStatic(SystemUtils.class, Mockito.CALLS_REAL_METHODS)) {
+            systemUtils.when(() -> SystemUtils.isJavaVersionAtLeast(JavaVersion.JAVA_9)).thenReturn(true);
+            ProcessRuntime container = factory.createContainer(config, userJarFile, userJarFile, 30L);
+            args = container.getProcessArgs();
+        }
+
 
         String classpath = javaInstanceJarFile;
         String extraDepsEnv;
         int portArg;
         int metricsPortArg;
-        int totalArgCount = 42;
+        int totalArgCount = 44;
         if (webServiceUrl != null && config.isExposePulsarAdminClientEnabled()) {
             totalArgCount += 3;
         }
@@ -298,13 +306,13 @@ public class ProcessRuntimeTest {
             assertEquals(args.size(), totalArgCount);
             extraDepsEnv = " -Dpulsar.functions.extra.dependencies.dir=" + depsDir;
             classpath = classpath + ":" + depsDir + "/*";
-            portArg = 25;
-            metricsPortArg = 27;
+            portArg = 27;
+            metricsPortArg = 29;
         } else {
             assertEquals(args.size(), totalArgCount-1);
             extraDepsEnv = "";
-            portArg = 24;
-            metricsPortArg = 26;
+            portArg = 26;
+            metricsPortArg = 28;
         }
         if (webServiceUrl != null && config.isExposePulsarAdminClientEnabled()) {
             portArg += 3;
@@ -321,6 +329,7 @@ public class ProcessRuntimeTest {
                 + "-Dpulsar.function.log.dir=" + logDirectory + "/functions/" + FunctionCommon.getFullyQualifiedName(config.getFunctionDetails())
                 + " -Dpulsar.function.log.file=" + config.getFunctionDetails().getName() + "-" + config.getInstanceId()
                 + " -Dio.netty.tryReflectionSetAccessible=true"
+                + " --add-opens java.base/sun.net=ALL-UNNAMED"
                 + " org.apache.pulsar.functions.instance.JavaInstanceMain"
                 + " --jar " + userJarFile + " --instance_id "
                 + config.getInstanceId() + " --function_id " + config.getFunctionId()

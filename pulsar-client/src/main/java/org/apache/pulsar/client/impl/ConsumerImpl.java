@@ -655,6 +655,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             } catch (Exception e) {
                 log.error("Create retry letter producer exception with topic: {}",
                         deadLetterPolicy.getRetryLetterTopic(), e);
+                return FutureUtil.failedFuture(e);
             } finally {
                 createProducerLock.writeLock().unlock();
             }
@@ -724,15 +725,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                             });
                 }
             } catch (Exception e) {
-                log.error("Send to retry letter topic exception with topic: {}, messageId: {}",
-                        retryLetterProducer.getTopic(), messageId, e);
-                Set<MessageId> messageIds = Collections.singleton(messageId);
-                unAckedMessageTracker.remove(messageId);
-                redeliverUnacknowledgedMessages(messageIds);
+                result.completeExceptionally(e);
             }
         }
         MessageId finalMessageId = messageId;
         result.exceptionally(ex -> {
+            log.error("Send to retry letter topic exception with topic: {}, messageId: {}",
+                    retryLetterProducer.getTopic(), finalMessageId, ex);
             Set<MessageId> messageIds = Collections.singleton(finalMessageId);
             unAckedMessageTracker.remove(finalMessageId);
             redeliverUnacknowledgedMessages(messageIds);
@@ -900,6 +899,15 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 }
                 log.warn("[{}][{}] Failed to subscribe to topic on {}", topic,
                         subscription, cnx.channel().remoteAddress());
+
+                if (e.getCause() instanceof PulsarClientException.TimeoutException) {
+                    // Creating the consumer has timed out. We need to ensure the broker closes the consumer
+                    // in case it was indeed created, otherwise it might prevent new create consumer operation,
+                    // since we are not necessarily closing the connection.
+                    long closeRequestId = client.newRequestId();
+                    ByteBuf cmd = Commands.newCloseConsumer(consumerId, closeRequestId);
+                    cnx.sendRequestWithId(cmd, closeRequestId);
+                }
 
                 if (e.getCause() instanceof PulsarClientException
                         && PulsarClientException.isRetriableError(e.getCause())

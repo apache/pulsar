@@ -71,13 +71,15 @@ The following table outlines the three types of function runtime.
 
 ## Processing guarantees and subscription types
 
-Pulsar provides three different messaging delivery semantics that you can apply to a function. 
+Pulsar provides three different messaging delivery semantics that you can apply to a function. Different delivery semantic implementations are determined according to the **ack time node**.
 
 | Delivery semantics | Description | Adopted subscription type |
 |--------------------|-------------|---------------------------|
-| **At-most-once** delivery | Each message sent to a function is processed at its best effort. There’s no guarantee that the message will be processed or not. | Shared |
-| **At-least-once** delivery (default) | Each message sent to the function can be processed more than once (in case of a processing failure or redelivery).<br /><br />If you create a function without specifying the `--processing-guarantees` flag, the function provides `at-least-once` delivery guarantee. | Shared |
-| **Effectively-once** delivery | Each message sent to the function can be processed more than once but it has only one output. Duplicated messages are ignored.<br /><br />`Effectively once` is achieved on top of `at-least-once` processing and guaranteed server-side deduplication. This means a state update can happen twice, but the same state update is only applied once, the other duplicated state update is discarded on the server-side. | Failover |
+| **At-most-once** delivery | Each message sent to a function is processed at its best effort. There’s no guarantee that the message will be processed or not. <br /><br /> When setting At-most-once, the `autoAck` configuration must be equal to true, otherwise the startup will fail(`autoAck` configuration will be deprecated in future releases). <br/><br/> **Ack time node**: Before function processing. | Shared |
+| **At-least-once** delivery (default) | Each message sent to the function can be processed more than once (in case of a processing failure or redelivery).<br /><br />If you create a function without specifying the `--processing-guarantees` flag, the function provides `at-least-once` delivery guarantee. <br/><br/> **Ack time node**: After sending a message to output. | Shared |
+| **Effectively-once** delivery | Each message sent to the function can be processed more than once but it has only one output. Duplicated messages are ignored.<br /><br />`Effectively once` is achieved on top of `at-least-once` processing and guaranteed server-side deduplication. This means a state update can happen twice, but the same state update is only applied once, the other duplicated state update is discarded on the server-side. <br/><br/> **Ack time node**: After sending a message to output. | Failover |
+| **Manual** delivery | Under this semantics, the user needs to call the method `context.getCurrentRecord().ack()` inside the function to manually perform the ack operation, and the framework will not help users to do any ack operations. <br/><br/> **Ack time node**: User decides, in function method. | Shared |
+
 
 :::tip
 
@@ -167,6 +169,9 @@ Both processing time and event time are supported.
  * Processing time is defined based on the wall time when the function instance builds and processes a window. The judging of window completeness is straightforward and you don’t have to worry about data arrival disorder. 
  * Event time is defined based on the timestamps that come with the event record. It guarantees event time correctness but also offers more data buffering and a limited completeness guarantee.
 
+Delivery Semantic Guarantees.
+ * Currently, window function does not support `MANUAL` and  `Effectively-once` delivery semantics.
+   
 :::
 
 ### Types of window

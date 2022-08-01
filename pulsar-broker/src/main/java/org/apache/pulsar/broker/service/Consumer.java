@@ -88,6 +88,7 @@ public class Consumer {
 
     private long lastConsumedTimestamp;
     private long lastAckedTimestamp;
+    private long lastConsumedFlowTimestamp;
     private Rate chunkedMessageRate;
 
     // Represents how many messages we can safely send to the consumer without
@@ -681,6 +682,7 @@ public class Consumer {
 
     public void flowPermits(int additionalNumberOfMessages) {
         checkArgument(additionalNumberOfMessages > 0);
+        this.lastConsumedFlowTimestamp = System.currentTimeMillis();
 
         // block shared consumer when unacked-messages reaches limit
         if (shouldBlockConsumerOnUnackMsgs() && unackedMessages >= getMaxUnackedMessages()) {
@@ -773,6 +775,7 @@ public class Consumer {
         msgOut.recordMultipleEvents(consumerStats.msgOutCounter, consumerStats.bytesOutCounter);
         lastAckedTimestamp = consumerStats.lastAckedTimestamp;
         lastConsumedTimestamp = consumerStats.lastConsumedTimestamp;
+        lastConsumedFlowTimestamp = consumerStats.lastConsumedFlowTimestamp;
         MESSAGE_PERMITS_UPDATER.set(this, consumerStats.availablePermits);
         if (log.isDebugEnabled()) {
             log.debug("[{}-{}] Setting broker.service.Consumer's messagePermits to {} for consumer {}", topicName,
@@ -788,6 +791,7 @@ public class Consumer {
         stats.bytesOutCounter = bytesOutCounter.longValue();
         stats.lastAckedTimestamp = lastAckedTimestamp;
         stats.lastConsumedTimestamp = lastConsumedTimestamp;
+        stats.lastConsumedFlowTimestamp = lastConsumedFlowTimestamp;
         stats.availablePermits = getAvailablePermits();
         stats.unackedMessages = unackedMessages;
         stats.blockedConsumerOnUnackedMsgs = blockedConsumerOnUnackedMsgs;

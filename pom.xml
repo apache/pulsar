@@ -41,14 +41,14 @@ flexible messaging model and an intuitive client API.</description>
 
   <organization>
     <name>Apache Software Foundation</name>
-    <url>http://www.apache.org/</url>
+    <url>https://www.apache.org/</url>
   </organization>
   <inceptionYear>2017</inceptionYear>
 
   <developers>
     <developer>
       <organization>Apache Pulsar developers</organization>
-      <organizationUrl>http://pulsar.apache.org/</organizationUrl>
+      <organizationUrl>https://pulsar.apache.org/</organizationUrl>
     </developer>
   </developers>
 
@@ -117,6 +117,7 @@ flexible messaging model and an intuitive client API.</description>
     <bookkeeper.version>4.15.0</bookkeeper.version>
     <zookeeper.version>3.8.0</zookeeper.version>
     <commons-cli.version>1.5.0</commons-cli.version>
+    <commons-text.version>1.9</commons-text.version>
     <snappy.version>1.1.8.4</snappy.version> <!-- ZooKeeper server -->
     <dropwizardmetrics.version>4.1.12.1</dropwizardmetrics.version> <!-- ZooKeeper server -->
     <curator.version>5.1.0</curator.version>
@@ -153,7 +154,7 @@ flexible messaging model and an intuitive client API.</description>
     <aerospike-client.version>4.4.20</aerospike-client.version>
     <kafka-client.version>2.7.2</kafka-client.version>
     <rabbitmq-client.version>5.5.3</rabbitmq-client.version>
-    <aws-sdk.version>1.11.774</aws-sdk.version>
+    <aws-sdk.version>1.12.262</aws-sdk.version>
     <avro.version>1.10.2</avro.version>
     <joda.version>2.10.5</joda.version>
     <jclouds.version>2.5.0</jclouds.version>

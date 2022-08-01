@@ -85,10 +85,15 @@ public class ManagedCursorMetricsTest extends MockedPulsarServiceBaseTest {
                 .isAckReceiptEnabled(true)
                 .subscribe();
 
+
         @Cleanup
         Producer<byte[]> producer = this.pulsarClient.newProducer()
                 .topic(topicName)
                 .create();
+
+        producer.send("trigger-cursor-ledger-creation".getBytes());
+        // Trigger the cursor ledger creation
+        consumer.acknowledge(consumer.receive().getMessageId());
 
         for(PulsarMockLedgerHandle ledgerHandle : mockBookKeeper.getLedgerMap().values()) {
             ledgerHandle.close();
@@ -160,12 +165,12 @@ public class ManagedCursorMetricsTest extends MockedPulsarServiceBaseTest {
         }
         metricsList = metrics.generate();
         Assert.assertEquals(metricsList.size(), 2);
-        Assert.assertEquals(metricsList.get(0).getMetrics().get("brk_ml_cursor_writeLedgerSize"), 26L);
-        Assert.assertEquals(metricsList.get(0).getMetrics().get("brk_ml_cursor_writeLedgerLogicalSize"), 13L);
+        Assert.assertNotEquals(metricsList.get(0).getMetrics().get("brk_ml_cursor_writeLedgerSize"), 0L);
+        Assert.assertNotEquals(metricsList.get(0).getMetrics().get("brk_ml_cursor_writeLedgerLogicalSize"), 0L);
         Assert.assertEquals(metricsList.get(0).getMetrics().get("brk_ml_cursor_readLedgerSize"), 0L);
 
-        Assert.assertEquals(metricsList.get(1).getMetrics().get("brk_ml_cursor_writeLedgerSize"), 26L);
-        Assert.assertEquals(metricsList.get(1).getMetrics().get("brk_ml_cursor_writeLedgerLogicalSize"), 13L);
+        Assert.assertNotEquals(metricsList.get(1).getMetrics().get("brk_ml_cursor_writeLedgerSize"), 0L);
+        Assert.assertNotEquals(metricsList.get(1).getMetrics().get("brk_ml_cursor_writeLedgerLogicalSize"), 0L);
         Assert.assertEquals(metricsList.get(1).getMetrics().get("brk_ml_cursor_readLedgerSize"), 0L);
     }
 }

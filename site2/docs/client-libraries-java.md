@@ -140,7 +140,7 @@ If you create a client, you can use the `loadConf` configuration. The following 
 `numIoThreads`| int| The number of threads used for handling connections to brokers | 1 
 `numListenerThreads`|int|The number of threads used for handling message listeners. The listener thread pool is shared across all the consumers and readers using the "listener" model to get messages. For a given consumer, the listener is always invoked from the same thread to ensure ordering. If you want multiple threads to process a single topic, you need to create a [`shared`](/concepts-messaging.md#shared) subscription and multiple consumers for this subscription. This does not ensure ordering.| 1 
 `useTcpNoDelay`| boolean| Whether to use TCP no-delay flag on the connection to disable Nagle algorithm |true
-`useTls` |boolean |Whether to use TLS encryption on the connection| false
+`enableTls` |boolean | Whether to use TLS encryption on the connection. Note that this parameter is **deprecated**. If you want to enable TLS, use `pulsar+ssl://` in `serviceUrl` instead. | false
  `tlsTrustCertsFilePath` |string |Path to the trusted TLS certificate file|None
 `tlsAllowInsecureConnection`|boolean|Whether the Pulsar client accepts untrusted TLS certificate from broker | false
 `tlsHostnameVerificationEnable` |boolean |  Whether to enable TLS hostname verification|false
@@ -155,6 +155,7 @@ If you create a client, you can use the `loadConf` configuration. The following 
 `socks5ProxyAddress`|SocketAddress|SOCKS5 proxy address | None
 `socks5ProxyUsername`|string|SOCKS5 proxy username | None
 `socks5ProxyPassword`|string|SOCKS5 proxy password | None
+`connectionMaxIdleSeconds`|int|Release the connection if it is not used for more than `connectionMaxIdleSeconds` seconds.If `connectionMaxIdleSeconds` < 0, disabled the feature that auto release the idle connection|180
 
 Check out the Javadoc for the {@inject: javadoc:PulsarClient:/client/org/apache/pulsar/client/api/PulsarClient} class for a full list of configurable parameters.
 
@@ -324,7 +325,7 @@ This section guides you through every step on how to configure cluster-level fai
 
 * For backup clusters:
 
-  * The number of BooKeeper nodes should be equal to or greater than the ensemble quorum.
+  * The number of BookKeeper nodes should be equal to or greater than the ensemble quorum.
 
   * The number of ZooKeeper nodes should be equal to or greater than 3.
 
@@ -1514,7 +1515,7 @@ Pulsar currently supports three authentication schemes: [TLS](security-tls-authe
 
 ### TLS Authentication
 
-To use [TLS](security-tls-authentication.md), you need to set TLS to `true` using the `setUseTls` method, point your Pulsar client to a TLS cert path, and provide paths to cert and key files.
+To use [TLS](security-tls-authentication.md), `enableTls` method is deprecated and you need to use "pulsar+ssl://" in serviceUrl to enable, point your Pulsar client to a TLS cert path, and provide paths to cert and key files.
 
 The following is an example.
 
@@ -1529,7 +1530,6 @@ Authentication tlsAuth = AuthenticationFactory
 
 PulsarClient client = PulsarClient.builder()
         .serviceUrl("pulsar+ssl://my-broker.com:6651")
-        .enableTls(true)
         .tlsTrustCertsFilePath("/path/to/cacert.pem")
         .authentication(tlsAuth)
         .build();
@@ -1561,7 +1561,6 @@ Authentication athenzAuth = AuthenticationFactory
 
 PulsarClient client = PulsarClient.builder()
         .serviceUrl("pulsar+ssl://my-broker.com:6651")
-        .enableTls(true)
         .tlsTrustCertsFilePath("/path/to/cacert.pem")
         .authentication(athenzAuth)
         .build();

@@ -325,7 +325,7 @@ This section guides you through every step on how to configure cluster-level fai
 
 * For backup clusters:
 
-  * The number of BooKeeper nodes should be equal to or greater than the ensemble quorum.
+  * The number of BookKeeper nodes should be equal to or greater than the ensemble quorum.
 
   * The number of ZooKeeper nodes should be equal to or greater than 3.
 
@@ -1468,7 +1468,6 @@ Authentication tlsAuth = AuthenticationFactory
 
 PulsarClient client = PulsarClient.builder()
         .serviceUrl("pulsar+ssl://my-broker.com:6651")
-        .enableTls(true)
         .tlsTrustCertsFilePath("/path/to/cacert.pem")
         .authentication(tlsAuth)
         .build();
@@ -1500,7 +1499,6 @@ Authentication athenzAuth = AuthenticationFactory
 
 PulsarClient client = PulsarClient.builder()
         .serviceUrl("pulsar+ssl://my-broker.com:6651")
-        .enableTls(true)
         .tlsTrustCertsFilePath("/path/to/cacert.pem")
         .authentication(athenzAuth)
         .build();
