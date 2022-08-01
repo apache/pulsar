@@ -180,7 +180,7 @@ class PULSAR_PUBLIC ProducerConfiguration {
      * would fail unless blockIfQueueFull is set to true. Use {@link #setBlockIfQueueFull} to change the
      * blocking behavior.
      *
-     * Default: 1000
+     * Default: 0, disable the pending messages check.
      *
      * @param maxPendingMessages max number of pending messages.
      * @return
@@ -198,7 +198,7 @@ class PULSAR_PUBLIC ProducerConfiguration {
      * This setting will be used to lower the max pending messages for each partition
      * ({@link #setMaxPendingMessages(int)}), if the total exceeds the configured value.
      *
-     * Default: 50000
+     * Default: 0, disable the pending messages across partitions check.
      *
      * @param maxPendingMessagesAcrossPartitions
      */

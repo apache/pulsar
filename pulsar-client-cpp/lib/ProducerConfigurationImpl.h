@@ -32,8 +32,8 @@ struct ProducerConfigurationImpl {
     Optional<int64_t> initialSequenceId;
     int sendTimeoutMs{30000};
     CompressionType compressionType{CompressionNone};
-    int maxPendingMessages{1000};
-    int maxPendingMessagesAcrossPartitions{50000};
+    int maxPendingMessages{0};
+    int maxPendingMessagesAcrossPartitions{0};
     ProducerConfiguration::PartitionsRoutingMode routingMode{ProducerConfiguration::UseSinglePartition};
     MessageRoutingPolicyPtr messageRouter;
     ProducerConfiguration::HashingScheme hashingScheme{ProducerConfiguration::BoostHash};

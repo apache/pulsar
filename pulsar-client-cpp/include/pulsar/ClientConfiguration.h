@@ -36,6 +36,7 @@ class PULSAR_PUBLIC ClientConfiguration {
     /**
      * Configure a limit on the amount of memory that will be allocated by this client instance.
      * Setting this to 0 will disable the limit. By default this is disabled.
+     * default: 64MB, The 64M default can guarantee a high producer throughput.
      *
      * @param memoryLimitBytes the memory limit
      */

@@ -50,6 +50,7 @@ lib*.so*
 
 # Files generated from templates by CMAKE
 include/pulsar/Version.h
+.cmake
 
 # IDE generated files
 .csettings

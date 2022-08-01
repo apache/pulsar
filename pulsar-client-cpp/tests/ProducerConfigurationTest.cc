@@ -30,8 +30,8 @@ TEST(ProducerConfigurationTest, testDefaultConfig) {
     ASSERT_EQ(conf.getSendTimeout(), 30000);
     ASSERT_EQ(conf.getInitialSequenceId(), -1ll);
     ASSERT_EQ(conf.getCompressionType(), CompressionType::CompressionNone);
-    ASSERT_EQ(conf.getMaxPendingMessages(), 1000);
-    ASSERT_EQ(conf.getMaxPendingMessagesAcrossPartitions(), 50000);
+    ASSERT_EQ(conf.getMaxPendingMessages(), 0);
+    ASSERT_EQ(conf.getMaxPendingMessagesAcrossPartitions(), 0);
     ASSERT_EQ(conf.getPartitionsRoutingMode(), ProducerConfiguration::UseSinglePartition);
     ASSERT_EQ(conf.getMessageRouterPtr(), MessageRoutingPolicyPtr{});
     ASSERT_EQ(conf.getHashingScheme(), ProducerConfiguration::BoostHash);
