@@ -39,7 +39,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
@@ -1344,7 +1343,6 @@ public class PersistentTopicsBase extends AdminResource {
             }
             PartitionedTopicStatsImpl stats = new PartitionedTopicStatsImpl(partitionMetadata);
             List<CompletableFuture<TopicStats>> topicStatsFutureList = new ArrayList<>(partitionMetadata.partitions);
-            AtomicBoolean exceptionFlag = new AtomicBoolean(false);
             for (int i = 0; i < partitionMetadata.partitions; i++) {
                 TopicName partition = topicName.getPartition(i);
                 topicStatsFutureList.add(
@@ -1363,16 +1361,12 @@ public class PersistentTopicsBase extends AdminResource {
                                         partition.toString(), getPreciseBacklog, subscriptionBacklogSize,
                                         getEarliestTimeInBacklog);
                                 } catch (PulsarServerException e) {
-                                    exceptionFlag.set(true);
                                     restFuture.completeExceptionally(e);
                                 }
                                 return restFuture;
                             }
                         })
                 );
-                if (exceptionFlag.get()) {
-                    break;
-                }
             }
 
             FutureUtil.waitForAll(topicStatsFutureList).handle((result, exception) -> {
