@@ -1886,6 +1886,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             stats.nonContiguousDeletedMessagesRanges += subStats.nonContiguousDeletedMessagesRanges;
             stats.nonContiguousDeletedMessagesRangesSerializedSize +=
                     subStats.nonContiguousDeletedMessagesRangesSerializedSize;
+            stats.delayedMessageIndexSizeInBytes += subStats.delayedTrackerMemoryUsage;
         });
 
         replicators.forEach((cluster, replicator) -> {
