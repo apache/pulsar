@@ -138,7 +138,7 @@ public class TxnLogBufferedWriterMetricsStats implements Closeable {
                         .name(pulsarBatchedLogEntrySizeBytesName)
                         .labelNames(labelNames)
                         .help("A metrics for how many bytes in per batch")
-                        .buckets(RECORD_COUNT_PER_ENTRY_BUCKETS)
+                        .buckets(BYTES_SIZE_PER_ENTRY_BUCKETS)
                         .register(registry));
         pulsarBatchedLogEntrySizeBytesChild = pulsarBatchedLogEntrySizeBytes.labels(labelValues);
 
@@ -150,7 +150,7 @@ public class TxnLogBufferedWriterMetricsStats implements Closeable {
                         .name(pulsarBatchedLogOldestRecordDelayTimeSecondsName)
                         .labelNames(labelNames)
                         .help("A metrics for the max latency in per batch")
-                        .buckets(RECORD_COUNT_PER_ENTRY_BUCKETS)
+                        .buckets(MAX_DELAY_TIME_BUCKETS)
                         .register(registry));
         pulsarBatchedLogOldestRecordDelayTimeSecondsChild =
                 pulsarBatchedLogOldestRecordDelayTimeSeconds.labels(labelValues);
