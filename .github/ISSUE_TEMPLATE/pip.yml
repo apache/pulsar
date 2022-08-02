@@ -23,7 +23,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thank you very much for report flaky tests of Pulsar! Here are instructions for creating a PIP using this issue template.
+        Thank you very much for submitting a Pulsar Improvement Proposal (PIP)! Here are instructions for creating a PIP using this issue template.
 
         Please send a note to the dev@pulsar.apache.org mailing list to start the discussion, using subject prefix `[DISCUSS] PIP-XYZ`. To determine the appropriate PIP number XYZ, inspect the [mailing list](https://lists.apache.org/list.html?dev@pulsar.apache.org) for the most recent PIP. Add 1 to that PIP's number to get your PIP's number.
 

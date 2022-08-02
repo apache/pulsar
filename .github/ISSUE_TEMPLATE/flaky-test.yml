@@ -23,7 +23,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thank you very much for report flaky tests of Pulsar!
+        Thank you very much for reporting flaky tests of Pulsar!
   - type: checkboxes
     attributes:
       label: Search before asking
