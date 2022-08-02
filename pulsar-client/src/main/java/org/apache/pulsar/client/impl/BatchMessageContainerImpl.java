@@ -226,6 +226,7 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
                     "Message size is bigger than " + ClientCnx.getMaxMessageSize() + " bytes"));
                 return null;
             }
+            lowestSequenceId = -1L;
             return op;
         }
 
