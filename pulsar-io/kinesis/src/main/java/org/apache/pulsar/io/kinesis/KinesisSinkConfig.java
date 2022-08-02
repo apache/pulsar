@@ -49,7 +49,7 @@ public class KinesisSinkConfig extends BaseKinesisConfig implements Serializable
     private Boolean skipCertificateValidation = false;
 
     @FieldDoc(
-        required = true,
+        required = false,
         defaultValue = "ONLY_RAW_PAYLOAD",
         help = "Message format in which kinesis sink converts pulsar messages and publishes to kinesis streams.\n"
             + "  #\n"
