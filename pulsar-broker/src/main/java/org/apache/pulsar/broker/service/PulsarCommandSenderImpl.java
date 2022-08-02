@@ -221,8 +221,9 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
 
     @Override
     public ChannelPromise sendMessagesToConsumer(long consumerId, String topicName, Subscription subscription,
-            int partitionIdx, List<Entry> entries, EntryBatchSizes batchSizes, EntryBatchIndexesAcks batchIndexesAcks,
-            RedeliveryTracker redeliveryTracker, long epoch) {
+                                                 int partitionIdx, List<? extends Entry> entries,
+                                                 EntryBatchSizes batchSizes, EntryBatchIndexesAcks batchIndexesAcks,
+                                                 RedeliveryTracker redeliveryTracker, long epoch) {
         final ChannelHandlerContext ctx = cnx.ctx();
         final ChannelPromise writePromise = ctx.newPromise();
         ctx.channel().eventLoop().execute(() -> {

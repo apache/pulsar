@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.AtomicDouble;
@@ -203,6 +204,34 @@ public class Consumer {
                 .getPulsar().getConfiguration().isAcknowledgmentAtBatchIndexLevelEnabled();
     }
 
+    @VisibleForTesting
+    Consumer(String consumerName, int availablePermits) {
+        this.subscription = null;
+        this.subType = null;
+        this.cnx = null;
+        this.appId = null;
+        this.topicName = null;
+        this.partitionIdx = 0;
+        this.consumerId = 0L;
+        this.priorityLevel = 0;
+        this.readCompacted = false;
+        this.consumerName = consumerName;
+        this.msgOut = null;
+        this.msgRedeliver = null;
+        this.msgOutCounter = null;
+        this.bytesOutCounter = null;
+        this.messageAckRate = null;
+        this.pendingAcks = null;
+        this.stats = null;
+        this.isDurable = false;
+        this.metadata = null;
+        this.keySharedMeta = null;
+        this.clientAddress = null;
+        this.startMessageId = null;
+        this.isAcknowledgmentAtBatchIndexLevelEnabled = false;
+        MESSAGE_PERMITS_UPDATER.set(this, availablePermits);
+    }
+
     public SubType subType() {
         return subType;
     }
@@ -227,7 +256,7 @@ public class Consumer {
         return readCompacted;
     }
 
-    public Future<Void> sendMessages(final List<Entry> entries, EntryBatchSizes batchSizes,
+    public Future<Void> sendMessages(final List<? extends Entry> entries, EntryBatchSizes batchSizes,
                                      EntryBatchIndexesAcks batchIndexesAcks,
                                      int totalMessages, long totalBytes, long totalChunkedMessages,
                                      RedeliveryTracker redeliveryTracker) {
@@ -241,7 +270,7 @@ public class Consumer {
      *
      * @return a SendMessageInfo object that contains the detail of what was sent to consumer
      */
-    public Future<Void> sendMessages(final List<Entry> entries, EntryBatchSizes batchSizes,
+    public Future<Void> sendMessages(final List<? extends Entry> entries, EntryBatchSizes batchSizes,
                                      EntryBatchIndexesAcks batchIndexesAcks,
                                      int totalMessages, long totalBytes, long totalChunkedMessages,
                                      RedeliveryTracker redeliveryTracker, long epoch) {
@@ -820,8 +849,13 @@ public class Consumer {
 
     @Override
     public String toString() {
-        return MoreObjects.toStringHelper(this).add("subscription", subscription).add("consumerId", consumerId)
-                .add("consumerName", consumerName).add("address", this.cnx.clientAddress()).toString();
+        if (subscription != null && cnx != null) {
+            return MoreObjects.toStringHelper(this).add("subscription", subscription).add("consumerId", consumerId)
+                    .add("consumerName", consumerName).add("address", this.cnx.clientAddress()).toString();
+        } else {
+            return MoreObjects.toStringHelper(this).add("consumerId", consumerId)
+                    .add("consumerName", consumerName).toString();
+        }
     }
 
     public CompletableFuture<Void> checkPermissionsAsync() {
@@ -1041,7 +1075,12 @@ public class Consumer {
     }
 
     private int getStickyKeyHash(Entry entry) {
-        byte[] stickyKey = Commands.peekStickyKey(entry.getDataBuffer(), topicName, subscription.getName());
+        final byte[] stickyKey;
+        if (entry instanceof EntryAndMetadata) {
+            stickyKey = ((EntryAndMetadata) entry).getStickyKey();
+        } else {
+            stickyKey = Commands.peekStickyKey(entry.getDataBuffer(), topicName, subscription.getName());
+        }
         return StickyKeyConsumerSelector.makeStickyKeyHash(stickyKey);
     }
 
