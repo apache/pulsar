@@ -115,8 +115,8 @@ public class TxnLogBufferedWriterMetricsStats implements Closeable {
     public TxnLogBufferedWriterMetricsStats(String metricsPrefix, String[] labelNames, String[] labelValues,
                                               CollectorRegistry registry){
         this.metricsPrefix = metricsPrefix;
-        this.labelNames = labelNames;
-        this.labelValues = labelValues;
+        this.labelNames = labelNames.clone();
+        this.labelValues = labelValues.clone();
 
         String pulsarBatchedLogRecordsCountPerEntryName =
                 String.format("%s_batched_log_records_count_per_entry", metricsPrefix);
