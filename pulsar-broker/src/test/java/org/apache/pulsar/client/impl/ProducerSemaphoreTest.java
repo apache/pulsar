@@ -66,7 +66,7 @@ public class ProducerSemaphoreTest extends ProducerConsumerBase {
         ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
                 .topic("testProducerSemaphoreAcquire")
                 .maxPendingMessages(pendingQueueSize)
-                .enableBatching(false)
+                .enableBatching(true)
                 .create();
 
         this.stopBroker();
