@@ -18,18 +18,14 @@
  */
 package org.apache.pulsar.io.flume.node;
 
+import static org.testng.Assert.assertEquals;
+import com.github.stefanbirkner.systemlambda.SystemLambda;
 import java.io.File;
-import java.util.HashMap;
-import java.util.Map;
-
-import lombok.SneakyThrows;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import org.powermock.reflect.Whitebox;
 
 public final class TestEnvVarResolverProperties {
-    private static final File TESTFILE = new File(
+    private static final File TEST_FILE = new File(
             TestEnvVarResolverProperties.class.getClassLoader()
                     .getResource("flume-conf-with-envvars.properties").getFile());
 
@@ -37,49 +33,37 @@ public final class TestEnvVarResolverProperties {
 
     @Before
     public void setUp() {
-        provider = new PropertiesFileConfigurationProvider("a1", TESTFILE);
+        provider = new PropertiesFileConfigurationProvider("a1", TEST_FILE);
     }
 
     @Test
-    public void resolveEnvVar() {
-        injectEnvironmentVariable("VARNAME", "varvalue");
-        String resolved = EnvVarResolverProperties.resolveEnvVars("padding ${VARNAME} padding");
-        Assert.assertEquals("padding varvalue padding", resolved);
+    public void resolveEnvVar() throws Exception {
+        SystemLambda.withEnvironmentVariable("VARNAME", "varvalue").execute(() -> {
+            String resolved = EnvVarResolverProperties.resolveEnvVars("padding ${VARNAME} padding");
+            assertEquals(resolved, "padding varvalue padding");
+        });
     }
 
     @Test
-    public void resolveEnvVars() {
-        injectEnvironmentVariable("VARNAME1", "varvalue1");
-        injectEnvironmentVariable("VARNAME2", "varvalue2");
-        String resolved = EnvVarResolverProperties
-                .resolveEnvVars("padding ${VARNAME1} ${VARNAME2} padding");
-        Assert.assertEquals("padding varvalue1 varvalue2 padding", resolved);
+    public void resolveEnvVars() throws Exception {
+        SystemLambda.withEnvironmentVariable("VARNAME1", "varvalue1")
+                .and("VARNAME2", "varvalue2")
+                .execute(() -> {
+                    String resolved = EnvVarResolverProperties.resolveEnvVars(
+                            "padding ${VARNAME1} ${VARNAME2} padding");
+                    assertEquals(resolved, "padding varvalue1 varvalue2 padding");
+                });
     }
 
     @Test
-    public void getProperty() {
-        String NC_PORT = "6667";
-        injectEnvironmentVariable("NC_PORT", NC_PORT);
-        System.setProperty("propertiesImplementation",
-                "org.apache.pulsar.io.flume.node.EnvVarResolverProperties");
+    public void getProperty() throws Exception {
+        SystemLambda.withEnvironmentVariable("NC_PORT", "6667").execute(() -> {
+            System.setProperty("propertiesImplementation",
+                    "org.apache.pulsar.io.flume.node.EnvVarResolverProperties");
 
-        Assert.assertEquals(NC_PORT, provider.getFlumeConfiguration()
-                .getConfigurationFor("a1")
-                .getSourceContext().get("r1").getParameters().get("port"));
-    }
-
-    @SneakyThrows
-    private static void injectEnvironmentVariable(String key, String value) {
-
-        Class<?> processEnvironment = Class.forName("java.lang.ProcessEnvironment");
-        Map<String,String> unmodifiableMap = new HashMap<>(Whitebox
-                .getInternalState(processEnvironment, "theUnmodifiableEnvironment"));
-        unmodifiableMap.put(key, value);
-        Whitebox.setInternalState(processEnvironment, "theUnmodifiableEnvironment", unmodifiableMap);
-
-        Map<String,String> envMap = new HashMap<>(Whitebox
-                .getInternalState(processEnvironment, "theEnvironment"));
-        envMap.put(key, value);
-        Whitebox.setInternalState(processEnvironment, "theEnvironment", envMap);
+            assertEquals(provider.getFlumeConfiguration()
+                    .getConfigurationFor("a1")
+                    .getSourceContext().get("r1").getParameters().get("port"), "6667");
+        });
     }
 }
