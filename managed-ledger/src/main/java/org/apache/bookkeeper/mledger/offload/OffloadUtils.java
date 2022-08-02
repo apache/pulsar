@@ -60,13 +60,19 @@ public final class OffloadUtils {
                                                                Map<String, String> defaultOffloadDriverMetadata) {
         if (ledgerInfo.hasOffloadContext()) {
             OffloadContext ctx = ledgerInfo.getOffloadContext();
-            if (ctx.hasDriverMetadata()) {
-                OffloadDriverMetadata driverMetadata = ctx.getDriverMetadata();
-                if (driverMetadata.getPropertiesCount() > 0) {
-                    Map<String, String> metadata = Maps.newHashMap();
-                    driverMetadata.getPropertiesList().forEach(kv -> metadata.put(kv.getKey(), kv.getValue()));
-                    return metadata;
-                }
+            return getOffloadDriverMetadata(ctx, defaultOffloadDriverMetadata);
+        }
+        return defaultOffloadDriverMetadata;
+    }
+
+    public static Map<String, String> getOffloadDriverMetadata(OffloadContext offloadContext,
+                                                               Map<String, String> defaultOffloadDriverMetadata) {
+        if (offloadContext.hasDriverMetadata()) {
+            OffloadDriverMetadata driverMetadata = offloadContext.getDriverMetadata();
+            if (driverMetadata.getPropertiesCount() > 0) {
+                Map<String, String> metadata = Maps.newHashMap();
+                driverMetadata.getPropertiesList().forEach(kv -> metadata.put(kv.getKey(), kv.getValue()));
+                return metadata;
             }
         }
         return defaultOffloadDriverMetadata;
@@ -75,11 +81,16 @@ public final class OffloadUtils {
     public static String getOffloadDriverName(LedgerInfo ledgerInfo, String defaultDriverName) {
         if (ledgerInfo.hasOffloadContext()) {
             OffloadContext ctx = ledgerInfo.getOffloadContext();
-            if (ctx.hasDriverMetadata()) {
-                OffloadDriverMetadata driverMetadata = ctx.getDriverMetadata();
-                if (driverMetadata.hasName()) {
-                    return driverMetadata.getName();
-                }
+            return getOffloadDriverName(ctx, defaultDriverName);
+        }
+        return defaultDriverName;
+    }
+
+    public static String getOffloadDriverName(OffloadContext offloadContext, String defaultDriverName) {
+        if (offloadContext.hasDriverMetadata()) {
+            OffloadDriverMetadata driverMetadata = offloadContext.getDriverMetadata();
+            if (driverMetadata.hasName()) {
+                return driverMetadata.getName();
             }
         }
         return defaultDriverName;

@@ -46,6 +46,8 @@ import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.protocol.topic.DeleteLedgerPayload;
+
 /**
  * Admin interface for Topics management.
  */
@@ -865,6 +867,10 @@ public interface Topics {
     default CompletableFuture<Void> deleteAsync(String topic, boolean force) {
         return deleteAsync(topic, force, true);
     }
+
+    CompletableFuture<Void> deleteLedgerAsync(DeleteLedgerPayload deleteLedgerPayload);
+
+    void deleteLedger(DeleteLedgerPayload deleteLedgerPayload) throws PulsarAdminException;
 
     /**
      * Delete a topic.

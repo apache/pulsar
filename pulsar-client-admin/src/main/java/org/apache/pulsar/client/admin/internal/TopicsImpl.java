@@ -88,6 +88,7 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.protocol.topic.DeleteLedgerPayload;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.slf4j.Logger;
@@ -528,6 +529,19 @@ public class TopicsImpl extends BaseResource implements Topics {
                 .queryParam("force", Boolean.toString(force)) //
                 .queryParam("deleteSchema", "true");
         return asyncDeleteRequest(path);
+    }
+
+    @Override
+    public CompletableFuture<Void> deleteLedgerAsync(DeleteLedgerPayload payload) {
+        String topicName = payload.getTopicName();
+        TopicName tn = validateTopic(topicName);
+        WebTarget webTarget = topicPath(tn, "ledger", "delete");
+        return asyncPostRequest(webTarget, Entity.json(payload));
+    }
+
+    @Override
+    public void deleteLedger(DeleteLedgerPayload deleteLedgerPayload) throws PulsarAdminException {
+        sync(() -> deleteLedgerAsync(deleteLedgerPayload));
     }
 
     @Override

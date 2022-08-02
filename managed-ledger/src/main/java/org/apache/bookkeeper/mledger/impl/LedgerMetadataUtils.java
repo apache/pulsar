@@ -20,9 +20,11 @@ package org.apache.bookkeeper.mledger.impl;
 
 import com.google.common.collect.ImmutableMap;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Map;
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.common.util.JsonUtil.ParseJsonException;
+import org.apache.bookkeeper.mledger.deletion.LedgerComponent;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 
 /**
@@ -121,5 +123,44 @@ public final class LedgerMetadataUtils {
     }
 
     private LedgerMetadataUtils() {}
+
+    public static boolean isComponentMatch(LedgerComponent ledgerComponent, Map<String, byte[]> customMetadata) {
+        byte[] componentBytes = customMetadata.get(LedgerMetadataUtils.METADATA_PROPERTY_COMPONENT);
+        if (componentBytes == null) {
+            return false;
+        }
+        if (LedgerComponent.MANAGED_LEDGER == ledgerComponent) {
+            return Arrays.equals(componentBytes, LedgerMetadataUtils.METADATA_PROPERTY_COMPONENT_MANAGED_LEDGER);
+        } else if (LedgerComponent.MANAGED_CURSOR == ledgerComponent) {
+            return Arrays.equals(componentBytes, LedgerMetadataUtils.METADATA_PROPERTY_COMPONENT_MANAGED_LEDGER)
+                    && customMetadata.get(LedgerMetadataUtils.METADATA_PROPERTY_CURSOR_NAME) != null;
+        } else if (LedgerComponent.SCHEMA_STORAGE == ledgerComponent) {
+            return Arrays.equals(componentBytes, LedgerMetadataUtils.METADATA_PROPERTY_COMPONENT_SCHEMA);
+        }
+        return false;
+    }
+
+    public static boolean isNameMatch(LedgerComponent ledgerComponent, String name, Map<String, byte[]> customMetadata) {
+        if (LedgerComponent.MANAGED_LEDGER == ledgerComponent) {
+            byte[] bytes = customMetadata.get(LedgerMetadataUtils.METADATA_PROPERTY_MANAGED_LEDGER_NAME);
+            if (bytes == null) {
+                return false;
+            }
+            return new String(bytes, StandardCharsets.UTF_8).equals(name);
+        } else if (LedgerComponent.MANAGED_CURSOR == ledgerComponent) {
+            byte[] bytes = customMetadata.get(LedgerMetadataUtils.METADATA_PROPERTY_CURSOR_NAME);
+            if (bytes == null) {
+                return false;
+            }
+            return new String(bytes, StandardCharsets.UTF_8).equals(name);
+        } else if (LedgerComponent.SCHEMA_STORAGE == ledgerComponent) {
+            byte[] bytes = customMetadata.get(LedgerMetadataUtils.METADATA_PROPERTY_SCHEMAID);
+            if (bytes == null) {
+                return false;
+            }
+            return new String(bytes, StandardCharsets.UTF_8).equals(name);
+        }
+        return false;
+    }
 
 }

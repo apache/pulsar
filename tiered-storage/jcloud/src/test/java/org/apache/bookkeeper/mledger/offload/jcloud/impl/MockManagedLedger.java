@@ -22,6 +22,7 @@ import com.google.common.base.Predicate;
 import io.netty.buffer.ByteBuf;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
@@ -31,7 +32,9 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerMXBean;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.deletion.LedgerType;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
@@ -135,6 +138,19 @@ public class MockManagedLedger implements ManagedLedger {
 
     @Override
     public void deleteCursor(String name) throws InterruptedException, ManagedLedgerException {
+
+    }
+
+    @Override
+    public CompletableFuture<?> asyncDeleteLedger(long ledgerId, LedgerType ledgerType, String topicName,
+                                                  MLDataFormats.OffloadContext offloadContext) {
+        return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
+    public void deleteLedger(long ledgerId, LedgerType ledgerType, String topicName,
+                             MLDataFormats.OffloadContext offloadContext)
+            throws ExecutionException, InterruptedException {
 
     }
 

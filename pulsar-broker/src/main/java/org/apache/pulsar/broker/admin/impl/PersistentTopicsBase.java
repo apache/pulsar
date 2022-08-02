@@ -60,10 +60,12 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
+import org.apache.bookkeeper.mledger.deletion.LedgerType;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerOfflineBacklog;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -135,6 +137,7 @@ import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.policies.data.stats.PartitionedTopicStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.protocol.topic.DeleteLedgerPayload;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
@@ -1009,6 +1012,88 @@ public class PersistentTopicsBase extends AdminResource {
         } else {
             internalDeleteTopic(authoritative);
         }
+    }
+
+    protected void internalDeleteLedger(AsyncResponse asyncResponse, boolean authoritative,
+                                        DeleteLedgerPayload deleteLedgerPayload) {
+        validateTopicOwnership(topicName, authoritative);
+
+        CompletableFuture<Void> ret;
+        if (topicName.isGlobal()) {
+            ret = validateGlobalNamespaceOwnershipAsync(namespaceName);
+        } else {
+            ret = CompletableFuture.completedFuture(null);
+        }
+        ret.thenAccept(__ -> {
+            long ledgerId = deleteLedgerPayload.getLedgerId();
+            log.info("[{}][{}] received delete ledger: {}", clientAppId(), topicName, ledgerId);
+            validateTopicOwnershipAsync(topicName, authoritative)
+                    .thenCompose(ignore ->
+                            //Is need to check delete_ledger operation?
+                            validateTopicOperationAsync(topicName, TopicOperation.DELETE_LEDGER))
+                    .thenCompose(ignore -> getTopicReferenceAsync(topicName))
+                    .thenCompose(topic -> {
+                        CompletableFuture<Void> future = new CompletableFuture<>();
+                        if (topic == null) {
+                            asyncResponse.resume(new RestException(Status.NOT_FOUND,
+                                    getTopicNotFoundErrorMessage(topicName.toString())));
+                            future.complete(null);
+                            return future;
+                        }
+                        ManagedLedger managedLedger = ((PersistentTopic) topic).getManagedLedger();
+                        DeleteLedgerPayload.OffloadContext context = deleteLedgerPayload.getOffloadContext();
+                        LedgerType ledgerType = LedgerType.valueOf(deleteLedgerPayload.getLedgerType());
+                        if (LedgerType.LEDGER == ledgerType) {
+                            managedLedger.asyncDeleteLedger(ledgerId, ledgerType, topicName.toString(), null)
+                                    .whenComplete((res, ex) -> {
+                                        if (ex != null) {
+                                            future.completeExceptionally(ex);
+                                            return;
+                                        }
+                                        future.complete(null);
+                                    });
+                        } else if (LedgerType.OFFLOAD_LEDGER == ledgerType) {
+                            long lsb = context.getLsb();
+                            long msb = context.getMsb();
+                            String driverName = context.getDriverName();
+                            Map<String, String> metadata = context.getMetadata();
+
+                            MLDataFormats.OffloadContext.Builder builder =
+                                    MLDataFormats.OffloadContext.newBuilder().setUidLsb(lsb).setUidMsb(msb);
+                            builder.getDriverMetadataBuilder().setName(driverName);
+                            metadata.forEach((k, v) -> {
+                                builder.getDriverMetadataBuilder().addProperties(
+                                        MLDataFormats.KeyValue.newBuilder().setKey(k).setValue(v).build());
+                            });
+                            MLDataFormats.OffloadContext offloadContext = builder.build();
+                            managedLedger.asyncDeleteLedger(ledgerId, ledgerType, topicName.toString(), offloadContext)
+                                    .whenComplete((res, ex) -> {
+                                        if (ex != null) {
+                                            future.completeExceptionally(ex);
+                                            return;
+                                        }
+                                        future.complete(null);
+                                    });
+                        }
+                        return future;
+                    }).exceptionally(ex -> {
+                        // If the exception is not redirect exception we need to log it.
+                        if (!isRedirectException(ex)) {
+                            log.warn("[{}][{}] Failed to delete ledger: {}",
+                                    clientAppId(), topicName, ledgerId, ex.getCause());
+                        }
+                        resumeAsyncResponseExceptionally(asyncResponse, ex.getCause());
+                        return null;
+                    });
+        }).exceptionally(ex -> {
+            // If the exception is not redirect exception we need to log it.
+            if (!isRedirectException(ex)) {
+                log.warn("[{}][{}] Failed to delete ledger: {}",
+                        clientAppId(), topicName, deleteLedgerPayload.getLedgerId(), ex.getCause());
+            }
+            resumeAsyncResponseExceptionally(asyncResponse, ex.getCause());
+            return null;
+        });
     }
 
     protected void internalDeleteTopic(boolean authoritative) {

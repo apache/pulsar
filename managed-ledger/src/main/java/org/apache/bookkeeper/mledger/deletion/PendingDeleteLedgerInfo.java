@@ -55,12 +55,6 @@ public class PendingDeleteLedgerInfo {
     private MLDataFormats.ManagedLedgerInfo.LedgerInfo context;
 
     /**
-     * When consumer received pending delete ledger, maybe the ledger still in use, we need check the ledger is in use.
-     * In some cases, we needn't check the ledger still in use.
-     */
-    private boolean checkLedgerStillInUse;
-
-    /**
      * Extent properties.
      */
     private Map<String, String> properties = new HashMap<>();
@@ -69,13 +63,11 @@ public class PendingDeleteLedgerInfo {
     }
 
     public PendingDeleteLedgerInfo(String topicName, LedgerComponent ledgerComponent, LedgerType ledgerType,
-                                   Long ledgerId, MLDataFormats.ManagedLedgerInfo.LedgerInfo context,
-                                   boolean checkLedgerStillInUse) {
+                                   Long ledgerId, MLDataFormats.ManagedLedgerInfo.LedgerInfo context) {
         this.topicName = topicName;
         this.ledgerComponent = ledgerComponent;
         this.ledgerType = ledgerType;
         this.ledgerId = ledgerId;
         this.context = context;
-        this.checkLedgerStillInUse = checkLedgerStillInUse;
     }
 }

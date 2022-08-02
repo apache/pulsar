@@ -16,44 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-package org.apache.pulsar.common.policies.data;
-
 /**
- * Topic authorization operations.
+ * Implementation of topic payload.
  */
-public enum TopicOperation {
-    LOOKUP,
-    PRODUCE,
-    CONSUME,
-
-    COMPACT,
-    EXPIRE_MESSAGES,
-    OFFLOAD,
-    PEEK_MESSAGES,
-    RESET_CURSOR,
-    SKIP,
-    TERMINATE,
-    UNLOAD,
-
-    GRANT_PERMISSION,
-    GET_PERMISSION,
-    REVOKE_PERMISSION,
-
-    ADD_BUNDLE_RANGE,
-    GET_BUNDLE_RANGE,
-    DELETE_BUNDLE_RANGE,
-
-    SUBSCRIBE,
-    GET_SUBSCRIPTIONS,
-    UNSUBSCRIBE,
-
-    GET_STATS,
-    GET_METADATA,
-    GET_BACKLOG_SIZE,
-
-    SET_REPLICATED_SUBSCRIPTION_STATUS,
-    GET_REPLICATED_SUBSCRIPTION_STATUS,
-
-    DELETE_LEDGER
-}
+package org.apache.pulsar.common.protocol.topic;
