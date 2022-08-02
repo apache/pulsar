@@ -1319,6 +1319,7 @@ public class TransactionTest extends TransactionTestBase {
         // Mock brokerService.
         BrokerService brokerService = mock(BrokerService.class);
         when(brokerService.getPulsar()).thenReturn(pulsar);
+        when(brokerService.pulsar()).thenReturn(pulsar);
         // Mock topic.
         PersistentTopic topic = mock(PersistentTopic.class);
         when(topic.getBrokerService()).thenReturn(brokerService);
