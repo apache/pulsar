@@ -27,7 +27,7 @@ To isolate bookies, you need to complete the following tasks.
 
 ## Understand bookie data isolation policy
 
-Bookie data isolation policy is defined on top of the existing BookKeeper rack-aware placement policy. The “rack” concept can be anything, for example, racks, regions, availability zones. It writes the configured isolation policy into the metadata store. Both BookKeeper clients on the broker and bookie auto-recovery side read the configured isolation policy from the metadata store and apply it when choosing bookies to store messages.
+Bookie data isolation policy is built on top of the existing BookKeeper rack-aware placement policy. The “rack” concept can be anything, for example, racks, regions, availability zones. It writes the configured isolation policy into the metadata store. Both BookKeeper clients on the broker and bookie auto-recovery side read the configured isolation policy from the metadata store and apply it when choosing bookies to store messages.
 
 BookKeeper provides three kinds of data isolation policy for disaster tolerance.
 * Rack-aware placement policy (default)
@@ -52,7 +52,7 @@ Rack-aware placement policy enforces different data replicas to be placed in dif
 
 When the available rack size of bookies can meet the requirements configured on a topic, the rack-aware placement policy can work well and you don’t need any extra configurations.
 
-For example, the BookKeeper cluster has 4 racks and 13 bookie instances as shown the following diagram. When a topic is configured with `EnsembleSize=3, WriteQuorum=3, AckQuorum=2`, the BookKeeper client chooses one bookie instance from different three racks to write data to, such as Bookie2, Bookie8, and Bookie12.
+For example, the BookKeeper cluster has 4 racks and 13 bookie instances as shown the following diagram. When a topic is configured with `EnsembleSize=3, WriteQuorum=3, AckQuorum=2`, the BookKeeper client chooses one bookie instance from three different racks to write data to, such as Bookie2, Bookie8, and Bookie12.
 
 
 ![Rack-aware placement policy](/assets/rack-aware-placement-policy-1.svg)
