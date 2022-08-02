@@ -58,7 +58,7 @@ Schema.AUTO_CONSUME(), KeyValueEncodingType.SEPARATED)`, and the message consist
 
 ### Customize the Reader config for the metadata topics
 
-The Debezium Connector exposes `database.history.pulsar.reader.config` and `offset.storage.reader.config` to configure the reader of database schema history topic and the kafka connector offsets topic. For example, it can be used to configure the subscription name and other reader configurations. The available configuration can be found at [ReaderConfigurationData](https://github.com/apache/pulsar/blob/master/pulsar-client/src/main/java/org/apache/pulsar/client/impl/conf/ReaderConfigurationData.java).
+The Debezium Connector exposes `database.history.pulsar.reader.config` and `offset.storage.reader.config` to configure the reader of database schema history topic and the Kafka connector offsets topic. For example, it can be used to configure the subscription name and other reader configurations. You can find the available configurations at [ReaderConfigurationData](https://github.com/apache/pulsar/blob/master/pulsar-client/src/main/java/org/apache/pulsar/client/impl/conf/ReaderConfigurationData.java).
 
 For example, to configure the subscription name for both Readers, you can add the following configuration:
 
