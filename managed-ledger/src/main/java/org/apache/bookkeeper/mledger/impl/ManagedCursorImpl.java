@@ -1347,7 +1347,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     @Override
     public Set<? extends Position> asyncReplayEntries(Set<? extends Position> positions,
             ReadEntriesCallback callback, Object ctx, boolean sortEntries) {
-        List<Entry> entries = Lists.newArrayListWithExpectedSize(positions.size());
+        List<Entry> entries = Collections.synchronizedList(new ArrayList<>(positions.size()));
         if (positions.isEmpty()) {
             callback.readEntriesComplete(entries, ctx);
             return Collections.emptySet();
@@ -1396,7 +1396,9 @@ public class ManagedCursorImpl implements ManagedCursor {
                 log.warn("[{}][{}] Error while replaying entries", ledger.getName(), name, mle);
                 if (exception.compareAndSet(null, mle)) {
                     // release the entries just once, any further read success will release the entry straight away
-                    entries.forEach(Entry::release);
+                    synchronized (entries) {
+                        entries.forEach(Entry::release);
+                    }
                 }
                 if (--pendingCallbacks == 0) {
                     callback.readEntriesFailed(exception.get(), ctx);
