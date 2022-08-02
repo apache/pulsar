@@ -35,7 +35,7 @@ public class KinesisSinkConfig extends BaseKinesisConfig implements Serializable
     private static final long serialVersionUID = 1L;
 
     @FieldDoc(
-        required = true,
+        required = false,
         defaultValue = "ONLY_RAW_PAYLOAD",
         help = "Message format in which kinesis sink converts pulsar messages and publishes to kinesis streams.\n"
             + "  #\n"
