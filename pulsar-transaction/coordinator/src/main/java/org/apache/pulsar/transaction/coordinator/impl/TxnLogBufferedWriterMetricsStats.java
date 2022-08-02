@@ -70,7 +70,7 @@ public class TxnLogBufferedWriterMetricsStats implements Closeable {
     private final Histogram.Child pulsarBatchedLogEntrySizeBytesChild;
 
     /** The time of the oldest transaction log spent in the buffer before being sent. **/
-    private final  Histogram pulsarBatchedLogOldestRecordDelayTimeSeconds;
+    private final Histogram pulsarBatchedLogOldestRecordDelayTimeSeconds;
     private final Histogram.Child pulsarBatchedLogOldestRecordDelayTimeSecondsChild;
 
     /**
@@ -128,7 +128,6 @@ public class TxnLogBufferedWriterMetricsStats implements Closeable {
                             .help("A metrics for how many records in per batch")
                             .buckets(RECORD_COUNT_PER_ENTRY_BUCKETS)
                             .register(registry));
-
         pulsarBatchedLogRecordsCountPerEntryChild = pulsarBatchedLogRecordsCountPerEntry.labels(labelValues);
 
         String pulsarBatchedLogEntrySizeBytesName = String.format("%s_batched_log_entry_size_bytes", metricsPrefix);
