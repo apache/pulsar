@@ -826,11 +826,9 @@ Result ConsumerImpl::receiveHelper(Message& msg, int timeout) {
         messageProcessed(msg);
         return ResultOk;
     } else {
-        {
-            Lock lock(mutex_);
-            if (state_ != Ready) {
-                return ResultAlreadyClosed;
-            }
+        Lock lock(mutex_);
+        if (state_ != Ready) {
+            return ResultAlreadyClosed;
         }
         return ResultTimeout;
     }
