@@ -24,7 +24,6 @@ import io.prometheus.client.Counter;
 import io.prometheus.client.Histogram;
 import java.io.Closeable;
 import java.util.HashMap;
-import lombok.Data;
 
 /***
  * Describes the working status of the {@link TxnLogBufferedWriter}, helps users tune the thresholds of
@@ -39,7 +38,6 @@ import lombok.Data;
  *    will try to increase {@link TxnLogBufferedWriter#batchedWriteMaxDelayInMillis} so that there is more data per
  *    batch to improve throughput, but that does not work.
  */
-@Data
 public class TxnLogBufferedWriterMetricsStats implements Closeable {
 
     /**
