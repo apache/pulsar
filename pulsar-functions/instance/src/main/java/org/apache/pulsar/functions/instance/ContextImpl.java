@@ -74,6 +74,7 @@ import org.apache.pulsar.functions.instance.stats.SourceStatsManager;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
+import org.apache.pulsar.functions.source.PulsarFunctionRecord;
 import org.apache.pulsar.functions.source.TopicSchema;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.SinkConfigUtils;
@@ -248,7 +249,7 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
 
     @Override
     public Record<?> getCurrentRecord() {
-        return record;
+        return new PulsarFunctionRecord(record, config.getFunctionDetails());
     }
 
     @Override

@@ -483,6 +483,23 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private String metadataStoreConfigPath = null;
 
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_SERVER,
+            doc = "Event topic to sync metadata between separate pulsar "
+                    + "clusters on different cloud platforms."
+    )
+    private String metadataSyncEventTopic = null;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_SERVER,
+            doc = "Event topic to sync configuration-metadata between separate pulsar "
+                    + "clusters on different cloud platforms."
+    )
+    private String configurationMetadataSyncEventTopic = null;
+
     @FieldContext(
             dynamic = true,
             doc = "Factory class-name to create topic with custom workflow"
