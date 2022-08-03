@@ -522,11 +522,13 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
         private ByteBuf byteBuf;
 
         public void recycle(){
+            System.out.println("ctx: " + ctx + ", buf: " + String.valueOf(byteBuf));
             this.callback = null;
             this.ctx = null;
             this.addedTime = 0;
             if (this.byteBuf != null){
                 this.byteBuf.release();
+                this.byteBuf = null;
             }
             this.handle.recycle(this);
         }
