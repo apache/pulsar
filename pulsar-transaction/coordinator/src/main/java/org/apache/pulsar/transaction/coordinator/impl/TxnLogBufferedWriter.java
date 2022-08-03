@@ -286,7 +286,7 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
      * If method {@link #asyncAddData(Object, AddDataCallback, Object)} accept a request that {@param data} is too
      * large (larger than {@link #batchedWriteMaxSize}), then two flushes:
      *    1. Write the data cached in the queue to BK.
-     *    2. Direct write the large data to BK.
+     *    2. Directly write the large data to BK, this flush event will not record to Metrics.
      * This ensures the sequential nature of multiple writes to BK.
      */
     private void trigFlushByLargeSingleData(T data, AddDataCallback callback, Object ctx){
@@ -522,7 +522,6 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
         private ByteBuf byteBuf;
 
         public void recycle(){
-            System.out.println("ctx: " + ctx + ", buf: " + String.valueOf(byteBuf));
             this.callback = null;
             this.ctx = null;
             this.addedTime = 0;
