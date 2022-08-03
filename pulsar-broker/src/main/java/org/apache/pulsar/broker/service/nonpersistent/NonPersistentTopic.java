@@ -43,10 +43,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.NamespaceResources;
-import org.apache.pulsar.broker.service.AbstractReplicator;
-import org.apache.pulsar.broker.service.AbstractTopic;
-import org.apache.pulsar.broker.service.BrokerService;
-import org.apache.pulsar.broker.service.BrokerServiceException;
+import org.apache.pulsar.broker.service.*;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
@@ -54,15 +51,6 @@ import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyE
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicFencedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.UnsupportedVersionException;
-import org.apache.pulsar.broker.service.Consumer;
-import org.apache.pulsar.broker.service.Producer;
-import org.apache.pulsar.broker.service.Replicator;
-import org.apache.pulsar.broker.service.StreamingStats;
-import org.apache.pulsar.broker.service.Subscription;
-import org.apache.pulsar.broker.service.SubscriptionOption;
-import org.apache.pulsar.broker.service.Topic;
-import org.apache.pulsar.broker.service.TopicPolicyListener;
-import org.apache.pulsar.broker.service.TransportCnx;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.client.api.MessageId;
@@ -748,6 +736,14 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                 topicStatsStream.writePair("msgThroughputOut", subMsgThroughputOut);
                 topicStatsStream.writePair("msgRateRedeliver", subMsgRateRedeliver);
                 topicStatsStream.writePair("type", subscription.getTypeString());
+
+                // Write entry filter stats
+                Dispatcher dispatcher0 = subscription.getDispatcher();
+                topicStatsStream.writePair("throughEntryFilterMsgs", dispatcher0.getThroughFilterMsgCount());
+                topicStatsStream.writePair("entryFilterAccepted", dispatcher0.getFilterAcceptedMsgCount());
+                topicStatsStream.writePair("entryFilterRejected", dispatcher0.getFilterRejectedMsgCount());
+                topicStatsStream.writePair("entryFilterRescheduled", dispatcher0.getFilterRescheduledMsgCount());
+
                 if (subscription.getDispatcher() != null) {
                     subscription.getDispatcher().getMessageDropRate().calculateRate();
                     topicStatsStream.writePair("msgDropRate",

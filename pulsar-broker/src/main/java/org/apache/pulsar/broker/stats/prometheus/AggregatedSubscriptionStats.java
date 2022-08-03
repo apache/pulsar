@@ -64,5 +64,13 @@ public class AggregatedSubscriptionStats {
 
     long consumersCount;
 
+    long throughFilterMsgCount;
+
+    long filterAcceptedMsgCount;
+
+    long filterRejectedMsgCount;
+
+    long filterRescheduledMsgCount;
+
     public Map<Consumer, AggregatedConsumerStats> consumerStat = new HashMap<>();
 }

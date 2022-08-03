@@ -137,6 +137,14 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
     /** SubscriptionProperties (key/value strings) associated with this subscribe. */
     public Map<String, String> subscriptionProperties;
 
+    public long throughFilterMsgCount;
+
+    public long filterAcceptedMsgCount;
+
+    public long filterRejectedMsgCount;
+
+    public long filterRescheduledMsgCount;
+
     public SubscriptionStatsImpl() {
         this.consumers = new ArrayList<>();
         this.consumersAfterMarkDeletePosition = new LinkedHashMap<>();
@@ -163,6 +171,10 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         nonContiguousDeletedMessagesRangesSerializedSize = 0;
         delayedTrackerMemoryUsage = 0;
         subscriptionProperties.clear();
+        throughFilterMsgCount = 0;
+        filterAcceptedMsgCount = 0;
+        filterRejectedMsgCount = 0;
+        filterRescheduledMsgCount = 0;
     }
 
     // if the stats are added for the 1st time, we will need to make a copy of these stats and add it to the current
@@ -199,6 +211,10 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         this.nonContiguousDeletedMessagesRangesSerializedSize += stats.nonContiguousDeletedMessagesRangesSerializedSize;
         this.delayedTrackerMemoryUsage += stats.delayedTrackerMemoryUsage;
         this.subscriptionProperties.putAll(stats.subscriptionProperties);
+        this.throughFilterMsgCount += stats.throughFilterMsgCount;
+        this.filterAcceptedMsgCount += stats.filterAcceptedMsgCount;
+        this.filterRejectedMsgCount += stats.filterRejectedMsgCount;
+        this.filterRescheduledMsgCount += stats.filterRescheduledMsgCount;
         return this;
     }
 }

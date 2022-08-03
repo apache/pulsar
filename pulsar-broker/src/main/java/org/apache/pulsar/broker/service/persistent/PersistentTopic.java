@@ -1756,6 +1756,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 topicStatsStream.writePair("totalNonContiguousDeletedMessagesRange",
                         subscription.getTotalNonContiguousDeletedMessagesRange());
                 topicStatsStream.writePair("type", subscription.getTypeString());
+
+                Dispatcher dispatcher0 = subscription.getDispatcher();
+                topicStatsStream.writePair("throughFilterMsgs", dispatcher0.getThroughFilterMsgCount());
+                topicStatsStream.writePair("filterAccepted", dispatcher0.getFilterAcceptedMsgCount());
+                topicStatsStream.writePair("filterRejected", dispatcher0.getFilterRejectedMsgCount());
+                topicStatsStream.writePair("filterRescheduled", dispatcher0.getFilterRescheduledMsgCount());
+
                 if (Subscription.isIndividualAckMode(subscription.getType())) {
                     if (subscription.getDispatcher() instanceof PersistentDispatcherMultipleConsumers) {
                         PersistentDispatcherMultipleConsumers dispatcher =
