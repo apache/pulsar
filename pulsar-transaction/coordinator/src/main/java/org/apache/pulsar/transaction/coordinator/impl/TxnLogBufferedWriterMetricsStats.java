@@ -106,6 +106,11 @@ public class TxnLogBufferedWriterMetricsStats implements Closeable {
         batchFlushTriggeredByLargeSingleDataMetric.remove(labelValues);
     }
 
+    /**
+     * All the {@link TxnLogBufferedWriterMetricsStats} of the same {@param metricsPrefix} should use the same
+     * {@param labelNames}, if not, the first registered {@param metricsPrefix} will be used, and if the number of
+     * {@param labelNames} differs from the first, an IllegalArgumentException is thrown.
+     */
     public TxnLogBufferedWriterMetricsStats(String metricsPrefix, String[] labelNames, String[] labelValues,
                                             CollectorRegistry registry) {
         this.metricsPrefix = metricsPrefix;
