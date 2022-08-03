@@ -1669,12 +1669,11 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test(timeOut = 60)
+    @Test(timeOut = 60000)
     public void testCompactionWithMarker() throws Exception {
         String namespace = "my-property/use/my-ns";
         final TopicName dest = TopicName.get(
                 BrokerTestUtil.newUniqueName("persistent://" + namespace + "/testWriteMarker"));
-        admin.topics().createNonPartitionedTopic(dest.toString());
         @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(dest.toString())
