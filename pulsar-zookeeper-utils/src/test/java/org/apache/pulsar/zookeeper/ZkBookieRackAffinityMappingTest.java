@@ -19,14 +19,12 @@
 package org.apache.pulsar.zookeeper;
 
 import static org.testng.Assert.assertEquals;
-
+import static org.testng.AssertJUnit.assertNull;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
-
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.apache.bookkeeper.util.ZkUtils;
@@ -99,6 +97,29 @@ public class ZkBookieRackAffinityMappingTest {
         assertEquals(racks2.get(2), null);
 
         localZkc.delete(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, -1);
+    }
+
+    @Test
+    public void testInvalidRackName() throws Exception {
+        String data = "{\"group1\": {\"" + BOOKIE1
+                + "\": {\"rack\": \"/\", \"hostname\": \"bookie1.example.com\"}, \"" + BOOKIE2
+                + "\": {\"rack\": \"\", \"hostname\": \"bookie2.example.com\"}}}";
+
+        ZkUtils.createFullPathOptimistic(localZkc, ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, data.getBytes(),
+                ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+
+        // Case1: ZKCache is given
+        ZkBookieRackAffinityMapping mapping1 = new ZkBookieRackAffinityMapping();
+        ClientConfiguration bkClientConf1 = new ClientConfiguration();
+        bkClientConf1.setProperty(ZooKeeperCache.ZK_CACHE_INSTANCE, new ZooKeeperCache("test", localZkc, 30) {
+        });
+        mapping1.setConf(bkClientConf1);
+        List<String> racks1 = mapping1
+                .resolve(Lists.newArrayList(BOOKIE1.getHostName(), BOOKIE2.getHostName(), BOOKIE3.getHostName()));
+
+        assertNull(racks1.get(0));
+        assertNull(racks1.get(1));
+        assertNull(racks1.get(2));
     }
 
     @Test
