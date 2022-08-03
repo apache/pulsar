@@ -322,6 +322,8 @@ You can check the following statistics of a given non-partitioned topic.
   
   -   **topicEpoch**: The topic epoch or empty if not set.
 
+  -   **filteredEntriesCount**: The count of skipped entries for the topic.
+
   -   **nonContiguousDeletedMessagesRanges**: The number of non-contiguous deleted messages ranges.
 
   -   **nonContiguousDeletedMessagesRangesSerializedSize**: The serialized size of non-contiguous deleted messages ranges.  
