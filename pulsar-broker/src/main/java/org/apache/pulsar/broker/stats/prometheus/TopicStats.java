@@ -43,7 +43,6 @@ class TopicStats {
     double averageMsgSize;
 
     public long msgBacklog;
-
     long publishRateLimitedTimes;
 
     long backlogQuotaLimit;
