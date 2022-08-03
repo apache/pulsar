@@ -220,7 +220,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
             txnLogBufferedWriter.asyncAddData(i, callback, i);
             // Ensure flush at least once before close buffered writer.
             if (closeBufferedWriter && i == 0){
-                txnLogBufferedWriter.trigFlush(true, false);
+                // TODO Supplement the use-case.
             }
             if (closeBufferedWriter && bufferedWriteCloseAtIndex == i){
                 // Wait for any complete callback, avoid unstable.
@@ -870,7 +870,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
     }
 
     /**
-     * Test {@link TxnLogBufferedWriterMetricsStats#triggerFlushByForce(int, long, long)}.
+     * Test {@link TxnLogBufferedWriterMetricsStats#triggerFlushByLargeSingleData(int, long, long)}.
      */
     @Test
     public void testMetricsStatsWhenForceFlush() throws Exception {
@@ -911,16 +911,23 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
                 .numThreads(5).name("txn-threads").build();
         HashedWheelTimer transactionTimer = new HashedWheelTimer(new DefaultThreadFactory("transaction-timer"),
                 1, TimeUnit.MILLISECONDS);
-        RandomLenSumStrDataSerializer dataSerializer = new RandomLenSumStrDataSerializer();
+
+        AtomicBoolean isReachedMaxSize = new AtomicBoolean();
+        RandomLenSumStrDataSerializer dataSerializer = new RandomLenSumStrDataSerializer(){
+            public int getSerializedSize(Integer data) {
+                boolean b = isReachedMaxSize.get();
+                isReachedMaxSize.set(!b);
+                return b ? 1024 : 4;
+            }
+        };
         TxnLogBufferedWriter<Integer> txnLogBufferedWriter = new TxnLogBufferedWriter<Integer>(
                 managedLedger, orderedExecutor, transactionTimer,
                 dataSerializer, 256, 1024,
                 3600 * 1000, true, metricsStats);
         // Add some data.
-        int writeCount = 1000;
+        int writeCount = 10;
         for (int i = 0; i < writeCount; i++){
-            txnLogBufferedWriter.asyncAddData(1, addDataCallback, "");
-            txnLogBufferedWriter.trigFlush(true, false);
+            txnLogBufferedWriter.asyncAddData(1, addDataCallback, i);
         }
         // Wait for all data write finish.
         Awaitility.await().atMost(2, TimeUnit.SECONDS).until(
@@ -930,7 +937,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         // Assert metrics stat.
         Assert.assertEquals(
                 getCounterValue(String.format("%s_batched_log_triggering_count_by_force", metricsPrefix)),
-                batchFlushCount.get()
+                writeCount / 2
         );
         // cleanup.
         txnLogBufferedWriter.close();

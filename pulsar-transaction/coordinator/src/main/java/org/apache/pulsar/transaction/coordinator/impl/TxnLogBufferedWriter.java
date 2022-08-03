@@ -112,6 +112,7 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
 
     /** The main purpose of state maintenance is to prevent written after close. **/
     private volatile State state;
+
     private static final AtomicReferenceFieldUpdater<TxnLogBufferedWriter, TxnLogBufferedWriter.State> STATE_UPDATER =
             AtomicReferenceFieldUpdater
                     .newUpdater(TxnLogBufferedWriter.class, TxnLogBufferedWriter.State.class, "state");
@@ -162,11 +163,11 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
         }
     }
 
-    private final TimerTask timingFlush = (timeout) -> {
+    private final TimerTask timingFlushTask = (timeout) -> {
         if (timeout.isCancelled()) {
             return;
         }
-        trigFlush(false, true);
+        trigFlushByTimingTask();
     };
 
     /***
@@ -180,7 +181,7 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
             if (state == State.CLOSING || state == State.CLOSED){
                 return;
             }
-            timeout = timer.newTimeout(timingFlush, batchedWriteMaxDelayInMillis, TimeUnit.MILLISECONDS);
+            timeout = timer.newTimeout(timingFlushTask, batchedWriteMaxDelayInMillis, TimeUnit.MILLISECONDS);
         } catch (Exception e){
             log.error("Start timing flush trigger failed."
                     + " managedLedger: " + managedLedger.getName(), e);
@@ -212,28 +213,26 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
         singleThreadExecutorForWrite.execute(() -> internalAsyncAddData(data, callback, ctx));
     }
 
+    /**
+     * Append data to queue, if reach {@link #batchedWriteMaxRecords} or {@link #batchedWriteMaxSize}, do flush. And if
+     * accept a request that {@param data} is too large (larger than {@link #batchedWriteMaxSize}), then two flushes
+     * are executed:
+     *    1. Write the data cached in the queue to BK.
+     *    2. Direct write the large data to BK.
+     * This ensures the sequential nature of multiple writes to BK.
+     */
     private void internalAsyncAddData(T data, AddDataCallback callback, Object ctx){
         if (state == State.CLOSING || state == State.CLOSED){
             callback.addFailed(BUFFERED_WRITER_CLOSED_EXCEPTION, ctx);
             return;
         }
+        // If param-data is too large.
         int len = dataSerializer.getSerializedSize(data);
         if (len >= batchedWriteMaxSize){
-            if (!flushContext.asyncAddArgsList.isEmpty()) {
-                doTrigFlush(true, false);
-            }
-            ByteBuf byteBuf = dataSerializer.serialize(data);
-            /**
-             * Why not add a {@link TxnLogBufferedWriterMetricsStats} property indicate that a single record is too big
-             * so directly write to Bookie?
-             * Because property {@link TxnLogBufferedWriterMetricsStats#pulsarBatchedLogTriggeringCountByForce} can
-             * represent it.
-             */
-            managedLedger.asyncAddEntry(byteBuf, DisabledBatchCallback.INSTANCE,
-                    AsyncAddArgs.newInstance(callback, ctx, System.currentTimeMillis(), byteBuf));
+            trigFlushByLargeSingleData(data, callback, ctx);
             return;
         }
-        // Add data.
+        // Append data to queue.
         this.dataArray.add(data);
         // Add callback info.
         AsyncAddArgs asyncAddArgs = AsyncAddArgs.newInstance(callback, ctx, System.currentTimeMillis());
@@ -241,7 +240,66 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
         // Calculate bytes-size.
         this.bytesSize += len;
         // trig flush.
-        doTrigFlush(false, false);
+        trigFlushIfReachMaxRecordsOrMaxSize();
+    }
+
+    /**
+     * Change to IO thread and do flush, only called by {@link #timingFlushTask}.
+     */
+    private void trigFlushByTimingTask(){
+        singleThreadExecutorForWrite.execute(() -> {
+            if (flushContext.asyncAddArgsList.isEmpty()) {
+                return;
+            }
+            if (metrics != null) {
+                metrics.triggerFlushByByMaxDelay(this.flushContext.asyncAddArgsList.size(), this.bytesSize,
+                        System.currentTimeMillis() - flushContext.asyncAddArgsList.get(0).addedTime);
+            }
+            doFlush();
+            // Start the next timing task.
+            nextTimingTrigger();
+        });
+    }
+
+    /**
+     * If reach the thresholds {@link #batchedWriteMaxRecords} or {@link #batchedWriteMaxSize}, do flush.
+     */
+    private void trigFlushIfReachMaxRecordsOrMaxSize(){
+        if (this.flushContext.asyncAddArgsList.size() >= batchedWriteMaxRecords) {
+            if (metrics != null) {
+                metrics.triggerFlushByRecordsCount(this.flushContext.asyncAddArgsList.size(), this.bytesSize,
+                        System.currentTimeMillis() - flushContext.asyncAddArgsList.get(0).addedTime);
+            }
+            doFlush();
+            return;
+        }
+        if (this.bytesSize >= batchedWriteMaxSize) {
+            if (metrics != null) {
+                metrics.triggerFlushByBytesSize(this.flushContext.asyncAddArgsList.size(), this.bytesSize,
+                        System.currentTimeMillis() - flushContext.asyncAddArgsList.get(0).addedTime);
+            }
+            doFlush();
+        }
+    }
+
+    /**
+     * If method {@link #asyncAddData(Object, AddDataCallback, Object)} accept a request that {@param data} is too
+     * large (larger than {@link #batchedWriteMaxSize}), then two flushes:
+     *    1. Write the data cached in the queue to BK.
+     *    2. Direct write the large data to BK.
+     * This ensures the sequential nature of multiple writes to BK.
+     */
+    private void trigFlushByLargeSingleData(T data, AddDataCallback callback, Object ctx){
+        if (!flushContext.asyncAddArgsList.isEmpty()) {
+            if (metrics != null) {
+                metrics.triggerFlushByLargeSingleData(this.flushContext.asyncAddArgsList.size(), this.bytesSize,
+                        System.currentTimeMillis() - flushContext.asyncAddArgsList.get(0).addedTime);
+            }
+            doFlush();
+        }
+        ByteBuf byteBuf = dataSerializer.serialize(data);
+        managedLedger.asyncAddEntry(byteBuf, DisabledBatchCallback.INSTANCE,
+                AsyncAddArgs.newInstance(callback, ctx, System.currentTimeMillis(), byteBuf));
     }
 
     /***
@@ -274,65 +332,6 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
          */
         ByteBuf serialize(ArrayList<T> dataArray);
 
-    }
-
-    /**
-     * Trigger write to bookie once, If the conditions are not met, nothing will be done.
-     */
-    public void trigFlush(final boolean force, boolean byScheduleThreads){
-        singleThreadExecutorForWrite.execute(() -> doTrigFlush(force, byScheduleThreads));
-    }
-
-    private void doTrigFlush(boolean force, boolean byScheduleThreads){
-        try {
-            if (flushContext.asyncAddArgsList.isEmpty()) {
-                return;
-            }
-            if (force) {
-                if (metrics != null) {
-                    metrics.triggerFlushByForce(this.flushContext.asyncAddArgsList.size(), this.bytesSize,
-                            System.currentTimeMillis() - flushContext.asyncAddArgsList.get(0).addedTime);
-                }
-                doFlush();
-                return;
-            }
-            if (byScheduleThreads) {
-                if (metrics != null) {
-                    metrics.triggerFlushByByMaxDelay(this.flushContext.asyncAddArgsList.size(), this.bytesSize,
-                            System.currentTimeMillis() - flushContext.asyncAddArgsList.get(0).addedTime);
-                }
-                doFlush();
-                return;
-            }
-            AsyncAddArgs firstAsyncAddArgs = flushContext.asyncAddArgsList.get(0);
-            if (System.currentTimeMillis() - firstAsyncAddArgs.addedTime >= batchedWriteMaxDelayInMillis) {
-                if (metrics != null) {
-                    metrics.triggerFlushByByMaxDelay(this.flushContext.asyncAddArgsList.size(), this.bytesSize,
-                            System.currentTimeMillis() - flushContext.asyncAddArgsList.get(0).addedTime);
-                }
-                doFlush();
-                return;
-            }
-            if (this.flushContext.asyncAddArgsList.size() >= batchedWriteMaxRecords) {
-                if (metrics != null) {
-                    metrics.triggerFlushByRecordsCount(this.flushContext.asyncAddArgsList.size(), this.bytesSize,
-                            System.currentTimeMillis() - flushContext.asyncAddArgsList.get(0).addedTime);
-                }
-                doFlush();
-                return;
-            }
-            if (this.bytesSize >= batchedWriteMaxSize) {
-                if (metrics != null) {
-                    metrics.triggerFlushByBytesSize(this.flushContext.asyncAddArgsList.size(), this.bytesSize,
-                            System.currentTimeMillis() - flushContext.asyncAddArgsList.get(0).addedTime);
-                }
-                doFlush();
-            }
-        } finally {
-            if (byScheduleThreads) {
-                nextTimingTrigger();
-            }
-        }
     }
 
     private void doFlush(){

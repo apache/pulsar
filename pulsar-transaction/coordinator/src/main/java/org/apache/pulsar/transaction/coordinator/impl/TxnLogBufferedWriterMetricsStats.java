@@ -211,7 +211,7 @@ public class TxnLogBufferedWriterMetricsStats implements Closeable {
         observeHistogram(recordCount, bytesSize, delayMillis);
     }
 
-    public void triggerFlushByForce(int recordCount, long bytesSize, long delayMillis) {
+    public void triggerFlushByLargeSingleData(int recordCount, long bytesSize, long delayMillis) {
         batchFlushTriggeredByLargeSingleDataCounter.inc();
         observeHistogram(recordCount, bytesSize, delayMillis);
     }
