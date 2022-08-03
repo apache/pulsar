@@ -23,6 +23,8 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.StringReader;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.HashMap;
@@ -39,6 +41,7 @@ import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 public class AuthenticationProviderBasic implements AuthenticationProvider {
     private static final String HTTP_HEADER_NAME = "Authorization";
     private static final String CONF_SYSTEM_PROPERTY_KEY = "pulsar.auth.basic.conf";
+    private static final String CONF_PULSAR_PROPERTY_KEY = "basicAuthConf";
     private Map<String, String> users;
 
     @Override
@@ -48,14 +51,28 @@ public class AuthenticationProviderBasic implements AuthenticationProvider {
 
     @Override
     public void initialize(ServiceConfiguration config) throws IOException {
-        File confFile = new File(System.getProperty(CONF_SYSTEM_PROPERTY_KEY));
-        if (!confFile.exists()) {
-            throw new IOException("The password auth conf file does not exist");
-        } else if (!confFile.isFile()) {
-            throw new IOException("The path is not a file");
+        String data = config.getProperties().getProperty(CONF_PULSAR_PROPERTY_KEY);
+        if (StringUtils.isEmpty(data)) {
+            data = System.getProperty(CONF_SYSTEM_PROPERTY_KEY);
+        }
+        if (StringUtils.isEmpty(data)) {
+            throw new IOException("No basic authentication config provided");
         }
 
-        @Cleanup BufferedReader reader = new BufferedReader(new FileReader(confFile));
+        @Cleanup BufferedReader reader = null;
+        if (org.apache.commons.codec.binary.Base64.isBase64(data)) {
+            reader = new BufferedReader(new StringReader(new String(Base64.getDecoder().decode(data),
+                    StandardCharsets.UTF_8)));
+        } else {
+            File confFile = new File(data);
+            if (!confFile.exists()) {
+                throw new IOException("The password auth conf file does not exist");
+            } else if (!confFile.isFile()) {
+                throw new IOException("The path is not a file");
+            }
+            reader = new BufferedReader(new FileReader(confFile));
+        }
+
         users = new HashMap<>();
         for (String line : reader.lines().toArray(s -> new String[s])) {
             List<String> splitLine = Arrays.asList(line.split(":"));
