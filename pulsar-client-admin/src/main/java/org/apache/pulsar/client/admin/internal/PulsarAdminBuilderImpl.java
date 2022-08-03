@@ -96,6 +96,18 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
     }
 
     @Override
+    public PulsarAdminBuilder tlsKeyFilePath(String tlsKeyFilePath) {
+        conf.setTlsKeyFilePath(tlsKeyFilePath);
+        return this;
+    }
+
+    @Override
+    public PulsarAdminBuilder tlsCertificateFilePath(String tlsCertificateFilePath) {
+        conf.setTlsCertificateFilePath(tlsCertificateFilePath);
+        return this;
+    }
+
+    @Override
     public PulsarAdminBuilder tlsTrustCertsFilePath(String tlsTrustCertsFilePath) {
         conf.setTlsTrustCertsFilePath(tlsTrustCertsFilePath);
         return this;
@@ -122,6 +134,24 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
     @Override
     public PulsarAdminBuilder sslProvider(String sslProvider) {
         conf.setSslProvider(sslProvider);
+        return this;
+    }
+
+    @Override
+    public PulsarAdminBuilder tlsKeyStoreType(String tlsKeyStoreType) {
+        conf.setTlsKeyStoreType(tlsKeyStoreType);
+        return this;
+    }
+
+    @Override
+    public PulsarAdminBuilder tlsKeyStorePath(String tlsTrustStorePath) {
+        conf.setTlsKeyStorePath(tlsTrustStorePath);
+        return this;
+    }
+
+    @Override
+    public PulsarAdminBuilder tlsKeyStorePassword(String tlsKeyStorePassword) {
+        conf.setTlsKeyStorePassword(tlsKeyStorePassword);
         return this;
     }
 

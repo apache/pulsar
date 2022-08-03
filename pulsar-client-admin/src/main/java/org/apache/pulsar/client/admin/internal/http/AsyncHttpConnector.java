@@ -122,13 +122,15 @@ public class AsyncHttpConnector implements Connector {
                 AuthenticationDataProvider authData = conf.getAuthentication().getAuthData();
 
                 if (conf.isUseKeyStoreTls()) {
-                    KeyStoreParams params = authData.hasDataForTls() ? authData.getTlsKeyStoreParams() : null;
+                    KeyStoreParams params = authData.hasDataForTls() ? authData.getTlsKeyStoreParams() :
+                            new KeyStoreParams(conf.getTlsKeyStoreType(), conf.getTlsKeyStorePath(),
+                                    conf.getTlsKeyStorePassword());
 
                     final SSLContext sslCtx = KeyStoreSSLContext.createClientSslContext(
                             conf.getSslProvider(),
-                            params != null ? params.getKeyStoreType() : null,
-                            params != null ? params.getKeyStorePath() : null,
-                            params != null ? params.getKeyStorePassword() : null,
+                            params.getKeyStoreType(),
+                            params.getKeyStorePath(),
+                            params.getKeyStorePassword(),
                             conf.isTlsAllowInsecureConnection(),
                             conf.getTlsTrustStoreType(),
                             conf.getTlsTrustStorePath(),
@@ -163,6 +165,8 @@ public class AsyncHttpConnector implements Connector {
                                 sslProvider,
                                 conf.isTlsAllowInsecureConnection(),
                                 conf.getTlsTrustCertsFilePath(),
+                                conf.getTlsCertificateFilePath(),
+                                conf.getTlsKeyFilePath(),
                                 conf.getTlsCiphers(),
                                 conf.getTlsProtocols());
                     }

@@ -333,6 +333,10 @@ Before creating or connecting a consumer, you need to perform [topic lookup](#to
 
 :::
 
+If the client does not receive a response indicating consumer creation success or failure,
+the client should first send a command to close the original consumer before sending a
+command to re-attempt consumer creation.
+
 #### Flow control
 
 After the consumer is ready, the client needs to *give permission* to the
@@ -478,6 +482,11 @@ This command can be sent by either producer or broker.
 :::
 
 This command behaves the same as [`CloseProducer`](#command-closeproducer)
+
+If the client does not receive a response to a `Subscribe` command within a timeout,
+the client must first send a `CloseConsumer` command before sending another
+`Subscribe` command. The client does not need to await a response to the `CloseConsumer`
+command before sending the next `Subscribe` command.
 
 ##### Command RedeliverUnacknowledgedMessages
 

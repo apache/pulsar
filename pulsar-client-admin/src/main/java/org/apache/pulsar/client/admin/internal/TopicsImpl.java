@@ -29,6 +29,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
@@ -88,6 +89,7 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.stats.AnalyzeSubscriptionBacklogResult;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.slf4j.Logger;
@@ -1660,6 +1662,46 @@ public class TopicsImpl extends BaseResource implements Topics {
         } catch (Exception e) {
             throw getApiException(e);
         }
+    }
+
+
+    @Override
+    public AnalyzeSubscriptionBacklogResult analyzeSubscriptionBacklog(String topic,
+                                                                       String subscriptionName,
+                                                                       Optional<MessageId> startPosition)
+            throws PulsarAdminException {
+        return sync(() -> analyzeSubscriptionBacklogAsync(topic, subscriptionName, startPosition));
+    }
+
+    @Override
+    public CompletableFuture<AnalyzeSubscriptionBacklogResult> analyzeSubscriptionBacklogAsync(String topic,
+                                                                                String subscriptionName,
+                                                                                Optional<MessageId> startPosition) {
+        TopicName topicName = validateTopic(topic);
+        String encodedSubName = Codec.encode(subscriptionName);
+        WebTarget path = topicPath(topicName, "subscription", encodedSubName, "analyzeBacklog");
+
+        final CompletableFuture<AnalyzeSubscriptionBacklogResult> future = new CompletableFuture<>();
+        Entity entity = null;
+        if (startPosition.isPresent()) {
+            ResetCursorData resetCursorData = new ResetCursorData(startPosition.get());
+            entity = Entity.entity(resetCursorData, MediaType.APPLICATION_JSON);
+        } else {
+            entity = null;
+        }
+
+        asyncPostRequestWithResponse(path, entity, new InvocationCallback<AnalyzeSubscriptionBacklogResult>() {
+            @Override
+            public void completed(AnalyzeSubscriptionBacklogResult res) {
+                future.complete(res);
+            }
+
+            @Override
+            public void failed(Throwable throwable) {
+                future.completeExceptionally(getApiException(throwable.getCause()));
+            }
+        });
+        return future;
     }
 
     @Override

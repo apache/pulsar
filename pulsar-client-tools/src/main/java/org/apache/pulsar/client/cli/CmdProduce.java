@@ -85,7 +85,7 @@ public class CmdProduce {
     private List<String> mainOptions;
 
     @Parameter(names = { "-m", "--messages" },
-               description = "Messages to send, either -m or -f must be specified. The default separator is comma",
+               description = "Messages to send, either -m or -f must be specified. Specify -m for each message.",
                splitter = NoSplitter.class)
     private List<String> messages = new ArrayList<>();
 

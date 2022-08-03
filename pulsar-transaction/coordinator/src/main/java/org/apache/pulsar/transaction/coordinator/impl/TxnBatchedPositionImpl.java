@@ -18,10 +18,10 @@
  */
 package org.apache.pulsar.transaction.coordinator.impl;
 
-import java.util.Objects;
 import lombok.Getter;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 
 /***
  * The difference with {@link PositionImpl} is that there are two more parameters:
@@ -37,23 +37,67 @@ public class TxnBatchedPositionImpl extends PositionImpl {
     @Getter
     private final int batchIndex;
 
-    public TxnBatchedPositionImpl(Position position, int batchSize, int batchIndex, long[] ackSet){
-        super(position.getLedgerId(), position.getEntryId(), ackSet);
+    public TxnBatchedPositionImpl(long ledgerId, long entryId, int batchSize, int batchIndex){
+        super(ledgerId, entryId);
         this.batchIndex = batchIndex;
         this.batchSize = batchSize;
     }
 
+    public TxnBatchedPositionImpl(Position position, int batchSize, int batchIndex){
+        this(position.getLedgerId(), position.getEntryId(), batchSize, batchIndex);
+    }
+
+    /**
+     * It's exactly the same as {@link PositionImpl}，make sure that when {@link TxnBatchedPositionImpl} used as the key
+     * of map same as {@link PositionImpl}. {@link #batchSize} and {@link #batchIndex} should not be involved in
+     * calculate, just like {@link PositionImpl#ackSet} is not involved in calculate.
+     * Note: In {@link java.util.concurrent.ConcurrentSkipListMap}, it use the {@link Comparable#compareTo(Object)} to
+     *   determine whether the keys are the same. In {@link java.util.HashMap}, it use the
+     *   {@link Object#hashCode()} & {@link  Object#equals(Object)} to determine whether the keys are the same.
+     */
     @Override
     public boolean equals(Object o) {
-        if (o instanceof TxnBatchedPositionImpl other) {
-            return super.equals(o) && batchSize == other.batchSize && batchIndex == other.batchIndex;
-        }
-        return false;
+        return super.equals(o);
 
     }
 
+    /**
+     * It's exactly the same as {@link PositionImpl}，make sure that when {@link TxnBatchedPositionImpl} used as the key
+     * of map same as {@link PositionImpl}. {@link #batchSize} and {@link #batchIndex} should not be involved in
+     * calculate, just like {@link PositionImpl#ackSet} is not involved in calculate.
+     * Note: In {@link java.util.concurrent.ConcurrentSkipListMap}, it use the {@link Comparable#compareTo(Object)} to
+     *   determine whether the keys are the same. In {@link java.util.HashMap}, it use the
+     *   {@link Object#hashCode()} & {@link  Object#equals(Object)} to determine whether the keys are the same.
+     */
     @Override
     public int hashCode() {
-        return Objects.hash(super.hashCode(), batchSize, batchIndex);
+        return super.hashCode();
+    }
+
+    /**
+     * It's exactly the same as {@link PositionImpl}，to make sure that when compare to the "markDeletePosition", it
+     * looks like {@link PositionImpl}. {@link #batchSize} and {@link #batchIndex} should not be involved in calculate,
+     * just like {@link PositionImpl#ackSet} is not involved in calculate.
+     * Note: In {@link java.util.concurrent.ConcurrentSkipListMap}, it use the {@link Comparable#compareTo(Object)} to
+     *    determine whether the keys are the same. In {@link java.util.HashMap}, it use the
+     *    {@link Object#hashCode()} & {@link  Object#equals(Object)} to determine whether the keys are the same.
+     */
+    public int compareTo(PositionImpl that) {
+        return super.compareTo(that);
+    }
+
+    /**
+     * Build the attribute ackSet to that {@link #batchIndex} is false and others is true.
+     */
+    public void setAckSetByIndex(){
+        if (batchSize == 1){
+            return;
+        }
+        BitSetRecyclable bitSetRecyclable = BitSetRecyclable.create();
+        bitSetRecyclable.set(0, batchSize, true);
+        bitSetRecyclable.clear(batchIndex);
+        long[] ackSet = bitSetRecyclable.toLongArray();
+        bitSetRecyclable.recycle();
+        setAckSet(ackSet);
     }
 }

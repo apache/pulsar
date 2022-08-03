@@ -189,6 +189,7 @@ public class NamespaceStatsAggregator {
         stats.bytesOutCounter = tStatus.bytesOutCounter;
         stats.averageMsgSize = tStatus.averageMsgSize;
         stats.publishRateLimitedTimes = tStatus.publishRateLimitedTimes;
+        stats.delayedTrackerMemoryUsage = tStatus.delayedMessageIndexSizeInBytes;
 
         stats.producersCount = 0;
         topic.getProducers().values().forEach(producer -> {
@@ -326,7 +327,7 @@ public class NamespaceStatsAggregator {
         );
     }
 
-    private static void printNamespaceStats(PrometheusMetricStreams stream, AggregatedNamespaceStats stats,
+private static void printNamespaceStats(PrometheusMetricStreams stream, AggregatedNamespaceStats stats,
                                             String cluster, String namespace) {
         writeMetric(stream, "pulsar_topics_count", stats.topicsCount, cluster, namespace);
         writeMetric(stream, "pulsar_subscriptions_count", stats.subscriptionsCount, cluster,
@@ -360,9 +361,11 @@ public class NamespaceStatsAggregator {
                 cluster, namespace);
 
         writeMetric(stream, "pulsar_subscription_delayed", stats.msgDelayed, cluster, namespace);
+        
+        writeMetric(stream, "pulsar_delayed_message_index_size_bytes", stats.delayedTrackerMemoryUsage, cluster, namespace);
 
         writePulsarMsgBacklog(stream, stats.msgBacklog, cluster, namespace);
-
+        
         stats.managedLedgerStats.storageWriteLatencyBuckets.refresh();
         writeMetric(stream, "pulsar_storage_write_latency_le_0_5",
                 stats.managedLedgerStats.storageWriteLatencyBuckets.getBuckets()[0], cluster, namespace);

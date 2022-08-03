@@ -1632,7 +1632,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ledger.openCursor("c1");
 
         ledger.addEntry("data".getBytes(Encoding));
-        assertEquals(bkc.getLedgers().size(), 2);
+        assertEquals(bkc.getLedgers().size(), 1);
 
         ledger.delete();
         assertEquals(bkc.getLedgers().size(), 0);
@@ -1644,7 +1644,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ledger.openCursor("c1");
 
         ledger.addEntry("data".getBytes(Encoding));
-        assertEquals(bkc.getLedgers().size(), 2);
+        assertEquals(bkc.getLedgers().size(), 1);
 
         final CountDownLatch latch = new CountDownLatch(1);
 
@@ -2668,7 +2668,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     @Test
     public void testActiveDeactiveCursorWithDiscardEntriesFromCache() throws Exception {
         ManagedLedgerFactoryConfig conf = new ManagedLedgerFactoryConfig();
-        conf.setCacheEvictionFrequency(0.1);
+        conf.setCacheEvictionIntervalMs(10000);
 
         @Cleanup("shutdown")
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, conf);
@@ -3112,7 +3112,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         }, null, PositionImpl.LATEST);
         ledger.asyncReadEntry(ledgerHandle, PositionImpl.EARLIEST.getEntryId(), PositionImpl.EARLIEST.getEntryId(),
-                false, opReadEntry, ctxStr);
+                opReadEntry, ctxStr);
         retryStrategically((test) -> {
             return responseException2.get() != null;
         }, 5, 1000);
@@ -3211,10 +3211,15 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             if (i > 4) {
                 Assert.assertEquals(oldOp.getState(), OpAddEntry.State.CLOSED);
             } else {
-                Assert.assertEquals(oldOp.getState(), OpAddEntry.State.INITIATED);
+                // When call `OpAddEntry#initiate`, which happens in `ledger.updateLedgersIdsComplete` above, the
+                // `OpAddEntry` state will be `INITIATED` if `ledger.asyncAddEntry` doesn't complete, otherwise, the
+                // state will be `COMPLETED`
+                Assert.assertTrue(oldOp.getState() == OpAddEntry.State.INITIATED
+                    || oldOp.getState() == OpAddEntry.State.COMPLETED);
             }
             OpAddEntry newOp = ledger.pendingAddEntries.poll();
-            Assert.assertEquals(newOp.getState(), OpAddEntry.State.INITIATED);
+            Assert.assertTrue(newOp.getState() == OpAddEntry.State.INITIATED
+                || newOp.getState() == OpAddEntry.State.COMPLETED);
             if (i > 4) {
                 Assert.assertNotSame(oldOp, newOp);
             } else {
@@ -3842,5 +3847,22 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             CompletableFuture<LedgerInfo> ledgerInfo = ledger.getLedgerInfo(ledgerId);
             Assert.assertFalse(ledgerInfo.get(100, TimeUnit.MILLISECONDS).getOffloadContext().getComplete());
         });
+    }
+
+    @Test
+    public void testGetLedgerMetadata() throws Exception {
+        ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) factory.open("testGetLedgerMetadata");
+        long lastLedger = managedLedger.ledgers.lastEntry().getKey();
+        managedLedger.getLedgerMetadata(lastLedger);
+        Assert.assertFalse(managedLedger.ledgerCache.containsKey(lastLedger));
+    }
+
+    @Test
+    public void testGetEnsemblesAsync() throws Exception {
+        // test getEnsemblesAsync of latest ledger will not open it twice and put it in ledgerCache.
+        ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) factory.open("testGetLedgerMetadata");
+        long lastLedger = managedLedger.ledgers.lastEntry().getKey();
+        managedLedger.getEnsemblesAsync(lastLedger).join();
+        Assert.assertFalse(managedLedger.ledgerCache.containsKey(lastLedger));
     }
 }

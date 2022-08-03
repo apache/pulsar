@@ -638,7 +638,7 @@ You can get the detailed statistics of a topic.
 
       -   **ledgerId**: The ID of this ledger.
 
-      -   **entries**: The total number of entries belong to this ledger.
+      -   **entries**: The total number of entries that belong to this ledger.
 
       -   **size**: The size of messages written to this ledger (in bytes).
 
@@ -650,7 +650,7 @@ You can get the detailed statistics of a topic.
   
       -   **ledgerId**: The ID of this ledger.
   
-      -   **entries**: The total number of entries belong to this ledger.
+      -   **entries**: The total number of entries that belong to this ledger.
   
       -   **size**: The size of messages written to this ledger (in bytes).
   
@@ -662,7 +662,7 @@ You can get the detailed statistics of a topic.
  
       -   **ledgerId**: The ID of this ledger.
      
-      -   **entries**: The total number of entries belong to this ledger.
+      -   **entries**: The total number of entries that belong to this ledger.
      
       -   **size**: The size of messages written to this ledger (in bytes).
      
@@ -1090,7 +1090,7 @@ $ pulsar-admin topics lookup \
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|GET|/lookup/v2/topic/:schema/:tenant:namespace/:topic|/?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/lookup/v2/topic/:topic_domain/:tenant/:namespace/:topic|operation/lookupTopicAsync?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java">
@@ -1177,7 +1177,7 @@ $ pulsar-admin topics bundle-range \
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|GET|/lookup/v2/topic/:topic_domain/:tenant/:namespace/:topic/bundle|/?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/lookup/v2/topic/:topic_domain/:tenant/:namespace/:topic/bundle|operation/getNamespaceBundle?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java">

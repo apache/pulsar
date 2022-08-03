@@ -1886,6 +1886,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             stats.nonContiguousDeletedMessagesRanges += subStats.nonContiguousDeletedMessagesRanges;
             stats.nonContiguousDeletedMessagesRangesSerializedSize +=
                     subStats.nonContiguousDeletedMessagesRangesSerializedSize;
+            stats.delayedMessageIndexSizeInBytes += subStats.delayedTrackerMemoryUsage;
         });
 
         replicators.forEach((cluster, replicator) -> {
@@ -2342,6 +2343,15 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     public void checkInactiveLedgers() {
         ledger.checkInactiveLedgerAndRollOver();
+    }
+
+    @Override
+    public void checkCursorsToCacheEntries() {
+        try {
+            ledger.checkCursorsToCacheEntries();
+        } catch (Exception e) {
+            log.warn("Failed to check cursors to cache entries", e);
+        }
     }
 
     @Override

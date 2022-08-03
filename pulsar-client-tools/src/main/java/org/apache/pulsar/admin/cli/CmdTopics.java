@@ -39,6 +39,7 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -55,6 +56,7 @@ import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.cli.NoSplitter;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
@@ -242,6 +244,7 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("set-replicated-subscription-status", new SetReplicatedSubscriptionStatus());
         jcommander.addCommand("get-replicated-subscription-status", new GetReplicatedSubscriptionStatus());
         jcommander.addCommand("get-backlog-size", new GetBacklogSizeByMessageId());
+        jcommander.addCommand("analyze-backlog", new AnalyzeBacklog());
 
         jcommander.addCommand("get-replication-clusters", new GetReplicationClusters());
         jcommander.addCommand("set-replication-clusters", new SetReplicationClusters());
@@ -960,7 +963,7 @@ public class CmdTopics extends CmdBase {
         private boolean replicated = false;
 
         @Parameter(names = {"--property", "-p"}, description = "key value pair properties(-p a=b -p c=d)",
-                required = false)
+                required = false, splitter = NoSplitter.class)
         private java.util.List<String> properties;
 
         @Override
@@ -989,7 +992,7 @@ public class CmdTopics extends CmdBase {
         private String subscriptionName;
 
         @Parameter(names = {"--property", "-p"}, description = "key value pair properties(-p a=b -p c=d)",
-                required = false)
+                required = false, splitter = NoSplitter.class)
         private java.util.List<String> properties;
 
         @Parameter(names = {"--clear", "-c"}, description = "Remove all properties",
@@ -2917,6 +2920,33 @@ public class CmdTopics extends CmdBase {
                 messageId = validateMessageIdString(messagePosition);
             }
             print(getTopics().getBacklogSizeByMessageId(persistentTopic, messageId));
+
+        }
+    }
+
+
+    @Parameters(commandDescription = "Analyze the backlog of a subscription.")
+    private class AnalyzeBacklog extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-s", "--subscription" }, description = "Subscription to be analyzed", required = true)
+        private String subName;
+
+        @Parameter(names = { "--position",
+                "-p" }, description = "message position to start the scan from (ledgerId:entryId)", required = false)
+        private String messagePosition;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            Optional<MessageId> startPosition = Optional.empty();
+            if (isNotBlank(messagePosition)) {
+                int partitionIndex = TopicName.get(persistentTopic).getPartitionIndex();
+                MessageId messageId = validateMessageIdString(messagePosition, partitionIndex);
+                startPosition = Optional.of(messageId);
+            }
+            print(getTopics().analyzeSubscriptionBacklog(persistentTopic, subName, startPosition));
 
         }
     }
