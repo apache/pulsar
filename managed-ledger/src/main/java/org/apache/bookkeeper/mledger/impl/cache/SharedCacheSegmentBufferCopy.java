@@ -56,7 +56,7 @@ class SharedCacheSegmentBufferCopy implements AutoCloseable, SharedCacheSegment 
         } else {
             // Copy entry into read cache segment
             cacheBuffer.setBytes(offset, entry, entry.readerIndex(), entry.readableBytes());
-            long value = ((long)offset << 32) | entrySize;
+            long value = ((long) offset << 32) | entrySize;
             index.put(ledgerId, entryId, value, 0);
             return true;
         }
