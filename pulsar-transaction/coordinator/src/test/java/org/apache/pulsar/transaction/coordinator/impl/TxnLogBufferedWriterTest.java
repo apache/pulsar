@@ -878,14 +878,14 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
                 metricsPrefix, metricsLabelNames, metricsLabelValues, CollectorRegistry.defaultRegistry
         );
         // Mock managed ledger to get the count of refresh event.
-        AtomicInteger refreshCount = new AtomicInteger();
+        AtomicInteger batchFlushCount = new AtomicInteger();
         String managedLedgerName = "-";
         ManagedLedger managedLedger = Mockito.mock(ManagedLedger.class);
         Mockito.when(managedLedger.getName()).thenReturn(managedLedgerName);
         Mockito.doAnswer(new Answer() {
             @Override
             public Object answer(InvocationOnMock invocation) throws Throwable {
-                refreshCount.incrementAndGet();
+                batchFlushCount.incrementAndGet();
                 AsyncCallbacks.AddEntryCallback callback =
                         (AsyncCallbacks.AddEntryCallback) invocation.getArguments()[1];
                 callback.addComplete(PositionImpl.get(1,1), (ByteBuf)invocation.getArguments()[0],
@@ -930,7 +930,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         // Assert metrics stat.
         Assert.assertEquals(
                 getCounterValue(String.format("%s_batched_log_triggering_count_by_force", metricsPrefix)),
-                refreshCount.get()
+                batchFlushCount.get()
         );
         // cleanup.
         txnLogBufferedWriter.close();
