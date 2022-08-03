@@ -78,6 +78,7 @@ def main():
   parser.add_argument('--max_buffered_tuples', required=True, help='Maximum number of Buffered tuples')
   parser.add_argument('--logging_directory', required=True, help='Logging Directory')
   parser.add_argument('--logging_file', required=True, help='Log file name')
+  parser.add_argument('--logging_level', required=False, help='Logging level')
   parser.add_argument('--logging_config_file', required=True, help='Config file for logging')
   parser.add_argument('--expected_healthcheck_interval', required=True, help='Expected time in seconds between health checks', type=int)
   parser.add_argument('--secrets_provider', required=False, help='The classname of the secrets provider')
@@ -154,7 +155,15 @@ def main():
   log_file = os.path.join(args.logging_directory,
                           util.getFullyQualifiedFunctionName(function_details.tenant, function_details.namespace, function_details.name),
                           "%s-%s.log" % (args.logging_file, args.instance_id))
-  log.init_logger(logging.INFO, log_file, args.logging_config_file)
+  logging_level = {"notset": logging.NOTSET,
+                   "debug": logging.DEBUG,
+                   "info": logging.INFO,
+                   "warn": logging.WARNING,
+                   "warning": logging.WARNING,
+                   "error": logging.ERROR,
+                   "critical": logging.CRITICAL,
+                   "fatal": logging.CRITICAL}.get(args.logging_level, None)
+  log.init_logger(logging_level, log_file, args.logging_config_file)
 
   Log.info("Starting Python instance with %s" % str(args))
 
