@@ -80,6 +80,11 @@ public class WebService implements AutoCloseable {
     private static final DynamicSkipUnknownPropertyHandler sharedUnknownPropertyHandler =
             new DynamicSkipUnknownPropertyHandler();
 
+    public void updateHttpRequestsFailOnUnknownPropertiesEnabled(boolean httpRequestsFailOnUnknownPropertiesEnabled){
+        sharedUnknownPropertyHandler
+                .setSkipUnknownProperty(!httpRequestsFailOnUnknownPropertiesEnabled);
+    }
+
     public WebService(PulsarService pulsar) throws PulsarServerException {
         this.handlers = Lists.newArrayList();
         this.pulsar = pulsar;
@@ -152,6 +157,8 @@ public class WebService implements AutoCloseable {
         server.setConnectors(connectors.toArray(new ServerConnector[connectors.size()]));
 
         filterInitializer = new FilterInitializer(pulsar);
+        // Whether to reject requests with unknown attributes.
+        sharedUnknownPropertyHandler.setSkipUnknownProperty(!config.isHttpRequestsFailOnUnknownPropertiesEnabled());
     }
 
     public void addRestResources(String basePath, boolean requiresAuthentication, Map<String, Object> attributeMap,
@@ -177,6 +184,7 @@ public class WebService implements AutoCloseable {
         if (useSharedJsonMapperProvider){
             JsonMapperProvider jsonMapperProvider = new JsonMapperProvider(sharedUnknownPropertyHandler);
             config.register(jsonMapperProvider);
+            config.register(UnrecognizedPropertyExceptionMapper.class);
         } else {
             config.register(JsonMapperProvider.class);
         }

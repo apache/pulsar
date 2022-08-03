@@ -267,8 +267,8 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         ManagedLedgerFactoryConfig config = new ManagedLedgerFactoryConfig();
         config.setMaxCacheSize(150);
         config.setCacheEvictionWatermark(0.8);
-        config.setCacheEvictionFrequency(1);
         config.setEntryCacheManagerClassName(entryCacheManager);
+        config.setCacheEvictionIntervalMs(1000);
 
         @Cleanup("shutdown")
         ManagedLedgerFactoryImpl factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc, config);
@@ -337,7 +337,7 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
     public void verifyTimeBasedEviction() throws Exception {
         ManagedLedgerFactoryConfig config = new ManagedLedgerFactoryConfig();
         config.setMaxCacheSize(1000);
-        config.setCacheEvictionFrequency(100);
+        config.setCacheEvictionIntervalMs(10);
         config.setCacheEvictionTimeThresholdMillis(100);
         // This is only relevant for this specific implementation
         config.setEntryCacheManagerClassName(RangeEntryCacheManagerImpl.class.getName());

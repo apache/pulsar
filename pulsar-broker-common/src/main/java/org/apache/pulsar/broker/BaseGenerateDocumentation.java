@@ -25,7 +25,9 @@ import io.swagger.annotations.ApiModelProperty;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
+import java.util.function.Predicate;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
@@ -43,7 +45,7 @@ public abstract class BaseGenerateDocumentation {
             "List of class names, generate documentation based on the annotations in the Class")
     private List<String> classNames = new ArrayList<>();
 
-    @Parameter(names = { "-h", "--help", }, help = true, description = "Show this help.")
+    @Parameter(names = {"-h", "--help"}, help = true, description = "Show this help.")
     boolean help;
 
     public BaseGenerateDocumentation() {
@@ -80,27 +82,80 @@ public abstract class BaseGenerateDocumentation {
 
     protected abstract String generateDocumentByClassName(String className) throws Exception;
 
+    protected Predicate<Field> isRequired = field -> {
+        FieldContext fieldContext = field.getAnnotation(FieldContext.class);
+        return fieldContext.required();
+    };
+
+    protected Predicate<Field> isOptional = field -> {
+        FieldContext fieldContext = field.getAnnotation(FieldContext.class);
+        return !fieldContext.deprecated() && !fieldContext.required();
+    };
+
+    protected Predicate<Field> isDeprecated = field -> {
+        FieldContext fieldContext = field.getAnnotation(FieldContext.class);
+        return fieldContext.deprecated();
+    };
+
+    protected void writeDocListByFieldContext(List<Field> fieldList, StringBuilder sb, Object obj) throws Exception {
+        for (Field field : fieldList) {
+            FieldContext fieldContext = field.getAnnotation(FieldContext.class);
+            field.setAccessible(true);
+
+            sb.append("### ").append(field.getName()).append("\n");
+            sb.append(fieldContext.doc().replace(">", "\\>")).append("\n\n");
+            sb.append("**Default**: `").append(field.get(obj)).append("`\n\n");
+            sb.append("**Dynamic**: `").append(fieldContext.dynamic()).append("`\n\n");
+            sb.append("**Category**: ").append(fieldContext.category()).append("\n\n");
+        }
+    }
+
+    protected static class CategoryComparator implements Comparator<Field> {
+        @Override
+        public int compare(Field o1, Field o2) {
+            FieldContext o1Context = o1.getAnnotation(FieldContext.class);
+            FieldContext o2Context = o2.getAnnotation(FieldContext.class);
+
+            if (o1Context.category().equals(o2Context.category())) {
+                return o1.getName().compareTo(o2.getName());
+            }
+            return o1Context.category().compareTo(o2Context.category());
+        }
+    }
+
+    protected String prefix = """
+            :::note
+
+            This page is automatically generated from code files.
+            If you find something inaccurate, feel free to update `""";
+    protected String suffix = """
+            `. Do NOT edit this markdown file manually. Manual changes will be overwritten by automatic generation.
+
+            :::
+            """;
+
     protected String generateDocByFieldContext(String className, String type, StringBuilder sb) throws Exception {
         Class<?> clazz = Class.forName(className);
         Object obj = clazz.getDeclaredConstructor().newInstance();
         Field[] fields = clazz.getDeclaredFields();
+        ArrayList<Field> fieldList = new ArrayList<>(Arrays.asList(fields));
+
+        fieldList.removeIf(f -> f.getAnnotation(FieldContext.class) == null);
+        fieldList.sort(new CategoryComparator());
+        List<Field> requiredFields = fieldList.stream().filter(isRequired).toList();
+        List<Field> optionalFields = fieldList.stream().filter(isOptional).toList();
+        List<Field> deprecatedFields = fieldList.stream().filter(isDeprecated).toList();
 
         sb.append("# ").append(type).append("\n");
-        sb.append("|Name|Description|Default|Dynamic|Category|\n");
-        sb.append("|---|---|---|---|---|\n");
-        for (Field field : fields) {
-            FieldContext fieldContext = field.getAnnotation(FieldContext.class);
-            if (fieldContext == null) {
-                continue;
-            }
-            field.setAccessible(true);
-            sb.append("| ").append(field.getName()).append(" | ");
-            sb.append(fieldContext.doc().replace("\n", "<br>")).append(" | ");
-            sb.append(field.get(obj)).append(" | ");
-            sb.append(fieldContext.dynamic()).append(" | ");
-            sb.append(fieldContext.category()).append(" | ");
-            sb.append("\n");
-        }
+
+        sb.append(prefix).append(className).append(suffix);
+        sb.append("## Required\n");
+        writeDocListByFieldContext(requiredFields, sb, obj);
+        sb.append("## Optional\n");
+        writeDocListByFieldContext(optionalFields, sb, obj);
+        sb.append("## Deprecated\n");
+        writeDocListByFieldContext(deprecatedFields, sb, obj);
+
         return sb.toString();
     }
 
@@ -108,22 +163,26 @@ public abstract class BaseGenerateDocumentation {
         Class<?> clazz = Class.forName(className);
         Object obj = clazz.getDeclaredConstructor().newInstance();
         Field[] fields = clazz.getDeclaredFields();
+        ArrayList<Field> fieldList = new ArrayList<>(Arrays.asList(fields));
+
+        fieldList.sort(Comparator.comparing(Field::getName));
 
         sb.append("# ").append(type).append("\n");
-        sb.append("|Name|Description|Default|\n");
-        sb.append("|---|---|---|\n");
-        for (Field field : fields) {
+        sb.append(prefix).append(className).append(suffix);
+        sb.append("## Optional\n");
+        for (Field field : fieldList) {
             ApiModelProperty fieldContext = field.getAnnotation(ApiModelProperty.class);
             if (fieldContext == null) {
                 continue;
             }
             field.setAccessible(true);
+
             String name = StringUtils.isBlank(fieldContext.name()) ? field.getName() : fieldContext.name();
-            sb.append("| ").append(name).append(" | ");
-            sb.append(fieldContext.value().replace("\n", "<br>")).append(" | ");
-            sb.append(field.get(obj)).append(" | ");
-            sb.append("\n");
+            sb.append("### ").append(name).append("\n");
+            sb.append(fieldContext.value().replace(">", "\\>")).append("\n\n");
+            sb.append("**Default**: `").append(field.get(obj)).append("`\n\n");
         }
+
         return sb.toString();
     }
 }

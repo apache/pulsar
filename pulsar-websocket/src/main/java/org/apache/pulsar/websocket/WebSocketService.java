@@ -204,6 +204,8 @@ public class WebSocketService implements Closeable {
         // @Secret on the ClientConfigurationData object because of the way they are serialized.
         // See https://github.com/apache/pulsar/issues/8509 for more information.
         clientBuilder.loadConf(PropertiesUtils.filterAndMapProperties(config.getProperties(), "brokerClient_"));
+        // Disabled auto release useless connection.
+        clientBuilder.connectionMaxIdleSeconds(-1);
 
         if (isNotBlank(config.getBrokerClientAuthenticationPlugin())
                 && isNotBlank(config.getBrokerClientAuthenticationParameters())) {

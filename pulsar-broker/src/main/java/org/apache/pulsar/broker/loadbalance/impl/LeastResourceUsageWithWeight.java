@@ -125,6 +125,11 @@ public class LeastResourceUsageWithWeight implements ModularLoadManagerStrategy 
     @Override
     public Optional<String> selectBroker(Set<String> candidates, BundleData bundleToAssign, LoadData loadData,
                                          ServiceConfiguration conf) {
+        if (candidates.isEmpty()) {
+            log.info("There are no available brokers as candidates at this point for bundle: {}", bundleToAssign);
+            return Optional.empty();
+        }
+
         bestBrokers.clear();
         // Maintain of list of all the best scoring brokers and then randomly
         // select one of them at the end.
@@ -138,8 +143,9 @@ public class LeastResourceUsageWithWeight implements ModularLoadManagerStrategy 
         final double avgUsage = totalUsage / candidates.size();
         final double diffThreshold =
                 conf.getLoadBalancerAverageResourceUsageDifferenceThresholdPercentage() / 100.0;
-        brokerAvgResourceUsageWithWeight.forEach((broker, avgResUsage) -> {
-            if (avgResUsage + diffThreshold <= avgUsage) {
+        candidates.forEach(broker -> {
+            Double avgResUsage = brokerAvgResourceUsageWithWeight.getOrDefault(broker, Double.MAX_VALUE);
+            if ((avgResUsage + diffThreshold <= avgUsage)) {
                 bestBrokers.add(broker);
             }
         });
@@ -148,12 +154,6 @@ public class LeastResourceUsageWithWeight implements ModularLoadManagerStrategy 
             // Assign randomly as all brokers are overloaded.
             log.warn("Assign randomly as all {} brokers are overloaded.", candidates.size());
             bestBrokers.addAll(candidates);
-        }
-
-        if (bestBrokers.isEmpty()) {
-            // If still, it means there are no available brokers at this point.
-            log.error("There are no available brokers as candidates at this point for bundle: {}", bundleToAssign);
-            return Optional.empty();
         }
 
         if (log.isDebugEnabled()) {

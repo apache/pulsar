@@ -435,6 +435,15 @@ All the subscription metrics are labelled with the following labels:
 | pulsar_subscription_msg_rate_out | Gauge | The total message dispatch rate for a subscription (message per second). |
 | pulsar_subscription_msg_throughput_out | Gauge | The total message dispatch throughput for a subscription (byte per second). |
 | pulsar_subscription_msg_ack_rate | Gauge | The total message acknowledgment rate for a subscription (message per second). |
+| pulsar_subscription_last_expire_timestamp | Gauge | The expiration timestamp of the last message on the subscription. |
+| pulsar_subscription_last_acked_timestamp | Gauge | The timestamp of the last acknowledged message on the subscription. |
+| pulsar_subscription_last_consumed_flow_timestamp | Gauge | The timestamp of the last received consume flow command on the subscription. |
+| pulsar_subscription_last_consumed_timestamp | Gauge | The timestamp of the last consumed message on the subscription. |
+| pulsar_subscription_last_mark_delete_advanced_timestamp | Gauge | The advanced timestamp of the last MarkDelete position on the subscription. |
+| pulsar_subscription_msg_rate_expired | Gauge | The total rate of messages expired on this subscription (message per second). |
+| pulsar_subscription_total_msg_expired | Gauge | The total number of messages expired on this subscription. |
+| pulsar_subscription_msg_drop_rate | Gauge | The rate of messages dropped on this subscription (message per second). |
+| pulsar_subscription_consumers_count | Gauge | The number of connected consumers on this subscription. |
 
 ### Consumer metrics
 
@@ -455,6 +464,7 @@ All the consumer metrics are labelled with the following labels:
 | pulsar_consumer_unacked_messages | Gauge | The total number of unacknowledged messages of a consumer (messages). |
 | pulsar_consumer_blocked_on_unacked_messages | Gauge | Indicate whether a consumer is blocked on unacknowledged messages or not. <br /> <ul><li>1 means the consumer is blocked on waiting unacknowledged messages to be acked.</li><li>0 means the consumer is not blocked on waiting unacknowledged messages to be acked.</li></ul> |
 | pulsar_consumer_msg_rate_out | Gauge | The total message dispatch rate for a consumer (message per second). |
+| pulsar_consumer_msg_ack_rate | Gauge | The total rate of message ack (message per second). |
 | pulsar_consumer_msg_throughput_out | Gauge | The total message dispatch throughput for a consumer (byte per second). |
 | pulsar_consumer_available_permits | Gauge | The available permits for for a consumer. |
 

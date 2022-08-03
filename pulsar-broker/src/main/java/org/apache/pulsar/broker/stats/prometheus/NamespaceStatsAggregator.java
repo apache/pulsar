@@ -184,6 +184,7 @@ public class NamespaceStatsAggregator {
         stats.bytesOutCounter = tStatus.bytesOutCounter;
         stats.averageMsgSize = tStatus.averageMsgSize;
         stats.publishRateLimitedTimes = tStatus.publishRateLimitedTimes;
+        stats.delayedTrackerMemoryUsage = tStatus.delayedMessageIndexSizeInBytes;
 
         stats.producersCount = 0;
         topic.getProducers().values().forEach(producer -> {
@@ -347,6 +348,9 @@ public class NamespaceStatsAggregator {
         metric(stream, cluster, namespace, "pulsar_storage_read_rate", stats.managedLedgerStats.storageReadRate);
 
         metric(stream, cluster, namespace, "pulsar_subscription_delayed", stats.msgDelayed);
+
+        metric(stream, cluster, namespace, "pulsar_delayed_message_index_size_bytes",
+                stats.delayedTrackerMemoryUsage);
 
         metricWithRemoteCluster(stream, cluster, namespace, "pulsar_msg_backlog", "local", stats.msgBacklog);
 

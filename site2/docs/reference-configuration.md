@@ -4,9 +4,6 @@ title: Pulsar configuration
 sidebar_label: "Pulsar configuration"
 ---
 
-
-
-
 You can manage Pulsar configuration by configuration files in the [`conf`](https://github.com/apache/pulsar/tree/master/conf) directory of a Pulsar [installation](getting-started-standalone.md).
 
 - [BookKeeper](#bookkeeper)

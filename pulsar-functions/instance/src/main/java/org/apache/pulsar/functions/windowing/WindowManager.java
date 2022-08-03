@@ -122,10 +122,10 @@ public class WindowManager<T> implements TriggerHandler {
 
         lock.lock();
         try {
-    /*
-     * scan the entire window to handle out of order events in
-     * the case of time based windows.
-     */
+           /*
+            * scan the entire window to handle out of order events in
+            * the case of time based windows.
+            */
             windowEvents = scanEvents(true);
             expired = new ArrayList<>(expiredEvents);
             expiredEvents.clear();
