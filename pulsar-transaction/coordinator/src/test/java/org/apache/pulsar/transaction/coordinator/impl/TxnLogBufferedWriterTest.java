@@ -441,7 +441,6 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
     @Test
     public void testPendingScheduleTriggerTaskCount() throws Exception {
         // Create components.
-        String managedLedgerName = "-";
         OrderedExecutor orderedExecutor =  Mockito.mock(OrderedExecutor.class);
         ArrayBlockingQueue<Runnable> workQueue = new ArrayBlockingQueue<>(65536 * 2);
         ThreadPoolExecutor threadPoolExecutor = new ThreadPoolExecutor(1, 1, 5, TimeUnit.SECONDS, workQueue);
@@ -449,7 +448,6 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         HashedWheelTimer transactionTimer = new HashedWheelTimer(new DefaultThreadFactory("transaction-timer"),
                 1, TimeUnit.MILLISECONDS);
         SumStrDataSerializer dataSerializer = new SumStrDataSerializer();
-        // Count the number of tasks that have been submitted to bookie for later validation.
         // Mock managed ledger and write counter.
         String mlName = "-";
         Pair<ManagedLedger, AtomicInteger> mlAndWriteCounter = mockManagedLedgerWithWriteCounter(mlName);
@@ -460,7 +458,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
                     transactionTimer, dataSerializer, 2, 1024 * 4, 1, true);
         TxnLogBufferedWriter.AddDataCallback callback = Mockito.mock(TxnLogBufferedWriter.AddDataCallback.class);
         // Append heavier tasks to the Ledger thread.
-        final ExecutorService executorService = orderedExecutor.chooseThread(managedLedgerName);
+        final ExecutorService executorService = orderedExecutor.chooseThread(mlName);
         AtomicInteger heavierTaskCounter = new AtomicInteger();
         Thread heavierTask = new Thread(() -> {
             while (true) {
