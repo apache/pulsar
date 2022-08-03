@@ -25,6 +25,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.locks.StampedLock;
+import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.tuple.Pair;
 
 /**
@@ -643,5 +644,22 @@ public class ConcurrentLongPairObjectHashMap<V> {
 
     private static int alignToPowerOfTwo(int n) {
         return (int) Math.pow(2, 32 - Integer.numberOfLeadingZeros(n - 1));
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append('{');
+        MutableBoolean isFirst = new MutableBoolean(true);
+        forEach((k1, k2, v) -> {
+            if (!isFirst.getValue()) {
+                sb.append(", ");
+            }
+            isFirst.setFalse();
+
+            sb.append(k1).append(':').append(k2).append('=').append(v);
+        });
+        sb.append('}');
+        return sb.toString();
     }
 }
