@@ -720,4 +720,47 @@ TEST(ConsumerTest, testIsConnected) {
     ASSERT_FALSE(consumer.isConnected());
 }
 
+TEST(ConsumerTest, testPartitionsWithCloseUnblock) {
+    Client client(lookupUrl);
+    const std::string partitionedTopic = "testPartitionsWithCloseUnblock" + std::to_string(time(nullptr));
+    constexpr int numPartitions = 2;
+
+    int res =
+        makePutRequest(adminUrl + "admin/v2/persistent/public/default/" + partitionedTopic + "/partitions",
+                       std::to_string(numPartitions));
+    ASSERT_TRUE(res == 204 || res == 409) << "res: " << res;
+
+    Consumer consumer;
+    ConsumerConfiguration consumerConfig;
+    ASSERT_EQ(ResultOk, client.subscribe(partitionedTopic, "SubscriptionName", consumerConfig, consumer));
+
+    // send messages
+    ProducerConfiguration producerConfig;
+    Producer producer;
+    ASSERT_EQ(ResultOk, client.createProducer(partitionedTopic, producerConfig, producer));
+    Message msg = MessageBuilder().setContent("message").build();
+    ASSERT_EQ(ResultOk, producer.send(msg));
+
+    producer.close();
+
+    // receive message on another thread
+    pulsar::Latch latch(1);
+    auto thread = std::thread([&]() {
+        Message msg;
+        ASSERT_EQ(ResultOk, consumer.receive(msg, 10 * 1000));
+        consumer.acknowledge(msg.getMessageId());
+        ASSERT_EQ(ResultAlreadyClosed, consumer.receive(msg, 10 * 1000));
+        latch.countdown();
+    });
+
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+
+    consumer.close();
+
+    bool wasUnblocked = latch.wait(std::chrono::milliseconds(100));
+
+    ASSERT_TRUE(wasUnblocked);
+    thread.join();
+}
+
 }  // namespace pulsar

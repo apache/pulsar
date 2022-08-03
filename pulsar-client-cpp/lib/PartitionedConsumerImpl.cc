@@ -106,6 +106,10 @@ Result PartitionedConsumerImpl::receive(Message& msg, int timeout) {
         unAckedMessageTrackerPtr_->add(msg.getMessageId());
         return ResultOk;
     } else {
+        lock.lock();
+        if (state_ != Ready) {
+            return ResultAlreadyClosed;
+        }
         return ResultTimeout;
     }
 }
@@ -428,6 +432,9 @@ void PartitionedConsumerImpl::messageReceived(Consumer consumer, const Message& 
 
 void PartitionedConsumerImpl::failPendingReceiveCallback() {
     Message msg;
+
+    messages_.close();
+
     Lock lock(pendingReceiveMutex_);
     while (!pendingReceives_.empty()) {
         ReceiveCallback callback = pendingReceives_.front();
