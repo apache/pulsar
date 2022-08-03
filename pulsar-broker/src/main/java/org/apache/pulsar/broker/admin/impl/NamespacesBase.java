@@ -829,7 +829,6 @@ public abstract class NamespacesBase extends AdminResource {
             // Write back the new policies into zookeeper
             globalZk().setData(path(POLICIES, namespaceName.toString()),
                     jsonMapper().writeValueAsBytes(policiesNode.getKey()), policiesNode.getValue().getVersion());
-            policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
 
             log.info("[{}] Successfully updated the message TTL on namespace {}", clientAppId(), namespaceName);
         } catch (KeeperException.NoNodeException e) {
