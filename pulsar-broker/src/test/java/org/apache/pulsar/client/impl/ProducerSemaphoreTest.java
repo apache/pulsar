@@ -66,10 +66,21 @@ public class ProducerSemaphoreTest extends ProducerConsumerBase {
         ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
                 .topic("testProducerSemaphoreAcquire")
                 .maxPendingMessages(pendingQueueSize)
-                .enableBatching(false)
+                .enableBatching(true)
                 .create();
 
         this.stopBroker();
+        try {
+            try (MockedStatic<ClientCnx> mockedStatic = Mockito.mockStatic(ClientCnx.class)) {
+                mockedStatic.when(ClientCnx::getMaxMessageSize).thenReturn(2);
+                producer.send("semaphore-test".getBytes(StandardCharsets.UTF_8));
+            }
+            throw new IllegalStateException("can not reach here");
+        } catch (PulsarClientException.InvalidMessageException ex) {
+            Assert.assertEquals(producer.getSemaphore().get().availablePermits(), pendingQueueSize);
+        }
+
+        producer.conf.setBatchingEnabled(false);
         try {
             try (MockedStatic<ClientCnx> mockedStatic = Mockito.mockStatic(ClientCnx.class)) {
                 mockedStatic.when(ClientCnx::getMaxMessageSize).thenReturn(2);
