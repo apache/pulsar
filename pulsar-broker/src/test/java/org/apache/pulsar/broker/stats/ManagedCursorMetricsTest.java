@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.stats;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.bookkeeper.client.LedgerHandle;
@@ -144,7 +143,7 @@ public class ManagedCursorMetricsTest extends MockedPulsarServiceBaseTest {
         // Assert.
         metricsList = metrics.generate();
         Assert.assertFalse(metricsList.isEmpty());
-        Assert.assertNotEquals(metricsList.get(0).getMetrics().get("brk_ml_cursor_persistLedgerSucceed"), 1L);
+        Assert.assertNotEquals(metricsList.get(0).getMetrics().get("brk_ml_cursor_persistLedgerSucceed"), 0L);
         Assert.assertEquals(metricsList.get(0).getMetrics().get("brk_ml_cursor_persistLedgerErrors"), 0L);
         Assert.assertEquals(metricsList.get(0).getMetrics().get("brk_ml_cursor_persistZookeeperSucceed"), 0L);
         Assert.assertEquals(metricsList.get(0).getMetrics().get("brk_ml_cursor_persistZookeeperErrors"), 0L);
@@ -160,7 +159,7 @@ public class ManagedCursorMetricsTest extends MockedPulsarServiceBaseTest {
         // Assert.
         metricsList = metrics.generate();
         Assert.assertFalse(metricsList.isEmpty());
-        Assert.assertNotEquals(metricsList.get(0).getMetrics().get("brk_ml_cursor_persistLedgerSucceed"), 1L);
+        Assert.assertNotEquals(metricsList.get(0).getMetrics().get("brk_ml_cursor_persistLedgerSucceed"), 0L);
         Assert.assertEquals(metricsList.get(0).getMetrics().get("brk_ml_cursor_persistLedgerErrors"), 0L);
         Assert.assertEquals(metricsList.get(0).getMetrics().get("brk_ml_cursor_persistZookeeperSucceed"), 0L);
         Assert.assertEquals(metricsList.get(0).getMetrics().get("brk_ml_cursor_persistZookeeperErrors"), 0L);
@@ -201,15 +200,6 @@ public class ManagedCursorMetricsTest extends MockedPulsarServiceBaseTest {
         consumer.close();
         managedCursor.close();
         admin.topics().delete(topicName, true);
-    }
-
-    private ManagedCursorMXBean getManagedCursorMXBean(String topicName, String subscriptionName)
-            throws ExecutionException, InterruptedException {
-        final PersistentSubscription persistentSubscription =
-                (PersistentSubscription) pulsar.getBrokerService()
-                        .getTopic(topicName, false).get().get().getSubscription(subscriptionName);
-        final ManagedCursorImpl managedCursor = (ManagedCursorImpl) persistentSubscription.getCursor();
-        return managedCursor.getStats();
     }
 
     @Test
@@ -257,13 +247,6 @@ public class ManagedCursorMetricsTest extends MockedPulsarServiceBaseTest {
                 consumer2.acknowledge(consumer.receive().getMessageId());
             }
         }
-
-        // Wait for persistent cursor meta.
-        ManagedCursorMXBean cursorMXBean1 = getManagedCursorMXBean(topicName, subName1);
-        ManagedCursorMXBean cursorMXBean2 = getManagedCursorMXBean(topicName, subName2);
-        Awaitility.await().until(() -> cursorMXBean1.getWriteCursorLedgerLogicalSize() > 0);
-        Awaitility.await().until(() -> cursorMXBean2.getWriteCursorLedgerLogicalSize() > 0);
-
         metricsList = metrics.generate();
         Assert.assertEquals(metricsList.size(), 2);
         Assert.assertNotEquals(metricsList.get(0).getMetrics().get("brk_ml_cursor_writeLedgerSize"), 0L);
