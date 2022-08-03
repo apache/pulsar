@@ -834,6 +834,12 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>io.grpc</groupId>
         <artifactId>grpc-protobuf-lite</artifactId>
         <version>${grpc.version}</version>
+<!--        <exclusions>-->
+<!--          <exclusion>-->
+<!--            <groupId>com.google.protobuf</groupId>-->
+<!--            <artifactId>protobuf-javalite</artifactId>-->
+<!--          </exclusion>-->
+<!--        </exclusions>-->
       </dependency>
 
       <dependency>
