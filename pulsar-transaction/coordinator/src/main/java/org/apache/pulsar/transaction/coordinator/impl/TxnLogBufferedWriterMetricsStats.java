@@ -160,8 +160,7 @@ public class TxnLogBufferedWriterMetricsStats implements Closeable {
                 k -> new Counter.Builder()
                         .name(batchFlushTriggeringByMaxRecordsMetricName)
                         .labelNames(labelNames)
-                        .help("A metrics for how many batches were triggered due to threshold"
-                                + " \"batchedWriteMaxRecords\"")
+                        .help("Event count of batch flush triggered by max records count")
                         .register(registry));
         batchFlushTriggeredByMaxRecordsCounter = batchFlushTriggeredByMaxRecordsMetric.labels(labelValues);
 
@@ -172,7 +171,7 @@ public class TxnLogBufferedWriterMetricsStats implements Closeable {
                 k -> new Counter.Builder()
                         .name(batchFlushTriggeringByMaxSizeMetricName)
                         .labelNames(labelNames)
-                        .help("A metrics for how many batches were triggered due to threshold \"batchedWriteMaxSize\"")
+                        .help("Event count of batch flush triggered by max bytes size")
                         .register(registry));
         batchFlushTriggeredByMaxSizeCounter = batchFlushTriggeredByMaxSizeMetric.labels(labelValues);
 
@@ -183,8 +182,7 @@ public class TxnLogBufferedWriterMetricsStats implements Closeable {
                 k -> new Counter.Builder()
                         .name(batchFlushTriggeringByMaxDelayMetricName)
                         .labelNames(labelNames)
-                        .help("A metrics for how many batches were triggered due to threshold"
-                                + " \"batchedWriteMaxDelayInMillis\"")
+                        .help("Event count of batch flush triggered by max delay time")
                         .register(registry));
         batchFlushTriggeredByMaxDelayCounter =
                 batchFlushTriggeredByMaxDelayMetric.labels(labelValues);
@@ -196,7 +194,7 @@ public class TxnLogBufferedWriterMetricsStats implements Closeable {
                 k -> new Counter.Builder()
                         .name(batchFlushTriggeringByLargeSingleDataMetricName)
                         .labelNames(labelNames)
-                        .help("A metrics for how many batches were triggered due to threshold \"forceFlush\"")
+                        .help("Event count of batch flush triggered by the single large data write")
                         .register(registry));
         batchFlushTriggeredByLargeSingleDataCounter = batchFlushTriggeredByLargeSingleDataMetric.labels(labelValues);
     }
