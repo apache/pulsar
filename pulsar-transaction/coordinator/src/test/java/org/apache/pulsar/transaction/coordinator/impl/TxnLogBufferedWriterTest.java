@@ -647,7 +647,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
 
     /**
      * 1. Verify Transaction buffered writer stats correct when enabled batch feature. Exclusive "triggerByForceFlush",
-     *    this property verified by {@link #testMetricsStatsWhenForceFlush()}.
+     *    this property verified by {@link #testMetricsStatsWhenTriggeredLargeSingleData()}.
      * 2. Verify metrics will be release after {@link TxnLogBufferedWriterMetricsStats#clone()}.
      */
     @Test
@@ -873,7 +873,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
      * Test {@link TxnLogBufferedWriterMetricsStats#triggerFlushByLargeSingleData(int, long, long)}.
      */
     @Test
-    public void testMetricsStatsWhenForceFlush() throws Exception {
+    public void testMetricsStatsWhenTriggeredLargeSingleData() throws Exception {
         TxnLogBufferedWriterMetricsStats metricsStats = new TxnLogBufferedWriterMetricsStats(
                 metricsPrefix, metricsLabelNames, metricsLabelValues, CollectorRegistry.defaultRegistry
         );
