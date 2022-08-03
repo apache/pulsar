@@ -113,7 +113,7 @@ public class TxnLogBufferedWriterMetricsStats implements Closeable {
         this.labelValues = labelValues.clone();
 
         String recordsPerBatchMetricName =
-                String.format("%s_batched_log_records_count_per_entry", metricsPrefix);
+                String.format("%s_bufferedwriter_batch_record_count", metricsPrefix);
         recordsPerBatchMetric = (Histogram) COLLECTOR_CACHE.computeIfAbsent(
                 recordsPerBatchMetricName,
                 k -> new Histogram.Builder()
@@ -124,7 +124,7 @@ public class TxnLogBufferedWriterMetricsStats implements Closeable {
                         .register(registry));
         recordsPerBatchHistogram = recordsPerBatchMetric.labels(labelValues);
 
-        String batchSizeBytesMetricName = String.format("%s_batched_log_entry_size_bytes", metricsPrefix);
+        String batchSizeBytesMetricName = String.format("%s_bufferedwriter_batch_size_bytes", metricsPrefix);
         batchSizeBytesMetric = (Histogram) COLLECTOR_CACHE.computeIfAbsent(
                 batchSizeBytesMetricName,
                 k -> new Histogram.Builder()
@@ -136,7 +136,7 @@ public class TxnLogBufferedWriterMetricsStats implements Closeable {
         batchSizeBytesHistogram = batchSizeBytesMetric.labels(labelValues);
 
         String oldestRecordInBatchDelayTimeSecondsMetricName =
-                String.format("%s_batched_log_oldest_record_delay_time_seconds", metricsPrefix);
+                String.format("%s_bufferedwriter_batch_oldest_record_delay_time_second", metricsPrefix);
         oldestRecordInBatchDelayTimeSecondsMetric = (Histogram) COLLECTOR_CACHE.computeIfAbsent(
                 oldestRecordInBatchDelayTimeSecondsMetricName,
                 k -> new Histogram.Builder()
@@ -149,7 +149,7 @@ public class TxnLogBufferedWriterMetricsStats implements Closeable {
                 oldestRecordInBatchDelayTimeSecondsMetric.labels(labelValues);
 
         String batchFlushTriggeringByMaxRecordsMetricName =
-                String.format("%s_batched_log_triggering_count_by_records", metricsPrefix);
+                String.format("%s_bufferedwriter_flush_trigger_max_records", metricsPrefix);
         batchFlushTriggeredByMaxRecordsMetric = (Counter) COLLECTOR_CACHE.computeIfAbsent(
                 batchFlushTriggeringByMaxRecordsMetricName,
                 k -> new Counter.Builder()
@@ -161,7 +161,7 @@ public class TxnLogBufferedWriterMetricsStats implements Closeable {
         batchFlushTriggeredByMaxRecordsCounter = batchFlushTriggeredByMaxRecordsMetric.labels(labelValues);
 
         String batchFlushTriggeringByMaxSizeMetricName =
-                String.format("%s_batched_log_triggering_count_by_size", metricsPrefix);
+                String.format("%s_bufferedwriter_flush_trigger_max_size", metricsPrefix);
         batchFlushTriggeredByMaxSizeMetric = (Counter) COLLECTOR_CACHE.computeIfAbsent(
                 batchFlushTriggeringByMaxSizeMetricName,
                 k -> new Counter.Builder()
@@ -172,7 +172,7 @@ public class TxnLogBufferedWriterMetricsStats implements Closeable {
         batchFlushTriggeredByMaxSizeCounter = batchFlushTriggeredByMaxSizeMetric.labels(labelValues);
 
         String batchFlushTriggeringByMaxDelayMetricName =
-                String.format("%s_batched_log_triggering_count_by_delay_time", metricsPrefix);
+                String.format("%s_bufferedwriter_flush_trigger_max_delay", metricsPrefix);
         batchFlushTriggeredByMaxDelayMetric = (Counter) COLLECTOR_CACHE.computeIfAbsent(
                 batchFlushTriggeringByMaxDelayMetricName,
                 k -> new Counter.Builder()
@@ -185,7 +185,7 @@ public class TxnLogBufferedWriterMetricsStats implements Closeable {
                 batchFlushTriggeredByMaxDelayMetric.labels(labelValues);
 
         String batchFlushTriggeringByLargeSingleDataMetricName =
-                String.format("%s_batched_log_triggering_count_by_force", metricsPrefix);
+                String.format("%s_bufferedwriter_flush_trigger_large_data", metricsPrefix);
         batchFlushTriggeredByLargeSingleDataMetric = (Counter) COLLECTOR_CACHE.computeIfAbsent(
                 batchFlushTriggeringByLargeSingleDataMetricName,
                 k -> new Counter.Builder()
