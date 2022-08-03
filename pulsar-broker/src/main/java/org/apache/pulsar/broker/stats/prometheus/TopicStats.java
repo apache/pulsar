@@ -129,10 +129,10 @@ class TopicStats {
                 splitTopicAndPartitionIndexLabel);
         writeMetric(stream, "pulsar_msg_backlog", stats.msgBacklog,
                 cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
-        writeMetric(stream, "pulsar_storage_write_rate", stats.managedLedgerStats.storageWriteRate, 
+        writeMetric(stream, "pulsar_storage_write_rate", stats.managedLedgerStats.storageWriteRate,
                 cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
         writeMetric(stream, "pulsar_storage_read_rate", stats.managedLedgerStats.storageReadRate,
-                cluster, namespace, topic, splitTopicAndPartitionIndexLabel);                
+                cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
         writeMetric(stream, "pulsar_storage_backlog_size", stats.managedLedgerStats.backlogSize,
                 cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
         writeMetric(stream, "pulsar_publish_rate_limit_times", stats.publishRateLimitedTimes,
@@ -144,8 +144,8 @@ class TopicStats {
         writeMetric(stream, "pulsar_storage_backlog_quota_limit_time", stats.backlogQuotaLimitTime,
                 cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
 
-        metric(stream, cluster, namespace, topic, "pulsar_delayed_message_index_size_bytes",
-                stats.delayedTrackerMemoryUsage, splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_delayed_message_index_size_bytes", stats.delayedTrackerMemoryUsage,
+                cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
 
         long[] latencyBuckets = stats.managedLedgerStats.storageWriteLatencyBuckets.getBuckets();
         writeMetric(stream, "pulsar_storage_write_latency_le_0_5",
