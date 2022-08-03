@@ -58,6 +58,39 @@ public class ProducerSemaphoreTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
+    @Test(timeOut = 10_000)
+    public void testProducerSemaphoreInvalidMessage() throws Exception {
+        final int pendingQueueSize = 100;
+
+        @Cleanup
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
+                .topic("testProducerSemaphoreAcquire")
+                .maxPendingMessages(pendingQueueSize)
+                .enableBatching(true)
+                .create();
+
+        this.stopBroker();
+
+        Field maxMessageSizeFiled = ClientCnx.class.getDeclaredField("maxMessageSize");
+        maxMessageSizeFiled.setAccessible(true);
+        maxMessageSizeFiled.set(null, 2);
+
+        try {
+            producer.send("semaphore-test".getBytes(StandardCharsets.UTF_8));
+            Assert.fail("can not reach here");
+        } catch (PulsarClientException.InvalidMessageException ex) {
+            Assert.assertEquals(producer.getSemaphore().get().availablePermits(), pendingQueueSize);
+        }
+
+        producer.conf.setBatchingEnabled(false);
+        try {
+            producer.send("semaphore-test".getBytes(StandardCharsets.UTF_8));
+            Assert.fail("can not reach here");
+        } catch (PulsarClientException.InvalidMessageException ex) {
+            Assert.assertEquals(producer.getSemaphore().get().availablePermits(), pendingQueueSize);
+        }
+    }
+
     @Test(timeOut = 30000)
     public void testProducerSemaphoreAcquireAndRelease() throws PulsarClientException, ExecutionException, InterruptedException {
 
