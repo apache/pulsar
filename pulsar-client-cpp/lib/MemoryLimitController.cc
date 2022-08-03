@@ -22,7 +22,12 @@
 namespace pulsar {
 
 MemoryLimitController::MemoryLimitController(uint64_t memoryLimit)
-    : memoryLimit_(memoryLimit), currentUsage_(0), mutex_(), condition_() {}
+    : memoryLimit_(memoryLimit), currentUsage_(0), mutex_(), condition_(),
+      triggerThreshold_(0), trigger_(), triggerRunning(false) {}
+
+MemoryLimitController::MemoryLimitController(uint64_t memoryLimit, uint64_t triggerThreshold, Trigger trigger)
+    : memoryLimit_(memoryLimit), currentUsage_(0), mutex_(), condition_(), triggerThreshold_(triggerThreshold),
+      trigger_(trigger), triggerRunning(false) {}
 
 bool MemoryLimitController::tryReserveMemory(uint64_t size) {
     // Avoid CAS operation when size is 0
@@ -40,7 +45,26 @@ bool MemoryLimitController::tryReserveMemory(uint64_t size) {
         }
 
         if (currentUsage_.compare_exchange_strong(current, newUsage)) {
+            checkTrigger(current, newUsage);
             return true;
+        }
+    }
+}
+
+void MemoryLimitController::forceReserveMemory(uint64_t size) {
+    uint64_t newUsage = currentUsage_.fetch_add(size);
+    checkTrigger(newUsage - size, newUsage);
+}
+
+void MemoryLimitController::checkTrigger(uint64_t preUsage, uint64_t newUsage) {
+    if (newUsage >= triggerThreshold_ && preUsage < triggerThreshold_ && trigger_) {
+        bool expectedState = false;
+        if (triggerRunning.compare_exchange_strong(expectedState, true)) {
+            try {
+                trigger_();
+            } catch (const std::exception exception) {
+            }
+            triggerRunning.exchange(false);
         }
     }
 }
@@ -81,6 +105,10 @@ void MemoryLimitController::close() {
     std::unique_lock<std::mutex> lock(mutex_);
     isClosed_ = true;
     condition_.notify_all();
+}
+
+double MemoryLimitController::currentUsagePercent() const {
+    return 1.0 * currentUsage_ / memoryLimit_;
 }
 
 }  // namespace pulsar

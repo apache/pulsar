@@ -19,6 +19,7 @@
 #include <lib/ConsumerConfigurationImpl.h>
 
 #include <stdexcept>
+#include "pulsar/ConsumerConfiguration.h"
 
 namespace pulsar {
 
@@ -258,6 +259,13 @@ ConsumerConfiguration& ConsumerConfiguration::setAutoAckOldestChunkedMessageOnQu
 
 bool ConsumerConfiguration::isAutoAckOldestChunkedMessageOnQueueFull() const {
     return impl_->autoAckOldestChunkedMessageOnQueueFull;
+}
+ConsumerConfiguration& ConsumerConfiguration::setAutoScaledReceiverQueueSizeEnabled(bool enabled) {
+    impl_->autoScaledReceiverQueueSizeEnabled = enabled;
+    return *this;
+}
+bool ConsumerConfiguration::isAutoScaledReceiverQueueSizeEnabled() const {
+    return impl_->autoScaledReceiverQueueSizeEnabled;
 }
 
 }  // namespace pulsar

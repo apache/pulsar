@@ -31,10 +31,13 @@
 #include "AckGroupingTrackerDisabled.h"
 #include <exception>
 #include <algorithm>
+#include <math.h>
 
 namespace pulsar {
 
 DECLARE_LOG_OBJECT()
+
+const static int INITIAL_RECEIVER_QUEUE_SIZE = 1;
 
 ConsumerImpl::ConsumerImpl(const ClientImplPtr client, const std::string& topic,
                            const std::string& subscriptionName, const ConsumerConfiguration& conf,
@@ -55,6 +58,7 @@ ConsumerImpl::ConsumerImpl(const ClientImplPtr client, const std::string& topic,
       // This is the initial capacity of the queue
       incomingMessages_(std::max(config_.getReceiverQueueSize(), 1)),
       availablePermits_(0),
+      scaleReceiverQueueHint(false),
       receiverQueueRefillThreshold_(config_.getReceiverQueueSize() / 2),
       consumerId_(client->newConsumerId()),
       consumerName_(config_.getConsumerName()),
@@ -103,6 +107,7 @@ ConsumerImpl::ConsumerImpl(const ClientImplPtr client, const std::string& topic,
     if (conf.isEncryptionEnabled()) {
         msgCrypto_ = std::make_shared<MessageCrypto>(consumerStr_, false);
     }
+    initReceiverQueueSize();
 }
 
 ConsumerImpl::~ConsumerImpl() {
@@ -880,10 +885,12 @@ Optional<MessageId> ConsumerImpl::clearReceiveQueue() {
 void ConsumerImpl::increaseAvailablePermits(const ClientConnectionPtr& currentCnx, int delta) {
     int newAvailablePermits = availablePermits_.fetch_add(delta) + delta;
 
-    while (newAvailablePermits >= receiverQueueRefillThreshold_ && messageListenerRunning_) {
+    while (newAvailablePermits >= getCurrentReceiverQueueSize() / 2 && messageListenerRunning_) {
         if (availablePermits_.compare_exchange_weak(newAvailablePermits, 0)) {
             sendFlowPermitsToBroker(currentCnx, newAvailablePermits);
             break;
+        } else {
+            newAvailablePermits = availablePermits_;
         }
     }
 }
@@ -1385,4 +1392,51 @@ bool ConsumerImpl::isConnected() const {
 
 uint64_t ConsumerImpl::getNumberOfConnectedConsumer() { return isConnected() ? 1 : 0; }
 
+MemoryLimitController& ConsumerImpl::getMemoryLimitController() {
+    return client_.lock()->getMemoryLimitController();
+}
+
+void ConsumerImpl::reduceCurrentReceiverQueueSize() {
+    if (!config_.isAutoScaledReceiverQueueSizeEnabled()) {
+        return ;
+    }
+    int oldSize = getCurrentReceiverQueueSize();
+    int newSize = std::max(minReceiverQueueSize(), oldSize / 2);
+    if (oldSize > newSize) {
+        setCurrentReceiverQueueSize(newSize);
+    }
+}
+
+void ConsumerImpl::expectMoreIncomingMessages() {
+    if (!config_.isAutoScaledReceiverQueueSizeEnabled()) {
+        return ;
+    }
+    double usage = getMemoryLimitController().currentUsagePercent();
+    if (bool expectedState = true && usage < MEMORY_THRESHOLD_FOR_RECEIVER_QUEUE_SIZE_EXPANSION5
+        && scaleReceiverQueueHint.compare_exchange_strong(expectedState, false)) {
+        int oldSize = getCurrentReceiverQueueSize();
+        int newSize = std::min(config_.getReceiverQueueSize(), oldSize * 2);
+        setCurrentReceiverQueueSize(newSize);
+    }
+}
+void ConsumerImpl::initReceiverQueueSize() {
+    if (config_.isAutoScaledReceiverQueueSizeEnabled()) {
+        int size = minReceiverQueueSize();
+        currentReceiverQueueSize_.exchange(size);
+    } else {
+        currentReceiverQueueSize_.exchange(config_.getReceiverQueueSize());
+    }
+}
+
+void ConsumerImpl::setCurrentReceiverQueueSize(int newSize) {
+    currentReceiverQueueSize_.fetch_xor(newSize);
+}
+
+int ConsumerImpl::getCurrentReceiverQueueSize() {
+    return currentReceiverQueueSize_;
+}
+int ConsumerImpl::minReceiverQueueSize() {
+    int size = std::min(INITIAL_RECEIVER_QUEUE_SIZE, config_.getReceiverQueueSize());
+    return size;
+}
 } /* namespace pulsar */

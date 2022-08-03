@@ -53,6 +53,7 @@ struct ConsumerConfigurationImpl {
     KeySharedPolicy keySharedPolicy;
     size_t maxPendingChunkedMessage{10};
     bool autoAckOldestChunkedMessageOnQueueFull{false};
+    bool autoScaledReceiverQueueSizeEnabled{false};
 };
 }  // namespace pulsar
 #endif /* LIB_CONSUMERCONFIGURATIONIMPL_H_ */

@@ -129,6 +129,7 @@ class ConsumerImpl : public ConsumerImplBase,
     void negativeAcknowledge(const MessageId& msgId) override;
     bool isConnected() const override;
     uint64_t getNumberOfConnectedConsumer() override;
+    void reduceCurrentReceiverQueueSize() override;
 
     virtual void disconnectConsumer();
     Result fetchSingleMessageFromBroker(Message& msg);
@@ -141,6 +142,7 @@ class ConsumerImpl : public ConsumerImplBase,
     virtual bool isReadCompacted();
     virtual void hasMessageAvailableAsync(HasMessageAvailableCallback callback);
     virtual void getLastMessageIdAsync(BrokerGetLastMessageIdCallback callback);
+    int getCurrentReceiverQueueSize();
 
    protected:
     // overrided methods from HandlerBase
@@ -157,6 +159,11 @@ class ConsumerImpl : public ConsumerImplBase,
     void handleClose(Result result, ResultCallback callback, ConsumerImplPtr consumer);
     ConsumerStatsBasePtr consumerStatsBasePtr_;
 
+    void setCurrentReceiverQueueSize(int newSize);
+    void expectMoreIncomingMessages();
+    void initReceiverQueueSize();
+    int minReceiverQueueSize();
+
    private:
     bool waitingForZeroQueueSizeMessage;
     bool uncompressMessageIfNeeded(const ClientConnectionPtr& cnx, const proto::MessageIdData& messageIdData,
@@ -172,6 +179,8 @@ class ConsumerImpl : public ConsumerImplBase,
 
     bool decryptMessageIfNeeded(const ClientConnectionPtr& cnx, const proto::CommandMessage& msg,
                                 const proto::MessageMetadata& metadata, SharedBuffer& payload);
+
+    MemoryLimitController& getMemoryLimitController();
 
     // TODO - Convert these functions to lambda when we move to C++11
     Result receiveHelper(Message& msg);
@@ -199,6 +208,8 @@ class ConsumerImpl : public ConsumerImplBase,
     UnboundedBlockingQueue<Message> incomingMessages_;
     std::queue<ReceiveCallback> pendingReceives_;
     std::atomic_int availablePermits_;
+    std::atomic_int currentReceiverQueueSize_;
+    std::atomic_bool scaleReceiverQueueHint;
     const int receiverQueueRefillThreshold_;
     uint64_t consumerId_;
     std::string consumerName_;

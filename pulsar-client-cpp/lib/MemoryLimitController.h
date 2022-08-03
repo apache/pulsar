@@ -25,14 +25,20 @@
 #include <mutex>
 
 namespace pulsar {
+typedef std::function<void(void)> Trigger;
+
+const static double MEMORY_THRESHOLD_FOR_RECEIVER_QUEUE_SIZE_EXPANSION5 = 0.75;
 
 class MemoryLimitController {
    public:
     explicit MemoryLimitController(uint64_t memoryLimit);
+    MemoryLimitController(uint64_t memoryLimit, uint64_t triggerThreshold, Trigger trigger);
+    void forceReserveMemory(uint64_t size);
     bool tryReserveMemory(uint64_t size);
     bool reserveMemory(uint64_t size);
     void releaseMemory(uint64_t size);
     uint64_t currentUsage() const;
+    double currentUsagePercent() const;
 
     void close();
 
@@ -42,6 +48,10 @@ class MemoryLimitController {
     std::mutex mutex_;
     std::condition_variable condition_;
     bool isClosed_ = false;
+    const uint64_t triggerThreshold_;
+    const Trigger trigger_;
+    std::atomic_bool triggerRunning;
+    void checkTrigger(uint64_t preUsage, uint64_t newUsage);
 };
 
 }  // namespace pulsar

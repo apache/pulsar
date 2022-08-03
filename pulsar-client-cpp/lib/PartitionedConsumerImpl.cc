@@ -642,5 +642,6 @@ uint64_t PartitionedConsumerImpl::getNumberOfConnectedConsumer() {
     }
     return numberOfConnectedConsumer;
 }
+void PartitionedConsumerImpl::reduceCurrentReceiverQueueSize() {}
 
 }  // namespace pulsar

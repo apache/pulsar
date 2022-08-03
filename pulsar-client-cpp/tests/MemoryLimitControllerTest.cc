@@ -41,6 +41,31 @@ TEST(MemoryLimitControllerTest, testLimit) {
     ASSERT_EQ(mlc.currentUsage(), 101);
 }
 
+TEST(MemoryLimitControllerTest, testTrigger) {
+    int num = 0;
+    MemoryLimitController mlc(100, 95, [&num]() {
+        num++;
+    });
+
+    mlc.tryReserveMemory(95);
+    ASSERT_EQ(num , 1);
+
+    mlc.releaseMemory(95);
+    ASSERT_EQ(mlc.currentUsage(), 0);
+
+    std::thread t1([&]() {
+        mlc.forceReserveMemory(95);
+    });
+
+    std::thread t2([&]() {
+      mlc.forceReserveMemory(95);
+    });
+
+    t1.join();
+    t2.join();
+    ASSERT_EQ(num, 2);
+}
+
 TEST(MemoryLimitControllerTest, testBlocking) {
     MemoryLimitController mlc(100);
 

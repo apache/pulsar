@@ -57,6 +57,7 @@ class ConsumerImplBase {
     virtual void negativeAcknowledge(const MessageId& msgId) = 0;
     virtual bool isConnected() const = 0;
     virtual uint64_t getNumberOfConnectedConsumer() = 0;
+    virtual void reduceCurrentReceiverQueueSize() = 0;
 
    private:
     virtual void setNegativeAcknowledgeEnabledForTesting(bool enabled) = 0;

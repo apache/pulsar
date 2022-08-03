@@ -92,7 +92,12 @@ ClientImpl::ClientImpl(const std::string& serviceUrl, const ClientConfiguration&
       state_(Open),
       serviceUrl_(serviceUrl),
       clientConfiguration_(detectTls(serviceUrl, clientConfiguration)),
-      memoryLimitController_(clientConfiguration.getMemoryLimit()),
+      memoryLimitController_(
+          clientConfiguration_.getMemoryLimit(),
+          clientConfiguration_.getMemoryLimit() * MEMORY_THRESHOLD_FOR_RECEIVER_QUEUE_SIZE_EXPANSION5,
+          [this]() {
+                     std::for_each(consumers_.begin(), consumers_.end(), [](ConsumerImplBaseWeakPtr consumer) { consumer.lock()->reduceCurrentReceiverQueueSize(); });
+          }),
       ioExecutorProvider_(std::make_shared<ExecutorServiceProvider>(clientConfiguration_.getIOThreads())),
       listenerExecutorProvider_(
           std::make_shared<ExecutorServiceProvider>(clientConfiguration_.getMessageListenerThreads())),

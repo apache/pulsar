@@ -80,6 +80,7 @@ class MultiTopicsConsumerImpl : public ConsumerImplBase,
     void negativeAcknowledge(const MessageId& msgId) override;
     bool isConnected() const override;
     uint64_t getNumberOfConnectedConsumer() override;
+    void reduceCurrentReceiverQueueSize() override;
 
     void handleGetConsumerStats(Result, BrokerConsumerStats, LatchPtr, MultiTopicsBrokerConsumerStatsPtr,
                                 size_t, BrokerConsumerStatsCallback);
