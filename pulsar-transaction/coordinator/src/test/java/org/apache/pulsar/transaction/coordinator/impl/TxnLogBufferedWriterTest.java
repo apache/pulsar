@@ -656,14 +656,14 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
                 metricsPrefix, metricsLabelNames, metricsLabelValues, CollectorRegistry.defaultRegistry
         );
         // Mock managed ledger to get the count of refresh event.
-        AtomicInteger refreshCount = new AtomicInteger();
+        AtomicInteger batchFlushCount = new AtomicInteger();
         String managedLedgerName = "-";
         ManagedLedger managedLedger = Mockito.mock(ManagedLedger.class);
         Mockito.when(managedLedger.getName()).thenReturn(managedLedgerName);
         Mockito.doAnswer(new Answer() {
             @Override
             public Object answer(InvocationOnMock invocation) throws Throwable {
-                refreshCount.incrementAndGet();
+                batchFlushCount.incrementAndGet();
                 AsyncCallbacks.AddEntryCallback callback =
                         (AsyncCallbacks.AddEntryCallback) invocation.getArguments()[1];
                 callback.addComplete(PositionImpl.get(1,1), (ByteBuf)invocation.getArguments()[0],
@@ -710,22 +710,22 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
                 getCounterValue(String.format("%s_batched_log_triggering_count_by_records", metricsPrefix))
                 + getCounterValue(String.format("%s_batched_log_triggering_count_by_size", metricsPrefix))
                 + getCounterValue(String.format("%s_batched_log_triggering_count_by_delay_time", metricsPrefix)),
-                (double)refreshCount.get());
+                (double)batchFlushCount.get());
         Assert.assertEquals(
                 getHistogramCount(String.format("%s_batched_log_records_count_per_entry", metricsPrefix)),
-                refreshCount.get());
+                batchFlushCount.get());
         Assert.assertEquals(
                 getHistogramSum(String.format("%s_batched_log_records_count_per_entry", metricsPrefix)),
                 writeCount);
         Assert.assertEquals(
                 getHistogramCount(String.format("%s_batched_log_entry_size_bytes", metricsPrefix)),
-                refreshCount.get());
+                batchFlushCount.get());
         Assert.assertEquals(
                 getHistogramSum(String.format("%s_batched_log_entry_size_bytes", metricsPrefix)),
                 dataSerializer.getTotalSize());
         Assert.assertEquals(
                 getHistogramCount(String.format("%s_batched_log_oldest_record_delay_time_seconds", metricsPrefix)),
-                refreshCount.get());
+                batchFlushCount.get());
         /**
          * Assert all metrics will be released after {@link TxnLogBufferedWriter#close()}
          *   1. Register another {@link TxnLogBufferedWriter}

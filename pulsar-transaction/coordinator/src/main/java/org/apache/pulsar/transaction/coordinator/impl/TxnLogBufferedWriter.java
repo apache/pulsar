@@ -89,15 +89,15 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
     /**
      * Caches “write requests” for a certain for a certain number, if reach this threshold, will trig Bookie writes.
      */
-    final int batchedWriteMaxRecords;
+    private final int batchedWriteMaxRecords;
 
     /**
      * Caches “write requests” for a certain size of request data, if reach this threshold, will trig Bookie writes.
      */
-    final int batchedWriteMaxSize;
+    private final int batchedWriteMaxSize;
 
     /** Maximum delay for writing to bookie for the earliest request in the batch. **/
-    final int batchedWriteMaxDelayInMillis;
+    private final int batchedWriteMaxDelayInMillis;
 
     /** Data cached in the current batch. Will reset to null after each batched writes. **/
     private final ArrayList<T> dataArray;
@@ -117,7 +117,7 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
                     .newUpdater(TxnLogBufferedWriter.class, TxnLogBufferedWriter.State.class, "state");
 
     /** Metrics. **/
-    private final TxnLogBufferedWriterMetricsStats metricsStats;
+    private final TxnLogBufferedWriterMetricsStats metrics;
 
     public TxnLogBufferedWriter(ManagedLedger managedLedger, OrderedExecutor orderedExecutor, Timer timer,
                                 DataSerializer<T> dataSerializer,
@@ -142,7 +142,7 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
     public TxnLogBufferedWriter(ManagedLedger managedLedger, OrderedExecutor orderedExecutor, Timer timer,
                                 DataSerializer<T> dataSerializer,
                                 int batchedWriteMaxRecords, int batchedWriteMaxSize, int batchedWriteMaxDelayInMillis,
-                                boolean batchEnabled, TxnLogBufferedWriterMetricsStats metricsStats){
+                                boolean batchEnabled, TxnLogBufferedWriterMetricsStats metrics){
         this.batchEnabled = batchEnabled;
         this.managedLedger = managedLedger;
         this.singleThreadExecutorForWrite = orderedExecutor.chooseThread(
@@ -154,10 +154,9 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
         this.flushContext = FlushContext.newInstance();
         this.dataArray = new ArrayList<>();
         this.state = State.OPEN;
-        // Metrics.
-        this.metricsStats = metricsStats;
-        // scheduler task.
+        this.metrics = metrics;
         this.timer = timer;
+        // scheduler task.
         if (this.batchEnabled) {
             nextTimingTrigger();
         }
@@ -290,16 +289,16 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
                 return;
             }
             if (force) {
-                if (metricsStats != null) {
-                    metricsStats.triggerFlushByForce(this.flushContext.asyncAddArgsList.size(), this.bytesSize,
+                if (metrics != null) {
+                    metrics.triggerFlushByForce(this.flushContext.asyncAddArgsList.size(), this.bytesSize,
                             System.currentTimeMillis() - flushContext.asyncAddArgsList.get(0).addedTime);
                 }
                 doFlush();
                 return;
             }
             if (byScheduleThreads) {
-                if (metricsStats != null) {
-                    metricsStats.triggerFlushByByMaxDelay(this.flushContext.asyncAddArgsList.size(), this.bytesSize,
+                if (metrics != null) {
+                    metrics.triggerFlushByByMaxDelay(this.flushContext.asyncAddArgsList.size(), this.bytesSize,
                             System.currentTimeMillis() - flushContext.asyncAddArgsList.get(0).addedTime);
                 }
                 doFlush();
@@ -307,24 +306,24 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
             }
             AsyncAddArgs firstAsyncAddArgs = flushContext.asyncAddArgsList.get(0);
             if (System.currentTimeMillis() - firstAsyncAddArgs.addedTime >= batchedWriteMaxDelayInMillis) {
-                if (metricsStats != null) {
-                    metricsStats.triggerFlushByByMaxDelay(this.flushContext.asyncAddArgsList.size(), this.bytesSize,
+                if (metrics != null) {
+                    metrics.triggerFlushByByMaxDelay(this.flushContext.asyncAddArgsList.size(), this.bytesSize,
                             System.currentTimeMillis() - flushContext.asyncAddArgsList.get(0).addedTime);
                 }
                 doFlush();
                 return;
             }
             if (this.flushContext.asyncAddArgsList.size() >= batchedWriteMaxRecords) {
-                if (metricsStats != null) {
-                    metricsStats.triggerFlushByRecordsCount(this.flushContext.asyncAddArgsList.size(), this.bytesSize,
+                if (metrics != null) {
+                    metrics.triggerFlushByRecordsCount(this.flushContext.asyncAddArgsList.size(), this.bytesSize,
                             System.currentTimeMillis() - flushContext.asyncAddArgsList.get(0).addedTime);
                 }
                 doFlush();
                 return;
             }
             if (this.bytesSize >= batchedWriteMaxSize) {
-                if (metricsStats != null) {
-                    metricsStats.triggerFlushByBytesSize(this.flushContext.asyncAddArgsList.size(), this.bytesSize,
+                if (metrics != null) {
+                    metrics.triggerFlushByBytesSize(this.flushContext.asyncAddArgsList.size(), this.bytesSize,
                             System.currentTimeMillis() - flushContext.asyncAddArgsList.get(0).addedTime);
                 }
                 doFlush();
@@ -629,7 +628,7 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
         }
     }
 
-    public TxnLogBufferedWriterMetricsStats getMetricsStats(){
-        return metricsStats;
+    public TxnLogBufferedWriterMetricsStats getMetrics(){
+        return metrics;
     }
 }
