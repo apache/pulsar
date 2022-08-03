@@ -31,7 +31,7 @@ import java.util.HashMap;
  * Note-1: When batch feature is turned off, no data is logged at this. In this scenario，users can see the
  *    {@link org.apache.bookkeeper.mledger.ManagedLedgerMXBean}.
  * Note-2: Even if enable batch feature, if a single record is too big, it still directly write to Bookie without batch,
- *    property {@link #batchFlushTriggeringByLargeSingleDataMetric} can indicate this case. But this case will not
+ *    property {@link #batchFlushTriggeredByLargeSingleDataMetric} can indicate this case. But this case will not
  *    affect
  *    other metrics, because it would obscure the real situation. E.g. there has two record:
  *    [{recordsCount=512, triggerByMaxRecordCount}, {recordCount=1, triggerByTooLarge}], we should not tell the users
@@ -75,16 +75,16 @@ public class TxnLogBufferedWriterMetricsStats implements Closeable {
     private final Histogram.Child oldestRecordInBatchDelayTimeSecondsHistogram;
 
     /** The count of the triggering transaction log batch flush actions by "batchedWriteMaxRecords". **/
-    private final Counter batchFlushTriggeringByMaxRecordsMetric;
-    private final Counter.Child batchFlushTriggeringByMaxRecordsCounter;
+    private final Counter batchFlushTriggeredByMaxRecordsMetric;
+    private final Counter.Child batchFlushTriggeredByMaxRecordsCounter;
 
     /** The count of the triggering transaction log batch flush actions by "batchedWriteMaxSize". **/
-    private final Counter batchFlushTriggeringByMaxSizeMetric;
-    private final Counter.Child batchFlushTriggeringByMaxSizeCounter;
+    private final Counter batchFlushTriggeredByMaxSizeMetric;
+    private final Counter.Child batchFlushTriggeredByMaxSizeCounter;
 
     /** The count of the triggering transaction log batch flush actions by "batchedWriteMaxDelayInMillis". **/
-    private final Counter batchFlushTriggeringByMaxDelayMetric;
-    private final Counter.Child batchFlushTriggeringByMaxDelayCounter;
+    private final Counter batchFlushTriggeredByMaxDelayMetric;
+    private final Counter.Child batchFlushTriggeredByMaxDelayCounter;
 
     /**
      * If {@link TxnLogBufferedWriter#asyncAddData(Object, TxnLogBufferedWriter.AddDataCallback, Object)} accept a
@@ -93,17 +93,17 @@ public class TxnLogBufferedWriterMetricsStats implements Closeable {
      *    2. Direct write the large data to BK.
      * This ensures the sequential nature of multiple writes to BK.
      */
-    private final Counter batchFlushTriggeringByLargeSingleDataMetric;
-    private final Counter.Child batchFlushTriggeringByLargeSingleDataCounter;
+    private final Counter batchFlushTriggeredByLargeSingleDataMetric;
+    private final Counter.Child batchFlushTriggeredByLargeSingleDataCounter;
 
     public void close() {
         recordsPerBatchMetric.remove(labelValues);
         batchSizeBytesMetric.remove(labelValues);
         oldestRecordInBatchDelayTimeSecondsMetric.remove(labelValues);
-        batchFlushTriggeringByMaxRecordsMetric.remove(labelValues);
-        batchFlushTriggeringByMaxSizeMetric.remove(labelValues);
-        batchFlushTriggeringByMaxDelayMetric.remove(labelValues);
-        batchFlushTriggeringByLargeSingleDataMetric.remove(labelValues);
+        batchFlushTriggeredByMaxRecordsMetric.remove(labelValues);
+        batchFlushTriggeredByMaxSizeMetric.remove(labelValues);
+        batchFlushTriggeredByMaxDelayMetric.remove(labelValues);
+        batchFlushTriggeredByLargeSingleDataMetric.remove(labelValues);
     }
 
     public TxnLogBufferedWriterMetricsStats(String metricsPrefix, String[] labelNames, String[] labelValues,
@@ -150,7 +150,7 @@ public class TxnLogBufferedWriterMetricsStats implements Closeable {
 
         String batchFlushTriggeringByMaxRecordsMetricName =
                 String.format("%s_batched_log_triggering_count_by_records", metricsPrefix);
-        batchFlushTriggeringByMaxRecordsMetric = (Counter) COLLECTOR_CACHE.computeIfAbsent(
+        batchFlushTriggeredByMaxRecordsMetric = (Counter) COLLECTOR_CACHE.computeIfAbsent(
                 batchFlushTriggeringByMaxRecordsMetricName,
                 k -> new Counter.Builder()
                         .name(batchFlushTriggeringByMaxRecordsMetricName)
@@ -158,22 +158,22 @@ public class TxnLogBufferedWriterMetricsStats implements Closeable {
                         .help("A metrics for how many batches were triggered due to threshold"
                                 + " \"batchedWriteMaxRecords\"")
                         .register(registry));
-        batchFlushTriggeringByMaxRecordsCounter = batchFlushTriggeringByMaxRecordsMetric.labels(labelValues);
+        batchFlushTriggeredByMaxRecordsCounter = batchFlushTriggeredByMaxRecordsMetric.labels(labelValues);
 
         String batchFlushTriggeringByMaxSizeMetricName =
                 String.format("%s_batched_log_triggering_count_by_size", metricsPrefix);
-        batchFlushTriggeringByMaxSizeMetric = (Counter) COLLECTOR_CACHE.computeIfAbsent(
+        batchFlushTriggeredByMaxSizeMetric = (Counter) COLLECTOR_CACHE.computeIfAbsent(
                 batchFlushTriggeringByMaxSizeMetricName,
                 k -> new Counter.Builder()
                         .name(batchFlushTriggeringByMaxSizeMetricName)
                         .labelNames(labelNames)
                         .help("A metrics for how many batches were triggered due to threshold \"batchedWriteMaxSize\"")
                         .register(registry));
-        batchFlushTriggeringByMaxSizeCounter = batchFlushTriggeringByMaxSizeMetric.labels(labelValues);
+        batchFlushTriggeredByMaxSizeCounter = batchFlushTriggeredByMaxSizeMetric.labels(labelValues);
 
         String batchFlushTriggeringByMaxDelayMetricName =
                 String.format("%s_batched_log_triggering_count_by_delay_time", metricsPrefix);
-        batchFlushTriggeringByMaxDelayMetric = (Counter) COLLECTOR_CACHE.computeIfAbsent(
+        batchFlushTriggeredByMaxDelayMetric = (Counter) COLLECTOR_CACHE.computeIfAbsent(
                 batchFlushTriggeringByMaxDelayMetricName,
                 k -> new Counter.Builder()
                         .name(batchFlushTriggeringByMaxDelayMetricName)
@@ -181,38 +181,38 @@ public class TxnLogBufferedWriterMetricsStats implements Closeable {
                         .help("A metrics for how many batches were triggered due to threshold"
                                 + " \"batchedWriteMaxDelayInMillis\"")
                         .register(registry));
-        batchFlushTriggeringByMaxDelayCounter =
-                batchFlushTriggeringByMaxDelayMetric.labels(labelValues);
+        batchFlushTriggeredByMaxDelayCounter =
+                batchFlushTriggeredByMaxDelayMetric.labels(labelValues);
 
         String batchFlushTriggeringByLargeSingleDataMetricName =
                 String.format("%s_batched_log_triggering_count_by_force", metricsPrefix);
-        batchFlushTriggeringByLargeSingleDataMetric = (Counter) COLLECTOR_CACHE.computeIfAbsent(
+        batchFlushTriggeredByLargeSingleDataMetric = (Counter) COLLECTOR_CACHE.computeIfAbsent(
                 batchFlushTriggeringByLargeSingleDataMetricName,
                 k -> new Counter.Builder()
                         .name(batchFlushTriggeringByLargeSingleDataMetricName)
                         .labelNames(labelNames)
                         .help("A metrics for how many batches were triggered due to threshold \"forceFlush\"")
                         .register(registry));
-        batchFlushTriggeringByLargeSingleDataCounter = batchFlushTriggeringByLargeSingleDataMetric.labels(labelValues);
+        batchFlushTriggeredByLargeSingleDataCounter = batchFlushTriggeredByLargeSingleDataMetric.labels(labelValues);
     }
 
     public void triggerFlushByRecordsCount(int recordCount, long bytesSize, long delayMillis) {
-        batchFlushTriggeringByMaxRecordsCounter.inc();
+        batchFlushTriggeredByMaxRecordsCounter.inc();
         observeHistogram(recordCount, bytesSize, delayMillis);
     }
 
     public void triggerFlushByBytesSize(int recordCount, long bytesSize, long delayMillis) {
-        batchFlushTriggeringByMaxSizeCounter.inc();
+        batchFlushTriggeredByMaxSizeCounter.inc();
         observeHistogram(recordCount, bytesSize, delayMillis);
     }
 
     public void triggerFlushByByMaxDelay(int recordCount, long bytesSize, long delayMillis) {
-        batchFlushTriggeringByMaxDelayCounter.inc();
+        batchFlushTriggeredByMaxDelayCounter.inc();
         observeHistogram(recordCount, bytesSize, delayMillis);
     }
 
     public void triggerFlushByForce(int recordCount, long bytesSize, long delayMillis) {
-        batchFlushTriggeringByLargeSingleDataCounter.inc();
+        batchFlushTriggeredByLargeSingleDataCounter.inc();
         observeHistogram(recordCount, bytesSize, delayMillis);
     }
 
