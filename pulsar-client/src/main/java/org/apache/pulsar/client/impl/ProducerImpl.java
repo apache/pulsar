@@ -424,7 +424,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
      * @param payload
      * @return a new payload
      */
-    protected ByteBuf applyCompression(ByteBuf payload) {
+    private ByteBuf applyCompression(ByteBuf payload) {
         ByteBuf compressedPayload = compressor.encode(payload);
         payload.release();
         return compressedPayload;

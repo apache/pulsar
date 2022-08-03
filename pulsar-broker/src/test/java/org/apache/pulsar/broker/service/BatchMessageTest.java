@@ -879,7 +879,7 @@ public class BatchMessageTest extends BrokerTestBase {
             .batcherBuilder(builder)
             .create();
         String msg = "my-message";
-        MessageId messageId = producer.send(msg.getBytes());
+        MessageId messageId = producer.newMessage().value(msg.getBytes()).property("key1", "value1").send();
 
         Assert.assertTrue(messageId instanceof MessageIdImpl);
         Assert.assertFalse(messageId instanceof BatchMessageIdImpl);
@@ -889,6 +889,8 @@ public class BatchMessageTest extends BrokerTestBase {
         consumer.acknowledge(received);
 
         Assert.assertEquals(new String(received.getData()), msg);
+        Assert.assertFalse(received.getProperties().isEmpty());
+        Assert.assertEquals(received.getProperties().get("key1"), "value1");
         Assert.assertFalse(received.getMessageId() instanceof BatchMessageIdImpl);
 
         producer.close();
