@@ -18,12 +18,13 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static org.mockito.Mockito.doReturn;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.BookieInfo;
@@ -109,6 +110,49 @@ public class BookiesApiTest extends MockedPulsarServiceBaseTest {
 
         conf = admin.bookies().getBookiesRackInfo();
         assertTrue(conf.isEmpty());
+
+        // test invalid rack name
+        // use rack aware placement policy
+        String errorMsg = "Bookie 'rack' parameter is invalid, When `RackawareEnsemblePlacementPolicy` is enabled, "
+                + "the rack name is not allowed to contain slash (`/`) except for the beginning and end of the rack name "
+                + "string. When `RegionawareEnsemblePlacementPolicy` is enabled, the rack name can only contain "
+                + "one slash (`/`) except for the beginning and end of the rack name string.";
+
+        BookieInfo newInfo3 = new BookieInfo("/rack/a","127.0.0.2");
+        try {
+            admin.bookies().updateBookieRackInfo(bookie0, "default", newInfo3);
+            fail();
+        } catch (PulsarAdminException e) {
+            assertEquals(412, e.getStatusCode());
+            assertEquals(errorMsg, e.getMessage());
+        }
+
+        BookieInfo newInfo4 = new BookieInfo("/rack","127.0.0.2");
+        try {
+            admin.bookies().updateBookieRackInfo(bookie0, "default", newInfo4);
+        } catch (PulsarAdminException e) {
+            fail();
+        }
+
+        // enable region aware placement policy
+        ServiceConfiguration configuration = new ServiceConfiguration();
+        configuration.setBookkeeperClientRegionawarePolicyEnabled(true);
+        doReturn(configuration).when(pulsar).getConfiguration();
+        BookieInfo newInfo5 = new BookieInfo("/region/rack/a", "127.0.0.2");
+        try {
+            admin.bookies().updateBookieRackInfo(bookie0, "default", newInfo5);
+            fail();
+        } catch (PulsarAdminException e) {
+            assertEquals(412, e.getStatusCode());
+            assertEquals(errorMsg, e.getMessage());
+        }
+
+        BookieInfo newInfo6 = new BookieInfo("/region/rack/", "127.0.0.2");
+        try {
+            admin.bookies().updateBookieRackInfo(bookie0, "default", newInfo6);
+        } catch (PulsarAdminException e) {
+            fail();
+        }
     }
 
 }
