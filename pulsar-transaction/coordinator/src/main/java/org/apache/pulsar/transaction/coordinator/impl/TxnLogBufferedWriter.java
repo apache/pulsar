@@ -239,7 +239,7 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
         this.flushContext.asyncAddArgsList.add(asyncAddArgs);
         // Calculate bytes-size.
         this.bytesSize += len;
-        // trig flush.
+        // trig flush by max records or max size.
         trigFlushIfReachMaxRecordsOrMaxSize();
     }
 
