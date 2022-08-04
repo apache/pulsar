@@ -722,7 +722,9 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         Awaitility.await().atMost(1, TimeUnit.SECONDS).until(
                 () -> callbackWithCounter.finishCounter.get() + callbackWithCounter.failureCounter.get() == writeCount
         );
+        int actualBatchFlushCount = txnLogBufferedWriterContext.mockedManagedLedger.writeCounter.get();
         assertEquals(callbackWithCounter.failureCounter.get(), 0);
+        assertEquals(expectedBatchFlushCount, actualBatchFlushCount);
         verifyTheCounterMetrics(expectedBatchFlushCount,0,0,0);
         verifyTheHistogramMetrics(expectedBatchFlushCount, writeCount, expectedTotalBytesSize);
         // cleanup.
@@ -752,7 +754,9 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         Awaitility.await().atMost(1, TimeUnit.SECONDS).until(
                 () -> callbackWithCounter.finishCounter.get() + callbackWithCounter.failureCounter.get() == writeCount
         );
+        int actualBatchFlushCount = txnLogBufferedWriterContext.mockedManagedLedger.writeCounter.get();
         assertEquals(callbackWithCounter.failureCounter.get(), 0);
+        assertEquals(expectedBatchFlushCount, actualBatchFlushCount);
         verifyTheCounterMetrics(0, expectedBatchFlushCount,0,0);
         verifyTheHistogramMetrics(expectedBatchFlushCount, writeCount, expectedTotalBytesSize);
         // cleanup.
@@ -892,7 +896,6 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         assertEquals(
                 getCounterValue(String.format("%s_bufferedwriter_flush_trigger_large_data", metricsPrefix)),
                 triggeredByLargeData);
-
     }
 
     private void verifyTheHistogramMetrics(int batchFlushCount, int totalRecordsCount, int totalSize){
