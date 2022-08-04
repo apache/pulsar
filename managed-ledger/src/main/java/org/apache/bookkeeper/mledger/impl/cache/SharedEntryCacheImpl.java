@@ -101,14 +101,19 @@ class SharedEntryCacheImpl implements EntryCache {
         long totalCachedSize = entryCacheManager.getRange(ledgerId, firstEntry, lastEntry, cachedEntries);
 
         if (cachedEntries.size() == entriesToRead) {
+            final List<Entry> entriesToReturn = Lists.newArrayListWithExpectedSize(entriesToRead);
             // All entries found in cache
-            entryCacheManager.getFactoryMBean().recordCacheHits(entriesToRead, totalCachedSize);
+            for (Entry entry : cachedEntries) {
+                entriesToReturn.add(EntryImpl.create((EntryImpl) entry));
+                entry.release();
+            }
+            // All entries found in cache
+            entryCacheManager.getFactoryMBean().recordCacheHits(entriesToReturn.size(), totalCachedSize);
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Ledger {} -- Found in cache entries: {}-{}", ml.getName(), ledgerId, firstEntry,
                         lastEntry);
             }
-
-            callback.readEntriesComplete(cachedEntries, ctx);
+            callback.readEntriesComplete(entriesToReturn, ctx);
 
         } else {
             if (!cachedEntries.isEmpty()) {
