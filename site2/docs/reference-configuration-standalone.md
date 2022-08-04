@@ -488,18 +488,6 @@ Maximum number of partitions per partitioned topic. When the value is set to a n
 
 **Default**: 0
 
-### enableBrokerSideSubscriptionPatternEvaluation
-
-Enable the evaluation of subscription patterns on the broker. If true the broker only sends the list of matching topics to the clients.
-
-**Default**: true
-
-### subscriptionPatternMaxLength
-
-The maximum length of patterns that a broker evaluates. Longer patterns are rejected to avoid patterns that are crafted to overload the broker.
-
-**Default**: 50
-
 ### metadataStoreBatchingEnabled
 
 Enable metadata operations batching.
