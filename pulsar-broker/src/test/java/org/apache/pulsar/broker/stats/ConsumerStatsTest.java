@@ -300,6 +300,8 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
         Multimap<String, PrometheusMetricsTest.Metric> metricsMap = PrometheusMetricsTest.parseMetrics(metricStr);
         Collection<PrometheusMetricsTest.Metric> ackRateMetric = metricsMap.get("pulsar_consumer_msg_ack_rate");
 
+        Collection<PrometheusMetricsTest.Metric> subAckRateMetrics = metricsMap.get("pulsar_subscription_msg_ack_rate");
+
         String rateOutMetricName = exposeTopicLevelMetrics ? "pulsar_consumer_msg_rate_out" : "pulsar_rate_out";
         Collection<PrometheusMetricsTest.Metric> rateOutMetric = metricsMap.get(rateOutMetricName);
         Assert.assertTrue(ackRateMetric.size() > 0);
@@ -316,9 +318,16 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
                     .filter(metric -> metric.tags.get("consumer_name").equals(consumer1Name)
                             || metric.tags.get("consumer_name").equals(consumer2Name))
                     .mapToDouble(metric -> metric.value).sum();
+            double subAckRate = subAckRateMetrics
+                    .stream()
+                    .filter(m -> m.tags.get("subscription").equals(subName))
+                    .mapToDouble(m -> m.value)
+                    .sum();
 
+            Assert.assertEquals(subAckRateMetrics.size(), 1);
             Assert.assertTrue(totalAckRate > 0D);
             Assert.assertTrue(totalRateOut > 0D);
+            Assert.assertEquals(totalAckRate, subAckRate, 0.1D * totalAckRate);
             Assert.assertEquals(totalAckRate, totalRateOut, totalRateOut * 0.1D);
         } else {
             double totalAckRate = ackRateMetric.stream()
