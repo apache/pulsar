@@ -345,7 +345,7 @@ void ProducerImpl::triggerFlush() {
 }
 
 bool ProducerImpl::isValidProducerState(const SendCallback& callback) const {
-    const State state = state_;
+    const auto state = state_.load();
     switch (state) {
         case HandlerBase::Ready:
             // OK
@@ -604,7 +604,8 @@ void ProducerImpl::batchMessageTimeoutHandler(const boost::system::error_code& e
     LOG_DEBUG(getName() << " - Batch Message Timer expired");
 
     // ignore if the producer is already closing/closed
-    if (state_ == Pending || state_ == Ready) {
+    const auto state = state_.load();
+    if (state == Pending || state == Ready) {
         Lock lock(mutex_);
         auto failures = batchMessageAndSend();
         lock.unlock();
@@ -716,7 +717,8 @@ Future<Result, ProducerImplBaseWeakPtr> ProducerImpl::getProducerCreatedFuture()
 uint64_t ProducerImpl::getProducerId() const { return producerId_; }
 
 void ProducerImpl::handleSendTimeout(const boost::system::error_code& err) {
-    if (state_ != Pending && state_ != Ready) {
+    const auto state = state_.load();
+    if (state != Pending && state != Ready) {
         return;
     }
     Lock lock(mutex_);
