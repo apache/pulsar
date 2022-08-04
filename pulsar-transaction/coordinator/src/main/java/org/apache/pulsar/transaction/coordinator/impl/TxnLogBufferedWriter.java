@@ -117,7 +117,6 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
             AtomicReferenceFieldUpdater
                     .newUpdater(TxnLogBufferedWriter.class, TxnLogBufferedWriter.State.class, "state");
 
-    /** Metrics. **/
     private final TxnLogBufferedWriterMetricsStats metrics;
 
     public TxnLogBufferedWriter(ManagedLedger managedLedger, OrderedExecutor orderedExecutor, Timer timer,
@@ -218,7 +217,7 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
      * accept a request that {@param data} is too large (larger than {@link #batchedWriteMaxSize}), then two flushes
      * are executed:
      *    1. Write the data cached in the queue to BK.
-     *    2. Direct write the large data to BK.
+     *    2. Direct write the large data to BK,  this flush event will not record to Metrics.
      * This ensures the sequential nature of multiple writes to BK.
      */
     private void internalAsyncAddData(T data, AddDataCallback callback, Object ctx){
@@ -226,10 +225,12 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
             callback.addFailed(BUFFERED_WRITER_CLOSED_EXCEPTION, ctx);
             return;
         }
-        // If param-data is too large.
-        int len = dataSerializer.getSerializedSize(data);
-        if (len >= batchedWriteMaxSize){
-            trigFlushByLargeSingleData(data, callback, ctx);
+        int dataLength = dataSerializer.getSerializedSize(data);
+        if (dataLength >= batchedWriteMaxSize){
+            trigFlushByLargeSingleData();
+            ByteBuf byteBuf = dataSerializer.serialize(data);
+            managedLedger.asyncAddEntry(byteBuf, DisabledBatchCallback.INSTANCE,
+                    AsyncAddArgs.newInstance(callback, ctx, System.currentTimeMillis(), byteBuf));
             return;
         }
         // Append data to queue.
@@ -238,8 +239,7 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
         AsyncAddArgs asyncAddArgs = AsyncAddArgs.newInstance(callback, ctx, System.currentTimeMillis());
         this.flushContext.asyncAddArgsList.add(asyncAddArgs);
         // Calculate bytes-size.
-        this.bytesSize += len;
-        // trig flush by max records or max size.
+        this.bytesSize += dataLength;
         trigFlushIfReachMaxRecordsOrMaxSize();
     }
 
@@ -265,41 +265,32 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
      * If reach the thresholds {@link #batchedWriteMaxRecords} or {@link #batchedWriteMaxSize}, do flush.
      */
     private void trigFlushIfReachMaxRecordsOrMaxSize(){
-        if (this.flushContext.asyncAddArgsList.size() >= batchedWriteMaxRecords) {
+        if (flushContext.asyncAddArgsList.size() >= batchedWriteMaxRecords) {
             if (metrics != null) {
-                metrics.triggerFlushByRecordsCount(this.flushContext.asyncAddArgsList.size(), this.bytesSize,
+                metrics.triggerFlushByRecordsCount(flushContext.asyncAddArgsList.size(), bytesSize,
                         System.currentTimeMillis() - flushContext.asyncAddArgsList.get(0).addedTime);
             }
             doFlush();
             return;
         }
-        if (this.bytesSize >= batchedWriteMaxSize) {
+        if (bytesSize >= batchedWriteMaxSize) {
             if (metrics != null) {
-                metrics.triggerFlushByBytesSize(this.flushContext.asyncAddArgsList.size(), this.bytesSize,
+                metrics.triggerFlushByBytesSize(flushContext.asyncAddArgsList.size(), bytesSize,
                         System.currentTimeMillis() - flushContext.asyncAddArgsList.get(0).addedTime);
             }
             doFlush();
         }
     }
 
-    /**
-     * If method {@link #asyncAddData(Object, AddDataCallback, Object)} accept a request that {@param data} is too
-     * large (larger than {@link #batchedWriteMaxSize}), then two flushes:
-     *    1. Write the data cached in the queue to BK.
-     *    2. Directly write the large data to BK, this flush event will not record to Metrics.
-     * This ensures the sequential nature of multiple writes to BK.
-     */
-    private void trigFlushByLargeSingleData(T data, AddDataCallback callback, Object ctx){
-        if (!flushContext.asyncAddArgsList.isEmpty()) {
-            if (metrics != null) {
-                metrics.triggerFlushByLargeSingleData(this.flushContext.asyncAddArgsList.size(), this.bytesSize,
-                        System.currentTimeMillis() - flushContext.asyncAddArgsList.get(0).addedTime);
-            }
-            doFlush();
+    private void trigFlushByLargeSingleData(){
+        if (flushContext.asyncAddArgsList.isEmpty()) {
+            return;
         }
-        ByteBuf byteBuf = dataSerializer.serialize(data);
-        managedLedger.asyncAddEntry(byteBuf, DisabledBatchCallback.INSTANCE,
-                AsyncAddArgs.newInstance(callback, ctx, System.currentTimeMillis(), byteBuf));
+        if (metrics != null) {
+            metrics.triggerFlushByLargeSingleData(this.flushContext.asyncAddArgsList.size(), this.bytesSize,
+                    System.currentTimeMillis() - flushContext.asyncAddArgsList.get(0).addedTime);
+        }
+        doFlush();
     }
 
     /***
