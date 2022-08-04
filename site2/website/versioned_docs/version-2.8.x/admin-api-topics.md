@@ -709,6 +709,49 @@ admin.topics().getMessageById(topic, ledgerId, entryId);
 </Tabs>
 ````
 
+### Examine messages
+You can examine a specific message on a topic by position relative to the earliest or the latest message.
+
+:::note
+
+This REST API is only available in 2.8.1 and later versions.
+
+:::
+
+````mdx-code-block
+<Tabs 
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
+```shell
+
+$ ./bin/pulsar-admin topics examine-messages \
+  persistent://public/default/my-topic \
+  -i latest -m 1
+
+```
+
+</TabItem>
+<TabItem value="REST API">
+
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic|operation/examineMessage?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
+```java
+
+String topic = "persistent://my-tenant/my-namespace/my-topic";
+admin.topics().examineMessage(topic, "latest", 1);
+
+```
+
+</TabItem>
+
+</Tabs>
+````
+
 ### Skip messages
 
 You can skip a number of messages for a specific subscription of a given topic in the following ways.
