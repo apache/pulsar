@@ -235,10 +235,10 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
         }
         // Append data to the data-array.
         dataArray.add(data);
-        // Add callback info.
+        // Append callback to the flushContext.
         AsyncAddArgs asyncAddArgs = AsyncAddArgs.newInstance(callback, ctx, System.currentTimeMillis());
         flushContext.asyncAddArgsList.add(asyncAddArgs);
-        // Calculate bytes-size.
+        // Calculate bytes size.
         bytesSize += dataLength;
         trigFlushIfReachMaxRecordsOrMaxSize();
     }
@@ -315,7 +315,7 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
         ByteBuf serialize(T data);
 
         /**
-         * Serialize {@param dataArray} to {@link ByteBuf}.. The returned ByteBuf will be release once after writing to
+         * Serialize {@param dataArray} to {@link ByteBuf}. The returned ByteBuf will be release once after writing to
          * Bookie complete, and if you still need to use the ByteBuf, should call {@link ByteBuf#retain()} in
          * {@link #serialize(Object)} implementation.
          * @param dataArray The objects which called by {@link #asyncAddData}.
@@ -326,7 +326,7 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
     }
 
     private void doFlush(){
-        // Combine data.
+        // Combine data cached by flushContext, and write to BK.
         ByteBuf prefix = PulsarByteBufAllocator.DEFAULT.buffer(4);
         prefix.writeShort(BATCHED_ENTRY_DATA_PREFIX_MAGIC_NUMBER);
         prefix.writeShort(BATCHED_ENTRY_DATA_PREFIX_VERSION);
@@ -334,13 +334,12 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
         ByteBuf pairByteBuf = Unpooled.wrappedUnmodifiableBuffer(prefix, actualContent);
         // We need to release this pairByteBuf after Managed ledger async add callback. Just holds by FlushContext.
         flushContext.byteBuf = pairByteBuf;
-        // Flush.
         if (State.CLOSING == state || State.CLOSED == state){
             failureCallbackByContextAndRecycle(flushContext, BUFFERED_WRITER_CLOSED_EXCEPTION);
         } else {
             managedLedger.asyncAddEntry(pairByteBuf, this, flushContext);
         }
-        // Clear buffers.ok
+        // Reset the cache.
         dataArray.clear();
         flushContext = FlushContext.newInstance();
         bytesSize = 0;
@@ -358,7 +357,7 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
                 final AsyncAddArgs asyncAddArgs = flushContext.asyncAddArgsList.get(batchIndex);
                 final TxnBatchedPositionImpl txnBatchedPosition = new TxnBatchedPositionImpl(position, batchSize,
                         batchIndex);
-                // Because this task already running at ordered task, so just "run".
+                // Because this task already running at ordered task, so just "execute callback".
                 try {
                     asyncAddArgs.callback.addComplete(txnBatchedPosition, asyncAddArgs.ctx);
                 } catch (Exception e){
@@ -381,18 +380,17 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
     }
 
     /**
-     * Cancel pending tasks and release resources.
+     * Release resources and cancel pending tasks.
      */
     @Override
     public void close() {
-        // If disabled batch feature, there is no closing state.
+        // If batch feature is disabled, there is nothing to close, so set the stat only.
         if (!batchEnabled) {
             STATE_UPDATER.compareAndSet(this, State.OPEN, State.CLOSED);
             return;
         }
-        // Prevent the reentrant.
+        // If other thread already called "close()", so do nothing.
         if (!STATE_UPDATER.compareAndSet(this, State.OPEN, State.CLOSING)){
-            // Other thread also calling "close()".
             return;
         }
         // Cancel pending tasks and release resources.
@@ -400,10 +398,9 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
             if (state == State.CLOSED){
                 return;
             }
-            // Failure callback to pending request.
-            // If some request has been flushed, Bookie triggers the callback.
+            // If some requests are flushed, BK will trigger these callbacks, and the remaining requests in should fail.
             failureCallbackByContextAndRecycle(flushContext, BUFFERED_WRITER_CLOSED_EXCEPTION);
-            // Cancel task that schedule at fixed rate trig flush.
+            // Cancel the timing task.
             if (timeout == null){
                 log.error("Cancel timeout-task that schedule at fixed rate trig flush failure. The field-timeout"
                         + " is null. managedLedger: " + managedLedger.getName());
@@ -477,10 +474,10 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
         }
 
         /**
-         * This constructor is used only when batch is disabled, and has {@param byteBuf} more than the
-         * {@link AsyncAddArgs#newInstance(AddDataCallback, Object, long)} constructor. The {@param byteBuf} will be
-         * released during callback. see {@link AsyncAddArgs#recycle()}.
-         * @param byteBuf produced by {@link DataSerializer#serialize(Object)}
+         * This constructor is used only when batch is disabled. Different to
+         * {@link AsyncAddArgs#newInstance(AddDataCallback, Object, long)} has {@param byteBuf}. The {@param byteBuf}
+         * generated by {@link DataSerializer#serialize(Object)} will be released during callback when
+         * {@link #recycle()} executed.
          */
         private static AsyncAddArgs newInstance(AddDataCallback callback, Object ctx, long addedTime, ByteBuf byteBuf){
             AsyncAddArgs asyncAddArgs = newInstance(callback, ctx, addedTime);
@@ -494,11 +491,11 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
 
         private final Recycler.Handle<AsyncAddArgs> handle;
 
-        /** Argument for {@link #asyncAddData(Object, AddDataCallback, Object)}. **/
+        /** {@param callback} for {@link #asyncAddData(Object, AddDataCallback, Object)}. **/
         @Getter
         private AddDataCallback callback;
 
-        /** Argument for {@link #asyncAddData(Object, AddDataCallback, Object)}. **/
+        /** {@param ctx} for {@link #asyncAddData(Object, AddDataCallback, Object)}. **/
         @Getter
         private Object ctx;
 
@@ -507,8 +504,8 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
         private long addedTime;
 
         /**
-         * When turning off the Batch feature, we need to release the byteBuf produced by
-         * {@link DataSerializer#serialize(Object)}. Only carry the ByteBuf objects, no other use.
+         * When turning off the Batch feature, we need to release the byteBuf generated by
+         * {@link DataSerializer#serialize(Object)}.so holds the Byte Buffer by {@link AsyncAddArgs}.
          */
         private ByteBuf byteBuf;
 
@@ -539,13 +536,13 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
 
         private final Recycler.Handle<FlushContext> handle;
 
-        /** Callback parameters for current batch. **/
+        /** Stores all the params used to execute the callback in batch. **/
         private final ArrayList<AsyncAddArgs> asyncAddArgsList;
 
         /**
-         * If turning on the Batch feature, we need to release the byteBuf produced by
-         * {@link DataSerializer#serialize(ArrayList)} when Managed ledger async add callback.
-         * Only carry the ByteBuf objects, no other use.
+         * This property only used on enabled batch feature: we need to release the byteBuf generated by
+         * {@link DataSerializer#serialize(ArrayList)} after Managed ledger async add complete, so holds the Byte Buffer
+         * by {@link FlushContext}.
          */
         private ByteBuf byteBuf;
 
@@ -587,8 +584,9 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
     }
 
     /***
-     * Instead origin param-callback for {@link #asyncAddData(Object, AddDataCallback, Object)}
-     * when {@link #batchEnabled} == false, Used for ByteBuf release which generated by {@link DataSerializer}.
+     * If Batch is disabled, the data will directly write to BK by Managed Ledger, before write, the data will convert
+     * to {@link ByteBuf} using method {@link DataSerializer#serialize(Object)}. And this byte buffer should be released
+     * finally. So definition this class to wrap original callback, mainly to release the buffer.
      */
     private static class DisabledBatchCallback implements AsyncCallbacks.AddEntryCallback {
 
