@@ -356,6 +356,7 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 | maxTopicsPerNamespace | The maximum number of persistent topics that can be created in the namespace. When the number of topics reaches this threshold, the broker rejects the request of creating a new topic, including the auto-created topics by the producer or consumer, until the number of connected consumers decreases. The default value 0 disables the check. | 0 |
 |subscriptionTypesEnabled| Enable all subscription types, which are exclusive, shared, failover, and key_shared. | Exclusive, Shared, Failover, Key_Shared |
 |narExtractionDirectory | The extraction directory of the nar package. <br />Available for Protocol Handler, Additional Servlets, Offloaders, Broker Interceptor. | System.getProperty("java.io.tmpdir") |
+| managedLedgerInfoCompressionType | Compression type of `ManagedLedgerInfo`. <br />**Note:** This configuration is only available in 2.8.1 and later versions. <br />Available values are `NONE`, `LZ4`, `ZLIB`, `ZSTD`, and `SNAPPY`. <br/> If the value is `NONE` or invalid, the `managedLedgerInfo` is not compressed. <br /> **Note** that after enabling this configuration, if you want to degrade broker, you need to change the value to `NONE` and ensure all ledger metadata are saved without compression before starting to degrade. | NONE |
 
 ## Client
 

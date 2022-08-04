@@ -216,7 +216,7 @@ You can set a size and/or time threshold and backlog retention policy for all of
 
 #### pulsar-admin
 
-Use the [`set-backlog-quota`](reference-pulsar-admin.md#namespaces) subcommand and specify a namespace, a size limit using the `-l`/`--limit` flag, and a retention policy using the `-p`/`--policy` flag.
+Use the [`set-backlog-quota`](reference-pulsar-admin.md#namespaces) subcommand and specify a namespace, a size limit using the `-l`/`--limit` flag and the `-lt`/`--limitTime` flag (for 2.8.1 and later versions only) to limit backlog, a retention policy using the `-p`/`--policy` flag, and a policy type using `-t`/`--type` (for 2.8.1 and later versions only, defaults to `destination_storage`).
 
 ##### Example
 
@@ -224,10 +224,19 @@ Use the [`set-backlog-quota`](reference-pulsar-admin.md#namespaces) subcommand a
 
 $ pulsar-admin namespaces set-backlog-quota my-tenant/my-ns \
   --limit 2G \
-  --limitTime 36000 \
   --policy producer_request_hold
 
 ```
+
+```shell
+
+$ pulsar-admin namespaces set-backlog-quota my-tenant/my-ns/my-topic \
+  --limitTime 3600 \
+  --policy producer_request_hold \
+  --type message_age
+
+```
+
 
 #### REST API
 
