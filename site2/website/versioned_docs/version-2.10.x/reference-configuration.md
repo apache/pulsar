@@ -459,9 +459,13 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |log4j.appender.TRACEFILE.layout| org.apache.log4j.PatternLayout|
 |log4j.appender.TRACEFILE.layout.ConversionPattern| %d{ISO8601} - %-5p [%t:%C{1}@%L][%x] - %m%n|
 
-> Note: 'topic' in log4j2.appender is configurable. 
-> - If you want to append all logs to a single topic, set the same topic name.
-> - If you want to append logs to different topics, you can set different topic names. 
+:::note
+
+'topic' in log4j2.appender is configurable. 
+- If you want to append all logs to a single topic, set the same topic name.
+- If you want to append logs to different topics, you can set different topic names. 
+
+:::
 
 ## Log4j shell
 
