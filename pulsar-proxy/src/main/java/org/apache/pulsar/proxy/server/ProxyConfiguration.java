@@ -115,7 +115,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_BROKER_DISCOVERY,
             required = false,
-            doc = "The metadata store URL for the configuration data. If empty, we fall back to use metadataStoreUrl"
+            doc = "The metadata store URL for the configuration data. If empty, we fall back to use metadataStoreUrl."
     )
     private String configurationMetadataStoreUrl;
 
