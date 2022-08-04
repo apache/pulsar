@@ -311,8 +311,8 @@ The Apache Software License, Version 2.0
     - trace-token-0.195.jar
     - units-1.6.jar
    * Apache HTTP Client
-    - httpclient-4.5.5.jar
-    - httpcore-4.4.9.jar
+    - httpclient-4.5.13.jar
+    - httpcore-4.4.13.jar
   * Error Prone Annotations
     - error_prone_annotations-2.3.4.jar
   * Esri Geometry API For Java
@@ -403,9 +403,9 @@ The Apache Software License, Version 2.0
   * Objectsize
     - objectsize-0.0.12.jar
   * Dropwizard Metrics
-    - metrics-core-3.1.0.jar
-    - metrics-graphite-3.1.0.jar
-    - metrics-jvm-3.1.0.jar
+    - metrics-core-3.2.5.jar
+    - metrics-graphite-3.2.5.jar
+    - metrics-jvm-3.2.5.jar
   * Prometheus
     - simpleclient-0.5.0.jar
     - simpleclient_common-0.5.0.jar
@@ -418,18 +418,17 @@ The Apache Software License, Version 2.0
     - async-http-client-2.12.1.jar
     - async-http-client-netty-utils-2.12.1.jar
   * Apache Bookkeeper
-    - bookkeeper-common-4.12.1.jar
-    - bookkeeper-common-allocator-4.12.1.jar
-    - bookkeeper-proto-4.12.1.jar
-    - bookkeeper-server-4.12.1.jar
-    - bookkeeper-stats-api-4.12.1.jar
-    - bookkeeper-tools-framework-4.12.1.jar
-    - circe-checksum-4.12.1.jar
-    - codahale-metrics-provider-4.12.1.jar
-    - cpu-affinity-4.12.1.jar
-    - http-server-4.12.1.jar
-    - prometheus-metrics-provider-4.12.1.jar
-    - codahale-metrics-provider-4.12.1.jar
+    - bookkeeper-common-4.14.5.jar
+    - bookkeeper-common-allocator-4.14.5.jar
+    - bookkeeper-proto-4.14.5.jar
+    - bookkeeper-server-4.14.5.jar
+    - bookkeeper-stats-api-4.14.5.jar
+    - bookkeeper-tools-framework-4.14.5.jar
+    - circe-checksum-4.14.5.jar
+    - codahale-metrics-provider-4.14.5.jar
+    - cpu-affinity-4.14.5.jar
+    - prometheus-metrics-provider-4.14.5.jar
+    - http-server-4.14.5.jar
   * Apache Commons
     - commons-cli-1.2.jar
     - commons-codec-1.10.jar

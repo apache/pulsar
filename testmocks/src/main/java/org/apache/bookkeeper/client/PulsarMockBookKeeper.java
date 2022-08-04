@@ -38,7 +38,6 @@ import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.client.impl.OpenBuilderBase;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.bookkeeper.conf.ClientConfiguration;
-import org.apache.bookkeeper.meta.zk.ZKMetadataClientDriver;
 import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,7 +53,7 @@ public class PulsarMockBookKeeper extends BookKeeper {
     final ZooKeeper zkc;
 
     public ZooKeeper getZkHandle() {
-        return ((ZKMetadataClientDriver) metadataDriver).getZk();
+        return zkc;
     }
 
     @Override

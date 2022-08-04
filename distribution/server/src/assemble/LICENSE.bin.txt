@@ -403,35 +403,35 @@ The Apache Software License, Version 2.0
     - org.apache.logging.log4j-log4j-1.2-api-2.17.1.jar
  * Java Native Access JNA -- net.java.dev.jna-jna-4.2.0.jar
  * BookKeeper
-    - org.apache.bookkeeper-bookkeeper-common-4.12.1.jar
-    - org.apache.bookkeeper-bookkeeper-common-allocator-4.12.1.jar
-    - org.apache.bookkeeper-bookkeeper-proto-4.12.1.jar
-    - org.apache.bookkeeper-bookkeeper-server-4.12.1.jar
-    - org.apache.bookkeeper-bookkeeper-tools-framework-4.12.1.jar
-    - org.apache.bookkeeper-circe-checksum-4.12.1.jar
-    - org.apache.bookkeeper-cpu-affinity-4.12.1.jar
-    - org.apache.bookkeeper-statelib-4.12.1.jar
-    - org.apache.bookkeeper-stream-storage-api-4.12.1.jar
-    - org.apache.bookkeeper-stream-storage-common-4.12.1.jar
-    - org.apache.bookkeeper-stream-storage-java-client-4.12.1.jar
-    - org.apache.bookkeeper-stream-storage-java-client-base-4.12.1.jar
-    - org.apache.bookkeeper-stream-storage-proto-4.12.1.jar
-    - org.apache.bookkeeper-stream-storage-server-4.12.1.jar
-    - org.apache.bookkeeper-stream-storage-service-api-4.12.1.jar
-    - org.apache.bookkeeper-stream-storage-service-impl-4.12.1.jar
-    - org.apache.bookkeeper.http-http-server-4.12.1.jar
-    - org.apache.bookkeeper.http-vertx-http-server-4.12.1.jar
-    - org.apache.bookkeeper.stats-bookkeeper-stats-api-4.12.1.jar
-    - org.apache.bookkeeper.stats-prometheus-metrics-provider-4.12.1.jar
-    - org.apache.bookkeeper.tests-stream-storage-tests-common-4.12.1.jar
-    - org.apache.distributedlog-distributedlog-common-4.12.1.jar
-    - org.apache.distributedlog-distributedlog-core-4.12.1-tests.jar
-    - org.apache.distributedlog-distributedlog-core-4.12.1.jar
-    - org.apache.distributedlog-distributedlog-protocol-4.12.1.jar
-    - org.apache.bookkeeper.stats-codahale-metrics-provider-4.12.1.jar
+    - org.apache.bookkeeper-bookkeeper-common-4.14.5.jar
+    - org.apache.bookkeeper-bookkeeper-common-allocator-4.14.5.jar
+    - org.apache.bookkeeper-bookkeeper-proto-4.14.5.jar
+    - org.apache.bookkeeper-bookkeeper-server-4.14.5.jar
+    - org.apache.bookkeeper-bookkeeper-tools-framework-4.14.5.jar
+    - org.apache.bookkeeper-circe-checksum-4.14.5.jar
+    - org.apache.bookkeeper-cpu-affinity-4.14.5.jar
+    - org.apache.bookkeeper-statelib-4.14.5.jar
+    - org.apache.bookkeeper-stream-storage-api-4.14.5.jar
+    - org.apache.bookkeeper-stream-storage-common-4.14.5.jar
+    - org.apache.bookkeeper-stream-storage-java-client-4.14.5.jar
+    - org.apache.bookkeeper-stream-storage-java-client-base-4.14.5.jar
+    - org.apache.bookkeeper-stream-storage-proto-4.14.5.jar
+    - org.apache.bookkeeper-stream-storage-server-4.14.5.jar
+    - org.apache.bookkeeper-stream-storage-service-api-4.14.5.jar
+    - org.apache.bookkeeper-stream-storage-service-impl-4.14.5.jar
+    - org.apache.bookkeeper.http-http-server-4.14.5.jar
+    - org.apache.bookkeeper.http-vertx-http-server-4.14.5.jar
+    - org.apache.bookkeeper.stats-bookkeeper-stats-api-4.14.5.jar
+    - org.apache.bookkeeper.stats-codahale-metrics-provider-4.14.5.jar
+    - org.apache.bookkeeper.stats-prometheus-metrics-provider-4.14.5.jar
+    - org.apache.bookkeeper.tests-stream-storage-tests-common-4.14.5.jar
+    - org.apache.distributedlog-distributedlog-common-4.14.5.jar
+    - org.apache.distributedlog-distributedlog-core-4.14.5-tests.jar
+    - org.apache.distributedlog-distributedlog-core-4.14.5.jar
+    - org.apache.distributedlog-distributedlog-protocol-4.14.5.jar
   * Apache HTTP Client
-    - org.apache.httpcomponents-httpclient-4.5.5.jar
-    - org.apache.httpcomponents-httpcore-4.4.9.jar
+    - org.apache.httpcomponents-httpclient-4.5.13.jar
+    - org.apache.httpcomponents-httpcore-4.4.13.jar
  * AirCompressor
     - io.airlift-aircompressor-0.20.jar
  * AsyncHttpClient
@@ -458,7 +458,7 @@ The Apache Software License, Version 2.0
  * SnakeYaml -- org.yaml-snakeyaml-1.26.jar
  * RocksDB - org.rocksdb-rocksdbjni-6.10.2.jar
  * Google Error Prone Annotations - com.google.errorprone-error_prone_annotations-2.3.4.jar
- * Apache Thrifth - org.apache.thrift-libthrift-0.12.0.jar
+ * Apache Thrifth - org.apache.thrift-libthrift-0.14.2.jar
  * OkHttp
     - com.squareup.okhttp-okhttp-2.7.4.jar
  * Okio - com.squareup.okio-okio-1.17.5.jar
@@ -480,12 +480,10 @@ The Apache Software License, Version 2.0
     - io.grpc-grpc-xds-1.45.1.jar
     - io.grpc-grpc-rls-1.45.1.jar
     - io.grpc-grpc-okhttp-1.45.1.jar
-    - io.grpc-grpc-protobuf-nano-1.18.0.jar
-    - io.grpc-grpc-testing-1.18.0.jar
+    - io.grpc-grpc-testing-1.45.1.jar
   * OpenCensus
     - io.opencensus-opencensus-api-0.28.0.jar
     - io.opencensus-opencensus-contrib-http-util-0.28.0.jar
-    - io.opencensus-opencensus-contrib-grpc-metrics-0.28.0.jar
     - io.opencensus-opencensus-proto-0.2.0.jar
   * Jodah
     - net.jodah-typetools-0.5.0.jar
@@ -499,7 +497,7 @@ The Apache Software License, Version 2.0
   * Apache Yetus
     - org.apache.yetus-audience-annotations-0.5.0.jar
   * @FreeBuilder
-    - org.inferred-freebuilder-1.14.9.jar
+    - org.inferred-freebuilder-2.7.0.jar
   * Squareup
     - com.squareup.okhttp3-logging-interceptor-3.14.3.jar
     - com.squareup.okhttp3-okhttp-3.14.3.jar
@@ -511,9 +509,9 @@ The Apache Software License, Version 2.0
     - joda-time-2.10.1.jar
     - joda-time-joda-time-2.10.1.jar
   * Dropwizard
-    - io.dropwizard.metrics-metrics-core-3.1.0.jar
-    - io.dropwizard.metrics-metrics-graphite-3.1.0.jar
-    - io.dropwizard.metrics-metrics-jvm-3.1.0.jar
+    - io.dropwizard.metrics-metrics-core-3.2.5.jar
+    - io.dropwizard.metrics-metrics-graphite-3.2.5.jar
+    - io.dropwizard.metrics-metrics-jvm-3.2.5.jar
   * Prometheus
     - io.prometheus-simpleclient_httpserver-0.5.0.jar
   * Java JSON WebTokens
@@ -531,10 +529,13 @@ The Apache Software License, Version 2.0
     - org.apache.zookeeper-zookeeper-jute-3.5.9.jar
   * IPAddress
     - com.github.seancfoley-ipaddress-5.3.3.jar
+  * Snappy Java
+    - org.xerial.snappy-snappy-java-1.1.7.jar
   * Google HTTP Client
     - com.google.auto.value-auto-value-annotations-1.9.jar
     - com.google.http-client-google-http-client-1.41.0.jar
     - com.google.http-client-google-http-client-gson-1.41.0.jar
+    - com.google.http-client-google-http-client-jackson2-1.41.0.jar
     - com.google.re2j-re2j-1.5.jar
 
 BSD 3-clause "New" or "Revised" License
@@ -554,17 +555,13 @@ MIT License
     - org.slf4j-jul-to-slf4j-1.7.25.jar
     - org.slf4j-slf4j-api-1.7.25.jar
     - org.slf4j-jcl-over-slf4j-1.7.25.jar
- * Animal Sniffer Annotations
-    - org.codehaus.mojo-animal-sniffer-annotations-1.19.jar
  * The Checker Framework
- 	- org.checkerframework-checker-compat-qual-2.5.2.jar
     - org.checkerframework-checker-qual-3.5.0.jar
 
 Protocol Buffers License
  * Protocol Buffers
    - com.google.protobuf-protobuf-java-3.19.2.jar -- licenses/LICENSE-protobuf.txt
    - com.google.protobuf-protobuf-java-util-3.19.2.jar -- licenses/LICENSE-protobuf.txt
-   - com.google.protobuf.nano-protobuf-javanano-3.0.0-alpha-5.jar -- licenses/LICENSE-protobuf.txt
 
 CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
  * Java Annotations API
