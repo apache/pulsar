@@ -325,6 +325,8 @@ You can check the following statistics of a given non-partitioned topic.
   
   -   **topicEpoch**: The topic epoch or empty if not set.
 
+  -   **filteredEntriesCount**: The count of skipped entries for the topic.
+
   -   **nonContiguousDeletedMessagesRanges**: The number of non-contiguous deleted messages ranges.
 
   -   **nonContiguousDeletedMessagesRangesSerializedSize**: The serialized size of non-contiguous deleted messages ranges.  
@@ -498,6 +500,7 @@ The following is an example of a topic status.
   "msgChunkPublished" : false,
   "storageSize" : 504,
   "backlogSize" : 0,
+  "filteredEntriesCount" : 100,
   "earliestMsgPublishTimeInBacklogs": 0,
   "offloadedStorageSize" : 0,
   "publishers" : [ {
