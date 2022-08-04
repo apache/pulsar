@@ -226,6 +226,6 @@ public class TxnLogBufferedWriterMetricsStats implements Closeable {
         recordsPerBatchHistogram.observe(recordCount);
         batchSizeBytesHistogram.observe(bytesSize);
         // Unit conversion: milliSeconds -> seconds.
-        oldestRecordInBatchDelayTimeSecondsHistogram.observe(delayMillis / 1000);
+        oldestRecordInBatchDelayTimeSecondsHistogram.observe(delayMillis / 1000.0);
     }
 }
