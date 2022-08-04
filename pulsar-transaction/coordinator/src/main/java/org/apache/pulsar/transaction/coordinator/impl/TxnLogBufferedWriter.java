@@ -327,17 +327,17 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
 
     private void doFlush(){
         // Combine data cached by flushContext, and write to BK.
-        ByteBuf prefix = PulsarByteBufAllocator.DEFAULT.buffer(4);
-        prefix.writeShort(BATCHED_ENTRY_DATA_PREFIX_MAGIC_NUMBER);
-        prefix.writeShort(BATCHED_ENTRY_DATA_PREFIX_VERSION);
-        ByteBuf actualContent = dataSerializer.serialize(dataArray);
-        ByteBuf pairByteBuf = Unpooled.wrappedUnmodifiableBuffer(prefix, actualContent);
+        ByteBuf prefixByteFuf = PulsarByteBufAllocator.DEFAULT.buffer(4);
+        prefixByteFuf.writeShort(BATCHED_ENTRY_DATA_PREFIX_MAGIC_NUMBER);
+        prefixByteFuf.writeShort(BATCHED_ENTRY_DATA_PREFIX_VERSION);
+        ByteBuf contentByteBuf = dataSerializer.serialize(dataArray);
+        ByteBuf wholeByteBuf = Unpooled.wrappedUnmodifiableBuffer(prefixByteFuf, contentByteBuf);
         // We need to release this pairByteBuf after Managed ledger async add callback. Just holds by FlushContext.
-        flushContext.byteBuf = pairByteBuf;
+        flushContext.byteBuf = wholeByteBuf;
         if (State.CLOSING == state || State.CLOSED == state){
             failureCallbackByContextAndRecycle(flushContext, BUFFERED_WRITER_CLOSED_EXCEPTION);
         } else {
-            managedLedger.asyncAddEntry(pairByteBuf, this, flushContext);
+            managedLedger.asyncAddEntry(wholeByteBuf, this, flushContext);
         }
         // Reset the cache.
         dataArray.clear();
