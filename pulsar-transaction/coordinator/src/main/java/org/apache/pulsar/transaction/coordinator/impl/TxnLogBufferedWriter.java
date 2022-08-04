@@ -234,12 +234,12 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
             return;
         }
         // Append data to the data-array.
-        this.dataArray.add(data);
+        dataArray.add(data);
         // Add callback info.
         AsyncAddArgs asyncAddArgs = AsyncAddArgs.newInstance(callback, ctx, System.currentTimeMillis());
-        this.flushContext.asyncAddArgsList.add(asyncAddArgs);
+        flushContext.asyncAddArgsList.add(asyncAddArgs);
         // Calculate bytes-size.
-        this.bytesSize += dataLength;
+        bytesSize += dataLength;
         trigFlushIfReachMaxRecordsOrMaxSize();
     }
 
@@ -252,7 +252,7 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
                 return;
             }
             if (metrics != null) {
-                metrics.triggerFlushByByMaxDelay(this.flushContext.asyncAddArgsList.size(), this.bytesSize,
+                metrics.triggerFlushByByMaxDelay(flushContext.asyncAddArgsList.size(), bytesSize,
                         System.currentTimeMillis() - flushContext.asyncAddArgsList.get(0).addedTime);
             }
             doFlush();
@@ -330,20 +330,20 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
         ByteBuf prefix = PulsarByteBufAllocator.DEFAULT.buffer(4);
         prefix.writeShort(BATCHED_ENTRY_DATA_PREFIX_MAGIC_NUMBER);
         prefix.writeShort(BATCHED_ENTRY_DATA_PREFIX_VERSION);
-        ByteBuf actualContent = this.dataSerializer.serialize(this.dataArray);
+        ByteBuf actualContent = dataSerializer.serialize(dataArray);
         ByteBuf pairByteBuf = Unpooled.wrappedUnmodifiableBuffer(prefix, actualContent);
         // We need to release this pairByteBuf after Managed ledger async add callback. Just holds by FlushContext.
-        this.flushContext.byteBuf = pairByteBuf;
+        flushContext.byteBuf = pairByteBuf;
         // Flush.
         if (State.CLOSING == state || State.CLOSED == state){
             failureCallbackByContextAndRecycle(flushContext, BUFFERED_WRITER_CLOSED_EXCEPTION);
         } else {
-            managedLedger.asyncAddEntry(pairByteBuf, this, this.flushContext);
+            managedLedger.asyncAddEntry(pairByteBuf, this, flushContext);
         }
         // Clear buffers.ok
-        this.dataArray.clear();
-        this.flushContext = FlushContext.newInstance();
-        this.bytesSize = 0;
+        dataArray.clear();
+        flushContext = FlushContext.newInstance();
+        bytesSize = 0;
     }
 
     /**
@@ -402,17 +402,17 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
             }
             // Failure callback to pending request.
             // If some request has been flushed, Bookie triggers the callback.
-            failureCallbackByContextAndRecycle(this.flushContext, BUFFERED_WRITER_CLOSED_EXCEPTION);
+            failureCallbackByContextAndRecycle(flushContext, BUFFERED_WRITER_CLOSED_EXCEPTION);
             // Cancel task that schedule at fixed rate trig flush.
             if (timeout == null){
                 log.error("Cancel timeout-task that schedule at fixed rate trig flush failure. The field-timeout"
                         + " is null. managedLedger: " + managedLedger.getName());
             } else if (timeout.isCancelled()){
                 // TODO How decisions the timer-task has been finished ?
-                this.state = State.CLOSED;
+                state = State.CLOSED;
             } else {
                 if (this.timeout.cancel()) {
-                    this.state = State.CLOSED;
+                    state = State.CLOSED;
                 } else {
                     // Cancel task failure, The state will stay at CLOSING.
                     log.error("Cancel timeout-task that schedule at fixed rate trig flush failure. The state will"
