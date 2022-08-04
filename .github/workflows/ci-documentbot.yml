@@ -22,7 +22,7 @@ name: Documentation Bot
 on:
   push:
     branches:
-      - master
+      - config-gen-workflow
     paths:
       - pulsar-broker-common/src/main/java/org/apache/pulsar/broker/ServiceConfiguration.java
       - pulsar-client/src/main/java/org/apache/pulsar/client/impl/conf/ClientConfigurationData.java
