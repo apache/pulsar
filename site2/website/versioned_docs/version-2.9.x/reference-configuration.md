@@ -245,6 +245,7 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 |exposePreciseBacklogInPrometheus| Enable expose the precise backlog stats, set false to use published counter and consumed counter to calculate, this would be more efficient but may be inaccurate. |false|
 |schemaRegistryStorageClassName|The schema storage implementation used by this broker.|org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorageFactory|
 |isSchemaValidationEnforced|Enforce schema validation on following cases: if a producer without a schema attempts to produce to a topic with schema, the producer will be failed to connect. PLEASE be carefully on using this, since non-java clients don't support schema. If this setting is enabled, then non-java clients fail to produce.|false|
+| isAllowAutoUpdateSchemaEnabled | Allow schema to be auto-updated at broker level. You can override this by using 'is_allow_auto_update_schema' of namespace policy. Note that this configuration is only available in 2.9.2 and later versions. |true|
 | topicFencingTimeoutSeconds | If a topic remains fenced for a certain time period (in seconds), it is closed forcefully. If set to 0 or a negative number, the fenced topic is not closed. | 0 |
 |offloadersDirectory|The directory for all the offloader implementations.|./offloaders|
 |bookkeeperMetadataServiceUri| Metadata service uri that bookkeeper is used for loading corresponding metadata driver and resolving its metadata service location. This value can be fetched using `bookkeeper shell whatisinstanceid` command in BookKeeper cluster. For example: zk+hierarchical://localhost:2181/ledgers. The metadata service uri list can also be semicolon separated values like below: zk+hierarchical://zk1:2181;zk2:2181;zk3:2181/ledgers ||
@@ -655,6 +656,7 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |haProxyProtocolEnabled | Enable or disable the [HAProxy](http://www.haproxy.org/) protocol. |false|
 |bookieId | If you want to custom a bookie ID or use a dynamic network address for a bookie, you can set the `bookieId`. <br /><br />Bookie advertises itself using the `bookieId` rather than the `BookieSocketAddress` (`hostname:port` or `IP:port`).<br /><br /> The `bookieId` is a non-empty string that can contain ASCII digits and letters ([a-zA-Z9-0]), colons, dashes, and dots. <br /><br />For more information about `bookieId`, see [here](http://bookkeeper.apache.org/bps/BP-41-bookieid/).|/|
 | maxTopicsPerNamespace | The maximum number of persistent topics that can be created in the namespace. When the number of topics reaches this threshold, the broker rejects the request of creating a new topic, including the auto-created topics by the producer or consumer, until the number of connected consumers decreases. The default value 0 disables the check. | 0 |
+| isAllowAutoUpdateSchemaEnabled | Allow schema to be auto-updated at broker level. You can override this by using 'is_allow_auto_update_schema' of namespace policy. Note that this configuration is only available in 2.9.2 and later versions. |true|
 
 ## WebSocket
 
