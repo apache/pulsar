@@ -152,7 +152,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
 
                 entries.set(i, null);
                 entry.release();
-                individualAcknowledgeMessageIfNeeded(entry.getPosition(), Collections.emptyMap());
+                individualAcknowledgeMessageIfNeeded(pos, Collections.emptyMap());
                 continue;
             } else if (msgMetadata.hasDeliverAtTime()
                     && trackDelayedDelivery(entry.getLedgerId(), entry.getEntryId(), msgMetadata)) {
