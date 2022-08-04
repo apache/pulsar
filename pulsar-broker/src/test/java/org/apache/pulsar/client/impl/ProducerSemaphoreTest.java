@@ -19,7 +19,9 @@
 package org.apache.pulsar.client.impl;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.testng.Assert.fail;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
@@ -27,10 +29,12 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
+import org.powermock.reflect.Whitebox;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -272,6 +276,39 @@ public class ProducerSemaphoreTest extends ProducerConsumerBase {
             throw new IllegalStateException("can not reach here");
         } catch (PulsarClientException.TimeoutException ex) {
             Assert.assertEquals(producer.getSemaphore().get().availablePermits(), 10);
+        }
+    }
+
+    @Test(timeOut = 10_000)
+    public void testBatchMessageOOMProducerSemaphoreRelease() throws Exception {
+        final int pendingQueueSize = 10;
+        @Cleanup
+        ProducerImpl<byte[]> producer =
+                (ProducerImpl<byte[]>) pulsarClient.newProducer()
+                        .topic("testProducerSemaphoreRelease")
+                        .sendTimeout(5, TimeUnit.SECONDS)
+                        .maxPendingMessages(pendingQueueSize)
+                        .enableBatching(true)
+                        .batchingMaxPublishDelay(500, TimeUnit.MILLISECONDS)
+                        .batchingMaxBytes(12)
+                        .create();
+        this.stopBroker();
+
+        try {
+            try (MockedStatic<PulsarByteBufAllocator> mockedStatic = Mockito.mockStatic(PulsarByteBufAllocator.class)) {
+                mockedStatic.when(PulsarByteBufAllocator.DEFAULT::buffer).thenThrow(new OutOfMemoryError("testProducerSemaphoreRelease"));
+
+                // Replace ByteBufAllocator
+                Method createByteBufAllocatorMethod = PulsarByteBufAllocator.class.getDeclaredMethod("createByteBufAllocator");
+                createByteBufAllocatorMethod.setAccessible(true);
+                Whitebox.setInternalState(PulsarByteBufAllocator.class, "DEFAULT",
+                        createByteBufAllocatorMethod.invoke(null));
+
+                producer.send("semaphore-test".getBytes(StandardCharsets.UTF_8));
+            }
+            Assert.fail("can not reach here");
+        } catch (PulsarClientException ex) {
+            Assert.assertEquals(producer.getSemaphore().get().availablePermits(), pendingQueueSize);
         }
     }
 }

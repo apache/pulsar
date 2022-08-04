@@ -18,13 +18,16 @@
  */
 package org.apache.pulsar.client.impl;
 
+import java.lang.reflect.Method;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SizeUnit;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
+import org.powermock.reflect.Whitebox;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -119,6 +122,40 @@ public class ProducerMemoryLimitTest extends ProducerConsumerBase {
 
             throw new IllegalStateException("can not reach here");
         } catch (PulsarClientException.TimeoutException ex) {
+            PulsarClientImpl clientImpl = (PulsarClientImpl) this.pulsarClient;
+            final MemoryLimitController memoryLimitController = clientImpl.getMemoryLimitController();
+            Assert.assertEquals(memoryLimitController.currentUsage(), 0);
+        }
+    }
+
+    @Test(timeOut = 10_000)
+    public void testBatchMessageOOMMemoryRelease() throws Exception {
+        initClientWithMemoryLimit();
+        @Cleanup
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
+                .topic("testProducerMemoryLimit")
+                .sendTimeout(5, TimeUnit.SECONDS)
+                .maxPendingMessages(0)
+                .enableBatching(true)
+                .batchingMaxPublishDelay(100, TimeUnit.MILLISECONDS)
+                .batchingMaxBytes(12)
+                .create();
+        this.stopBroker();
+
+        try {
+            try (MockedStatic<PulsarByteBufAllocator> mockedStatic = Mockito.mockStatic(PulsarByteBufAllocator.class)) {
+                mockedStatic.when(PulsarByteBufAllocator.DEFAULT::buffer).thenThrow(new OutOfMemoryError("testProducerMemoryLimit"));
+
+                // Replace ByteBufAllocator
+                Method createByteBufAllocatorMethod = PulsarByteBufAllocator.class.getDeclaredMethod("createByteBufAllocator");
+                createByteBufAllocatorMethod.setAccessible(true);
+                Whitebox.setInternalState(PulsarByteBufAllocator.class, "DEFAULT",
+                        createByteBufAllocatorMethod.invoke(null));
+
+                producer.send("memory-test".getBytes(StandardCharsets.UTF_8));
+            }
+            Assert.fail("can not reach here");
+        } catch (PulsarClientException ex) {
             PulsarClientImpl clientImpl = (PulsarClientImpl) this.pulsarClient;
             final MemoryLimitController memoryLimitController = clientImpl.getMemoryLimitController();
             Assert.assertEquals(memoryLimitController.currentUsage(), 0);
