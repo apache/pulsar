@@ -1355,15 +1355,13 @@ public class PersistentTopicsBase extends AdminResource {
                                         ref.getStats(getPreciseBacklog, subscriptionBacklogSize,
                                             getEarliestTimeInBacklog));
                             } else {
-                                CompletableFuture<TopicStats> restFuture = new CompletableFuture<>();
                                 try {
-                                    restFuture = pulsar().getAdminClient().topics().getStatsAsync(
+                                    return pulsar().getAdminClient().topics().getStatsAsync(
                                         partition.toString(), getPreciseBacklog, subscriptionBacklogSize,
                                         getEarliestTimeInBacklog);
                                 } catch (PulsarServerException e) {
-                                    restFuture.completeExceptionally(e);
+                                    return FutureUtil.failedFuture(e);
                                 }
-                                return restFuture;
                             }
                         })
                 );
