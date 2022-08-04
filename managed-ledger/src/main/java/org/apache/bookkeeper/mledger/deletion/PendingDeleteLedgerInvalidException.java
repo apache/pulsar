@@ -20,6 +20,7 @@ package org.apache.bookkeeper.mledger.deletion;
 
 public class PendingDeleteLedgerInvalidException extends RuntimeException {
 
-    public PendingDeleteLedgerInvalidException() {
+    public PendingDeleteLedgerInvalidException(String message) {
+        super(message);
     }
 }

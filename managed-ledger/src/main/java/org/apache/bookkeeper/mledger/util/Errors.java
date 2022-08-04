@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.util;
 
+import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.api.BKException.Code;
 
 /**
@@ -33,6 +34,11 @@ public final class Errors {
             default:
                 return false;
         }
+    }
+
+    public static boolean isNoSuchLedgerExistsException(Throwable t) {
+        return t instanceof BKException.BKNoSuchLedgerExistsException
+                || t instanceof BKException.BKNoSuchLedgerExistsOnMetadataServerException;
     }
 
     private Errors() {}

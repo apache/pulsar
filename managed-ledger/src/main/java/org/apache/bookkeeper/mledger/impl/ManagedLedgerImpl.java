@@ -120,6 +120,7 @@ import org.apache.bookkeeper.mledger.WaitingEntryCallBack;
 import org.apache.bookkeeper.mledger.deletion.LedgerComponent;
 import org.apache.bookkeeper.mledger.deletion.LedgerDeletionService;
 import org.apache.bookkeeper.mledger.deletion.LedgerType;
+import org.apache.bookkeeper.mledger.deletion.PendingDeleteLedgerInvalidException;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.VoidCallback;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.impl.cache.EntryCache;
@@ -301,6 +302,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      * created asynchronously and hence there is no ready ledger to write into.
      */
     final ConcurrentLinkedQueue<OpAddEntry> pendingAddEntries = new ConcurrentLinkedQueue<>();
+
+    final Set<Long> believedDeleteIds = new HashSet<>();
+
 
     /**
      * This variable is used for testing the tests.
@@ -1077,20 +1081,41 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
-    private final Set<Long> believedDeleteIds = new HashSet<>();
-
     @Override
     public CompletableFuture<?> asyncDeleteLedger(long ledgerId, LedgerType ledgerType, String topicName,
                                                      MLDataFormats.OffloadContext offloadContext) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
         if (LedgerType.LEDGER == ledgerType) {
+            LedgerInfo ledgerInfo = ledgers.get(ledgerId);
+            if (ledgerInfo != null && !ledgerInfo.getOffloadContext().getBookkeeperDeleted()) {
+                future.completeExceptionally(new ManagedLedgerException("Ledger " + ledgerId + " still in used"));
+                return future;
+            }
             ledgerDeletionService.asyncDeleteLedger(ledgerId, LedgerComponent.MANAGED_LEDGER, topicName,
-                    believedDeleteIds.contains(ledgerId));
+                    believedDeleteIds.contains(ledgerId)).whenComplete((res, ex) -> {
+                        if (ex != null) {
+                            future.completeExceptionally(ex);
+                            return;
+                        }
+                        believedDeleteIds.remove(ledgerId);
+                        future.complete(null);
+            });
         } else if (LedgerType.OFFLOAD_LEDGER == ledgerType) {
-            return ledgerDeletionService.asyncDeleteOffloadedLedger(ledgerId, topicName, offloadContext);
+            if (ledgers.containsKey(ledgerId)) {
+                future.completeExceptionally(new ManagedLedgerException("Ledger " + ledgerId + " still in used"));
+                return future;
+            }
+            ledgerDeletionService.asyncDeleteOffloadedLedger(ledgerId, topicName, offloadContext).
+                    whenComplete((res, ex) -> {
+                        if (ex != null) {
+                            future.completeExceptionally(ex);
+                            return;
+                        }
+                        future.complete(null);
+            });
+        } else {
+            future.completeExceptionally(new PendingDeleteLedgerInvalidException("Unknown ledger type"));
         }
-        CompletableFuture<?> future = new CompletableFuture<>();
-        future.completeExceptionally(new ManagedLedgerException(
-                new IllegalArgumentException("Invalid ledger type: " + ledgerType)));
         return future;
     }
 
@@ -2611,9 +2636,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     .filter(ls -> ls.getOffloadContext().hasUidMsb())
                     .map(LedgerInfo::getLedgerId).collect(Collectors.toSet());
 
-            CompletableFuture<?> updateTrashFuture =
+            CompletableFuture<?> appendDeleteLedgerFuture =
                     appendPendingDeleteLedger(deletableLedgers, deletableOffloadedLedgers);
-            updateTrashFuture.thenAccept(ignore -> {
+            appendDeleteLedgerFuture.thenAccept(ignore -> {
+                believedDeleteIds.addAll(deletableLedgers);
                 for (LedgerInfo ls : ledgersToDelete) {
                     if (currentLastConfirmedEntry != null
                             && ls.getLedgerId() == currentLastConfirmedEntry.getLedgerId()) {
@@ -2621,7 +2647,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         log.info("[{}] Ledger {} contains the current last confirmed entry {}, and it is going to be "
                                 + "deleted", name, ls.getLedgerId(), currentLastConfirmedEntry);
                     }
-
                     invalidateReadHandle(ls.getLedgerId());
                     ledgers.remove(ls.getLedgerId());
                     entryCache.invalidateAllEntries(ls.getLedgerId());

@@ -180,8 +180,8 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
     private void readMorePendingDeleteLedger(LedgerDeletionSystemTopicClient.PendingDeleteLedgerReader reader) {
         reader.readNextAsync().whenComplete((msg, ex) -> {
             if (ex == null) {
-                deleteLedger(reader, msg).exceptionally(e -> {
-                    log.warn("Delete ledger {} failed.", msg, e);
+                handleMessage(reader, msg).exceptionally(e -> {
+                    log.warn("Delete ledger {} failed.", msg.getValue(), e);
                     return null;
                 });
                 readMorePendingDeleteLedger(reader);
@@ -260,8 +260,8 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
         return CompletableFuture.completedFuture(null);
     }
 
-    private CompletableFuture<?> deleteLedger(LedgerDeletionSystemTopicClient.PendingDeleteLedgerReader reader,
-                                              Message<PendingDeleteLedgerInfo> message) {
+    private CompletableFuture<?> handleMessage(LedgerDeletionSystemTopicClient.PendingDeleteLedgerReader reader,
+                                               Message<PendingDeleteLedgerInfo> message) {
         CompletableFuture<?> future = new CompletableFuture<>();
         deleteInBroker(message).whenComplete((res, ex) -> {
             if (ex != null) {
@@ -269,6 +269,10 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
                     deleteLocally(message).whenComplete((res1, ex1) -> {
                         if (ex1 != null) {
                             if (ex1 instanceof PendingDeleteLedgerInvalidException) {
+                                if (log.isDebugEnabled()) {
+                                    log.debug("Received invalid pending delete ledger {}, invalid reason: {}",
+                                            message.getValue().getLedgerId(), ex1.getMessage());
+                                }
                                 reader.ackMessageAsync(message);
                                 future.complete(null);
                                 return;
@@ -280,12 +284,19 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
                         future.complete(null);
                     });
                 } else if (ex instanceof PendingDeleteLedgerInvalidException) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Received invalid pending delete ledger {}, invalid reason: {}",
+                                message.getValue().getLedgerId(), ex.getMessage());
+                    }
                     reader.ackMessageAsync(message);
                     future.complete(null);
+                } else if (ex instanceof PulsarAdminException.ServerSideErrorException) {
+
                 } else {
                     reader.reconsumeLaterAsync(message);
                     future.completeExceptionally(ex);
                 }
+                return;
             }
             reader.ackMessageAsync(message);
             future.complete(null);
@@ -319,8 +330,9 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
                 future.complete(null);
             } else if (LedgerComponent.SCHEMA_STORAGE == pendingDeleteLedger.getLedgerComponent()) {
                 future.complete(null);
+            } else {
+                future.completeExceptionally(new PendingDeleteLedgerInvalidException("Unknown ledger component"));
             }
-            future.completeExceptionally(new PendingDeleteLedgerInvalidException());
         } catch (PendingDeleteLedgerInvalidException ex) {
             future.completeExceptionally(ex);
             return future;
@@ -335,7 +347,7 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
         }
         LedgerInfo context = pendingDeleteLedgerInfo.getContext();
         if (context == null || !context.hasOffloadContext() || !context.getOffloadContext().hasUidMsb()) {
-            throw new PendingDeleteLedgerInvalidException();
+            throw new PendingDeleteLedgerInvalidException("Offload ledger didn't find uuid.");
         }
         DeleteLedgerPayload.OffloadContext targetContext = new DeleteLedgerPayload.OffloadContext();
         MLDataFormats.OffloadContext offloadContext = context.getOffloadContext();
@@ -370,7 +382,7 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
                 future.complete(null);
             });
         }
-        future.completeExceptionally(new PendingDeleteLedgerInvalidException());
+        future.completeExceptionally(new PendingDeleteLedgerInvalidException("Unknown ledger type"));
         return future;
     }
 
@@ -414,15 +426,15 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
                 CompletableFuture<Void> result = new CompletableFuture<>();
                 Map<String, byte[]> customMetadata = metadata.getCustomMetadata();
                 if (!LedgerMetadataUtils.isComponentMatch(ledgerComponent, customMetadata)) {
-                    log.warn("The ledger metadata is not match component, ledgerId: {}", ledgerId);
-                    result.completeExceptionally(new PendingDeleteLedgerInvalidException());
+                    result.completeExceptionally(
+                            new PendingDeleteLedgerInvalidException("Ledger metadata component mismatch"));
                     return result;
                 }
                 if (!LedgerMetadataUtils.isNameMatch(ledgerComponent, topicName, customMetadata)) {
-                    log.warn("The ledger metadata is not match name, the ledgerId: {}", ledgerId);
-                    result.completeExceptionally(new PendingDeleteLedgerInvalidException());
+                    result.completeExceptionally(new PendingDeleteLedgerInvalidException("Ledger metadata name mismatch"));
                     return result;
                 }
+                result.complete(null);
                 return result;
             });
         }
@@ -430,6 +442,9 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
             bookKeeper.asyncDeleteLedger(ledgerId, (rc, ctx) -> {
                 if (isNoSuchLedgerExistsException(rc)) {
                     log.warn("[{}] Ledger was already deleted {}", topicName, ledgerId);
+                    future.complete(null);
+                    deleteLedgerOpLogger.registerSuccessfulEvent(MathUtils.elapsedNanos(startTime), TimeUnit.NANOSECONDS);
+                    return;
                 } else if (rc != BKException.Code.OK) {
                     log.error("[{}] Error delete ledger {} : {}", topicName, ledgerId, BKException.getMessage(rc));
                     deleteLedgerOpLogger.registerFailedEvent(MathUtils.elapsedNanos(startTime), TimeUnit.NANOSECONDS);
@@ -443,6 +458,11 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
                 future.complete(null);
             }, null);
         }).exceptionally(ex -> {
+            if (isNoSuchLedgerExistsException(ex)) {
+                log.warn("[{}] Ledger was already deleted {}", topicName, ledgerId);
+                future.complete(null);
+                return null;
+            }
             log.error("[{}] Error delete ledger {}.", topicName, ledgerId, ex);
             future.completeExceptionally(ex);
             return null;

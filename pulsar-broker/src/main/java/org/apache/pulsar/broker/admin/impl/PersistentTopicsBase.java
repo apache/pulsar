@@ -61,6 +61,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.deletion.LedgerType;
+import org.apache.bookkeeper.mledger.deletion.PendingDeleteLedgerInvalidException;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerOfflineBacklog;
@@ -1044,9 +1045,19 @@ public class PersistentTopicsBase extends AdminResource {
                         DeleteLedgerPayload.OffloadContext context = deleteLedgerPayload.getOffloadContext();
                         LedgerType ledgerType = LedgerType.valueOf(deleteLedgerPayload.getLedgerType());
                         if (LedgerType.LEDGER == ledgerType) {
-                            managedLedger.asyncDeleteLedger(ledgerId, ledgerType, topicName.toString(), null)
+                            managedLedger.asyncDeleteLedger(ledgerId, ledgerType,
+                                            topicName.getPersistenceNamingEncoding(), null)
                                     .whenComplete((res, ex) -> {
                                         if (ex != null) {
+                                            if (ex instanceof PendingDeleteLedgerInvalidException) {
+                                                if (log.isDebugEnabled()) {
+                                                    log.debug("[{}][{}] Received invalid pending delete ledger {},"
+                                                                    + " invalid reason: {}", clientAppId(), topicName,
+                                                            ledgerId, ex.getMessage());
+                                                }
+                                                future.complete(null);
+                                                return;
+                                            }
                                             future.completeExceptionally(ex);
                                             return;
                                         }
@@ -1074,6 +1085,13 @@ public class PersistentTopicsBase extends AdminResource {
                                         }
                                         future.complete(null);
                                     });
+                        } else {
+                            if (log.isDebugEnabled()) {
+                                log.debug("[{}][{}] Received invalid pending delete ledger {},"
+                                                + " invalid reason: {}", clientAppId(), topicName,
+                                        ledgerId, "Unknown ledger type");
+                            }
+                            future.complete(null);
                         }
                         return future;
                     }).exceptionally(ex -> {
