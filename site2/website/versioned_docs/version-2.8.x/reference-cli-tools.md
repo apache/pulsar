@@ -568,7 +568,7 @@ Options
 |`--replicated`|Whether the subscription status should be replicated|false|
 |`-u`, `--service-url`|Pulsar service URL||
 |`-i`, `--stats-interval-seconds`|Statistics interval seconds. If 0, statistics will be disabled|0|
-|`-s`, `--subscriber-name`|Subscriber name prefix|sub|
+|`-s`, `--subscriber-name`|Subscriber name prefix. <br />**Note:** This flag is deprecated in 2.8.2 and later versions. |sub|
 |`-ss`, `--subscriptions`|A list of subscriptions to consume on (e.g. sub1,sub2)|sub|
 |`-st`, `--subscription-type`|Subscriber type. Possible values are Exclusive, Shared, Failover, Key_Shared.|Exclusive|
 |`-sp`, `--subscription-position`|Subscriber position. Possible values are Latest, Earliest.|Latest|
