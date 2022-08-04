@@ -1094,6 +1094,8 @@ public class PersistentTopicsBase extends AdminResource {
                             future.complete(null);
                         }
                         return future;
+                    }).thenRun(() -> {
+                        asyncResponse.resume(asyncResponse.resume(Response.ok().build()));
                     }).exceptionally(ex -> {
                         // If the exception is not redirect exception we need to log it.
                         if (!isRedirectException(ex)) {

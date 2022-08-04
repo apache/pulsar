@@ -458,13 +458,13 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
                 future.complete(null);
             }, null);
         }).exceptionally(ex -> {
-            if (isNoSuchLedgerExistsException(ex)) {
+            if (isNoSuchLedgerExistsException(ex.getCause())) {
                 log.warn("[{}] Ledger was already deleted {}", topicName, ledgerId);
                 future.complete(null);
                 return null;
             }
-            log.error("[{}] Error delete ledger {}.", topicName, ledgerId, ex);
-            future.completeExceptionally(ex);
+            log.error("[{}] Error delete ledger {}.", topicName, ledgerId, ex.getCause());
+            future.completeExceptionally(ex.getCause());
             return null;
         });
         return future;
