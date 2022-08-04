@@ -23,7 +23,13 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thank you very much for submitting suggestions to Pulsar. Please answer the following questions before submitting a doc issue.
+        Thank you very much for submitting suggestions to Pulsar.
+
+        If it is an idea or help wanted, please go to:
+        1. [Dev Mail List](mailto:dev@pulsar.apache.org) ([subscribe](mailto:dev-subscribe@pulsar.apache.org)): This will be your FASTEST way to get help!
+        2. [Github Discussion](https://github.com/apache/pulsar/discussions).
+
+        Otherwise, please answer the following questions before submitting a doc issue.
   - type: checkboxes
     attributes:
       label: Search before asking
