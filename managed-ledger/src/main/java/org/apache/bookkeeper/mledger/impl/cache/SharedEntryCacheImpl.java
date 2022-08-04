@@ -173,8 +173,10 @@ class SharedEntryCacheImpl implements EntryCache {
         EntryImpl cachedEntry = entryCacheManager.get(position.getLedgerId(), position.getEntryId());
 
         if (cachedEntry != null) {
-            entryCacheManager.getFactoryMBean().recordCacheHit(cachedEntry.getLength());
-            callback.readEntryComplete(cachedEntry, ctx);
+            EntryImpl entry = EntryImpl.create(cachedEntry);
+            cachedEntry.release();
+            entryCacheManager.getFactoryMBean().recordCacheHit(entry.getLength());
+            callback.readEntryComplete(entry, ctx);
         } else {
             lh.readAsync(position.getEntryId(), position.getEntryId()).thenAcceptAsync(
                     ledgerEntries -> {
