@@ -21,10 +21,10 @@ package org.apache.pulsar.io.flume.node;
 import static org.testng.Assert.assertEquals;
 import com.github.stefanbirkner.systemlambda.SystemLambda;
 import java.io.File;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.contrib.java.lang.system.EnvironmentVariables;
-import org.testng.annotations.BeforeMethod;
 
 public final class TestEnvVarResolverProperties {
     private static final File TEST_FILE = new File(
@@ -35,7 +35,7 @@ public final class TestEnvVarResolverProperties {
     public final EnvironmentVariables environmentVariables = new EnvironmentVariables();
     private PropertiesFileConfigurationProvider provider;
 
-    @BeforeMethod(alwaysRun = true)
+    @Before
     public void setUp() {
         provider = new PropertiesFileConfigurationProvider("a1", TEST_FILE);
     }
