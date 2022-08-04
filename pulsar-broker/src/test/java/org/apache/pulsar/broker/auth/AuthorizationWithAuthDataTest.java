@@ -25,6 +25,7 @@ import io.jsonwebtoken.SignatureAlgorithm;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
@@ -38,6 +39,7 @@ import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.broker.authorization.AuthorizationProvider;
+import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.ClientBuilder;
@@ -94,6 +96,11 @@ public class AuthorizationWithAuthDataTest extends MockedPulsarServiceBaseTest {
                                                         AuthenticationDataSource authenticationData) {
             assertRoleAndAuthenticationData(role, authenticationData);
             return CompletableFuture.completedFuture(true);
+        }
+
+        @Override
+        public void initialize(ServiceConfiguration conf, ConfigurationCacheService configCache) throws IOException {
+            // No ops
         }
 
         @Override
@@ -262,7 +269,7 @@ public class AuthorizationWithAuthDataTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testAdmin() throws PulsarAdminException {
         admin.tenants().createTenant("test-tenant-1",
-                TenantInfo.builder().allowedClusters(Set.of(configClusterName)).build());
+                TenantInfo.builder().allowedClusters(Collections.singleton(configClusterName)).build());
         admin.namespaces().createNamespace("test-tenant-1/test-namespace-1");
         String partitionedTopic = UUID.randomUUID().toString();
         admin.topics().createPartitionedTopic(partitionedTopic,3);
