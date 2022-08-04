@@ -1336,6 +1336,16 @@ void ConsumerImpl::getLastMessageIdAsync(BrokerGetLastMessageIdCallback callback
     }
     lock.unlock();
 
+    TimeDuration operationTimeout = seconds(client_.lock()->conf().getOperationTimeoutSeconds());
+    BackoffPtr backoff = std::make_shared<Backoff>(milliseconds(100), operationTimeout * 2, milliseconds(0));
+    DeadlineTimerPtr timer = executor_->createDeadlineTimer();
+
+    internalGetLastMessageIdAsync(backoff, operationTimeout, timer, callback);
+}
+
+void ConsumerImpl::internalGetLastMessageIdAsync(const BackoffPtr& backoff, TimeDuration remainTime,
+                                                 const DeadlineTimerPtr& timer,
+                                                 BrokerGetLastMessageIdCallback callback) {
     ClientConnectionPtr cnx = getCnx().lock();
     if (cnx) {
         if (cnx->getServerProtocolVersion() >= proto::v12) {
@@ -1363,8 +1373,26 @@ void ConsumerImpl::getLastMessageIdAsync(BrokerGetLastMessageIdCallback callback
             callback(ResultUnsupportedVersionError, MessageId());
         }
     } else {
-        LOG_ERROR(getName() << " Client Connection not ready for Consumer");
-        callback(ResultNotConnected, MessageId());
+        TimeDuration next = std::min(remainTime, backoff->next());
+        if (next.is_negative() || next.is_zero()) {
+            LOG_ERROR(getName() << " Client Connection not ready for Consumer");
+            callback(ResultNotConnected, MessageId());
+            return;
+        }
+        remainTime -= next;
+
+        timer->expires_from_now(next);
+
+        timer->async_wait([this, backoff, remainTime, timer, next,
+                           callback](const boost::system::error_code& ec) -> void {
+            if (ec) {
+                LOG_DEBUG(getName() << " Get last message id operation was cancelled, code[" << ec << "].");
+                return;
+            }
+            LOG_WARN(getName() << " Could not get connection while getLastMessageId -- Will try again in "
+                               << next.total_milliseconds() << " ms")
+            this->internalGetLastMessageIdAsync(backoff, remainTime, timer, callback);
+        });
     }
 }
 
