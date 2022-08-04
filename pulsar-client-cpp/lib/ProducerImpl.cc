@@ -137,13 +137,10 @@ void ProducerImpl::refreshEncryptionKey(const boost::system::error_code& ec) {
 }
 
 void ProducerImpl::connectionOpened(const ClientConnectionPtr& cnx) {
-    Lock lock(mutex_);
     if (state_ == Closed) {
-        lock.unlock();
         LOG_DEBUG(getName() << "connectionOpened : Producer is already closed");
         return;
     }
-    lock.unlock();
 
     ClientImplPtr client = client_.lock();
     int requestId = client->newRequestId();
@@ -165,7 +162,6 @@ void ProducerImpl::connectionFailed(Result result) {
         // so don't change the state and allow reconnections
         return;
     } else if (producerCreatedPromise_.setFailed(result)) {
-        Lock lock(mutex_);
         state_ = Failed;
     }
 }
@@ -176,7 +172,6 @@ void ProducerImpl::handleCreateProducer(const ClientConnectionPtr& cnx, Result r
 
     // make sure we're still in the Pending/Ready state, closeAsync could have been invoked
     // while waiting for this response if using lazy producers
-    Lock lock(mutex_);
     if (state_ != Ready && state_ != Pending) {
         LOG_DEBUG("Producer created response received but producer already closed");
         failPendingMessages(ResultAlreadyClosed, false);
@@ -184,6 +179,7 @@ void ProducerImpl::handleCreateProducer(const ClientConnectionPtr& cnx, Result r
     }
 
     if (result == ResultOk) {
+        Lock lock(mutex_);
         // We are now reconnected to broker and clear to send messages. Re-send all pending messages and
         // set the cnx pointer so that new messages will be sent immediately
         LOG_INFO(getName() << "Created producer on broker " << cnx->cnxString());
@@ -218,8 +214,6 @@ void ProducerImpl::handleCreateProducer(const ClientConnectionPtr& cnx, Result r
         producerCreatedPromise_.setValue(shared_from_this());
 
     } else {
-        lock.unlock();
-
         // Producer creation failed
         if (result == ResultTimeout) {
             // Creating the producer has timed out. We need to ensure the broker closes the producer
@@ -249,7 +243,6 @@ void ProducerImpl::handleCreateProducer(const ClientConnectionPtr& cnx, Result r
                 LOG_ERROR(getName() << "Failed to create producer: " << strResult(result));
                 failPendingMessages(result, true);
                 producerCreatedPromise_.setFailed(result);
-                Lock lock(mutex_);
                 state_ = Failed;
             }
         }
@@ -327,9 +320,9 @@ void ProducerImpl::setMessageMetadata(const Message& msg, const uint64_t& sequen
 
 void ProducerImpl::flushAsync(FlushCallback callback) {
     if (batchMessageContainer_) {
-        Lock lock(mutex_);
 
         if (state_ == Ready) {
+            Lock lock(mutex_);
             auto failures = batchMessageAndSend(callback);
             lock.unlock();
             failures.complete();
@@ -343,8 +336,8 @@ void ProducerImpl::flushAsync(FlushCallback callback) {
 
 void ProducerImpl::triggerFlush() {
     if (batchMessageContainer_) {
-        Lock lock(mutex_);
         if (state_ == Ready) {
+            Lock lock(mutex_);
             auto failures = batchMessageAndSend();
             lock.unlock();
             failures.complete();
@@ -353,9 +346,7 @@ void ProducerImpl::triggerFlush() {
 }
 
 bool ProducerImpl::isValidProducerState(const SendCallback& callback) const {
-    Lock lock(mutex_);
-    const auto state = state_;
-    lock.unlock();
+    const State state = state_;
     switch (state) {
         case HandlerBase::Ready:
             // OK
@@ -614,8 +605,8 @@ void ProducerImpl::batchMessageTimeoutHandler(const boost::system::error_code& e
     LOG_DEBUG(getName() << " - Batch Message Timer expired");
 
     // ignore if the producer is already closing/closed
-    Lock lock(mutex_);
     if (state_ == Pending || state_ == Ready) {
+        Lock lock(mutex_);
         auto failures = batchMessageAndSend();
         lock.unlock();
         failures.complete();
@@ -726,10 +717,10 @@ Future<Result, ProducerImplBaseWeakPtr> ProducerImpl::getProducerCreatedFuture()
 uint64_t ProducerImpl::getProducerId() const { return producerId_; }
 
 void ProducerImpl::handleSendTimeout(const boost::system::error_code& err) {
-    Lock lock(mutex_);
     if (state_ != Pending && state_ != Ready) {
         return;
     }
+    Lock lock(mutex_);
 
     if (err == boost::asio::error::operation_aborted) {
         LOG_DEBUG(getName() << "Timer cancelled: " << err.message());
@@ -873,8 +864,8 @@ void ProducerImpl::start() {
 }
 
 void ProducerImpl::shutdown() {
-    Lock lock(mutex_);
     state_ = Closed;
+    Lock lock(mutex_);
     cancelTimers();
     producerCreatedPromise_.setFailed(ResultAlreadyClosed);
 }
@@ -901,19 +892,16 @@ bool ProducerImplCmp::operator()(const ProducerImplPtr& a, const ProducerImplPtr
 }
 
 bool ProducerImpl::isClosed() {
-    Lock lock(mutex_);
     return state_ == Closed;
 }
 
 bool ProducerImpl::isConnected() const {
-    Lock lock(mutex_);
     return !getCnx().expired() && state_ == Ready;
 }
 
 uint64_t ProducerImpl::getNumberOfConnectedProducer() { return isConnected() ? 1 : 0; }
 
 bool ProducerImpl::isStarted() const {
-    Lock lock(mutex_);
     return state_ != NotStarted;
 }
 void ProducerImpl::startSendTimeoutTimer() {
