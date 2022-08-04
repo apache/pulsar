@@ -320,7 +320,6 @@ void ProducerImpl::setMessageMetadata(const Message& msg, const uint64_t& sequen
 
 void ProducerImpl::flushAsync(FlushCallback callback) {
     if (batchMessageContainer_) {
-
         if (state_ == Ready) {
             Lock lock(mutex_);
             auto failures = batchMessageAndSend(callback);
@@ -891,19 +890,13 @@ bool ProducerImplCmp::operator()(const ProducerImplPtr& a, const ProducerImplPtr
     return a->getProducerId() < b->getProducerId();
 }
 
-bool ProducerImpl::isClosed() {
-    return state_ == Closed;
-}
+bool ProducerImpl::isClosed() { return state_ == Closed; }
 
-bool ProducerImpl::isConnected() const {
-    return !getCnx().expired() && state_ == Ready;
-}
+bool ProducerImpl::isConnected() const { return !getCnx().expired() && state_ == Ready; }
 
 uint64_t ProducerImpl::getNumberOfConnectedProducer() { return isConnected() ? 1 : 0; }
 
-bool ProducerImpl::isStarted() const {
-    return state_ != NotStarted;
-}
+bool ProducerImpl::isStarted() const { return state_ != NotStarted; }
 void ProducerImpl::startSendTimeoutTimer() {
     // Initialize the sendTimer only once per producer and only when producer timeout is
     // configured. Set the timeout as configured value and asynchronously wait for the
