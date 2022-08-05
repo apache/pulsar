@@ -477,19 +477,15 @@ Result MultiTopicsConsumerImpl::receive(Message& msg, int timeout) {
         return ResultAlreadyClosed;
     }
 
-    Lock lock(mutex_);
     if (messageListener_) {
-        lock.unlock();
         LOG_ERROR("Can not receive when a listener has been set");
         return ResultInvalidConfiguration;
     }
 
-    lock.unlock();
     if (messages_.pop(msg, std::chrono::milliseconds(timeout))) {
         unAckedMessageTrackerPtr_->add(msg.getMessageId());
         return ResultOk;
     } else {
-        lock.lock();
         if (state_ != Ready) {
             return ResultAlreadyClosed;
         }

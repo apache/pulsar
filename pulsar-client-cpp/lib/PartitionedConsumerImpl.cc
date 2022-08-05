@@ -97,7 +97,6 @@ Result PartitionedConsumerImpl::receive(Message& msg, int timeout) {
         unAckedMessageTrackerPtr_->add(msg.getMessageId());
         return ResultOk;
     } else {
-        lock.lock();
         if (state_ != Ready) {
             return ResultAlreadyClosed;
         }
