@@ -256,7 +256,6 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
         singleThreadExecutorForWrite.execute(() -> {
             try {
                 if (flushContext.asyncAddArgsList.isEmpty()) {
-                    nextTimingTrigger();
                     return;
                 }
                 if (metrics != null) {
@@ -264,10 +263,11 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
                             System.currentTimeMillis() - flushContext.asyncAddArgsList.get(0).addedTime);
                 }
                 doFlush();
-                // Start the next timing task.
-                nextTimingTrigger();
             } catch (Exception e){
                 log.error("Trig flush by timing task fail.", e);
+            } finally {
+                // Start the next timing task.
+                nextTimingTrigger();
             }
         });
     }
