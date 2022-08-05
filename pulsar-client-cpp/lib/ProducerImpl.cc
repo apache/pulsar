@@ -865,8 +865,8 @@ void ProducerImpl::start() {
 }
 
 void ProducerImpl::shutdown() {
-    state_ = Closed;
     Lock lock(mutex_);
+    state_ = Closed;
     cancelTimers();
     producerCreatedPromise_.setFailed(ResultAlreadyClosed);
 }

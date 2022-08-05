@@ -68,13 +68,10 @@ const std::string& PartitionedConsumerImpl::getSubscriptionName() const { return
 const std::string& PartitionedConsumerImpl::getTopic() const { return topic_; }
 
 Result PartitionedConsumerImpl::receive(Message& msg) {
-    Lock lock(mutex_);
     if (state_ != Ready) {
-        lock.unlock();
         return ResultAlreadyClosed;
     }
     // See comments in `receive(Message&, int)`
-    lock.unlock();
 
     if (messageListener_) {
         LOG_ERROR("Can not receive when a listener has been set");
@@ -87,15 +84,9 @@ Result PartitionedConsumerImpl::receive(Message& msg) {
 }
 
 Result PartitionedConsumerImpl::receive(Message& msg, int timeout) {
-    Lock lock(mutex_);
     if (state_ != Ready) {
-        lock.unlock();
         return ResultAlreadyClosed;
     }
-    // We unlocked `mutex_` here to avoid starvation of methods which are trying to acquire `mutex_`.
-    // In addition, `messageListener_` won't change once constructed, `BlockingQueue::pop` and
-    // `UnAckedMessageTracker::add` are thread-safe, so they don't need `mutex_` to achieve thread-safety.
-    lock.unlock();
 
     if (messageListener_) {
         LOG_ERROR("Can not receive when a listener has been set");
@@ -118,12 +109,10 @@ void PartitionedConsumerImpl::receiveAsync(ReceiveCallback& callback) {
     Message msg;
 
     // fail the callback if consumer is closing or closed
-    Lock stateLock(mutex_);
     if (state_ != Ready) {
         callback(ResultAlreadyClosed, msg);
         return;
     }
-    stateLock.unlock();
 
     Lock lock(pendingReceiveMutex_);
     if (messages_.pop(msg, std::chrono::milliseconds(0))) {
@@ -141,9 +130,7 @@ void PartitionedConsumerImpl::unsubscribeAsync(ResultCallback callback) {
     setState(Closing);
     // do not accept un subscribe until we have subscribe to all of the partitions of a topic
     // it's a logical single topic so it should behave like a single topic, even if it's sharded
-    Lock lock(mutex_);
     if (state_ != Ready) {
-        lock.unlock();
         unsigned int index = 0;
         for (ConsumerList::const_iterator consumer = consumers_.begin(); consumer != consumers_.end();
              consumer++) {
@@ -158,9 +145,7 @@ void PartitionedConsumerImpl::unsubscribeAsync(ResultCallback callback) {
 
 void PartitionedConsumerImpl::handleUnsubscribeAsync(Result result, unsigned int consumerIndex,
                                                      ResultCallback callback) {
-    Lock lock(mutex_);
     if (state_ == Failed) {
-        lock.unlock();
         // we have already informed the client that unsubcribe has failed so, ignore this callbacks
         // or do we still go ahead and check how many could we close successfully?
         LOG_DEBUG("handleUnsubscribeAsync callback received in Failed State for consumerIndex - "
@@ -168,7 +153,6 @@ void PartitionedConsumerImpl::handleUnsubscribeAsync(Result result, unsigned int
                   << subscriptionName_ << " for Topic - " << topicName_->toString());
         return;
     }
-    lock.unlock();
     if (result != ResultOk) {
         setState(Failed);
         LOG_ERROR("Error Closing one of the parition consumers, consumerIndex - " << consumerIndex);
@@ -280,7 +264,6 @@ void PartitionedConsumerImpl::start() {
 void PartitionedConsumerImpl::handleSinglePartitionConsumerCreated(
     Result result, ConsumerImplBaseWeakPtr consumerImplBaseWeakPtr, unsigned int partitionIndex) {
     ResultCallback nullCallbackForCleanup = NULL;
-    Lock lock(mutex_);
     if (state_ == Failed) {
         // one of the consumer creation failed, and we are cleaning up
         return;
@@ -290,7 +273,6 @@ void PartitionedConsumerImpl::handleSinglePartitionConsumerCreated(
 
     if (result != ResultOk) {
         state_ = Failed;
-        lock.unlock();
         partitionedConsumerCreatedPromise_.setFailed(result);
         // unsubscribed all of the successfully subscribed partitioned consumers
         closeAsync(nullCallbackForCleanup);
@@ -299,12 +281,13 @@ void PartitionedConsumerImpl::handleSinglePartitionConsumerCreated(
     }
 
     assert(partitionIndex < numPartitions && partitionIndex >= 0);
+    Lock lock(mutex_);
     numConsumersCreated_++;
+    lock.unlock();
     if (numConsumersCreated_ == numPartitions) {
         LOG_INFO("Successfully Subscribed to Partitioned Topic - " << topicName_->toString() << " with - "
                                                                    << numPartitions << " Partitions.");
         state_ = Ready;
-        lock.unlock();
         if (partitionsUpdateTimer_) {
             runPartitionUpdateTask();
         }
@@ -316,7 +299,6 @@ void PartitionedConsumerImpl::handleSinglePartitionConsumerCreated(
 
 void PartitionedConsumerImpl::handleSinglePartitionConsumerClose(Result result, unsigned int partitionIndex,
                                                                  CloseCallback callback) {
-    Lock lock(mutex_);
     if (state_ == Failed) {
         // we should have already notified the client by callback
         return;
@@ -324,7 +306,6 @@ void PartitionedConsumerImpl::handleSinglePartitionConsumerClose(Result result, 
     if (result != ResultOk) {
         state_ = Failed;
         LOG_ERROR("Closing the consumer failed for partition - " << partitionIndex);
-        lock.unlock();
         partitionedConsumerCreatedPromise_.setFailed(result);
         if (callback) {
             callback(result);
@@ -332,13 +313,14 @@ void PartitionedConsumerImpl::handleSinglePartitionConsumerClose(Result result, 
         return;
     }
     assert(partitionIndex < getNumPartitionsWithLock() && partitionIndex >= 0);
+    Lock lock(mutex_);
     if (numConsumersCreated_ > 0) {
         numConsumersCreated_--;
     }
+    lock.unlock();
     // closed all successfully
     if (!numConsumersCreated_) {
         state_ = Closed;
-        lock.unlock();
         // set the producerCreatedPromise to failure
         partitionedConsumerCreatedPromise_.setFailed(ResultUnknownError);
         if (callback) {
@@ -348,6 +330,7 @@ void PartitionedConsumerImpl::handleSinglePartitionConsumerClose(Result result, 
     }
 }
 void PartitionedConsumerImpl::closeAsync(ResultCallback callback) {
+    Lock lock(mutex_);
     if (consumers_.empty()) {
         notifyResult(callback);
         return;
@@ -389,20 +372,13 @@ void PartitionedConsumerImpl::notifyResult(CloseCallback closeCallback) {
     }
 }
 
-void PartitionedConsumerImpl::setState(const PartitionedConsumerState state) {
-    Lock lock(mutex_);
-    state_ = state;
-    lock.unlock();
-}
+void PartitionedConsumerImpl::setState(const PartitionedConsumerState state) { state_ = state; }
 
 void PartitionedConsumerImpl::shutdown() {}
 
 bool PartitionedConsumerImpl::isClosed() { return state_ == Closed; }
 
-bool PartitionedConsumerImpl::isOpen() {
-    Lock lock(mutex_);
-    return state_ == Ready;
-}
+bool PartitionedConsumerImpl::isOpen() { return state_ == Ready; }
 
 void PartitionedConsumerImpl::messageReceived(Consumer consumer, const Message& msg) {
     LOG_DEBUG("Received Message from one of the partition - " << msg.impl_->messageId.partition());
@@ -508,9 +484,7 @@ const std::string& PartitionedConsumerImpl::getName() const { return partitionSt
 int PartitionedConsumerImpl::getNumOfPrefetchedMessages() const { return messages_.size(); }
 
 void PartitionedConsumerImpl::getBrokerConsumerStatsAsync(BrokerConsumerStatsCallback callback) {
-    Lock lock(mutex_);
     if (state_ != Ready) {
-        lock.unlock();
         callback(ResultConsumerNotInitialized, BrokerConsumerStats());
         return;
     }
@@ -519,7 +493,6 @@ void PartitionedConsumerImpl::getBrokerConsumerStatsAsync(BrokerConsumerStatsCal
         std::make_shared<PartitionedBrokerConsumerStatsImpl>(numPartitions);
     LatchPtr latchPtr = std::make_shared<Latch>(numPartitions);
     ConsumerList consumerList = consumers_;
-    lock.unlock();
     for (int i = 0; i < consumerList.size(); i++) {
         consumerList[i]->getBrokerConsumerStatsAsync(
             std::bind(&PartitionedConsumerImpl::handleGetConsumerStats, shared_from_this(),
@@ -551,16 +524,13 @@ void PartitionedConsumerImpl::seekAsync(const MessageId& msgId, ResultCallback c
 }
 
 void PartitionedConsumerImpl::seekAsync(uint64_t timestamp, ResultCallback callback) {
-    Lock stateLock(mutex_);
     if (state_ != Ready) {
-        stateLock.unlock();
         callback(ResultAlreadyClosed);
         return;
     }
 
     // consumers_ could only be modified when state_ is Ready, so we needn't lock consumersMutex_ here
     ConsumerList consumerList = consumers_;
-    stateLock.unlock();
 
     MultiResultCallback multiResultCallback(callback, consumers_.size());
     for (ConsumerList::const_iterator i = consumerList.begin(); i != consumerList.end(); i++) {
@@ -583,11 +553,11 @@ void PartitionedConsumerImpl::getPartitionMetadata() {
 
 void PartitionedConsumerImpl::handleGetPartitions(Result result,
                                                   const LookupDataResultPtr& lookupDataResult) {
-    Lock stateLock(mutex_);
     if (state_ != Ready) {
         return;
     }
 
+    Lock stateLock(mutex_);
     if (!result) {
         const auto newNumPartitions = static_cast<unsigned int>(lookupDataResult->getPartitions());
         Lock consumersLock(consumersMutex_);
@@ -620,11 +590,9 @@ void PartitionedConsumerImpl::setNegativeAcknowledgeEnabledForTesting(bool enabl
 }
 
 bool PartitionedConsumerImpl::isConnected() const {
-    Lock stateLock(mutex_);
     if (state_ != Ready) {
         return false;
     }
-    stateLock.unlock();
 
     Lock consumersLock(consumersMutex_);
     const auto consumers = consumers_;

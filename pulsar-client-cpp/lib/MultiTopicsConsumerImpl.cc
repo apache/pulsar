@@ -115,7 +115,8 @@ Future<Result, Consumer> MultiTopicsConsumerImpl::subscribeOneTopicAsync(const s
         return topicPromise->getFuture();
     }
 
-    if (state_ == Closed || state_ == Closing) {
+    const auto state = state_.load();
+    if (state == Closed || state == Closing) {
         LOG_ERROR("MultiTopicsConsumer already closed when subscribe.");
         topicPromise->setFailed(ResultAlreadyClosed);
         return topicPromise->getFuture();
@@ -222,15 +223,13 @@ void MultiTopicsConsumerImpl::handleSingleConsumerCreated(
 void MultiTopicsConsumerImpl::unsubscribeAsync(ResultCallback callback) {
     LOG_INFO("[ Topics Consumer " << topic_ << "," << subscriptionName_ << "] Unsubscribing");
 
-    Lock lock(mutex_);
-    if (state_ == Closing || state_ == Closed) {
+    const auto state = state_.load();
+    if (state == Closing || state == Closed) {
         LOG_INFO(consumerStr_ << " already closed");
-        lock.unlock();
         callback(ResultAlreadyClosed);
         return;
     }
     state_ = Closing;
-    lock.unlock();
 
     std::shared_ptr<std::atomic<int>> consumerUnsubed = std::make_shared<std::atomic<int>>(0);
     auto self = shared_from_this();
@@ -281,7 +280,8 @@ void MultiTopicsConsumerImpl::unsubscribeOneTopicAsync(const std::string& topic,
         return;
     }
 
-    if (state_ == Closing || state_ == Closed) {
+    const auto state = state_.load();
+    if (state == Closing || state == Closed) {
         LOG_ERROR("TopicsConsumer already closed when unsubscribe topic: " << topic << " subscription - "
                                                                            << subscriptionName_);
         callback(ResultAlreadyClosed);
@@ -350,7 +350,8 @@ void MultiTopicsConsumerImpl::handleOneTopicUnsubscribedAsync(
 }
 
 void MultiTopicsConsumerImpl::closeAsync(ResultCallback callback) {
-    if (state_ == Closing || state_ == Closed) {
+    const auto state = state_.load();
+    if (state == Closing || state == Closed) {
         LOG_ERROR("TopicsConsumer already closed "
                   << " topic" << topic_ << " consumer - " << consumerStr_);
         if (callback) {
@@ -457,18 +458,14 @@ void MultiTopicsConsumerImpl::internalListener(Consumer consumer) {
 }
 
 Result MultiTopicsConsumerImpl::receive(Message& msg) {
-    Lock lock(mutex_);
     if (state_ != Ready) {
-        lock.unlock();
         return ResultAlreadyClosed;
     }
 
     if (messageListener_) {
-        lock.unlock();
         LOG_ERROR("Can not receive when a listener has been set");
         return ResultInvalidConfiguration;
     }
-    lock.unlock();
     messages_.pop(msg);
 
     unAckedMessageTrackerPtr_->add(msg.getMessageId());
@@ -476,12 +473,11 @@ Result MultiTopicsConsumerImpl::receive(Message& msg) {
 }
 
 Result MultiTopicsConsumerImpl::receive(Message& msg, int timeout) {
-    Lock lock(mutex_);
     if (state_ != Ready) {
-        lock.unlock();
         return ResultAlreadyClosed;
     }
 
+    Lock lock(mutex_);
     if (messageListener_) {
         lock.unlock();
         LOG_ERROR("Can not receive when a listener has been set");
@@ -505,12 +501,10 @@ void MultiTopicsConsumerImpl::receiveAsync(ReceiveCallback& callback) {
     Message msg;
 
     // fail the callback if consumer is closing or closed
-    Lock stateLock(mutex_);
     if (state_ != Ready) {
         callback(ResultAlreadyClosed, msg);
         return;
     }
-    stateLock.unlock();
 
     Lock lock(pendingReceiveMutex_);
     if (messages_.pop(msg, std::chrono::milliseconds(0))) {
@@ -578,16 +572,11 @@ const std::string& MultiTopicsConsumerImpl::getTopic() const { return topic_; }
 
 const std::string& MultiTopicsConsumerImpl::getName() const { return consumerStr_; }
 
-void MultiTopicsConsumerImpl::setState(const MultiTopicsConsumerState state) {
-    Lock lock(mutex_);
-    state_ = state;
-}
+void MultiTopicsConsumerImpl::setState(const MultiTopicsConsumerState state) { state_ = state; }
 
 bool MultiTopicsConsumerImpl::compareAndSetState(MultiTopicsConsumerState expect,
                                                  MultiTopicsConsumerState update) {
-    Lock lock(mutex_);
-    if (state_ == expect) {
-        state_ = update;
+    if (state_.compare_exchange_strong(expect, update)) {
         return true;
     } else {
         return false;
@@ -598,10 +587,7 @@ void MultiTopicsConsumerImpl::shutdown() {}
 
 bool MultiTopicsConsumerImpl::isClosed() { return state_ == Closed; }
 
-bool MultiTopicsConsumerImpl::isOpen() {
-    Lock lock(mutex_);
-    return state_ == Ready;
-}
+bool MultiTopicsConsumerImpl::isOpen() { return state_ == Ready; }
 
 void MultiTopicsConsumerImpl::receiveMessages() {
     const auto receiverQueueSize = conf_.getReceiverQueueSize();
@@ -651,12 +637,11 @@ void MultiTopicsConsumerImpl::redeliverUnacknowledgedMessages(const std::set<Mes
 int MultiTopicsConsumerImpl::getNumOfPrefetchedMessages() const { return messages_.size(); }
 
 void MultiTopicsConsumerImpl::getBrokerConsumerStatsAsync(BrokerConsumerStatsCallback callback) {
-    Lock lock(mutex_);
     if (state_ != Ready) {
-        lock.unlock();
         callback(ResultConsumerNotInitialized, BrokerConsumerStats());
         return;
     }
+    Lock lock(mutex_);
     MultiTopicsBrokerConsumerStatsPtr statsPtr =
         std::make_shared<MultiTopicsBrokerConsumerStatsImpl>(numberTopicPartitions_->load());
     LatchPtr latchPtr = std::make_shared<Latch>(numberTopicPartitions_->load());
@@ -722,11 +707,9 @@ void MultiTopicsConsumerImpl::setNegativeAcknowledgeEnabledForTesting(bool enabl
 }
 
 bool MultiTopicsConsumerImpl::isConnected() const {
-    Lock lock(mutex_);
     if (state_ != Ready) {
         return false;
     }
-    lock.unlock();
 
     return consumers_
         .findFirstValueIf([](const ConsumerImplPtr& consumer) { return !consumer->isConnected(); })
