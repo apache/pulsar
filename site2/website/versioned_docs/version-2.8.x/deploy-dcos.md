@@ -7,7 +7,7 @@ original_id: deploy-dcos
 
 :::tip
 
-If you want to enable all builtin [Pulsar IO](io-overview) connectors in your Pulsar deployment, you can choose to use `apachepulsar/pulsar-all` image instead of
+If you want to enable all builtin [Pulsar IO](io-overview.md) connectors in your Pulsar deployment, you can choose to use `apachepulsar/pulsar-all` image instead of
 `apachepulsar/pulsar` image. `apachepulsar/pulsar-all` image has already bundled [all builtin connectors](io-overview.md#working-with-connectors).
 
 :::

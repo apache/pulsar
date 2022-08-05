@@ -89,4 +89,4 @@ PROJECT=<gcloud project id> USE_LOCAL_SSD=true LOCAL_SSD_COUNT=<local-ssd-count>
 
 ## Next Steps
 
-Continue with the [installation of the chart](helm-deploy) once you have the cluster up and running.
+Continue with the [installation of the chart](helm-deploy.md) once you have the cluster up and running.
