@@ -358,6 +358,21 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 |narExtractionDirectory | The extraction directory of the nar package. <br />Available for Protocol Handler, Additional Servlets, Offloaders, Broker Interceptor. | System.getProperty("java.io.tmpdir") |
 | managedLedgerInfoCompressionType | Compression type of `ManagedLedgerInfo`. <br />**Note:** This configuration is only available in 2.8.1 and later versions. <br />Available values are `NONE`, `LZ4`, `ZLIB`, `ZSTD`, and `SNAPPY`. <br/> If the value is `NONE` or invalid, the `managedLedgerInfo` is not compressed. <br /> **Note** that after enabling this configuration, if you want to degrade broker, you need to change the value to `NONE` and ensure all ledger metadata are saved without compression before starting to degrade. | NONE |
 
+#### Configuration override for clients internal to broker
+
+In 2.8.4 and later versions, you can configure some clients by using the appropriate prefix.
+
+|Prefix|Description|
+|---|---|
+|brokerClient_| Configure **all** the broker's Pulsar Clients and Pulsar Admin Clients. These configurations are applied after hard coded configuration and before the above broker client configurations named above.|
+|bookkeeper_| Configure the broker's BookKeeper clients used by managed ledgers and the BookkeeperPackagesStorage bookkeeper client. Takes precedence over most other configuration values.|
+
+:::note
+
+When running the function worker within the broker, these prefixed configurations do not apply to any of those clients. You must configure those clients using the `functions_worker.yml` file.
+
+:::
+
 ## Client
 
 You can use the [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool to publish messages to and consume messages from Pulsar topics. You can use this tool in place of a client library.
@@ -704,6 +719,14 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |tlsKeyFilePath |||
 |tlsTrustCertsFilePath|||
 
+#### Configuration Override For Clients Internal to WebSocket
+
+In 2.8.4 and later versions, you can configure some clients by using the appropriate prefix.
+
+|Prefix|Description|
+|---|---|
+|brokerClient_| Configure **all** the broker's Pulsar Clients. These configurations are applied after hard coded configuration and before the above brokerClient configurations named above.|
+
 ## Pulsar proxy
 
 The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) can be configured in the `conf/proxy.conf` file.
@@ -758,6 +781,16 @@ The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) can be config
 |tokenAudienceClaim| The token audience "claim" name, e.g. "aud". It is used to get the audience from token. If it is not set, the audience is not verified. ||
 | tokenAudience | The token audience stands for this broker. The field `tokenAudienceClaim` of a valid token need contains this parameter.| |
 |haProxyProtocolEnabled | Enable or disable the [HAProxy](http://www.haproxy.org/) protocol. |false|
+| numIOThreads | Number of threads used for Netty IO. <br />**Note:** This configuration is only available in 2.8.4 and later versions. | 2 * Runtime.getRuntime().availableProcessors() |
+| numAcceptorThreads | Number of threads used for Netty Acceptor. <br />**Note:** This configuration is only available in 2.8.4 and later versions.| 1 |
+
+#### Configuration Override For Clients Internal to Proxy
+
+In 2.8.4 and later versions, you can configure some clients by using the appropriate prefix.
+
+|Prefix|Description|
+|---|---|
+|brokerClient_| Configure **all** the proxy's Pulsar Clients. These configurations are applied after hard coded configuration and before the above brokerClient configurations named above.|
 
 ## ZooKeeper
 

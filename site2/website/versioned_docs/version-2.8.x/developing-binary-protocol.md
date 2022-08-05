@@ -289,6 +289,12 @@ subscription is not already there, a new one will be created.
 
 ![Consumer](/assets/binary-protocol-consumer.png)
 
+:::note
+
+In 2.8.4 and later versions, if the client does not receive a response indicating the success or failure of consumer creation, it first sends a command to close the original consumer before sending a command to re-attempt consumer creation.
+
+:::
+
 #### Flow control
 
 After the consumer is ready, the client needs to *give permission* to the
@@ -426,9 +432,13 @@ message CommandAckResponse {
 
 ##### Command CloseConsumer
 
-***Note***: **This command can be sent by either producer or broker*.
+This command behaves the same as [`CloseProducer`](#command-closeproducer) and can be sent by either producer or broker.
 
-This command behaves the same as [`CloseProducer`](#command-closeproducer)
+:::note
+
+In 2.8.4 and later versions, if the client does not receive a response to a `Subscribe` command within a timeout, the client must first send a `CloseConsumer` command before sending another `Subscribe` command. The client does not need to await a response to the `CloseConsumer` command before sending the next `Subscribe` command.
+
+:::
 
 ##### Command RedeliverUnacknowledgedMessages
 
