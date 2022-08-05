@@ -72,13 +72,14 @@ public class PulsarClientTool {
 
         @Parameter(names = { "-h", "--help", }, help = true, description = "Show this help.")
         boolean help;
+
+        @Parameter(names = { "--tlsTrustCertsFilePath" }, description = "File path to client trust certificates")
+        String tlsTrustCertsFilePath;
     }
 
     protected RootParams rootParams;
     boolean tlsAllowInsecureConnection;
     boolean tlsEnableHostnameVerification;
-    String tlsTrustCertsFilePath;
-
     // for tls with keystore type config
     boolean useKeyStoreTls;
     String tlsTrustStoreType;
@@ -98,8 +99,6 @@ public class PulsarClientTool {
                 .parseBoolean(properties.getProperty("tlsAllowInsecureConnection", "false"));
         this.tlsEnableHostnameVerification = Boolean
                 .parseBoolean(properties.getProperty("tlsEnableHostnameVerification", "false"));
-        this.tlsTrustCertsFilePath = properties.getProperty("tlsTrustCertsFilePath");
-
         this.useKeyStoreTls = Boolean
                 .parseBoolean(properties.getProperty("useKeyStoreTls", "false"));
         this.tlsTrustStoreType = properties.getProperty("tlsTrustStoreType", "JKS");
@@ -132,6 +131,7 @@ public class PulsarClientTool {
         }
         this.rootParams.authPluginClassName = properties.getProperty("authPlugin");
         this.rootParams.authParams = properties.getProperty("authParams");
+        this.rootParams.tlsTrustCertsFilePath = properties.getProperty("tlsTrustCertsFilePath");
     }
 
     private void updateConfig() throws UnsupportedAuthenticationException {
@@ -146,7 +146,7 @@ public class PulsarClientTool {
             clientBuilder.listenerName(this.rootParams.listenerName);
         }
         clientBuilder.allowTlsInsecureConnection(this.tlsAllowInsecureConnection);
-        clientBuilder.tlsTrustCertsFilePath(this.tlsTrustCertsFilePath);
+        clientBuilder.tlsTrustCertsFilePath(this.rootParams.tlsTrustCertsFilePath);
         clientBuilder.enableTlsHostnameVerification(this.tlsEnableHostnameVerification);
         clientBuilder.serviceUrl(rootParams.serviceURL);
 
