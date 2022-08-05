@@ -272,7 +272,6 @@ public class WebService implements AutoCloseable {
         } else {
             handlers.add(context);
         }
-        handlers.add(context);
     }
 
     public void addStaticResources(String basePath, String resourcePath) {
