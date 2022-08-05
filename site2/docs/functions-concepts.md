@@ -149,7 +149,7 @@ Pulsar Functions take byte arrays as inputs and spit out byte arrays as output. 
 
 :::note    
 
-Currently, window function is only available in Java.
+Currently, window function is only available in Java, and does not support `MANUAL` and  `Effectively-once` delivery semantics.
 
 :::
 
@@ -168,9 +168,6 @@ Both trigger policy and eviction policy are driven by either time or count.
 Both processing time and event time are supported.
  * Processing time is defined based on the wall time when the function instance builds and processes a window. The judging of window completeness is straightforward and you don’t have to worry about data arrival disorder. 
  * Event time is defined based on the timestamps that come with the event record. It guarantees event time correctness but also offers more data buffering and a limited completeness guarantee.
-
-Delivery Semantic Guarantees.
- * Currently, window function does not support `MANUAL` and  `Effectively-once` delivery semantics.
    
 :::
 
