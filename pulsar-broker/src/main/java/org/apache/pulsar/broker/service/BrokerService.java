@@ -1782,6 +1782,8 @@ public class BrokerService implements Closeable {
             if (t instanceof PersistentTopic) {
                 Optional.ofNullable(((PersistentTopic) t).getManagedLedger()).ifPresent(
                         managedLedger -> {
+                            // After update cursor, trimConsumedLedgersInBackground will be invoked,
+                            // avoid invoke repeatedly here.
                             if (!managedLedger.maybeUpdateCursorBeforeTrimmingConsumedLedger()){
                                 managedLedger.trimConsumedLedgersInBackground(Futures.NULL_PROMISE);
                             }
