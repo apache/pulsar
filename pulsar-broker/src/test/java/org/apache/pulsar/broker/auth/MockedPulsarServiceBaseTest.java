@@ -54,6 +54,7 @@ import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -122,8 +123,15 @@ public abstract class MockedPulsarServiceBaseTest {
         pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
     }
 
+    protected void customizeNewPulsarClientBuilder(ClientBuilder clientBuilder) {
+
+    }
+
     protected PulsarClient newPulsarClient(String url, int intervalInSecs) throws PulsarClientException {
-        return PulsarClient.builder().serviceUrl(url).statsInterval(intervalInSecs, TimeUnit.SECONDS).build();
+        ClientBuilder clientBuilder =
+                PulsarClient.builder().serviceUrl(url).statsInterval(intervalInSecs, TimeUnit.SECONDS);
+        customizeNewPulsarClientBuilder(clientBuilder);
+        return clientBuilder.build();
     }
 
     protected final void internalSetupForStatsTest() throws Exception {
@@ -256,7 +264,12 @@ public abstract class MockedPulsarServiceBaseTest {
         PulsarAdminBuilder pulsarAdminBuilder = PulsarAdmin.builder().serviceHttpUrl(brokerUrl != null
                 ? brokerUrl.toString()
                 : brokerUrlTls.toString());
+        customizeNewPulsarAdminBuilder(pulsarAdminBuilder);
         admin = spy(pulsarAdminBuilder.build());
+    }
+
+    protected void customizeNewPulsarAdminBuilder(PulsarAdminBuilder pulsarAdminBuilder) {
+
     }
 
     protected PulsarService startBroker(ServiceConfiguration conf) throws Exception {
@@ -421,6 +434,27 @@ public abstract class MockedPulsarServiceBaseTest {
         configuration.setBookkeeperClientExposeStatsToPrometheus(true);
         configuration.setNumExecutorThreadPoolSize(5);
         return configuration;
+    }
+
+    protected void setupDefaultTenantAndNamespace() throws Exception {
+        final String tenant = "public";
+        final String namespace = tenant + "/default";
+
+        if (!admin.clusters().getClusters().contains(configClusterName)) {
+            ClusterData clusterData = new ClusterData();
+            clusterData.setServiceUrl(pulsar.getWebServiceAddress());
+            admin.clusters().createCluster(configClusterName, clusterData);
+        }
+
+        if (!admin.tenants().getTenants().contains(tenant)) {
+            TenantInfo tenantInfo = new TenantInfo();
+            tenantInfo.setAllowedClusters(Sets.newHashSet(configClusterName));
+            admin.tenants().createTenant(tenant, tenantInfo);
+        }
+
+        if (!admin.namespaces().getNamespaces(tenant).contains(namespace)) {
+            admin.namespaces().createNamespace(namespace);
+        }
     }
 
     private static final Logger log = LoggerFactory.getLogger(MockedPulsarServiceBaseTest.class);
