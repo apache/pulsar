@@ -1144,7 +1144,7 @@ You can monitor Pulsar Functions that have been deployed with the following meth
 
 - Check the metrics provided by Pulsar.
 
-  Pulsar Functions expose the metrics that can be collected and used for monitoring the health of **Java, Python, and Go** functions. You can check the metrics by following the [monitoring](deploy-monitoring) guide.
+  Pulsar Functions expose the metrics that can be collected and used for monitoring the health of **Java, Python, and Go** functions. You can check the metrics by following the [monitoring](deploy-monitoring.md) guide.
 
   For the complete list of the function metrics, see [here](reference-metrics.md#pulsar-functions).
 
@@ -1214,7 +1214,7 @@ Currently, the feature is not available in Go.
 
 ## Security
 
-If you want to enable security on Pulsar Functions, first you should enable security on [Functions Workers](functions-worker). For more details, refer to [Security settings](functions-worker.md#security-settings).
+If you want to enable security on Pulsar Functions, first you should enable security on [Functions Workers](functions-worker.md). For more details, refer to [Security settings](functions-worker.md#security-settings).
 
 Pulsar Functions can support the following providers:
 
