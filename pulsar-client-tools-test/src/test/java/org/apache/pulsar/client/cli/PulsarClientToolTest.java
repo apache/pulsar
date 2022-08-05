@@ -29,6 +29,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import com.beust.jcommander.JCommander;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -269,6 +270,31 @@ public class PulsarClientToolTest extends BrokerTestBase {
         }
     }
 
+    @Test(timeOut = 20000)
+    public void testArgs() throws Exception {
+        PulsarClientTool pulsarClientTool = new PulsarClientTool(new Properties());
+        final String url = "pulsar+ssl://localhost:6651";
+        final String authPlugin = "org.apache.pulsar.client.impl.auth.AuthenticationTls";
+        final String authParams = "tlsCertFile:pulsar-broker/src/test/resources/authentication/tls/client-cert.pem," +
+                "tlsKeyFile:pulsar-broker/src/test/resources/authentication/tls/client-key.pem";
+        final String tlsTrustCertsFilePath = "pulsar/pulsar-broker/src/test/resources/authentication/tls/cacert.pem";
+        final String message = "test msg";
+        final int numberOfMessages = 1;
+        final String topicName = getTopicWithRandomSuffix("test-topic");
+        
+        String[] args = {"--url", url, 
+                "--auth-plugin", authPlugin,
+                "--auth-params", authParams,
+                "--tlsTrustCertsFilePath", tlsTrustCertsFilePath,
+                "produce", "-m", message,
+                "-n", Integer.toString(numberOfMessages), topicName};
+        pulsarClientTool.jcommander.parse(args);
+        assertEquals(pulsarClientTool.rootParams.getTlsTrustCertsFilePath(), tlsTrustCertsFilePath);
+        assertEquals(pulsarClientTool.rootParams.getAuthParams(), authParams);
+        assertEquals(pulsarClientTool.rootParams.getAuthPluginClassName(), authPlugin);
+        assertEquals(pulsarClientTool.rootParams.getServiceURL(), url);
+    }
+    
     private static String getTopicWithRandomSuffix(String localNameBase) {
         return String.format("persistent://prop/ns-abc/test/%s-%s", localNameBase, UUID.randomUUID().toString());
     }
