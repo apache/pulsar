@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.impl;
 
+import java.lang.reflect.Field;
+import java.nio.charset.StandardCharsets;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
@@ -29,13 +31,11 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,6 +53,39 @@ public class ProducerSemaphoreTest extends ProducerConsumerBase {
     @AfterMethod(alwaysRun = true)
     public void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @Test(timeOut = 10_000)
+    public void testProducerSemaphoreInvalidMessage() throws Exception {
+        final int pendingQueueSize = 100;
+
+        @Cleanup
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
+                .topic("testProducerSemaphoreAcquire")
+                .maxPendingMessages(pendingQueueSize)
+                .enableBatching(true)
+                .create();
+
+        this.stopBroker();
+
+        Field maxMessageSizeFiled = ClientCnx.class.getDeclaredField("maxMessageSize");
+        maxMessageSizeFiled.setAccessible(true);
+        maxMessageSizeFiled.set(null, 2);
+
+        try {
+            producer.send("semaphore-test".getBytes(StandardCharsets.UTF_8));
+            Assert.fail("can not reach here");
+        } catch (PulsarClientException.InvalidMessageException ex) {
+            Assert.assertEquals(producer.getSemaphore().availablePermits(), pendingQueueSize);
+        }
+
+        producer.conf.setBatchingEnabled(false);
+        try {
+            producer.send("semaphore-test".getBytes(StandardCharsets.UTF_8));
+            Assert.fail("can not reach here");
+        } catch (PulsarClientException.InvalidMessageException ex) {
+            Assert.assertEquals(producer.getSemaphore().availablePermits(), pendingQueueSize);
+        }
     }
 
     @Test(timeOut = 30000)
