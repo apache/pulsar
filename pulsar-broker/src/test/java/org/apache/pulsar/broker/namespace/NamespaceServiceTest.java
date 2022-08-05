@@ -42,6 +42,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -56,6 +57,7 @@ import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleResourceUnit;
 import org.apache.pulsar.broker.lookup.LookupResult;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -719,6 +721,35 @@ public class NamespaceServiceTest extends BrokerTestBase {
             assertNull(loadData.getBundleData().get(oldBundle.toString()));
             assertFalse(bundlesCache.exists(BUNDLE_DATA_PATH + "/" + oldBundle.toString()).get());
         });
+    }
+
+
+    @Test
+    public void testGetBrokerServiceUrlAsyncWhenBundleUnloading() throws Exception {
+        OwnershipCache MockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
+        NamespaceEphemeralData namespaceEphemeralData = new NamespaceEphemeralData(null, null, null, null, true);
+        doReturn(CompletableFuture.completedFuture(Optional.of(namespaceEphemeralData))).when(MockOwnershipCache)
+                .getOwnerAsync(any(NamespaceBundle.class));
+        Field ownership = NamespaceService.class.getDeclaredField("ownershipCache");
+        ownership.setAccessible(true);
+        ownership.set(pulsar.getNamespaceService(), MockOwnershipCache);
+
+        CompletableFuture<Boolean> future = new CompletableFuture();
+        TopicName topicName = TopicName.get("persistent://pulsar/global/ns1/topic-unload");
+        pulsar.getNamespaceService()
+                .getBrokerServiceUrlAsync(topicName, new LookupOptions(true, true, true, true, null)).thenAccept(
+                        __ -> future.complete(false)
+                ).exceptionally(ex -> {
+                    if (ex instanceof CompletionException &&
+                            ex.getCause() instanceof BrokerServiceException.ServerMetadataException) {
+                        future.complete(true);
+                    } else {
+                        future.complete(false);
+                    }
+                    return null;
+                });
+
+        assertTrue(future.get());
     }
 
     @SuppressWarnings("unchecked")
