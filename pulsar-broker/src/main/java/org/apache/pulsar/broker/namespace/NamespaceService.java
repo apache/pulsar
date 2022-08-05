@@ -1220,11 +1220,7 @@ public class NamespaceService implements AutoCloseable {
     }
 
     public CompletableFuture<List<String>> getListOfPersistentTopics(NamespaceName namespaceName) {
-        return pulsar.getPulsarResources().getTopicResources().listPersistentTopicsAsync(namespaceName)
-                .thenApply(x -> {
-                    LOG.info("getListOfPersistentTopics: " + x);
-                    return x;
-                });
+        return pulsar.getPulsarResources().getTopicResources().listPersistentTopicsAsync(namespaceName);
     }
 
     public CompletableFuture<List<String>> getListOfNonPersistentTopics(NamespaceName namespaceName) {

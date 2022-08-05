@@ -56,15 +56,20 @@ public class TopicResources {
     public CompletableFuture<List<String>> listPersistentTopicsAsync(NamespaceName ns) {
         String path = MANAGED_LEDGER_PATH + "/" + ns + "/persistent";
 
+        CompletableFuture<List<String>> topics = getTopicsAtPath(path);
+        return topics.thenApply(children -> children.stream()
+                        .map(name -> TopicName.get(TopicDomain.persistent.toString(), ns, decode(name)).toString())
+                        .collect(Collectors.toList()));
+    }
+
+    private CompletableFuture<List<String>> getTopicsAtPath(String path) {
         CompletableFuture<List<String>> childrenOfNamespace = store.getChildren(path);
         CompletableFuture<List<String>> topics = childrenOfNamespace.thenCompose(children ->
                 !children.isEmpty() && children.get(0).startsWith(TopicName.BUCKET_ID_PERFIX)
                         ? children.stream().map(bucket -> store.getChildren(path + "/" + bucket))
                             .collect(FutureUtil.toList())
                         : CompletableFuture.completedFuture(children));
-        return topics.thenApply(children -> children.stream()
-                        .map(name -> TopicName.get(TopicDomain.persistent.toString(), ns, decode(name)).toString())
-                        .collect(Collectors.toList()));
+        return topics;
     }
 
     public CompletableFuture<List<String>> getExistingPartitions(TopicName topic) {
@@ -73,12 +78,7 @@ public class TopicResources {
 
     public CompletableFuture<List<String>> getExistingPartitions(NamespaceName ns, TopicDomain domain) {
         String topicPartitionPath = MANAGED_LEDGER_PATH + "/" + ns + "/" + domain;
-        CompletableFuture<List<String>> childrenOfNamespace = store.getChildren(topicPartitionPath);
-        CompletableFuture<List<String>> topics = childrenOfNamespace.thenCompose(children ->
-                !children.isEmpty() && children.get(0).startsWith(TopicName.BUCKET_ID_PERFIX)
-                        ? children.stream().map(bucket -> store.getChildren(topicPartitionPath + "/" + bucket))
-                            .collect(FutureUtil.toList())
-                        : CompletableFuture.completedFuture(children));
+        CompletableFuture<List<String>> topics = getTopicsAtPath(topicPartitionPath);
         return topics.thenApply(localNames ->
                 localNames.stream()
                         .map(s -> String.format("%s://%s/%s", domain.value(), ns, decode(s)))
