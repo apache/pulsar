@@ -431,7 +431,8 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
                     return result;
                 }
                 if (!LedgerMetadataUtils.isNameMatch(component, topicName, customMetadata)) {
-                    result.completeExceptionally(new PendingDeleteLedgerInvalidException("Ledger metadata name mismatch"));
+                    result.completeExceptionally(
+                            new PendingDeleteLedgerInvalidException("Ledger metadata name mismatch"));
                     return result;
                 }
                 result.complete(null);
@@ -443,7 +444,8 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
                 if (isNoSuchLedgerExistsException(rc)) {
                     log.warn("[{}] Ledger was already deleted {}", topicName, ledgerId);
                     future.complete(null);
-                    deleteLedgerOpLogger.registerSuccessfulEvent(MathUtils.elapsedNanos(startTime), TimeUnit.NANOSECONDS);
+                    deleteLedgerOpLogger.registerSuccessfulEvent(MathUtils.elapsedNanos(startTime),
+                            TimeUnit.NANOSECONDS);
                     return;
                 } else if (rc != BKException.Code.OK) {
                     log.error("[{}] Error delete ledger {} : {}", topicName, ledgerId, BKException.getMessage(rc));

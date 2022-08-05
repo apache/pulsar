@@ -1099,7 +1099,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 future.completeExceptionally(new ManagedLedgerException("Ledger " + ledgerId + " still in used"));
                 return future;
             }
-            ledgerDeletionService.asyncDeleteLedger(ledgerId, LedgerComponent.MANAGED_LEDGER, topicName,
+            ledgerDeletionService.asyncDeleteLedger(topicName, ledgerId, LedgerComponent.MANAGED_LEDGER,
                     believedDeleteIds.contains(ledgerId)).whenComplete((res, ex) -> {
                         if (ex != null) {
                             future.completeExceptionally(ex);
@@ -1113,7 +1113,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 future.completeExceptionally(new ManagedLedgerException("Ledger " + ledgerId + " still in used"));
                 return future;
             }
-            ledgerDeletionService.asyncDeleteOffloadedLedger(ledgerId, topicName, offloadContext).
+            ledgerDeletionService.asyncDeleteOffloadedLedger(topicName, ledgerId, offloadContext).
                     whenComplete((res, ex) -> {
                         if (ex != null) {
                             future.completeExceptionally(ex);
