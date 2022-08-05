@@ -140,7 +140,8 @@ public final class LedgerMetadataUtils {
         return false;
     }
 
-    public static boolean isNameMatch(LedgerComponent ledgerComponent, String name, Map<String, byte[]> customMetadata) {
+    public static boolean isNameMatch(LedgerComponent ledgerComponent, String name,
+                                      Map<String, byte[]> customMetadata) {
         if (LedgerComponent.MANAGED_LEDGER == ledgerComponent) {
             byte[] bytes = customMetadata.get(LedgerMetadataUtils.METADATA_PROPERTY_MANAGED_LEDGER_NAME);
             if (bytes == null) {
