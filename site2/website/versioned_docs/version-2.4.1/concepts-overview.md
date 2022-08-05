@@ -16,15 +16,15 @@ Key features of Pulsar are listed below:
 * Guaranteed message delivery with [persistent message storage](concepts-architecture-overview.md#persistent-storage) provided by [Apache BookKeeper](http://bookkeeper.apache.org/).
 * A serverless light-weight computing framework [Pulsar Functions](functions-overview) offers the capability for stream-native data processing.
 * A serverless connector framework [Pulsar IO](io-overview), which is built on Pulsar Functions, makes it easier to move data in and out of Apache Pulsar.
-* [Tiered Storage](concepts-tiered-storage) offloads data from hot/warm storage to cold/longterm storage (such as S3 and GCS) when the data is aging out.
+* [Tiered Storage](concepts-tiered-storage) offloads data from hot/warm storage to cold/long-term storage (such as S3 and GCS) when the data is aging out.
 
 ## Contents
 
-- [Messaging Concepts](concepts-messaging)
-- [Architecture Overview](concepts-architecture-overview)
-- [Pulsar Clients](concepts-clients)
-- [Geo Replication](concepts-replication)
-- [Multi Tenancy](concepts-multi-tenancy)
-- [Authentication and Authorization](concepts-authentication)
-- [Topic Compaction](concepts-topic-compaction)
-- [Tiered Storage](concepts-tiered-storage)
+- [Messaging Concepts](concepts-messaging.md)
+- [Architecture Overview](concepts-architecture-overview.md)
+- [Pulsar Clients](concepts-clients.md)
+- [Geo Replication](concepts-replication.md)
+- [Multi Tenancy](concepts-multi-tenancy.md)
+- [Authentication and Authorization](concepts-authentication.md)
+- [Topic Compaction](concepts-topic-compaction.md)
+- [Tiered Storage](concepts-tiered-storage.md)

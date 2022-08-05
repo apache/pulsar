@@ -597,12 +597,7 @@ public abstract class PulsarWebResource {
                 .requestHttps(isRequestHttps())
                 .readOnly(true)
                 .loadTopicsInBundle(false).build();
-        try {
-            return nsService.getWebServiceUrlAsync(nsBundle, options).thenApply(optionUrl -> optionUrl.isPresent());
-        } catch (Exception e) {
-            log.error("Failed to check whether namespace bundle is owned {}/{}", fqnn.toString(), bundleRange, e);
-            throw new RestException(e);
-        }
+        return nsService.getWebServiceUrlAsync(nsBundle, options).thenApply(optionUrl -> optionUrl.isPresent());
     }
 
     protected NamespaceBundle validateNamespaceBundleOwnership(NamespaceName fqnn, BundlesData bundles,
@@ -618,6 +613,18 @@ public abstract class PulsarWebResource {
                     fqnn.toString(), bundleRange, e);
             throw new RestException(e);
         }
+    }
+
+    protected CompletableFuture<NamespaceBundle> validateNamespaceBundleOwnershipAsync(NamespaceName fqnn,
+              BundlesData bundles, String bundleRange, boolean authoritative, boolean readOnly) {
+        NamespaceBundle nsBundle;
+        try {
+            nsBundle = validateNamespaceBundleRange(fqnn, bundles, bundleRange);
+        } catch (WebApplicationException wae) {
+            return CompletableFuture.failedFuture(wae);
+        }
+        return validateBundleOwnershipAsync(nsBundle, authoritative, readOnly)
+                .thenApply(__ -> nsBundle);
     }
 
     public void validateBundleOwnership(NamespaceBundle bundle, boolean authoritative, boolean readOnly)
@@ -678,6 +685,39 @@ public abstract class PulsarWebResource {
         } catch (WebApplicationException wae) {
             throw wae;
         }
+    }
+
+    public CompletableFuture<Void> validateBundleOwnershipAsync(NamespaceBundle bundle, boolean authoritative,
+                                                                boolean readOnly) {
+        NamespaceService nsService = pulsar().getNamespaceService();
+        LookupOptions options = LookupOptions.builder()
+                .authoritative(authoritative)
+                .requestHttps(isRequestHttps())
+                .readOnly(readOnly)
+                .loadTopicsInBundle(false).build();
+        return nsService.getWebServiceUrlAsync(bundle, options)
+                .thenCompose(webUrl -> {
+                    if (webUrl == null || !webUrl.isPresent()) {
+                        log.warn("Unable to get web service url");
+                        throw new RestException(Status.PRECONDITION_FAILED,
+                                "Failed to find ownership for ServiceUnit:" + bundle.toString());
+                    }
+                    return nsService.isServiceUnitOwnedAsync(bundle)
+                            .thenAccept(owned -> {
+                                if (!owned) {
+                                    boolean newAuthoritative = this.isLeaderBroker();
+                                    // Replace the host and port of the current request and redirect
+                                    URI redirect = UriBuilder.fromUri(uri.getRequestUri()).host(webUrl.get().getHost())
+                                            .port(webUrl.get().getPort()).replaceQueryParam("authoritative",
+                                                    newAuthoritative).build();
+
+                                    log.debug("{} is not a service unit owned", bundle);
+                                    // Redirect
+                                    log.debug("Redirecting the rest call to {}", redirect);
+                                    throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
+                                }
+                            });
+                });
     }
 
     /**

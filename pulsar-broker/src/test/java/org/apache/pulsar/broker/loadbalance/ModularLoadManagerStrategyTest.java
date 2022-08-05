@@ -20,12 +20,15 @@ package org.apache.pulsar.broker.loadbalance;
 
 import static org.testng.Assert.assertEquals;
 
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 
 
+import java.util.Set;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.impl.LeastLongTermMessageRate;
+import org.apache.pulsar.broker.loadbalance.impl.LeastResourceUsageWithWeight;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.BrokerData;
@@ -51,12 +54,94 @@ public class ModularLoadManagerStrategyTest {
         brokerDataMap.put("2", brokerData2);
         brokerDataMap.put("3", brokerData3);
         ServiceConfiguration conf = new ServiceConfiguration();
-        ModularLoadManagerStrategy strategy = new LeastLongTermMessageRate(conf);
+        ModularLoadManagerStrategy strategy = new LeastLongTermMessageRate();
         assertEquals(strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf), Optional.of("1"));
         brokerData1.getTimeAverageData().setLongTermMsgRateIn(400);
         assertEquals(strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf), Optional.of("2"));
         brokerData2.getLocalData().setCpu(new ResourceUsage(90, 100));
         assertEquals(strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf), Optional.of("3"));
+    }
+
+    // Test that least resource usage with weight works correctly.
+    public void testLeastResourceUsageWithWeight() {
+        BundleData bundleData = new BundleData();
+        BrokerData brokerData1 = initBrokerData(10, 100);
+        BrokerData brokerData2 = initBrokerData(30, 100);
+        BrokerData brokerData3 = initBrokerData(60, 100);
+        BrokerData brokerData4 = initBrokerData(5, 100);
+        LoadData loadData = new LoadData();
+        Map<String, BrokerData> brokerDataMap = loadData.getBrokerData();
+        brokerDataMap.put("1", brokerData1);
+        brokerDataMap.put("2", brokerData2);
+        brokerDataMap.put("3", brokerData3);
+        brokerDataMap.put("4", brokerData4);
+
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setLoadBalancerCPUResourceWeight(1.0);
+        conf.setLoadBalancerMemoryResourceWeight(0.1);
+        conf.setLoadBalancerDirectMemoryResourceWeight(0.1);
+        conf.setLoadBalancerBandwithInResourceWeight(1.0);
+        conf.setLoadBalancerBandwithOutResourceWeight(1.0);
+        conf.setLoadBalancerHistoryResourcePercentage(0.5);
+        conf.setLoadBalancerAverageResourceUsageDifferenceThresholdPercentage(5);
+
+        ModularLoadManagerStrategy strategy = new LeastResourceUsageWithWeight();
+
+        // Make brokerAvgResourceUsageWithWeight contain broker4.
+        strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf);
+
+        // Should choice broker from broker1 2 3.
+        Set<String> candidates = new HashSet<>();
+        candidates.add("1");
+        candidates.add("2");
+        candidates.add("3");
+
+        assertEquals(strategy.selectBroker(candidates, bundleData, loadData, conf), Optional.of("1"));
+
+        brokerData1 = initBrokerData(20,100);
+        brokerData2 = initBrokerData(30,100);
+        brokerData3 = initBrokerData(50,100);
+        brokerDataMap.put("1", brokerData1);
+        brokerDataMap.put("2", brokerData2);
+        brokerDataMap.put("3", brokerData3);
+        assertEquals(strategy.selectBroker(candidates, bundleData, loadData, conf), Optional.of("1"));
+
+        brokerData1 = initBrokerData(30,100);
+        brokerData2 = initBrokerData(30,100);
+        brokerData3 = initBrokerData(40,100);
+        brokerDataMap.put("1", brokerData1);
+        brokerDataMap.put("2", brokerData2);
+        brokerDataMap.put("3", brokerData3);
+        assertEquals(strategy.selectBroker(candidates, bundleData, loadData, conf), Optional.of("1"));
+
+        brokerData1 = initBrokerData(30,100);
+        brokerData2 = initBrokerData(30,100);
+        brokerData3 = initBrokerData(40,100);
+        brokerDataMap.put("1", brokerData1);
+        brokerDataMap.put("2", brokerData2);
+        brokerDataMap.put("3", brokerData3);
+        assertEquals(strategy.selectBroker(candidates, bundleData, loadData, conf), Optional.of("1"));
+
+        brokerData1 = initBrokerData(35,100);
+        brokerData2 = initBrokerData(20,100);
+        brokerData3 = initBrokerData(45,100);
+        brokerDataMap.put("1", brokerData1);
+        brokerDataMap.put("2", brokerData2);
+        brokerDataMap.put("3", brokerData3);
+        assertEquals(strategy.selectBroker(candidates, bundleData, loadData, conf), Optional.of("2"));
+    }
+
+    private BrokerData initBrokerData(double usage, double limit) {
+        LocalBrokerData localBrokerData = new LocalBrokerData();
+        localBrokerData.setCpu(new ResourceUsage(usage, limit));
+        localBrokerData.setMemory(new ResourceUsage(usage, limit));
+        localBrokerData.setDirectMemory(new ResourceUsage(usage, limit));
+        localBrokerData.setBandwidthIn(new ResourceUsage(usage, limit));
+        localBrokerData.setBandwidthOut(new ResourceUsage(usage, limit));
+        BrokerData brokerData = new BrokerData(localBrokerData);
+        TimeAverageBrokerData timeAverageBrokerData = new TimeAverageBrokerData();
+        brokerData.setTimeAverageData(timeAverageBrokerData);
+        return brokerData;
     }
 
     private BrokerData initBrokerData() {

@@ -88,7 +88,7 @@ This section describes how to create a producer.
   using DotPulsar;
   using DotPulsar.Extensions;
 
-  var producer = client.NewProducer())
+  var producer = client.NewProducer()
                        .Topic("persistent://public/default/mytopic")
                        .Create();
   
@@ -188,7 +188,7 @@ var client = PulsarClient.Builder()
 
 Currently, the Pulsar C# client supports the TLS (Transport Layer Security) and JWT (JSON Web Token) authentication.
 
-If you have followed [Authentication using TLS](security-tls-authentication), you get a certificate and a key. To use them from the Pulsar C# client, follow these steps:
+If you have followed [Authentication using TLS](security-tls-authentication.md), you get a certificate and a key. To use them from the Pulsar C# client, follow these steps:
 
 1. Create an unencrypted and password-less pfx file.
 

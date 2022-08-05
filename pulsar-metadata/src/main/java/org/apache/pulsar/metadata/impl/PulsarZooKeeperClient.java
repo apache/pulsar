@@ -105,12 +105,12 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
     private final OpStatsLogger syncStats;
     private final OpStatsLogger createClientStats;
 
-    private final Callable<ZooKeeper> clientCreator = new Callable<ZooKeeper>() {
+    private final Runnable clientCreator = new Runnable() {
 
         @Override
-        public ZooKeeper call() throws Exception {
+        public void run() {
             try {
-                return ZooWorker.syncCallWithRetries(null, new ZooWorker.ZooCallable<ZooKeeper>() {
+                ZooWorker.syncCallWithRetries(null, new ZooWorker.ZooCallable<ZooKeeper>() {
 
                     @Override
                     public ZooKeeper call() throws KeeperException, InterruptedException {
@@ -140,7 +140,6 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
             } catch (Exception e) {
                 log.error("Gave up reconnecting to ZooKeeper : ", e);
                 Runtime.getRuntime().exit(-1);
-                return null;
             }
         }
 
@@ -356,7 +355,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
         log.info("ZooKeeper session {} is expired from {}.",
                 Long.toHexString(getSessionId()), connectString);
         try {
-            connectExecutor.submit(clientCreator);
+            connectExecutor.execute(clientCreator);
         } catch (RejectedExecutionException ree) {
             if (!closed.get()) {
                 log.error("ZooKeeper reconnect task is rejected : ", ree);

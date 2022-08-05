@@ -544,7 +544,7 @@ Execute the following commands in the repository where you download Pulsar tarba
 
    **Output**
 
-   The ledger 696 is rollovered.
+   The ledger 696 is rolled over.
 
    ```
    

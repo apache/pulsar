@@ -40,6 +40,7 @@ import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -48,6 +49,7 @@ import org.apache.pulsar.client.admin.Bookies;
 import org.apache.pulsar.client.admin.BrokerStats;
 import org.apache.pulsar.client.admin.Brokers;
 import org.apache.pulsar.client.admin.Clusters;
+import org.apache.pulsar.client.admin.ListNamespaceTopicsOptions;
 import org.apache.pulsar.client.admin.ListTopicsOptions;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.Lookup;
@@ -344,7 +346,7 @@ public class PulsarAdminToolTest {
         verify(mockNamespaces).getNamespaces("myprop", "clust");
 
         namespaces.run(split("topics myprop/clust/ns1"));
-        verify(mockNamespaces).getTopics("myprop/clust/ns1");
+        verify(mockNamespaces).getTopics("myprop/clust/ns1", ListNamespaceTopicsOptions.builder().build());
 
         namespaces.run(split("policies myprop/clust/ns1"));
         verify(mockNamespaces).getPolicies("myprop/clust/ns1");
@@ -1439,7 +1441,8 @@ public class PulsarAdminToolTest {
         verify(mockTopics).getInternalInfo("persistent://myprop/clust/ns1/ds1");
 
         cmdTopics.run(split("partitioned-stats persistent://myprop/clust/ns1/ds1 --per-partition"));
-        verify(mockTopics).getPartitionedStats("persistent://myprop/clust/ns1/ds1", true, false, false);
+        verify(mockTopics).getPartitionedStats("persistent://myprop/clust/ns1/ds1",
+                true, false, false, false);
 
         cmdTopics.run(split("partitioned-stats-internal persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getPartitionedInternalStats("persistent://myprop/clust/ns1/ds1");
@@ -1479,11 +1482,15 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("create-subscription persistent://myprop/clust/ns1/ds1 -s sub1 --messageId earliest"));
         verify(mockTopics).createSubscription("persistent://myprop/clust/ns1/ds1", "sub1", MessageId.earliest, false, null);
 
+        cmdTopics.run(split("analyze-backlog persistent://myprop/clust/ns1/ds1 -s sub1"));
+        verify(mockTopics).analyzeSubscriptionBacklog("persistent://myprop/clust/ns1/ds1", "sub1", Optional.empty());
+        
         // jcommander is stateful, you cannot parse the same command twice
         cmdTopics = new CmdTopics(() -> admin);
-        cmdTopics.run(split("create-subscription persistent://myprop/clust/ns1/ds1 -s sub1 --messageId earliest --property a=b"));
+        cmdTopics.run(split("create-subscription persistent://myprop/clust/ns1/ds1 -s sub1 --messageId earliest --property a=b -p x=y,z"));
         Map<String, String> props = new HashMap<>();
         props.put("a", "b");
+        props.put("x", "y,z");
         verify(mockTopics).createSubscription("persistent://myprop/clust/ns1/ds1", "sub1", MessageId.earliest, false, props);
 
         cmdTopics = new CmdTopics(() -> admin);
@@ -1502,7 +1509,8 @@ public class PulsarAdminToolTest {
         props = new HashMap<>();
         props.put("a", "b");
         props.put("c", "d");
-        cmdTopics.run(split("update-subscription-properties persistent://myprop/clust/ns1/ds1 -s sub1 -p a=b -p c=d"));
+        props.put("x", "y,z");
+        cmdTopics.run(split("update-subscription-properties persistent://myprop/clust/ns1/ds1 -s sub1 -p a=b -p c=d -p x=y,z"));
         verify(mockTopics).updateSubscriptionProperties("persistent://myprop/clust/ns1/ds1", "sub1", props);
 
         cmdTopics.run(split("create-partitioned-topic persistent://myprop/clust/ns1/ds1 --partitions 32"));
@@ -1898,10 +1906,11 @@ public class PulsarAdminToolTest {
         topics.run(split("expire-messages-all-subscriptions persistent://myprop/clust/ns1/ds1 -t 100"));
         verify(mockTopics).expireMessagesForAllSubscriptions("persistent://myprop/clust/ns1/ds1", 100);
 
-        topics.run(split("create-subscription persistent://myprop/clust/ns1/ds1 -s sub1 --messageId earliest -p a=b --property c=d"));
+        topics.run(split("create-subscription persistent://myprop/clust/ns1/ds1 -s sub1 --messageId earliest -p a=b --property c=d -p x=y,z"));
         Map<String, String> props = new HashMap<>();
         props.put("a", "b");
         props.put("c", "d");
+        props.put("x", "y,z");
         verify(mockTopics).createSubscription("persistent://myprop/clust/ns1/ds1", "sub1", MessageId.earliest, false, props);
 
         // jcommander is stateful, you cannot parse the same command twice
@@ -2156,12 +2165,12 @@ public class PulsarAdminToolTest {
         verify(transactions).getSlowTransactions(3600000, TimeUnit.MILLISECONDS);
 
         cmdTransactions = new CmdTransactions(() -> admin);
-        cmdTransactions.run(split("transaction-buffer-stats -t test"));
-        verify(transactions).getTransactionBufferStats("test");
+        cmdTransactions.run(split("transaction-buffer-stats -t test -l"));
+        verify(transactions).getTransactionBufferStats("test", true);
 
         cmdTransactions = new CmdTransactions(() -> admin);
-        cmdTransactions.run(split("pending-ack-stats -t test -s test"));
-        verify(transactions).getPendingAckStats("test", "test");
+        cmdTransactions.run(split("pending-ack-stats -t test -s test -l"));
+        verify(transactions).getPendingAckStats("test", "test", true);
 
         cmdTransactions = new CmdTransactions(() -> admin);
         cmdTransactions.run(split("pending-ack-internal-stats -t test -s test"));
@@ -2170,6 +2179,10 @@ public class PulsarAdminToolTest {
         cmdTransactions = new CmdTransactions(() -> admin);
         cmdTransactions.run(split("scale-transactionCoordinators -r 3"));
         verify(transactions).scaleTransactionCoordinators(3);
+
+        cmdTransactions = new CmdTransactions(() -> admin);
+        cmdTransactions.run(split("position-stats-in-pending-ack -t test -s test -l 1 -e 1 -b 1"));
+        verify(transactions).getPositionStatsInPendingAck("test", "test", 1L, 1L, 1);
     }
 
     @Test

@@ -47,7 +47,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedLedger;
-import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.loadbalance.LoadData;
 import org.apache.pulsar.broker.loadbalance.LoadManager;

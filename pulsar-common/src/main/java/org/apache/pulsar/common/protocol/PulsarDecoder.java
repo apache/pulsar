@@ -77,6 +77,10 @@ import org.apache.pulsar.common.api.proto.CommandSuccess;
 import org.apache.pulsar.common.api.proto.CommandTcClientConnectRequest;
 import org.apache.pulsar.common.api.proto.CommandTcClientConnectResponse;
 import org.apache.pulsar.common.api.proto.CommandUnsubscribe;
+import org.apache.pulsar.common.api.proto.CommandWatchTopicList;
+import org.apache.pulsar.common.api.proto.CommandWatchTopicListClose;
+import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
+import org.apache.pulsar.common.api.proto.CommandWatchTopicUpdate;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.intercept.InterceptException;
 import org.slf4j.Logger;
@@ -432,6 +436,27 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                 checkArgument(cmd.hasEndTxnOnSubscriptionResponse());
                 handleEndTxnOnSubscriptionResponse(cmd.getEndTxnOnSubscriptionResponse());
                 break;
+
+            case WATCH_TOPIC_LIST:
+                checkArgument(cmd.hasWatchTopicList());
+                handleCommandWatchTopicList(cmd.getWatchTopicList());
+                break;
+
+            case WATCH_TOPIC_LIST_SUCCESS:
+                checkArgument(cmd.hasWatchTopicListSuccess());
+                handleCommandWatchTopicListSuccess(cmd.getWatchTopicListSuccess());
+                break;
+
+            case WATCH_TOPIC_UPDATE:
+                checkArgument(cmd.hasWatchTopicUpdate());
+                handleCommandWatchTopicUpdate(cmd.getWatchTopicUpdate());
+                break;
+
+            case WATCH_TOPIC_LIST_CLOSE:
+                checkArgument(cmd.hasWatchTopicListClose());
+                handleCommandWatchTopicListClose(cmd.getWatchTopicListClose());
+                break;
+
             default:
                 break;
             }
@@ -669,6 +694,23 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
 
     protected void handleEndTxnOnSubscriptionResponse(
         CommandEndTxnOnSubscriptionResponse commandEndTxnOnSubscriptionResponse) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleCommandWatchTopicList(CommandWatchTopicList commandWatchTopicList) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleCommandWatchTopicListSuccess(
+            CommandWatchTopicListSuccess commandWatchTopicListSuccess) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleCommandWatchTopicUpdate(CommandWatchTopicUpdate commandWatchTopicUpdate) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleCommandWatchTopicListClose(CommandWatchTopicListClose commandWatchTopicListClose) {
         throw new UnsupportedOperationException();
     }
 

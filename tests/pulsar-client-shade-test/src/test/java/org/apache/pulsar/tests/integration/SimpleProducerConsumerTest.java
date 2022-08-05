@@ -324,7 +324,7 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
 
         // Consuming from consumer 2 and 3
         // no message should be returned since they can't decrypt the message
-        Message m = consumer2.receive(3, TimeUnit.SECONDS);
+        Message<byte[]> m = consumer2.receive(3, TimeUnit.SECONDS);
         assertNull(m);
         m = consumer3.receive(3, TimeUnit.SECONDS);
         assertNull(m);
@@ -564,7 +564,7 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
 
         ByteBuffer payloadBuf = ByteBuffer.wrap(msg.getData());
         // try to decrypt use default MessageCryptoBc
-        MessageCrypto crypto = new MessageCryptoBc("test", false);
+        MessageCryptoBc crypto = new MessageCryptoBc("test", false);
         MessageMetadata msgMetadata = new MessageMetadata()
                 .setEncryptionParam(encrParam)
                 .setProducerName("test")

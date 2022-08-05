@@ -20,7 +20,7 @@ package org.apache.pulsar.broker.transaction.pendingack;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ExecutorService;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.MutablePair;
@@ -38,7 +38,7 @@ public interface PendingAckStore {
      * @param pendingAckHandle the handle of pending ack
      * @param executorService the replay executor service
      */
-    void replayAsync(PendingAckHandleImpl pendingAckHandle, ScheduledExecutorService executorService);
+    void replayAsync(PendingAckHandleImpl pendingAckHandle, ExecutorService executorService);
 
     /**
      * Close the transaction pending ack store.

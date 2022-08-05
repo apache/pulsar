@@ -40,8 +40,8 @@
     </dependency>
 
     <dependency>
-      <groupId>commons-collections</groupId>
-      <artifactId>commons-collections</artifactId>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-collections4</artifactId>
     </dependency>
 
     <dependency>
@@ -265,11 +265,6 @@
     <dependency>
       <groupId>com.fasterxml.jackson.module</groupId>
       <artifactId>jackson-module-jsonSchema</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>jul-to-slf4j</artifactId>
     </dependency>
 
     <dependency>
@@ -693,6 +688,23 @@
                 </apiSource>
                 <apiSource>
                   <springmvc>false</springmvc>
+                  <locations>org.apache.pulsar.broker.lookup.v2</locations>
+                  <schemes>http,https</schemes>
+                  <basePath>/lookup/v2</basePath>
+                  <info>
+                    <title>Pulsar Lookup REST API</title>
+                    <version>v2</version>
+                    <description>This provides the REST API for lookup operations</description>
+                    <license>
+                      <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
+                      <name>Apache 2.0</name>
+                    </license>
+                  </info>
+                  <swaggerDirectory>${basedir}/target/docs</swaggerDirectory>
+                  <swaggerFileName>swaggerlookup</swaggerFileName>
+                </apiSource>
+                <apiSource>
+                  <springmvc>false</springmvc>
                   <locations>org.apache.pulsar.broker.admin.v3.Functions</locations>
                   <schemes>http,https</schemes>
                   <basePath>/admin/v3</basePath>
@@ -707,6 +719,23 @@
                   </info>
                   <swaggerDirectory>${basedir}/target/docs</swaggerDirectory>
                   <swaggerFileName>swaggerfunctions</swaggerFileName>
+                </apiSource>
+                <apiSource>
+                  <springmvc>false</springmvc>
+                  <locations>org.apache.pulsar.broker.admin.v3.Transactions</locations>
+                  <schemes>http,https</schemes>
+                  <basePath>/admin/v3</basePath>
+                  <info>
+                    <title>Pulsar Transactions REST API</title>
+                    <version>v3</version>
+                    <description>This provides the REST API for Pulsar Transactions operations</description>
+                    <license>
+                      <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
+                      <name>Apache 2.0</name>
+                    </license>
+                  </info>
+                  <swaggerDirectory>${basedir}/target/docs</swaggerDirectory>
+                  <swaggerFileName>swaggertransactions</swaggerFileName>
                 </apiSource>
                 <apiSource>
                   <springmvc>false</springmvc>

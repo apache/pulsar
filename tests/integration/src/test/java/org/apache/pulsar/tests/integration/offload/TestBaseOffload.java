@@ -199,7 +199,7 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
 
     private long writeAndWaitForOffload(String serviceUrl, String adminUrl, String topic) throws Exception {
         try(PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build();
-            Producer producer = client.newProducer().topic(topic)
+            Producer<byte[]> producer = client.newProducer().topic(topic)
                     .blockIfQueueFull(true).enableBatching(false).create();
             PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(adminUrl).build()) {
 

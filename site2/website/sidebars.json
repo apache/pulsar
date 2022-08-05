@@ -225,13 +225,27 @@
       "label": "Administration",
       "items": [
         "administration-zk-bk",
+        "administration-metadata-store",
         "administration-geo",
         "administration-pulsar-manager",
+        "administration-pulsar-shell",
         "administration-stats",
         "administration-load-balance",
         "administration-proxy",
+        "administration-isolation",
         "administration-upgrade",
-        "administration-isolation"
+        {
+          "type": "category",
+          "label": "Pulsar isolation",
+          "link": {
+            "type": "doc",
+            "id": "administration-isolation"
+          },
+          "items": [
+            "administration-isolation-broker",
+            "administration-isolation-bookie"
+          ]
+        }
       ]
     },
     {
@@ -286,7 +300,8 @@
         "admin-api-permissions",
         "admin-api-topics",
         "admin-api-functions",
-        "admin-api-packages"
+        "admin-api-packages",
+        "admin-api-transactions"
       ]
     },
     {
@@ -323,7 +338,25 @@
       "items": [
         "reference-terminology",
         "reference-cli-tools",
-        "reference-configuration",
+        {
+          "type": "category",
+          "label": "Pulsar Configuration",
+          "link": {
+            "type": "doc",
+            "id": "reference-configuration"
+          },
+          "items": [
+            "reference-configuration-bookkeeper",
+            "reference-configuration-broker",
+            "reference-configuration-client",
+            "reference-configuration-log4j",
+            "reference-configuration-log4j-shell",
+            "reference-configuration-standalone",
+            "reference-configuration-websocket",
+            "reference-configuration-pulsar-proxy",
+            "reference-configuration-zookeeper"
+          ]
+        },
         "reference-metrics",
         "reference-rest-api-overview"
       ]

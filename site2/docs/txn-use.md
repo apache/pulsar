@@ -40,7 +40,7 @@ This section provides an example of how to use the transaction API to send and r
      
      ```
 
-   * If you want to guarantee exactly-once semantics, you need to enable [message deduplication](cookbooks-deduplication).
+   * If you want to guarantee exactly-once semantics, you need to enable [message deduplication](cookbooks-deduplication.md).
    You can enable message deduplication at the broker level, the namespace level, or the topic level according to your needs.
    
 

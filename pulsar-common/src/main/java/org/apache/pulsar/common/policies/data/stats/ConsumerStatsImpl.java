@@ -46,7 +46,7 @@ public class ConsumerStatsImpl implements ConsumerStats {
     public double msgRateRedeliver;
 
     /**
-     * Total rate of message ack(msg/s).
+     * Total rate of message ack (msg/s).
      */
     public double messageAckRate;
 
@@ -59,7 +59,13 @@ public class ConsumerStatsImpl implements ConsumerStats {
     /** Number of available message permits for the consumer. */
     public int availablePermits;
 
-    /** Number of unacknowledged messages for the consumer. */
+    /**
+     * Number of unacknowledged messages for the consumer, where an unacknowledged message is one that has been
+     * sent to the consumer but not yet acknowledged. This field is only meaningful when using a
+     * {@link org.apache.pulsar.client.api.SubscriptionType} that tracks individual message acknowledgement, like
+     * {@link org.apache.pulsar.client.api.SubscriptionType#Shared} or
+     * {@link org.apache.pulsar.client.api.SubscriptionType#Key_Shared}.
+     */
     public int unackedMessages;
 
     /** Number of average messages per entry for the consumer consumed. */
@@ -91,6 +97,8 @@ public class ConsumerStatsImpl implements ConsumerStats {
 
     public long lastAckedTimestamp;
     public long lastConsumedTimestamp;
+
+    public long lastConsumedFlowTimestamp;
 
     /** Hash ranges assigned to this consumer if is Key_Shared sub mode. **/
     public List<String> keyHashRanges;

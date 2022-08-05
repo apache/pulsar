@@ -10,15 +10,17 @@ import TabItem from '@theme/TabItem';
 ````
 
 
-> **Important**
->
-> This page only shows **some frequently used operations**.
->
-> - For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more, see [Pulsar admin doc](/tools/pulsar-admin/)
-> 
-> - For the latest and complete information about `REST API`, including parameters, responses, samples, and more, see {@inject: rest:REST:/} API doc.
-> 
-> - For the latest and complete information about `Java admin API`, including classes, methods, descriptions, and more, see [Java admin API doc](/api/admin/).
+:::tip
+
+ This page only shows **some frequently used operations**.
+
+ - For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more, see [Pulsar admin doc](/tools/pulsar-admin/)
+ 
+ - For the latest and complete information about `REST API`, including parameters, responses, samples, and more, see {@inject: rest:REST:/} API doc.
+ 
+ - For the latest and complete information about `Java admin API`, including classes, methods, descriptions, and more, see [Java admin API doc](/api/admin/).
+ 
+:::
 
 Pulsar has persistent and non-persistent topics. Persistent topic is a logical endpoint for publishing and consuming messages. The topic name structure for persistent topics is:
 
@@ -391,7 +393,7 @@ You can check the following statistics of a given non-partitioned topic.
 
           -   **msgDelayed**: Number of delayed messages currently being tracked.
 
-          -   **unackedMessages**: Number of unacknowledged messages for the subscription.
+          -   **unackedMessages**: Number of unacknowledged messages for the subscription, where an unacknowledged message is one that has been sent to a consumer but not yet acknowledged. This field is only meaningful when using a subscription that tracks individual message acknowledgement.
 
           -   **activeConsumerName**: The name of the consumer that is active for single active consumer subscriptions. For example, failover or exclusive. 
 
@@ -423,7 +425,7 @@ You can check the following statistics of a given non-partitioned topic.
 
                 -   **availablePermits**: The number of messages that the consumer has space for in the client library's listen queue. `0` means the client library's queue is full and `receive()` isn't being called. A non-zero value means this consumer is ready for dispatched messages.
 
-                -   **unackedMessages**: The number of unacknowledged messages for the consumer.
+                -   **unackedMessages**: The number of unacknowledged messages for the consumer, where an unacknowledged message is one that has been sent to the consumer but not yet acknowledged. This field is only meaningful when using a subscription that tracks individual message acknowledgement.
 
                 -   **blockedConsumerOnUnackedMsgs**: The flag used to verify if the consumer is blocked due to reaching threshold of the unacknowledged messages.
                 
@@ -636,7 +638,7 @@ You can get the detailed statistics of a topic.
 
       -   **ledgerId**: The ID of this ledger.
 
-      -   **entries**: The total number of entries belong to this ledger.
+      -   **entries**: The total number of entries that belong to this ledger.
 
       -   **size**: The size of messages written to this ledger (in bytes).
 
@@ -648,7 +650,7 @@ You can get the detailed statistics of a topic.
   
       -   **ledgerId**: The ID of this ledger.
   
-      -   **entries**: The total number of entries belong to this ledger.
+      -   **entries**: The total number of entries that belong to this ledger.
   
       -   **size**: The size of messages written to this ledger (in bytes).
   
@@ -660,7 +662,7 @@ You can get the detailed statistics of a topic.
  
       -   **ledgerId**: The ID of this ledger.
      
-      -   **entries**: The total number of entries belong to this ledger.
+      -   **entries**: The total number of entries that belong to this ledger.
      
       -   **size**: The size of messages written to this ledger (in bytes).
      
@@ -810,7 +812,7 @@ msg-payload
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/subscription/:subName/position/:messagePosition|operation?version=@pulsar:version_number@/peekNthMessage}
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/subscription/:subName/position/:messagePosition|operation/peekNthMessage?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java">
@@ -1066,9 +1068,9 @@ admin.topics().resetCursor(topic, subName, timestamp);
 </Tabs>
 ````
 
-### Lookup of topic
+### Look up topic's owner broker
 
-You can locate the broker URL which is serving the given topic in the following ways.
+You can locate the owner broker of the given topic in the following ways.
 
 ````mdx-code-block
 <Tabs groupId="api-choice"
@@ -1088,7 +1090,7 @@ $ pulsar-admin topics lookup \
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|GET|/lookup/v2/topic/:schema/:tenant:namespace/:topic|/?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/lookup/v2/topic/:topic_domain/:tenant/:namespace/:topic|operation/lookupTopicAsync?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java">
@@ -1105,9 +1107,9 @@ admin.lookup().lookupDestination(topic);
 </Tabs>
 ````
 
-### Lookup of partitioned topic
+### Look up partitioned topic's owner broker
 
-You can locate the broker URL of each partitioned topic which is serving the given topic in the following ways.
+You can locate the owner broker of the given partitioned topic in the following ways.
 
 ````mdx-code-block
 <Tabs groupId="api-choice"
@@ -1155,7 +1157,7 @@ $ pulsar-admin topics partitioned-lookup \
 
 ### Get bundle
 
-You can check the range of the bundle which contains given topic in the following ways.
+You can get the range of the bundle that the given topic belongs to in the following ways.
 
 ````mdx-code-block
 <Tabs groupId="api-choice"
@@ -1175,7 +1177,7 @@ $ pulsar-admin topics bundle-range \
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|GET|/lookup/v2/topic/:topic_domain/:tenant/:namespace/:topic/bundle|/?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/lookup/v2/topic/:topic_domain/:tenant/:namespace/:topic/bundle|operation/getNamespaceBundle?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java">
@@ -1250,7 +1252,7 @@ pulsar-admin topics last-message-id topic-name
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|Get|/admin/v2/:schema/:tenant/:namespace/:topic/lastMessageId?version=@pulsar:version_number@}
+{@inject: endpoint|Get|/admin/v2/:schema/:tenant/:namespace/:topic/lastMessageId|operation/getLastMessageId?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java">
@@ -1328,11 +1330,7 @@ pulsar-admin topics get-deduplication-snapshot-interval options
 </TabItem>
 <TabItem value="REST API">
 
-```
-
-{@inject: endpoint|GET|/admin/v2/topics/:tenant/:namespace/:topic/deduplicationSnapshotInterval?version=@pulsar:version_number@}
-
-```
+{@inject: endpoint|GET|/admin/v2/topics/:tenant/:namespace/:topic/deduplicationSnapshotInterval|operation/getDeduplicationSnapshotInterval?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java">
@@ -1369,11 +1367,7 @@ pulsar-admin topics set-deduplication-snapshot-interval options
 </TabItem>
 <TabItem value="REST API">
 
-```
-
-{@inject: endpoint|POST|/admin/v2/topics/:tenant/:namespace/:topic/deduplicationSnapshotInterval?version=@pulsar:version_number@}
-
-```
+{@inject: endpoint|POST|/admin/v2/topics/:tenant/:namespace/:topic/deduplicationSnapshotInterval|operation/setDeduplicationSnapshotInterval?version=@pulsar:version_number@}
 
 ```json
 
@@ -1416,11 +1410,7 @@ pulsar-admin topics remove-deduplication-snapshot-interval options
 </TabItem>
 <TabItem value="REST API">
 
-```
-
-{@inject: endpoint|DELETE|/admin/v2/topics/:tenant/:namespace/:topic/deduplicationSnapshotInterval?version=@pulsar:version_number@}
-
-```
+{@inject: endpoint|DELETE|/admin/v2/topics/:tenant/:namespace/:topic/deduplicationSnapshotInterval|operation/deleteDeduplicationSnapshotInterval?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java">
@@ -1458,11 +1448,7 @@ pulsar-admin topics get-inactive-topic-policies options
 </TabItem>
 <TabItem value="REST API">
 
-```
-
-{@inject: endpoint|GET|/admin/v2/topics/:tenant/:namespace/:topic/inactiveTopicPolicies?version=@pulsar:version_number@}
-
-```
+{@inject: endpoint|GET|/admin/v2/topics/:tenant/:namespace/:topic/inactiveTopicPolicies|operation/getInactiveTopicPolicies?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java">
@@ -1497,11 +1483,7 @@ pulsar-admin topics set-inactive-topic-policies options
 </TabItem>
 <TabItem value="REST API">
 
-```
-
-{@inject: endpoint|POST|/admin/v2/topics/:tenant/:namespace/:topic/inactiveTopicPolicies?version=@pulsar:version_number@}
-
-```
+{@inject: endpoint|POST|/admin/v2/topics/:tenant/:namespace/:topic/inactiveTopicPolicies|operation/setInactiveTopicPolicies?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java">
@@ -1536,11 +1518,7 @@ pulsar-admin topics remove-inactive-topic-policies options
 </TabItem>
 <TabItem value="REST API">
 
-```
-
-{@inject: endpoint|DELETE|/admin/v2/topics/:tenant/:namespace/:topic/inactiveTopicPolicies?version=@pulsar:version_number@}
-
-```
+{@inject: endpoint|DELETE|/admin/v2/topics/:tenant/:namespace/:topic/inactiveTopicPolicies|operation/removeInactiveTopicPolicies?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java">
@@ -1578,11 +1556,7 @@ pulsar-admin topics get-offload-policies options
 </TabItem>
 <TabItem value="REST API">
 
-```
-
-{@inject: endpoint|GET|/admin/v2/topics/:tenant/:namespace/:topic/offloadPolicies?version=@pulsar:version_number@}
-
-```
+{@inject: endpoint|GET|/admin/v2/topics/:tenant/:namespace/:topic/offloadPolicies|operation/getOffloadPolicies?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java">
@@ -1617,11 +1591,7 @@ pulsar-admin topics set-offload-policies options
 </TabItem>
 <TabItem value="REST API">
 
-```
-
-{@inject: endpoint|POST|/admin/v2/topics/:tenant/:namespace/:topic/offloadPolicies?version=@pulsar:version_number@}
-
-```
+{@inject: endpoint|POST|/admin/v2/topics/:tenant/:namespace/:topic/offloadPolicies|operation/setOffloadPolicies?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java">
@@ -1656,11 +1626,7 @@ pulsar-admin topics remove-offload-policies options
 </TabItem>
 <TabItem value="REST API">
 
-```
-
-{@inject: endpoint|DELETE|/admin/v2/topics/:tenant/:namespace/:topic/offloadPolicies?version=@pulsar:version_number@}
-
-```
+{@inject: endpoint|DELETE|/admin/v2/topics/:tenant/:namespace/:topic/offloadPolicies|operation/removeOffloadPolicies?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java">
@@ -1678,7 +1644,7 @@ admin.topics().removeOffloadPolicies(topic)
 
 
 ## Manage non-partitioned topics
-You can use Pulsar [admin API](admin-api-overview) to create, delete and check status of non-partitioned topics.
+You can use Pulsar [admin API](admin-api-overview.md) to create, delete and check status of non-partitioned topics.
 
 ### Create
 Non-partitioned topics must be explicitly created. When creating a new non-partitioned topic, you need to provide a name for the topic.
@@ -1873,7 +1839,7 @@ admin.topics().getStats(topic, false /* is precise backlog */);
 ````
 
 ## Manage partitioned topics
-You can use Pulsar [admin API](admin-api-overview) to create, update, delete and check status of partitioned topics.
+You can use Pulsar [admin API](admin-api-overview.md) to create, update, delete and check status of partitioned topics.
 
 ### Create
 
@@ -2393,7 +2359,7 @@ If a message has a key, it supersedes the round robin routing policy. The follow
 
 ## Manage subscriptions
 
-You can use [Pulsar admin API](admin-api-overview) to create, check, and delete subscriptions.
+You can use [Pulsar admin API](admin-api-overview.md) to create, check, and delete subscriptions.
 
 ### Create subscription
 

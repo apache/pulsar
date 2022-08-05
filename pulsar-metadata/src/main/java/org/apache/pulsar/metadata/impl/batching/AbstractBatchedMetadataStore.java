@@ -29,6 +29,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.metadata.api.GetResult;
+import org.apache.pulsar.metadata.api.MetadataEventSynchronizer;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
@@ -49,6 +50,7 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
     private final int maxDelayMillis;
     private final int maxOperations;
     private final int maxSize;
+    private MetadataEventSynchronizer synchronizer;
 
     protected AbstractBatchedMetadataStore(MetadataStoreConfig conf) {
         super();
@@ -68,6 +70,10 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
             readOps = null;
             writeOps = null;
         }
+
+        // update synchronizer and register sync listener
+        synchronizer = conf.getSynchronizer();
+        registerSyncLister(Optional.ofNullable(synchronizer));
     }
 
     @Override
@@ -141,6 +147,11 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
         OpPut op = new OpPut(path, data, optExpectedVersion, options);
         enqueue(writeOps, op);
         return op.getFuture();
+    }
+
+    @Override
+    public Optional<MetadataEventSynchronizer> getMetadataEventSynchronizer() {
+        return Optional.ofNullable(synchronizer);
     }
 
     private void enqueue(MessagePassingQueue<MetadataOp> queue, MetadataOp op) {
