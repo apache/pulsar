@@ -25,13 +25,12 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.mockito.MockedStatic;
-import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -70,11 +69,13 @@ public class ProducerSemaphoreTest extends ProducerConsumerBase {
                 .create();
 
         this.stopBroker();
+
+        Field maxMessageSizeFiled = ClientCnx.class.getDeclaredField("maxMessageSize");
+        maxMessageSizeFiled.setAccessible(true);
+        maxMessageSizeFiled.set(null, 2);
+
         try {
-            try (MockedStatic<ClientCnx> mockedStatic = Mockito.mockStatic(ClientCnx.class)) {
-                mockedStatic.when(ClientCnx::getMaxMessageSize).thenReturn(2);
-                producer.send("semaphore-test".getBytes(StandardCharsets.UTF_8));
-            }
+            producer.send("semaphore-test".getBytes(StandardCharsets.UTF_8));
             throw new IllegalStateException("can not reach here");
         } catch (PulsarClientException.InvalidMessageException ex) {
             Assert.assertEquals(producer.getSemaphore().get().availablePermits(), pendingQueueSize);
@@ -82,10 +83,7 @@ public class ProducerSemaphoreTest extends ProducerConsumerBase {
 
         producer.conf.setBatchingEnabled(false);
         try {
-            try (MockedStatic<ClientCnx> mockedStatic = Mockito.mockStatic(ClientCnx.class)) {
-                mockedStatic.when(ClientCnx::getMaxMessageSize).thenReturn(2);
-                producer.send("semaphore-test".getBytes(StandardCharsets.UTF_8));
-            }
+            producer.send("semaphore-test".getBytes(StandardCharsets.UTF_8));
             throw new IllegalStateException("can not reach here");
         } catch (PulsarClientException.InvalidMessageException ex) {
             Assert.assertEquals(producer.getSemaphore().get().availablePermits(), pendingQueueSize);
