@@ -91,7 +91,7 @@ public class AuthenticationProviderBasicTest {
 
     @Test
     public void testReadData() throws Exception {
-        byte[] data = Files.readAllBytes(Path.of(basicAuthConf));
+        byte[] data = Files.readAllBytes(FileSystems.getDefault().getPath(basicAuthConf));
         String base64Data = Base64.getEncoder().encodeToString(data);
 
         // base64 format
