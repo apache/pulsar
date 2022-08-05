@@ -287,7 +287,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                     });
 
             try {
-                scheduler.submit(ModularLoadManagerImpl.this::updateAll);
+                scheduler.execute(ModularLoadManagerImpl.this::updateAll);
             } catch (RejectedExecutionException e) {
                 // Executor is shutting down
             }
@@ -485,10 +485,11 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
 
     private void cleanupDeadBrokersData() {
         final Set<String> activeBrokers = getAvailableBrokers();
-        Collection<String> newBrokers = CollectionUtils.subtract(activeBrokers, knownBrokers);
-        knownBrokers.addAll(newBrokers);
-        Collection<String> deadBrokers = CollectionUtils.subtract(knownBrokers, activeBrokers);
-        knownBrokers.removeAll(deadBrokers);
+        final Set<String> knownBrokersCopy = new HashSet<>(this.knownBrokers);
+        Collection<String> newBrokers = CollectionUtils.subtract(activeBrokers, knownBrokersCopy);
+        this.knownBrokers.addAll(newBrokers);
+        Collection<String> deadBrokers = CollectionUtils.subtract(knownBrokersCopy, activeBrokers);
+        this.knownBrokers.removeAll(deadBrokers);
         if (pulsar.getLeaderElectionService() != null
                 && pulsar.getLeaderElectionService().isLeader()) {
             deadBrokers.forEach(this::deleteTimeAverageDataFromMetadataStoreAsync);
@@ -655,6 +656,10 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                 bundles.forEach(bundle -> {
                     final String namespaceName = LoadManagerShared.getNamespaceNameFromBundleName(bundle);
                     final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundle);
+                    if (!shouldNamespacePoliciesUnload(namespaceName, bundleRange, broker)) {
+                        return;
+                    }
+
                     if (!shouldAntiAffinityNamespaceUnload(namespaceName, bundleRange, broker)) {
                         return;
                     }
@@ -689,10 +694,24 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         dimensions.put("metric", "bundleUnloading");
 
         Metrics m = Metrics.create(dimensions);
-        m.put("brk_lb_unload_broker_count", unloadBrokerCount);
-        m.put("brk_lb_unload_bundle_count", unloadBundleCount);
+        m.put("brk_lb_unload_broker_total", unloadBrokerCount);
+        m.put("brk_lb_unload_bundle_total", unloadBundleCount);
         metrics.add(m);
         this.bundleUnloadMetrics.set(metrics);
+    }
+
+    public boolean shouldNamespacePoliciesUnload(String namespace, String bundle, String currentBroker) {
+        synchronized (brokerCandidateCache) {
+            brokerCandidateCache.clear();
+            ServiceUnitId serviceUnit = pulsar.getNamespaceService().getNamespaceBundleFactory()
+                    .getBundle(namespace, bundle);
+            LoadManagerShared.applyNamespacePolicies(serviceUnit, policies, brokerCandidateCache,
+                    getAvailableBrokers(), brokerTopicLoadingPredicate);
+
+            // if only current broker satisfy the NamespacePolicies should not unload.
+            brokerCandidateCache.remove(currentBroker);
+            return !brokerCandidateCache.isEmpty();
+        }
     }
 
     public boolean shouldAntiAffinityNamespaceUnload(String namespace, String bundle, String currentBroker) {
@@ -781,7 +800,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         dimensions.put("metric", "bundlesSplit");
 
         Metrics m = Metrics.create(dimensions);
-        m.put("brk_lb_bundles_split_count", bundleSplitCount);
+        m.put("brk_lb_bundles_split_total", bundleSplitCount);
         metrics.add(m);
         this.bundleSplitMetrics.set(metrics);
     }
@@ -828,10 +847,17 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                 LoadManagerShared.filterAntiAffinityGroupOwnedBrokers(pulsar, serviceUnit.toString(),
                         brokerCandidateCache,
                         brokerToNamespaceToBundleRange, brokerToFailureDomainMap);
-                // distribute bundles evenly to candidate-brokers
 
-                LoadManagerShared.removeMostServicingBrokersForNamespace(serviceUnit.toString(), brokerCandidateCache,
-                        brokerToNamespaceToBundleRange);
+                // distribute bundles evenly to candidate-brokers if enable
+                if (conf.isLoadBalancerDistributeBundlesEvenlyEnabled()) {
+                    LoadManagerShared.removeMostServicingBrokersForNamespace(serviceUnit.toString(),
+                            brokerCandidateCache,
+                            brokerToNamespaceToBundleRange);
+                    if (log.isDebugEnabled()) {
+                        log.debug("enable distribute bundles evenly to candidate-brokers, broker candidate count={}",
+                                brokerCandidateCache.size());
+                    }
+                }
                 log.info("{} brokers being considered for assignment of {}", brokerCandidateCache.size(), bundle);
 
                 // Use the filter pipeline to finalize broker candidates.
@@ -871,7 +897,11 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                     LoadManagerShared.applyNamespacePolicies(serviceUnit, policies, brokerCandidateCache,
                             getAvailableBrokers(),
                             brokerTopicLoadingPredicate);
-                    broker = placementStrategy.selectBroker(brokerCandidateCache, data, loadData, conf);
+                    Optional<String> brokerTmp =
+                            placementStrategy.selectBroker(brokerCandidateCache, data, loadData, conf);
+                    if (brokerTmp.isPresent()) {
+                        broker = brokerTmp;
+                    }
                 }
 
                 // Add new bundle to preallocated.

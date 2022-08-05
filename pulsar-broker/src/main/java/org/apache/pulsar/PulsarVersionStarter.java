@@ -35,7 +35,7 @@ public class PulsarVersionStarter {
         private boolean generateDocs = false;
     }
 
-    public static void main(String args[]) {
+    public static void main(String[] args) {
         Arguments arguments = new Arguments();
         JCommander jcommander = new JCommander();
         try {

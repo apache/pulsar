@@ -51,7 +51,6 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
-import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -93,25 +92,30 @@ public class NonPersistentTopics extends PersistentTopics {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic does not exist")})
-    public PersistentTopicInternalStats getInternalStats(@PathParam("property") String property,
-                                                         @PathParam("cluster") String cluster, @PathParam("namespace")
-                                                                     String namespace,
-                                                         @PathParam("topic") @Encoded String encodedTopic,
-                                                         @QueryParam("authoritative") @DefaultValue("false")
-                                                                     boolean authoritative,
-                                                         @QueryParam("metadata") @DefaultValue("false")
-                                                                     boolean metadata) {
+    public void getInternalStats(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("property") String property,
+            @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @QueryParam("metadata") @DefaultValue("false") boolean metadata) {
         validateTopicName(property, cluster, namespace, encodedTopic);
-        validateTopicOwnership(topicName, authoritative);
-        validateTopicOperation(topicName, TopicOperation.GET_STATS);
-        Topic topic = getTopicReference(topicName);
-        try {
-            boolean includeMetadata = metadata && hasSuperUserAccess();
-            return topic.getInternalStats(includeMetadata).get();
-        } catch (Exception e) {
-            throw new RestException(Status.INTERNAL_SERVER_ERROR,
-                    (e instanceof ExecutionException) ? e.getCause().getMessage() : e.getMessage());
-        }
+        validateTopicOwnershipAsync(topicName, authoritative)
+                .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.GET_STATS))
+                .thenCompose(__ -> {
+                    Topic topic = getTopicReference(topicName);
+                    boolean includeMetadata = metadata && hasSuperUserAccess();
+                    return topic.getInternalStats(includeMetadata);
+                })
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to get internal stats for topic {}", clientAppId(), topicName, ex);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @PUT

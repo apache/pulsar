@@ -120,7 +120,7 @@ public class MongoSink implements Sink<byte[]> {
         }
 
         if (currentSize == mongoConfig.getBatchSize()) {
-            flushExecutor.submit(() -> flush());
+            flushExecutor.execute(() -> flush());
         }
     }
 

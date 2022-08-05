@@ -213,8 +213,11 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
             EntryImpl entry = EntryImpl.create(ledger.getId(), entryId, data);
             // EntryCache.insert: duplicates entry by allocating new entry and data. so, recycle entry after calling
             // insert
-            ml.entryCache.insert(entry);
-            entry.release();
+            // Entry cache doesn't copy the data if entry already exist into the cache.
+            // Backlog read tries to add entry into cache which can try to add duplicate entry into cache.
+            if (ml.entryCache.insert(entry)) {
+                entry.release();
+            }
         }
 
         PositionImpl lastEntry = PositionImpl.get(ledger.getId(), entryId);

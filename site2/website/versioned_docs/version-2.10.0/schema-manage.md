@@ -160,8 +160,8 @@ To manage schemas, you can use one of the following methods.
 
 | Method |  Description | 
 | --- | --- |
-|  **Admin CLI**<li></li> |   You can use the `pulsar-admin` tool to manage Pulsar schemas, brokers, clusters, sources, sinks, topics, tenants and so on. For more information about how to use the `pulsar-admin` tool, see [here](reference-pulsar-admin).  | 
-|  **REST API**<li></li> |   Pulsar exposes schema related management API in Pulsar’s admin RESTful API. You can access the admin RESTful endpoint directly to manage schemas. For more information about how to use the Pulsar REST API, see [here](http://pulsar.apache.org/admin-rest-api/).  | 
+|  **Admin CLI**<li></li> |   You can use the `pulsar-admin` tool to manage Pulsar schemas, brokers, clusters, sources, sinks, topics, tenants and so on. For more information about how to use the `pulsar-admin` tool, see [here](reference-pulsar-admin.md).  | 
+|  **REST API**<li></li> |   Pulsar exposes schema related management API in Pulsar’s admin RESTful API. You can access the admin RESTful endpoint directly to manage schemas. For more information about how to use the Pulsar REST API, see [here](/admin-rest-api/).  | 
 |  **Java Admin API**<li></li> |  Pulsar provides Java admin library. | 
 
 ### Upload a schema
@@ -234,7 +234,7 @@ Here are examples of the `schema-definition-file` for a JSON schema.
 </TabItem>
 <TabItem value="REST API">
 
-Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v2/schemas/:tenant/:namespace/:topic/schema|operation/uploadSchem?version=@pulsar:version_number@a}
+Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v2/schemas/:tenant/:namespace/:topic/schema|operation/uploadSchema?version=@pulsar:version_number@}
 
 The post payload is in JSON format.
 
@@ -325,7 +325,7 @@ $ pulsar-admin schemas get <topic-name>
 </TabItem>
 <TabItem value="REST API">
 
-Send a `GET` request to this endpoint: {@inject: endpoint|GET|/admin/v2/schemas/:tenant/:namespace/:topic/schema|operation/getSchem?version=@pulsar:version_number@a}
+Send a `GET` request to this endpoint: {@inject: endpoint|GET|/admin/v2/schemas/:tenant/:namespace/:topic/schema|operation/getSchema?version=@pulsar:version_number@}
 
 Here is an example of a response, which is returned in JSON format.
 
@@ -406,7 +406,7 @@ $ pulsar-admin schemas get <topic-name> --version=<version>
 </TabItem>
 <TabItem value="REST API">
 
-Send a `GET` request to a schema endpoint: {@inject: endpoint|GET|/admin/v2/schemas/:tenant/:namespace/:topic/schema/:version|operation/getSchem?version=@pulsar:version_number@a}
+Send a `GET` request to a schema endpoint: {@inject: endpoint|GET|/admin/v2/schemas/:tenant/:namespace/:topic/schema/:version|operation/getSchema?version=@pulsar:version_number@}
 
 Here is an example of a response, which is returned in JSON format.
 
@@ -662,7 +662,7 @@ To set a schema compatibility check strategy at the topic level, use one of the 
 
 <TabItem value="Admin CLI">
 
-Use the [`pulsar-admin topicPolicies set-schema-compatibility-strategy`](https://pulsar.apache.org/tools/pulsar-admin/) command. 
+Use the [`pulsar-admin topicPolicies set-schema-compatibility-strategy`](/tools/pulsar-admin/) command. 
 
 ```shell
 
@@ -708,7 +708,7 @@ To get the topic-level schema compatibility check strategy, use one of the follo
 
 <TabItem value="Admin CLI">
 
-Use the [`pulsar-admin topicPolicies get-schema-compatibility-strategy`](https://pulsar.apache.org/tools/pulsar-admin/) command. 
+Use the [`pulsar-admin topicPolicies get-schema-compatibility-strategy`](/tools/pulsar-admin/) command. 
 
 ```shell
 
@@ -758,7 +758,7 @@ To remove the topic-level schema compatibility check strategy, use one of the fo
 
 <TabItem value="Admin CLI">
 
-Use the [`pulsar-admin topicPolicies remove-schema-compatibility-strategy`](https://pulsar.apache.org/tools/pulsar-admin/) command. 
+Use the [`pulsar-admin topicPolicies remove-schema-compatibility-strategy`](/tools/pulsar-admin/) command. 
 
 ```shell
 
@@ -807,7 +807,7 @@ You can set schema compatibility check strategy at namespace level using one of 
 
 <TabItem value="Admin CLI">
 
-Use the [`pulsar-admin namespaces set-schema-compatibility-strategy`](https://pulsar.apache.org/tools/pulsar-admin/) command. 
+Use the [`pulsar-admin namespaces set-schema-compatibility-strategy`](/tools/pulsar-admin/) command. 
 
 ```shell
 
@@ -823,7 +823,7 @@ Send a `PUT` request to this endpoint: {@inject: endpoint|PUT|/admin/v2/namespac
 </TabItem>
 <TabItem value="Java Admin CLI">
 
-Use the [`setSchemaCompatibilityStrategy`](https://pulsar.apache.org/api/admin/)method.
+Use the [`setSchemaCompatibilityStrategy`](/api/admin/)method.
 
 ```java
 

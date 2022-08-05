@@ -45,6 +45,7 @@
           <module>proto</module>
           <module>api-java</module>
           <module>java-examples</module>
+          <module>java-examples-builtin</module>
           <module>utils</module>
           <module>instance</module>
           <module>runtime</module>
@@ -62,6 +63,7 @@
         <module>proto</module>
         <module>api-java</module>
         <module>java-examples</module>
+        <module>java-examples-builtin</module>
         <module>utils</module>
         <module>instance</module>
         <module>runtime</module>

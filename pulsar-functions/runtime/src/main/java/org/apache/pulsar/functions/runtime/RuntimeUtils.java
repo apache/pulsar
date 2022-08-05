@@ -41,7 +41,9 @@ import java.util.List;
 import java.util.Map;
 import javax.management.MalformedObjectNameException;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.JavaVersion;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.SystemUtils;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
@@ -255,7 +257,6 @@ public class RuntimeUtils {
         return args;
     }
 
-
     public static List<String> getCmd(InstanceConfig instanceConfig,
                                       String instanceFile,
                                       String extraDependenciesDir, /* extra dependencies for running instances */
@@ -319,6 +320,12 @@ public class RuntimeUtils {
                     shardId));
 
             args.add("-Dio.netty.tryReflectionSetAccessible=true");
+
+            // Needed for netty.DnsResolverUtil on JDK9+
+            if (SystemUtils.isJavaVersionAtLeast(JavaVersion.JAVA_9)) {
+                args.add("--add-opens");
+                args.add("java.base/sun.net=ALL-UNNAMED");
+            }
 
             if (instanceConfig.getAdditionalJavaRuntimeArguments() != null) {
                 args.addAll(instanceConfig.getAdditionalJavaRuntimeArguments());

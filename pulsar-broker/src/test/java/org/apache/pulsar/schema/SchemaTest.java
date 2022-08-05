@@ -20,17 +20,14 @@ package org.apache.pulsar.schema;
 
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 import static org.apache.pulsar.schema.compatibility.SchemaCompatibilityCheckTest.randomName;
-
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import static org.testng.internal.junit.ArrayAsserts.assertArrayEquals;
-
-import lombok.EqualsAndHashCode;
-import org.apache.avro.Schema.Parser;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.Sets;
 import java.io.ByteArrayInputStream;
@@ -45,7 +42,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
+import lombok.EqualsAndHashCode;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.avro.Schema.Parser;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -986,6 +985,9 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         producer.newMessage(Schema.NATIVE_AVRO(personThreeSchemaAvroNative)).value(content).send();
 
         List<SchemaInfo> allSchemas = admin.schemas().getAllSchemas(topic);
+        allSchemas.forEach(schemaInfo -> {
+            ((SchemaInfoImpl)schemaInfo).setTimestamp(0);
+        });
         Assert.assertEquals(allSchemas.size(), 5);
         Assert.assertEquals(allSchemas.get(0), Schema.STRING.getSchemaInfo());
         Assert.assertEquals(allSchemas.get(1), Schema.JSON(Schemas.PersonThree.class).getSchemaInfo());
@@ -1252,14 +1254,8 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         Message<User> message1 = consumer.receive();
         Assert.assertEquals(test, message1.getValue());
         Message<User> message2 = consumer.receive();
-        try {
-            message2.getValue();
-        } catch (SchemaSerializationException e) {
-            final String schemaString =
-                    new String(Schema.AVRO(User.class).getSchemaInfo().getSchema(), StandardCharsets.UTF_8);
-            Assert.assertTrue(e.getMessage().contains(schemaString));
-            Assert.assertTrue(e.getMessage().contains("payload (4 bytes)"));
-        }
+
+        assertThrows(SchemaSerializationException.class, message2::getValue);
     }
 
     @EqualsAndHashCode

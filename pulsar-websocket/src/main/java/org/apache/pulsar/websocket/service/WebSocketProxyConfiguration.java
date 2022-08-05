@@ -61,7 +61,9 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     @Deprecated
     @FieldContext(
             deprecated = true,
-            doc = "Connection string of configuration store servers")
+            doc = "Configuration store connection string (as a comma-separated list). Deprecated in favor of "
+                    + "`configurationMetadataStoreUrl`"
+    )
     private String configurationStoreServers;
 
     @FieldContext(doc = "Connection string of configuration metadata store servers")
@@ -242,6 +244,11 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
                     + "Example:- [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256]"
     )
     private Set<String> webServiceTlsCiphers = new TreeSet<>();
+
+    @FieldContext(
+            doc = "CryptoKeyReader factory classname to support encryption at websocket."
+    )
+    private String cryptoKeyReaderFactoryClassName;
 
     @FieldContext(doc = "Key-value properties. Types are all String")
     private Properties properties = new Properties();

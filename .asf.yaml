@@ -77,8 +77,7 @@ github:
           - CI - System - Schema
           - CI - System - Tiered FileSystem
           - CI - System - Tiered JCloud
-# Sql integration tests are disabled until https://github.com/apache/pulsar/issues/14951 has been resolved
-#          - CI - System - Sql
+          - CI - System - Sql
 
       required_pull_request_reviews:
         dismiss_stale_reviews: false
@@ -110,3 +109,10 @@ github:
     branch-2.8: {}
     branch-2.9: {}
     branch-2.10: {}
+
+notifications:
+  commits:      commits@pulsar.apache.org
+  issues:       commits@pulsar.apache.org
+  pullrequests: commits@pulsar.apache.org
+  discussions:  dev@pulsar.apache.org
+  jira_options: link label

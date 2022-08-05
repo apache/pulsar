@@ -13,5 +13,5 @@ The CDC Source connector is built on top of [Debezium](https://debezium.io/) and
 This CDC Source are tested by using MySQL, and you could get more information regarding how it works at [this debezium link](https://debezium.io/docs/connectors/mysql/) or [this canal link](https://github.com/alibaba/canal/wiki).
 Regarding how Debezium works, please reference to [Debezium tutorial](https://debezium.io/docs/tutorial/). Regarding how Canal works, please reference to [Canal tutorial](https://github.com/alibaba/canal/wiki). It is recommended that you go through this tutorial first.
 
-- [Debezium Connector](io-cdc-debezium)
-- [Alibaba Canal Connector](io-cdc-canal)
+- [Debezium Connector](io-cdc-debezium.md)
+- [Alibaba Canal Connector](io-cdc-canal.md)

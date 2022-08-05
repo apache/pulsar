@@ -56,18 +56,18 @@ fi
 add_maven_deps_to_classpath() {
     MVN="mvn"
     if [ "$MAVEN_HOME" != "" ]; then
-	MVN=${MAVEN_HOME}/bin/mvn
+      MVN=${MAVEN_HOME}/bin/mvn
     fi
 
     # Need to generate classpath from maven pom. This is costly so generate it
     # and cache it. Save the file into our target dir so a mvn clean will get
     # clean it up and force us create a new one.
-    f="${PULSAR_HOME}/distribution/server/target/classpath.txt"
+    f="${PULSAR_HOME}/distribution/shell/target/classpath.txt"
     if [ ! -f "${f}" ]
     then
     (
       cd "${PULSAR_HOME}"
-      ${MVN} -pl distribution/server generate-sources &> /dev/null
+      ${MVN} -pl distribution/shell generate-sources &> /dev/null
     )
     fi
     PULSAR_CLASSPATH=${CLASSPATH}:`cat "${f}"`
@@ -90,6 +90,13 @@ PULSAR_CLASSPATH="$PULSAR_JAR:$PULSAR_CLASSPATH:$PULSAR_EXTRA_CLASSPATH"
 PULSAR_CLASSPATH="`dirname $PULSAR_LOG_CONF`:$PULSAR_CLASSPATH"
 OPTS="$OPTS -Dlog4j.configurationFile=`basename $PULSAR_LOG_CONF`"
 OPTS="$OPTS -Djava.net.preferIPv4Stack=true"
+
+IS_JAVA_8=`$JAVA -version 2>&1 |grep version|grep '"1\.8'`
+# Start --add-opens options
+# '--add-opens' option is not supported in jdk8
+if [[ -z "$IS_JAVA_8" ]]; then
+  OPTS="$OPTS --add-opens java.base/sun.net=ALL-UNNAMED"
+fi
 
 OPTS="-cp $PULSAR_CLASSPATH $OPTS"
 
