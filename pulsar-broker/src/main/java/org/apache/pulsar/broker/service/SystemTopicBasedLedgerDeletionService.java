@@ -364,8 +364,8 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
         CompletableFuture<Void> future = new CompletableFuture<>();
         PendingDeleteLedgerInfo pendingDeleteLedger = message.getValue();
         if (LedgerType.LEDGER == pendingDeleteLedger.getLedgerType()) {
-            asyncDeleteLedger(pendingDeleteLedger.getLedgerId(), pendingDeleteLedger.getLedgerComponent(),
-                    pendingDeleteLedger.getTopicName(), false).whenComplete((res, ex) -> {
+            asyncDeleteLedger(pendingDeleteLedger.getTopicName(), pendingDeleteLedger.getLedgerId(),
+                    pendingDeleteLedger.getLedgerComponent(), false).whenComplete((res, ex) -> {
                 if (ex != null) {
                     future.completeExceptionally(ex);
                     return;
@@ -373,7 +373,7 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
                 future.complete(null);
             });
         } else if (LedgerType.OFFLOAD_LEDGER == pendingDeleteLedger.getLedgerType()) {
-            asyncDeleteOffloadedLedger(pendingDeleteLedger.getLedgerId(), pendingDeleteLedger.getTopicName(),
+            asyncDeleteOffloadedLedger(pendingDeleteLedger.getTopicName(), pendingDeleteLedger.getLedgerId(),
                     pendingDeleteLedger.getContext().getOffloadContext()).whenComplete((res, ex) -> {
                 if (ex != null) {
                     future.completeExceptionally(ex);
@@ -413,7 +413,7 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
     }
 
     @Override
-    public CompletableFuture<?> asyncDeleteLedger(long ledgerId, LedgerComponent ledgerComponent, String topicName,
+    public CompletableFuture<?> asyncDeleteLedger(String topicName, long ledgerId, LedgerComponent component,
                                                   boolean isBelievedDelete) {
         final long startTime = MathUtils.nowInNano();
         CompletableFuture<?> future = new CompletableFuture<>();
@@ -425,12 +425,12 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
             believedFuture = bookKeeper.getLedgerMetadata(ledgerId).thenCompose(metadata -> {
                 CompletableFuture<Void> result = new CompletableFuture<>();
                 Map<String, byte[]> customMetadata = metadata.getCustomMetadata();
-                if (!LedgerMetadataUtils.isComponentMatch(ledgerComponent, customMetadata)) {
+                if (!LedgerMetadataUtils.isComponentMatch(component, customMetadata)) {
                     result.completeExceptionally(
                             new PendingDeleteLedgerInvalidException("Ledger metadata component mismatch"));
                     return result;
                 }
-                if (!LedgerMetadataUtils.isNameMatch(ledgerComponent, topicName, customMetadata)) {
+                if (!LedgerMetadataUtils.isNameMatch(component, topicName, customMetadata)) {
                     result.completeExceptionally(new PendingDeleteLedgerInvalidException("Ledger metadata name mismatch"));
                     return result;
                 }
@@ -471,7 +471,7 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
     }
 
     @Override
-    public CompletableFuture<?> asyncDeleteOffloadedLedger(long ledgerId, String topicName,
+    public CompletableFuture<?> asyncDeleteOffloadedLedger(String topicName, long ledgerId,
                                                            MLDataFormats.OffloadContext offloadContext) {
         CompletableFuture<Void> future = new CompletableFuture<>();
         final long startTime = MathUtils.nowInNano();

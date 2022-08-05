@@ -42,13 +42,26 @@ public interface LedgerDeletionService {
     CompletableFuture<?> appendPendingDeleteLedger(String topicName, long ledgerId, LedgerInfo context,
                                                    LedgerComponent component, LedgerType type);
 
-
-    CompletableFuture<?> asyncDeleteLedger(long ledgerId, LedgerComponent ledgerComponent, String topicName,
+    /**
+     *
+     * @param topicName topicName
+     * @param ledgerId  ledgerId
+     * @param component managed_ledger, managed_cursor, schema_storage
+     * @param isBelievedDelete isBelievedDelete, if false, we should check the param is match the ledger metadata.
+     * @return
+     */
+    CompletableFuture<?> asyncDeleteLedger(String topicName, long ledgerId, LedgerComponent component,
                                            boolean isBelievedDelete);
 
-
-    CompletableFuture<?> asyncDeleteOffloadedLedger(long ledgerId, String topicName,
-                                                    MLDataFormats.OffloadContext ledgerInfo);
+    /**
+     *
+     * @param topicName topicName
+     * @param ledgerId ledgerId
+     * @param offloadContext offloadContext
+     * @return
+     */
+    CompletableFuture<?> asyncDeleteOffloadedLedger(String topicName, long ledgerId,
+                                                    MLDataFormats.OffloadContext offloadContext);
 
     /**
      * Close.
@@ -76,14 +89,14 @@ public interface LedgerDeletionService {
         }
 
         @Override
-        public CompletableFuture<?> asyncDeleteLedger(long ledgerId, LedgerComponent ledgerComponent, String topicName,
+        public CompletableFuture<?> asyncDeleteLedger(String topicName, long ledgerId, LedgerComponent component,
                                                       boolean isBelievedDelete) {
             return COMPLETABLE_FUTURE;
         }
 
         @Override
-        public CompletableFuture<?> asyncDeleteOffloadedLedger(long ledgerId, String topicName,
-                                                               MLDataFormats.OffloadContext ledgerInfo) {
+        public CompletableFuture<?> asyncDeleteOffloadedLedger(String topicName, long ledgerId,
+                                                               MLDataFormats.OffloadContext offloadContext) {
             return COMPLETABLE_FUTURE;
         }
 
