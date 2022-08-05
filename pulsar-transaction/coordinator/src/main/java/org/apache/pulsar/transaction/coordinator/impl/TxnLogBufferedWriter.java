@@ -209,7 +209,13 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
                     AsyncAddArgs.newInstance(callback, ctx, System.currentTimeMillis(), byteBuf));
             return;
         }
-        singleThreadExecutorForWrite.execute(() -> internalAsyncAddData(data, callback, ctx));
+        singleThreadExecutorForWrite.execute(() -> {
+            try {
+                internalAsyncAddData(data, callback, ctx);
+            } catch (Exception e){
+                log.error("Internal async add data fail", e);
+            }
+        });
     }
 
     /**
@@ -248,16 +254,21 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
      */
     private void trigFlushByTimingTask(){
         singleThreadExecutorForWrite.execute(() -> {
-            if (flushContext.asyncAddArgsList.isEmpty()) {
-                return;
+            try {
+                if (flushContext.asyncAddArgsList.isEmpty()) {
+                    nextTimingTrigger();
+                    return;
+                }
+                if (metrics != null) {
+                    metrics.triggerFlushByByMaxDelay(flushContext.asyncAddArgsList.size(), bytesSize,
+                            System.currentTimeMillis() - flushContext.asyncAddArgsList.get(0).addedTime);
+                }
+                doFlush();
+                // Start the next timing task.
+                nextTimingTrigger();
+            } catch (Exception e){
+                log.error("Trig flush by timing task fail.", e);
             }
-            if (metrics != null) {
-                metrics.triggerFlushByByMaxDelay(flushContext.asyncAddArgsList.size(), bytesSize,
-                        System.currentTimeMillis() - flushContext.asyncAddArgsList.get(0).addedTime);
-            }
-            doFlush();
-            // Start the next timing task.
-            nextTimingTrigger();
         });
     }
 
@@ -365,6 +376,8 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
                             + " managedLedger: " + managedLedger.getName(), e);
                 }
             }
+        } catch (Exception e){
+            log.error("Handle callback fail after ML write complete", e);
         } finally {
             flushContext.recycle();
         }
@@ -375,8 +388,12 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
      */
     @Override
     public void addFailed(ManagedLedgerException exception, Object ctx) {
-        final FlushContext flushContext = (FlushContext) ctx;
-        failureCallbackByContextAndRecycle(flushContext, exception);
+        try {
+            final FlushContext flushContext = (FlushContext) ctx;
+            failureCallbackByContextAndRecycle(flushContext, exception);
+        } catch (Exception e){
+            log.error("Handle callback fail after ML write fail", e);
+        }
     }
 
     /**
@@ -395,26 +412,31 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
         }
         // Cancel pending tasks and release resources.
         singleThreadExecutorForWrite.execute(() -> {
-            if (state == State.CLOSED){
-                return;
-            }
-            // If some requests are flushed, BK will trigger these callbacks, and the remaining requests in should fail.
-            failureCallbackByContextAndRecycle(flushContext, BUFFERED_WRITER_CLOSED_EXCEPTION);
-            // Cancel the timing task.
-            if (timeout == null){
-                log.error("Cancel timeout-task that schedule at fixed rate trig flush failure. The field-timeout"
-                        + " is null. managedLedger: " + managedLedger.getName());
-            } else if (timeout.isCancelled()){
-                // TODO How decisions the timer-task has been finished ?
-                state = State.CLOSED;
-            } else {
-                if (this.timeout.cancel()) {
+            try {
+                if (state == State.CLOSED) {
+                    return;
+                }
+                // If some requests are flushed, BK will trigger these callbacks, and the remaining requests in should
+                // fail.
+                failureCallbackByContextAndRecycle(flushContext, BUFFERED_WRITER_CLOSED_EXCEPTION);
+                // Cancel the timing task.
+                if (timeout == null) {
+                    log.error("Cancel timeout-task that schedule at fixed rate trig flush failure. The field-timeout"
+                            + " is null. managedLedger: " + managedLedger.getName());
+                } else if (timeout.isCancelled()) {
+                    // TODO How decisions the timer-task has been finished ?
                     state = State.CLOSED;
                 } else {
-                    // Cancel task failure, The state will stay at CLOSING.
-                    log.error("Cancel timeout-task that schedule at fixed rate trig flush failure. The state will"
-                            + " stay at CLOSING. managedLedger: " + managedLedger.getName());
+                    if (this.timeout.cancel()) {
+                        state = State.CLOSED;
+                    } else {
+                        // Cancel task failure, The state will stay at CLOSING.
+                        log.error("Cancel timeout-task that schedule at fixed rate trig flush failure. The state will"
+                                + " stay at CLOSING. managedLedger: " + managedLedger.getName());
+                    }
                 }
+            } catch (Exception e){
+                log.error("Close Txn log buffered writer fail", e);
             }
         });
     }
