@@ -35,7 +35,9 @@ import org.apache.pulsar.broker.service.plugin.*;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.*;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.nar.NarClassLoader;
+import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
@@ -241,6 +243,24 @@ public class SubscriptionStatsTest extends ProducerConsumerBase {
             Assert.assertEquals(acceptedMetrics.size(), 0);
             Assert.assertEquals(rejectedMetrics.size(), 0);
             Assert.assertEquals(rescheduledMetrics.size(), 0);
+        }
+
+        testSubscriptionStatsAdminApi(topic, subName);
+    }
+
+    private void testSubscriptionStatsAdminApi(String topic, String subName) throws Exception {
+        boolean persistent = TopicName.get(topic).isPersistent();
+        TopicStats topicStats = admin.topics().getStats(topic);
+        SubscriptionStats stats = topicStats.getSubscriptions().get(subName);
+        Assert.assertNotNull(stats);
+
+        Assert.assertEquals(stats.getFilterAcceptedMsgCount(), 100);
+        if (persistent) {
+            Assert.assertEquals(stats.getFilterRejectedMsgCount(), 100);
+            Assert.assertEquals(stats.getThroughFilterMsgCount(),
+                    stats.getFilterAcceptedMsgCount() + stats.getFilterRejectedMsgCount()
+                            + stats.getFilterRescheduledMsgCount(),
+                    0.01 * stats.getThroughFilterMsgCount());
         }
     }
 }
