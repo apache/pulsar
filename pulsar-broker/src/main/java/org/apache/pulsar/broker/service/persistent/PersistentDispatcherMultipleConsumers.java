@@ -558,7 +558,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         } else {
             if (sendMessagesToConsumers(readType, entries)) {
                 readMoreEntiresAsync();
-            };
+            }
         }
     }
 
