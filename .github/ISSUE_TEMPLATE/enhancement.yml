@@ -22,20 +22,20 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thank you very much for your enhancement for Pulsar!
+        Thank you very much for your enhancement!
   - type: checkboxes
     attributes:
       label: Search before asking
       description: >
-        Please make sure to search in the [issues](https://github.com/apache/pulsar/issues) first to see whether the same issue was reported already.
+        Please search [issues](https://github.com/apache/pulsar/issues) to check if your issue has already been reported.
       options:
         - label: >
-            I had searched in the [issues](https://github.com/apache/pulsar/issues) and found no similar issues.
+            I searched in the [issues](https://github.com/apache/pulsar/issues) and found nothing similar.
           required: true
   - type: textarea
     attributes:
       label: Motivation
-      description: Describe the motivation you'd like to make this enhancement.
+      description: Describe the motivations for this enhancement.
     validations:
       required: true
   - type: textarea
@@ -45,7 +45,7 @@ body:
   - type: textarea
     attributes:
       label: Alternatives
-      description: Describe the any alternative solutions or features you've considered.
+      description: Describe other alternative solutions or features you considered, but rejected.
   - type: textarea
     attributes:
       label: Anything else?
@@ -53,7 +53,7 @@ body:
     attributes:
       label: Are you willing to submit a PR?
       description: >
-        We very much look forward to developers or users to help solve Pulsar problems together. If you are willing to submit a PR to fix this problem, please tick it.
+        We look forward to the community of developers or users helping solve Pulsar problems together. If you are willing to submit a PR to implement the enhancement, please check the box.
       options:
         - label: I'm willing to submit a PR!
   - type: markdown

@@ -23,15 +23,15 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thank you very much for reporting flaky tests of Pulsar!
+        Thank you very much for reporting flaky tests!
   - type: checkboxes
     attributes:
       label: Search before asking
       description: >
-        Please make sure to search in the [issues](https://github.com/apache/pulsar/issues) first to see whether the same issue was reported already.
+        Please search [issues](https://github.com/apache/pulsar/issues) to check if your issue has already been reported.
       options:
         - label: >
-            I had searched in the [issues](https://github.com/apache/pulsar/issues) and found no similar issues.
+            I searched in the [issues](https://github.com/apache/pulsar/issues) and found nothing similar.
           required: true
   - type: input
     attributes:
@@ -61,7 +61,7 @@ body:
     attributes:
       label: Are you willing to submit a PR?
       description: >
-        We very much look forward to developers or users to help fix Pulsar flaky tests together. If you are willing to submit a PR to fix this test, please tick it.
+        We look forward to the community of developers or users helping solve Pulsar problems together. If you are willing to submit a PR to fix this problem, please check the box.
       options:
         - label: I'm willing to submit a PR!
   - type: markdown
