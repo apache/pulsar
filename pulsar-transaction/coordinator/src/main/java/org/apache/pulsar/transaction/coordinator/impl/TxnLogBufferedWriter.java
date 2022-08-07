@@ -56,7 +56,7 @@ import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
  * You can enable or disabled the batch feature, will use Managed Ledger directly and without batching when disabled.
  */
 @Slf4j
-public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback, Closeable {
+public class TxnLogBufferedWriter<T> implements Closeable {
 
     public static final short BATCHED_ENTRY_DATA_PREFIX_MAGIC_NUMBER = 0x0e01;
     public static final int BATCHED_ENTRY_DATA_PREFIX_MAGIC_NUMBER_LEN = 2;
@@ -239,19 +239,12 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
                     AsyncAddArgs.newInstance(callback, ctx, System.currentTimeMillis(), byteBuf));
             return;
         }
-        // Append data to the data-array.
         dataArray.add(data);
-        // Append callback to the flushContext.
-        AsyncAddArgs asyncAddArgs = AsyncAddArgs.newInstance(callback, ctx, System.currentTimeMillis());
-        flushContext.asyncAddArgsList.add(asyncAddArgs);
-        // Calculate bytes size.
+        flushContext.addCallback(callback, ctx);
         bytesSize += dataLength;
         trigFlushIfReachMaxRecordsOrMaxSize();
     }
 
-    /**
-     * Change to IO thread and do flush, only called by {@link #timingFlushTask}.
-     */
     private void trigFlushByTimingTask(){
         singleThreadExecutorForWrite.execute(() -> {
             try {
@@ -338,62 +331,20 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
 
     private void doFlush(){
         // Combine data cached by flushContext, and write to BK.
-        ByteBuf prefixByteFuf = PulsarByteBufAllocator.DEFAULT.buffer(4);
-        prefixByteFuf.writeShort(BATCHED_ENTRY_DATA_PREFIX_MAGIC_NUMBER);
-        prefixByteFuf.writeShort(BATCHED_ENTRY_DATA_PREFIX_VERSION);
+        ByteBuf prefixByteBuf = PulsarByteBufAllocator.DEFAULT.buffer(4);
+        prefixByteBuf.writeShort(BATCHED_ENTRY_DATA_PREFIX_MAGIC_NUMBER);
+        prefixByteBuf.writeShort(BATCHED_ENTRY_DATA_PREFIX_VERSION);
         ByteBuf contentByteBuf = dataSerializer.serialize(dataArray);
-        ByteBuf wholeByteBuf = Unpooled.wrappedUnmodifiableBuffer(prefixByteFuf, contentByteBuf);
-        // We need to release this pairByteBuf after Managed ledger async add callback. Just holds by FlushContext.
+        ByteBuf wholeByteBuf = Unpooled.wrappedUnmodifiableBuffer(prefixByteBuf, contentByteBuf);
         flushContext.byteBuf = wholeByteBuf;
         if (State.CLOSING == state || State.CLOSED == state){
             failureCallbackByContextAndRecycle(flushContext, BUFFERED_WRITER_CLOSED_EXCEPTION);
         } else {
-            managedLedger.asyncAddEntry(wholeByteBuf, this, flushContext);
+            managedLedger.asyncAddEntry(wholeByteBuf, bufferedAddEntryCallback, flushContext);
         }
-        // Reset the cache.
         dataArray.clear();
         flushContext = FlushContext.newInstance();
         bytesSize = 0;
-    }
-
-    /**
-     * see {@link AsyncCallbacks.AddEntryCallback#addComplete(Position, ByteBuf, Object)}.
-     */
-    @Override
-    public void addComplete(Position position, ByteBuf entryData, Object ctx) {
-        final FlushContext flushContext = (FlushContext) ctx;
-        try {
-            final int batchSize = flushContext.asyncAddArgsList.size();
-            for (int batchIndex = 0; batchIndex < batchSize; batchIndex++) {
-                final AsyncAddArgs asyncAddArgs = flushContext.asyncAddArgsList.get(batchIndex);
-                final TxnBatchedPositionImpl txnBatchedPosition = new TxnBatchedPositionImpl(position, batchSize,
-                        batchIndex);
-                // Because this task already running at ordered task, so just "execute callback".
-                try {
-                    asyncAddArgs.callback.addComplete(txnBatchedPosition, asyncAddArgs.ctx);
-                } catch (Exception e){
-                    log.error("After writing to the transaction batched log complete, the callback failed."
-                            + " managedLedger: " + managedLedger.getName(), e);
-                }
-            }
-        } catch (Exception e){
-            log.error("Handle callback fail after ML write complete", e);
-        } finally {
-            flushContext.recycle();
-        }
-    }
-
-    /**
-     * see {@link AsyncCallbacks.AddEntryCallback#addFailed(ManagedLedgerException, Object)}.
-     */
-    @Override
-    public void addFailed(ManagedLedgerException exception, Object ctx) {
-        try {
-            final FlushContext flushContext = (FlushContext) ctx;
-            failureCallbackByContextAndRecycle(flushContext, exception);
-        } catch (Exception e){
-            log.error("Handle callback fail after ML write fail", e);
-        }
     }
 
     /**
@@ -588,8 +539,53 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
             this.asyncAddArgsList.clear();
             this.handle.recycle(this);
         }
+
+        public void addCallback(AddDataCallback callback, Object ctx){
+            AsyncAddArgs asyncAddArgs = AsyncAddArgs.newInstance(callback, ctx, System.currentTimeMillis());
+            asyncAddArgsList.add(asyncAddArgs);
+        }
     }
 
+    /** Callback for batch write BK. **/
+    private final BufferedAddEntryCallback bufferedAddEntryCallback = new BufferedAddEntryCallback();
+
+    private class BufferedAddEntryCallback implements AsyncCallbacks.AddEntryCallback{
+
+        @Override
+        public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+            final FlushContext flushContext = (FlushContext) ctx;
+            try {
+                final int batchSize = flushContext.asyncAddArgsList.size();
+                for (int batchIndex = 0; batchIndex < batchSize; batchIndex++) {
+                    final AsyncAddArgs asyncAddArgs = flushContext.asyncAddArgsList.get(batchIndex);
+                    final TxnBatchedPositionImpl txnBatchedPosition = new TxnBatchedPositionImpl(position, batchSize,
+                            batchIndex);
+                    // Because this task already running at ordered task, so just "execute callback".
+                    try {
+                        asyncAddArgs.callback.addComplete(txnBatchedPosition, asyncAddArgs.ctx);
+                    } catch (Exception e){
+                        log.error("After writing to the transaction batched log complete, the callback failed."
+                                + " managedLedger: " + managedLedger.getName(), e);
+                    }
+                }
+            } catch (Exception e){
+                log.error("Handle callback fail after ML write complete", e);
+            } finally {
+                flushContext.recycle();
+            }
+        }
+
+        @Override
+        public void addFailed(ManagedLedgerException exception, Object ctx) {
+            try {
+                final FlushContext flushContext = (FlushContext) ctx;
+                failureCallbackByContextAndRecycle(flushContext, exception);
+            } catch (Exception e){
+                log.error("Handle callback fail after ML write fail", e);
+            }
+        }
+
+    }
 
 
     public interface AddDataCallback {

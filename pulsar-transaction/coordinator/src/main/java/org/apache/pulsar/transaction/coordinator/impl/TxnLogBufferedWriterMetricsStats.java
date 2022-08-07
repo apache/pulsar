@@ -29,15 +29,14 @@ import java.util.HashMap;
  * Describes the working status of the {@link TxnLogBufferedWriter}, helps users tune the thresholds of
  * {@link TxnLogBufferedWriter} for best performance.
  * Note-1: When batch feature is turned off, no data is logged at this. In this scenario，users can see the
- *    {@link org.apache.bookkeeper.mledger.ManagedLedgerMXBean}.
- * Note-2: Even if enable batch feature, if a single record is too big, it still directly write to Bookie without batch,
- *    property {@link #batchFlushTriggeredByLargeSingleDataMetric} can indicate this case. But this case will not
- *    affect
- *    other metrics, because it would obscure the real situation. E.g. there has two record:
- *    [{recordsCount=512, triggerByMaxRecordCount}, {recordCount=1, triggerByTooLarge}], we should not tell the users
- *    that the average batch records is 256, if the users knows that there are only 256 records per batch, then users
- *    will try to increase "TxnLogBufferedWriter#batchedWriteMaxDelayInMillis" so that there is more data per
- *    batch to improve throughput, but that does not work.
+ *   {@link org.apache.bookkeeper.mledger.ManagedLedgerMXBean}.
+ * Note-2: Even if enable batch feature. A batch has numerous triggers. The metrics in this class count each type of
+ *   trigger to allow you to diagnose what mostly causing a batch flush. The metric also includes a histogram for delay
+ *   of batch since 1st record entered, the size of batch in bytes number of records in batch. This will help you to
+ *   tune the parameters that control some of the batch flush triggers: maxDelay, maxRecords, maxSize.
+ *   Note that the 4th trigger - a single record larger than batch size - triggers a flush of the current batch, but
+ *   the big record itself is not written in batch hence is not included in the batch metrics written above (batch
+ *   size, batch delay, etc). The trigger is of course counter as other trigger types.
  */
 public class TxnLogBufferedWriterMetricsStats implements Closeable {
 

@@ -770,12 +770,13 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
     public void testMetricsStatsThatTriggeredByMaxDelayTime() throws Exception {
         SumStrDataSerializer dataSerializer = new SumStrDataSerializer();
         int writeCount = 100;
+        int batchedWriteMaxDelayInMillis = 1;
         int expectedTotalBytesSize = writeCount * dataSerializer.getSizePerData();
         var callbackWithCounter = createCallBackWithCounter();
         // Create TxnLogBufferedWriter.
         var txnLogBufferedWriterContext =
                 createTxnBufferedWriterContextWithMetrics(dataSerializer, Integer.MAX_VALUE,
-                        Integer.MAX_VALUE, 1);
+                        Integer.MAX_VALUE, batchedWriteMaxDelayInMillis);
         var txnLogBufferedWriter = txnLogBufferedWriterContext.txnLogBufferedWriter;
         // Add some data.
         for (int i = 0; i < writeCount; i++){
