@@ -549,6 +549,10 @@ The following is an example of a topic status.
       "lastConsumedTimestamp" : 1623230583946,
       "lastAckedTimestamp" : 1623230584033,
       "lastMarkDeleteAdvancedTimestamp" : 1623230584033,
+      "throughEntryFilterMsgs": 100,
+      "entryFilterAccepted": 100,
+      "entryFilterRejected": 0,
+      "entryFilterRescheduled": 0,
       "consumers" : [ {
         "msgRateOut" : 0.0,
         "msgThroughputOut" : 0.0,
