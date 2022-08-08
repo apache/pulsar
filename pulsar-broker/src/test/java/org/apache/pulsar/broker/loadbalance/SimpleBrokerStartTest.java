@@ -21,12 +21,12 @@ package org.apache.pulsar.broker.loadbalance;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Optional;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -102,7 +102,7 @@ public class SimpleBrokerStartTest {
 
 
     @Test
-    public void testCGroupMetrics() throws IOException {
+    public void testCGroupMetrics() throws IllegalAccessException {
         if (!LinuxInfoUtils.isLinux()) {
             return;
         }
@@ -116,6 +116,12 @@ public class SimpleBrokerStartTest {
         Assert.assertTrue(totalCpuLimit > 0.0);
 
         if (cGroupEnabled) {
+            Assert.assertNotNull(FieldUtils.readStaticField(LinuxInfoUtils.class, "metrics", true));
+            Assert.assertNotNull(FieldUtils.readStaticField(LinuxInfoUtils.class, "getMetricsProviderMethod", true));
+            Assert.assertNotNull(FieldUtils.readStaticField(LinuxInfoUtils.class, "getCpuQuotaMethod", true));
+            Assert.assertNotNull(FieldUtils.readStaticField(LinuxInfoUtils.class, "getCpuPeriodMethod", true));
+            Assert.assertNotNull(FieldUtils.readStaticField(LinuxInfoUtils.class, "getCpuUsageMethod", true));
+
             long cpuUsageForCGroup = LinuxInfoUtils.getCpuUsageForCGroup();
             log.info("cpuUsageForCGroup: {}", cpuUsageForCGroup);
             Assert.assertTrue(cpuUsageForCGroup > 0);
