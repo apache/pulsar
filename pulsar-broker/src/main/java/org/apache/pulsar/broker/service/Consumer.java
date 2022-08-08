@@ -780,6 +780,14 @@ public class Consumer {
         return stats;
     }
 
+    public long getMsgOutCounter() {
+        return msgOutCounter.longValue();
+    }
+
+    public long getBytesOutCounter() {
+        return bytesOutCounter.longValue();
+    }
+
     public int getUnackedMessages() {
         return unackedMessages;
     }
