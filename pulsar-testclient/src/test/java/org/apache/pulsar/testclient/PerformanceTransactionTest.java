@@ -37,6 +37,7 @@ import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -224,17 +225,19 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
         });
         thread.start();
         thread.join();
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().subscriptionName(subName).topic(topic)
-                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .subscriptionType(SubscriptionType.Exclusive)
-                .enableBatchIndexAcknowledgment(false)
-               .subscribe();
-        for (int i = 0; i < 5; i++) {
+        Awaitility.await().untilAsserted(() -> {
+            Consumer<byte[]> consumer = pulsarClient.newConsumer().subscriptionName(subName).topic(topic)
+                    .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                    .subscriptionType(SubscriptionType.Exclusive)
+                    .enableBatchIndexAcknowledgment(false)
+                    .subscribe();
+            for (int i = 0; i < 5; i++) {
+                Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
+                Assert.assertNotNull(message);
+            }
             Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
-            Assert.assertNotNull(message);
-        }
-        Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
-        Assert.assertNull(message);
+            Assert.assertNull(message);
+        });
     }
 
 }
