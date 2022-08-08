@@ -116,6 +116,10 @@ class PulsarFriend {
 
     static ClientConnectionWeakPtr getClientConnection(HandlerBase& handler) { return handler.connection_; }
 
+    static void setClientConnection(HandlerBase& handler, ClientConnectionWeakPtr conn) {
+        handler.connection_ = conn;
+    }
+
     static boost::posix_time::ptime& getFirstBackoffTime(Backoff& backoff) {
         return backoff.firstBackoffTime_;
     }

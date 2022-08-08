@@ -1374,7 +1374,7 @@ void ConsumerImpl::internalGetLastMessageIdAsync(const BackoffPtr& backoff, Time
         }
     } else {
         TimeDuration next = std::min(remainTime, backoff->next());
-        if (next.is_negative() || next.is_zero()) {
+        if (next.total_milliseconds() <= 0) {
             LOG_ERROR(getName() << " Client Connection not ready for Consumer");
             callback(ResultNotConnected, MessageId());
             return;
