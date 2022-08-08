@@ -51,6 +51,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.regex.Pattern;
 
 import lombok.Cleanup;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
@@ -64,7 +65,6 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.mockito.Mockito;
-import org.powermock.reflect.Whitebox;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -138,8 +138,8 @@ public class PulsarClientImplTest {
                 .thenReturn(CompletableFuture.completedFuture(mock(ProducerResponse.class)));
         when(pool.getConnection(any(InetSocketAddress.class), any(InetSocketAddress.class)))
                 .thenReturn(CompletableFuture.completedFuture(cnx));
-        Whitebox.setInternalState(clientImpl, "cnxPool", pool);
-        Whitebox.setInternalState(clientImpl, "lookup", lookup);
+        FieldUtils.writeField(clientImpl, "cnxPool", pool, true);
+        FieldUtils.writeField(clientImpl, "lookup", lookup, true);
 
         List<ConsumerBase<byte[]>> consumers = new ArrayList<>();
         /**
