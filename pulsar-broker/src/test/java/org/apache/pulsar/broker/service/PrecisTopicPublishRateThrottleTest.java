@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.policies.data.PublishRate;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -138,6 +139,47 @@ public class PrecisTopicPublishRateThrottleTest extends BrokerTestBase{
             // No-op
         }
         Assert.assertNotNull(messageId);
+        super.internalCleanup();
+    }
+
+    @Test
+    public void testBrokerLevelPublishRateDynamicUpdate() throws Exception{
+        conf.setPreciseTopicPublishRateLimiterEnable(true);
+        conf.setTopicLevelPoliciesEnabled(true);
+        conf.setSystemTopicEnabled(true);
+        conf.setMaxPendingPublishRequestsPerConnection(0);
+        super.baseSetup();
+        final String topic = "persistent://prop/ns-abc/testMultiLevelPublishRate";
+        org.apache.pulsar.client.api.Producer<byte[]> producer = pulsarClient.newProducer()
+            .topic(topic)
+            .producerName("producer-name")
+            .create();
+
+        final int rateInMsg = 10;
+        final long rateInByte = 20;
+
+        // maxPublishRatePerTopicInMessages
+        admin.brokers().updateDynamicConfiguration("maxPublishRatePerTopicInMessages", "" + rateInMsg);
+        Awaitility.await()
+            .untilAsserted(() ->
+                Assert.assertEquals(admin.brokers().getAllDynamicConfigurations().get("maxPublishRatePerTopicInMessages"),
+                    "" + rateInMsg));
+        Topic topicRef = pulsar.getBrokerService().getTopicReference(topic).get();
+        Assert.assertNotNull(topicRef);
+        PrecisPublishLimiter limiter = ((PrecisPublishLimiter) ((AbstractTopic) topicRef).topicPublishRateLimiter);
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(limiter.publishMaxMessageRate, rateInMsg));
+        Assert.assertEquals(limiter.publishMaxByteRate, 0);
+
+        // maxPublishRatePerTopicInBytes
+        admin.brokers().updateDynamicConfiguration("maxPublishRatePerTopicInBytes", "" + rateInByte);
+        Awaitility.await()
+            .untilAsserted(() ->
+                Assert.assertEquals(admin.brokers().getAllDynamicConfigurations().get("maxPublishRatePerTopicInBytes"),
+                    "" + rateInByte));
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(limiter.publishMaxByteRate, rateInByte));
+        Assert.assertEquals(limiter.publishMaxMessageRate, rateInMsg);
+
+        producer.close();
         super.internalCleanup();
     }
 }
