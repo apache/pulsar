@@ -61,6 +61,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -88,10 +89,12 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.PulsarServiceNameResolver;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
@@ -966,10 +969,8 @@ public class BrokerServiceTest extends BrokerTestBase {
      */
     @Test
     public void testLookupThrottlingForClientByClient() throws Exception {
-        // This test looks like it could be flakey, if the broker responds
-        // quickly enough, there may never be concurrency in requests
+        // Initialize rate limiter.
         final String topicName = "persistent://prop/ns-abc/newTopic";
-
         PulsarServiceNameResolver resolver = new PulsarServiceNameResolver();
         resolver.updateServiceUrl(pulsar.getBrokerServiceUrl());
         ClientConfigurationData conf = new ClientConfigurationData();
@@ -978,10 +979,23 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(20, false,
                 new DefaultThreadFactory("test-pool", Thread.currentThread().isDaemon()));
+        /**
+         * If the broker responds quickly enough, there may never be concurrency in requests. So we create a block-stat
+         * to control the rate of response-handle.
+         */
+        AtomicBoolean blockLookupResponseSignal = new AtomicBoolean(true);
+        Supplier<ClientCnx> blockLookupResponseClientCnxSupplier = new Supplier<ClientCnx>() {
+            @Override
+            public ClientCnx get() {
+                return new BlockLookupResponseClientCnx(conf, eventLoop, blockLookupResponseSignal);
+            }
+        };
+
         long reqId = 0xdeadbeef;
-        try (ConnectionPool pool = new ConnectionPool(conf, eventLoop)) {
+        try (ConnectionPool pool = new ConnectionPool(conf, eventLoop, blockLookupResponseClientCnxSupplier)) {
             // for PMR
             // 2 lookup will succeed
+            blockLookupResponseSignal.set(true);
             long reqId1 = reqId++;
             ByteBuf request1 = Commands.newPartitionMetadataRequest(topicName, reqId1);
             CompletableFuture<?> f1 = pool.getConnection(resolver.resolveHost())
@@ -991,11 +1005,12 @@ public class BrokerServiceTest extends BrokerTestBase {
             ByteBuf request2 = Commands.newPartitionMetadataRequest(topicName, reqId2);
             CompletableFuture<?> f2 = pool.getConnection(resolver.resolveHost())
                 .thenCompose(clientCnx -> clientCnx.newLookup(request2, reqId2));
-
+            blockLookupResponseSignal.set(false);
             f1.get();
             f2.get();
 
             // 3 lookup will fail
+            blockLookupResponseSignal.set(true);
             long reqId3 = reqId++;
             ByteBuf request3 = Commands.newPartitionMetadataRequest(topicName, reqId3);
             f1 = pool.getConnection(resolver.resolveHost())
@@ -1010,7 +1025,7 @@ public class BrokerServiceTest extends BrokerTestBase {
             ByteBuf request5 = Commands.newPartitionMetadataRequest(topicName, reqId5);
             CompletableFuture<?> f3 = pool.getConnection(resolver.resolveHost())
                 .thenCompose(clientCnx -> clientCnx.newLookup(request5, reqId5));
-
+            blockLookupResponseSignal.set(false);
             try {
                 f1.get();
                 f2.get();
@@ -1029,6 +1044,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
             // for Lookup
             // 2 lookup will succeed
+            blockLookupResponseSignal.set(true);
             long reqId6 = reqId++;
             ByteBuf request6 = Commands.newLookup(topicName, true, reqId6);
             f1 = pool.getConnection(resolver.resolveHost())
@@ -1038,11 +1054,12 @@ public class BrokerServiceTest extends BrokerTestBase {
             ByteBuf request7 = Commands.newLookup(topicName, true, reqId7);
             f2 = pool.getConnection(resolver.resolveHost())
                 .thenCompose(clientCnx -> clientCnx.newLookup(request7, reqId7));
-
+            blockLookupResponseSignal.set(false);
             f1.get();
             f2.get();
 
             // 3 lookup will fail
+            blockLookupResponseSignal.set(true);
             long reqId8 = reqId++;
             ByteBuf request8 = Commands.newLookup(topicName, true, reqId8);
             f1 = pool.getConnection(resolver.resolveHost())
@@ -1057,7 +1074,7 @@ public class BrokerServiceTest extends BrokerTestBase {
             ByteBuf request10 = Commands.newLookup(topicName, true, reqId10);
             f3 = pool.getConnection(resolver.resolveHost())
                 .thenCompose(clientCnx -> clientCnx.newLookup(request10, reqId10));
-
+            blockLookupResponseSignal.set(false);
             try {
                 f1.get();
                 f2.get();
@@ -1073,7 +1090,28 @@ public class BrokerServiceTest extends BrokerTestBase {
                     throw e;
                 }
             }
+        }
+    }
 
+    private static class BlockLookupResponseClientCnx extends ClientCnx{
+
+        private AtomicBoolean blocking;
+
+        public BlockLookupResponseClientCnx(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, AtomicBoolean blocking) {
+            super(conf, eventLoopGroup);
+            this.blocking = blocking;
+        }
+
+        protected void handleLookupResponse(CommandLookupTopicResponse lookupResult) {
+            while (blocking.get()){
+                try {
+                    Thread.sleep(1);
+                } catch (InterruptedException e) {
+                    Thread.interrupted();
+                    throw new RuntimeException(e);
+                }
+            }
+            super.handleLookupResponse(lookupResult);
         }
     }
 
