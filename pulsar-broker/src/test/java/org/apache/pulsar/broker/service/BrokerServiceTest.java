@@ -980,8 +980,9 @@ public class BrokerServiceTest extends BrokerTestBase {
         EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(20, false,
                 new DefaultThreadFactory("test-pool", Thread.currentThread().isDaemon()));
         /**
-         * If the broker responds quickly enough, there may never be concurrency in requests. So we create a block-stat
-         * to control the rate of response-handle.
+         *  if the broker responds and client handle response quickly enough, there may never be concurrency in
+         *  requests and this test will be flaky. So use {@link BlockLookupResponseClientCnx} to control the rate of
+         *  response-handle.
          */
         AtomicBoolean blockLookupResponseSignal = new AtomicBoolean(true);
         Supplier<ClientCnx> blockLookupResponseClientCnxSupplier = new Supplier<ClientCnx>() {
