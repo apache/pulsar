@@ -231,7 +231,6 @@ The Apache Software License, Version 2.0
     - commons-compress-1.21.jar
     - commons-lang3-3.11.jar
  * Netty
-    - netty-3.10.6.Final.jar
     - netty-buffer-4.1.77.Final.jar
     - netty-codec-4.1.77.Final.jar
     - netty-codec-dns-4.1.77.Final.jar
@@ -271,7 +270,7 @@ The Apache Software License, Version 2.0
     - jetcd-core-0.5.11.jar
 
  * Joda Time
-    - joda-time-2.10.5.jar
+    - joda-time-2.10.10.jar
     - failsafe-2.4.4.jar
   * Jetty
     - http2-client-9.4.48.v20220622.jar
@@ -290,37 +289,36 @@ The Apache Software License, Version 2.0
     - jetty-servlet-9.4.48.v20220622.jar
     - jetty-util-9.4.48.v20220622.jar
     - jetty-util-ajax-9.4.48.v20220622.jar
+  * Byte Buddy
+    - byte-buddy-1.11.13.jar
   * Apache BVal
-    - bval-jsr-2.0.0.jar
+    - bval-jsr-2.0.5.jar
   * Bytecode
     - bytecode-1.2.jar
-  * CGLIB Nodep
-    - cglib-nodep-3.3.0.jar
   * Airlift
     - aircompressor-0.20.jar
-    - airline-0.8.jar
-    - bootstrap-0.199.jar
-    - concurrent-0.199.jar
-    - configuration-0.199.jar
-    - discovery-0.199.jar
-    - discovery-server-1.29.jar
-    - event-0.199.jar
-    - http-client-0.199.jar
-    - http-server-0.199.jar
-    - jmx-0.199.jar
-    - jmx-http-0.199.jar
-    - jmx-http-rpc-0.199.jar
+    - bootstrap-208.jar
+    - concurrent-208.jar
+    - configuration-208.jar
+    - discovery-208.jar
+    - discovery-server-1.30.jar
+    - event-208.jar
+    - event-http-208.jar
+    - http-client-208.jar
+    - http-server-208.jar
+    - jmx-208.jar
+    - jmx-http-208.jar
+    - jmx-http-rpc-208.jar
     - joni-2.1.5.3.jar
-    - json-0.199.jar
-    - log-0.199.jar
-    - log-manager-0.199.jar
-    - node-0.199.jar
+    - json-208.jar
+    - log-208.jar
+    - log-manager-208.jar
+    - node-208.jar
     - parameternames-1.4.jar
-    - resolver-1.5.jar
-    - security-0.199.jar
-    - slice-0.38.jar
-    - stats-0.199.jar
-    - trace-token-0.199.jar
+    - security-208.jar
+    - slice-0.39.jar
+    - stats-208.jar
+    - trace-token-208.jar
     - units-1.6.jar
    * Apache HTTP Client
     - httpclient-4.5.13.jar
@@ -328,9 +326,9 @@ The Apache Software License, Version 2.0
   * Error Prone Annotations
     - error_prone_annotations-2.5.1.jar
   * Esri Geometry API For Java
-    - esri-geometry-api-2.2.2.jar
+    - esri-geometry-api-2.2.4.jar
   * Failsafe
-    - failsafe-2.0.1.jar
+    - failsafe-2.4.0.jar
   * Fastutil
     - fastutil-8.3.0.jar
   * J2ObjC Annotations
@@ -340,41 +338,27 @@ The Apache Software License, Version 2.0
   * Jmxutils
     - jmxutils-1.21.jar
   * LevelDB
-    - leveldb-0.10.jar
-    - leveldb-api-0.10.jar
+    - leveldb-0.12.jar
+    - leveldb-api-0.12.jar
+  * Log4j
+    - log4j-api-2.17.1.jar
+    - log4j-core-2.17.1.jar
+    - log4j-slf4j-impl-2.17.1.jar
   * Log4j implemented over SLF4J
     - log4j-over-slf4j-1.7.32.jar
   * Lucene Common Analyzers
     - lucene-analyzers-common-8.4.1.jar
     - lucene-core-8.4.1.jar
-  * Maven
-    - maven-aether-provider-3.0.5.jar
-    - maven-artifact-3.0.5.jar
-    - maven-core-3.0.5.jar
-    - maven-compat-3.0.5.jar
-    - maven-embedder-3.0.5.jar
-    - maven-model-3.0.5.jar
-    - maven-model-builder-3.0.5.jar
-    - maven-plugin-api-3.0.5.jar
-    - maven-repository-metadata-3.0.5.jar
-    - maven-settings-3.0.5.jar
-    - maven-settings-builder-3.0.5.jar
-	- wagon-provider-api-2.4.jar
+  * PicoCLI
+    - picocli-4.6.1.jar
+  * RxJava
+    - rxjava-3.0.1.jar
   * OkHttp
+    - logging-interceptor-3.14.9.jar
     - okhttp-3.14.9.jar
     - okhttp-urlconnection-3.14.9.jar
   * OpenCSV
     - opencsv-2.3.jar
-  * Plexus
-    - plexus-cipher-1.7.jar
-    - plexus-classworlds-2.4.jar
-    - plexus-component-annotations-1.5.5.jar
-    - plexus-container-default-1.5.5.jar
-    - plexus-interpolation-1.14.jar
-    - plexus-sec-dispatcher-1.3.jar
-    - plexus-utils-2.0.6.jar
-  * Apache XBean :: Reflect
-    - xbean-reflect-3.4.jar
   * Avro
     - avro-1.10.2.jar
     - avro-protobuf-1.10.2.jar
@@ -388,26 +372,27 @@ The Apache Software License, Version 2.0
   * JCommander
     - jcommander-1.82.jar
   * FindBugs JSR305
+    - jsr305-2.0.1.jar
     - jsr305-3.0.2.jar
   * Objenesis
     - objenesis-2.6.jar
   * Okio
     - okio-1.17.2.jar
-  * Presto
-    - presto-array-334.jar
-    - presto-cli-334.jar
-    - presto-client-334.jar
-    - presto-geospatial-toolkit-334.jar
-    - presto-main-334.jar
-    - presto-matching-334.jar
-    - presto-memory-context-334.jar
-    - presto-parser-334.jar
-    - presto-plugin-toolkit-334.jar
-    - presto-server-main-334.jar
-    - presto-spi-334.jar
-    - presto-record-decoder-334.jar
+  * Trino
+    - trino-array-363.jar
+    - trino-cli-363.jar
+    - trino-client-363.jar
+    - trino-geospatial-toolkit-363.jar
+    - trino-main-363.jar
+    - trino-matching-363.jar
+    - trino-memory-context-363.jar
+    - trino-parser-363.jar
+    - trino-plugin-toolkit-363.jar
+    - trino-server-main-363.jar
+    - trino-spi-363.jar
+    - trino-record-decoder-363.jar
   * RocksDB JNI
-    - rocksdbjni-6.10.2.jar
+    - rocksdbjni-6.29.4.1.jar
   * SnakeYAML
     - snakeyaml-1.30.jar
   * Bean Validation API
@@ -418,6 +403,7 @@ The Apache Software License, Version 2.0
     - metrics-core-4.1.12.1.jar
     - metrics-graphite-4.1.12.1.jar
     - metrics-jvm-4.1.12.1.jar
+    - metrics-jmx-4.1.12.1.jar
   * Prometheus
     - simpleclient-0.16.0.jar
     - simpleclient_common-0.16.0.jar
@@ -430,7 +416,6 @@ The Apache Software License, Version 2.0
   * JCTools
     - jctools-core-2.1.2.jar
   * Asynchronous Http Client
-    - async-http-client-1.6.5.jar
     - async-http-client-2.12.1.jar
     - async-http-client-netty-utils-2.12.1.jar
   * Apache Bookkeeper
@@ -449,13 +434,15 @@ The Apache Software License, Version 2.0
   * Apache Commons
     - commons-cli-1.5.0.jar
     - commons-codec-1.15.jar
-    - commons-collections4-4.1.jar
+    - commons-collections4-4.4.jar
     - commons-configuration-1.10.jar
     - commons-io-2.8.0.jar
     - commons-lang-2.6.jar
     - commons-logging-1.2.jar
   * GSON
     - gson-2.8.9.jar
+  * JSON Simple
+    - json-simple-1.1.1.jar
   * Snappy
     - snappy-java-1.1.8.4.jar
   * Jackson
@@ -480,6 +467,11 @@ The Apache Software License, Version 2.0
     - perfmark-api-0.19.0.jar
   * Annotations
     - auto-service-annotations-1.0.jar
+  * RabbitMQ Java Client
+    - amqp-client-5.5.3.jar
+  * Stream Lib
+    - stream-2.9.5.jar
+
 
 Protocol Buffers License
  * Protocol Buffers
@@ -493,16 +485,17 @@ BSD 3-clause "New" or "Revised" License
     - dsl-json-1.8.4.jar
 
 BSD License
- * ANTLR 4 Runtime -- antlr4-runtime-4.7.1.jar
+ * ANTLR 4 Runtime
+    - antlr4-runtime-4.9.2.jar
  * ASM, a very small and fast Java bytecode manipulation framework
     - asm-6.2.1.jar
     - asm-analysis-6.2.1.jar
     - asm-tree-6.2.1.jar
     - asm-util-6.2.1.jar
  * JLine
-   - jline-reader-3.12.1.jar
-   - jline-terminal-3.12.1.jar
-   - jline-terminal-jna-3.12.1.jar
+   - jline-reader-3.17.1.jar
+   - jline-terminal-3.17.1.jar
+   - jline-terminal-jna-3.17.1.jar
 
 MIT License
  * PCollections
@@ -517,6 +510,9 @@ MIT License
  * Annotations
    - animal-sniffer-annotations-1.19.jar
    - annotations-4.1.1.4.jar
+ * ScribeJava
+   - scribejava-apis-6.9.0.jar
+   - scribejava-core-6.9.0.jar
 
 CDDL - 1.0
  * OSGi Resource Locator
@@ -532,7 +528,7 @@ CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
    - hk2-utils-2.6.1.jar
    - aopalliance-repackaged-2.6.1.jar
  * Jersey
-    - jaxrs-0.199.jar
+    - jaxrs-208.jar
     - jersey-client-2.34.jar
     - jersey-container-servlet-2.34.jar
     - jersey-container-servlet-core-2.34.jar
@@ -544,18 +540,16 @@ CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
     - jersey-common-2.34.jar
  * JAXB
     - jaxb-api-2.3.1.jar
+    - jaxb-runtime-2.3.4.jar
+    - txw2-2.3.4.jar
+ Eclipse Distribution License 1.0 -- licenses/LICENSE-EDL-1.0.txt
+  * istack-commons-runtime-3.0.12.jar
+  * jts-io-common-1.16.1.jar
 
- Eclipse Public License 1.0 -- licenses/LICENSE-AspectJ.txt
-  * Aether
-     - aether-api-1.13.1.jar
-     - aether-connector-asynchttpclient-1.13.1.jar
-     - aether-connector-file-1.13.1.jar
-     - aether-impl-1.13.1.jar
-     - aether-spi-1.13.1.jar
-     - aether-util-1.13.1.jar
+ Eclipse Public License 1.0 -- licenses/LICENSE-EPL-1.0.txt
   * JTS Core
      - jts-core-1.16.1.jar
-  *JGraphT Core
+  * JGraphT Core
      - jgrapht-core-0.9.0.jar
   * Logback Core Module
     - logback-core-1.2.3.jar

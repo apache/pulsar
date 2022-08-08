@@ -158,7 +158,7 @@ flexible messaging model and an intuitive client API.</description>
     <rabbitmq-client.version>5.5.3</rabbitmq-client.version>
     <aws-sdk.version>1.12.262</aws-sdk.version>
     <avro.version>1.10.2</avro.version>
-    <joda.version>2.10.5</joda.version>
+    <joda.version>2.10.10</joda.version>
     <jclouds.version>2.5.0</jclouds.version>
     <guice.version>5.1.0</guice.version>
     <sqlite-jdbc.version>3.36.0.3</sqlite-jdbc.version>
@@ -171,7 +171,7 @@ flexible messaging model and an intuitive client API.</description>
     <json-smart.version>2.4.7</json-smart.version>
     <opensearch.version>1.2.4</opensearch.version>
     <elasticsearch-java.version>8.1.0</elasticsearch-java.version>
-    <presto.version>334</presto.version>
+    <trino.version>363</trino.version>
     <scala.binary.version>2.13</scala.binary.version>
     <scala-library.version>2.13.6</scala-library.version>
     <debezium.version>1.7.2.Final</debezium.version>
@@ -1636,7 +1636,7 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>pulsar-client-cpp/generated/**</exclude>
             <!-- This is a text property file that contains just a class name -->
             <exclude>**/META-INF/services/com.scurrilous.circe.HashProvider</exclude>
-            <exclude>**/META-INF/services/io.prestosql.spi.Plugin</exclude>
+            <exclude>**/META-INF/services/io.trino.spi.Plugin</exclude>
 
             <!-- Django generated code -->
             <exclude>**/django/stats/migrations/*.py</exclude>
