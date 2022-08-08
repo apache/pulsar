@@ -401,12 +401,12 @@ public class KubernetesRuntimeTest {
             extraDepsEnv = " -Dpulsar.functions.extra.dependencies.dir=" + depsDir;
             classpath = classpath + ":" + depsDir + "/*";
             totalArgs = 42;
-            portArg = 28;
-            metricsPortArg = 30;
+            portArg = 29;
+            metricsPortArg = 31;
         } else {
             extraDepsEnv = "";
-            portArg = 27;
-            metricsPortArg = 29;
+            portArg = 28;
+            metricsPortArg = 30;
             totalArgs = 41;
         }
         if (secretsAttached) {
@@ -437,8 +437,9 @@ public class KubernetesRuntimeTest {
                 + " -Dlog4j.configurationFile=kubernetes_instance_log4j2.xml "
                 + "-Dpulsar.function.log.dir=" + logDirectory + "/" + FunctionCommon.getFullyQualifiedName(config.getFunctionDetails())
                 + " -Dpulsar.function.log.file=" + config.getFunctionDetails().getName() + "-$SHARD_ID"
-                + " -Dio.netty.tryReflectionSetAccessible=true -Xmx" + String.valueOf(RESOURCES.getRam())
+                + " -Dio.netty.tryReflectionSetAccessible=true"
                 + " --add-opens java.base/sun.net=ALL-UNNAMED"
+                + " -Xmx" + RESOURCES.getRam()
                 + " org.apache.pulsar.functions.instance.JavaInstanceMain"
                 + " --jar " + jarLocation + " --instance_id "
                 + "$SHARD_ID" + " --function_id " + config.getFunctionId()
@@ -456,6 +457,7 @@ public class KubernetesRuntimeTest {
         }
         expectedArgs += " --cluster_name standalone --nar_extraction_directory " + narExtractionDirectory;
 
+        assertEquals(String.join(" ", args), expectedArgs);
 
         // check padding and xmx
         long heap = Long.parseLong(args.stream().filter(s -> s.startsWith("-Xmx")).collect(Collectors.toList()).get(0).replace("-Xmx", ""));

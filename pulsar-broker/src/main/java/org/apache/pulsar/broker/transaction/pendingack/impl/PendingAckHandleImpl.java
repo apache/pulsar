@@ -95,7 +95,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
      *     <p>
      *         If it does not exits the map, the position will be added to the map.
      */
-    private Map<PositionImpl, MutablePair<PositionImpl, Integer>> individualAckPositions;
+    private ConcurrentSkipListMap<PositionImpl, MutablePair<PositionImpl, Integer>> individualAckPositions;
 
     /**
      * The map is for transaction with position witch was cumulative acked by this transaction.
@@ -884,12 +884,14 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
             individualAckPositions.remove(position);
         }
 
-        individualAckPositions.forEach((persistentPosition, positionIntegerMutablePair) -> {
-            if (persistentPosition.compareTo((PositionImpl) persistentSubscription
+        while (individualAckPositions.firstEntry() != null) {
+            if (individualAckPositions.firstKey().compareTo((PositionImpl) persistentSubscription
                     .getCursor().getMarkDeletedPosition()) < 0) {
-                individualAckPositions.remove(persistentPosition);
+                individualAckPositions.remove(individualAckPositions.firstKey());
+            } else {
+                break;
             }
-        });
+        }
     }
 
     @Override

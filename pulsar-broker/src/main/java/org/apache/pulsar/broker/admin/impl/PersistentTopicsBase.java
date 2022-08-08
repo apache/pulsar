@@ -1342,17 +1342,29 @@ public class PersistentTopicsBase extends AdminResource {
                 return;
             }
             PartitionedTopicStatsImpl stats = new PartitionedTopicStatsImpl(partitionMetadata);
-            List<CompletableFuture<TopicStats>> topicStatsFutureList = Lists.newArrayList();
+            List<CompletableFuture<TopicStats>> topicStatsFutureList = new ArrayList<>(partitionMetadata.partitions);
             for (int i = 0; i < partitionMetadata.partitions; i++) {
-                try {
-                    topicStatsFutureList
-                            .add(pulsar().getAdminClient().topics().getStatsAsync(
-                                    (topicName.getPartition(i).toString()), getPreciseBacklog, subscriptionBacklogSize,
-                                    getEarliestTimeInBacklog));
-                } catch (PulsarServerException e) {
-                    asyncResponse.resume(new RestException(e));
-                    return;
-                }
+                TopicName partition = topicName.getPartition(i);
+                topicStatsFutureList.add(
+                    pulsar().getNamespaceService()
+                        .isServiceUnitOwnedAsync(partition)
+                        .thenCompose(owned -> {
+                            if (owned) {
+                                return getTopicReferenceAsync(partition)
+                                    .thenApply(ref ->
+                                        ref.getStats(getPreciseBacklog, subscriptionBacklogSize,
+                                            getEarliestTimeInBacklog));
+                            } else {
+                                try {
+                                    return pulsar().getAdminClient().topics().getStatsAsync(
+                                        partition.toString(), getPreciseBacklog, subscriptionBacklogSize,
+                                        getEarliestTimeInBacklog);
+                                } catch (PulsarServerException e) {
+                                    return FutureUtil.failedFuture(e);
+                                }
+                            }
+                        })
+                );
             }
 
             FutureUtil.waitForAll(topicStatsFutureList).handle((result, exception) -> {
@@ -1363,8 +1375,7 @@ public class PersistentTopicsBase extends AdminResource {
                         try {
                             stats.add(statFuture.get());
                             if (perPartition) {
-                                stats.getPartitions().put(topicName.getPartition(i).toString(),
-                                        (TopicStatsImpl) statFuture.get());
+                                stats.getPartitions().put(topicName.getPartition(i).toString(), statFuture.get());
                             }
                         } catch (Exception e) {
                             asyncResponse.resume(new RestException(e));
