@@ -22,8 +22,8 @@ import static org.testng.Assert.assertEquals;
 import com.google.common.io.Resources;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.Base64;
 import java.util.Properties;
 import javax.naming.AuthenticationException;
@@ -34,7 +34,7 @@ import org.testng.annotations.Test;
 
 public class AuthenticationProviderBasicTest {
     private final String basicAuthConf = Resources.getResource("authentication/basic/.htpasswd").getPath();
-    private final String basicAuthConfBase64 = Base64.getEncoder().encodeToString(Files.readAllBytes(Path.of(basicAuthConf)));
+    private final String basicAuthConfBase64 = Base64.getEncoder().encodeToString(Files.readAllBytes(FileSystems.getDefault().getPath(basicAuthConf)));
 
     public AuthenticationProviderBasicTest() throws IOException {
     }
@@ -90,7 +90,7 @@ public class AuthenticationProviderBasicTest {
 
     @Test
     public void testReadData() throws Exception {
-        byte[] data = Files.readAllBytes(Path.of(basicAuthConf));
+        byte[] data = Files.readAllBytes(FileSystems.getDefault().getPath(basicAuthConf));
         String base64Data = Base64.getEncoder().encodeToString(data);
 
         // base64 format
