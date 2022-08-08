@@ -126,7 +126,7 @@ void PartitionedConsumerImpl::receiveAsync(ReceiveCallback& callback) {
 void PartitionedConsumerImpl::unsubscribeAsync(ResultCallback callback) {
     LOG_INFO("[" << topicName_->toString() << "," << subscriptionName_ << "] Unsubscribing");
     // change state to Closing, so that no Ready state operation is permitted during unsubscribe
-    setState(Closing);
+    state_ = Closing;
     // do not accept un subscribe until we have subscribe to all of the partitions of a topic
     // it's a logical single topic so it should behave like a single topic, even if it's sharded
     if (state_ != Ready) {
@@ -153,7 +153,7 @@ void PartitionedConsumerImpl::handleUnsubscribeAsync(Result result, unsigned int
         return;
     }
     if (result != ResultOk) {
-        setState(Failed);
+        state_ = Failed;
         LOG_ERROR("Error Closing one of the parition consumers, consumerIndex - " << consumerIndex);
         callback(ResultUnknownError);
         return;
@@ -168,7 +168,7 @@ void PartitionedConsumerImpl::handleUnsubscribeAsync(Result result, unsigned int
     unsubscribedSoFar_++;
     if (unsubscribedSoFar_ == numPartitions) {
         LOG_DEBUG("Unsubscribed all of the partition consumer for subscription - " << subscriptionName_);
-        setState(Closed);
+        state_ = Closed;
         callback(ResultOk);
         return;
     }
@@ -334,7 +334,7 @@ void PartitionedConsumerImpl::closeAsync(ResultCallback callback) {
         notifyResult(callback);
         return;
     }
-    setState(Closed);
+    state_ = Closed;
     unsigned int consumerAlreadyClosed = 0;
     // close successfully subscribed consumers
     // Here we don't need `consumersMutex` to protect `consumers_`, because `consumers_` can only be increased
@@ -362,16 +362,14 @@ void PartitionedConsumerImpl::closeAsync(ResultCallback callback) {
 void PartitionedConsumerImpl::notifyResult(CloseCallback closeCallback) {
     if (closeCallback) {
         // this means client invoked the closeAsync with a valid callback
-        setState(Closed);
+        state_ = Closed;
         closeCallback(ResultOk);
     } else {
         // consumer create failed, closeAsync called to cleanup the successfully created producers
-        setState(Failed);
+        state_ = Failed;
         partitionedConsumerCreatedPromise_.setFailed(ResultUnknownError);
     }
 }
-
-void PartitionedConsumerImpl::setState(const PartitionedConsumerState state) { state_ = state; }
 
 void PartitionedConsumerImpl::shutdown() {}
 
