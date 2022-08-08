@@ -23,7 +23,6 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import com.google.common.collect.ImmutableSet;
 import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
@@ -460,7 +459,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         assertEquals(ledger.getLedgersInfoAsList().size(), 4);
 
         // mark ledgers to fail
-        promise.complete(ImmutableSet.of(ledger.getLedgersInfoAsList().get(failIndex).getLedgerId()));
+        promise.complete(Set.of(ledger.getLedgersInfoAsList().get(failIndex).getLedgerId()));
 
         try {
             ledger.offloadPrefix(ledger.getLastConfirmedEntry());
@@ -727,7 +726,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
                             .filter(e -> e.getOffloadContext().getComplete())
                             .map(e -> e.getLedgerId()).collect(Collectors.toSet()),
                             offloader.offloadedLedgers());
-        assertEquals(offloader.offloadedLedgers(), ImmutableSet.of(firstLedgerId, thirdLedgerId));
+        assertEquals(offloader.offloadedLedgers(), Set.of(firstLedgerId, thirdLedgerId));
     }
 
     private static byte[] buildEntry(int size, String pattern) {
@@ -762,7 +761,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         // offload should eventually be triggered
         assertEventuallyTrue(() -> offloader.offloadedLedgers().size() == 1);
         assertEquals(offloader.offloadedLedgers(),
-                            ImmutableSet.of(ledger.getLedgersInfoAsList().get(0).getLedgerId()));
+                Set.of(ledger.getLedgersInfoAsList().get(0).getLedgerId()));
     }
 
     @Test
@@ -811,7 +810,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         // eventually all over threshold will be offloaded
         assertEventuallyTrue(() -> offloader.offloadedLedgers().size() == 3);
         assertEquals(offloader.offloadedLedgers(),
-                            ImmutableSet.of(ledger.getLedgersInfoAsList().get(0).getLedgerId(),
+                Set.of(ledger.getLedgersInfoAsList().get(0).getLedgerId(),
                                             ledger.getLedgersInfoAsList().get(1).getLedgerId(),
                                             ledger.getLedgersInfoAsList().get(2).getLedgerId()));
 
@@ -820,7 +819,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
 
         assertEquals(offloader.offloadedLedgers().size(), 4);
         assertEquals(offloader.offloadedLedgers(),
-                            ImmutableSet.of(ledger.getLedgersInfoAsList().get(0).getLedgerId(),
+                Set.of(ledger.getLedgersInfoAsList().get(0).getLedgerId(),
                                             ledger.getLedgersInfoAsList().get(1).getLedgerId(),
                                             ledger.getLedgersInfoAsList().get(2).getLedgerId(),
                                             ledger.getLedgersInfoAsList().get(3).getLedgerId()));
@@ -873,7 +872,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         // auto trigger should eventually offload everything else over threshold
         assertEventuallyTrue(() -> offloader.offloadedLedgers().size() == 2);
         assertEquals(offloader.offloadedLedgers(),
-                            ImmutableSet.of(ledger.getLedgersInfoAsList().get(0).getLedgerId(),
+                Set.of(ledger.getLedgersInfoAsList().get(0).getLedgerId(),
                                             ledger.getLedgersInfoAsList().get(1).getLedgerId()));
     }
 
@@ -918,7 +917,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
 
         assertEventuallyTrue(() -> offloader.offloadedLedgers().size() == 3);
         assertEquals(offloader.offloadedLedgers(),
-                            ImmutableSet.of(ledger.getLedgersInfoAsList().get(0).getLedgerId(),
+                Set.of(ledger.getLedgersInfoAsList().get(0).getLedgerId(),
                                             ledger.getLedgersInfoAsList().get(1).getLedgerId(),
                                             ledger.getLedgersInfoAsList().get(2).getLedgerId()));
     }
@@ -941,7 +940,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
 
         assertEventuallyTrue(() -> offloader.offloadedLedgers().size() == 1);
         assertEquals(offloader.offloadedLedgers(),
-                            ImmutableSet.of(ledger.getLedgersInfoAsList().get(0).getLedgerId()));
+                Set.of(ledger.getLedgersInfoAsList().get(0).getLedgerId()));
 
         for (int i = 0; i < 10; i++) {
             ledger.addEntry(buildEntry(10, "entry-" + i));
@@ -949,7 +948,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
 
         assertEventuallyTrue(() -> offloader.offloadedLedgers().size() == 2);
         assertEquals(offloader.offloadedLedgers(),
-                            ImmutableSet.of(ledger.getLedgersInfoAsList().get(0).getLedgerId(),
+                Set.of(ledger.getLedgersInfoAsList().get(0).getLedgerId(),
                                             ledger.getLedgersInfoAsList().get(1).getLedgerId()));
     }
 

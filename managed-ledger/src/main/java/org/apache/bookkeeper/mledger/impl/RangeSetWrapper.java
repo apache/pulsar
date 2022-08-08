@@ -18,7 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Objects.requireNonNull;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Range;
 import java.util.ArrayList;
@@ -48,7 +48,7 @@ public class RangeSetWrapper<T extends Comparable<T>> implements LongPairRangeSe
             (LongPairConsumer<Long>) (key, value) -> key);
 
     public RangeSetWrapper(LongPairConsumer<T> rangeConverter, ManagedCursorImpl managedCursor) {
-        checkNotNull(managedCursor);
+        requireNonNull(managedCursor);
         this.config = managedCursor.getConfig();
         this.rangeConverter = rangeConverter;
         this.rangeSet = config.isUnackedRangesOpenCacheSetEnabled()

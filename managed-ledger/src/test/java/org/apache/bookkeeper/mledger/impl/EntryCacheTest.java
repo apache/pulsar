@@ -28,8 +28,8 @@ import static org.testng.Assert.assertEquals;
 
 import io.netty.buffer.Unpooled;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Vector;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 
@@ -297,7 +297,7 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
                 long firstEntry = (Long) args[0];
                 long lastEntry = (Long) args[1];
 
-                Vector<LedgerEntry> entries = new Vector<LedgerEntry>();
+                List<LedgerEntry> entries = new ArrayList<>();
                 for (int i = 0; i <= (lastEntry - firstEntry); i++) {
                     entries.add(LedgerEntryImpl.create(0, i, 10, Unpooled.wrappedBuffer(new byte[10])));
                 }
