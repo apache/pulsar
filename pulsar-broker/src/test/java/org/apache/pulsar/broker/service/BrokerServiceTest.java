@@ -969,7 +969,6 @@ public class BrokerServiceTest extends BrokerTestBase {
      */
     @Test
     public void testLookupThrottlingForClientByClient() throws Exception {
-        // Initialize rate limiter.
         final String topicName = "persistent://prop/ns-abc/newTopic";
         PulsarServiceNameResolver resolver = new PulsarServiceNameResolver();
         resolver.updateServiceUrl(pulsar.getBrokerServiceUrl());
