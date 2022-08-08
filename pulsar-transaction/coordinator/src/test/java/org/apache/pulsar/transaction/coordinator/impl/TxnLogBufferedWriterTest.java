@@ -233,7 +233,8 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         // Assert callback count.
         Awaitility.await().until(() -> contextArrayOfCallback.size() == writeCmdExecuteCount);
         // Assert callback param-context, verify that all callbacks are executed in strict order.
-        if (closeBufferedWriter){
+        // If exception occurs, the failure callback be executed earlier. So sorted contextArrayOfCallback.
+        if (closeBufferedWriter || bookieErrorType == BookieErrorType.SOMETIMES_ERROR){
             Collections.sort(contextArrayOfCallback);
         }
         Assert.assertEquals(contextArrayOfCallback.size(), writeCmdExecuteCount);
