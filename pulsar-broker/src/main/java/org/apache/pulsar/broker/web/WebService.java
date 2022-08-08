@@ -265,7 +265,7 @@ public class WebService implements AutoCloseable {
         }
         filterInitializer.addFilters(context, requiresAuthentication);
         // Enable compress on /metrics endpoint
-        if (path.equals("/metrics") && pulsar.getConfiguration().isEnableCompressMetricsData()) {
+        if (path.equals("/metrics") && pulsar.getConfiguration().isCompressOutputMetricsInPrometheus()) {
             GzipHandler gzipHandler = new GzipHandler();
             gzipHandler.setHandler(context);
             handlers.add(gzipHandler);
