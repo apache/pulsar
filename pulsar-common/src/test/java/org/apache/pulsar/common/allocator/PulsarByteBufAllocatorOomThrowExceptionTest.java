@@ -18,7 +18,12 @@
  */
 package org.apache.pulsar.common.allocator;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBufAllocator;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.allocator.LeakDetectionPolicy;
 import org.apache.bookkeeper.common.allocator.OutOfMemoryPolicy;
@@ -26,23 +31,21 @@ import org.apache.bookkeeper.common.allocator.PoolingPolicy;
 import org.apache.bookkeeper.common.allocator.impl.ByteBufAllocatorImpl;
 import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
-import org.powermock.reflect.Whitebox;
 import org.testng.annotations.Test;
-
-import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
 
 @Slf4j
 public class PulsarByteBufAllocatorOomThrowExceptionTest {
 
     @Test
-    public void testDefaultConfig() throws Exception {
+    public void testDefaultConfig() {
+        // Force init PulsarByteBufAllocator.DEFAULT by use the variable, in case the compiler optimization.
+        // This avoids mocks pollute static final field
+        final ByteBufAllocatorImpl byteBufAllocator = (ByteBufAllocatorImpl) PulsarByteBufAllocator.DEFAULT;
+        log.trace("{}", byteBufAllocator);
+
         AtomicBoolean called = new AtomicBoolean();
         System.setProperty("pulsar.allocator.out_of_memory_policy", "ThrowException");
-        try (MockedConstruction<ByteBufAllocatorImpl> mocked = Mockito.mockConstruction(ByteBufAllocatorImpl.class,
+        try (MockedConstruction<ByteBufAllocatorImpl> ignored = Mockito.mockConstruction(ByteBufAllocatorImpl.class,
                 (mock, context) -> {
                     called.set(true);
                     final List<?> arguments = context.arguments();
@@ -50,21 +53,12 @@ public class PulsarByteBufAllocatorOomThrowExceptionTest {
                     assertEquals(arguments.get(2), PoolingPolicy.PooledDirect);
                     assertEquals(arguments.get(4), OutOfMemoryPolicy.ThrowException);
                     assertEquals(arguments.get(6), LeakDetectionPolicy.Advanced);
-
                 })) {
-            final ByteBufAllocatorImpl byteBufAllocator = (ByteBufAllocatorImpl) PulsarByteBufAllocator.DEFAULT;
-            // use the variable, in case the compiler optimization
-            log.trace("{}", byteBufAllocator);
-            if (!called.get()) {
-                // maybe PulsarByteBufAllocator static initialization has already been called by a previous test
-                // let's rerun the same method
-                PulsarByteBufAllocator.createByteBufAllocator();
-            }
+            assertFalse(called.get());
+            PulsarByteBufAllocator.createByteBufAllocator();
             assertTrue(called.get());
         } finally {
             System.clearProperty("pulsar.allocator.out_of_memory_policy");
-            Whitebox.setInternalState(PulsarByteBufAllocator.class, "DEFAULT",
-                    PulsarByteBufAllocator.createByteBufAllocator());
         }
     }
 
