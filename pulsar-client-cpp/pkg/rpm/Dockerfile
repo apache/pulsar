@@ -23,17 +23,17 @@ FROM centos:7
 
 RUN yum update -y && \
     yum install -y gcc-c++ make cmake git rpm-build \
-                python-devel createrepo libstdc++-static.x86_64
+                python-devel python3 createrepo libstdc++-static.x86_64
 
 # Download and compile boost
-RUN curl -O -L https://boostorg.jfrog.io/artifactory/main/release/1.64.0/source/boost_1_64_0.tar.gz && \
+RUN wget https://boostorg.jfrog.io/artifactory/main/release/1.64.0/source/boost_1_64_0.tar.gz && \
     tar xvfz boost_1_64_0.tar.gz && \
     cd /boost_1_64_0 && \
     ./bootstrap.sh --with-libraries=program_options,filesystem,regex,thread,system,python && \
     ./b2 address-model=64 cxxflags=-fPIC link=static threading=multi variant=release install && \
     rm -rf /boost_1_64_0.tar.gz /boost_1_64_0
 
-RUN curl -O -L https://github.com/Kitware/CMake/archive/v3.8.2.tar.gz && \
+RUN wget https://github.com/Kitware/CMake/archive/v3.8.2.tar.gz && \
     tar xvfz v3.8.2.tar.gz && \
     cd CMake-3.8.2 && \
     ./configure && \
@@ -41,7 +41,7 @@ RUN curl -O -L https://github.com/Kitware/CMake/archive/v3.8.2.tar.gz && \
     rm -rf /v3.8.2.tar.gz /CMake-3.8.2
 
 # Download and copile protoubf
-RUN curl -O -L  https://github.com/google/protobuf/releases/download/v3.20.0/protobuf-cpp-3.20.0.tar.gz && \
+RUN wget https://github.com/google/protobuf/releases/download/v3.20.0/protobuf-cpp-3.20.0.tar.gz && \
     tar xvfz protobuf-cpp-3.20.0.tar.gz && \
     cd protobuf-3.20.0/ && \
     CXXFLAGS=-fPIC ./configure && \
@@ -49,7 +49,7 @@ RUN curl -O -L  https://github.com/google/protobuf/releases/download/v3.20.0/pro
     rm -rf /protobuf-cpp-3.20.0.tar.gz /protobuf-3.20.0
 
 # ZLib
-RUN curl -O -L https://github.com/madler/zlib/archive/v1.2.12.tar.gz && \
+RUN wget https://github.com/madler/zlib/archive/v1.2.12.tar.gz && \
     tar xvfz v1.2.12.tar.gz && \
     cd zlib-1.2.12 && \
     CFLAGS="-fPIC -O3" ./configure && \
@@ -57,7 +57,7 @@ RUN curl -O -L https://github.com/madler/zlib/archive/v1.2.12.tar.gz && \
     rm -rf /v1.2.12.tar.gz /zlib-1.2.12
 
 # Zstandard
-RUN curl -O -L https://github.com/facebook/zstd/releases/download/v1.3.7/zstd-1.3.7.tar.gz && \
+RUN wget https://github.com/facebook/zstd/releases/download/v1.3.7/zstd-1.3.7.tar.gz && \
     tar xvfz zstd-1.3.7.tar.gz && \
     cd zstd-1.3.7 && \
     CFLAGS="-fPIC -O3" make -j8 && \
@@ -65,14 +65,14 @@ RUN curl -O -L https://github.com/facebook/zstd/releases/download/v1.3.7/zstd-1.
     rm -rf /zstd-1.3.7 /zstd-1.3.7.tar.gz
 
 # Snappy
-RUN curl -O -L https://github.com/google/snappy/releases/download/1.1.3/snappy-1.1.3.tar.gz && \
+RUN wget https://github.com/google/snappy/releases/download/1.1.3/snappy-1.1.3.tar.gz && \
     tar xvfz snappy-1.1.3.tar.gz && \
     cd snappy-1.1.3 && \
     CXXFLAGS="-fPIC -O3" ./configure && \
     make && make install && \
     rm -rf /snappy-1.1.3 /snappy-1.1.3.tar.gz
 
-RUN curl -O -L https://github.com/openssl/openssl/archive/OpenSSL_1_1_0j.tar.gz && \
+RUN wget https://github.com/openssl/openssl/archive/OpenSSL_1_1_0j.tar.gz && \
     tar xvfz OpenSSL_1_1_0j.tar.gz && \
     cd openssl-OpenSSL_1_1_0j/ && \
     ./Configure -fPIC --prefix=/usr/local/ssl/ linux-x86_64 && \
@@ -80,7 +80,7 @@ RUN curl -O -L https://github.com/openssl/openssl/archive/OpenSSL_1_1_0j.tar.gz 
     rm -rf /OpenSSL_1_1_0j.tar.gz /openssl-OpenSSL_1_1_0j
 
 # LibCurl
-RUN curl -O -L  https://github.com/curl/curl/releases/download/curl-7_61_0/curl-7.61.0.tar.gz && \
+RUN wget https://github.com/curl/curl/releases/download/curl-7_61_0/curl-7.61.0.tar.gz && \
     tar xvfz curl-7.61.0.tar.gz && \
     cd curl-7.61.0 && \
     CFLAGS=-fPIC ./configure --with-ssl=/usr/local/ssl/ && \
