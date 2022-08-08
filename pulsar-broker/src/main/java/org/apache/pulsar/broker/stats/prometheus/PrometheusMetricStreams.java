@@ -18,9 +18,9 @@
  */
 package org.apache.pulsar.broker.stats.prometheus;
 
-import io.netty.buffer.ByteBufAllocator;
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
 
 /**
@@ -67,7 +67,7 @@ public class PrometheusMetricStreams {
 
     private SimpleTextOutputStream initGaugeType(String metricName) {
         return metricStreamMap.computeIfAbsent(metricName, s -> {
-            SimpleTextOutputStream stream = new SimpleTextOutputStream(ByteBufAllocator.DEFAULT.directBuffer());
+            SimpleTextOutputStream stream = new SimpleTextOutputStream(PulsarByteBufAllocator.DEFAULT.directBuffer());
             stream.write("# TYPE ").write(metricName).write(" gauge\n");
             return stream;
         });
