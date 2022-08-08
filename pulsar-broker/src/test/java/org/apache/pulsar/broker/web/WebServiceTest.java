@@ -88,6 +88,7 @@ public class WebServiceTest {
     private PulsarService pulsar;
     private String BROKER_LOOKUP_URL;
     private String BROKER_LOOKUP_URL_TLS;
+    private Boolean compressOutputMetricsInPrometheus;
     private static final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/certificate/server.crt";
     private static final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/certificate/server.key";
     private static final String TLS_CLIENT_CERT_FILE_PATH = "./src/test/resources/certificate/client.crt";
@@ -350,7 +351,8 @@ public class WebServiceTest {
     }
 
     @Test
-    public void testCompressMetricsData() throws Exception {
+    public void testCompressOutputMetricsInPrometheus() throws Exception {
+        compressOutputMetricsInPrometheus = true;
         setupEnv(true, "1.0", true, false, false, false, -1, false);
 
         String metricsUrl = pulsar.getWebServiceAddress() + "/metrics";
@@ -361,6 +363,21 @@ public class WebServiceTest {
         assertEquals(metricsRes.getStatusCode(), 200);
         assertEquals(metricsRes.getHeader("Vary"), "Accept-Encoding");
         assertEquals(metricsRes.getHeader("Transfer-Encoding"), "chunked");
+    }
+
+    @Test
+    public void testWithoutCompressOutputMetricsInPrometheus() throws Exception {
+        compressOutputMetricsInPrometheus = false;
+        setupEnv(true, "1.0", true, false, false, false, -1, false);
+
+        String metricsUrl = pulsar.getWebServiceAddress() + "/metrics";
+
+        @Cleanup
+        AsyncHttpClient metricsClient = new DefaultAsyncHttpClient();
+        Response metricsRes = metricsClient.prepareGet(metricsUrl).execute().get();
+        assertEquals(metricsRes.getStatusCode(), 200);
+        assertEquals(metricsRes.getHeader("Vary"), null);
+        assertEquals(metricsRes.getHeader("Transfer-Encoding"), null);
     }
 
     private String makeHttpRequest(boolean useTls, boolean useAuth) throws Exception {
@@ -430,7 +447,9 @@ public class WebServiceTest {
         config.setAdvertisedAddress("localhost"); // TLS certificate expects localhost
         config.setMetadataStoreUrl("zk:localhost:2181");
         config.setHttpMaxRequestSize(10 * 1024);
-        config.setEnableCompressMetricsData(true);
+        if (compressOutputMetricsInPrometheus) {
+            config.setCompressOutputMetricsInPrometheus(true);
+        }
         config.setDisableHttpDebugMethods(disableTrace);
         if (rateLimit > 0) {
             config.setHttpRequestsLimitEnabled(true);
