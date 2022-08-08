@@ -1,0 +1,74 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+name: Documentation Generation
+
+on:
+  push:
+    branches:
+      - config-gen-workflow
+    paths:
+      - pulsar-broker-common/src/main/java/org/apache/pulsar/broker/ServiceConfiguration.java
+      - pulsar-client/src/main/java/org/apache/pulsar/client/impl/conf/ClientConfigurationData.java
+      - pulsar-websocket/src/main/java/org/apache/pulsar/websocket/service/WebSocketProxyConfiguration.java
+      - pulsar-proxy/src/main/java/org/apache/pulsar/proxy/server/ProxyConfiguration.java
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docs-gen:
+    if: ${{ github.event_name == 'push' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      
+      - name: Tune Runner VM
+        uses: ./.github/actions/tune-runner-vm
+      
+      - name: Cache Maven dependencies
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.m2/repository/*/*/*
+            !~/.m2/repository/org/apache/pulsar
+          key: ${{ runner.os }}-m2-dependencies-all-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-m2-dependencies-all-
+      
+      - name: Set up JDK 17
+        uses: actions/setup-java@v2
+        with:
+          distribution: 'temurin'
+          java-version: 17
+      
+      - name: Build package
+        run: mvn -B clean install -DskipTests
+
+      - name: Generate config docs
+        run: site2/tools/generate-config-docs.sh
+      
+      - name: Commit changes
+        run: |
+          git config --global user.name 'pulsar-bot'
+          git config --global user.email 'pulsar-bot@users.noreply.github.com'
+          git commit -am "Auto update configuration docs"
+          git push
