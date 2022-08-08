@@ -806,7 +806,10 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         TwoLenSumDataSerializer dataSerializer =
                 new TwoLenSumDataSerializer(bytesSizePerRecordWhichInBatch, batchedWriteMaxSize);
         int writeCount = 100;
-        int singleLargeDataRequestCount = writeCount / 2;
+        // Both "directly write BK because the data too large" and "flush batch data because next data too large" will
+        // write BK, so expectWriteBKCount equals writeCount.
+        int expectWriteBKCount = writeCount;
+        int singleLargeDataRequestCount = expectWriteBKCount / 2;
         int expectedBatchFlushTriggeredByLargeData = singleLargeDataRequestCount;
         int expectedTotalBytesSize = expectedBatchFlushTriggeredByLargeData * bytesSizePerRecordWhichInBatch;
         var callbackWithCounter = createCallBackWithCounter();
@@ -823,6 +826,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
                 () -> callbackWithCounter.finishCounter.get() + callbackWithCounter.failureCounter.get() == writeCount
         );
         assertEquals(callbackWithCounter.failureCounter.get(), 0);
+        assertEquals(txnLogBufferedWriterContext.mockedManagedLedger.writeCounter.get(), expectWriteBKCount);
         verifyTheCounterMetrics(0,0,0,expectedBatchFlushTriggeredByLargeData);
         verifyTheHistogramMetrics(expectedBatchFlushTriggeredByLargeData,
                 writeCount - singleLargeDataRequestCount, expectedTotalBytesSize);

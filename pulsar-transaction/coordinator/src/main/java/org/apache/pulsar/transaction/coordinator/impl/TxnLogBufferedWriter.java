@@ -340,7 +340,7 @@ public class TxnLogBufferedWriter<T> implements Closeable {
         if (State.CLOSING == state || State.CLOSED == state){
             failureCallbackByContextAndRecycle(flushContext, BUFFERED_WRITER_CLOSED_EXCEPTION);
         } else {
-            managedLedger.asyncAddEntry(wholeByteBuf, bufferedAddEntryCallback, flushContext);
+            managedLedger.asyncAddEntry(wholeByteBuf, bookKeeperBatchedWriteCallback, flushContext);
         }
         dataArray.clear();
         flushContext = FlushContext.newInstance();
@@ -546,10 +546,9 @@ public class TxnLogBufferedWriter<T> implements Closeable {
         }
     }
 
-    /** Callback for batch write BK. **/
-    private final BufferedAddEntryCallback bufferedAddEntryCallback = new BufferedAddEntryCallback();
+    private final BookKeeperBatchedWriteCallback bookKeeperBatchedWriteCallback = new BookKeeperBatchedWriteCallback();
 
-    private class BufferedAddEntryCallback implements AsyncCallbacks.AddEntryCallback{
+    private class BookKeeperBatchedWriteCallback implements AsyncCallbacks.AddEntryCallback{
 
         @Override
         public void addComplete(Position position, ByteBuf entryData, Object ctx) {
