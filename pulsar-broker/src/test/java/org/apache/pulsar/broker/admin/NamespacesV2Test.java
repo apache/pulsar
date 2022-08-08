@@ -28,6 +28,7 @@ import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import javax.ws.rs.core.Response;
@@ -74,7 +75,7 @@ public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
 
     @BeforeClass
     public void initNamespace() throws Exception {
-        testLocalNamespaces = Lists.newArrayList();
+        testLocalNamespaces = new ArrayList();
         testLocalNamespaces.add(NamespaceName.get(this.testTenant, this.testLocalCluster, this.testNamespace));
 
         uriField = PulsarWebResource.class.getDeclaredField("uri");

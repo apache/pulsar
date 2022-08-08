@@ -18,12 +18,19 @@
  */
 package org.apache.pulsar.broker.admin;
 
-import com.google.common.collect.Lists;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.spy;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
+import org.apache.pulsar.broker.admin.v2.ResourceGroups;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.broker.admin.v2.ResourceGroups;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ResourceGroup;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
@@ -31,17 +38,9 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.spy;
-import static org.testng.Assert.*;
-
 public class ResourceGroupsTest extends MockedPulsarServiceBaseTest  {
     private ResourceGroups resourcegroups;
-    private List<String> expectedRgNames = Lists.newArrayList();
+    private List<String> expectedRgNames = new ArrayList();
     private final String testCluster = "test";
     private final String testTenant = "test-tenant";
     private final String testNameSpace = "test-tenant/test-namespace";

@@ -222,7 +222,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         response = mock(AsyncResponse.class);
         persistentTopics.getSubscriptions(response, testTenant, testNamespace, testLocalTopicName + "-partition-0",
                 true);
-        verify(response, timeout(5000).times(1)).resume(Lists.newArrayList());
+        verify(response, timeout(5000).times(1)).resume(new ArrayList());
 
         // 8) Create a sub of partitioned-topic
         response = mock(AsyncResponse.class);
@@ -238,7 +238,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         //
         response = mock(AsyncResponse.class);
         persistentTopics.getSubscriptions(response, testTenant, testNamespace, testLocalTopicName + "-partition-0", true);
-        verify(response, timeout(5000).times(1)).resume(Lists.newArrayList());
+        verify(response, timeout(5000).times(1)).resume(new ArrayList());
         //
         response = mock(AsyncResponse.class);
         persistentTopics.getSubscriptions(response, testTenant, testNamespace, testLocalTopicName, true);
@@ -480,7 +480,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         metaResponseCaptor = ArgumentCaptor.forClass(PartitionedTopicMetadata.class);
         final String topic2 = "testCreateNonPartitionedTopic-b";
         TopicName topicName2 = TopicName.get(TopicDomain.persistent.value(), testTenant, testNamespace, topic2);
-        Map<String, String> topicMetadata = Maps.newHashMap();
+        Map<String, String> topicMetadata = new HashMap();
         topicMetadata.put("key1", "value1");
         persistentTopics.createNonPartitionedTopic(response, testTenant, testNamespace, topic2, true, topicMetadata);
         Awaitility.await().untilAsserted(() -> {
@@ -514,7 +514,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         AsyncResponse response2 = mock(AsyncResponse.class);
         ArgumentCaptor<PartitionedTopicMetadata> responseCaptor2 = ArgumentCaptor.forClass(PartitionedTopicMetadata.class);
         final String topicName2 = "standard-partitioned-topic-b";
-        Map<String, String> topicMetadata = Maps.newHashMap();
+        Map<String, String> topicMetadata = new HashMap();
         topicMetadata.put("key1", "value1");
         PartitionedTopicMetadata metadata = new PartitionedTopicMetadata(2, topicMetadata);
         persistentTopics.createPartitionedTopic(response2, testTenant, testNamespace, topicName2, metadata, true);

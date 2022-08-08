@@ -30,7 +30,6 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
 import java.net.URL;
@@ -241,12 +240,12 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         assertEquals(topicStats.getSubscriptions().get(subName2).getConsumers().size(), 1);
         assertEquals(topicStats.getSubscriptions().get(subName2).getMsgBacklog(), totalMessages);
         assertEquals(topicStats.getPublishers().size(), 1);
-        assertEquals(topicStats.getPartitions(), Maps.newHashMap());
+        assertEquals(topicStats.getPartitions(), new HashMap<>());
 
         // (5) verify: each partition should have backlog
         topicStats = admin.topics().getPartitionedStats(partitionedTopicName, true);
         assertEquals(topicStats.getMetadata().partitions, newPartitions);
-        Set<String> partitionSet = Sets.newHashSet();
+        Set<String> partitionSet = new HashSet<>();
         for (int i = 0; i < newPartitions; i++) {
             partitionSet.add(partitionedTopicName + "-partition-" + i);
         }
@@ -834,14 +833,14 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         admin.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("test"));
         int totalTopics = 100;
 
-        Set<String> topicNames = Sets.newHashSet();
+        Set<String> topicNames = new HashSet<>();
         for (int i = 0; i < totalTopics; i++) {
             topicNames.add(topicName + i);
             Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName + i).create();
             producer.close();
         }
 
-        Set<String> topics = Sets.newHashSet();
+        Set<String> topics = new HashSet<>();
         String bundle = pulsar.getNamespaceService().getNamespaceBundleFactory()
                 .getBundle(TopicName.get(topicName + "0")).getBundleRange();
         for (int i = 0; i < totalTopics; i++) {
@@ -889,7 +888,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         admin.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("test"));
         int totalTopics = 100;
 
-        Set<String> topicNames = Sets.newHashSet();
+        Set<String> topicNames = new HashSet<>();
         for (int i = 0; i < totalTopics; i++) {
             topicNames.add(topicName + i);
             Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName + i).create();

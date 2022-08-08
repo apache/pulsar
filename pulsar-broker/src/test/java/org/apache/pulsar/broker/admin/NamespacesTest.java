@@ -39,6 +39,7 @@ import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URL;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
@@ -139,8 +140,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
     @BeforeClass
     public void initNamespace() throws Exception {
-        testLocalNamespaces = Lists.newArrayList();
-        testGlobalNamespaces = Lists.newArrayList();
+        testLocalNamespaces = new ArrayList();
+        testGlobalNamespaces = new ArrayList();
 
         testLocalNamespaces.add(NamespaceName.get(this.testTenant, this.testLocalCluster, "test-namespace-1"));
         testLocalNamespaces.add(NamespaceName.get(this.testTenant, this.testLocalCluster, "test-namespace-2"));
@@ -215,7 +216,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             // Ok, cluster doesn't exist
         }
 
-        List<NamespaceName> nsnames = Lists.newArrayList();
+        List<NamespaceName> nsnames = new ArrayList();
         nsnames.add(NamespaceName.get(this.testTenant, "use", "create-namespace-1"));
         nsnames.add(NamespaceName.get(this.testTenant, "use", "create-namespace-2"));
         nsnames.add(NamespaceName.get(this.testTenant, "usc", "create-other-namespace-1"));
@@ -496,7 +497,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         Set<String> repCluster = (Set<String>) asyncRequests(rsp -> namespaces.getNamespaceReplicationClusters(rsp,
                 this.testGlobalNamespaces.get(0).getTenant(), this.testGlobalNamespaces.get(0).getCluster(),
                 this.testGlobalNamespaces.get(0).getLocalName()));
-        assertEquals(repCluster, Sets.newHashSet());
+        assertEquals(repCluster, new HashSet());
 
         asyncRequests(rsp -> namespaces.setNamespaceReplicationClusters(rsp,
                 this.testGlobalNamespaces.get(0).getTenant(), this.testGlobalNamespaces.get(0).getCluster(),
@@ -1230,7 +1231,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         SubscribeRate subscribeRate = new SubscribeRate(1, 5);
         String namespace = "my-tenants/my-namespace";
         admin.tenants().createTenant("my-tenants",
-                new TenantInfoImpl(Sets.newHashSet(), Sets.newHashSet(testLocalCluster)));
+                new TenantInfoImpl(new HashSet(), Sets.newHashSet(testLocalCluster)));
         admin.namespaces().createNamespace(namespace, Sets.newHashSet(testLocalCluster));
         admin.namespaces().setSubscribeRate(namespace, subscribeRate);
         assertEquals(subscribeRate, admin.namespaces().getSubscribeRate(namespace));
@@ -1386,7 +1387,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 OffloadPoliciesImpl.DEFAULT_OFFLOADED_READ_PRIORITY));
         ledgerConf.setLedgerOffloader(offloader);
         assertEquals(ledgerConf.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes(),
-                new Long(-1));
+                Long.valueOf(-1));
 
         // set an override for the namespace
         admin.namespaces().setOffloadThreshold(namespace, 100);
@@ -1403,7 +1404,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 OffloadPoliciesImpl.DEFAULT_OFFLOADED_READ_PRIORITY));
         ledgerConf.setLedgerOffloader(offloader);
         assertEquals(ledgerConf.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes(),
-                new Long(100));
+                Long.valueOf(100));
 
         // set another negative value to disable
         admin.namespaces().setOffloadThreshold(namespace, -2);
@@ -1419,7 +1420,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 OffloadPoliciesImpl.DEFAULT_OFFLOADED_READ_PRIORITY));
         ledgerConf.setLedgerOffloader(offloader);
         assertEquals(ledgerConf.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes(),
-                new Long(-2));
+                Long.valueOf(-2));
 
         // set back to -1 and fall back to default
         admin.namespaces().setOffloadThreshold(namespace, -1);
@@ -1435,7 +1436,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 OffloadPoliciesImpl.DEFAULT_OFFLOADED_READ_PRIORITY));
         ledgerConf.setLedgerOffloader(offloader);
         assertEquals(ledgerConf.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes(),
-                new Long(-1));
+                Long.valueOf(-1));
 
         // cleanup
         admin.topics().delete(topicName.toString(), true);
@@ -1777,7 +1778,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
         // clear all namespace subType enabled, add failover to broker.conf and sub with shared will fail
         admin.namespaces().removeSubscriptionTypesEnabled(namespace);
-        assertEquals(admin.namespaces().getSubscriptionTypesEnabled(namespace), Sets.newHashSet());
+        assertEquals(admin.namespaces().getSubscriptionTypesEnabled(namespace), new HashSet());
         consumerBuilder.subscriptionType(SubscriptionType.Shared);
         admin.brokers().updateDynamicConfiguration("subscriptionTypesEnabled", "Failover");
         Awaitility.await().untilAsserted(()->{

@@ -26,9 +26,9 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import java.net.URL;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -193,12 +193,12 @@ public class V1_AdminApi2Test extends MockedPulsarServiceBaseTest {
         assertEquals(topicStats.getSubscriptions().get(subName2).getConsumers().size(), 1);
         assertEquals(topicStats.getSubscriptions().get(subName2).getMsgBacklog(), totalMessages);
         assertEquals(topicStats.getPublishers().size(), 1);
-        assertEquals(topicStats.getPartitions(), Maps.newHashMap());
+        assertEquals(topicStats.getPartitions(), new HashMap());
 
         // (5) verify: each partition should have backlog
         topicStats = admin.topics().getPartitionedStats(partitionedTopicName, true);
         assertEquals(topicStats.getMetadata().partitions, newPartitions);
-        Set<String> partitionSet = Sets.newHashSet();
+        Set<String> partitionSet = new HashSet();
         for (int i = 0; i < newPartitions; i++) {
             partitionSet.add(partitionedTopicName + "-partition-" + i);
         }
@@ -718,7 +718,7 @@ public class V1_AdminApi2Test extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace(namespace, 20);
         int totalTopics = 100;
 
-        Set<String> topicNames = Sets.newHashSet();
+        Set<String> topicNames = new HashSet();
         for (int i = 0; i < totalTopics; i++) {
             topicNames.add(topicName + i);
             Producer<byte[]> producer = pulsarClient.newProducer()
