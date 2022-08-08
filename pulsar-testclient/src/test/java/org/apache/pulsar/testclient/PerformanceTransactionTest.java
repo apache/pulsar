@@ -197,7 +197,7 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testConsumeTxnMessage() throws InterruptedException, PulsarClientException {
+    public void testConsumeTxnMessage() throws Exception {
         String argString = "%s -r 10 -u %s -txn -ss %s -st %s -sp %s -ntxn %d";
         String subName = "sub";
         String topic = testTopic + UUID.randomUUID();
@@ -225,19 +225,24 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
         });
         thread.start();
         thread.join();
+
         Awaitility.await().untilAsserted(() -> {
-            Consumer<byte[]> consumer = pulsarClient.newConsumer().subscriptionName(subName).topic(topic)
-                    .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                    .subscriptionType(SubscriptionType.Exclusive)
-                    .enableBatchIndexAcknowledgment(false)
-                    .subscribe();
-            for (int i = 0; i < 5; i++) {
-                Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
-                Assert.assertNotNull(message);
-            }
-            Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
-            Assert.assertNull(message);
+            admin.transactions().getCoordinatorStats().forEach((integer, transactionCoordinatorStats) -> {
+                Assert.assertEquals(transactionCoordinatorStats.ongoingTxnSize, 0);
+            });
         });
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().subscriptionName(subName).topic(topic)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscriptionType(SubscriptionType.Exclusive)
+                .enableBatchIndexAcknowledgment(false)
+                .subscribe();
+        for (int i = 0; i < 5; i++) {
+            Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
+            Assert.assertNotNull(message);
+        }
+        Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
+        Assert.assertNull(message);
     }
 
 }
