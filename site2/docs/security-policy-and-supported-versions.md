@@ -18,7 +18,7 @@ For instructions on how to subscribe, please see https://pulsar.apache.org/conta
 
 The Pulsar community follows the ASF [vulnerability handling process](https://apache.org/security/#vulnerability-handling).
 
-To report a new vulnerability you have discovered please follow the [ASF vulnerability reporting process](https://apache.org/security/#reporting-a-vulnerability). Besides, you can send one plain-text email for each vulnerability to [private@pulsar.apache.org](mailto:private@pulsar.apache.org).
+To report a new vulnerability you have discovered please follow the [ASF vulnerability reporting process](https://apache.org/security/#reporting-a-vulnerability).
 
 ## Versioning Policy
 
