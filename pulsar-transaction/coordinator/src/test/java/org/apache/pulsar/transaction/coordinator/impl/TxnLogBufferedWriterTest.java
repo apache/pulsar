@@ -152,7 +152,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         }
         // Calculate the exactly batch-enabled for assert.
         boolean exactlyBatched = batchEnabled;
-        if (batchedWriteMaxSize <= eachDataBytesLen){
+        if (batchedWriteMaxSize <= eachDataBytesLen || batchedWriteMaxRecords <= 1){
             exactlyBatched = false;
         }
         /**
@@ -769,8 +769,9 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
     @Test
     public void testMetricsStatsThatTriggeredByMaxDelayTime() throws Exception {
         SumStrDataSerializer dataSerializer = new SumStrDataSerializer();
-        int writeCount = 100;
-        int batchedWriteMaxDelayInMillis = 1;
+        int writeCount = 1;
+        int batchedWriteMaxDelayInMillis = 1000;
+        int expectFlushCount = 1;
         int expectedTotalBytesSize = writeCount * dataSerializer.getSizePerData();
         var callbackWithCounter = createCallBackWithCounter();
         // Create TxnLogBufferedWriter.
@@ -778,17 +779,15 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
                 createTxnBufferedWriterContextWithMetrics(dataSerializer, Integer.MAX_VALUE,
                         Integer.MAX_VALUE, batchedWriteMaxDelayInMillis);
         var txnLogBufferedWriter = txnLogBufferedWriterContext.txnLogBufferedWriter;
-        // Add some data.
-        for (int i = 0; i < writeCount; i++){
-            txnLogBufferedWriter.asyncAddData(1, callbackWithCounter.callback, "");
-            Thread.sleep(1);
-        }
+        // Add one data.
+        txnLogBufferedWriter.asyncAddData(1, callbackWithCounter.callback, "");
         // Wait for all write finish.
-        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(
+        Awaitility.await().atMost(2, TimeUnit.SECONDS).until(
                 () -> callbackWithCounter.finishCounter.get() + callbackWithCounter.failureCounter.get() == writeCount
         );
-        int actualBatchFlushCount = txnLogBufferedWriterContext.mockedManagedLedger.writeCounter.get();
         assertEquals(callbackWithCounter.failureCounter.get(), 0);
+        int actualBatchFlushCount = txnLogBufferedWriterContext.mockedManagedLedger.writeCounter.get();
+        assertEquals(actualBatchFlushCount, expectFlushCount);
         verifyTheCounterMetrics(0,0, actualBatchFlushCount,0);
         verifyTheHistogramMetrics(actualBatchFlushCount, writeCount, expectedTotalBytesSize);
         // cleanup.

@@ -143,7 +143,7 @@ public class TxnLogBufferedWriter<T> implements Closeable {
                                 DataSerializer<T> dataSerializer,
                                 int batchedWriteMaxRecords, int batchedWriteMaxSize, int batchedWriteMaxDelayInMillis,
                                 boolean batchEnabled, TxnLogBufferedWriterMetricsStats metrics){
-        this.batchEnabled = batchEnabled;
+        this.batchEnabled = batchEnabled && batchedWriteMaxRecords > 1;
         this.managedLedger = managedLedger;
         this.singleThreadExecutorForWrite = orderedExecutor.chooseThread(
                 managedLedger.getName() == null ? UUID.randomUUID().toString() : managedLedger.getName());
@@ -210,9 +210,15 @@ public class TxnLogBufferedWriter<T> implements Closeable {
             return;
         }
         singleThreadExecutorForWrite.execute(() -> {
+            int recordsCountBeforeAdd = dataArray.size();
             try {
                 internalAsyncAddData(data, callback, ctx);
             } catch (Exception e){
+                // Avoid missing callback, do failed callback when error occur before add data to the array.
+                int recordsCountAfter = dataArray.size();
+                if (recordsCountAfter == recordsCountBeforeAdd){
+                    callback.addFailed(new ManagedLedgerException.ManagedLedgerFencedException(e), ctx);
+                }
                 log.error("Internal async add data fail", e);
             }
         });
