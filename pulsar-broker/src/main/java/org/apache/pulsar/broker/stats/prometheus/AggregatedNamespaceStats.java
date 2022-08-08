@@ -63,6 +63,7 @@ public class AggregatedNamespaceStats {
     long compactionCompactedEntriesCount;
     long compactionCompactedEntriesSize;
     StatsBuckets compactionLatencyBuckets = new StatsBuckets(CompactionRecord.WRITE_LATENCY_BUCKETS_USEC);
+    int delayedTrackerMemoryUsage;
 
     void updateStats(TopicStats stats) {
         topicsCount++;
@@ -80,6 +81,7 @@ public class AggregatedNamespaceStats {
         msgInCounter += stats.msgInCounter;
         bytesOutCounter += stats.bytesOutCounter;
         msgOutCounter += stats.msgOutCounter;
+        delayedTrackerMemoryUsage += stats.delayedTrackerMemoryUsage;
 
         this.ongoingTxnCount += stats.ongoingTxnCount;
         this.abortedTxnCount += stats.abortedTxnCount;
@@ -164,5 +166,6 @@ public class AggregatedNamespaceStats {
 
         replicationStats.clear();
         subscriptionStats.clear();
+        delayedTrackerMemoryUsage = 0;
     }
 }

@@ -1475,24 +1475,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean authorizationAllowWildcardsMatching = false;
 
     @FieldContext(
-        category = CATEGORY_AUTHENTICATION,
-        dynamic = true,
-        doc = "Authentication settings of the broker itself. \n\nUsed when the broker connects"
-            + " to other brokers, either in same or other clusters. Default uses plugin which disables authentication"
-    )
-    private String brokerClientAuthenticationPlugin = "org.apache.pulsar.client.impl.auth.AuthenticationDisabled";
-    @FieldContext(
-        category = CATEGORY_AUTHENTICATION,
-        dynamic = true,
-        doc = "Authentication parameters of the authentication plugin the broker is using to connect to other brokers"
-    )
-    private String brokerClientAuthenticationParameters = "";
-    @FieldContext(
-        category = CATEGORY_AUTHENTICATION,
-        doc = "Path for the trusted TLS certificate file for outgoing connection to a server (broker)")
-    private String brokerClientTrustCertsFilePath = "";
-
-    @FieldContext(
         category = CATEGORY_AUTHORIZATION,
         doc = "When this parameter is not empty, unauthenticated users perform as anonymousUserRole"
     )
@@ -2395,21 +2377,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private boolean replicationTlsEnabled = false;
     @FieldContext(
-        category = CATEGORY_REPLICATION,
-        dynamic = true,
-        doc = "Enable TLS when talking with other brokers in the same cluster (admin operation)"
-            + " or different clusters (replication)"
-    )
-    private boolean brokerClientTlsEnabled = false;
-
-    @FieldContext(
         category = CATEGORY_POLICIES,
-        doc = "Default message retention time"
+        doc = "Default message retention time. The default value is 0, which means the data is removed after all the "
+                + "subscriptions are consumed. Value less than 0 means messages never expire."
     )
     private int defaultRetentionTimeInMinutes = 0;
     @FieldContext(
         category = CATEGORY_POLICIES,
-        doc = "Default retention size"
+        doc = "Default retention size. The default value is 0, which means the data is removed after all the "
+                + "subscriptions are consumed. Value less than 0 means no infinite size quota."
     )
     private int defaultRetentionSizeInMB = 0;
     @FieldContext(
@@ -2885,7 +2861,29 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @ToString.Exclude
     private String tlsTrustStorePassword = null;
 
-    /**** --- KeyStore TLS config variables used for internal client/admin to auth with other broker. --- ****/
+    /**** --- Config variables used for internal client/admin to auth with other broker. --- ****/
+    @FieldContext(
+            category = CATEGORY_AUTHENTICATION,
+            dynamic = true,
+            doc = "Authentication settings of the broker itself. \n\nUsed when the broker connects"
+                    + " to other brokers, either in same or other clusters. "
+                    + "Default uses plugin which disables authentication"
+    )
+    private String brokerClientAuthenticationPlugin = "org.apache.pulsar.client.impl.auth.AuthenticationDisabled";
+    @FieldContext(
+            category = CATEGORY_AUTHENTICATION,
+            dynamic = true,
+            doc = "Authentication parameters of the authentication plugin the broker is using to connect "
+                    + "to other brokers"
+    )
+    private String brokerClientAuthenticationParameters = "";
+    @FieldContext(
+            category = CATEGORY_REPLICATION,
+            dynamic = true,
+            doc = "Enable TLS when talking with other brokers in the same cluster (admin operation) "
+                    + "or different clusters (replication)"
+    )
+    private boolean brokerClientTlsEnabled = false;
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
             doc = "Whether internal client use KeyStore type to authenticate with other Pulsar brokers"
@@ -2896,17 +2894,32 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "The TLS Provider used by internal client to authenticate with other Pulsar brokers"
     )
     private String brokerClientSslProvider = null;
-    // needed when client auth is required
+    @FieldContext(
+            category = CATEGORY_AUTHENTICATION,
+            doc = "TLS trusted certificate file for internal client, "
+                    + "used by the internal client to authenticate with Pulsar brokers")
+    private String brokerClientTrustCertsFilePath = "";
+    @FieldContext(
+            category = CATEGORY_AUTHENTICATION,
+            doc = "TLS private key file for internal client, "
+                    + "used by the internal client to authenticate with Pulsar brokers")
+    private String brokerClientKeyFilePath = "";
+    @FieldContext(
+            category = CATEGORY_AUTHENTICATION,
+            doc = "TLS certificate file for internal client, "
+                    + "used by the internal client to authenticate with Pulsar brokers"
+    )
+    private String brokerClientCertificateFilePath = "";
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
             doc = "TLS TrustStore type configuration for internal client: JKS, PKCS12 "
-                  + " used by the internal client to authenticate with Pulsar brokers"
+                    + " used by the internal client to authenticate with Pulsar brokers"
     )
     private String brokerClientTlsTrustStoreType = "JKS";
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
             doc = "TLS TrustStore path for internal client, "
-                  + " used by the internal client to authenticate with Pulsar brokers"
+                    + " used by the internal client to authenticate with Pulsar brokers"
     )
     private String brokerClientTlsTrustStore = null;
     @FieldContext(
@@ -2916,6 +2929,25 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     @ToString.Exclude
     private String brokerClientTlsTrustStorePassword = null;
+    @FieldContext(
+            category = CATEGORY_KEYSTORE_TLS,
+            doc = "TLS KeyStore type configuration for internal client: JKS, PKCS12,"
+                  + " used by the internal client to authenticate with Pulsar brokers"
+    )
+    private String brokerClientTlsKeyStoreType = "JKS";
+    @FieldContext(
+            category = CATEGORY_KEYSTORE_TLS,
+            doc = "TLS KeyStore path for internal client, "
+                  + " used by the internal client to authenticate with Pulsar brokers"
+    )
+    private String brokerClientTlsKeyStore = null;
+    @FieldContext(
+            category = CATEGORY_KEYSTORE_TLS,
+            doc = "TLS KeyStore password for internal client, "
+                  + " used by the internal client to authenticate with Pulsar brokers"
+    )
+    @ToString.Exclude
+    private String brokerClientTlsKeyStorePassword = null;
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
             doc = "Specify the tls cipher the internal client will use to negotiate during TLS Handshake"

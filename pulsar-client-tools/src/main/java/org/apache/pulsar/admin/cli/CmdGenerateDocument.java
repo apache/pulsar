@@ -24,6 +24,7 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterDescription;
 import com.beust.jcommander.Parameters;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -93,6 +94,11 @@ public class CmdGenerateDocument extends CmdBase {
             }
         }
 
+        private boolean needsLangSupport(String module, String subK) {
+            String[] langSupport = {"localrun", "create", "update"};
+            return module.equals("functions") && Arrays.asList(langSupport).contains(subK);
+        }
+
         private void generateDocument(StringBuilder sb, String module, JCommander obj) {
             sb.append("------------\n\n");
             sb.append("# ").append(module).append("\n\n");
@@ -112,22 +118,37 @@ public class CmdGenerateDocument extends CmdBase {
                 sb.append("\n\n## <em>").append(subK).append("</em>\n\n");
                 sb.append(cmdObj.getUsageFormatter().getCommandDescription(subK)).append("\n\n");
                 sb.append("### Usage\n\n");
-                sb.append("------------\n\n\n");
+                sb.append("------------\n\n");
+                sb.append("**Command:**\n\n");
                 sb.append("```bdocs-tab:example_shell\n$ pulsar-admin ").append(module).append(" ")
                         .append(subK).append(" options").append("\n```\n\n");
                 List<ParameterDescription> options = cmdObj.jcommander.getCommands().get(subK).getParameters();
                 if (options.size() > 0) {
-                    sb.append("Options\n\n\n");
-                    sb.append("|Flag|Description|Default|\n");
-                    sb.append("|---|---|---|\n");
+                    sb.append("**Options:**\n\n");
+                    sb.append("|Flag|Description|Default|");
+                    if (needsLangSupport(module, subK)) {
+                        sb.append("Support|\n");
+                        sb.append("|---|---|---|---|\n");
+                    } else {
+                        sb.append("\n|---|---|---|\n");
+                    }
                 }
-                options.stream().filter(ele -> !ele.getParameterAnnotation().hidden()).forEach((option) ->
-                        sb.append("| `").append(option.getNames())
-                                .append("` | ").append(option.getDescription().replace("\n", " "))
-                                .append("|").append(option.getDefault()).append("|\n")
+                options.stream().filter(
+                        ele -> ele.getParameterAnnotation() == null
+                                || !ele.getParameterAnnotation().hidden()
+                ).forEach((option) -> {
+                            String[] descriptions = option.getDescription().replace("\n", " ").split(" #");
+                            sb.append("| `").append(option.getNames())
+                                    .append("` | ").append(descriptions[0])
+                                    .append("|").append(option.getDefault()).append("|");
+                            if (needsLangSupport(module, subK) && descriptions.length > 1) {
+                                sb.append(descriptions[1]);
+                            }
+                            sb.append("|\n");
+                        }
                 );
             });
-            System.out.println(sb.toString());
+            System.out.println(sb);
         }
     }
 }

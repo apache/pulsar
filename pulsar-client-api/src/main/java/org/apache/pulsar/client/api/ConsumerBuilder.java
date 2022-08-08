@@ -813,4 +813,38 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * @param enabled whether to enable AutoScaledReceiverQueueSize.
      */
     ConsumerBuilder<T> autoScaledReceiverQueueSizeEnabled(boolean enabled);
+
+    /**
+     * Configure topic specific options to override those set at the {@link ConsumerBuilder} level.
+     *
+     * @param topicName a topic name
+     * @return a {@link TopicConsumerBuilder} instance
+     */
+    TopicConsumerBuilder<T> topicConfiguration(String topicName);
+
+    /**
+     * Configure topic specific options to override those set at the {@link ConsumerBuilder} level.
+     *
+     * @param topicName a topic name
+     * @param builderConsumer a consumer to allow the configuration of the {@link TopicConsumerBuilder} instance
+     */
+    ConsumerBuilder<T> topicConfiguration(String topicName,
+                                          java.util.function.Consumer<TopicConsumerBuilder<T>> builderConsumer);
+
+    /**
+     * Configure topic specific options to override those set at the {@link ConsumerBuilder} level.
+     *
+     * @param topicsPattern a regular expression to match a topic name
+     * @return a {@link TopicConsumerBuilder} instance
+     */
+    TopicConsumerBuilder<T> topicConfiguration(Pattern topicsPattern);
+
+    /**
+     * Configure topic specific options to override those set at the {@link ConsumerBuilder} level.
+     *
+     * @param topicsPattern a regular expression to match a topic name
+     * @param builderConsumer a consumer to allow the configuration of the {@link TopicConsumerBuilder} instance
+     */
+    ConsumerBuilder<T> topicConfiguration(Pattern topicsPattern,
+                                          java.util.function.Consumer<TopicConsumerBuilder<T>> builderConsumer);
 }

@@ -126,7 +126,8 @@ public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
 
     private Client newEtcdClient(String metadataURL, MetadataStoreConfig conf) throws IOException {
         String etcdUrl = metadataURL.replaceFirst(ETCD_SCHEME_IDENTIFIER, "");
-        ClientBuilder clientBuilder = Client.builder().endpoints(etcdUrl);
+        ClientBuilder clientBuilder = Client.builder()
+                .endpoints(etcdUrl.split(","));
 
         if (StringUtils.isNotEmpty(conf.getConfigFilePath())) {
             try (InputStream inputStream = Files.newInputStream(Paths.get(conf.getConfigFilePath()))) {

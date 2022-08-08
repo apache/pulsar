@@ -71,6 +71,7 @@ class TopicStats {
     long compactionCompactedEntriesCount;
     long compactionCompactedEntriesSize;
     StatsBuckets compactionLatencyBuckets = new StatsBuckets(CompactionRecord.WRITE_LATENCY_BUCKETS_USEC);
+    public int delayedTrackerMemoryUsage;
 
     public void reset() {
         subscriptionsCount = 0;
@@ -108,6 +109,7 @@ class TopicStats {
         compactionCompactedEntriesCount = 0;
         compactionCompactedEntriesSize = 0;
         compactionLatencyBuckets.reset();
+        delayedTrackerMemoryUsage = 0;
     }
 
     static void resetTypes() {
@@ -162,6 +164,9 @@ class TopicStats {
                 splitTopicAndPartitionIndexLabel);
         metric(stream, cluster, namespace, topic, "pulsar_storage_backlog_quota_limit_time",
                 stats.backlogQuotaLimitTime, splitTopicAndPartitionIndexLabel);
+
+        metric(stream, cluster, namespace, topic, "pulsar_delayed_message_index_size_bytes",
+                stats.delayedTrackerMemoryUsage, splitTopicAndPartitionIndexLabel);
 
         long[] latencyBuckets = stats.managedLedgerStats.storageWriteLatencyBuckets.getBuckets();
         metric(stream, cluster, namespace, topic, "pulsar_storage_write_latency_le_0_5", latencyBuckets[0],

@@ -95,7 +95,8 @@ flexible messaging model and an intuitive client API.</description>
     <test.additional.args>
       --add-opens java.base/jdk.internal.loader=ALL-UNNAMED
       --add-opens java.base/java.lang=ALL-UNNAMED <!--Mockito-->
-      --add-opens java.base/java.io=ALL-UNNAMED <!--Bookkeeper NativeIO -->
+      --add-opens java.base/java.io=ALL-UNNAMED <!--Bookkeeper NativeIO-->
+      --add-opens java.base/java.util=ALL-UNNAMED <!--System Lambda-->
       --add-opens java.base/sun.net=ALL-UNNAMED <!--netty.DnsResolverUtil-->
       --add-opens java.management/sun.management=ALL-UNNAMED <!--JvmDefaultGCMetricsLogger-->
     </test.additional.args>
@@ -132,7 +133,7 @@ flexible messaging model and an intuitive client API.</description>
     <rocksdb.version>6.29.4.1</rocksdb.version>
     <slf4j.version>1.7.32</slf4j.version>
     <commons.collections4.version>4.4</commons.collections4.version>
-    <log4j2.version>2.17.1</log4j2.version>
+    <log4j2.version>2.18.0</log4j2.version>
     <bouncycastle.version>1.69</bouncycastle.version>
     <bouncycastlefips.version>1.0.2</bouncycastlefips.version>
     <jackson.version>2.13.3</jackson.version>
@@ -148,6 +149,7 @@ flexible messaging model and an intuitive client API.</description>
     <perfmark.version>0.19.0</perfmark.version>
     <protoc-gen-grpc-java.version>${grpc.version}</protoc-gen-grpc-java.version>
     <gson.version>2.8.9</gson.version>
+    <system-lambda.version>1.2.1</system-lambda.version>
     <sketches.version>0.8.3</sketches.version>
     <hbc-core.version>2.2.0</hbc-core.version>
     <cassandra.version>3.11.2</cassandra.version>
@@ -1317,6 +1319,13 @@ flexible messaging model and an intuitive client API.</description>
     <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-inline</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>com.github.stefanbirkner</groupId>
+      <artifactId>system-lambda</artifactId>
+      <version>${system-lambda.version}</version>
       <scope>test</scope>
     </dependency>
 

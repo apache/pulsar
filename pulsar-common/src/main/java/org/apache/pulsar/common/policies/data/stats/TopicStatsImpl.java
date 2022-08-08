@@ -135,6 +135,9 @@ public class TopicStatsImpl implements TopicStats {
     /** The serialized size of non-contiguous deleted messages ranges. */
     public int nonContiguousDeletedMessagesRangesSerializedSize;
 
+    /** The size of InMemoryDelayedDeliveryTracer memory usage. */
+    public int delayedMessageIndexSizeInBytes;
+
     /** The compaction stats. */
     public CompactionStatsImpl compaction;
 
@@ -204,6 +207,7 @@ public class TopicStatsImpl implements TopicStats {
         this.lastOffloadFailureTimeStamp = 0;
         this.lastOffloadSuccessTimeStamp = 0;
         this.publishRateLimitedTimes = 0L;
+        this.delayedMessageIndexSizeInBytes = 0;
         this.compaction.reset();
     }
 
@@ -230,6 +234,7 @@ public class TopicStatsImpl implements TopicStats {
         this.offloadedStorageSize += stats.offloadedStorageSize;
         this.nonContiguousDeletedMessagesRanges += stats.nonContiguousDeletedMessagesRanges;
         this.nonContiguousDeletedMessagesRangesSerializedSize += stats.nonContiguousDeletedMessagesRangesSerializedSize;
+        this.delayedMessageIndexSizeInBytes += stats.delayedMessageIndexSizeInBytes;
         this.ongoingTxnCount = stats.ongoingTxnCount;
         this.abortedTxnCount = stats.abortedTxnCount;
         this.committedTxnCount = stats.committedTxnCount;

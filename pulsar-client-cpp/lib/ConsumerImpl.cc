@@ -406,9 +406,7 @@ void ConsumerImpl::messageReceived(const ClientConnectionPtr& cnx, const proto::
         metadata.encryption_keys_size() <= 0 || config_.getCryptoKeyReader().get() ||
         config_.getCryptoFailureAction() == ConsumerCryptoFailureAction::CONSUME;
 
-    const bool isChunkedMessage = metadata.num_chunks_from_msg() > 1 &&
-                                  config_.getConsumerType() != ConsumerType::ConsumerShared &&
-                                  config_.getConsumerType() != ConsumerType::ConsumerKeyShared;
+    const bool isChunkedMessage = metadata.num_chunks_from_msg() > 1;
     if (isMessageDecryptable && !isChunkedMessage) {
         if (!uncompressMessageIfNeeded(cnx, msg.message_id(), metadata, payload, true)) {
             // Message was discarded on decompression error
@@ -826,6 +824,10 @@ Result ConsumerImpl::receiveHelper(Message& msg, int timeout) {
         messageProcessed(msg);
         return ResultOk;
     } else {
+        Lock lock(mutex_);
+        if (state_ != Ready) {
+            return ResultAlreadyClosed;
+        }
         return ResultTimeout;
     }
 }

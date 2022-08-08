@@ -86,28 +86,28 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
     public Object[][] mainProcessCasesProvider(){
         return new Object [][]{
                 // Normal.
-                {512, 1024 * 1024, 1, true, 2000, 2, 4, BookieErrorType.NO_ERROR, false},
+                {512, 1024 * 1024, 1, true, 2000, 4, BookieErrorType.NO_ERROR, false},
                 // The number of data writes is few.
-                {512, 1024 * 1024, 1, true, 100, 2, 4, BookieErrorType.NO_ERROR, false},
+                {512, 1024 * 1024, 1, true, 100, 4, BookieErrorType.NO_ERROR, false},
                 // The number of data writes is large.
-                {512, 1024 * 1024, 100, true, 20000, 5, 4, BookieErrorType.NO_ERROR, false},
+                {512, 1024 * 1024, 100, true, 20000, 4, BookieErrorType.NO_ERROR, false},
                 // Big data writes.
-                {512, 1024, 100, true, 3000, 6, 1024, BookieErrorType.NO_ERROR, false},
+                {512, 1024, 100, true, 3000, 1024, BookieErrorType.NO_ERROR, false},
                 // A batch has only one data
-                {1, 1024 * 1024, 100, true, 2000, 6, 4, BookieErrorType.NO_ERROR, false},
+                {1, 1024 * 1024, 100, true, 512, 4, BookieErrorType.NO_ERROR, false},
                 // A batch has only two data
-                {2, 1024 * 1024, 100, true, 1999, 4, 4, BookieErrorType.NO_ERROR, false},
+                {2, 1024 * 1024, 100, true, 1999, 4, BookieErrorType.NO_ERROR, false},
                 // Disabled the batch feature
-                {512, 1024 * 1024, 1, false, 2000, 4, 4, BookieErrorType.NO_ERROR, false},
+                {128, 1024 * 1024, 1, false, 500, 4, BookieErrorType.NO_ERROR, false},
                 // Bookie always error.
-                {512, 1024 * 1024, 1, true, 2000, 2, 4, BookieErrorType.ALWAYS_ERROR, false},
-                {512, 1024 * 1024, 1, false, 2000, 4, 4, BookieErrorType.ALWAYS_ERROR, false},
+                {128, 1024 * 1024, 1, true, 512, 4, BookieErrorType.ALWAYS_ERROR, false},
+                {128, 1024 * 1024, 1, false, 512, 4, BookieErrorType.ALWAYS_ERROR, false},
                 // Bookie sometimes error.
-                {512, 1024 * 1024, 1, true, 2000, 4, 4, BookieErrorType.SOMETIMES_ERROR, false},
-                {512, 1024 * 1024, 1, false, 2000, 4, 4, BookieErrorType.SOMETIMES_ERROR, false},
+                {128, 1024 * 1024, 1, true, 512, 4, BookieErrorType.SOMETIMES_ERROR, false},
+                {128, 1024 * 1024, 1, false, 512, 4, BookieErrorType.SOMETIMES_ERROR, false},
                 // TxnLogBufferedWriter sometimes close.
-                {512, 1024 * 1024, 1, true, 2000, 4, 4, BookieErrorType.NO_ERROR, true},
-                {512, 1024 * 1024, 1, false, 2000, 4, 4, BookieErrorType.NO_ERROR, true}
+                {128, 1024 * 1024, 1, true, 512, 4, BookieErrorType.NO_ERROR, true},
+                {128, 1024 * 1024, 1, false, 512, 4, BookieErrorType.NO_ERROR, true}
         };
     }
 
@@ -126,9 +126,9 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
      *      composite-ByteBuf.
      *   3. Even if executed "bkc.failAfter", also need to verify the data which has already written to bookie.
      */
-    @Test(dataProvider = "mainProcessCasesProvider")
+    @Test(dataProvider = "mainProcessCasesProvider", timeOut = 1000 * 10)
     public void testMainProcess(int batchedWriteMaxRecords, int batchedWriteMaxSize, int batchedWriteMaxDelayInMillis,
-                                boolean batchEnabled, final int writeCmdExecuteCount, int maxWaitSeconds,
+                                boolean batchEnabled, final int writeCmdExecuteCount,
                                 int eachDataBytesLen, BookieErrorType bookieErrorType,
                                 boolean closeBufferedWriter) throws Exception {
         // Assert args.
@@ -215,7 +215,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
             }
             if (closeBufferedWriter && bufferedWriteCloseAtIndex == i){
                 // Wait for any complete callback, avoid unstable.
-                Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> anyFlushCompleted.get());
+                Awaitility.await().until(() -> anyFlushCompleted.get());
                 txnLogBufferedWriter.close();
             }
         }
@@ -231,8 +231,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
          *   not sort.
          */
         // Assert callback count.
-        Awaitility.await().atMost(maxWaitSeconds, TimeUnit.SECONDS)
-                .until(() -> contextArrayOfCallback.size() == writeCmdExecuteCount);
+        Awaitility.await().until(() -> contextArrayOfCallback.size() == writeCmdExecuteCount);
         // Assert callback param-context, verify that all callbacks are executed in strict order.
         if (closeBufferedWriter){
             Collections.sort(contextArrayOfCallback);

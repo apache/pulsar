@@ -40,6 +40,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
+import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -788,7 +789,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         TestMessageObject object = new TestMessageObject();
         SchemaReader<TestMessageObject> reader = Mockito.mock(SchemaReader.class);
         SchemaWriter<TestMessageObject> writer = Mockito.mock(SchemaWriter.class);
-        Mockito.when(reader.read(Mockito.any(byte[].class), Mockito.any(byte[].class))).thenReturn(object);
+        Mockito.when(reader.read(Mockito.any(InputStream.class), Mockito.any(byte[].class))).thenReturn(object);
         Mockito.when(writer.write(Mockito.any(TestMessageObject.class))).thenReturn("fake data".getBytes(StandardCharsets.UTF_8));
         SchemaDefinition<TestMessageObject> schemaDefinition = new SchemaDefinitionBuilderImpl<TestMessageObject>()
                 .withPojo(TestMessageObject.class)
@@ -809,7 +810,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
             TestMessageObject testObject = consumer.receive().getValue();
             Assert.assertEquals(object.getValue(), testObject.getValue());
             Mockito.verify(writer, Mockito.times(1)).write(Mockito.any());
-            Mockito.verify(reader, Mockito.times(1)).read(Mockito.any(byte[].class), Mockito.any(byte[].class));
+            Mockito.verify(reader, Mockito.times(1)).read(Mockito.any(InputStream.class), Mockito.any(byte[].class));
         }
     }
 
@@ -844,7 +845,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
             Assert.assertEquals(object.getValue(), testObject.getValue());
 
             Mockito.verify(writer, Mockito.times(1)).write(Mockito.any());
-            Mockito.verify(reader, Mockito.times(1)).read(Mockito.any(byte[].class));
+            Mockito.verify(reader, Mockito.times(1)).read(Mockito.any(InputStream.class));
         }
     }
 

@@ -108,6 +108,12 @@ public class PulsarAdminTool {
         String tlsTrustStoreType = properties.getProperty("tlsTrustStoreType", "JKS");
         String tlsTrustStorePath = properties.getProperty("tlsTrustStorePath");
         String tlsTrustStorePassword = properties.getProperty("tlsTrustStorePassword");
+        String tlsKeyStoreType = properties.getProperty("tlsKeyStoreType", "JKS");
+        String tlsKeyStorePath = properties.getProperty("tlsKeyStorePath");
+        String tlsKeyStorePassword = properties.getProperty("tlsKeyStorePassword");
+        String tlsKeyFilePath = properties.getProperty("tlsKeyFilePath");
+        String tlsCertificateFilePath = properties.getProperty("tlsCertificateFilePath");
+
         boolean tlsAllowInsecureConnection = this.rootParams.tlsAllowInsecureConnection != null
                 ? this.rootParams.tlsAllowInsecureConnection
                 : Boolean.parseBoolean(properties.getProperty("tlsAllowInsecureConnection", "false"));
@@ -125,7 +131,12 @@ public class PulsarAdminTool {
                 .useKeyStoreTls(useKeyStoreTls)
                 .tlsTrustStoreType(tlsTrustStoreType)
                 .tlsTrustStorePath(tlsTrustStorePath)
-                .tlsTrustStorePassword(tlsTrustStorePassword);
+                .tlsTrustStorePassword(tlsTrustStorePassword)
+                .tlsKeyStoreType(tlsKeyStoreType)
+                .tlsKeyStorePath(tlsKeyStorePath)
+                .tlsKeyStorePassword(tlsKeyStorePassword)
+                .tlsKeyFilePath(tlsKeyFilePath)
+                .tlsCertificateFilePath(tlsCertificateFilePath);
     }
 
     protected void initRootParamsFromProperties(Properties properties) {
