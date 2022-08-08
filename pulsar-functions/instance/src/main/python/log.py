@@ -90,7 +90,10 @@ def init_logger(level, logfile, logging_config_file):
   os.environ['LOG_FILE'] = logfile
   logging.config.fileConfig(logging_config_file)
   Log = logging.getLogger()
-  Log.setLevel(level)
+  if level is not None:
+    Log.setLevel(level)
+    for h in Log.handlers:
+      h.setLevel(level)
 
   # set print to redirect to logger
   class StreamToLogger(object):
