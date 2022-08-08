@@ -972,24 +972,20 @@ public class BrokerServiceTest extends BrokerTestBase {
         final String topicName = "persistent://prop/ns-abc/newTopic";
         PulsarServiceNameResolver resolver = new PulsarServiceNameResolver();
         resolver.updateServiceUrl(pulsar.getBrokerServiceUrl());
-        ClientConfigurationData conf = new ClientConfigurationData();
+        final ClientConfigurationData conf = new ClientConfigurationData();
         conf.setConcurrentLookupRequest(1);
         conf.setMaxLookupRequest(2);
 
-        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(20, false,
+        final EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(20, false,
                 new DefaultThreadFactory("test-pool", Thread.currentThread().isDaemon()));
         /**
          *  if the broker responds and client handle response quickly enough, there may never be concurrency in
          *  requests and this test will be flaky. So use {@link BlockLookupResponseClientCnx} to control the rate of
          *  response-handle.
          */
-        AtomicBoolean blockLookupResponseSignal = new AtomicBoolean(true);
-        Supplier<ClientCnx> blockLookupResponseClientCnxSupplier = new Supplier<ClientCnx>() {
-            @Override
-            public ClientCnx get() {
-                return new BlockLookupResponseClientCnx(conf, eventLoop, blockLookupResponseSignal);
-            }
-        };
+        final AtomicBoolean blockLookupResponseSignal = new AtomicBoolean(true);
+        Supplier<ClientCnx> blockLookupResponseClientCnxSupplier =
+                () -> new BlockLookupResponseClientCnx(conf, eventLoop, blockLookupResponseSignal);
 
         long reqId = 0xdeadbeef;
         try (ConnectionPool pool = new ConnectionPool(conf, eventLoop, blockLookupResponseClientCnxSupplier)) {
