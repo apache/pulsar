@@ -172,7 +172,7 @@ The [`conf/global-zookeeper.conf`](reference-configuration.md#configuration-stor
 
 ## BookKeeper
 
-BookKeeper stores all durable message in Pulsar. BookKeeper is a distributed [write-ahead log](https://en.wikipedia.org/wiki/Write-ahead_logging) WAL system that guarantees read consistency of independent message logs calls ledgers. Individual BookKeeper servers are also called *bookies*.
+BookKeeper stores all durable messages in Pulsar. BookKeeper is a distributed [write-ahead log](https://en.wikipedia.org/wiki/Write-ahead_logging) WAL system that guarantees read consistency of independent message logs calls ledgers. Individual BookKeeper servers are also called *bookies*.
 
 > To manage message persistence, retention, and expiry in Pulsar, refer to [cookbook](cookbooks-retention-expiry).
 

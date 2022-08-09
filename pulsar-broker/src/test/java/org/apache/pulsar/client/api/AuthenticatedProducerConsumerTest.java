@@ -28,15 +28,23 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
+import javax.crypto.SecretKey;
 import javax.ws.rs.InternalServerErrorException;
+import io.jsonwebtoken.SignatureAlgorithm;
+import lombok.Cleanup;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderBasic;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
+import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
+import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.auth.AuthenticationBasic;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
+import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
@@ -63,6 +71,10 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
     private final String TLS_CLIENT_KEY_FILE_PATH = "./src/test/resources/authentication/tls/client-key.pem";
 
     private final String BASIC_CONF_FILE_PATH = "./src/test/resources/authentication/basic/.htpasswd";
+
+    private final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
+    private final String ADMIN_TOKEN = AuthTokenUtils.createToken(SECRET_KEY, "admin", Optional.empty());
+
 
     @BeforeMethod
     @Override
@@ -95,8 +107,15 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
 
         Set<String> providers = new HashSet<>();
         providers.add(AuthenticationProviderTls.class.getName());
-        providers.add(AuthenticationProviderBasic.class.getName());
+
         System.setProperty("pulsar.auth.basic.conf", BASIC_CONF_FILE_PATH);
+        providers.add(AuthenticationProviderBasic.class.getName());
+
+        Properties properties = new Properties();
+        properties.setProperty("tokenSecretKey", AuthTokenUtils.encodeKeyBase64(SECRET_KEY));
+        conf.setProperties(properties);
+        providers.add(AuthenticationProviderToken.class.getName());
+
         conf.setAuthenticationProviders(providers);
 
         conf.setClusterName("test");
@@ -402,5 +421,48 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         admin.namespaces().deleteNamespace("p1/ns1");
         admin.tenants().deleteTenant("p1");
         admin.clusters().deleteCluster("test");
+    }
+
+    private final Authentication tlsAuth = new AuthenticationTls(TLS_CLIENT_CERT_FILE_PATH, TLS_CLIENT_KEY_FILE_PATH);
+    private final Authentication tokenAuth = new AuthenticationToken(ADMIN_TOKEN);
+
+    @DataProvider
+    public Object[][] tlsTransportWithAuth() {
+        Supplier<String> webServiceAddressTls = () -> pulsar.getWebServiceAddressTls();
+        Supplier<String> brokerServiceUrlTls = () -> pulsar.getBrokerServiceUrlTls();
+
+        return new Object[][]{
+                // Verify TLS transport encryption with TLS authentication
+                {webServiceAddressTls, tlsAuth},
+                {brokerServiceUrlTls, tlsAuth},
+                // Verify TLS transport encryption with token authentication
+                {webServiceAddressTls, tokenAuth},
+                {brokerServiceUrlTls, tokenAuth},
+        };
+    }
+
+    @Test(dataProvider = "tlsTransportWithAuth")
+    public void testTlsTransportWithAnyAuth(Supplier<String> url, Authentication auth) throws Exception {
+        final String topicName = "persistent://my-property/my-ns/my-topic-1";
+
+        internalSetup(new AuthenticationToken(ADMIN_TOKEN));
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        admin.tenants().createTenant("my-property",
+                new TenantInfoImpl(Sets.newHashSet(), Sets.newHashSet("test")));
+        admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder().serviceUrl(url.get())
+                .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH)
+                .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH)
+                .tlsKeyFilePath(TLS_CLIENT_KEY_FILE_PATH)
+                .tlsCertificateFilePath(TLS_CLIENT_CERT_FILE_PATH)
+                .authentication(auth)
+                .allowTlsInsecureConnection(false)
+                .enableTlsHostnameVerification(false)
+                .build();
+
+        @Cleanup
+        Producer<byte[]> ignored = client.newProducer().topic(topicName).create();
     }
 }

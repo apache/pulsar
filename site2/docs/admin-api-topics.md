@@ -325,6 +325,8 @@ You can check the following statistics of a given non-partitioned topic.
   
   -   **topicEpoch**: The topic epoch or empty if not set.
 
+  -   **filteredEntriesCount**: The count of skipped entries for the topic.
+
   -   **nonContiguousDeletedMessagesRanges**: The number of non-contiguous deleted messages ranges.
 
   -   **nonContiguousDeletedMessagesRangesSerializedSize**: The serialized size of non-contiguous deleted messages ranges.  
@@ -498,6 +500,7 @@ The following is an example of a topic status.
   "msgChunkPublished" : false,
   "storageSize" : 504,
   "backlogSize" : 0,
+  "filteredEntriesCount" : 100,
   "earliestMsgPublishTimeInBacklogs": 0,
   "offloadedStorageSize" : 0,
   "publishers" : [ {
@@ -638,7 +641,7 @@ You can get the detailed statistics of a topic.
 
       -   **ledgerId**: The ID of this ledger.
 
-      -   **entries**: The total number of entries belong to this ledger.
+      -   **entries**: The total number of entries that belong to this ledger.
 
       -   **size**: The size of messages written to this ledger (in bytes).
 
@@ -650,7 +653,7 @@ You can get the detailed statistics of a topic.
   
       -   **ledgerId**: The ID of this ledger.
   
-      -   **entries**: The total number of entries belong to this ledger.
+      -   **entries**: The total number of entries that belong to this ledger.
   
       -   **size**: The size of messages written to this ledger (in bytes).
   
@@ -662,7 +665,7 @@ You can get the detailed statistics of a topic.
  
       -   **ledgerId**: The ID of this ledger.
      
-      -   **entries**: The total number of entries belong to this ledger.
+      -   **entries**: The total number of entries that belong to this ledger.
      
       -   **size**: The size of messages written to this ledger (in bytes).
      

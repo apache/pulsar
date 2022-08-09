@@ -1482,6 +1482,7 @@ public class FunctionApiV3ResourceTest {
         FunctionDetails functionDetails = FunctionDetails.newBuilder()
                 .setClassName(className)
                 .setSink(sinkSpec)
+                .setAutoAck(true)
                 .setName(function)
                 .setNamespace(namespace)
                 .setProcessingGuarantees(ProcessingGuarantees.ATMOST_ONCE)

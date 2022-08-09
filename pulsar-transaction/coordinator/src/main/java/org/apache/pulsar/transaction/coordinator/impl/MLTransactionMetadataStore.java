@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.transaction.coordinator.impl;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.time.Duration;
@@ -67,7 +68,8 @@ public class MLTransactionMetadataStore
 
     private final TransactionCoordinatorID tcID;
     private final MLTransactionLogImpl transactionLog;
-    private final ConcurrentSkipListMap<Long, Pair<TxnMeta, List<Position>>> txnMetaMap = new ConcurrentSkipListMap<>();
+    @VisibleForTesting
+    final ConcurrentSkipListMap<Long, Pair<TxnMeta, List<Position>>> txnMetaMap = new ConcurrentSkipListMap<>();
     private final TransactionTimeoutTracker timeoutTracker;
     private final TransactionMetadataStoreStats transactionMetadataStoreStats;
     private final LongAdder createdTransactionCount;
