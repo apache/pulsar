@@ -21,11 +21,9 @@ package org.apache.pulsar.client.impl;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.concurrent.atomic.AtomicBoolean;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.allocator.impl.ByteBufAllocatorImpl;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Schema;
@@ -34,23 +32,22 @@ import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
-import org.powermock.reflect.Whitebox;
 import org.testng.annotations.Test;
 
+@Slf4j
 public class BatchMessageContainerImplTest {
 
     @Test
-    public void recoveryAfterOom() throws Exception {
-        AtomicBoolean called = new AtomicBoolean();
-        try (MockedConstruction<ByteBufAllocatorImpl> mocked = Mockito.mockConstruction(ByteBufAllocatorImpl.class,
-                (mockAllocator, context) -> {
-                    called.set(true);
-                    doThrow(new OutOfMemoryError("test")).when(mockAllocator).buffer(anyInt(), anyInt());
-                })) {
-            if (PulsarByteBufAllocator.DEFAULT != null && !called.get()) {
-                replaceByteBufAllocator();
-            }
-            final ProducerImpl producer = Mockito.mock(ProducerImpl.class);
+    public void recoveryAfterOom() {
+        // Force initialize PulsarByteBufAllocator.DEFAULT before mock the ctor so that it is not polluted.
+        final ByteBufAllocatorImpl byteBufAllocator = (ByteBufAllocatorImpl) PulsarByteBufAllocator.DEFAULT;
+        // Use the variable, in case the compiler optimization.
+        log.trace("{}", byteBufAllocator);
+
+        try (MockedConstruction<ByteBufAllocatorImpl> ignored = Mockito.mockConstruction(ByteBufAllocatorImpl.class,
+                (mockAllocator, context) ->
+                        doThrow(new OutOfMemoryError("test")).when(mockAllocator).buffer(anyInt(), anyInt()))) {
+            final ProducerImpl<?> producer = Mockito.mock(ProducerImpl.class);
             final ProducerConfigurationData producerConfigurationData = new ProducerConfigurationData();
             producerConfigurationData.setCompressionType(CompressionType.NONE);
             when(producer.getConfiguration()).thenReturn(producerConfigurationData);
@@ -71,17 +68,6 @@ public class BatchMessageContainerImplTest {
             final MessageImpl<byte[]> message2 = MessageImpl.create(messageMetadata2, payload2, Schema.BYTES, null);
             // after oom, our add can self-healing, won't throw exception
             batchMessageContainer.add(message2, null);
-        } finally {
-            replaceByteBufAllocator();
         }
-
     }
-
-    private void replaceByteBufAllocator() throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
-        Method createByteBufAllocatorMethod = PulsarByteBufAllocator.class.getDeclaredMethod("createByteBufAllocator");
-        createByteBufAllocatorMethod.setAccessible(true);
-        Whitebox.setInternalState(PulsarByteBufAllocator.class, "DEFAULT",
-                createByteBufAllocatorMethod.invoke(null));
-    }
-
 }
