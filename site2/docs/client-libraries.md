@@ -32,7 +32,7 @@ Besides the official released clients, multiple projects on developing Pulsar cl
 
 > Want your repository listed here? Just submit a PR to the [pulsar repository](https://github.com/apache/pulsar/edit/master/site2/docs/client-libraries.md).
 
-### C#
+### .NET
 
 | Project                                                                    | Description                                     | License                                    | Star                                                                                                          |
 | -------------------------------------------------------------------------- | ----------------------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
