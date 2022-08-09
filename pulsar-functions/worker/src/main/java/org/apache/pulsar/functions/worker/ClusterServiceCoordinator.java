@@ -59,7 +59,12 @@ public class ClusterServiceCoordinator implements AutoCloseable {
     }
 
     @VisibleForTesting
-    ClusterServiceCoordinator(String workerId, LeaderService leaderService, Supplier<Boolean> isLeader, ScheduledExecutorService executor) {
+    ClusterServiceCoordinator(
+            String workerId,
+            LeaderService leaderService,
+            Supplier<Boolean> isLeader,
+            ScheduledExecutorService executor
+    ) {
         this.workerId = workerId;
         this.leaderService = leaderService;
         this.isLeader = isLeader;
