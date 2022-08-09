@@ -42,6 +42,17 @@ public class URL {
         }
     }
 
+    /**
+     * Creates java.net.URL with data protocol support.
+     *
+     * @param spec the input URL as String
+     * @return java.net.URL instance
+     */
+    public static final java.net.URL createURL(String spec)
+            throws MalformedURLException, URISyntaxException, InstantiationException, IllegalAccessException {
+        return new URL(spec).url;
+    }
+
     public URLConnection openConnection() throws IOException {
         return this.url.openConnection();
     }
