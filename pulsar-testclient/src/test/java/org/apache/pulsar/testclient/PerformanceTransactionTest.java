@@ -36,6 +36,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -194,7 +195,7 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testConsumeTxnMessage() throws InterruptedException, PulsarClientException {
+    public void testConsumeTxnMessage() throws Exception {
         String argString = "%s -r 10 -u %s -txn -ss %s -st %s -sp %s -ntxn %d";
         String subName = "sub";
         String topic = testTopic + UUID.randomUUID();
@@ -222,11 +223,18 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
         });
         thread.start();
         thread.join();
+
+        Awaitility.await().untilAsserted(() -> {
+            admin.transactions().getCoordinatorStats().forEach((integer, transactionCoordinatorStats) -> {
+                Assert.assertEquals(transactionCoordinatorStats.ongoingTxnSize, 0);
+            });
+        });
+
         Consumer<byte[]> consumer = pulsarClient.newConsumer().subscriptionName(subName).topic(topic)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscriptionType(SubscriptionType.Exclusive)
                 .enableBatchIndexAcknowledgment(false)
-               .subscribe();
+                .subscribe();
         for (int i = 0; i < 5; i++) {
             Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
             Assert.assertNotNull(message);
