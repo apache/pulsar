@@ -1089,7 +1089,7 @@ $ pulsar-admin topics lookup \
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|GET|/lookup/v2/topic/:schema/:tenant:namespace/:topic|/?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/lookup/v2/topic/:topic-domain/:tenant/:namespace/:topic|operation/lookupTopicAsync?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java">
@@ -1176,7 +1176,7 @@ $ pulsar-admin topics bundle-range \
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|GET|/lookup/v2/topic/:topic_domain/:tenant/:namespace/:topic/bundle|/?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/lookup/v2/topic/:topic_domain/:tenant/:namespace/:topic/bundle|operation/getNamespaceBundle?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java">
