@@ -20,6 +20,7 @@ package org.apache.pulsar.common.allocator;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBufAllocator;
 import java.util.List;
@@ -39,7 +40,7 @@ public class PulsarByteBufAllocatorDefaultTest {
     @Test
     public void testDefaultConfig() {
         // Force initialize PulsarByteBufAllocator.DEFAULT before mock the ctor so that it is not polluted.
-        log.trace("{}", PulsarByteBufAllocator.DEFAULT);
+        assertNotNull(PulsarByteBufAllocator.DEFAULT);
 
         AtomicBoolean called = new AtomicBoolean();
         try (MockedConstruction<ByteBufAllocatorImpl> ignored = Mockito.mockConstruction(ByteBufAllocatorImpl.class,

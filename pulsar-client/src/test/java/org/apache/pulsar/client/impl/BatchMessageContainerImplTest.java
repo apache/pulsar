@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertNotNull;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import lombok.extern.slf4j.Slf4j;
@@ -40,7 +41,7 @@ public class BatchMessageContainerImplTest {
     @Test
     public void recoveryAfterOom() {
         // Force initialize PulsarByteBufAllocator.DEFAULT before mock the ctor so that it is not polluted.
-        log.trace("{}", PulsarByteBufAllocator.DEFAULT);
+        assertNotNull(PulsarByteBufAllocator.DEFAULT);
 
         try (MockedConstruction<ByteBufAllocatorImpl> ignored = Mockito.mockConstruction(ByteBufAllocatorImpl.class,
                 (mockAllocator, context) ->
