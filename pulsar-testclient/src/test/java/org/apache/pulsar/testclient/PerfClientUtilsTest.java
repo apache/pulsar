@@ -70,6 +70,7 @@ public class PerfClientUtilsTest {
         args.serviceURL = "pulsar+ssl://my-pulsar:6651";
         args.tlsTrustCertsFilePath = "path";
         args.tlsAllowInsecureConnection = true;
+        args.maxLookupRequest = 100000;
 
         final ClientBuilderImpl builder = (ClientBuilderImpl)PerfClientUtils.createClientBuilderFromArguments(args);
         final ClientConfigurationData conf = builder.getClientConfigurationData();
@@ -86,6 +87,7 @@ public class PerfClientUtilsTest {
         Assert.assertEquals(conf.getServiceUrl(), "pulsar+ssl://my-pulsar:6651");
         Assert.assertEquals(conf.getTlsTrustCertsFilePath(), "path");
         Assert.assertTrue(conf.isTlsAllowInsecureConnection());
+        Assert.assertEquals(conf.getMaxLookupRequest(), 100000);
 
     }
 }

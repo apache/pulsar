@@ -19,7 +19,7 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Objects.requireNonNull;
 import static org.apache.bookkeeper.mledger.ManagedLedgerException.getManagedLedgerException;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_LEDGER_DELETE_RETRIES;
@@ -31,9 +31,7 @@ import com.google.common.base.MoreObjects;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Collections2;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Range;
-import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.RateLimiter;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.time.Clock;
@@ -41,6 +39,8 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -370,7 +370,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         if (lastMarkDeleteEntry != null) {
             LAST_MARK_DELETE_ENTRY_UPDATER.updateAndGet(this, last -> {
                 Map<String, Long> properties = last.properties;
-                Map<String, Long> newProperties = properties == null ? Maps.newHashMap() : Maps.newHashMap(properties);
+                Map<String, Long> newProperties = properties == null ? new HashMap<>() : new HashMap<>(properties);
                 newProperties.put(key, value);
 
                 MarkDeleteEntry newLastMarkDeleteEntry = new MarkDeleteEntry(last.newPosition, newProperties,
@@ -417,7 +417,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 Map<String, String> recoveredCursorProperties = Collections.emptyMap();
                 if (info.getCursorPropertiesCount() > 0) {
                     // Recover properties map
-                    recoveredCursorProperties = Maps.newHashMap();
+                    recoveredCursorProperties = new HashMap<>();
                     for (int i = 0; i < info.getCursorPropertiesCount(); i++) {
                         StringProperty property = info.getCursorProperties(i);
                         recoveredCursorProperties.put(property.getName(), property.getValue());
@@ -437,7 +437,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     Map<String, Long> recoveredProperties = Collections.emptyMap();
                     if (info.getPropertiesCount() > 0) {
                         // Recover properties map
-                        recoveredProperties = Maps.newHashMap();
+                        recoveredProperties = new HashMap<>();
                         for (int i = 0; i < info.getPropertiesCount(); i++) {
                             LongProperty property = info.getProperties(i);
                             recoveredProperties.put(property.getName(), property.getValue());
@@ -525,7 +525,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 Map<String, Long> recoveredProperties = Collections.emptyMap();
                 if (positionInfo.getPropertiesCount() > 0) {
                     // Recover properties map
-                    recoveredProperties = Maps.newHashMap();
+                    recoveredProperties = new HashMap<>();
                     for (int i = 0; i < positionInfo.getPropertiesCount(); i++) {
                         LongProperty property = positionInfo.getProperties(i);
                         recoveredProperties.put(property.getName(), property.getValue());
@@ -1379,7 +1379,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
 
         // filters out messages which are already acknowledged
-        Set<Position> alreadyAcknowledgedPositions = Sets.newHashSet();
+        Set<Position> alreadyAcknowledgedPositions = new HashSet<>();
         lock.readLock().lock();
         try {
             positions.stream()
@@ -1492,7 +1492,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     @Override
     public void markDelete(Position position, Map<String, Long> properties)
             throws InterruptedException, ManagedLedgerException {
-        checkNotNull(position);
+        requireNonNull(position);
         checkArgument(position instanceof PositionImpl);
 
         class Result {
@@ -1792,7 +1792,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     @Override
     public void asyncMarkDelete(final Position position, Map<String, Long> properties,
             final MarkDeleteCallback callback, final Object ctx) {
-        checkNotNull(position);
+        requireNonNull(position);
         checkArgument(position instanceof PositionImpl);
 
         if (isClosed()) {
@@ -2032,7 +2032,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public void delete(Iterable<Position> positions) throws InterruptedException, ManagedLedgerException {
-        checkNotNull(positions);
+        requireNonNull(positions);
 
         class Result {
             ManagedLedgerException exception = null;
@@ -2098,7 +2098,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             }
 
             for (Position pos : positions) {
-                PositionImpl position  = (PositionImpl) checkNotNull(pos);
+                PositionImpl position  = (PositionImpl) requireNonNull(pos);
                 if (((PositionImpl) ledger.getLastConfirmedEntry()).compareTo(position) < 0) {
                     if (log.isDebugEnabled()) {
                         log.debug(
@@ -2707,7 +2707,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             return Collections.emptyList();
         }
 
-        List<LongProperty> longProperties = Lists.newArrayList();
+        List<LongProperty> longProperties = new ArrayList<>();
         properties.forEach((name, value) -> {
             LongProperty lp = LongProperty.newBuilder().setName(name).setValue(value).build();
             longProperties.add(lp);
@@ -2721,7 +2721,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             return Collections.emptyList();
         }
 
-        List<StringProperty> stringProperties = Lists.newArrayList();
+        List<StringProperty> stringProperties = new ArrayList<>();
         properties.forEach((name, value) -> {
             StringProperty sp = StringProperty.newBuilder().setName(name).setValue(value).build();
             stringProperties.add(sp);
@@ -2741,7 +2741,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     .newBuilder();
             MLDataFormats.MessageRange.Builder messageRangeBuilder = MLDataFormats.MessageRange.newBuilder();
             AtomicInteger acksSerializedSize = new AtomicInteger(0);
-            List<MessageRange> rangeList = Lists.newArrayList();
+            List<MessageRange> rangeList = new ArrayList<>();
             individualDeletedMessages.forEach((positionRange) -> {
                 PositionImpl p = positionRange.lowerEndpoint();
                 nestedPositionBuilder.setLedgerId(p.getLedgerId());
@@ -2775,7 +2775,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     .newBuilder();
             MLDataFormats.BatchedEntryDeletionIndexInfo.Builder batchDeletedIndexInfoBuilder = MLDataFormats
                     .BatchedEntryDeletionIndexInfo.newBuilder();
-            List<MLDataFormats.BatchedEntryDeletionIndexInfo> result = Lists.newArrayList();
+            List<MLDataFormats.BatchedEntryDeletionIndexInfo> result = new ArrayList<>();
             Iterator<Map.Entry<PositionImpl, BitSetRecyclable>> iterator = batchDeletedIndexes.entrySet().iterator();
             while (iterator.hasNext() && result.size() < config.getMaxBatchDeletedIndexToPersist()) {
                 Map.Entry<PositionImpl, BitSetRecyclable> entry = iterator.next();
@@ -2811,7 +2811,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     position);
         }
 
-        checkNotNull(lh);
+        requireNonNull(lh);
         byte[] data = pi.toByteArray();
         lh.asyncAddEntry(data, (rc, lh1, entryId, ctx) -> {
             if (rc == BKException.Code.OK) {

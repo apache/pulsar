@@ -67,19 +67,8 @@ public class PackagesImpl extends ComponentResource implements Packages {
     @Override
     public CompletableFuture<PackageMetadata> getMetadataAsync(String packageName) {
         WebTarget path = packages.path(PackageName.get(packageName).toRestPath() + "/metadata");
-        final CompletableFuture<PackageMetadata> future = new CompletableFuture<>();
-        asyncGetRequest(path, new InvocationCallback<PackageMetadata>() {
-            @Override
-            public void completed(PackageMetadata metadata) {
-                future.complete(metadata);
-            }
-
-            @Override
-            public void failed(Throwable throwable) {
-                future.completeExceptionally(getApiException(throwable.getCause()));
-            }
-        });
-        return future;    }
+        return asyncGetRequest(path, new FutureCallback<PackageMetadata>(){});
+    }
 
     @Override
     public void updateMetadata(String packageName, PackageMetadata metadata) throws PulsarAdminException {
@@ -186,19 +175,7 @@ public class PackagesImpl extends ComponentResource implements Packages {
         PackageName name = PackageName.get(packageName);
         WebTarget path = packages.path(String.format("%s/%s/%s/%s",
             name.getPkgType().toString(), name.getTenant(), name.getNamespace(), name.getName()));
-        final CompletableFuture<List<String>> future = new CompletableFuture<>();
-        asyncGetRequest(path, new InvocationCallback<List<String>>() {
-            @Override
-            public void completed(List<String> strings) {
-                future.complete(strings);
-            }
-
-            @Override
-            public void failed(Throwable throwable) {
-                future.completeExceptionally(getApiException(throwable.getCause()));
-            }
-        });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<List<String>>(){});
     }
 
     @Override
@@ -209,18 +186,6 @@ public class PackagesImpl extends ComponentResource implements Packages {
     @Override
     public CompletableFuture<List<String>> listPackagesAsync(String type, String namespace) {
         WebTarget path = packages.path(type + "/" + NamespaceName.get(namespace).toString());
-        final CompletableFuture<List<String>> future = new CompletableFuture<>();
-        asyncGetRequest(path, new InvocationCallback<List<String>>() {
-            @Override
-            public void completed(List<String> strings) {
-                future.complete(strings);
-            }
-
-            @Override
-            public void failed(Throwable throwable) {
-                future.completeExceptionally(getApiException(throwable.getCause()));
-            }
-        });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<List<String>>(){});
     }
 }

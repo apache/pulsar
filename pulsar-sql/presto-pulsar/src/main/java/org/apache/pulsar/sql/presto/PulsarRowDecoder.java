@@ -19,8 +19,8 @@
 package org.apache.pulsar.sql.presto;
 
 import io.netty.buffer.ByteBuf;
-import io.prestosql.decoder.DecoderColumnHandle;
-import io.prestosql.decoder.FieldValueProvider;
+import io.trino.decoder.DecoderColumnHandle;
+import io.trino.decoder.FieldValueProvider;
 import java.util.Map;
 import java.util.Optional;
 
