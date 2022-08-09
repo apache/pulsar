@@ -409,6 +409,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             LOG.info("Closing PulsarService");
             state = State.Closing;
 
+            functionWorkerService.ifPresent(WorkerService::stop);
+
             // close the service in reverse order v.s. in which they are started
             if (this.resourceUsageTransportManager != null) {
                 try {
