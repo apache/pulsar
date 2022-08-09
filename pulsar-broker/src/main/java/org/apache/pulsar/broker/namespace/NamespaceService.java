@@ -729,11 +729,12 @@ public class NamespaceService implements AutoCloseable {
                                                          TimeUnit timeoutUnit,
                                                          boolean closeWithoutWaitingClientDisconnect) {
         // unload namespace bundle
-        OwnedBundle ob = ownershipCache.getOwnedBundle(bundle);
-        if (ob == null) {
+        Optional<CompletableFuture<OwnedBundle>> ownedBundleAsync = ownershipCache.getOwnedBundleAsync(bundle);
+        if (ownedBundleAsync.isEmpty()) {
             return FutureUtil.failedFuture(new IllegalStateException("Bundle " + bundle + " is not currently owned"));
         } else {
-            return ob.handleUnloadRequest(pulsar, timeout, timeoutUnit, closeWithoutWaitingClientDisconnect);
+            return ownedBundleAsync.get().thenCompose(
+                    ob -> ob.handleUnloadRequest(pulsar, timeout, timeoutUnit, closeWithoutWaitingClientDisconnect));
         }
     }
 
