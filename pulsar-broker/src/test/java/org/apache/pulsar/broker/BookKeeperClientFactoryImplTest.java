@@ -37,10 +37,10 @@ import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.net.CachedDNSToSwitchMapping;
 import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.commons.configuration.ConfigurationException;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.bookie.rackawareness.BookieRackAffinityMapping;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
-import org.powermock.reflect.Whitebox;
 import org.testng.annotations.Test;
 
 /**
@@ -281,7 +281,7 @@ public class BookKeeperClientFactoryImplTest {
     }
 
     @Test
-    public void testBookKeeperIoThreadsConfiguration() {
+    public void testBookKeeperIoThreadsConfiguration() throws Exception {
         BookKeeperClientFactoryImpl factory = new BookKeeperClientFactoryImpl();
         ServiceConfiguration conf = new ServiceConfiguration();
         assertEquals(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
@@ -292,11 +292,11 @@ public class BookKeeperClientFactoryImplTest {
         EventLoopGroup eventLoopGroup = mock(EventLoopGroup.class);
         BookKeeper.Builder builder = factory.getBookKeeperBuilder(conf, eventLoopGroup,
                 mock(StatsLogger.class), mock(ClientConfiguration.class));
-        assertEquals(Whitebox.getInternalState(builder, "eventLoopGroup"), eventLoopGroup);
+        assertEquals(FieldUtils.readField(builder, "eventLoopGroup", true), eventLoopGroup);
         conf.setBookkeeperClientSeparatedIoThreadsEnabled(true);
         builder = factory.getBookKeeperBuilder(conf, eventLoopGroup,
                 mock(StatsLogger.class), mock(ClientConfiguration.class));
-        assertNull(Whitebox.getInternalState(builder, "eventLoopGroup"));
+        assertNull(FieldUtils.readField(builder, "eventLoopGroup", true));
     }
 
 }

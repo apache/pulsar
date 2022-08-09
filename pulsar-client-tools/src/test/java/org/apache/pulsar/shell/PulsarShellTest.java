@@ -36,6 +36,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.SneakyThrows;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.Topics;
@@ -45,7 +46,6 @@ import org.jline.reader.UserInterruptException;
 import org.jline.reader.impl.LineReaderImpl;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
-import org.powermock.reflect.Whitebox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.BeforeMethod;
@@ -78,7 +78,6 @@ public class PulsarShellTest {
             final String cmd = commandsQueue.take();
             log.info("writing command: {}", cmd);
             return cmd;
-
         }
 
         @Override
@@ -109,11 +108,12 @@ public class PulsarShellTest {
         }
 
         @Override
+        @SneakyThrows(IllegalAccessException.class)
         protected ClientShell createClientShell(Properties properties) {
             final ClientShell clientShell = new ClientShell(properties);
             final CmdProduce cmdProduce = mock(CmdProduce.class);
             cmdProduceHolder.set(cmdProduce);
-            Whitebox.setInternalState(clientShell, "produceCommand", cmdProduceHolder.get());
+            FieldUtils.writeField(clientShell, "produceCommand", cmdProduceHolder.get(), true);
             return clientShell;
         }
 

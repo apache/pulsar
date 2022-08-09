@@ -49,6 +49,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -84,7 +85,6 @@ import org.apache.pulsar.policies.data.loadbalancer.TimeAverageMessageData;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
-import org.powermock.reflect.Whitebox;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -455,7 +455,8 @@ public class ModularLoadManagerImplTest {
     @Test
     public void testBrokerStopCacheUpdate() throws Exception {
         ModularLoadManagerWrapper loadManagerWrapper = (ModularLoadManagerWrapper) pulsar1.getLoadManager().get();
-        ModularLoadManagerImpl lm = Whitebox.getInternalState(loadManagerWrapper, "loadManager");
+        ModularLoadManagerImpl lm = (ModularLoadManagerImpl) FieldUtils.readField(
+                loadManagerWrapper, "loadManager", true);
         assertEquals(lm.getAvailableBrokers().size(), 2);
 
         pulsar2.close();
@@ -663,7 +664,8 @@ public class ModularLoadManagerImplTest {
     @Test
     public void testRemoveDeadBrokerTimeAverageData() throws Exception {
         ModularLoadManagerWrapper loadManagerWrapper = (ModularLoadManagerWrapper) pulsar1.getLoadManager().get();
-        ModularLoadManagerImpl lm = Whitebox.getInternalState(loadManagerWrapper, "loadManager");
+        ModularLoadManagerImpl lm = (ModularLoadManagerImpl) FieldUtils.readField(
+                loadManagerWrapper, "loadManager", true);
         assertEquals(lm.getAvailableBrokers().size(), 2);
 
         pulsar2.close();
