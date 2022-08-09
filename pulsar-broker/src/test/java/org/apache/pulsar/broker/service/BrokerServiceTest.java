@@ -983,7 +983,6 @@ public class BrokerServiceTest extends BrokerTestBase {
         long reqId = 0xdeadbeef;
 
         Semaphore clientCnxSemaphore = new Semaphore(1);
-        AtomicInteger count = new AtomicInteger(2);
         try (ConnectionPool pool = new ConnectionPool(conf, eventLoop, () -> new ClientCnx(conf, eventLoop) {
             @Override
             protected void handleLookupResponse(CommandLookupTopicResponse lookupResult) {
@@ -993,7 +992,6 @@ public class BrokerServiceTest extends BrokerTestBase {
                     // ignore
                 }
                 super.handleLookupResponse(lookupResult);
-                count.decrementAndGet();
             }
 
             @Override
@@ -1004,7 +1002,6 @@ public class BrokerServiceTest extends BrokerTestBase {
                     // ignore
                 }
                 super.handlePartitionResponse(lookupResult);
-                count.decrementAndGet();
             }
         })) {
             // for PMR
@@ -1019,21 +1016,19 @@ public class BrokerServiceTest extends BrokerTestBase {
             CompletableFuture<?> f2 = pool.getConnection(resolver.resolveHost())
                 .thenCompose(clientCnx -> {
                     CompletableFuture<?> future = clientCnx.newLookup(request2, reqId2);
-                    // make sure the second request return only after the last request sending
+                    // pending other responses in `ClientCnx` until now
                     clientCnxSemaphore.release();
                     return future;
                 });
 
             f1.get();
             f2.get();
-            Awaitility.await().untilAsserted(() -> assertEquals(count.get(), 0));
 
             // 3 lookup will fail
 
             // init semaphore and count
             clientCnxSemaphore.release();
             assertEquals(clientCnxSemaphore.availablePermits(), 1);
-            count.set(2);
             long reqId3 = reqId++;
             ByteBuf request3 = Commands.newPartitionMetadataRequest(topicName, reqId3);
             f1 = pool.getConnection(resolver.resolveHost())
@@ -1049,7 +1044,7 @@ public class BrokerServiceTest extends BrokerTestBase {
             CompletableFuture<?> f3 = pool.getConnection(resolver.resolveHost())
                 .thenCompose(clientCnx -> {
                     CompletableFuture<?> future = clientCnx.newLookup(request5, reqId5);
-                    // make sure the second request return only after the last request sending
+                    // pending other responses in `ClientCnx` until now
                     clientCnxSemaphore.release();
                     return future;
                     });
@@ -1069,7 +1064,6 @@ public class BrokerServiceTest extends BrokerTestBase {
                     throw e;
                 }
             }
-            Awaitility.await().untilAsserted(() -> assertEquals(count.get(), 0));
 
             // for Lookup
             // 2 lookup will succeed
@@ -1077,7 +1071,6 @@ public class BrokerServiceTest extends BrokerTestBase {
             // init semaphore and count
             clientCnxSemaphore.release();
             assertEquals(clientCnxSemaphore.availablePermits(), 1);
-            count.set(2);
             long reqId6 = reqId++;
             ByteBuf request6 = Commands.newLookup(topicName, true, reqId6);
             f1 = pool.getConnection(resolver.resolveHost())
@@ -1088,21 +1081,19 @@ public class BrokerServiceTest extends BrokerTestBase {
             f2 = pool.getConnection(resolver.resolveHost())
                 .thenCompose(clientCnx -> {
                     CompletableFuture<?> future = clientCnx.newLookup(request7, reqId7);
-                    // make sure the second request return only after the last request sending
+                    // pending other responses in `ClientCnx` until now
                     clientCnxSemaphore.release();
                     return future;
                 });
 
             f1.get();
             f2.get();
-            Awaitility.await().untilAsserted(() -> assertEquals(count.get(), 0));
 
             // 3 lookup will fail
 
             // init semaphore and count
             clientCnxSemaphore.release();
             assertEquals(clientCnxSemaphore.availablePermits(), 1);
-            count.set(2);
             long reqId8 = reqId++;
             ByteBuf request8 = Commands.newLookup(topicName, true, reqId8);
             f1 = pool.getConnection(resolver.resolveHost())
@@ -1118,7 +1109,7 @@ public class BrokerServiceTest extends BrokerTestBase {
             f3 = pool.getConnection(resolver.resolveHost())
                 .thenCompose(clientCnx -> {
                     CompletableFuture<?> future = clientCnx.newLookup(request10, reqId10);
-                    // make sure the second request return only after the last request sending
+                    // pending other responses in `ClientCnx` until now
                     clientCnxSemaphore.release();
                     return future;
                 });
@@ -1138,7 +1129,6 @@ public class BrokerServiceTest extends BrokerTestBase {
                     throw e;
                 }
             }
-            Awaitility.await().untilAsserted(() -> assertEquals(count.get(), 0));
         }
     }
 
