@@ -248,8 +248,6 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         int exceptionCallbackCount = exceptionArrayOfCallback.size();
         int positionCallbackCount = (int) positionsOfCallback.values().stream().flatMap(l -> l.stream()).count();
         if (BookieErrorType.SOMETIMES_ERROR == bookieErrorType ||  closeBufferedWriter){
-            Assert.assertTrue(exceptionCallbackCount > 0);
-            Assert.assertTrue(positionCallbackCount > 0);
             Assert.assertEquals(exceptionCallbackCount + positionCallbackCount, writeCmdExecuteCount);
         } else if (BookieErrorType.NO_ERROR == bookieErrorType){
             Assert.assertEquals(positionCallbackCount, writeCmdExecuteCount);
