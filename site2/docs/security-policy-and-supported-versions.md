@@ -14,6 +14,12 @@ https://pulsar.apache.org/docs/en/security-overview/.
 The Pulsar community will announce security vulnerabilities and how to mitigate them on the [users@pulsar.apache.org](mailto:users@pulsar.apache.org).
 For instructions on how to subscribe, please see https://pulsar.apache.org/contact/.
 
+## Reporting Vulnerabilities
+
+The Pulsar community follows the ASF [vulnerability handling process](https://apache.org/security/#vulnerability-handling).
+
+To report a new vulnerability you have discovered please follow the [ASF vulnerability reporting process](https://apache.org/security/#reporting-a-vulnerability).
+
 ## Versioning Policy
 
 The Pulsar project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html). Existing releases can expect
