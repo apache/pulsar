@@ -2533,4 +2533,21 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
                 ListNamespaceTopicsOptions.builder().mode(Mode.NON_PERSISTENT).build());
         Assert.assertTrue(notPersistentTopics.contains(nonPersistentTopic));
     }
+
+    @Test
+    private void testTerminateSystemTopic() throws Exception {
+        final String topic = "persistent://prop-xyz/ns1/testTerminateSystemTopic";
+        admin.topics().createNonPartitionedTopic(topic);
+        final String eventTopic = "persistent://prop-xyz/ns1/__change_events";
+        admin.topicPolicies().setMaxConsumers(topic, 2);
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertEquals(admin.topicPolicies().getMaxConsumers(topic), Integer.valueOf(2));
+        });
+        try {
+            admin.topics().terminateTopic(eventTopic);
+            Assert.fail("Should fail here");
+        } catch (PulsarAdminException ex) {
+            Assert.assertTrue(ex instanceof PulsarAdminException.NotAllowedException);
+        }
+    }
 }
