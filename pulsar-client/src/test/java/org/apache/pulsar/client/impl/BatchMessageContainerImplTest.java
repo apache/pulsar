@@ -40,9 +40,7 @@ public class BatchMessageContainerImplTest {
     @Test
     public void recoveryAfterOom() {
         // Force initialize PulsarByteBufAllocator.DEFAULT before mock the ctor so that it is not polluted.
-        final ByteBufAllocatorImpl byteBufAllocator = (ByteBufAllocatorImpl) PulsarByteBufAllocator.DEFAULT;
-        // Use the variable, in case the compiler optimization.
-        log.trace("{}", byteBufAllocator);
+        log.trace("{}", PulsarByteBufAllocator.DEFAULT);
 
         try (MockedConstruction<ByteBufAllocatorImpl> ignored = Mockito.mockConstruction(ByteBufAllocatorImpl.class,
                 (mockAllocator, context) ->
