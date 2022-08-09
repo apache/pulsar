@@ -83,6 +83,16 @@ void Consumer_seek_timestamp(Consumer& consumer, uint64_t timestamp) {
 
 bool Consumer_is_connected(Consumer& consumer) { return consumer.isConnected(); }
 
+MessageId Consumer_get_last_message_id(Consumer& consumer) {
+    MessageId msgId;
+    Result res;
+    Py_BEGIN_ALLOW_THREADS res = consumer.getLastMessageId(msgId);
+    Py_END_ALLOW_THREADS
+
+        CHECK_RESULT(res);
+    return msgId;
+}
+
 void export_consumer() {
     using namespace boost::python;
 
@@ -105,5 +115,6 @@ void export_consumer() {
         .def("redeliver_unacknowledged_messages", &Consumer::redeliverUnacknowledgedMessages)
         .def("seek", &Consumer_seek)
         .def("seek", &Consumer_seek_timestamp)
-        .def("is_connected", &Consumer_is_connected);
+        .def("is_connected", &Consumer_is_connected)
+        .def("get_last_message_id", &Consumer_get_last_message_id);
 }
