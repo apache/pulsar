@@ -552,10 +552,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             // in a separate thread, and we want to prevent more reads
             sendInProgress = true;
             dispatchMessagesThread.execute(safeRun(() -> {
-                synchronized (this) {
-                    if (sendMessagesToConsumers(readType, entries)) {
-                        readMoreEntries();
-                    }
+                if (sendMessagesToConsumers(readType, entries)) {
+                    readMoreEntries();
                 }
             }));
         } else {
