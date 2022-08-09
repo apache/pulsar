@@ -1612,11 +1612,6 @@ public class Commands {
     }
 
     public static ByteBuf addBrokerEntryMetadata(ByteBuf headerAndPayload,
-                                                 Set<BrokerEntryMetadataInterceptor> interceptors) {
-        return addBrokerEntryMetadata(headerAndPayload, interceptors, -1);
-    }
-
-    public static ByteBuf addBrokerEntryMetadata(ByteBuf headerAndPayload,
                                                  Set<BrokerEntryMetadataInterceptor> brokerInterceptors,
                                                  int numberOfMessages) {
         //   | BROKER_ENTRY_METADATA_MAGIC_NUMBER | BROKER_ENTRY_METADATA_SIZE |         BROKER_ENTRY_METADATA         |
