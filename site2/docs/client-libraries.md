@@ -6,14 +6,14 @@ sidebar_label: "Overview"
 
 Pulsar supports the following language specific client libraries:
 
-| Language  | Documentation                          | Release note                                                                   | Code repo                                                                        |
-| --------- | -------------------------------------- | ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------- |
-| Java      | [User doc](client-libraries-java.md)   | [Bundled](/release-notes/)                                                     | [Bundled](https://github.com/apache/pulsar/tree/master/pulsar-client)            |
-| C++       | [User doc](client-libraries-cpp.md)    | [Bundled](/release-notes/)                                                     | [Bundled](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp)        |
-| Python    | [User doc](client-libraries-python.md) | [Bundled](/release-notes/)                                                     | [Bundled](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/python) |
-| Go client | [User doc](client-libraries-go.md)     | [Standalone](https://github.com/apache/pulsar-client-go/blob/master/CHANGELOG) | [Standalone](https://github.com/apache/pulsar-client-go)                         |
-| Node.js   | [User doc](client-libraries-node.md)   | [Standalone](https://github.com/apache/pulsar-client-node/releases)            | [Standalone](https://github.com/apache/pulsar-client-node)                       |
-| C#        | [User doc](client-libraries-dotnet.md) | [Standalone](https://github.com/apache/pulsar-dotpulsar/blob/master/CHANGELOG) | [Standalone](https://github.com/apache/pulsar-dotpulsar)                         |
+| Language  | Documentation                          | Release note                                                                      | Code repo                                                                        |
+| --------- | -------------------------------------- | --------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| Java      | [User doc](client-libraries-java.md)   | [Bundled](/release-notes/)                                                        | [Bundled](https://github.com/apache/pulsar/tree/master/pulsar-client)            |
+| C++       | [User doc](client-libraries-cpp.md)    | [Bundled](/release-notes/)                                                        | [Bundled](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp)        |
+| Python    | [User doc](client-libraries-python.md) | [Bundled](/release-notes/)                                                        | [Bundled](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/python) |
+| Go client | [User doc](client-libraries-go.md)     | [Standalone](https://github.com/apache/pulsar-client-go/releases)                 | [Standalone](https://github.com/apache/pulsar-client-go)                         |
+| Node.js   | [User doc](client-libraries-node.md)   | [Standalone](https://github.com/apache/pulsar-client-node/releases)               | [Standalone](https://github.com/apache/pulsar-client-node)                       |
+| C#        | [User doc](client-libraries-dotnet.md) | [Standalone](https://github.com/apache/pulsar-dotpulsar/blob/master/CHANGELOG.md) | [Standalone](https://github.com/apache/pulsar-dotpulsar)                         |
 
 Pulsar supports the following language-agnostic client libraries:
 
@@ -53,14 +53,14 @@ Besides the official released clients, multiple projects on developing Pulsar cl
 
 ### Node.js
 
-| Project                                          | Description                      | License                                                   | Star                                                                                           |
-| ------------------------------------------------ | -------------------------------- | --------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Project                                                     | Description                                                                                   | License                                    | Star                                                                                                    |
+| ----------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
 | [pulsar-flex](https://github.com/ayeo-flex-org/pulsar-flex) | Pulsar Flex is a modern Apache Pulsar client for Node.js, developed to be independent of C++. | [MIT](https://opensource.org/licenses/MIT) | ![GitHub Repo Stars](https://img.shields.io/github/stars/ayeo-flex-org/pulsar-flex?style=for-the-badge) |
 
 ### PHP
 
-| Project                                          | Description                      | License                                                   | Star                                                                                           |
-| ------------------------------------------------ | -------------------------------- | --------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Project                                                             | Description                                 | License                                    | Star                                                                                                      |
+| ------------------------------------------------------------------- | ------------------------------------------- | ------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
 | [pulsar-client-php](https://github.com/ikilobyte/pulsar-client-php) | PHP Native Client library for Apache Pulsar | [MIT](https://opensource.org/licenses/MIT) | ![GitHub Repo Stars](https://img.shields.io/github/stars/ikilobyte/pulsar-client-php?style=for-the-badge) |
 
 ### Rust
