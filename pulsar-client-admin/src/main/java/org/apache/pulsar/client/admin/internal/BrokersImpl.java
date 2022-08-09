@@ -162,19 +162,7 @@ public class BrokersImpl extends BaseResource implements Brokers {
     @Override
     public CompletableFuture<Void> backlogQuotaCheckAsync() {
         WebTarget path = adminBrokers.path("backlogQuotaCheck");
-        final CompletableFuture<Void> future = new CompletableFuture<>();
-        asyncGetRequest(path, new InvocationCallback<Void>() {
-            @Override
-            public void completed(Void unused) {
-                future.complete(null);
-            }
-
-            @Override
-            public void failed(Throwable throwable) {
-                future.completeExceptionally(throwable);
-            }
-        });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<Void>() {});
     }
 
     @Override

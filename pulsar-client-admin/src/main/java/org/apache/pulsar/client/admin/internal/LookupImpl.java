@@ -57,24 +57,8 @@ public class LookupImpl extends BaseResource implements Lookup {
         String prefix = topicName.isV2() ? "/topic" : "/destination";
         WebTarget path = v2lookup.path(prefix).path(topicName.getLookupName());
 
-        final CompletableFuture<String> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<LookupData>() {
-                    @Override
-                    public void completed(LookupData lookupData) {
-                        if (useTls) {
-                            future.complete(lookupData.getBrokerUrlTls());
-                        } else {
-                            future.complete(lookupData.getBrokerUrl());
-                        }
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<LookupData>() {})
+                .thenApply(lookupData -> useTls ? lookupData.getBrokerUrlTls() : lookupData.getBrokerUrl());
     }
 
     @Override
