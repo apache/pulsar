@@ -45,7 +45,9 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiPredicate;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.zookeeper.AsyncCallback.Children2Callback;
 import org.apache.zookeeper.AsyncCallback.ChildrenCallback;
 import org.apache.zookeeper.AsyncCallback.DataCallback;
@@ -1013,6 +1015,7 @@ public class MockZooKeeper extends ZooKeeper {
     }
 
     @Override
+    @SneakyThrows(IllegalAccessException.class)
     public List<OpResult> multi(Iterable<org.apache.zookeeper.Op> ops) throws InterruptedException, KeeperException {
         List<OpResult> res = new ArrayList<>();
         try {
@@ -1026,12 +1029,12 @@ public class MockZooKeeper extends ZooKeeper {
                         break;
                     }
                     case ZooDefs.OpCode.delete:
-                        this.delete(op.getPath(), Whitebox.getInternalState(op, "version"));
+                        this.delete(op.getPath(), (int) FieldUtils.readField(op, "version", true));
                         res.add(new OpResult.DeleteResult());
                         break;
                     case ZooDefs.OpCode.setData: {
-                        Stat stat = this.setData(op.getPath(), Whitebox.getInternalState(op, "data"),
-                                Whitebox.getInternalState(op, "version"));
+                        Stat stat = this.setData(op.getPath(), (byte[]) FieldUtils.readField(op, "data", true),
+                                (int) FieldUtils.readField(op, "version", true));
                         res.add(new OpResult.SetDataResult(stat));
                         break;
                     }

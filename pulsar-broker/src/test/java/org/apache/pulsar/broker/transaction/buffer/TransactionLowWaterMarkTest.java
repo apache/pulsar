@@ -34,6 +34,7 @@ import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.collections4.map.LinkedMap;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
@@ -61,7 +62,6 @@ import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreState;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore;
 import org.awaitility.Awaitility;
-import org.powermock.reflect.Whitebox;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -324,9 +324,12 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
         field.setAccessible(true);
         field.set(txn1, TransactionImpl.State.OPEN);
 
-        AtomicLong pendingWriteOps = Whitebox.getInternalState(getPulsarServiceList().get(0)
-                .getBrokerService().getTopic(TopicName.get(TOPIC).toString(),
-                        false).get().get(), "pendingWriteOps");
+        Topic t = getPulsarServiceList().get(0)
+                .getBrokerService()
+                .getTopic(TopicName.get(TOPIC).toString(), false)
+                .get()
+                .get();
+        AtomicLong pendingWriteOps = (AtomicLong) FieldUtils.readField(t, "pendingWriteOps", true);
         try {
             producer.newMessage(txn1).send();
             fail();

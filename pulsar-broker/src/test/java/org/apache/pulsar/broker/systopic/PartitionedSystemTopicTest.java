@@ -24,6 +24,7 @@ import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.commons.lang.RandomStringUtils;
+import org.apache.commons.lang3.reflect.MethodUtils;
 import org.apache.pulsar.broker.admin.impl.BrokersBase;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
@@ -48,7 +49,6 @@ import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
-import org.powermock.reflect.Whitebox;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -206,7 +206,8 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         config.setMinimumRolloverTime(1, TimeUnit.SECONDS);
         config.setMaximumRolloverTime(1, TimeUnit.SECONDS);
         persistentTopic.getManagedLedger().setConfig(config);
-        Whitebox.invokeMethod(persistentTopic.getManagedLedger(), "updateLastLedgerCreatedTimeAndScheduleRolloverTask");
+        MethodUtils.invokeMethod(persistentTopic.getManagedLedger(),
+                true, "updateLastLedgerCreatedTimeAndScheduleRolloverTask");
         String msg1 = "msg-1";
         producer.send(msg1);
         Thread.sleep(3 * 1000);

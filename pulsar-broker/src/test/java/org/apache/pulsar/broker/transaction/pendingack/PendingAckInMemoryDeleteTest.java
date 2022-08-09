@@ -24,6 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.collections4.map.LinkedMap;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
@@ -40,7 +41,6 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.awaitility.Awaitility;
-import org.powermock.reflect.Whitebox;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -309,12 +309,12 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
 
         consumer.acknowledgeAsync(consumer.receive().getMessageId(), commitTxn).get();
 
-        PendingAckHandle pendingAckHandle = Whitebox.getInternalState(getPulsarServiceList().get(0)
+        PendingAckHandle pendingAckHandle = (PendingAckHandle) FieldUtils.readField(getPulsarServiceList().get(0)
                 .getBrokerService().getTopic("persistent://" + normalTopic, false).get().get()
-                .getSubscription(subscriptionName), "pendingAckHandle");
+                .getSubscription(subscriptionName), "pendingAckHandle", true);
 
         Map<PositionImpl, MutablePair<PositionImpl, Integer>> individualAckPositions =
-                Whitebox.getInternalState(pendingAckHandle, "individualAckPositions");
+                (Map) FieldUtils.readField(pendingAckHandle, "individualAckPositions", true);
         // one message in pending ack state
         assertEquals(1, individualAckPositions.size());
 
