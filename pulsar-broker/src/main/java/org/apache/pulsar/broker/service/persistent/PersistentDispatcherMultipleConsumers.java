@@ -550,9 +550,12 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         if (serviceConfig.isDispatcherDispatchMessagesInSubscriptionThread()) {
             // setting sendInProgress here, because sendMessagesToConsumers will be executed
             // in a separate thread, and we want to prevent more reads
+            sendInProgress = true;
             dispatchMessagesThread.execute(safeRun(() -> {
-                if (sendMessagesToConsumers(readType, entries)) {
-                    readMoreEntries();
+                synchronized (this) {
+                    if (sendMessagesToConsumers(readType, entries)) {
+                        readMoreEntries();
+                    }
                 }
             }));
         } else {
