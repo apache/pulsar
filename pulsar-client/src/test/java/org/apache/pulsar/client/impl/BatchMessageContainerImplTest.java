@@ -24,7 +24,6 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertNotNull;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.allocator.impl.ByteBufAllocatorImpl;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Schema;
@@ -35,7 +34,6 @@ import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
-@Slf4j
 public class BatchMessageContainerImplTest {
 
     @Test

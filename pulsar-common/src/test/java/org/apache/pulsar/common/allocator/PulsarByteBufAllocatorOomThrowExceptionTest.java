@@ -25,7 +25,6 @@ import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBufAllocator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.allocator.LeakDetectionPolicy;
 import org.apache.bookkeeper.common.allocator.OutOfMemoryPolicy;
 import org.apache.bookkeeper.common.allocator.PoolingPolicy;
@@ -34,7 +33,6 @@ import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
-@Slf4j
 public class PulsarByteBufAllocatorOomThrowExceptionTest {
 
     @Test
