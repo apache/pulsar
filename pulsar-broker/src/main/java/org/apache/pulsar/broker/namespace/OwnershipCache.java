@@ -106,7 +106,7 @@ public class OwnershipCache {
                                 .thenRun(() -> {
                                     log.info("Resource lock for {} has expired", rl.getPath());
                                     namespaceService.unloadNamespaceBundle(namespaceBundle);
-                                    ownedBundlesCache.synchronous().invalidate(namespaceBundle);
+                                    invalidateLocalOwnerCache(namespaceBundle);
                                     namespaceService.onNamespaceBundleUnload(namespaceBundle);
                                 });
                         return new OwnedBundle(namespaceBundle);
@@ -328,6 +328,10 @@ public class OwnershipCache {
 
     public void invalidateLocalOwnerCache() {
         this.ownedBundlesCache.synchronous().invalidateAll();
+    }
+
+    public void invalidateLocalOwnerCache(NamespaceBundle namespaceBundle) {
+        this.ownedBundlesCache.synchronous().invalidate(namespaceBundle);
     }
 
     public synchronized boolean refreshSelfOwnerInfo() {
