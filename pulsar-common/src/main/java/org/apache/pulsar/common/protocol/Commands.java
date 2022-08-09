@@ -1850,9 +1850,10 @@ public class Commands {
             long consumerId) {
         try {
             // save the reader index and restore after parsing
-            metadataAndPayload.markReaderIndex();
+            int readerIdx = metadataAndPayload.readerIndex();
             MessageMetadata metadata = Commands.parseMessageMetadata(metadataAndPayload);
-            metadataAndPayload.resetReaderIndex();
+            metadataAndPayload.readerIndex(readerIdx);
+
             return metadata;
         } catch (Throwable t) {
             log.error("[{}] [{}] Failed to parse message metadata", subscription, consumerId, t);
