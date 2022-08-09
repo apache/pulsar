@@ -49,7 +49,7 @@ public final class TestEnvVarResolverProperties {
     }
 
     @Test
-    public void resolveEnvVars() {
+    public void resolveEnvVars() throws Exception {
         SystemLambda.withEnvironmentVariable("VARNAME1", "varvalue1")
                 .and("VARNAME2", "varvalue2")
                 .execute(() -> {
@@ -60,7 +60,7 @@ public final class TestEnvVarResolverProperties {
     }
 
     @Test
-    public void getProperty() {
+    public void getProperty() throws Exception {
         SystemLambda.withEnvironmentVariable("NC_PORT", "6667").execute(() -> {
             System.setProperty("propertiesImplementation",
                     "org.apache.pulsar.io.flume.node.EnvVarResolverProperties");
