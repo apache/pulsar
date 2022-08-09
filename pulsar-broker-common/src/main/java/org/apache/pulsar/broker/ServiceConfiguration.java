@@ -329,7 +329,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SERVER,
-            doc = "enable compression metrics data when the HTTP service responds to the client"
+            doc = "Enable or disable compress output metrics in prometheus"
     )
     private boolean compressOutputMetricsInPrometheus = false;
 
