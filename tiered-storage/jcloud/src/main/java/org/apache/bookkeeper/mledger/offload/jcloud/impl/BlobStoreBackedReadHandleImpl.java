@@ -190,7 +190,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                 promise.complete(LedgerEntriesImpl.create(entries));
             } catch (Throwable t) {
                 log.error("Failed to read entries {} - {} from the offloader in ledger {}",
-                    firstEntry, lastEntry, ledgerId);
+                    firstEntry, lastEntry, ledgerId, t);
                 promise.completeExceptionally(t);
                 entries.forEach(LedgerEntry::close);
             }
