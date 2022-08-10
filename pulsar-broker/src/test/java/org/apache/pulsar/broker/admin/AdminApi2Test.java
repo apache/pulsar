@@ -28,6 +28,7 @@ import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.expectThrows;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -2543,11 +2544,8 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         Awaitility.await().untilAsserted(() -> {
             Assert.assertEquals(admin.topicPolicies().getMaxConsumers(topic), Integer.valueOf(2));
         });
-        try {
-            admin.topics().terminateTopic(eventTopic);
-            Assert.fail("Should fail here");
-        } catch (PulsarAdminException ex) {
-            Assert.assertTrue(ex instanceof PulsarAdminException.NotAllowedException);
-        }
+        PulsarAdminException ex = expectThrows(PulsarAdminException.class,
+                () -> admin.topics().terminateTopic(eventTopic));
+        assertTrue(ex instanceof PulsarAdminException.NotAllowedException);
     }
 }
