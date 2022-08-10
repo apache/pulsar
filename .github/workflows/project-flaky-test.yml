@@ -34,7 +34,7 @@ jobs:
     name: Add flaky test issues and PRs to flaky test project
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/add-to-project@0.3.0
+      - uses: actions/add-to-project@v0.3.0
         with:
           project-url: https://github.com/apache/pulsar/projects/11
           github-token: ${{ secrets.GITHUB_TOKEN }}
