@@ -1047,11 +1047,11 @@ public class BrokerServiceTest extends BrokerTestBase {
                     return future;
                     });
 
+            f1.get();
+            f2.get();
             try {
-                f1.get();
-                f2.get();
                 f3.get();
-                fail("At least one should fail");
+                fail("f3 one should fail");
             } catch (ExecutionException e) {
                 Throwable rootCause = e;
                 while (rootCause instanceof ExecutionException) {
@@ -1106,11 +1106,11 @@ public class BrokerServiceTest extends BrokerTestBase {
                     return future;
                 });
 
+            f1.get();
+            f2.get();
             try {
-                f1.get();
-                f2.get();
                 f3.get();
-                fail("At least one should fail");
+                fail("f3 should fail");
             } catch (ExecutionException e) {
                 Throwable rootCause = e;
                 while (rootCause instanceof ExecutionException) {
