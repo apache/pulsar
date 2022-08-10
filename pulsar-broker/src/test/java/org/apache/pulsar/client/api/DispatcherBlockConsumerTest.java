@@ -595,14 +595,14 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
     public void testBrokerSubscriptionRecovery(boolean unloadBundleGracefully) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final String topicName = "persistent://my-property/my-ns/unacked-topic";
+        final String topicName = "persistent://my-property/my-ns/unacked-topic" + UUID.randomUUID();
         final String subscriberName = "subscriber-1";
         final int totalProducedMsgs = 500;
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriberName)
                 .subscriptionType(SubscriptionType.Shared).acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
-        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/unacked-topic")
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
             .create();
