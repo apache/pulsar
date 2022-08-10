@@ -2379,13 +2379,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "Default message retention time."
-            + " Value of 0 means the retention is disabled, -1 means the data will not be removed by time quota"
+            + " 0 means retention is disabled. -1 means data is not removed by time quota"
     )
     private int defaultRetentionTimeInMinutes = 0;
     @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "Default retention size."
-            + " Value of 0 means the retention is disabled, -1 means the data will not be removed by size quota"
+            + " 0 means retention is disabled. -1 means data is not removed by size quota"
     )
     private int defaultRetentionSizeInMB = 0;
     @FieldContext(

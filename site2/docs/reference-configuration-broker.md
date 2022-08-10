@@ -1109,7 +1109,7 @@ When a namespace is created without specifying the number of bundle, this value 
 **Category**: Policies
 
 ### defaultRetentionSizeInMB
-Default retention size. Value of 0 means the retention is disabled, -1 means the data will not be removed by size quota
+Default retention size. 0 means retention is disabled. -1 means data is not removed by size quota
 
 **Default**: `0`
 
@@ -1118,7 +1118,7 @@ Default retention size. Value of 0 means the retention is disabled, -1 means the
 **Category**: Policies
 
 ### defaultRetentionTimeInMinutes
-Default message retention time. Value of 0 means the retention is disabled, -1 means the data will not be removed by time quota
+Default message retention time. 0 means retention is disabled. -1 means data is not removed by time quota
 
 **Default**: `0`
 

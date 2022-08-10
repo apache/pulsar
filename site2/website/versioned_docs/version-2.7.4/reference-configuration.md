@@ -308,8 +308,8 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |brokerServicePurgeInactiveFrequencyInSeconds|Deprecated. Use `brokerDeleteInactiveTopicsFrequencySeconds`.|60|
 |transactionCoordinatorEnabled|Whether to enable transaction coordinator in broker.|true|
 |transactionMetadataStoreProviderClassName| |org.apache.pulsar.transaction.coordinator.impl.InMemTransactionMetadataStoreProvider|
-|defaultRetentionTimeInMinutes| Default message retention time. Value of 0 means the retention is disabled, -1 means the data will not be removed by time quota  |0|
-|defaultRetentionSizeInMB|  Default retention size. Value of 0 means the retention is disabled, -1 means the data will not be removed by size quota  |0|
+|defaultRetentionTimeInMinutes| Default message retention time. 0 means retention is disabled. -1 means data is not removed by time quota  |0|
+|defaultRetentionSizeInMB|  Default retention size. 0 means retention is disabled. -1 means data is not removed by size quota  |0|
 |keepAliveIntervalSeconds|  How often to check whether the connections are still alive  |30|
 |bootstrapNamespaces| The bootstrap name. | N/A |
 |loadManagerClassName|  Name of load manager to use |org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl|
