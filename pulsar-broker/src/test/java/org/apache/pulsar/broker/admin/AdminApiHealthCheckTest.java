@@ -18,6 +18,18 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadMXBean;
+import java.time.Duration;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Phaser;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -30,18 +42,6 @@ import org.springframework.util.CollectionUtils;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.lang.management.ManagementFactory;
-import java.lang.management.ThreadMXBean;
-import java.time.Duration;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Phaser;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
-import java.util.stream.Collectors;
-
-import static org.testng.Assert.*;
 
 @Test(groups = "broker-admin")
 @Slf4j

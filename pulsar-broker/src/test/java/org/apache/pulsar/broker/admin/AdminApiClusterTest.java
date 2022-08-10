@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertThrows;
+import java.util.Set;
+import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -27,13 +31,6 @@ import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.util.Set;
-import java.util.UUID;
-
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertThrows;
-
 @Test(groups = "broker-admin")
 @Slf4j
 public class AdminApiClusterTest extends MockedPulsarServiceBaseTest {

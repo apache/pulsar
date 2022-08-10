@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.reflect.AvroAlias;
 import org.apache.avro.reflect.AvroDefault;
@@ -33,8 +34,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.util.Set;
 
 @Slf4j
 @Test(groups = "broker-admin")

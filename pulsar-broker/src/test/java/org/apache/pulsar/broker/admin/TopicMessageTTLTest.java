@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import java.util.Set;
+import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -32,9 +34,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
-import java.util.Set;
-import java.util.UUID;
 
 @Slf4j
 @Test(groups = "flaky")

@@ -18,6 +18,15 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.spy;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.fail;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Set;
 import org.apache.pulsar.broker.admin.v2.ResourceGroups;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.web.RestException;
@@ -28,13 +37,6 @@ import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-
-import java.util.*;
-
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.spy;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.fail;
 
 public class ResourceGroupsTest extends MockedPulsarServiceBaseTest {
     private ResourceGroups resourcegroups;
