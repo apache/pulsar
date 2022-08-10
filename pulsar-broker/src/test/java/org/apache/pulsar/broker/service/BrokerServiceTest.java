@@ -61,6 +61,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -981,14 +982,14 @@ public class BrokerServiceTest extends BrokerTestBase {
                 new DefaultThreadFactory("test-pool", Thread.currentThread().isDaemon()));
         long reqId = 0xdeadbeef;
 
-        // using an array in order to reset a new CountDownLatch
-        CountDownLatch[] latch = new CountDownLatch[1];
-        latch[0] = new CountDownLatch(1);
+        // using an AtomicReference in order to reset a new CountDownLatch
+        AtomicReference<CountDownLatch> latchRef = new AtomicReference<>();
+        latchRef.set(new CountDownLatch(1));
         try (ConnectionPool pool = new ConnectionPool(conf, eventLoop, () -> new ClientCnx(conf, eventLoop) {
             @Override
             protected void handleLookupResponse(CommandLookupTopicResponse lookupResult) {
                 try {
-                    latch[0].await();
+                    latchRef.get().await();
                 } catch (InterruptedException e) {
                     // ignore
                 }
@@ -998,7 +999,7 @@ public class BrokerServiceTest extends BrokerTestBase {
             @Override
             protected void handlePartitionResponse(CommandPartitionedTopicMetadataResponse lookupResult) {
                 try {
-                    latch[0].await();
+                    latchRef.get().await();
                 } catch (InterruptedException e) {
                     // ignore
                 }
@@ -1018,7 +1019,7 @@ public class BrokerServiceTest extends BrokerTestBase {
                 .thenCompose(clientCnx -> {
                     CompletableFuture<?> future = clientCnx.newLookup(request2, reqId2);
                     // pending other responses in `ClientCnx` until now
-                    latch[0].countDown();
+                    latchRef.get().countDown();
                     return future;
                 });
 
@@ -1027,8 +1028,8 @@ public class BrokerServiceTest extends BrokerTestBase {
 
             // 3 lookup will fail
 
-            latch[0] = new CountDownLatch(1);
-            assertEquals(latch[0].getCount(), 1);
+            latchRef.set(new CountDownLatch(1));
+            assertEquals(latchRef.get().getCount(), 1);
             long reqId3 = reqId++;
             ByteBuf request3 = Commands.newPartitionMetadataRequest(topicName, reqId3);
             f1 = pool.getConnection(resolver.resolveHost())
@@ -1045,7 +1046,7 @@ public class BrokerServiceTest extends BrokerTestBase {
                 .thenCompose(clientCnx -> {
                     CompletableFuture<?> future = clientCnx.newLookup(request5, reqId5);
                     // pending other responses in `ClientCnx` until now
-                    latch[0].countDown();
+                    latchRef.get().countDown();
                     return future;
                     });
 
@@ -1068,8 +1069,8 @@ public class BrokerServiceTest extends BrokerTestBase {
             // for Lookup
             // 2 lookup will succeed
 
-            latch[0] = new CountDownLatch(1);
-            assertEquals(latch[0].getCount(), 1);
+            latchRef.set(new CountDownLatch(1));
+            assertEquals(latchRef.get().getCount(), 1);
             long reqId6 = reqId++;
             ByteBuf request6 = Commands.newLookup(topicName, true, reqId6);
             f1 = pool.getConnection(resolver.resolveHost())
@@ -1081,7 +1082,7 @@ public class BrokerServiceTest extends BrokerTestBase {
                 .thenCompose(clientCnx -> {
                     CompletableFuture<?> future = clientCnx.newLookup(request7, reqId7);
                     // pending other responses in `ClientCnx` until now
-                    latch[0].countDown();
+                    latchRef.get().countDown();
                     return future;
                 });
 
@@ -1090,8 +1091,8 @@ public class BrokerServiceTest extends BrokerTestBase {
 
             // 3 lookup will fail
 
-            latch[0] = new CountDownLatch(1);
-            assertEquals(latch[0].getCount(), 1);
+            latchRef.set(new CountDownLatch(1));
+            assertEquals(latchRef.get().getCount(), 1);
             long reqId8 = reqId++;
             ByteBuf request8 = Commands.newLookup(topicName, true, reqId8);
             f1 = pool.getConnection(resolver.resolveHost())
@@ -1108,7 +1109,7 @@ public class BrokerServiceTest extends BrokerTestBase {
                 .thenCompose(clientCnx -> {
                     CompletableFuture<?> future = clientCnx.newLookup(request10, reqId10);
                     // pending other responses in `ClientCnx` until now
-                    latch[0].countDown();
+                    latchRef.get().countDown();
                     return future;
                 });
 
