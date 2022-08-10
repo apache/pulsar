@@ -23,7 +23,6 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 import org.apache.pulsar.client.admin.Lookup;
 import org.apache.pulsar.client.admin.PulsarAdminException;
