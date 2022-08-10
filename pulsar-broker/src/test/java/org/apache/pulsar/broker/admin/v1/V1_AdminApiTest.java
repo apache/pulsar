@@ -18,39 +18,10 @@
  */
 package org.apache.pulsar.broker.admin.v1;
 
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertNotEquals;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertNull;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
-import com.google.common.collect.Sets;
 import com.google.common.hash.Hashing;
-import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.EnumSet;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.TreeSet;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-import javax.ws.rs.client.InvocationCallback;
-import javax.ws.rs.client.WebTarget;
 import lombok.Builder;
 import lombok.Cleanup;
 import lombok.Value;
@@ -70,43 +41,13 @@ import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedExc
 import org.apache.pulsar.client.admin.internal.LookupImpl;
 import org.apache.pulsar.client.admin.internal.TenantsImpl;
 import org.apache.pulsar.client.admin.internal.TopicsImpl;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerBuilder;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageRoutingMode;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.common.lookup.data.LookupData;
-import org.apache.pulsar.common.naming.NamespaceBundle;
-import org.apache.pulsar.common.naming.NamespaceBundleFactory;
-import org.apache.pulsar.common.naming.NamespaceBundles;
-import org.apache.pulsar.common.naming.NamespaceName;
-import org.apache.pulsar.common.naming.TopicDomain;
-import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.naming.*;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
-import org.apache.pulsar.common.policies.data.AuthAction;
-import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
-import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
-import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.*;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy;
-import org.apache.pulsar.common.policies.data.BrokerAssignment;
-import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
-import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
-import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
-import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
-import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
-import org.apache.pulsar.common.policies.data.PersistencePolicies;
-import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
-import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.PoliciesUtil;
-import org.apache.pulsar.common.policies.data.RetentionPolicies;
-import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
-import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.compaction.Compactor;
@@ -118,6 +59,18 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
+
+import javax.ws.rs.client.InvocationCallback;
+import javax.ws.rs.client.WebTarget;
+import java.lang.reflect.Field;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+
+import static org.mockito.Mockito.*;
+import static org.testng.Assert.*;
 
 @Slf4j
 @Test(groups = "broker-admin")
@@ -736,13 +689,13 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         publishMessagesOnPersistentTopic("persistent://prop-xyz/use/ns1/" + topicName, 10);
 
         TopicStats topicStats = admin.topics().getStats(persistentTopicName);
-        assertEquals(topicStats.getSubscriptions().keySet(), Sets.newTreeSet(Lists.newArrayList("my-sub")));
+        assertEquals(topicStats.getSubscriptions().keySet(), new TreeSet<>(Lists.newArrayList("my-sub")));
         assertEquals(topicStats.getSubscriptions().get("my-sub").getConsumers().size(), 1);
         assertEquals(topicStats.getSubscriptions().get("my-sub").getMsgBacklog(), 10);
         assertEquals(topicStats.getPublishers().size(), 0);
 
         PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(persistentTopicName, false);
-        assertEquals(internalStats.cursors.keySet(), Sets.newTreeSet(Lists.newArrayList("my-sub")));
+        assertEquals(internalStats.cursors.keySet(), new TreeSet<>(Lists.newArrayList("my-sub")));
 
         List<Message<byte[]>> messages = admin.topics().peekMessages(persistentTopicName, "my-sub", 3);
         assertEquals(messages.size(), 3);
@@ -861,7 +814,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // test cumulative stats for partitioned topic
         PartitionedTopicStats topicStats = admin.topics().getPartitionedStats(partitionedTopicName, false);
-        assertEquals(topicStats.getSubscriptions().keySet(), Sets.newTreeSet(Lists.newArrayList("my-sub")));
+        assertEquals(topicStats.getSubscriptions().keySet(), new TreeSet<>(Lists.newArrayList("my-sub")));
         assertEquals(topicStats.getSubscriptions().get("my-sub").getConsumers().size(), 1);
         assertEquals(topicStats.getSubscriptions().get("my-sub").getMsgBacklog(), 10);
         assertEquals(topicStats.getPublishers().size(), 1);

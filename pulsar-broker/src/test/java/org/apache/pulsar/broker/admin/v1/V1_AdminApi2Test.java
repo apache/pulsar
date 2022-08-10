@@ -28,11 +28,7 @@ import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.net.URL;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
@@ -189,7 +185,7 @@ public class V1_AdminApi2Test extends MockedPulsarServiceBaseTest {
 
         // test cumulative stats for partitioned topic
         PartitionedTopicStats topicStats = admin.topics().getPartitionedStats(partitionedTopicName, false);
-        assertEquals(topicStats.getSubscriptions().keySet(), Sets.newTreeSet(Lists.newArrayList(subName1, subName2)));
+        assertEquals(topicStats.getSubscriptions().keySet(), new TreeSet<>(Lists.newArrayList(subName1, subName2)));
         assertEquals(topicStats.getSubscriptions().get(subName2).getConsumers().size(), 1);
         assertEquals(topicStats.getSubscriptions().get(subName2).getMsgBacklog(), totalMessages);
         assertEquals(topicStats.getPublishers().size(), 1);
@@ -242,12 +238,12 @@ public class V1_AdminApi2Test extends MockedPulsarServiceBaseTest {
         publishMessagesOnTopic("non-persistent://prop-xyz/use/ns1/" + topicName, 10, 0);
 
         NonPersistentTopicStats topicStats = admin.nonPersistentTopics().getStats(persistentTopicName);
-        assertEquals(topicStats.getSubscriptions().keySet(), Sets.newTreeSet(Lists.newArrayList("my-sub")));
+        assertEquals(topicStats.getSubscriptions().keySet(), new TreeSet<>(Lists.newArrayList("my-sub")));
         assertEquals(topicStats.getSubscriptions().get("my-sub").getConsumers().size(), 1);
         assertEquals(topicStats.getPublishers().size(), 0);
 
         PersistentTopicInternalStats internalStats = admin.nonPersistentTopics().getInternalStats(persistentTopicName);
-        assertEquals(internalStats.cursors.keySet(), Sets.newTreeSet(Lists.newArrayList("my-sub")));
+        assertEquals(internalStats.cursors.keySet(), new TreeSet<>(Lists.newArrayList("my-sub")));
 
         consumer.close();
         client.close();

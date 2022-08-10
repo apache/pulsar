@@ -34,15 +34,7 @@ import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import javax.ws.rs.NotAcceptableException;
 import javax.ws.rs.core.Response.Status;
@@ -236,7 +228,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
         // test cumulative stats for partitioned topic
         PartitionedTopicStats topicStats = admin.topics().getPartitionedStats(partitionedTopicName, false);
-        assertEquals(topicStats.getSubscriptions().keySet(), Sets.newTreeSet(Lists.newArrayList(subName1, subName2)));
+        assertEquals(topicStats.getSubscriptions().keySet(), new TreeSet<>(Lists.newArrayList(subName1, subName2)));
         assertEquals(topicStats.getSubscriptions().get(subName2).getConsumers().size(), 1);
         assertEquals(topicStats.getSubscriptions().get(subName2).getMsgBacklog(), totalMessages);
         assertEquals(topicStats.getPublishers().size(), 1);
@@ -349,14 +341,14 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         publishMessagesOnTopic(nonPersistentTopicName, 10, 0);
 
         NonPersistentTopicStats topicStats = (NonPersistentTopicStats) admin.topics().getStats(nonPersistentTopicName);
-        assertEquals(topicStats.getSubscriptions().keySet(), Sets.newTreeSet(Lists.newArrayList("my-sub")));
+        assertEquals(topicStats.getSubscriptions().keySet(), new TreeSet<>(Lists.newArrayList("my-sub")));
         assertEquals(topicStats.getSubscriptions().get("my-sub").getConsumers().size(), 1);
         assertEquals(topicStats.getSubscriptions().get("my-sub").getMsgDropRate(), 0);
         assertEquals(topicStats.getPublishers().size(), 0);
         assertEquals(topicStats.getMsgDropRate(), 0);
 
         PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(nonPersistentTopicName, false);
-        assertEquals(internalStats.cursors.keySet(), Sets.newTreeSet(Lists.newArrayList("my-sub")));
+        assertEquals(internalStats.cursors.keySet(), new TreeSet<>(Lists.newArrayList("my-sub")));
 
         consumer.close();
         topicStats = (NonPersistentTopicStats) admin.topics().getStats(nonPersistentTopicName);

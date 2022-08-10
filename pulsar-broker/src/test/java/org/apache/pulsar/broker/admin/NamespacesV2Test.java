@@ -18,35 +18,14 @@
  */
 package org.apache.pulsar.broker.admin;
 
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.UriInfo;
 import org.apache.pulsar.broker.admin.v2.Namespaces;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.naming.NamespaceName;
-import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.DispatchRate;
-import org.apache.pulsar.common.policies.data.PolicyName;
-import org.apache.pulsar.common.policies.data.PolicyOperation;
-import org.apache.pulsar.common.policies.data.PublishRate;
-import org.apache.pulsar.common.policies.data.SubscribeRate;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.*;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,6 +33,14 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.UriInfo;
+import java.lang.reflect.Field;
+import java.util.*;
+
+import static org.mockito.Mockito.*;
+import static org.testng.Assert.*;
 
 @Test(groups = "broker-admin")
 public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
@@ -98,7 +85,7 @@ public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
         doReturn("test").when(namespaces).clientAppId();
         doReturn(null).when(namespaces).originalPrincipal();
         doReturn(null).when(namespaces).clientAuthData();
-        doReturn(Sets.newTreeSet(Lists.newArrayList("use", "usw", "usc", "global"))).when(namespaces).clusters();
+        doReturn(new TreeSet<>(Lists.newArrayList("use", "usw", "usc", "global"))).when(namespaces).clusters();
 
         admin.clusters().createCluster("use", ClusterData.builder().serviceUrl("http://broker-use.com:8080").build());
         admin.clusters().createCluster("usw", ClusterData.builder().serviceUrl("http://broker-usw.com:8080").build());
