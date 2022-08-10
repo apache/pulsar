@@ -498,8 +498,8 @@ public abstract class NamespacesBase extends AdminResource {
                 }
 
                 for (String partitionedTopic : partitionedTopics) {
-                    topicFutures.add(namespaceResources()
-                            .getPartitionedTopicResources().deletePartitionedTopicAsync(TopicName.get(partitionedTopic)));
+                    topicFutures.add(namespaceResources().getPartitionedTopicResources()
+                            .deletePartitionedTopicAsync(TopicName.get(partitionedTopic)));
                 }
 
                 if (log.isDebugEnabled()) {
