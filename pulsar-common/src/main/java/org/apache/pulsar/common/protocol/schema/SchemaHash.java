@@ -54,6 +54,10 @@ public class SchemaHash {
         return of(schemaData.getData(), schemaData.getType());
     }
 
+    public static SchemaHash of(SchemaInfo schemaInfo) {
+        return of(schemaInfo.getSchema(), schemaInfo.getType());
+    }
+
     private static SchemaHash of(byte[] schemaBytes, SchemaType schemaType) {
         return new SchemaHash(hashFunction.hashBytes(schemaBytes), schemaType);
     }
