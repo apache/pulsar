@@ -20,16 +20,13 @@ package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
-
 import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -122,6 +119,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
                 .subscriptionType(subscriptionType)
                 .negativeAckRedeliveryDelay(negAcksDelayMillis, TimeUnit.MILLISECONDS)
                 .ackTimeout(ackTimeout, TimeUnit.MILLISECONDS)
+                .isAckReceiptEnabled(true)
                 .subscribe();
 
         @Cleanup
