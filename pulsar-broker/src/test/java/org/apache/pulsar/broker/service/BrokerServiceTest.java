@@ -981,8 +981,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(20, false,
                 new DefaultThreadFactory("test-pool", Thread.currentThread().isDaemon()));
         long reqId = 0xdeadbeef;
-
-        // using an AtomicReference in order to reset a new CountDownLatch
+        // Using an AtomicReference in order to reset a new CountDownLatch
         AtomicReference<CountDownLatch> latchRef = new AtomicReference<>();
         latchRef.set(new CountDownLatch(1));
         try (ConnectionPool pool = new ConnectionPool(conf, eventLoop, () -> new ClientCnx(conf, eventLoop) {
@@ -1027,9 +1026,7 @@ public class BrokerServiceTest extends BrokerTestBase {
             f2.get();
 
             // 3 lookup will fail
-
             latchRef.set(new CountDownLatch(1));
-            assertEquals(latchRef.get().getCount(), 1);
             long reqId3 = reqId++;
             ByteBuf request3 = Commands.newPartitionMetadataRequest(topicName, reqId3);
             f1 = pool.getConnection(resolver.resolveHost())
@@ -1068,9 +1065,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
             // for Lookup
             // 2 lookup will succeed
-
             latchRef.set(new CountDownLatch(1));
-            assertEquals(latchRef.get().getCount(), 1);
             long reqId6 = reqId++;
             ByteBuf request6 = Commands.newLookup(topicName, true, reqId6);
             f1 = pool.getConnection(resolver.resolveHost())
@@ -1090,9 +1085,7 @@ public class BrokerServiceTest extends BrokerTestBase {
             f2.get();
 
             // 3 lookup will fail
-
             latchRef.set(new CountDownLatch(1));
-            assertEquals(latchRef.get().getCount(), 1);
             long reqId8 = reqId++;
             ByteBuf request8 = Commands.newLookup(topicName, true, reqId8);
             f1 = pool.getConnection(resolver.resolveHost())
