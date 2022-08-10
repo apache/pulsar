@@ -1051,7 +1051,7 @@ public class BrokerServiceTest extends BrokerTestBase {
             f2.get();
             try {
                 f3.get();
-                fail("f3 one should fail");
+                fail("At least one should fail");
             } catch (ExecutionException e) {
                 Throwable rootCause = e;
                 while (rootCause instanceof ExecutionException) {
@@ -1110,7 +1110,7 @@ public class BrokerServiceTest extends BrokerTestBase {
             f2.get();
             try {
                 f3.get();
-                fail("f3 should fail");
+                fail("At least one should fail");
             } catch (ExecutionException e) {
                 Throwable rootCause = e;
                 while (rootCause instanceof ExecutionException) {
