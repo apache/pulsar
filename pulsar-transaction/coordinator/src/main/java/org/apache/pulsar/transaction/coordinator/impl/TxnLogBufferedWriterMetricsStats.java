@@ -36,7 +36,7 @@ import java.util.HashMap;
  *   tune the parameters that control some of the batch flush triggers: maxDelay, maxRecords, maxSize.
  *   Note that the 4th trigger - a single record larger than batch size - triggers a flush of the current batch, but
  *   the big record itself is not written in batch hence is not included in the batch metrics written above (batch
- *   size, batch delay, etc). The trigger is of course counter as other trigger types.
+ *   size, batch delay, etc). The trigger is of course counted as other trigger types.
  */
 public class TxnLogBufferedWriterMetricsStats implements Closeable {
 

@@ -69,6 +69,10 @@ public class TxnLogBufferedWriter<T> implements Closeable {
                     new Exception("Transaction log buffered write has closed")
             );
 
+    private static final AtomicReferenceFieldUpdater<TxnLogBufferedWriter, TxnLogBufferedWriter.State> STATE_UPDATER =
+            AtomicReferenceFieldUpdater
+                    .newUpdater(TxnLogBufferedWriter.class, TxnLogBufferedWriter.State.class, "state");
+
     /**
      * Enable or disabled the batch feature, will use Managed Ledger directly and without batching when disabled.
      */
@@ -113,11 +117,16 @@ public class TxnLogBufferedWriter<T> implements Closeable {
     /** The main purpose of state maintenance is to prevent written after close. **/
     private volatile State state;
 
-    private static final AtomicReferenceFieldUpdater<TxnLogBufferedWriter, TxnLogBufferedWriter.State> STATE_UPDATER =
-            AtomicReferenceFieldUpdater
-                    .newUpdater(TxnLogBufferedWriter.class, TxnLogBufferedWriter.State.class, "state");
+    private final BookKeeperBatchedWriteCallback bookKeeperBatchedWriteCallback = new BookKeeperBatchedWriteCallback();
 
     private final TxnLogBufferedWriterMetricsStats metrics;
+
+    private final TimerTask timingFlushTask = (timeout) -> {
+        if (timeout.isCancelled()) {
+            return;
+        }
+        trigFlushByTimingTask();
+    };
 
     public TxnLogBufferedWriter(ManagedLedger managedLedger, OrderedExecutor orderedExecutor, Timer timer,
                                 DataSerializer<T> dataSerializer,
@@ -143,6 +152,10 @@ public class TxnLogBufferedWriter<T> implements Closeable {
                                 DataSerializer<T> dataSerializer,
                                 int batchedWriteMaxRecords, int batchedWriteMaxSize, int batchedWriteMaxDelayInMillis,
                                 boolean batchEnabled, TxnLogBufferedWriterMetricsStats metrics){
+        if (batchedWriteMaxRecords <= 1 && batchEnabled){
+            log.warn("The current maximum number of records per batch is set to 1. Disabling Batch will improve"
+                    + " performance, so disabled batch feature.");
+        }
         this.batchEnabled = batchEnabled && batchedWriteMaxRecords > 1;
         this.managedLedger = managedLedger;
         this.singleThreadExecutorForWrite = orderedExecutor.chooseThread(
@@ -161,13 +174,6 @@ public class TxnLogBufferedWriter<T> implements Closeable {
             nextTimingTrigger();
         }
     }
-
-    private final TimerTask timingFlushTask = (timeout) -> {
-        if (timeout.isCancelled()) {
-            return;
-        }
-        trigFlushByTimingTask();
-    };
 
     /***
      * Why not use {@link ScheduledExecutorService#scheduleAtFixedRate(Runnable, long, long, TimeUnit)} ?
@@ -219,7 +225,7 @@ public class TxnLogBufferedWriter<T> implements Closeable {
                 if (recordsCountAfter == recordsCountBeforeAdd){
                     callback.addFailed(new ManagedLedgerException.ManagedLedgerFencedException(e), ctx);
                 }
-                log.error("Internal async add data fail", e);
+                log.error("Failed to add data asynchronously", e);
             }
         });
     }
@@ -552,7 +558,7 @@ public class TxnLogBufferedWriter<T> implements Closeable {
         }
     }
 
-    private final BookKeeperBatchedWriteCallback bookKeeperBatchedWriteCallback = new BookKeeperBatchedWriteCallback();
+
 
     private class BookKeeperBatchedWriteCallback implements AsyncCallbacks.AddEntryCallback{
 
