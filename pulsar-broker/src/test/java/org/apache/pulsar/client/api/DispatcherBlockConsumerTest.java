@@ -618,7 +618,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
         Set<Integer> unackMessages = Sets.newHashSet(5, 10, 20, 21, 22, 23, 25, 26, 30, 32, 40, 80, 160, 320);
         int receivedMsgCount = 0;
         for (int i = 0; i < totalProducedMsgs; i++) {
-            Message<?> msg = consumer.receive(500, TimeUnit.MILLISECONDS);
+            Message<?> msg = consumer.receive(5, TimeUnit.SECONDS);
             assertNotNull(msg);
             if (!unackMessages.contains(i)) {
                 consumer.acknowledge(msg);
