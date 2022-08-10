@@ -31,6 +31,7 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
 import org.apache.pulsar.broker.admin.v2.Namespaces;
@@ -75,7 +76,7 @@ public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
 
     @BeforeClass
     public void initNamespace() throws Exception {
-        testLocalNamespaces = new ArrayList();
+        testLocalNamespaces = new ArrayList<>();
         testLocalNamespaces.add(NamespaceName.get(this.testTenant, this.testLocalCluster, this.testNamespace));
 
         uriField = PulsarWebResource.class.getDeclaredField("uri");
@@ -103,7 +104,7 @@ public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
         admin.clusters().createCluster("usw", ClusterData.builder().serviceUrl("http://broker-usw.com:8080").build());
         admin.clusters().createCluster("usc", ClusterData.builder().serviceUrl("http://broker-usc.com:8080").build());
         admin.tenants().createTenant(this.testTenant,
-                new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("use", "usc", "usw")));
+                new TenantInfoImpl(Set.of("role1", "role2"), Set.of("use", "usc", "usw")));
 
         createTestNamespaces(this.testLocalNamespaces);
 

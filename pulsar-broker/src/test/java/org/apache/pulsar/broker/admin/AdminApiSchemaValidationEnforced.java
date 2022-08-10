@@ -18,13 +18,6 @@
  */
 package org.apache.pulsar.broker.admin;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
-import com.google.common.collect.Sets;
-import java.util.HashMap;
-import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -42,6 +35,12 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
+
+import static org.testng.Assert.*;
+
 @Slf4j
 @Test(groups = "broker-admin")
 public class AdminApiSchemaValidationEnforced extends MockedPulsarServiceBaseTest {
@@ -54,7 +53,7 @@ public class AdminApiSchemaValidationEnforced extends MockedPulsarServiceBaseTes
         super.internalSetup();
 
         admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-        TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
         admin.tenants().createTenant("schema-validation-enforced", tenantInfo);
     }
 
@@ -102,7 +101,7 @@ public class AdminApiSchemaValidationEnforced extends MockedPulsarServiceBaseTes
         } catch (PulsarAdminException.NotFoundException e) {
             assertTrue(e.getMessage().contains("HTTP 404 Not Found"));
         }
-        Map<String, String> properties = new HashMap();
+        Map<String, String> properties = new HashMap<>();
         SchemaInfo schemaInfo = SchemaInfo.builder()
                 .type(SchemaType.STRING)
                 .properties(properties)
@@ -150,7 +149,7 @@ public class AdminApiSchemaValidationEnforced extends MockedPulsarServiceBaseTes
         } catch (PulsarAdminException.NotFoundException e) {
             assertTrue(e.getMessage().contains("HTTP 404 Not Found"));
         }
-        Map<String, String> properties = new HashMap();
+        Map<String, String> properties = new HashMap<>();
         properties.put("key1", "value1");
         SchemaInfo schemaInfo = SchemaInfo.builder()
                 .type(SchemaType.STRING)
@@ -181,7 +180,7 @@ public class AdminApiSchemaValidationEnforced extends MockedPulsarServiceBaseTes
             assertTrue(e.getMessage().contains("HTTP 404 Not Found"));
         }
         admin.namespaces().setSchemaValidationEnforced(namespace,true);
-        Map<String, String> properties = new HashMap();
+        Map<String, String> properties = new HashMap<>();
         SchemaInfo schemaInfo = SchemaInfo.builder()
                 .type(SchemaType.STRING)
                 .properties(properties)

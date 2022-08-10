@@ -119,7 +119,7 @@ public class MaxUnackedMessagesTest extends ProducerConsumerBase {
 
         // (2) try to consume messages: but will be able to consume number of messages = unackMsgAllowed
         Message<?> msg = null;
-        Map<Message<?>, Consumer<?>> messages = new HashMap();
+        Map<Message<?>, Consumer<?>> messages = new HashMap<>();
         for (int i = 0; i < 3; i++) {
             for (int j = 0; j < totalProducedMsgs; j++) {
                 msg = consumers.get(i).receive(500, TimeUnit.MILLISECONDS);

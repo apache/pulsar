@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -18,15 +18,6 @@
  */
 package org.apache.pulsar.broker.admin;
 
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.spy;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.fail;
-import com.google.common.collect.Sets;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
 import org.apache.pulsar.broker.admin.v2.ResourceGroups;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.web.RestException;
@@ -38,9 +29,16 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-public class ResourceGroupsTest extends MockedPulsarServiceBaseTest  {
+import java.util.*;
+
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.spy;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.fail;
+
+public class ResourceGroupsTest extends MockedPulsarServiceBaseTest {
     private ResourceGroups resourcegroups;
-    private List<String> expectedRgNames = new ArrayList();
+    private List<String> expectedRgNames = new ArrayList<>();
     private final String testCluster = "test";
     private final String testTenant = "test-tenant";
     private final String testNameSpace = "test-tenant/test-namespace";
@@ -73,7 +71,7 @@ public class ResourceGroupsTest extends MockedPulsarServiceBaseTest  {
         try {
             resourcegroups.createOrUpdateResourceGroup("test-resourcegroup-invalid", null);
             fail("should have failed");
-        } catch (RestException e){
+        } catch (RestException e) {
             //Ok.
         }
 
@@ -96,7 +94,7 @@ public class ResourceGroupsTest extends MockedPulsarServiceBaseTest  {
         try {
             resourcegroups.createOrUpdateResourceGroup("test-resourcegroup-one", null);
             fail("should have failed");
-        } catch (RestException e){
+        } catch (RestException e) {
             //Ok.
         }
 
@@ -153,7 +151,7 @@ public class ResourceGroupsTest extends MockedPulsarServiceBaseTest  {
         try {
             admin.namespaces().setNamespaceResourceGroup(testNameSpace, "test-resourcegroup-invalid");
             fail("should have failed");
-        } catch (Exception e){
+        } catch (Exception e) {
             //Ok.
         }
         // set resourcegroup in namespace
@@ -171,9 +169,12 @@ public class ResourceGroupsTest extends MockedPulsarServiceBaseTest  {
     }
 
     private void prepareData() throws PulsarAdminException {
-        admin.clusters().createCluster(testCluster, ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-        admin.tenants().createTenant(testTenant,
-                new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet(testCluster)));
+        admin.clusters()
+                .createCluster(testCluster, ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        admin.tenants().createTenant(
+                testTenant,
+                new TenantInfoImpl(Set.of("role1", "role2"), Set.of(testCluster))
+        );
     }
 
 }
