@@ -65,12 +65,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentMessageExpiryMonito
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.MessageRoutingMode;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.compaction.Compactor;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
@@ -1520,6 +1515,83 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         });
         consumer1.close();
         consumer2.close();
+    }
+
+
+    @Test
+    public void testMetadataStoreStats() throws Exception {
+        String ns = "prop/ns-abc1";
+        admin.namespaces().createNamespace(ns);
+
+        String topic = "persistent://prop/ns-abc1/metadata-store-" + UUID.randomUUID();
+        String subName = "my-sub1";
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic).create();
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic).subscriptionName(subName).subscribe();
+
+        for (int i = 0; i < 100; i++) {
+            producer.newMessage().value(UUID.randomUUID().toString()).send();
+        }
+
+        for (;;) {
+            Message<String> message = consumer.receive(10, TimeUnit.SECONDS);
+            if (message == null) {
+                break;
+            }
+            consumer.acknowledge(message);
+        }
+
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, false, false, false, false, output);
+        String metricsStr = output.toString();
+        Multimap<String, Metric> metricsMap = parseMetrics(metricsStr);
+
+        Collection<Metric> getOpsFailed = metricsMap.get("pulsar_metadata_store_get_ops_failed" + "_total");
+        Collection<Metric> delOpsFailed = metricsMap.get("pulsar_metadata_store_del_ops_failed" + "_total");
+        Collection<Metric> putOpsFailed = metricsMap.get("pulsar_metadata_store_put_ops_failed" + "_total");
+
+        Collection<Metric> getOpsLatency = metricsMap.get("pulsar_metadata_store_get_ops_latency" + "_sum");
+        Collection<Metric> delOpsLatency = metricsMap.get("pulsar_metadata_store_del_ops_latency" + "_sum");
+        Collection<Metric> putOpsLatency = metricsMap.get("pulsar_metadata_store_put_ops_latency" + "_sum");
+
+        Collection<Metric> putBytes = metricsMap.get("pulsar_metadata_store_put_bytes" + "_total");
+
+        Assert.assertTrue(getOpsFailed.size() > 0);
+        Assert.assertTrue(delOpsFailed.size() > 0);
+        Assert.assertTrue(putOpsFailed.size() > 0);
+        Assert.assertTrue(getOpsLatency.size() > 0);
+        Assert.assertTrue(delOpsLatency.size() > 0);
+        Assert.assertTrue(putOpsLatency.size() > 0);
+        Assert.assertTrue(putBytes.size() > 0);
+
+        for (Metric m : getOpsFailed) {
+            Assert.assertEquals(m.tags.get("cluster"), "test");
+        }
+        for (Metric m : delOpsFailed) {
+            Assert.assertEquals(m.tags.get("cluster"), "test");
+        }
+        for (Metric m : putOpsFailed) {
+            Assert.assertEquals(m.tags.get("cluster"), "test");
+        }
+        for (Metric m : getOpsLatency) {
+            Assert.assertEquals(m.tags.get("cluster"), "test");
+            Assert.assertTrue(m.value > 0);
+        }
+        for (Metric m : delOpsLatency) {
+            Assert.assertEquals(m.tags.get("cluster"), "test");
+        }
+        for (Metric m : putOpsLatency) {
+            Assert.assertEquals(m.tags.get("cluster"), "test");
+            Assert.assertTrue(m.value > 0);
+        }
+        for (Metric m : putBytes) {
+            Assert.assertEquals(m.tags.get("cluster"), "test");
+            Assert.assertTrue(m.value > 0);
+        }
     }
 
     private void compareCompactionStateCount(List<Metric> cm, double count) {

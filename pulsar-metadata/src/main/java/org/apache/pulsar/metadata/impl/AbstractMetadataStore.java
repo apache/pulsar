@@ -58,6 +58,7 @@ import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.metadata.cache.impl.MetadataCacheImpl;
+import org.apache.pulsar.metadata.impl.stats.MetadataStoreStats;
 
 @Slf4j
 public abstract class AbstractMetadataStore implements MetadataStoreExtended, Consumer<Notification> {
@@ -70,6 +71,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     private final AsyncLoadingCache<String, List<String>> childrenCache;
     private final AsyncLoadingCache<String, Boolean> existsCache;
     private final CopyOnWriteArrayList<MetadataCacheImpl<?>> metadataCaches = new CopyOnWriteArrayList<>();
+    private final MetadataStoreStats stats;
 
     // We don't strictly need to use 'volatile' here because we don't need the precise consistent semantic. Instead,
     // we want to avoid the overhead of 'volatile'.
@@ -126,6 +128,8 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                         }
                     }
                 });
+
+        this.stats = MetadataStoreStats.create();
     }
 
     protected void registerSyncLister(Optional<MetadataEventSynchronizer> synchronizer) {
@@ -235,10 +239,20 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     @Override
     public CompletableFuture<Optional<GetResult>> get(String path) {
+        long start = System.currentTimeMillis();
         if (!isValidPath(path)) {
-            return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
+            stats.recordGetOpsFailed();
+            return FutureUtil
+                    .failedFuture(new MetadataStoreException.InvalidPathException(path));
         }
-        return storeGet(path);
+        return storeGet(path)
+                .whenComplete((v, t) -> {
+                    if (t != null) {
+                        stats.recordGetOpsFailed();
+                    } else {
+                        stats.recordGetOpsLatency(System.currentTimeMillis() - start);
+                    }
+                });
     }
 
     protected abstract CompletableFuture<Optional<GetResult>> storeGet(String path);
@@ -313,7 +327,9 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     @Override
     public final CompletableFuture<Void> delete(String path, Optional<Long> expectedVersion) {
+        long start = System.currentTimeMillis();
         if (!isValidPath(path)) {
+            stats.recordDelOpsFailed();
             return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
         }
         if (getMetadataEventSynchronizer().isPresent()) {
@@ -321,9 +337,23 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                     expectedVersion.orElse(null), Instant.now().toEpochMilli(),
                     getMetadataEventSynchronizer().get().getClusterName(), NotificationType.Deleted);
             return getMetadataEventSynchronizer().get().notify(event)
-                    .thenCompose(__ -> deleteInternal(path, expectedVersion));
+                    .thenCompose(__ -> deleteInternal(path, expectedVersion))
+                    .whenComplete((v, t) -> {
+                        if (null != t) {
+                            stats.recordDelOpsFailed();
+                        } else {
+                            stats.recordDelOpsLatency(System.currentTimeMillis() - start);
+                        }
+                    });
         } else {
-            return deleteInternal(path, expectedVersion);
+            return deleteInternal(path, expectedVersion)
+                    .whenComplete((v, t) -> {
+                        if (null != t) {
+                            stats.recordDelOpsFailed();
+                        } else {
+                            stats.recordDelOpsLatency(System.currentTimeMillis() - start);
+                        }
+                    });
         }
     }
 
@@ -363,7 +393,9 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     @Override
     public final CompletableFuture<Stat> put(String path, byte[] data, Optional<Long> optExpectedVersion,
             EnumSet<CreateOption> options) {
+        long start = System.currentTimeMillis();
         if (!isValidPath(path)) {
+            stats.recordPutOpsFailed();
             return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
         }
         HashSet<CreateOption> ops = new HashSet<>(options);
@@ -374,9 +406,25 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                     Instant.now().toEpochMilli(), getMetadataEventSynchronizer().get().getClusterName(),
                     NotificationType.Modified);
             return getMetadataEventSynchronizer().get().notify(event)
-                    .thenCompose(__ -> putInternal(path, data, optExpectedVersion, options));
+                    .thenCompose(__ -> putInternal(path, data, optExpectedVersion, options))
+                    .whenComplete((v, t) -> {
+                        if (t != null) {
+                            stats.recordPutOpsFailed();
+                        } else {
+                            int len = data == null ? 0 : data.length;
+                            stats.recordPutOpsLatency(System.currentTimeMillis() - start, len);
+                        }
+                    });
         } else {
-            return putInternal(path, data, optExpectedVersion, options);
+            return putInternal(path, data, optExpectedVersion, options)
+                    .whenComplete((v, t) -> {
+                        if (t != null) {
+                            stats.recordPutOpsFailed();
+                        } else {
+                            int len = data == null ? 0 : data.length;
+                            stats.recordPutOpsLatency(System.currentTimeMillis() - start, len);
+                        }
+                    });
         }
 
     }
