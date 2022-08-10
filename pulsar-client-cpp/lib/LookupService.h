@@ -25,6 +25,7 @@
 #include <lib/LogUtils.h>
 #include <lib/TopicName.h>
 
+#include <iostream>
 #include <vector>
 
 namespace pulsar {
@@ -34,12 +35,26 @@ typedef std::shared_ptr<Promise<Result, NamespaceTopicsPtr>> NamespaceTopicsProm
 
 class LookupService {
    public:
-    /*
-     * @param    topicName - topic name
+    struct LookupResult {
+        std::string logicalAddress;
+        std::string physicalAddress;
+
+        friend std::ostream& operator<<(std::ostream& os, const LookupResult& lookupResult) {
+            return os << "logical address: " << lookupResult.logicalAddress
+                      << ", physical address: " << lookupResult.physicalAddress;
+        }
+    };
+    using LookupResultFuture = Future<Result, LookupResult>;
+    using LookupResultPromise = Promise<Result, LookupResult>;
+
+    /**
+     * Call broker lookup-api to get broker which serves namespace bundle that contains the given topic.
      *
-     * Looks up the owner broker for the given topic name
+     * @param topicName the topic name
+     * @return a pair of addresses, representing the logical and physical addresses of the broker that serves
+     * the topic
      */
-    virtual Future<Result, LookupDataResultPtr> lookupAsync(const std::string& topicName) = 0;
+    virtual LookupResultFuture getBroker(const TopicName& topicName) = 0;
 
     /*
      * @param    topicName - pointer to topic name
