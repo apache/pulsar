@@ -1896,8 +1896,9 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         final int maxSub = 2;
         admin.namespaces().setMaxSubscriptionsPerTopic(myNamespace, maxSub);
         PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().get();
-        Awaitility.await().until(() ->
-                persistentTopic.getHierarchyTopicPolicies().getMaxSubscriptionsPerTopic().get() == maxSub);
+        Field field = PersistentTopic.class.getSuperclass().getDeclaredField("maxSubscriptionsPerTopic");
+        field.setAccessible(true);
+        Awaitility.await().until(() -> (int) field.get(persistentTopic) == maxSub);
 
         List<Consumer<?>> consumerList = new ArrayList<>(maxSub);
         for (int i = 0; i < maxSub; i++) {
@@ -1914,8 +1915,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         }
         //After removing the restriction, it should be able to create normally
         admin.namespaces().removeMaxSubscriptionsPerTopic(myNamespace);
-        Awaitility.await().until(() ->
-                persistentTopic.getHierarchyTopicPolicies().getMaxSubscriptionsPerTopic().get() == 0);
+        Awaitility.await().until(() -> field.get(persistentTopic) == null);
         Consumer<?> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName(UUID.randomUUID().toString())
                 .subscribe();
         consumerList.add(consumer);
@@ -1960,16 +1960,16 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         final int nsLevelMaxSub = 4;
         admin.namespaces().setMaxSubscriptionsPerTopic(myNamespace, nsLevelMaxSub);
         PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().get();
-        Awaitility.await().until(() -> persistentTopic.getHierarchyTopicPolicies()
-                .getMaxSubscriptionsPerTopic().get() == nsLevelMaxSub);
+        Field field = PersistentTopic.class.getSuperclass().getDeclaredField("maxSubscriptionsPerTopic");
+        field.setAccessible(true);
+        Awaitility.await().until(() -> (int) field.get(persistentTopic) == nsLevelMaxSub);
         Consumer<?> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName(UUID.randomUUID().toString())
                 .subscribe();
         consumerList.add(consumer);
         assertEquals(consumerList.size(), 3);
         //After removing the restriction, it should fail again
         admin.namespaces().removeMaxSubscriptionsPerTopic(myNamespace);
-        Awaitility.await().until(() -> persistentTopic.getHierarchyTopicPolicies()
-                .getMaxSubscriptionsPerTopic().get() == brokerLevelMaxSub);
+        Awaitility.await().until(() -> field.get(persistentTopic) == null);
         try {
             client.newConsumer().topic(topic).subscriptionName(UUID.randomUUID().toString()).subscribe();
             fail("should fail");
