@@ -19,52 +19,51 @@
 package org.apache.pulsar.client.impl;
 
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
+import io.netty.buffer.ByteBufAllocator;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import org.apache.bookkeeper.common.allocator.impl.ByteBufAllocatorImpl;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
-import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
-import org.mockito.MockedConstruction;
-import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
 public class BatchMessageContainerImplTest {
 
     @Test
     public void recoveryAfterOom() {
-        // Force initialize PulsarByteBufAllocator.DEFAULT before mock the ctor so that it is not polluted.
-        assertNotNull(PulsarByteBufAllocator.DEFAULT);
-
-        try (MockedConstruction<ByteBufAllocatorImpl> ignored = Mockito.mockConstruction(ByteBufAllocatorImpl.class,
-                (mockAllocator, context) ->
-                        doThrow(new OutOfMemoryError("test")).when(mockAllocator).buffer(anyInt(), anyInt()))) {
-            final ProducerImpl<?> producer = Mockito.mock(ProducerImpl.class);
-            final ProducerConfigurationData producerConfigurationData = new ProducerConfigurationData();
-            producerConfigurationData.setCompressionType(CompressionType.NONE);
-            when(producer.getConfiguration()).thenReturn(producerConfigurationData);
-            final BatchMessageContainerImpl batchMessageContainer = new BatchMessageContainerImpl();
-            batchMessageContainer.setProducer(producer);
-            MessageMetadata messageMetadata1 = new MessageMetadata();
-            messageMetadata1.setSequenceId(1L);
-            messageMetadata1.setProducerName("producer1");
-            messageMetadata1.setPublishTime(System.currentTimeMillis());
-            ByteBuffer payload1 = ByteBuffer.wrap("payload1".getBytes(StandardCharsets.UTF_8));
-            final MessageImpl<byte[]> message1 = MessageImpl.create(messageMetadata1, payload1, Schema.BYTES, null);
-            batchMessageContainer.add(message1, null);
-            MessageMetadata messageMetadata2 = new MessageMetadata();
-            messageMetadata2.setSequenceId(1L);
-            messageMetadata2.setProducerName("producer1");
-            messageMetadata2.setPublishTime(System.currentTimeMillis());
-            ByteBuffer payload2 = ByteBuffer.wrap("payload2".getBytes(StandardCharsets.UTF_8));
-            final MessageImpl<byte[]> message2 = MessageImpl.create(messageMetadata2, payload2, Schema.BYTES, null);
-            // after oom, our add can self-healing, won't throw exception
-            batchMessageContainer.add(message2, null);
-        }
+        final AtomicBoolean called = new AtomicBoolean();
+        final ProducerImpl<?> producer = mock(ProducerImpl.class);
+        final ProducerConfigurationData producerConfigurationData = new ProducerConfigurationData();
+        producerConfigurationData.setCompressionType(CompressionType.NONE);
+        when(producer.getConfiguration()).thenReturn(producerConfigurationData);
+        final ByteBufAllocator mockAllocator = mock(ByteBufAllocator.class);
+        doAnswer((ignore) -> {
+            called.set(true);
+            throw new OutOfMemoryError("test");
+        }).when(mockAllocator).buffer(anyInt());
+        final BatchMessageContainerImpl batchMessageContainer = new BatchMessageContainerImpl(mockAllocator);
+        batchMessageContainer.setProducer(producer);
+        MessageMetadata messageMetadata1 = new MessageMetadata();
+        messageMetadata1.setSequenceId(1L);
+        messageMetadata1.setProducerName("producer1");
+        messageMetadata1.setPublishTime(System.currentTimeMillis());
+        ByteBuffer payload1 = ByteBuffer.wrap("payload1".getBytes(StandardCharsets.UTF_8));
+        final MessageImpl<byte[]> message1 = MessageImpl.create(messageMetadata1, payload1, Schema.BYTES, null);
+        batchMessageContainer.add(message1, null);
+        assertTrue(called.get());
+        MessageMetadata messageMetadata2 = new MessageMetadata();
+        messageMetadata2.setSequenceId(1L);
+        messageMetadata2.setProducerName("producer1");
+        messageMetadata2.setPublishTime(System.currentTimeMillis());
+        ByteBuffer payload2 = ByteBuffer.wrap("payload2".getBytes(StandardCharsets.UTF_8));
+        final MessageImpl<byte[]> message2 = MessageImpl.create(messageMetadata2, payload2, Schema.BYTES, null);
+        // after oom, our add can self-healing, won't throw exception
+        batchMessageContainer.add(message2, null);
     }
 }
