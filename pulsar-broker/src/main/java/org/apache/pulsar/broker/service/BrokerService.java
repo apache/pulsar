@@ -2246,10 +2246,7 @@ public class BrokerService implements Closeable {
             return true;
         });
 
-        // (2) update ServiceConfiguration value by reading zk-configuration-map
-        updateDynamicServiceConfiguration();
-
-        // (3) Listener Registration
+        // (2) Listener Registration
         // add listener on "maxConcurrentLookupRequest" value change
         registerConfigurationListener("maxConcurrentLookupRequest",
                 (maxConcurrentLookupRequest) -> lookupRequestSemaphore.set(
@@ -2386,6 +2383,9 @@ public class BrokerService implements Closeable {
         });
 
         // add more listeners here
+
+        // (3) update ServiceConfiguration value by reading zk-configuration-map and trigger corresponding listeners.
+        handleDynamicConfigurationUpdates();
     }
 
     private void updateDefaultNumPartitions(int numPartitions) {
