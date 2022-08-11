@@ -34,6 +34,8 @@ public interface MetadataOp {
 
     int size();
 
+    long created();
+
     default OpGet asGet() {
         return (OpGet) this;
     }

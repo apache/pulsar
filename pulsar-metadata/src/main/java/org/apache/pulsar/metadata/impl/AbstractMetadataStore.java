@@ -35,9 +35,9 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -81,8 +81,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     protected abstract CompletableFuture<Boolean> existsFromStore(String path);
 
     protected AbstractMetadataStore() {
-        this.executor = Executors
-                .newSingleThreadScheduledExecutor(new DefaultThreadFactory("metadata-store"));
+        this.executor = new ScheduledThreadPoolExecutor(1, new DefaultThreadFactory("metadata-store"));
         registerListener(this);
 
         this.childrenCache = Caffeine.newBuilder()

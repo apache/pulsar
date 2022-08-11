@@ -34,6 +34,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.impl.AbstractMetadataStore;
+import org.apache.pulsar.metadata.impl.stats.BatchMetadataStoreStats;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.MpscUnboundedArrayQueue;
 
@@ -50,7 +51,8 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
     private final int maxDelayMillis;
     private final int maxOperations;
     private final int maxSize;
-    private MetadataEventSynchronizer synchronizer;
+    private final MetadataEventSynchronizer synchronizer;
+    private final BatchMetadataStoreStats batchMetadataStoreStats;
 
     protected AbstractBatchedMetadataStore(MetadataStoreConfig conf) {
         super();
@@ -74,6 +76,7 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
         // update synchronizer and register sync listener
         synchronizer = conf.getSynchronizer();
         registerSyncLister(Optional.ofNullable(synchronizer));
+        this.batchMetadataStoreStats = new BatchMetadataStoreStats(executor, this.readOps, this.writeOps);
     }
 
     @Override
@@ -93,7 +96,7 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
         while (!readOps.isEmpty()) {
             List<MetadataOp> ops = new ArrayList<>();
             readOps.drain(ops::add, maxOperations);
-            batchOperation(ops);
+            internalBatchOperation(ops);
         }
 
         while (!writeOps.isEmpty()) {
@@ -114,7 +117,7 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
                 batchSize += op.size();
                 ops.add(writeOps.poll());
             }
-            batchOperation(ops);
+            internalBatchOperation(ops);
         }
 
         flushInProgress.set(false);
@@ -157,16 +160,29 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
     private void enqueue(MessagePassingQueue<MetadataOp> queue, MetadataOp op) {
         if (enabled) {
             if (!queue.offer(op)) {
+                if (queue.equals(this.readOps)) {
+                    this.batchMetadataStoreStats.recordReadOpOverflow();
+                } else {
+                    this.batchMetadataStoreStats.recordWriteOpOverflow();
+                }
                 // Execute individually if we're failing to enqueue
-                batchOperation(Collections.singletonList(op));
+                internalBatchOperation(Collections.singletonList(op));
                 return;
             }
             if (queue.size() > maxOperations && flushInProgress.compareAndSet(false, true)) {
                 executor.execute(this::flush);
             }
         } else {
-            batchOperation(Collections.singletonList(op));
+            internalBatchOperation(Collections.singletonList(op));
         }
+    }
+
+    private void internalBatchOperation(List<MetadataOp> ops) {
+        long now = System.currentTimeMillis();
+        for (MetadataOp op : ops) {
+            this.batchMetadataStoreStats.recordOpWaiting(now - op.created());
+        }
+        this.batchOperation(ops);
     }
 
     protected abstract void batchOperation(List<MetadataOp> ops);
