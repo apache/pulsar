@@ -36,7 +36,7 @@ jobs:
     steps:
       - uses: actions/add-to-project@v0.3.0
         with:
-          project-url: https://github.com/apache/pulsar/projects/11
+          project-url: https://github.com/orgs/apache/projects/66
           github-token: ${{ secrets.GITHUB_TOKEN }}
           labeled: flaky-tests
           label-operator: OR
