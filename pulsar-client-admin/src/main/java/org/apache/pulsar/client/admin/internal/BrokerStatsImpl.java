@@ -39,10 +39,15 @@ public class BrokerStatsImpl extends BaseResource implements BrokerStats {
     private final WebTarget adminV2BrokerStats;
 
     public BrokerStatsImpl(WebTarget target, Authentication auth, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
+        this(target, auth, readTimeoutMs, null);
+    }
+
+    public BrokerStatsImpl(WebTarget target, Authentication auth, long readTimeoutMs, String advertisedListener) {
+        super(auth, readTimeoutMs, advertisedListener);
         adminBrokerStats = target.path("/admin/broker-stats");
         adminV2BrokerStats = target.path("/admin/v2/broker-stats");
     }
+
 
     @Override
     public String getMetrics() throws PulsarAdminException {

@@ -218,4 +218,10 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
         this.clientBuilderClassLoader = clientBuilderClassLoader;
         return this;
     }
+
+    @Override
+    public PulsarAdminBuilder listenerName(String listenerName) {
+        conf.setListenerName(listenerName);
+        return this;
+    }
 }

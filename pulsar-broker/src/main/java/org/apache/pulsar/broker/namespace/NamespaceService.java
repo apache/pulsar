@@ -428,9 +428,21 @@ public class NamespaceService implements AutoCloseable {
                         } else {
                             URI url = listener.getBrokerServiceUrl();
                             URI urlTls = listener.getBrokerServiceUrlTls();
-                            future.complete(Optional.of(new LookupResult(nsData.get(),
-                                    url == null ? null : url.toString(),
-                                    urlTls == null ? null : urlTls.toString())));
+                            URI http = listener.getBrokerHttpUrl();
+                            URI https = listener.getBrokerHttpsUrl();
+                            if (http == null && https == null) {
+                                future.complete(Optional.of(
+                                        new LookupResult(nsData.get(),
+                                                url == null ? null : url.toString(),
+                                                urlTls == null ? null : urlTls.toString())));
+                            } else {
+                                future.complete(Optional.of(
+                                        new LookupResult(http == null ? null : http.toString(),
+                                                https == null ? null : https.toString(),
+                                                url == null ? null : url.toString(),
+                                                urlTls == null ? null : urlTls.toString(),
+                                                LookupResult.Type.BrokerUrl, false)));
+                            }
                         }
                         return;
                     } else {
@@ -576,11 +588,21 @@ public class NamespaceService implements AutoCloseable {
                             } else {
                                 URI url = listener.getBrokerServiceUrl();
                                 URI urlTls = listener.getBrokerServiceUrlTls();
-                                lookupFuture.complete(Optional.of(
-                                        new LookupResult(ownerInfo,
-                                                url == null ? null : url.toString(),
-                                                urlTls == null ? null : urlTls.toString())));
-                                return;
+                                URI http = listener.getBrokerHttpUrl();
+                                URI https = listener.getBrokerHttpsUrl();
+                                if (http == null && https == null) {
+                                    lookupFuture.complete(Optional.of(
+                                            new LookupResult(ownerInfo,
+                                                    url == null ? null : url.toString(),
+                                                    urlTls == null ? null : urlTls.toString())));
+                                } else {
+                                    lookupFuture.complete(Optional.of(
+                                            new LookupResult(http == null ? null : http.toString(),
+                                                    https == null ? null : https.toString(),
+                                                    url == null ? null : url.toString(),
+                                                    urlTls == null ? null : urlTls.toString(),
+                                                    LookupResult.Type.BrokerUrl, false)));
+                                }
                             }
                         } else {
                             lookupFuture.complete(Optional.of(new LookupResult(ownerInfo)));

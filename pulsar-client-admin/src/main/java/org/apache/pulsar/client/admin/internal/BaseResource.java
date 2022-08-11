@@ -62,9 +62,18 @@ public abstract class BaseResource {
     protected final Authentication auth;
     protected final long readTimeoutMs;
 
+    protected final String advertisedListener;
+
+    static final String LISTENER_HEADER = "X-Pulsar-ListenerName";
+
     protected BaseResource(Authentication auth, long readTimeoutMs) {
+        this(auth, readTimeoutMs, null);
+    }
+
+    protected BaseResource(Authentication auth, long readTimeoutMs, String advertisedListener) {
         this.auth = auth;
         this.readTimeoutMs = readTimeoutMs;
+        this.advertisedListener = advertisedListener;
     }
 
     public Builder request(final WebTarget target) throws PulsarAdminException {
@@ -105,6 +114,10 @@ public abstract class BaseResource {
                         if (headers != null) {
                             headers.forEach(entry -> builder.header(entry.getKey(), entry.getValue()));
                         }
+                    }
+
+                    if (advertisedListener != null) {
+                        builder.header(LISTENER_HEADER, advertisedListener);
                     }
                     builderFuture.complete(builder);
                 } catch (Throwable t) {

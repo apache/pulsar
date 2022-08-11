@@ -33,7 +33,11 @@ public class BookiesImpl extends BaseResource implements Bookies {
     private final WebTarget adminBookies;
 
     public BookiesImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
+        this(web, auth, readTimeoutMs, null);
+    }
+
+    public BookiesImpl(WebTarget web, Authentication auth, long readTimeoutMs, String advertisedListener) {
+        super(auth, readTimeoutMs, advertisedListener);
         adminBookies = web.path("/admin/v2/bookies");
     }
 

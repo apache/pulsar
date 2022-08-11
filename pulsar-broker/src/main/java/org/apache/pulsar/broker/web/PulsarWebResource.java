@@ -99,6 +99,8 @@ public abstract class PulsarWebResource {
 
     static final String ORIGINAL_PRINCIPAL_HEADER = "X-Original-Principal";
 
+    static final String LISTENER_HEADER = "X-Pulsar-ListenerName";
+
     @Context
     protected ServletContext servletContext;
 
@@ -592,10 +594,12 @@ public abstract class PulsarWebResource {
         NamespaceBundle nsBundle = validateNamespaceBundleRange(fqnn, bundles, bundleRange);
         NamespaceService nsService = pulsar().getNamespaceService();
 
+        String advertisedListener = httpRequest.getHeader(LISTENER_HEADER);
         LookupOptions options = LookupOptions.builder()
                 .authoritative(false)
                 .requestHttps(isRequestHttps())
                 .readOnly(true)
+                .advertisedListenerName(advertisedListener)
                 .loadTopicsInBundle(false).build();
         return nsService.getWebServiceUrlAsync(nsBundle, options).thenApply(optionUrl -> optionUrl.isPresent());
     }
@@ -642,10 +646,13 @@ public abstract class PulsarWebResource {
             // - If authoritative is false and this broker is not leader, forward to leader
             // - If authoritative is false and this broker is leader, determine owner and forward w/ authoritative=true
             // - If authoritative is true, own the namespace and continue
+            String advertisedListener = httpRequest.getHeader(LISTENER_HEADER);
+
             LookupOptions options = LookupOptions.builder()
                     .authoritative(authoritative)
                     .requestHttps(isRequestHttps())
                     .readOnly(readOnly)
+                    .advertisedListenerName(advertisedListener)
                     .loadTopicsInBundle(false).build();
             Optional<URL> webUrl = nsService.getWebServiceUrl(bundle, options);
             // Ensure we get a url
@@ -735,11 +742,14 @@ public abstract class PulsarWebResource {
     protected CompletableFuture<Void> validateTopicOwnershipAsync(TopicName topicName, boolean authoritative) {
         NamespaceService nsService = pulsar().getNamespaceService();
 
+        String advertisedListener = httpRequest.getHeader(LISTENER_HEADER);
+
         LookupOptions options = LookupOptions.builder()
                 .authoritative(authoritative)
                 .requestHttps(isRequestHttps())
                 .readOnly(false)
                 .loadTopicsInBundle(false)
+                .advertisedListenerName(advertisedListener)
                 .build();
 
         return nsService.getWebServiceUrlAsync(topicName, options)

@@ -33,7 +33,11 @@ public class ProxyStatsImpl extends BaseResource implements ProxyStats {
     private final WebTarget adminProxyStats;
 
     public ProxyStatsImpl(WebTarget target, Authentication auth, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
+        this(target, auth, readTimeoutMs, null);
+    }
+
+    public ProxyStatsImpl(WebTarget target, Authentication auth, long readTimeoutMs, String advertisedListener) {
+        super(auth, readTimeoutMs, advertisedListener);
         adminProxyStats = target.path("/proxy-stats");
     }
 

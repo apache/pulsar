@@ -327,4 +327,11 @@ public interface PulsarAdminBuilder {
      */
     PulsarAdminBuilder setContextClassLoader(ClassLoader clientBuilderClassLoader);
 
+    /**
+     * Listener name for lookup.
+     *
+     * @param listenerName
+     */
+    PulsarAdminBuilder listenerName(String listenerName);
+
 }

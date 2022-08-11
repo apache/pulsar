@@ -112,6 +112,7 @@ public class PulsarAdminImpl implements PulsarAdmin {
     private final TimeUnit readTimeoutUnit;
     private final int requestTimeout;
     private final TimeUnit requestTimeoutUnit;
+    private final String advertisedListener;
 
     public PulsarAdminImpl(String serviceUrl, ClientConfigurationData clientConfigData) throws PulsarClientException {
         this(serviceUrl, clientConfigData, DEFAULT_CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS,
@@ -139,6 +140,7 @@ public class PulsarAdminImpl implements PulsarAdmin {
         this.requestTimeout = requestTimeout;
         this.requestTimeoutUnit = requestTimeoutUnit;
         this.clientConfigData = clientConfigData;
+        this.advertisedListener = clientConfigData.getListenerName();
         this.auth = clientConfigData != null ? clientConfigData.getAuthentication() : new AuthenticationDisabled();
         LOG.debug("created: serviceUrl={}, authMethodName={}", serviceUrl,
                 auth != null ? auth.getAuthMethodName() : null);
@@ -187,28 +189,28 @@ public class PulsarAdminImpl implements PulsarAdmin {
                 (int) autoCertRefreshTimeUnit.toSeconds(autoCertRefreshTime));
 
         long readTimeoutMs = readTimeoutUnit.toMillis(this.readTimeout);
-        this.clusters = new ClustersImpl(root, auth, readTimeoutMs);
-        this.brokers = new BrokersImpl(root, auth, readTimeoutMs);
-        this.brokerStats = new BrokerStatsImpl(root, auth, readTimeoutMs);
-        this.proxyStats = new ProxyStatsImpl(root, auth, readTimeoutMs);
-        this.tenants = new TenantsImpl(root, auth, readTimeoutMs);
-        this.resourcegroups = new ResourceGroupsImpl(root, auth, readTimeoutMs);
-        this.properties = new TenantsImpl(root, auth, readTimeoutMs);
-        this.namespaces = new NamespacesImpl(root, auth, readTimeoutMs);
-        this.topics = new TopicsImpl(root, auth, readTimeoutMs);
-        this.localTopicPolicies = new TopicPoliciesImpl(root, auth, readTimeoutMs, false);
-        this.globalTopicPolicies = new TopicPoliciesImpl(root, auth, readTimeoutMs, true);
-        this.nonPersistentTopics = new NonPersistentTopicsImpl(root, auth, readTimeoutMs);
-        this.resourceQuotas = new ResourceQuotasImpl(root, auth, readTimeoutMs);
-        this.lookups = new LookupImpl(root, auth, useTls, readTimeoutMs, topics);
-        this.functions = new FunctionsImpl(root, auth, asyncHttpConnector.getHttpClient(), readTimeoutMs);
-        this.sources = new SourcesImpl(root, auth, asyncHttpConnector.getHttpClient(), readTimeoutMs);
-        this.sinks = new SinksImpl(root, auth, asyncHttpConnector.getHttpClient(), readTimeoutMs);
-        this.worker = new WorkerImpl(root, auth, readTimeoutMs);
-        this.schemas = new SchemasImpl(root, auth, readTimeoutMs);
-        this.bookies = new BookiesImpl(root, auth, readTimeoutMs);
-        this.packages = new PackagesImpl(root, auth, asyncHttpConnector.getHttpClient(), readTimeoutMs);
-        this.transactions = new TransactionsImpl(root, auth, readTimeoutMs);
+        this.clusters = new ClustersImpl(root, auth, readTimeoutMs, advertisedListener);
+        this.brokers = new BrokersImpl(root, auth, readTimeoutMs, advertisedListener);
+        this.brokerStats = new BrokerStatsImpl(root, auth, readTimeoutMs, advertisedListener);
+        this.proxyStats = new ProxyStatsImpl(root, auth, readTimeoutMs, advertisedListener);
+        this.tenants = new TenantsImpl(root, auth, readTimeoutMs, advertisedListener);
+        this.resourcegroups = new ResourceGroupsImpl(root, auth, readTimeoutMs, advertisedListener);
+        this.properties = new TenantsImpl(root, auth, readTimeoutMs, advertisedListener);
+        this.namespaces = new NamespacesImpl(root, auth, readTimeoutMs, advertisedListener);
+        this.topics = new TopicsImpl(root, auth, readTimeoutMs, advertisedListener);
+        this.localTopicPolicies = new TopicPoliciesImpl(root, auth, readTimeoutMs, advertisedListener, false);
+        this.globalTopicPolicies = new TopicPoliciesImpl(root, auth, readTimeoutMs, advertisedListener, true);
+        this.nonPersistentTopics = new NonPersistentTopicsImpl(root, auth, readTimeoutMs, advertisedListener);
+        this.resourceQuotas = new ResourceQuotasImpl(root, auth, readTimeoutMs, advertisedListener);
+        this.lookups = new LookupImpl(root, auth, useTls, readTimeoutMs, advertisedListener, topics);
+        this.functions = new FunctionsImpl(root, auth, asyncHttpConnector.getHttpClient(), readTimeoutMs, advertisedListener);
+        this.sources = new SourcesImpl(root, auth, asyncHttpConnector.getHttpClient(), readTimeoutMs, advertisedListener);
+        this.sinks = new SinksImpl(root, auth, asyncHttpConnector.getHttpClient(), readTimeoutMs, advertisedListener);
+        this.worker = new WorkerImpl(root, auth, readTimeoutMs, advertisedListener);
+        this.schemas = new SchemasImpl(root, auth, readTimeoutMs, advertisedListener);
+        this.bookies = new BookiesImpl(root, auth, readTimeoutMs, advertisedListener);
+        this.packages = new PackagesImpl(root, auth, asyncHttpConnector.getHttpClient(), readTimeoutMs, advertisedListener);
+        this.transactions = new TransactionsImpl(root, auth, readTimeoutMs, advertisedListener);
 
         if (originalCtxLoader != null) {
             Thread.currentThread().setContextClassLoader(originalCtxLoader);

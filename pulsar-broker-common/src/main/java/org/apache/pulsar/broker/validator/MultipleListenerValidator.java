@@ -76,7 +76,8 @@ public final class MultipleListenerValidator {
         final Map<String, AdvertisedListener> result = new LinkedHashMap<>();
         final Map<String, Set<String>> reverseMappings = new LinkedHashMap<>();
         for (final Map.Entry<String, List<String>> entry : listeners.entrySet()) {
-            if (entry.getValue().size() > 2) {
+            // one listener could configure at most 4 address: pulsar, pulsar+ssl, http, https
+            if (entry.getValue().size() > 4) {
                 throw new IllegalArgumentException("there are redundant configure for listener `" + entry.getKey()
                         + "`");
             }
