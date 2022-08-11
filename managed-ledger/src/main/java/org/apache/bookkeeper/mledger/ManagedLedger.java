@@ -672,4 +672,9 @@ public interface ManagedLedger {
      * Check if managed ledger should cache backlog reads.
      */
     void checkCursorsToCacheEntries();
+
+    /**
+     * Update the slowest non-durable read position.
+     */
+    void updateTheSlowestNonDurableReadPosition(Position position);
 }

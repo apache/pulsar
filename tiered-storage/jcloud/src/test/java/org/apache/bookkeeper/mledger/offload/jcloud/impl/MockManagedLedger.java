@@ -373,4 +373,9 @@ public class MockManagedLedger implements ManagedLedger {
     public void checkCursorsToCacheEntries() {
         // no-op
     }
+
+    @Override
+    public void updateTheSlowestNonDurableReadPosition(Position position) {
+        // no-op
+    }
 }

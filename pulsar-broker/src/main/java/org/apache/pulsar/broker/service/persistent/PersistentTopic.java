@@ -47,6 +47,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import lombok.Getter;
@@ -72,6 +73,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.impl.NonDurableCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.commons.lang3.StringUtils;
@@ -2326,7 +2328,16 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     @Override
     public void checkBackloggedCursors() {
         // activate caught up cursors which include consumers
+        AtomicReference<PositionImpl> slowestNonDurableReadPosition = new AtomicReference<>();
         subscriptions.forEach((subName, subscription) -> {
+            ManagedCursor cursor = subscription.getCursor();
+            if (cursor instanceof NonDurableCursorImpl) {
+                PositionImpl readPosition = (PositionImpl) cursor.getReadPosition();
+                if (slowestNonDurableReadPosition.get() == null || readPosition.compareTo(
+                        slowestNonDurableReadPosition.get()) < 0) {
+                    slowestNonDurableReadPosition.set(readPosition);
+                }
+            }
             if (!subscription.getConsumers().isEmpty()
                 && subscription.getCursor().getNumberOfEntries() < backloggedCursorThresholdEntries) {
                 subscription.getCursor().setActive();
@@ -2334,6 +2345,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 subscription.getCursor().setInactive();
             }
         });
+        if (slowestNonDurableReadPosition.get() != null) {
+            ManagedLedger managedLedger = getManagedLedger();
+            managedLedger.updateTheSlowestNonDurableReadPosition(slowestNonDurableReadPosition.get());
+        }
     }
 
     public void checkInactiveLedgers() {
