@@ -552,7 +552,6 @@ void PartitionedConsumerImpl::handleGetPartitions(Result result,
         return;
     }
 
-    Lock stateLock(mutex_);
     if (!result) {
         const auto newNumPartitions = static_cast<unsigned int>(lookupDataResult->getPartitions());
         Lock consumersLock(consumersMutex_);
