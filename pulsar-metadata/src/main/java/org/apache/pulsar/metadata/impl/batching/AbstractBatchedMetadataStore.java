@@ -90,6 +90,7 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
             scheduledTask.cancel(true);
         }
         super.close();
+        this.batchMetadataStoreStats.close();
     }
 
     private void flush() {
