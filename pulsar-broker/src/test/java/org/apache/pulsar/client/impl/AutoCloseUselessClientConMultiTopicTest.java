@@ -22,7 +22,6 @@ import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
 import org.awaitility.Awaitility;
@@ -38,7 +37,7 @@ public class AutoCloseUselessClientConMultiTopicTest extends AutoCloseUselessCli
     private static String topicFullName_2 = "persistent://public/default/" + topicName_2;
 
     @BeforeMethod
-    public void before() throws PulsarAdminException {
+    public void before() throws Exception {
         // Create Topics
         PulsarAdmin pulsarAdmin_0 = super.getAllAdmins().get(0);
         List<String> topicList = pulsarAdmin_0.topics().getList("public/default");
@@ -55,7 +54,7 @@ public class AutoCloseUselessClientConMultiTopicTest extends AutoCloseUselessCli
     @Test
     public void testConnectionAutoReleaseMultiTopic() throws Exception {
         // Init clients
-        PulsarClientImpl pulsarClient = (PulsarClientImpl) super.getAllClients().get(0);
+        PulsarClientImpl pulsarClient = choosePulsarClient();
         Consumer consumer = pulsarClient.newConsumer()
                 .topic(topicName_1, topicName_2)
                 .subscriptionName("my-subscription-x")

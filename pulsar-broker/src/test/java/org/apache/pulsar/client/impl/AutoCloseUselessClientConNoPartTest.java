@@ -22,7 +22,6 @@ import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
@@ -38,7 +37,7 @@ public class AutoCloseUselessClientConNoPartTest extends AutoCloseUselessClientC
     private static String topicFullName = "persistent://public/default/" + topicName;
 
     @BeforeMethod
-    public void before() throws PulsarAdminException {
+    public void before() throws Exception {
         // Create Topics
         PulsarAdmin pulsarAdmin_0 = super.getAllAdmins().get(0);
         List<String> topicList = pulsarAdmin_0.topics().getList("public/default");
@@ -51,7 +50,7 @@ public class AutoCloseUselessClientConNoPartTest extends AutoCloseUselessClientC
     @Test
     public void testConnectionAutoReleaseUnPartitionedTopic() throws Exception {
         // Init clients
-        PulsarClientImpl pulsarClient = (PulsarClientImpl) super.getAllClients().get(0);
+        PulsarClientImpl pulsarClient = choosePulsarClient();
         Consumer consumer = pulsarClient.newConsumer(Schema.BYTES)
                 .topic(topicName)
                 .isAckReceiptEnabled(true)

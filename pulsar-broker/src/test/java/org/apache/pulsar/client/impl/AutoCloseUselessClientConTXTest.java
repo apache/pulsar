@@ -26,7 +26,6 @@ import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
@@ -36,7 +35,6 @@ import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
@@ -50,7 +48,7 @@ public class AutoCloseUselessClientConTXTest extends AutoCloseUselessClientConSu
     private static String topicFullName = "persistent://public/default/" + topicName;
 
     @BeforeMethod
-    public void before() throws PulsarAdminException, MetadataStoreException {
+    public void before() throws Exception {
         // Create Topics
         PulsarAdmin pulsarAdmin_0 = super.getAllAdmins().get(0);
         List<String> topicList_defaultNamespace = pulsarAdmin_0.topics().getList("public/default");
@@ -59,8 +57,6 @@ public class AutoCloseUselessClientConTXTest extends AutoCloseUselessClientConSu
                 && !topicList_defaultNamespace.contains(topicFullName)){
             pulsarAdmin_0.topics().createNonPartitionedTopic(topicFullName);
         }
-        List<String> topicList_systemNamespace = pulsarAdmin_0.topics().getList("pulsar/system");
-
         if (!pulsar.getPulsarResources()
                 .getNamespaceResources()
                 .getPartitionedTopicResources().partitionedTopicExists(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN)){
@@ -130,7 +126,7 @@ public class AutoCloseUselessClientConTXTest extends AutoCloseUselessClientConSu
 
     @Test
     public void testConnectionAutoReleaseUnPartitionedTopicWithTransaction() throws Exception {
-        PulsarClientImpl pulsarClient = (PulsarClientImpl) super.getAllClients().get(0);
+        PulsarClientImpl pulsarClient = choosePulsarClient();
         // Init clients
         Consumer consumer = pulsarClient.newConsumer()
                 .topic(topicName)
@@ -143,12 +139,13 @@ public class AutoCloseUselessClientConTXTest extends AutoCloseUselessClientConSu
         // Ensure transaction works
         ensureTransactionWorks(pulsarClient, producer, consumer);
         // Connection to every Broker
-        connectionToEveryBroker(pulsarClient);
+        connectionToEveryBroker(pulsarClient, null);
         Assert.assertTrue(pulsarClient.getCnxPool().getPoolSize() >= 5);
         // Assert "auto release works"
         trigReleaseConnection(pulsarClient);
         Awaitility.waitAtMost(Duration.ofSeconds(5)).until(()-> {
             // Wait for async task done, then assert auto release success
+            // Three connect: producer,consumer,txnHandler.
             return pulsarClient.getCnxPool().getPoolSize() <= 3;
         });
         // Ensure transaction works
@@ -158,6 +155,4 @@ public class AutoCloseUselessClientConTXTest extends AutoCloseUselessClientConSu
         consumer.close();
         producer.close();
     }
-
-
 }

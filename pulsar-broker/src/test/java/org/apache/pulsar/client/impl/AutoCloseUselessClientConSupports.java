@@ -24,6 +24,8 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -31,6 +33,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.MultiBrokerBaseTest;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -41,9 +44,12 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.Transaction;
+import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.awaitility.Awaitility;
+import org.powermock.reflect.Whitebox;
 import org.testng.Assert;
 
+@Slf4j
 public class AutoCloseUselessClientConSupports extends MultiBrokerBaseTest {
 
     protected int BROKER_COUNT = 5;
@@ -94,6 +100,9 @@ public class AutoCloseUselessClientConSupports extends MultiBrokerBaseTest {
             }
             return true;
         });
+
+        log.info("established connections before release: ");
+        printAliveConnections(pulsarClient);
         // Shorten max idle time
         pulsarClient.getCnxPool().connectionMaxIdleSeconds = 1;
         // trig : mark useless connections
@@ -101,6 +110,35 @@ public class AutoCloseUselessClientConSupports extends MultiBrokerBaseTest {
         // trig : after 2 seconds, release useless connections
         Thread.sleep(2000);
         pulsarClient.getCnxPool().doMarkAndReleaseUselessConnections();
+        log.info("established connections after release: ");
+        printAliveConnections(pulsarClient);
+    }
+
+    protected void printAliveConnections(PulsarClientImpl pulsarClient){
+        for (Map.Entry<InetSocketAddress, ConcurrentMap<Integer, CompletableFuture<ClientCnx>>> entry :
+                pulsarClient.getCnxPool().pool.entrySet()){
+            if (entry == null || entry.getValue() == null || entry.getValue().isEmpty()){
+                continue;
+            }
+            for (CompletableFuture<ClientCnx> future : entry.getValue().values()){
+                if (future == null || !future.isDone() || future.isCompletedExceptionally()){
+                    continue;
+                }
+                ClientCnx clientCnx = future.getNow(null);
+                String poolKey = String.valueOf(entry.getKey());
+                String proxyToTargetBrokerAddress = String.valueOf(clientCnx.proxyToTargetBrokerAddress);
+                String remoteAddress = String.valueOf(
+                        (Object)Whitebox.getInternalState(clientCnx, "remoteAddress"));
+                ConcurrentLongHashMap consumers = Whitebox.getInternalState(clientCnx, "consumers");
+                ConcurrentLongHashMap producers =
+                        Whitebox.getInternalState(clientCnx, "transactionMetaStoreHandlers");
+                ConcurrentLongHashMap txnMap = Whitebox.getInternalState(clientCnx, "consumers");
+                log.info("    poolKey:{}, logicalAddress: {}, physicalAddress: {},"
+                                + " consumers: {}, producers: {}, txn: {}",
+                        poolKey, proxyToTargetBrokerAddress, remoteAddress,
+                        consumers.size(), producers.size(), txnMap.size());
+            }
+        }
     }
 
     /**
@@ -122,7 +160,7 @@ public class AutoCloseUselessClientConSupports extends MultiBrokerBaseTest {
                 return false;
             });
         } catch (Exception e){
-            connectionToEveryBroker(pulsarClient);
+            connectionToEveryBroker(pulsarClient, null);
         }
     }
 
@@ -130,7 +168,7 @@ public class AutoCloseUselessClientConSupports extends MultiBrokerBaseTest {
      * Create connections directly to all brokers
      * Why provide this method: prevents instability on one side
      */
-    protected void connectionToEveryBroker(PulsarClientImpl pulsarClient){
+    protected void connectionToEveryBroker(PulsarClientImpl pulsarClient, InetSocketAddress proxyAddress){
         for (PulsarService pulsarService : super.getAllBrokers()){
             String url = pulsarService.getBrokerServiceUrl();
             if (url.contains("//")){
@@ -143,9 +181,32 @@ public class AutoCloseUselessClientConSupports extends MultiBrokerBaseTest {
                 host = hostAndPort[0];
                 port = Integer.valueOf(hostAndPort[1]);
             }
-            pulsarClient.getCnxPool()
-                    .getConnection(new InetSocketAddress(host, port));
+            InetSocketAddress brokerAddress = new InetSocketAddress(host, port);
+            if (proxyAddress != null) {
+                pulsarClient.getCnxPool().getConnection(brokerAddress, proxyAddress);
+            } else {
+                pulsarClient.getCnxPool().getConnection(brokerAddress, brokerAddress);
+            }
         }
+    }
+
+    protected Set<Integer> alreadyUsedPort(){
+        HashSet<Integer> alreadyUsedPortSet = new HashSet<>();
+        alreadyUsedPortSet.add(6650);
+        alreadyUsedPortSet.add(8080);
+        alreadyUsedPortSet.add(2181);
+        alreadyUsedPortSet.add(3181);
+        for (PulsarService pulsarService : super.getAllBrokers()){
+            String url = pulsarService.getBrokerServiceUrl();
+            if (url.contains("//")){
+                url = url.split("//")[1];
+            }
+            if (url.contains(":")){
+                String[] hostAndPort = url.split(":");
+                alreadyUsedPortSet.add(Integer.valueOf(hostAndPort[1]));
+            }
+        }
+        return alreadyUsedPortSet;
     }
 
     /**
@@ -203,5 +264,9 @@ public class AutoCloseUselessClientConSupports extends MultiBrokerBaseTest {
         Message message_tx = (Message) consumer.receiveAsync().get();
         Assert.assertEquals(new String(message_tx.getData(), StandardCharsets.UTF_8), messageContent_tx);
         consumer.acknowledge(message_tx);
+    }
+
+    protected PulsarClientImpl choosePulsarClient() throws Exception {
+        return (PulsarClientImpl) super.getAllClients().get(0);
     }
 }
