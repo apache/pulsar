@@ -102,6 +102,7 @@ import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.PartitionedManagedLedgerInfo;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
@@ -3687,6 +3688,10 @@ public class PersistentTopicsBase extends AdminResource {
                     if (partitionMetadata.partitions > 0) {
                         throw new RestException(Status.METHOD_NOT_ALLOWED,
                                 "Termination of a partitioned topic is not allowed");
+                    }
+                    if (SystemTopicNames.isSystemTopic(topicName)) {
+                        throw new RestException(Status.METHOD_NOT_ALLOWED,
+                                "Termination of a system topic is not allowed");
                     }
                 })
                 .thenCompose(__ -> getTopicReferenceAsync(topicName))
