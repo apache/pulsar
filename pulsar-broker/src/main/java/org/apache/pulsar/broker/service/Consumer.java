@@ -336,7 +336,7 @@ public class Consumer {
         }
         incrementUnackedMessages(unackedMessages);
         Future<Void> writeAndFlushPromise =
-                cnx.getCommandSender().sendMessagesToConsumer(consumerId, topicName, subscription, partitionIdx,
+                cnx.getCommandSender().sendMessagesToConsumer(this, topicName, subscription, partitionIdx,
                         entries, batchSizes, batchIndexesAcks, redeliveryTracker, epoch);
         writeAndFlushPromise.addListener(status -> {
             // only increment counters after the messages have been successfully written to the TCP/IP connection

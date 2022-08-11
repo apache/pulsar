@@ -77,7 +77,7 @@ public interface PulsarCommandSender {
 
     void sendReachedEndOfTopic(long consumerId);
 
-    Future<Void> sendMessagesToConsumer(long consumerId, String topicName, Subscription subscription,
+    Future<Void> sendMessagesToConsumer(Consumer consumer, String topicName, Subscription subscription,
                                         int partitionIdx, List<? extends Entry> entries, EntryBatchSizes batchSizes,
                                         EntryBatchIndexesAcks batchIndexesAcks,
                                         RedeliveryTracker redeliveryTracker, long epoch);
