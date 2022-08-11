@@ -84,7 +84,7 @@ Enable or disable entry logger preallocation
 
 Max file size of the entry logger, in bytes. A new entry log file will be created when the old one reaches the file size limitation.
 
-**Default**: 2147483648
+**Default**: 1073741824
 
 ### minorCompactionThreshold
 
