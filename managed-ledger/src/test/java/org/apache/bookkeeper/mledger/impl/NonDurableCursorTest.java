@@ -54,6 +54,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 public class NonDurableCursorTest extends MockedBookKeeperTestCase {
@@ -733,6 +734,69 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
 
         assertEquals(nonDurableCursor.getNumberOfEntries(), 1);
         assertEquals(nonDurableCursor.getNumberOfEntriesInBacklog(true), 1);
+
+        ledger.close();
+    }
+
+    @Test
+    public void testInvalidateReadHandleWithSlowNonDurableCursor() throws Exception {
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testInvalidateReadHandleWithSlowNonDurableCursor",
+                new ManagedLedgerConfig().setMaxEntriesPerLedger(1).setRetentionTime(-1, TimeUnit.SECONDS)
+                        .setRetentionSizeInMB(-1));
+        ManagedCursor c1 = ledger.openCursor("c1");
+        ManagedCursor nonDurableCursor = ledger.newNonDurableCursor(PositionImpl.EARLIEST);
+
+        assertEquals(nonDurableCursor.getNumberOfEntries(), 0);
+        assertEquals(nonDurableCursor.getNumberOfEntriesInBacklog(true), 0);
+
+        List<Position> positions = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            positions.add(ledger.addEntry(("entry-" + i).getBytes(UTF_8)));
+        }
+
+        CountDownLatch latch = new CountDownLatch(10);
+        for (int i = 0; i < 10; i++) {
+            ledger.asyncReadEntry((PositionImpl) positions.get(i), new AsyncCallbacks.ReadEntryCallback() {
+                @Override
+                public void readEntryComplete(Entry entry, Object ctx) {
+                    latch.countDown();
+                }
+
+                @Override
+                public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                    latch.countDown();
+                }
+            }, null);
+        }
+
+        latch.await();
+
+        ledger.updateTheSlowestNonDurableReadPosition(nonDurableCursor.getReadPosition());
+        c1.markDelete(positions.get(4));
+
+        CompletableFuture<Void> promise = new CompletableFuture<>();
+        ledger.internalTrimConsumedLedgers(promise);
+        promise.join();
+
+        Assert.assertTrue(ledger.ledgerCache.containsKey(3));
+        Assert.assertTrue(ledger.ledgerCache.containsKey(4));
+        Assert.assertTrue(ledger.ledgerCache.containsKey(5));
+        Assert.assertTrue(ledger.ledgerCache.containsKey(6));
+        Assert.assertTrue(ledger.ledgerCache.containsKey(7));
+
+        promise = new CompletableFuture<>();
+
+        nonDurableCursor.markDelete(positions.get(3));
+        ledger.updateTheSlowestNonDurableReadPosition(nonDurableCursor.getReadPosition());
+
+        ledger.internalTrimConsumedLedgers(promise);
+        promise.join();
+
+        Assert.assertFalse(ledger.ledgerCache.containsKey(3));
+        Assert.assertFalse(ledger.ledgerCache.containsKey(4));
+        Assert.assertFalse(ledger.ledgerCache.containsKey(5));
+        Assert.assertFalse(ledger.ledgerCache.containsKey(6));
+        Assert.assertTrue(ledger.ledgerCache.containsKey(7));
 
         ledger.close();
     }

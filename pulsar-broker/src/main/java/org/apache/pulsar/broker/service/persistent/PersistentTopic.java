@@ -2346,8 +2346,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             }
         });
         if (slowestNonDurableReadPosition.get() != null) {
-            ManagedLedger managedLedger = getManagedLedger();
-            managedLedger.updateTheSlowestNonDurableReadPosition(slowestNonDurableReadPosition.get());
+            ledger.updateTheSlowestNonDurableReadPosition(slowestNonDurableReadPosition.get());
+        } else {
+            ledger.updateTheSlowestNonDurableReadPosition(PositionImpl.LATEST);
         }
     }
 
