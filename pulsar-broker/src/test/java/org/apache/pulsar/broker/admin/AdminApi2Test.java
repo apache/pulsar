@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.admin;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.pulsar.common.naming.SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -44,6 +45,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import javax.ws.rs.NotAcceptableException;
@@ -1367,6 +1369,15 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         admin.topics().deletePartitionedTopic(topic);
         assertTrue(admin.topics().getList(namespace).isEmpty());
 
+        // Wait for system topic create finish.
+        Awaitility.await().until(() -> {
+            if (!pulsar.getConfiguration().isSystemTopicEnabled()) {
+                return true;
+            }
+            TreeSet<String> topicsCreated = queryTopicsByNamespace(namespace);
+            return topicsCreated.contains(String.format("persistent://%s/%s", namespace, NAMESPACE_EVENTS_LOCAL_NAME));
+        });
+
         // delete namespace
         admin.namespaces().deleteNamespace(namespace, false);
         assertFalse(admin.namespaces().getNamespaces(tenant).contains(namespace));
@@ -1384,6 +1395,18 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         assertFalse(pulsar.getLocalMetadataStore().exists(partitionedTopicPath).join());
         assertFalse(pulsar.getLocalMetadataStore().exists(localPoliciesPath).join());
         assertFalse(pulsar.getLocalMetadataStore().exists(bundleDataPath).join());
+    }
+
+    private TreeSet<String> queryTopicsByNamespace(String namespace){
+        NamespaceName namespaceName = NamespaceName.get(namespace);
+        TreeSet<String> topics = new TreeSet<>();
+        topics.addAll(pulsar.getNamespaceService()
+                .getListOfPersistentTopics(NamespaceName.get(namespace)).join());
+        topics.addAll(pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
+                .listPartitionedTopicsAsync(namespaceName, TopicDomain.persistent).join());
+        topics.addAll(pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
+                .listPartitionedTopicsAsync(namespaceName, TopicDomain.non_persistent).join());
+        return topics;
     }
 
     @Test
