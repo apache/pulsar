@@ -22,71 +22,103 @@ import io.prometheus.client.Counter;
 import io.prometheus.client.Histogram;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public final class MetadataStoreStats {
-    private static final AtomicBoolean INITIALIZED = new AtomicBoolean(false);
+public final class MetadataStoreStats implements AutoCloseable {
     private static final double[] BUCKETS = new double[]{1, 3, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000};
+    private static final String LABEL_NAME = "metadata_store_name";
 
-    private final Histogram getOpsLatency;
-    private final Histogram delOpsLatency;
-    private final Histogram putOpsLatency;
-    private final Counter getFailedCounter;
-    private final Counter delFailedCounter;
-    private final Counter putFailedCounter;
-    private final Counter putBytesCounter;
+    private static final Histogram GET_OPS_SUCCEED = Histogram
+            .build("pulsar_metadata_store_get_ops_latency", "-")
+            .unit("ms")
+            .buckets(BUCKETS)
+            .labelNames(LABEL_NAME)
+            .register();
+    private static final Histogram DEL_OPS_SUCCEED = Histogram
+            .build("pulsar_metadata_store_del_ops_latency", "-")
+            .unit("ms")
+            .buckets(BUCKETS)
+            .labelNames(LABEL_NAME)
+            .register();
+    private static final Histogram PUT_OPS_SUCCEED = Histogram
+            .build("pulsar_metadata_store_put_ops_latency", "-")
+            .unit("ms")
+            .buckets(BUCKETS)
+            .labelNames(LABEL_NAME)
+            .register();
+    private static final Counter GET_OPS_FAILED = Counter
+            .build("pulsar_metadata_store_get_ops_failed", "-")
+            .labelNames(LABEL_NAME)
+            .register();
+    private static final Counter DEL_OPS_FAILED = Counter
+            .build("pulsar_metadata_store_del_ops_failed", "-")
+            .labelNames(LABEL_NAME)
+            .register();
+    private static final Counter PUT_OPS_FAILED = Counter
+            .build("pulsar_metadata_store_put_ops_failed", "-")
+            .labelNames(LABEL_NAME)
+            .register();
+    private static final Counter PUT_BYTES = Counter
+            .build("pulsar_metadata_store_put", "-")
+            .unit("byte")
+            .labelNames(LABEL_NAME)
+            .register();
 
-    private MetadataStoreStats() {
-        getOpsLatency = Histogram.build("pulsar_metadata_store_get_ops_latency", "-")
-                .buckets(BUCKETS)
-                .register();
-        delOpsLatency = Histogram.build("pulsar_metadata_store_del_ops_latency", "-")
-                .buckets(BUCKETS)
-                .register();
-        putOpsLatency = Histogram.build("pulsar_metadata_store_put_ops_latency", "-")
-                .buckets(BUCKETS)
-                .register();
+    private final Histogram.Child getOpsSucceedChild;
+    private final Histogram.Child delOpsSucceedChild;
+    private final Histogram.Child puttOpsSucceedChild;
+    private final Counter.Child getOpsFailedChild;
+    private final Counter.Child delOpsFailedChild;
+    private final Counter.Child putOpsFailedChild;
+    private final Counter.Child putBytesChild;
+    private final String metadataStoreName;
+    private final AtomicBoolean closed = new AtomicBoolean(false);
 
-        getFailedCounter = Counter.build("pulsar_metadata_store_get_ops_failed", "-")
-                .register();
-        delFailedCounter = Counter.build("pulsar_metadata_store_del_ops_failed", "-")
-                .register();
-        putFailedCounter = Counter.build("pulsar_metadata_store_put_ops_failed", "-")
-                .register();
-        putBytesCounter = Counter.build("pulsar_metadata_store_put_bytes", "-")
-                .register();
+    public MetadataStoreStats(String metadataStoreName) {
+        this.metadataStoreName = metadataStoreName;
+
+        this.getOpsSucceedChild = GET_OPS_SUCCEED.labels(metadataStoreName);
+        this.delOpsSucceedChild = DEL_OPS_SUCCEED.labels(metadataStoreName);
+        this.puttOpsSucceedChild = PUT_OPS_SUCCEED.labels(metadataStoreName);
+        this.getOpsFailedChild = GET_OPS_FAILED.labels(metadataStoreName);
+        this.delOpsFailedChild = DEL_OPS_FAILED.labels(metadataStoreName);
+        this.putOpsFailedChild = PUT_OPS_FAILED.labels(metadataStoreName);
+        this.putBytesChild = PUT_BYTES.labels(metadataStoreName);
     }
 
     public void recordGetOpsLatency(long millis) {
-        this.getOpsLatency.observe(millis);
+        this.getOpsSucceedChild.observe(millis);
     }
 
     public void recordDelOpsLatency(long millis) {
-        this.delOpsLatency.observe(millis);
+        this.delOpsSucceedChild.observe(millis);
     }
 
     public void recordPutOpsLatency(long millis, int bytes) {
-        this.putOpsLatency.observe(millis);
-        this.putBytesCounter.inc(bytes);
+        this.puttOpsSucceedChild.observe(millis);
+        this.putBytesChild.inc(bytes);
     }
 
     public void recordGetOpsFailed() {
-        this.getFailedCounter.inc();
+        this.getOpsFailedChild.inc();
     }
 
     public void recordDelOpsFailed() {
-        this.delFailedCounter.inc();
+        this.delOpsFailedChild.inc();
     }
 
     public void recordPutOpsFailed() {
-        this.putFailedCounter.inc();
+        this.putOpsFailedChild.inc();
     }
 
-    private static MetadataStoreStats instance;
-
-    public static MetadataStoreStats create() {
-        if (INITIALIZED.compareAndSet(false, true)) {
-            instance = new MetadataStoreStats();
+    @Override
+    public void close() throws Exception {
+        if (this.closed.compareAndSet(false, true)) {
+            GET_OPS_SUCCEED.remove(this.metadataStoreName);
+            DEL_OPS_SUCCEED.remove(this.metadataStoreName);
+            PUT_OPS_SUCCEED.remove(this.metadataStoreName);
+            GET_OPS_FAILED.remove(this.metadataStoreName);
+            DEL_OPS_FAILED.remove(this.metadataStoreName);
+            PUT_OPS_FAILED.remove(this.metadataStoreName);
+            PUT_BYTES.remove(this.metadataStoreName);
         }
-
-        return instance;
     }
 }

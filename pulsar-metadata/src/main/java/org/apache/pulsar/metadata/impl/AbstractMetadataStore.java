@@ -35,10 +35,11 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import lombok.Getter;
@@ -63,15 +64,17 @@ import org.apache.pulsar.metadata.impl.stats.MetadataStoreStats;
 @Slf4j
 public abstract class AbstractMetadataStore implements MetadataStoreExtended, Consumer<Notification> {
 
+    private static final AtomicInteger ID = new AtomicInteger();
     private static final long CACHE_REFRESH_TIME_MILLIS = TimeUnit.MINUTES.toMillis(5);
 
     private final CopyOnWriteArrayList<Consumer<Notification>> listeners = new CopyOnWriteArrayList<>();
     private final CopyOnWriteArrayList<Consumer<SessionEvent>> sessionListeners = new CopyOnWriteArrayList<>();
+    protected final String metadataStoreName;
     protected final ScheduledExecutorService executor;
     private final AsyncLoadingCache<String, List<String>> childrenCache;
     private final AsyncLoadingCache<String, Boolean> existsCache;
     private final CopyOnWriteArrayList<MetadataCacheImpl<?>> metadataCaches = new CopyOnWriteArrayList<>();
-    private final MetadataStoreStats stats;
+    private final MetadataStoreStats metadataStoreStats;
 
     // We don't strictly need to use 'volatile' here because we don't need the precise consistent semantic. Instead,
     // we want to avoid the overhead of 'volatile'.
@@ -83,8 +86,8 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     protected abstract CompletableFuture<Boolean> existsFromStore(String path);
 
     protected AbstractMetadataStore() {
-        this.executor = Executors
-                .newSingleThreadScheduledExecutor(new DefaultThreadFactory("metadata-store"));
+        final String poolName = "metadata-store";
+        this.executor = new ScheduledThreadPoolExecutor(1, new DefaultThreadFactory(poolName));
         registerListener(this);
 
         this.childrenCache = Caffeine.newBuilder()
@@ -129,7 +132,8 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                     }
                 });
 
-        this.stats = MetadataStoreStats.create();
+        this.metadataStoreName = poolName + "-" + ID.getAndIncrement();
+        this.metadataStoreStats = new MetadataStoreStats(metadataStoreName);
     }
 
     protected void registerSyncLister(Optional<MetadataEventSynchronizer> synchronizer) {
@@ -241,16 +245,16 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     public CompletableFuture<Optional<GetResult>> get(String path) {
         long start = System.currentTimeMillis();
         if (!isValidPath(path)) {
-            stats.recordGetOpsFailed();
+            metadataStoreStats.recordGetOpsFailed();
             return FutureUtil
                     .failedFuture(new MetadataStoreException.InvalidPathException(path));
         }
         return storeGet(path)
                 .whenComplete((v, t) -> {
                     if (t != null) {
-                        stats.recordGetOpsFailed();
+                        metadataStoreStats.recordGetOpsFailed();
                     } else {
-                        stats.recordGetOpsLatency(System.currentTimeMillis() - start);
+                        metadataStoreStats.recordGetOpsLatency(System.currentTimeMillis() - start);
                     }
                 });
     }
@@ -329,7 +333,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     public final CompletableFuture<Void> delete(String path, Optional<Long> expectedVersion) {
         long start = System.currentTimeMillis();
         if (!isValidPath(path)) {
-            stats.recordDelOpsFailed();
+            metadataStoreStats.recordDelOpsFailed();
             return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
         }
         if (getMetadataEventSynchronizer().isPresent()) {
@@ -340,18 +344,18 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                     .thenCompose(__ -> deleteInternal(path, expectedVersion))
                     .whenComplete((v, t) -> {
                         if (null != t) {
-                            stats.recordDelOpsFailed();
+                            metadataStoreStats.recordDelOpsFailed();
                         } else {
-                            stats.recordDelOpsLatency(System.currentTimeMillis() - start);
+                            metadataStoreStats.recordDelOpsLatency(System.currentTimeMillis() - start);
                         }
                     });
         } else {
             return deleteInternal(path, expectedVersion)
                     .whenComplete((v, t) -> {
                         if (null != t) {
-                            stats.recordDelOpsFailed();
+                            metadataStoreStats.recordDelOpsFailed();
                         } else {
-                            stats.recordDelOpsLatency(System.currentTimeMillis() - start);
+                            metadataStoreStats.recordDelOpsLatency(System.currentTimeMillis() - start);
                         }
                     });
         }
@@ -395,7 +399,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
             EnumSet<CreateOption> options) {
         long start = System.currentTimeMillis();
         if (!isValidPath(path)) {
-            stats.recordPutOpsFailed();
+            metadataStoreStats.recordPutOpsFailed();
             return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
         }
         HashSet<CreateOption> ops = new HashSet<>(options);
@@ -409,20 +413,20 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                     .thenCompose(__ -> putInternal(path, data, optExpectedVersion, options))
                     .whenComplete((v, t) -> {
                         if (t != null) {
-                            stats.recordPutOpsFailed();
+                            metadataStoreStats.recordPutOpsFailed();
                         } else {
                             int len = data == null ? 0 : data.length;
-                            stats.recordPutOpsLatency(System.currentTimeMillis() - start, len);
+                            metadataStoreStats.recordPutOpsLatency(System.currentTimeMillis() - start, len);
                         }
                     });
         } else {
             return putInternal(path, data, optExpectedVersion, options)
                     .whenComplete((v, t) -> {
                         if (t != null) {
-                            stats.recordPutOpsFailed();
+                            metadataStoreStats.recordPutOpsFailed();
                         } else {
                             int len = data == null ? 0 : data.length;
-                            stats.recordPutOpsLatency(System.currentTimeMillis() - start, len);
+                            metadataStoreStats.recordPutOpsLatency(System.currentTimeMillis() - start, len);
                         }
                     });
         }
@@ -470,6 +474,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     public void close() throws Exception {
         executor.shutdownNow();
         executor.awaitTermination(10, TimeUnit.SECONDS);
+        this.metadataStoreStats.close();
     }
 
     @VisibleForTesting
