@@ -63,7 +63,7 @@
     </fileSet>
     <fileSet>
       <directory>${basedir}/../../pulsar-sql/presto-distribution/target/pulsar-presto-distribution</directory>
-      <outputDirectory>lib/trino</outputDirectory>
+      <outputDirectory>lib/presto</outputDirectory>
       <excludes>
         <exclude>bin</exclude>
         <exclude>bin/**</exclude>
@@ -71,7 +71,7 @@
     </fileSet>
     <fileSet>
       <directory>${basedir}/../../pulsar-sql/presto-distribution/target/pulsar-presto-distribution</directory>
-      <outputDirectory>lib/trino</outputDirectory>
+      <outputDirectory>lib/presto</outputDirectory>
       <includes>
         <include>bin/**</include>
       </includes>
