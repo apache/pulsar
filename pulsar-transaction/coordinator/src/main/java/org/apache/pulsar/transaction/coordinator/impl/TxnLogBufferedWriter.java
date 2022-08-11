@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.transaction.coordinator.impl;
 
+import static org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerInterceptException;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.Recycler;
@@ -223,7 +224,7 @@ public class TxnLogBufferedWriter<T> implements Closeable {
                 // Avoid missing callback, do failed callback when error occur before add data to the array.
                 int recordsCountAfter = dataArray.size();
                 if (recordsCountAfter == recordsCountBeforeAdd){
-                    callback.addFailed(new ManagedLedgerException.ManagedLedgerFencedException(e), ctx);
+                    callback.addFailed(new ManagedLedgerInterceptException(e), ctx);
                 }
                 log.error("Failed to add data asynchronously", e);
             }
