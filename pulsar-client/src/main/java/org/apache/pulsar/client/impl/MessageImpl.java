@@ -94,9 +94,7 @@ public class MessageImpl<T> implements Message<T> {
         msg.payload = Unpooled.wrappedBuffer(payload);
         msg.properties = null;
         msg.schema = schema;
-        if (msg.schema != null) {
-            msg.schemaHash = SchemaHash.of(schema);
-        }
+        msg.schemaHash = SchemaHash.of(schema);
         msg.uncompressedSize = payload.remaining();
         return msg;
     }
@@ -438,7 +436,7 @@ public class MessageImpl<T> implements Message<T> {
     }
 
     public SchemaHash getSchemaHash() {
-        return schemaHash;
+        return schemaHash == null ? SchemaHash.of(new byte[0], null) : schemaHash;
     }
 
     public void setSchemaInfoForReplicator(SchemaInfo schemaInfo) {

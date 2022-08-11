@@ -59,7 +59,7 @@ public class SchemaHash {
                 schemaInfo == null ? null : schemaInfo.getType());
     }
 
-    private static SchemaHash of(byte[] schemaBytes, SchemaType schemaType) {
+    public static SchemaHash of(byte[] schemaBytes, SchemaType schemaType) {
         return new SchemaHash(hashFunction.hashBytes(schemaBytes), schemaType);
     }
 
