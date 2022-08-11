@@ -20,7 +20,11 @@
 package org.apache.pulsar.functions.utils;
 
 import java.util.Collection;
+import java.util.Optional;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
@@ -95,18 +99,44 @@ public class FunctionCommonTest {
         when(id.getLedgerId()).thenReturn(lid);
         when(id.getEntryId()).thenReturn(eid);
 
-        assertEquals((lid << 28) | eid, FunctionCommon.getSequenceId(id));
+        assertEquals((lid << 40) | eid << 12 | 0x0FFF, FunctionCommon.getSequenceId(id));
     }
 
     @Test
     public void testGetMessageId() {
         long lid = 12345L;
         long eid = 34566L;
-        long sequenceId = (lid << 28) | eid;
+        long sequenceId = (lid << 40) | eid << 12;
 
         MessageIdImpl id = (MessageIdImpl) FunctionCommon.getMessageId(sequenceId);
         assertEquals(lid, id.getLedgerId());
         assertEquals(eid, id.getEntryId());
+    }
+
+    @Test
+    public void testGetSequenceIdByMessage() {
+        long lid = 12345L;
+        long eid = 34566L;
+        int batchIndex = 5;
+        int batchSize = 8;
+        Message message = mock(Message.class);
+        when(message.getIndex()).thenReturn(Optional.of(100L));
+        when(message.getMessageId()).thenReturn(new TopicMessageIdImpl("test-partition-0", "test", new BatchMessageIdImpl(lid, eid, -1, batchIndex, batchSize, null)));
+        assertEquals(FunctionCommon.getSequenceId(message), 98);
+    }
+
+    @Test
+    public void testGetSequenceIdByMessageId() {
+        long lid = 12345L;
+        long eid = 34566L;
+        int batchIndex = 5;
+        int batchSize = 8;
+        Message message = mock(Message.class);
+        when(message.getIndex()).thenReturn(Optional.empty());
+        when(message.getMessageId()).thenReturn(new TopicMessageIdImpl("test-partition-0", "test", new BatchMessageIdImpl(lid, eid, -1, batchIndex, batchSize, null)));
+        long sequenceId = FunctionCommon.getSequenceId(message);
+        assertEquals(sequenceId, lid << 40 | eid << 12 | 5);
+        assertEquals(FunctionCommon.getMessageId(sequenceId), new BatchMessageIdImpl(lid, eid, -1, batchIndex));
     }
 
     @DataProvider(name = "function")

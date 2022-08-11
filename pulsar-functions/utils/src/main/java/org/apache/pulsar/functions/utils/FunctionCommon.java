@@ -44,8 +44,10 @@ import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.common.functions.FunctionConfig;
@@ -305,26 +307,51 @@ public class FunctionCommon {
         return String.format("%s/%s/%s:%d", tenant, namespace, functionName, instanceId);
     }
 
+    public static final long getSequenceId(Message message) {
+        // prefer to get index from BrokerEntryMetadata, if not present build sequenceId by MessageId.
+        if (message.getIndex().isPresent()) {
+            Long index = (Long) message.getIndex().get();
+            MessageId messageId = message.getMessageId();
+            MessageIdImpl innnerMsgId = (MessageIdImpl) ((messageId instanceof TopicMessageIdImpl)
+                    ? ((TopicMessageIdImpl) messageId).getInnerMessageId()
+                    : messageId);
+            if (innnerMsgId instanceof BatchMessageIdImpl) {
+                BatchMessageIdImpl batchMsgId = (BatchMessageIdImpl) innnerMsgId;
+                return index + batchMsgId.getBatchIndex() + 1 - batchMsgId.getOriginalBatchSize();
+            } else {
+                return index;
+            }
+        } else {
+            return getSequenceId(message.getMessageId());
+        }
+    }
+
     public static final long getSequenceId(MessageId messageId) {
         MessageIdImpl msgId = (MessageIdImpl) ((messageId instanceof TopicMessageIdImpl)
                 ? ((TopicMessageIdImpl) messageId).getInnerMessageId()
                 : messageId);
         long ledgerId = msgId.getLedgerId();
         long entryId = msgId.getEntryId();
+        int batchIndex = msgId instanceof BatchMessageIdImpl
+                ? ((BatchMessageIdImpl) msgId).getBatchIndex() : -1;
 
-        // Combine ledger id and entry id to form offset
+        // Combine ledger id and entry id and batchIndex to form offset
         // Use less than 32 bits to represent entry id since it will get
         // rolled over way before overflowing the max int range
-        long offset = (ledgerId << 28) | entryId;
+        long offset = (ledgerId << 28 + 12) | (entryId << 12) | (batchIndex & 0x0FFFL);
         return offset;
     }
 
     public static final MessageId getMessageId(long sequenceId) {
         // Demultiplex ledgerId and entryId from offset
-        long ledgerId = sequenceId >>> 28;
-        long entryId = sequenceId & 0x0F_FF_FF_FFL;
-
-        return new MessageIdImpl(ledgerId, entryId, -1);
+        long ledgerId = sequenceId >>> 40;
+        long entryId = (sequenceId & 0x0FFFFFFF000L) >>> 12;
+        int batchIndex = (int) (sequenceId & 0x0FFFL);
+        if (batchIndex == 0x0FFF) {
+            return new MessageIdImpl(ledgerId, entryId, -1);
+        } else {
+            return new BatchMessageIdImpl(ledgerId, entryId, -1, batchIndex);
+        }
     }
 
     public static byte[] toByteArray(Object obj) throws IOException {
