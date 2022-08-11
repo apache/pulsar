@@ -23,6 +23,7 @@
           xsi:schemaLocation="http://maven.apache.org/ASSEMBLY/2.1.0 http://maven.apache.org/xsd/assembly-2.1.0.xsd">
   <id>bin</id>
   <formats>
+    <format>dir</format>
     <format>tar.gz</format>
   </formats>
   <includeBaseDirectory>true</includeBaseDirectory>
@@ -62,7 +63,7 @@
     </fileSet>
     <fileSet>
       <directory>${basedir}/../../pulsar-sql/presto-distribution/target/pulsar-presto-distribution</directory>
-      <outputDirectory>lib/presto</outputDirectory>
+      <outputDirectory>lib/trino</outputDirectory>
       <excludes>
         <exclude>bin</exclude>
         <exclude>bin/**</exclude>
@@ -70,7 +71,7 @@
     </fileSet>
     <fileSet>
       <directory>${basedir}/../../pulsar-sql/presto-distribution/target/pulsar-presto-distribution</directory>
-      <outputDirectory>lib/presto</outputDirectory>
+      <outputDirectory>lib/trino</outputDirectory>
       <includes>
         <include>bin/**</include>
       </includes>
