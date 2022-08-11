@@ -1247,7 +1247,7 @@ public class PulsarService implements AutoCloseable {
                                         LedgerOffloader.METADATA_PULSAR_CLUSTER_NAME.toLowerCase(),
                                         config.getClusterName()
                                 ),
-                                schemaStorage, getOffloaderScheduler(offloadPolicies), this.offloaderStats);
+                                schemaStorage, getOffloaderScheduler(offloadPolicies));
                     } catch (IOException ioe) {
                         throw new PulsarServerException(ioe.getMessage(), ioe.getCause());
                     }
