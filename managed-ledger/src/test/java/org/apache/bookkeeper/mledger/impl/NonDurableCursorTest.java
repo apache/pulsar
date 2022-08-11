@@ -778,11 +778,11 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
         ledger.internalTrimConsumedLedgers(promise);
         promise.join();
 
-        Assert.assertTrue(ledger.ledgerCache.containsKey(3));
-        Assert.assertTrue(ledger.ledgerCache.containsKey(4));
-        Assert.assertTrue(ledger.ledgerCache.containsKey(5));
-        Assert.assertTrue(ledger.ledgerCache.containsKey(6));
-        Assert.assertTrue(ledger.ledgerCache.containsKey(7));
+        Assert.assertTrue(ledger.ledgerCache.containsKey(positions.get(0).getLedgerId()));
+        Assert.assertTrue(ledger.ledgerCache.containsKey(positions.get(1).getLedgerId()));
+        Assert.assertTrue(ledger.ledgerCache.containsKey(positions.get(2).getLedgerId()));
+        Assert.assertTrue(ledger.ledgerCache.containsKey(positions.get(3).getLedgerId()));
+        Assert.assertTrue(ledger.ledgerCache.containsKey(positions.get(4).getLedgerId()));
 
         promise = new CompletableFuture<>();
 
@@ -792,11 +792,11 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
         ledger.internalTrimConsumedLedgers(promise);
         promise.join();
 
-        Assert.assertFalse(ledger.ledgerCache.containsKey(3));
-        Assert.assertFalse(ledger.ledgerCache.containsKey(4));
-        Assert.assertFalse(ledger.ledgerCache.containsKey(5));
-        Assert.assertFalse(ledger.ledgerCache.containsKey(6));
-        Assert.assertTrue(ledger.ledgerCache.containsKey(7));
+        Assert.assertFalse(ledger.ledgerCache.containsKey(positions.get(0).getLedgerId()));
+        Assert.assertFalse(ledger.ledgerCache.containsKey(positions.get(1).getLedgerId()));
+        Assert.assertFalse(ledger.ledgerCache.containsKey(positions.get(2).getLedgerId()));
+        Assert.assertFalse(ledger.ledgerCache.containsKey(positions.get(3).getLedgerId()));
+        Assert.assertTrue(ledger.ledgerCache.containsKey(positions.get(4).getLedgerId()));
 
         ledger.close();
     }

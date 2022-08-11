@@ -128,11 +128,6 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
             List<LedgerEntry> entries = new ArrayList<LedgerEntry>();
             boolean seeked = false;
             try {
-                if (state == State.Closed) {
-                    log.warn("Reading a closed read handler. Ledger ID: {}, Read range: {}-{}",
-                        ledgerId, firstEntry, lastEntry);
-                    throw new BKException.BKUnexpectedConditionException();
-                }
                 if (firstEntry > lastEntry
                     || firstEntry < 0
                     || lastEntry > getLastAddConfirmed()) {
