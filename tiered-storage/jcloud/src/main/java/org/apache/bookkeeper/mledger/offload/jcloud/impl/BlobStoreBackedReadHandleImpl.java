@@ -128,6 +128,11 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
             List<LedgerEntry> entries = new ArrayList<LedgerEntry>();
             boolean seeked = false;
             try {
+                if (state == State.Closed) {
+                    log.warn("Reading a closed read handler. Ledger ID: {}, Read range: {}-{}",
+                        ledgerId, firstEntry, lastEntry);
+                    throw new BKException.BKUnexpectedConditionException();
+                }
                 if (firstEntry > lastEntry
                     || firstEntry < 0
                     || lastEntry > getLastAddConfirmed()) {
@@ -192,6 +197,8 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
 
                 promise.complete(LedgerEntriesImpl.create(entries));
             } catch (Throwable t) {
+                log.error("Failed to read entries {} - {} from the offloader in ledger {}",
+                    firstEntry, lastEntry, ledgerId, t);
                 promise.completeExceptionally(t);
                 entries.forEach(LedgerEntry::close);
             }
