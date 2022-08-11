@@ -172,7 +172,8 @@ void ProducerImpl::handleCreateProducer(const ClientConnectionPtr& cnx, Result r
 
     // make sure we're still in the Pending/Ready state, closeAsync could have been invoked
     // while waiting for this response if using lazy producers
-    if (state_ != Ready && state_ != Pending) {
+    const auto state = state_.load();
+    if (state != Ready && state != Pending) {
         LOG_DEBUG("Producer created response received but producer already closed");
         failPendingMessages(ResultAlreadyClosed, false);
         return;
@@ -623,11 +624,9 @@ void ProducerImpl::printStats() {
 }
 
 void ProducerImpl::closeAsync(CloseCallback callback) {
-    Lock lock(mutex_);
-
     // if the producer was never started then there is nothing to clean up
-    if (state_ == NotStarted) {
-        state_ = Closed;
+    State expectedState = NotStarted;
+    if (state_.compare_exchange_strong(expectedState, Closed)) {
         callback(ResultOk);
         return;
     }
@@ -644,9 +643,11 @@ void ProducerImpl::closeAsync(CloseCallback callback) {
     // ensure any remaining send callbacks are called before calling the close callback
     failPendingMessages(ResultAlreadyClosed, false);
 
-    if (state_ != Ready && state_ != Pending) {
+    // TODO  maybe we need a loop here to implement CAS for a condition,
+    // just like Java's `getAndUpdate` method on an atomic variable
+    const auto state = state_.load();
+    if (state != Ready && state != Pending) {
         state_ = Closed;
-        lock.unlock();
         if (callback) {
             callback(ResultAlreadyClosed);
         }
@@ -659,7 +660,7 @@ void ProducerImpl::closeAsync(CloseCallback callback) {
     ClientConnectionPtr cnx = getCnx().lock();
     if (!cnx) {
         state_ = Closed;
-        lock.unlock();
+
         if (callback) {
             callback(ResultOk);
         }
@@ -673,7 +674,6 @@ void ProducerImpl::closeAsync(CloseCallback callback) {
     ClientImplPtr client = client_.lock();
     if (!client) {
         state_ = Closed;
-        lock.unlock();
         // Client was already destroyed
         if (callback) {
             callback(ResultOk);
@@ -681,7 +681,6 @@ void ProducerImpl::closeAsync(CloseCallback callback) {
         return;
     }
 
-    lock.unlock();
     int requestId = client->newRequestId();
     Future<Result, ResponseData> future =
         cnx->sendRequestWithId(Commands::newCloseProducer(producerId_, requestId), requestId);
@@ -694,7 +693,6 @@ void ProducerImpl::closeAsync(CloseCallback callback) {
 
 void ProducerImpl::handleClose(Result result, ResultCallback callback, ProducerImplPtr producer) {
     if (result == ResultOk) {
-        Lock lock(mutex_);
         state_ = Closed;
         LOG_INFO(getName() << "Closed producer");
         ClientConnectionPtr cnx = getCnx().lock();

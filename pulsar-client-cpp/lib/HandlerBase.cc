@@ -131,7 +131,8 @@ bool HandlerBase::isRetriableError(Result result) {
 }
 
 void HandlerBase::scheduleReconnection(HandlerBasePtr handler) {
-    if (handler->state_ == Pending || handler->state_ == Ready) {
+    const auto state = handler->state_.load();
+    if (state == Pending || state == Ready) {
         TimeDuration delay = handler->backoff_.next();
 
         LOG_INFO(handler->getName() << "Schedule reconnection in " << (delay.total_milliseconds() / 1000.0)

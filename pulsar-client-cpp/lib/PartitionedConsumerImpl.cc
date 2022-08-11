@@ -129,16 +129,14 @@ void PartitionedConsumerImpl::unsubscribeAsync(ResultCallback callback) {
     state_ = Closing;
     // do not accept un subscribe until we have subscribe to all of the partitions of a topic
     // it's a logical single topic so it should behave like a single topic, even if it's sharded
-    if (state_ != Ready) {
-        unsigned int index = 0;
-        for (ConsumerList::const_iterator consumer = consumers_.begin(); consumer != consumers_.end();
-             consumer++) {
-            LOG_DEBUG("Unsubcribing Consumer - " << index << " for Subscription - " << subscriptionName_
-                                                 << " for Topic - " << topicName_->toString());
-            (*consumer)->unsubscribeAsync(std::bind(&PartitionedConsumerImpl::handleUnsubscribeAsync,
-                                                    shared_from_this(), std::placeholders::_1, index++,
-                                                    callback));
-        }
+    unsigned int index = 0;
+    for (ConsumerList::const_iterator consumer = consumers_.begin(); consumer != consumers_.end();
+         consumer++) {
+        LOG_DEBUG("Unsubcribing Consumer - " << index << " for Subscription - " << subscriptionName_
+                                             << " for Topic - " << topicName_->toString());
+        (*consumer)->unsubscribeAsync(std::bind(&PartitionedConsumerImpl::handleUnsubscribeAsync,
+                                                shared_from_this(), std::placeholders::_1, index++,
+                                                callback));
     }
 }
 
@@ -329,7 +327,7 @@ void PartitionedConsumerImpl::handleSinglePartitionConsumerClose(Result result, 
     }
 }
 void PartitionedConsumerImpl::closeAsync(ResultCallback callback) {
-    Lock lock(mutex_);
+    Lock lock(consumersMutex_);
     if (consumers_.empty()) {
         notifyResult(callback);
         return;
