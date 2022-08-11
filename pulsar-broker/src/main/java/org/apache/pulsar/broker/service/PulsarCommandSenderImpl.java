@@ -244,7 +244,7 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
                 }
 
                 // Filter out already delete entry, because message ack may be already has changed
-                if (cursor != null) {
+                if (cursor != null && cursor.isDurable()) {
                   if (cursor.isMessageDeleted(entry.getPosition())) {
                       entry.release();
                       continue;
