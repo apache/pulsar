@@ -566,4 +566,27 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
         OffloadedLedgerMetadata offloadedLedgerMetadata2 = result.get(1);
         assertEquals(toWrite.getId(), offloadedLedgerMetadata2.getLedgerId());
     }
+
+    @Test
+    public void testReadWithAClosedLedgerHandler() throws Exception {
+        ReadHandle toWrite = buildReadHandle(DEFAULT_BLOCK_SIZE, 1);
+        LedgerOffloader offloader = getOffloader();
+        UUID uuid = UUID.randomUUID();
+        offloader.offload(toWrite, uuid, new HashMap<>()).get();
+
+        ReadHandle toTest = offloader.readOffloaded(toWrite.getId(), uuid, Collections.emptyMap()).get();
+        Assert.assertEquals(toTest.getLastAddConfirmed(), toWrite.getLastAddConfirmed());
+        long lac = toTest.getLastAddConfirmed();
+        toTest.readAsync(0, lac).get();
+        toTest.closeAsync().get();
+        try {
+            toTest.readAsync(0, lac).get();
+        } catch (Exception e) {
+            if (e.getCause() instanceof BKException.BKUnexpectedConditionException) {
+                // expected exception
+                return;
+            }
+            throw e;
+        }
+    }
 }
