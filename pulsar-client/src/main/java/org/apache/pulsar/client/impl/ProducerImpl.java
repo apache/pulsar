@@ -255,7 +255,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             }
             this.batchMessageContainer = (BatchMessageContainerBase) containerBuilder.build();
             this.batchMessageContainer.setProducer(this);
-            this.lastBatchSendNanoTime = System.nanoTime();
         } else {
             this.batchMessageContainer = null;
         }
@@ -2091,9 +2090,13 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         long microsSinceLastSend = TimeUnit.NANOSECONDS.toMicros(System.nanoTime() - lastBatchSendNanoTime);
         if (microsSinceLastSend < conf.getBatchingMaxPublishDelayMicros()) {
             scheduleBatchFlushTask(conf.getBatchingMaxPublishDelayMicros() - microsSinceLastSend);
-            return;
+        } else if (lastBatchSendNanoTime == 0) {
+            // The first time a producer sends a message, the lastBatchSendNanoTime is 0.
+            lastBatchSendNanoTime = System.nanoTime();
+            scheduleBatchFlushTask(conf.getBatchingMaxPublishDelayMicros());
+        } else {
+            batchMessageAndSend(true);
         }
-        batchMessageAndSend(true);
     }
 
     // must acquire semaphore before enqueuing
