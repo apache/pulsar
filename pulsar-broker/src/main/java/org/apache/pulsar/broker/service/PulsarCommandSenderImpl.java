@@ -29,6 +29,7 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
+import org.apache.pulsar.broker.service.persistent.CompactorSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.BaseCommand;
@@ -230,7 +231,8 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
         final ChannelPromise writePromise = ctx.newPromise();
         ctx.channel().eventLoop().execute(() -> {
             ManagedCursorImpl cursor = null;
-            if (subscription instanceof  PersistentSubscription persistentSubscription) {
+            if (subscription instanceof PersistentSubscription persistentSubscription
+                    && !(subscription instanceof CompactorSubscription)) {
                 cursor = (ManagedCursorImpl) persistentSubscription.getCursor();
             }
 
@@ -244,6 +246,7 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
                 // Filter out already delete entry, because message ack may be already has changed
                 if (cursor != null) {
                   if (cursor.isMessageDeleted(entry.getPosition())) {
+                      entry.release();
                       continue;
                   }
                 }
