@@ -282,7 +282,7 @@ class TopicStats {
             metric(stream, cluster, namespace, topic, n, "pulsar_subscription_consumers_count",
                     subsStats.consumersCount, splitTopicAndPartitionIndexLabel);
 
-            metric(stream, cluster, namespace, topic, n, "pulsar_subscription_through_filter_msg_count",
+            metric(stream, cluster, namespace, topic, n, "pulsar_subscription_filter_processed_msg_count",
                     subsStats.throughFilterMsgCount, splitTopicAndPartitionIndexLabel);
             metric(stream, cluster, namespace, topic, n, "pulsar_subscription_filter_accepted_msg_count",
                     subsStats.filterAcceptedMsgCount, splitTopicAndPartitionIndexLabel);

@@ -1091,10 +1091,10 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                 }
             });
 
-            subStats.throughFilterMsgCount = dispatcher.getThroughFilterMsgCount();
-            subStats.filterAcceptedMsgCount = dispatcher.getFilterAcceptedMsgCount();
-            subStats.filterRejectedMsgCount = dispatcher.getFilterRejectedMsgCount();
-            subStats.filterRescheduledMsgCount = dispatcher.getFilterRescheduledMsgCount();
+            subStats.throughFilterMsgCount = dispatcher.getFilterProcessesMsgsCount();
+            subStats.filterAcceptedMsgCount = dispatcher.getFilterAcceptedMsgsCount();
+            subStats.filterRejectedMsgCount = dispatcher.getFilterRejectedMsgsCount();
+            subStats.filterRescheduledMsgCount = dispatcher.getFilterRescheduledMsgsCount();
         }
 
         SubType subType = getType();

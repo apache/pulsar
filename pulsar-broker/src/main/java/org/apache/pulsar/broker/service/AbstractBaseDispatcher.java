@@ -52,7 +52,7 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
 
     protected final ServiceConfiguration serviceConfig;
     protected final boolean dispatchThrottlingOnBatchMessageEnabled;
-    private final LongAdder throughFilterMsgs = new LongAdder();
+    private final LongAdder filterProcessedMsgs = new LongAdder();
     private final LongAdder filterAcceptedMsgs = new LongAdder();
     private final LongAdder filterRejectedMsgs = new LongAdder();
     private final LongAdder filterRescheduledMsgs = new LongAdder();
@@ -122,20 +122,20 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                             : Commands.peekAndCopyMessageMetadata(metadataAndPayload, subscription.toString(), -1)
                     );
 
-            int entryMsgs = msgMetadata == null ? 1 : msgMetadata.getNumMessagesInBatch();
-            this.throughFilterMsgs.add(entryMsgs);
+            int entryMsgCnt = msgMetadata == null ? 1 : msgMetadata.getNumMessagesInBatch();
+            this.filterProcessedMsgs.add(entryMsgCnt);
 
             EntryFilter.FilterResult filterResult = runFiltersForEntry(entry, msgMetadata, consumer);
             if (filterResult == EntryFilter.FilterResult.REJECT) {
                 entriesToFiltered.add(entry.getPosition());
                 entries.set(i, null);
-                this.filterRejectedMsgs.add(entryMsgs);
+                this.filterRejectedMsgs.add(entryMsgCnt);
                 entry.release();
                 continue;
             } else if (filterResult == EntryFilter.FilterResult.RESCHEDULE) {
                 entriesToRedeliver.add((PositionImpl) entry.getPosition());
                 entries.set(i, null);
-                this.filterRescheduledMsgs.add(entryMsgs);
+                this.filterRescheduledMsgs.add(entryMsgCnt);
                 entry.release();
                 continue;
             }
@@ -174,7 +174,7 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                 continue;
             }
 
-            this.filterAcceptedMsgs.add(entryMsgs);
+            this.filterAcceptedMsgs.add(entryMsgCnt);
 
             totalEntries++;
             int batchSize = msgMetadata.getNumMessagesInBatch();
@@ -300,22 +300,22 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
     }
 
     @Override
-    public long getThroughFilterMsgCount() {
-        return this.throughFilterMsgs.longValue();
+    public long getFilterProcessesMsgsCount() {
+        return this.filterProcessedMsgs.longValue();
     }
 
     @Override
-    public long getFilterAcceptedMsgCount() {
+    public long getFilterAcceptedMsgsCount() {
         return this.filterAcceptedMsgs.longValue();
     }
 
     @Override
-    public long getFilterRejectedMsgCount() {
+    public long getFilterRejectedMsgsCount() {
         return this.filterRejectedMsgs.longValue();
     }
 
     @Override
-    public long getFilterRescheduledMsgCount() {
+    public long getFilterRescheduledMsgsCount() {
         return this.filterRescheduledMsgs.longValue();
     }
 }

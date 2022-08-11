@@ -130,19 +130,19 @@ public interface Dispatcher {
     }
 
 
-    default long getThroughFilterMsgCount() {
+    default long getFilterProcessesMsgsCount() {
         return 0;
     }
 
-    default long getFilterAcceptedMsgCount() {
+    default long getFilterAcceptedMsgsCount() {
         return 0;
     }
 
-    default long getFilterRejectedMsgCount() {
+    default long getFilterRejectedMsgsCount() {
         return 0;
     }
 
-    default long getFilterRescheduledMsgCount() {
+    default long getFilterRescheduledMsgsCount() {
         return 0;
     }
 

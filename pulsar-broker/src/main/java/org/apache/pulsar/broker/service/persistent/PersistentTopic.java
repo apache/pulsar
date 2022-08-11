@@ -1758,10 +1758,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 topicStatsStream.writePair("type", subscription.getTypeString());
 
                 Dispatcher dispatcher0 = subscription.getDispatcher();
-                topicStatsStream.writePair("throughEntryFilterMsgs", dispatcher0.getThroughFilterMsgCount());
-                topicStatsStream.writePair("entryFilterAccepted", dispatcher0.getFilterAcceptedMsgCount());
-                topicStatsStream.writePair("entryFilterRejected", dispatcher0.getFilterRejectedMsgCount());
-                topicStatsStream.writePair("entryFilterRescheduled", dispatcher0.getFilterRescheduledMsgCount());
+                topicStatsStream.writePair("entryFilterProccessedMsgs",
+                        dispatcher0 == null ? 0 : dispatcher0.getFilterProcessesMsgsCount());
+                topicStatsStream.writePair("entryFilterAcceptedMsgs",
+                        dispatcher0 == null ? 0 : dispatcher0.getFilterAcceptedMsgsCount());
+                topicStatsStream.writePair("entryFilterRejectedMsgs",
+                        dispatcher0 == null ? 0 : dispatcher0.getFilterRejectedMsgsCount());
+                topicStatsStream.writePair("entryFilterRescheduledMsgs",
+                        dispatcher0 == null ? 0 : dispatcher0.getFilterRescheduledMsgsCount());
 
                 if (Subscription.isIndividualAckMode(subscription.getType())) {
                     if (subscription.getDispatcher() instanceof PersistentDispatcherMultipleConsumers) {

@@ -206,7 +206,7 @@ public class SubscriptionStatsTest extends ProducerConsumerBase {
         Multimap<String, PrometheusMetricsTest.Metric> metrics = PrometheusMetricsTest.parseMetrics(metricsStr);
 
         Collection<PrometheusMetricsTest.Metric> throughFilterMetrics =
-                metrics.get("pulsar_subscription_through_filter_msg_count");
+                metrics.get("pulsar_subscription_filter_processed_msg_count");
         Collection<PrometheusMetricsTest.Metric> acceptedMetrics =
                 metrics.get("pulsar_subscription_filter_accepted_msg_count");
         Collection<PrometheusMetricsTest.Metric> rejectedMetrics =
