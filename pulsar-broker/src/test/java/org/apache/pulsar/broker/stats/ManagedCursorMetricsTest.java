@@ -207,7 +207,7 @@ public class ManagedCursorMetricsTest extends MockedPulsarServiceBaseTest {
         return managedCursor.getStats();
     }
 
-    @Test(timeOut = 2 * 1000)
+    @Test
     public void testCursorReadWriteMetrics() throws Exception {
         final String subName1 = "read-write-sub-1";
         final String subName2 = "read-write-sub-2";
