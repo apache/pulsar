@@ -29,6 +29,7 @@ import com.google.common.collect.Sets;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
+import java.net.URLConnection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -493,11 +494,37 @@ public abstract class PulsarWebResource {
             } else {
                 serviceNameResolver.updateServiceUrl(differentClusterData.getServiceUrl());
             }
-            URL webUrl = new URL(serviceNameResolver.resolveHostUri().toString());
+            URL webUrl = getConnectableURL(serviceNameResolver);
             return UriBuilder.fromUri(uri.getRequestUri()).host(webUrl.getHost()).port(webUrl.getPort()).build();
         } catch (PulsarClientException.InvalidServiceURL exception) {
             throw new MalformedURLException(exception.getMessage());
         }
+    }
+
+    private URL getConnectableURL(PulsarServiceNameResolver serviceNameResolver) throws MalformedURLException {
+        String hostUri = serviceNameResolver.resolveHostUri().toString();
+        String firstHostUri = hostUri;
+        boolean connectable = false;
+        URL webUrl = new URL(hostUri);
+        while (!connectable) {
+            try {
+                webUrl = new URL(hostUri);
+                URLConnection urlConnection = webUrl.openConnection();
+                urlConnection.setDoInput(false);
+                urlConnection.setDoOutput(false);
+                urlConnection.setConnectTimeout(5000);
+                urlConnection.connect();
+                connectable = true;
+            } catch (Exception e) {
+                log.warn("Unable connect to url:{}", hostUri);
+                hostUri = serviceNameResolver.resolveHostUri().toString();
+
+                if (firstHostUri.equals(hostUri)) {
+                    break;
+                }
+            }
+        }
+        return webUrl;
     }
 
     protected static CompletableFuture<ClusterData> getClusterDataIfDifferentCluster(PulsarService pulsar,
