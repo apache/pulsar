@@ -1338,6 +1338,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testDeleteTenant() throws Exception {
+        int partitionCount = 10;
         pulsar.getConfiguration().setForceDeleteNamespaceAllowed(false);
 
         String tenant = "test-tenant-1";
@@ -1355,8 +1356,15 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
         // create topic
         String topic = namespace + "/test-topic-1";
-        admin.topics().createPartitionedTopic(topic, 10);
+        admin.topics().createPartitionedTopic(topic, partitionCount);
         assertFalse(admin.topics().getList(namespace).isEmpty());
+
+        // Wait for topics create finish.
+        Awaitility.await().until(() -> {
+            TreeSet<String> topicsCreated = queryPersistentTopicsByNamespace(namespace);
+            String topicNamePrefix = String.format("persistent://%s/%s", namespace, "test-topic-1");
+            return topicsCreated.stream().filter(s -> s.startsWith(topicNamePrefix)).count() == partitionCount + 1;
+        });
 
         try {
             admin.namespaces().deleteNamespace(namespace, false);
@@ -1374,7 +1382,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
             if (!pulsar.getConfiguration().isSystemTopicEnabled()) {
                 return true;
             }
-            TreeSet<String> topicsCreated = queryTopicsByNamespace(namespace);
+            TreeSet<String> topicsCreated = queryPersistentTopicsByNamespace(namespace);
             return topicsCreated.contains(String.format("persistent://%s/%s", namespace, NAMESPACE_EVENTS_LOCAL_NAME));
         });
 
@@ -1397,15 +1405,13 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         assertFalse(pulsar.getLocalMetadataStore().exists(bundleDataPath).join());
     }
 
-    private TreeSet<String> queryTopicsByNamespace(String namespace){
+    private TreeSet<String> queryPersistentTopicsByNamespace(String namespace){
         NamespaceName namespaceName = NamespaceName.get(namespace);
         TreeSet<String> topics = new TreeSet<>();
         topics.addAll(pulsar.getNamespaceService()
                 .getListOfPersistentTopics(NamespaceName.get(namespace)).join());
         topics.addAll(pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
                 .listPartitionedTopicsAsync(namespaceName, TopicDomain.persistent).join());
-        topics.addAll(pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
-                .listPartitionedTopicsAsync(namespaceName, TopicDomain.non_persistent).join());
         return topics;
     }
 
