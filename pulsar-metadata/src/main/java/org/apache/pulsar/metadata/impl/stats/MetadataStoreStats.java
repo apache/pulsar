@@ -24,41 +24,41 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class MetadataStoreStats implements AutoCloseable {
     private static final double[] BUCKETS = new double[]{1, 3, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000};
-    private static final String LABEL_NAME = "metadata_store_name";
+    private static final String LABEL_NAME = "name";
 
     private static final Histogram GET_OPS_SUCCEED = Histogram
-            .build("pulsar_metadata_store_get_ops_latency", "-")
+            .build("pulsar_metadata_store_get_latency", "-")
             .unit("ms")
             .buckets(BUCKETS)
             .labelNames(LABEL_NAME)
             .register();
     private static final Histogram DEL_OPS_SUCCEED = Histogram
-            .build("pulsar_metadata_store_del_ops_latency", "-")
+            .build("pulsar_metadata_store_del_latency", "-")
             .unit("ms")
             .buckets(BUCKETS)
             .labelNames(LABEL_NAME)
             .register();
     private static final Histogram PUT_OPS_SUCCEED = Histogram
-            .build("pulsar_metadata_store_put_ops_latency", "-")
+            .build("pulsar_metadata_store_put_latency", "-")
             .unit("ms")
             .buckets(BUCKETS)
             .labelNames(LABEL_NAME)
             .register();
     private static final Counter GET_OPS_FAILED = Counter
-            .build("pulsar_metadata_store_get_ops_failed", "-")
+            .build("pulsar_metadata_store_get_failed", "-")
             .labelNames(LABEL_NAME)
             .register();
     private static final Counter DEL_OPS_FAILED = Counter
-            .build("pulsar_metadata_store_del_ops_failed", "-")
+            .build("pulsar_metadata_store_del_failed", "-")
             .labelNames(LABEL_NAME)
             .register();
     private static final Counter PUT_OPS_FAILED = Counter
-            .build("pulsar_metadata_store_put_ops_failed", "-")
+            .build("pulsar_metadata_store_put_failed", "-")
             .labelNames(LABEL_NAME)
             .register();
     private static final Counter PUT_BYTES = Counter
             .build("pulsar_metadata_store_put", "-")
-            .unit("byte")
+            .unit("bytes")
             .labelNames(LABEL_NAME)
             .register();
 
