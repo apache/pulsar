@@ -1339,6 +1339,66 @@ If the message key is not specified, messages without key are dispatched to one 
 
 :::
 
+### Intercept messages
+
+`ConsumerInterceptor`s intercept and possibly mutate messages received by the consumer.
+
+The interface has six main events:
+* `beforeConsume` is triggered before the message is returned by `receive()` or `receiveAsync()`. You can modify messages within this event.
+* `onAcknowledge` is triggered before the consumer sends the acknowledgement to the broker.
+* `onAcknowledgeCumulative` is triggered before the consumer sends the cumulative acknowledgement to the broker.
+* `onNegativeAcksSend` is triggered when a redelivery from a negative acknowledgement occurs.
+* `onAckTimeoutSend` is triggered when a redelivery from an acknowledgement timeout occurs.
+* `onPartitionsChange` is triggered when the partitions of the (partitioned) topic change.
+
+To intercept messages, you can add one or multiple `ConsumerInterceptor`s when creating a `Consumer` as follows.
+
+```java
+
+Consumer<String> consumer = client.newConsumer()
+        .topic("my-topic")
+        .subscriptionName("my-subscription")
+        .intercept(new ConsumerInterceptor<String> {
+              @Override
+              public Message<String> beforeConsume(Consumer<String> consumer, Message<String> message) {
+                  // user-defined processing logic
+              }
+
+              @Override
+              public void onAcknowledge(Consumer<String> consumer, MessageId messageId, Throwable cause) {
+                  // user-defined processing logic
+              }
+
+              @Override
+              public void onAcknowledgeCumulative(Consumer<String> consumer, MessageId messageId, Throwable cause) {
+                  // user-defined processing logic
+              }
+
+              @Override
+              public void onNegativeAcksSend(Consumer<String> consumer, Set<MessageId> messageIds) {
+                  // user-defined processing logic
+              }
+
+              @Override
+              public void onAckTimeoutSend(Consumer<String> consumer, Set<MessageId> messageIds) {
+                  // user-defined processing logic
+              }
+
+              @Override
+              public void onPartitionsChange(String topicName, int partitions) {
+                  // user-defined processing logic
+              }
+        })
+        .subscribe();
+
+```
+
+:::note
+
+If you are using multiple interceptors, they apply in the order they are passed to the `intercept` method.
+
+:::
+
 ## Reader 
 
 With the [reader interface](concepts-clients.md#reader-interface), Pulsar clients can "manually position" themselves within a topic and reading all messages from a specified message onward. The Pulsar API for Java enables you to create {@inject: javadoc:Reader:/client/org/apache/pulsar/client/api/Reader} objects by specifying a topic and a {@inject: javadoc:MessageId:/client/org/apache/pulsar/client/api/MessageId}.
