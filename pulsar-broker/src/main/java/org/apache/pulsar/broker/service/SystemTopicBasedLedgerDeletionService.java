@@ -108,7 +108,7 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
         this.pulsarAdmin = pulsarService.getAdminClient();
         this.bookKeeper = pulsarService.getBookKeeperClient();
         this.serviceConfiguration = serviceConfiguration;
-        this.ledgerDeletionParallelism = serviceConfiguration.getLedgerDeletionParallelismOfTwoPhaseDeletion();
+        this.ledgerDeletionParallelism = serviceConfiguration.getLedgerDeletionParallelismOfTopicTwoPhaseDeletion();
     }
 
     private SystemTopicClient<PendingDeleteLedgerInfo> getLedgerDeletionTopicClient() throws PulsarClientException {
@@ -120,8 +120,8 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
                     "Can't create SystemTopicBasedLedgerDeletionService, " + "because the topicName is null!");
         }
         return namespaceEventsSystemTopicFactory.createLedgerDeletionSystemTopicClient(ledgerDeletionSystemTopic,
-                serviceConfiguration.getSendDelaySecondsOfTwoPhaseDeletion(),
-                serviceConfiguration.getReconsumeLaterSecondsOfTwoPhaseDeletion());
+                serviceConfiguration.getSendDelaySecondsOfTopicTwoPhaseDeletion(),
+                serviceConfiguration.getReconsumeLaterSecondsOfTopicTwoPhaseDeletion());
     }
 
     @Override
