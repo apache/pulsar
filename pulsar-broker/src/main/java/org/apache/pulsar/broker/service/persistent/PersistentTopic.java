@@ -2328,16 +2328,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     @Override
     public void checkBackloggedCursors() {
         // activate caught up cursors which include consumers
-        AtomicReference<PositionImpl> slowestNonDurableReadPosition = new AtomicReference<>();
         subscriptions.forEach((subName, subscription) -> {
-            ManagedCursor cursor = subscription.getCursor();
-            if (cursor instanceof NonDurableCursorImpl) {
-                PositionImpl readPosition = (PositionImpl) cursor.getReadPosition();
-                if (slowestNonDurableReadPosition.get() == null || readPosition.compareTo(
-                        slowestNonDurableReadPosition.get()) < 0) {
-                    slowestNonDurableReadPosition.set(readPosition);
-                }
-            }
             if (!subscription.getConsumers().isEmpty()
                 && subscription.getCursor().getNumberOfEntries() < backloggedCursorThresholdEntries) {
                 subscription.getCursor().setActive();
@@ -2345,11 +2336,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 subscription.getCursor().setInactive();
             }
         });
-        if (slowestNonDurableReadPosition.get() != null) {
-            ledger.updateTheSlowestNonDurableReadPosition(slowestNonDurableReadPosition.get());
-        } else {
-            ledger.updateTheSlowestNonDurableReadPosition(PositionImpl.LATEST);
-        }
     }
 
     public void checkInactiveLedgers() {

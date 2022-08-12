@@ -771,7 +771,6 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
 
         latch.await();
 
-        ledger.updateTheSlowestNonDurableReadPosition(nonDurableCursor.getReadPosition());
         c1.markDelete(positions.get(4));
 
         CompletableFuture<Void> promise = new CompletableFuture<>();
@@ -787,7 +786,6 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
         promise = new CompletableFuture<>();
 
         nonDurableCursor.markDelete(positions.get(3));
-        ledger.updateTheSlowestNonDurableReadPosition(nonDurableCursor.getReadPosition());
 
         ledger.internalTrimConsumedLedgers(promise);
         promise.join();

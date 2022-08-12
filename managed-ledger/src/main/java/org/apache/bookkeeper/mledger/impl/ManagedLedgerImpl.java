@@ -169,8 +169,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private final ManagedCursorContainer nonDurableActiveCursors =
             new ManagedCursorContainer(ManagedCursorContainer.CursorType.NonDurableCursor);
 
-    private Position slowestNonDurationReadPosition = PositionImpl.LATEST;
-
     // Ever increasing counter of entries added
     @VisibleForTesting
     static final AtomicLongFieldUpdater<ManagedLedgerImpl> ENTRIES_ADDED_COUNTER_UPDATER = AtomicLongFieldUpdater
@@ -2537,7 +2535,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     }
                     ledgersToDelete.add(ls);
                 } else {
-                    if (ls.getLedgerId() < slowestNonDurationReadPosition.getLedgerId()) {
+                    if (ls.getLedgerId() < getTheSlowestNonDurationReadPosition().getLedgerId()) {
                         // once retention constraint has been met, skip check
                         if (log.isDebugEnabled()) {
                             log.debug("[{}] Ledger {} not deleted. Neither expired nor over-quota", name,
@@ -4211,8 +4209,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
-    @Override
-    public void updateTheSlowestNonDurableReadPosition(Position position) {
-        this.slowestNonDurationReadPosition = position;
+    public Position getTheSlowestNonDurationReadPosition() {
+        PositionImpl theSlowestNonDurableReadPosition = PositionImpl.LATEST;
+        for (ManagedCursor cursor : cursors) {
+            if (cursor instanceof NonDurableCursorImpl) {
+                PositionImpl readPosition = (PositionImpl) cursor.getReadPosition();
+                if (readPosition.compareTo(theSlowestNonDurableReadPosition) < 0) {
+                    theSlowestNonDurableReadPosition = readPosition;
+                }
+            }
+        }
+        return theSlowestNonDurableReadPosition;
     }
 }

@@ -155,7 +155,7 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
             if (firstEntry > lastEntry
                     || firstEntry < 0
                     || lastEntry > getLastAddConfirmed()) {
-                promise.completeExceptionally(new IllegalArgumentException());
+                promise.completeExceptionally(new BKException.BKIncorrectParameterException());
                 return;
             }
             List<LedgerEntry> entries = new ArrayList<LedgerEntry>();
