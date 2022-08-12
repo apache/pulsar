@@ -727,6 +727,47 @@ Producer<byte[]> producer = client.newProducer()
 By default, producer chunks the large message based on max message size (`maxMessageSize`) configured at broker (eg: 5MB). However, client can also configure max chunked size using producer configuration `chunkMaxMessageSize`.
 > **Note:** To enable chunking, you need to disable batching (`enableBatching`=`false`) concurrently.
 
+### Intercept messages
+
+`ProducerInterceptor`s intercept and possibly mutate messages received by the producer before they are published to the brokers.
+
+The interface has three main events:
+* `eligible` checks if the interceptor can be applied to the message.
+* `beforeSend` is triggered before the producer sends the message to the broker. You can modify messages within this event.
+* `onSendAcknowledgement` is triggered when the message is acknowledged by the broker or the sending failed.
+
+To intercept messages, you can add one or multiple `ProducerInterceptor`s when creating a `Producer` as follows.
+
+```java
+
+Producer<byte[]> producer = client.newProducer()
+        .topic(topic)
+        .intercept(new ProducerInterceptor {
+			@Override
+			boolean eligible(Message message) {
+			    return true;  // process all messages
+			}
+
+			@Override
+			Message beforeSend(Producer producer, Message message) {
+			    // user-defined processing logic
+			}
+
+			@Override
+			void onSendAcknowledgement(Producer producer, Message message, MessageId msgId, Throwable exception) {
+			    // user-defined processing logic
+			}
+        })
+        .create();
+
+```
+
+:::note
+
+If you are using multiple interceptors, they apply in the order they are passed to the `intercept` method.
+
+:::
+
 ## Consumer
 
 In Pulsar, consumers subscribe to topics and handle messages that producers publish to those topics. You can instantiate a new [consumer](reference-terminology.md#consumer) by first instantiating a {@inject: javadoc:PulsarClient:/client/org/apache/pulsar/client/api/PulsarClient} object and passing it a URL for a Pulsar broker (as [above](#client-configuration)).
