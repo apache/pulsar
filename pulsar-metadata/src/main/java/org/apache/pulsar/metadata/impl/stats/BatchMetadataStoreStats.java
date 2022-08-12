@@ -31,14 +31,14 @@ import org.jctools.queues.MessagePassingQueue;
 public final class BatchMetadataStoreStats implements AutoCloseable {
     private static final double[] BUCKETS = new double[]{1, 5, 10, 20, 50, 100, 200, 500, 1000};
     private static final AtomicInteger COUNTER = new AtomicInteger(1);
-    private static final String LABEL_NAME = "metadata_store_name";
+    private static final String LABEL_NAME = "name";
 
     private static final Gauge QUEUEING_READ_OPS = Gauge
-            .build("pulsar_batch_metadata_store_queueing_read_ops", "-")
+            .build("pulsar_batch_metadata_store_queueing_read", "-")
             .labelNames(LABEL_NAME)
             .register();
     private static final Gauge QUEUEING_WRITE_OPS = Gauge
-            .build("pulsar_batch_metadata_store_queueing_write_ops", "-")
+            .build("pulsar_batch_metadata_store_queueing_write", "-")
             .labelNames(LABEL_NAME)
             .register();
     private static final Gauge EXECUTOR_QUEUE_SIZE = Gauge
@@ -46,17 +46,17 @@ public final class BatchMetadataStoreStats implements AutoCloseable {
             .labelNames(LABEL_NAME)
             .register();
     private static final Counter READ_OPS_OVERFLOW = Counter
-            .build("pulsar_batch_metadata_store_read_ops_overflow" , "-")
+            .build("pulsar_batch_metadata_store_read_overflow" , "-")
             .labelNames(LABEL_NAME)
             .register();
     private static final Counter WRITE_OPS_OVERFLOW = Counter
-            .build("pulsar_batch_metadata_store_write_ops_overflow" , "-")
+            .build("pulsar_batch_metadata_store_write_overflow" , "-")
             .labelNames(LABEL_NAME)
             .register();
     private static final Histogram BATCH_OPS_WAITING = Histogram
-            .build("pulsar_batch_metadata_store_op_waiting", "-")
-            .labelNames(LABEL_NAME)
+            .build("pulsar_batch_metadata_store_waiting", "-")
             .unit("ms")
+            .labelNames(LABEL_NAME)
             .buckets(BUCKETS)
             .register();
 

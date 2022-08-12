@@ -65,7 +65,14 @@ import org.apache.pulsar.broker.service.persistent.PersistentMessageExpiryMonito
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
-import org.apache.pulsar.client.api.*;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageRoutingMode;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.compaction.Compactor;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
@@ -1550,12 +1557,12 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         String metricsStr = output.toString();
         Multimap<String, Metric> metricsMap = parseMetrics(metricsStr);
 
-        Collection<Metric> readOpsOverflow = metricsMap.get("pulsar_batch_metadata_store_read_ops_overflow" + "_total");
-        Collection<Metric> writeOpsOverflow = metricsMap.get("pulsar_batch_metadata_store_write_ops_overflow" + "_total");
-        Collection<Metric> queueingWriteOps = metricsMap.get("pulsar_batch_metadata_store_queueing_write_ops");
-        Collection<Metric> queueingReadOps = metricsMap.get("pulsar_batch_metadata_store_queueing_write_ops");
+        Collection<Metric> readOpsOverflow = metricsMap.get("pulsar_batch_metadata_store_read_overflow" + "_total");
+        Collection<Metric> writeOpsOverflow = metricsMap.get("pulsar_batch_metadata_store_write_overflow" + "_total");
+        Collection<Metric> queueingWriteOps = metricsMap.get("pulsar_batch_metadata_store_queueing_write");
+        Collection<Metric> queueingReadOps = metricsMap.get("pulsar_batch_metadata_store_queueing_write");
         Collection<Metric> executorQueueSize = metricsMap.get("pulsar_batch_metadata_store_executor_queue_size");
-        Collection<Metric> opsWaiting = metricsMap.get("pulsar_batch_metadata_store_op_waiting_ms" + "_sum");
+        Collection<Metric> opsWaiting = metricsMap.get("pulsar_batch_metadata_store_waiting_ms" + "_sum");
 
         Assert.assertTrue(readOpsOverflow.size() > 1);
         Assert.assertTrue(writeOpsOverflow.size() > 1);
@@ -1566,32 +1573,32 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
         for (Metric m : readOpsOverflow) {
             Assert.assertEquals(m.tags.get("cluster"), "test");
-            Assert.assertTrue(m.tags.get("metadata_store_name").startsWith("metadata_store_"));
+            Assert.assertTrue(m.tags.get("name").startsWith("metadata_store_"));
             Assert.assertTrue(m.value >= 0);
         }
         for (Metric m : writeOpsOverflow) {
             Assert.assertEquals(m.tags.get("cluster"), "test");
-            Assert.assertTrue(m.tags.get("metadata_store_name").startsWith("metadata_store_"));
+            Assert.assertTrue(m.tags.get("name").startsWith("metadata_store_"));
             Assert.assertTrue(m.value >= 0);
         }
         for (Metric m : queueingWriteOps) {
             Assert.assertEquals(m.tags.get("cluster"), "test");
-            Assert.assertTrue(m.tags.get("metadata_store_name").startsWith("metadata_store_"));
+            Assert.assertTrue(m.tags.get("name").startsWith("metadata_store_"));
             Assert.assertTrue(m.value >= 0);
         }
         for (Metric m : queueingReadOps) {
             Assert.assertEquals(m.tags.get("cluster"), "test");
-            Assert.assertTrue(m.tags.get("metadata_store_name").startsWith("metadata_store_"));
+            Assert.assertTrue(m.tags.get("name").startsWith("metadata_store_"));
             Assert.assertTrue(m.value >= 0);
         }
         for (Metric m : executorQueueSize) {
             Assert.assertEquals(m.tags.get("cluster"), "test");
-            Assert.assertTrue(m.tags.get("metadata_store_name").startsWith("metadata_store_"));
+            Assert.assertTrue(m.tags.get("name").startsWith("metadata_store_"));
             Assert.assertTrue(m.value >= 0);
         }
         for (Metric m : opsWaiting) {
             Assert.assertEquals(m.tags.get("cluster"), "test");
-            Assert.assertTrue(m.tags.get("metadata_store_name").startsWith("metadata_store_"));
+            Assert.assertTrue(m.tags.get("name").startsWith("metadata_store_"));
             Assert.assertTrue(m.value >= 0);
         }
     }
