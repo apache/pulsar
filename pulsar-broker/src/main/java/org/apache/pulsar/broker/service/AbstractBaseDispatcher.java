@@ -300,22 +300,22 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
     }
 
     @Override
-    public long getFilterProcessesMsgsCount() {
+    public long getFilterProcessedMsgCount() {
         return this.filterProcessedMsgs.longValue();
     }
 
     @Override
-    public long getFilterAcceptedMsgsCount() {
+    public long getFilterAcceptedMsgCount() {
         return this.filterAcceptedMsgs.longValue();
     }
 
     @Override
-    public long getFilterRejectedMsgsCount() {
+    public long getFilterRejectedMsgCount() {
         return this.filterRejectedMsgs.longValue();
     }
 
     @Override
-    public long getFilterRescheduledMsgsCount() {
+    public long getFilterRescheduledMsgCount() {
         return this.filterRescheduledMsgs.longValue();
     }
 }

@@ -64,7 +64,7 @@ public class AggregatedSubscriptionStats {
 
     long consumersCount;
 
-    long throughFilterMsgCount;
+    long filterProcessedMsgCount;
 
     long filterAcceptedMsgCount;
 

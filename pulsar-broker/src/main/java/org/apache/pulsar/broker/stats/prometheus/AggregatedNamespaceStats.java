@@ -119,7 +119,7 @@ public class AggregatedNamespaceStats {
             subsStats.msgDelayed += as.msgDelayed;
             subsStats.msgRateRedeliver += as.msgRateRedeliver;
             subsStats.unackedMessages += as.unackedMessages;
-            subsStats.throughFilterMsgCount += as.throughFilterMsgCount;
+            subsStats.filterProcessedMsgCount += as.filterProcessedMsgCount;
             subsStats.filterAcceptedMsgCount += as.filterAcceptedMsgCount;
             subsStats.filterRejectedMsgCount += as.filterRejectedMsgCount;
             subsStats.filterRescheduledMsgCount += as.filterRescheduledMsgCount;
