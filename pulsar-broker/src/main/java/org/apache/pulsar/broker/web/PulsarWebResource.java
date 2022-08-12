@@ -594,7 +594,7 @@ public abstract class PulsarWebResource {
         NamespaceBundle nsBundle = validateNamespaceBundleRange(fqnn, bundles, bundleRange);
         NamespaceService nsService = pulsar().getNamespaceService();
 
-        String advertisedListener = httpRequest.getHeader(LISTENER_HEADER);
+        String advertisedListener = httpRequest == null ? null : httpRequest.getHeader(LISTENER_HEADER);
         LookupOptions options = LookupOptions.builder()
                 .authoritative(false)
                 .requestHttps(isRequestHttps())
@@ -646,7 +646,7 @@ public abstract class PulsarWebResource {
             // - If authoritative is false and this broker is not leader, forward to leader
             // - If authoritative is false and this broker is leader, determine owner and forward w/ authoritative=true
             // - If authoritative is true, own the namespace and continue
-            String advertisedListener = httpRequest.getHeader(LISTENER_HEADER);
+            String advertisedListener = httpRequest == null ? null : httpRequest.getHeader(LISTENER_HEADER);
 
             LookupOptions options = LookupOptions.builder()
                     .authoritative(authoritative)
@@ -742,7 +742,7 @@ public abstract class PulsarWebResource {
     protected CompletableFuture<Void> validateTopicOwnershipAsync(TopicName topicName, boolean authoritative) {
         NamespaceService nsService = pulsar().getNamespaceService();
 
-        String advertisedListener = httpRequest.getHeader(LISTENER_HEADER);
+        String advertisedListener = httpRequest == null ? null : httpRequest.getHeader(LISTENER_HEADER);
 
         LookupOptions options = LookupOptions.builder()
                 .authoritative(authoritative)
