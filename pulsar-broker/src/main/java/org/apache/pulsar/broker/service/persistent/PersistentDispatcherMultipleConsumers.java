@@ -604,7 +604,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 entry.release();
             });
         }
-        readMoreEntries();
+        // We should not call readMoreEntries() recursively in the same thread
+        // as there is a risk of StackOverflowError
+        topic.getBrokerService().executor().execute(this::readMoreEntries);
     }
 
     @Override
