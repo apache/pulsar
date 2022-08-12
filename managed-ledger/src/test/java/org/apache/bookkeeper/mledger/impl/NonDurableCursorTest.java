@@ -746,9 +746,6 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
         ManagedCursor c1 = ledger.openCursor("c1");
         ManagedCursor nonDurableCursor = ledger.newNonDurableCursor(PositionImpl.EARLIEST);
 
-        assertEquals(nonDurableCursor.getNumberOfEntries(), 0);
-        assertEquals(nonDurableCursor.getNumberOfEntriesInBacklog(true), 0);
-
         List<Position> positions = new ArrayList<>();
         for (int i = 0; i < 10; i++) {
             positions.add(ledger.addEntry(("entry-" + i).getBytes(UTF_8)));
