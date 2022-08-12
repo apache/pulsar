@@ -107,4 +107,19 @@ public class TransactionBufferDisable implements TransactionBuffer {
     public CompletableFuture<Void> checkIfTBRecoverCompletely(boolean isTxn) {
         return CompletableFuture.completedFuture(null);
     }
+
+    @Override
+    public long getOngoingTxnCount() {
+        return 0;
+    }
+
+    @Override
+    public long getAbortedTxnCount() {
+        return 0;
+    }
+
+    @Override
+    public long getCommittedTxnCount() {
+        return 0;
+    }
 }
