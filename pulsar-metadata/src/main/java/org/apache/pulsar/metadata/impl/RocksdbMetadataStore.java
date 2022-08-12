@@ -20,6 +20,7 @@
 package org.apache.pulsar.metadata.impl;
 
 import com.google.common.annotations.VisibleForTesting;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -78,13 +79,17 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
 
     static final String ROCKSDB_SCHEME_IDENTIFIER = "rocksdb:";
 
+    private static final String ROCKSDB_READONLY = "pulsar.metadata.rocksdb.readonly";
+
     private static final byte[] SEQUENTIAL_ID_KEY = toBytes("__metadata_sequentialId_key");
     private static final byte[] INSTANCE_ID_KEY = toBytes("__metadata_instanceId_key");
+
 
     private final long instanceId;
     private final AtomicLong sequentialIdGenerator;
 
-    private final TransactionDB db;
+    private final RocksDB db;
+    private TransactionDB transactionDB;
     private final ReentrantReadWriteLock dbStateLock;
     private volatile State state;
 
@@ -209,6 +214,8 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
 
     private final String metadataUrl;
 
+    private final boolean readonly;
+
     /**
      * @param metadataURL         format "rocksdb:{storePath}"
      * @param metadataStoreConfig
@@ -233,12 +240,15 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
             throw new MetadataStoreException("Fail to create RocksDB file directory", e);
         }
 
+        readonly = "true".equalsIgnoreCase(
+                System.getProperty(ROCKSDB_READONLY, "false"));
         db = openDB(dataPath.toString(), metadataStoreConfig.getConfigFilePath());
 
         this.optionSync = new WriteOptions().setSync(true);
         this.optionDontSync = new WriteOptions().setSync(false);
         this.optionCache = new ReadOptions().setFillCache(true);
         this.optionDontCache = new ReadOptions().setFillCache(false);
+        dbStateLock = new ReentrantReadWriteLock();
 
         try {
             sequentialIdGenerator = loadSequentialIdGenerator();
@@ -249,7 +259,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
             throw new MetadataStoreException("Error init metastore state", exception);
         }
         state = State.RUNNING;
-        dbStateLock = new ReentrantReadWriteLock();
+
         log.info("new RocksdbMetadataStore,url={},instanceId={}", metadataStoreConfig, instanceId);
     }
 
@@ -261,7 +271,9 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
         } else {
             instanceId = 0;
         }
-        db.put(optionSync, INSTANCE_ID_KEY, toBytes(instanceId));
+        if(!readonly) {
+            db.put(optionSync, INSTANCE_ID_KEY, toBytes(instanceId));
+        }
         return instanceId;
     }
 
@@ -271,13 +283,16 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
         if (value != null) {
             generator.set(toLong(value));
         } else {
-            db.put(optionSync, INSTANCE_ID_KEY, toBytes(generator.get()));
+            if(!readonly) {
+                db.put(optionSync, INSTANCE_ID_KEY, toBytes(generator.get()));
+            }
         }
         return generator;
     }
 
-    private TransactionDB openDB(String dataPath, String configFilePath) throws MetadataStoreException {
+    private RocksDB openDB(String dataPath, String configFilePath) throws MetadataStoreException {
         try (TransactionDBOptions transactionDBOptions = new TransactionDBOptions()) {
+
             if (configFilePath != null) {
                 DBOptions dbOptions = new DBOptions();
                 ConfigOptions configOptions = new ConfigOptions();
@@ -285,14 +300,20 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
                 OptionsUtil.loadOptionsFromFile(configOptions, configFilePath, dbOptions, cfDescriptors);
                 log.info("Load options from configFile({}), CF.size={},dbConfig={}", configFilePath,
                         cfDescriptors.size(), dbOptions);
+
                 if (log.isDebugEnabled()) {
                     for (ColumnFamilyDescriptor cfDescriptor : cfDescriptors) {
                         log.debug("CF={},Options={}", cfDescriptor.getName(), cfDescriptor.getOptions().toString());
                     }
                 }
+
                 List<ColumnFamilyHandle> cfHandles = new ArrayList<>();
                 try {
-                    return TransactionDB.open(dbOptions, transactionDBOptions, dataPath, cfDescriptors, cfHandles);
+                    if(readonly){
+                        return TransactionDB.openReadOnly(dbOptions, dataPath, cfDescriptors, cfHandles);
+                    }
+                    transactionDB = TransactionDB.open(dbOptions, transactionDBOptions, dataPath, cfDescriptors, cfHandles);
+                    return transactionDB;
                 } finally {
                     dbOptions.close();
                     configOptions.close();
@@ -302,7 +323,11 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
                 options.setCreateIfMissing(true);
                 configLog(options);
                 try {
-                    return TransactionDB.open(options, transactionDBOptions, dataPath);
+                    if(readonly){
+                        return TransactionDB.openReadOnly(options,dataPath);
+                    }
+                    transactionDB =  TransactionDB.open(options, transactionDBOptions, dataPath);
+                    return transactionDB;
                 } finally {
                     options.close();
                 }
@@ -488,15 +513,19 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
 
     @Override
     protected CompletableFuture<Void> storeDelete(String path, Optional<Long> expectedVersion) {
+
         if (log.isDebugEnabled()) {
             log.debug("storeDelete.path={},instanceId={}", path, instanceId);
         }
         try {
             dbStateLock.readLock().lock();
+            if(readonly){
+                throw new MetadataStoreException("ReadOnly mode not support delete operation.");
+            }
             if (state == State.CLOSED) {
                 throw new MetadataStoreException.AlreadyClosedException("");
             }
-            try (Transaction transaction = db.beginTransaction(optionSync)) {
+            try (Transaction transaction = transactionDB.beginTransaction(optionSync)) {
                 byte[] pathBytes = toBytes(path);
                 byte[] oldValueData = transaction.getForUpdate(optionDontCache, pathBytes, true);
                 MetaValue metaValue = MetaValue.parse(oldValueData);
@@ -532,10 +561,14 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
         }
         try {
             dbStateLock.readLock().lock();
+            if(readonly){
+                throw new MetadataStoreException("ReadOnly mode not support put operation.");
+            }
             if (state == State.CLOSED) {
                 throw new MetadataStoreException.AlreadyClosedException("");
             }
-            try (Transaction transaction = db.beginTransaction(optionSync)) {
+
+            try (Transaction transaction = transactionDB.beginTransaction(optionSync)) {
                 byte[] pathBytes = toBytes(path);
                 byte[] oldValueData = transaction.getForUpdate(optionDontCache, pathBytes, true);
                 MetaValue metaValue = MetaValue.parse(oldValueData);

@@ -35,10 +35,63 @@ import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.apache.pulsar.metadata.api.Stat;
 import org.testng.Assert;
-import org.testng.annotations.Test;
+import org.testng.annotations.*;
+
+import static org.testng.Assert.assertEquals;
 
 @Slf4j
 public class RocksdbMetadataStoreTest {
+
+    MetadataStore store;
+
+    Path readonlyDataDir;
+    @BeforeClass
+    public void setup() throws Exception {
+        readonlyDataDir = Files.createTempDirectory("RocksDBMetadataReadOnlyTest");
+
+         store = MetadataStoreFactory.create("rocksdb:"+readonlyDataDir, MetadataStoreConfig.builder().build());
+         // put init data to rocksdb
+        store.put("/test","hello".getBytes(), Optional.of(-1L)).get();
+        store.close();
+    }
+
+    @AfterClass
+    public void close() throws Exception {
+        FileUtils.deleteQuietly(readonlyDataDir.toFile());
+    }
+
+    @BeforeMethod
+    public void setReadOnlyToFalse() throws Exception {
+        System.setProperty("pulsar.metadata.rocksdb.readonly","false");
+    }
+
+    public void setReadOnlyToTrue() {
+        System.setProperty("pulsar.metadata.rocksdb.readonly","true");
+    }
+
+    @Test
+    public void putFailedWhenReadOnly() throws MetadataStoreException {
+        setReadOnlyToTrue();
+        MetadataStore store = MetadataStoreFactory.create("rocksdb:"+readonlyDataDir, MetadataStoreConfig.builder().build());
+        try {
+            store.put("/test", "hello".getBytes(), Optional.of(0L)).get();
+        } catch (Exception e) {
+            MetadataStoreException e1 = (MetadataStoreException)e.getCause();
+            assertEquals(e1.getMessage(),"ReadOnly mode not support put operation.");
+        }
+    }
+
+    @Test
+    public void deleteFailedWhenReadOnly() throws MetadataStoreException {
+        setReadOnlyToTrue();
+        MetadataStore store = MetadataStoreFactory.create("rocksdb:"+readonlyDataDir, MetadataStoreConfig.builder().build());
+        try {
+            store.delete("/test",Optional.empty()).get();
+        } catch (Exception e) {
+            MetadataStoreException e1 = (MetadataStoreException)e.getCause();
+            assertEquals(e1.getMessage(),"ReadOnly mode not support delete operation.");
+        }
+    }
 
     @Test
     public void testConvert() {
@@ -136,4 +189,6 @@ public class RocksdbMetadataStoreTest {
 
         FileUtils.deleteQuietly(tempDir.toFile());
     }
+
+
 }

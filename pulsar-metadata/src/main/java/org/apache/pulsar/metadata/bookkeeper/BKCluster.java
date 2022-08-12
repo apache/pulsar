@@ -72,6 +72,8 @@ public class BKCluster implements AutoCloseable {
 
     public static class BKClusterConf {
         private String metadataServiceUri;
+
+        private String metadataStoreConfigPath;
         private int numBookies = 1;
         private String dataDir;
         private int bkPort = 0;
@@ -80,6 +82,11 @@ public class BKCluster implements AutoCloseable {
 
         public BKClusterConf metadataServiceUri(String metadataServiceUri) {
             this.metadataServiceUri = metadataServiceUri;
+            return this;
+        }
+
+        public BKClusterConf metadataStoreConfigPath(String metadataStoreConfigPath) {
+            this.metadataStoreConfigPath = metadataStoreConfigPath;
             return this;
         }
 
@@ -119,7 +126,9 @@ public class BKCluster implements AutoCloseable {
         this.baseClientConf = newBaseClientConfiguration();
 
         this.store =
-                MetadataStoreExtended.create(clusterConf.metadataServiceUri, MetadataStoreConfig.builder().build());
+                MetadataStoreExtended.create(clusterConf.metadataServiceUri, MetadataStoreConfig.builder()
+                                .configFilePath(bkClusterConf.metadataStoreConfigPath)
+                        .build());
         baseConf.setJournalRemovePagesFromCache(false);
         baseConf.setProperty(AbstractMetadataDriver.METADATA_STORE_INSTANCE, store);
         baseClientConf.setProperty(AbstractMetadataDriver.METADATA_STORE_INSTANCE, store);
