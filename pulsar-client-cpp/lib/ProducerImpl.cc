@@ -705,7 +705,7 @@ void ProducerImpl::handleClose(Result result, ResultCallback callback, ProducerI
     if (result == ResultOk) {
         Lock lock(mutex_);
         state_ = Closed;
-        LOG_INFO(getName() << "Closed producer");
+        LOG_INFO(getName() << "Closed producer " << producerId_);
         ClientConnectionPtr cnx = getCnx().lock();
         if (cnx) {
             cnx->removeProducer(producerId_);
