@@ -106,7 +106,7 @@ class MultiTopicsConsumerImpl : public ConsumerImplBase,
     std::map<std::string, int> topicsPartitions_;
     mutable std::mutex mutex_;
     std::mutex pendingReceiveMutex_;
-    MultiTopicsConsumerState state_ = Pending;
+    std::atomic<MultiTopicsConsumerState> state_{Pending};
     BlockingQueue<Message> messages_;
     const ExecutorServicePtr listenerExecutor_;
     MessageListener messageListener_;
@@ -120,9 +120,6 @@ class MultiTopicsConsumerImpl : public ConsumerImplBase,
     std::queue<ReceiveCallback> pendingReceives_;
 
     /* methods */
-    void setState(MultiTopicsConsumerState state);
-    bool compareAndSetState(MultiTopicsConsumerState expect, MultiTopicsConsumerState update);
-
     void handleSinglePartitionConsumerCreated(Result result, ConsumerImplBaseWeakPtr consumerImplBaseWeakPtr,
                                               unsigned int partitionIndex);
     void handleSingleConsumerClose(Result result, std::string topicPartitionName, CloseCallback callback);
