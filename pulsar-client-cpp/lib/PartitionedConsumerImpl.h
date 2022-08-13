@@ -92,7 +92,7 @@ class PartitionedConsumerImpl : public ConsumerImplBase,
     mutable std::mutex consumersMutex_;
     mutable std::mutex mutex_;
     std::mutex pendingReceiveMutex_;
-    PartitionedConsumerState state_ = Pending;
+    std::atomic<PartitionedConsumerState> state_{Pending};
     unsigned int unsubscribedSoFar_ = 0;
     BlockingQueue<Message> messages_;
     ExecutorServicePtr listenerExecutor_;
@@ -109,7 +109,6 @@ class PartitionedConsumerImpl : public ConsumerImplBase,
     unsigned int getNumPartitionsWithLock() const;
     ConsumerConfiguration getSinglePartitionConsumerConfig() const;
     ConsumerImplPtr newInternalConsumer(unsigned int partition, const ConsumerConfiguration& config) const;
-    void setState(PartitionedConsumerState state);
     void handleUnsubscribeAsync(Result result, unsigned int consumerIndex, ResultCallback callback);
     void handleSinglePartitionConsumerCreated(Result result, ConsumerImplBaseWeakPtr consumerImplBaseWeakPtr,
                                               unsigned int partitionIndex);
