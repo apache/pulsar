@@ -694,7 +694,7 @@ void ProducerImpl::closeAsync(CloseCallback callback) {
 void ProducerImpl::handleClose(Result result, ResultCallback callback, ProducerImplPtr producer) {
     if (result == ResultOk) {
         state_ = Closed;
-        LOG_INFO(getName() << "Closed producer");
+        LOG_INFO(getName() << "Closed producer " << producerId_);
         ClientConnectionPtr cnx = getCnx().lock();
         if (cnx) {
             cnx->removeProducer(producerId_);
