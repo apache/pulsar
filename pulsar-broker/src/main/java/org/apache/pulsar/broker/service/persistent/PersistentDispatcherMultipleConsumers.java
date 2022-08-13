@@ -792,7 +792,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 // Notify the consumer only if all the messages were already acknowledged
                 consumerList.forEach(Consumer::reachedEndOfTopic);
             }
-        } else if (exception.getCause() instanceof TransactionBufferException.TransactionNotSealedException) {
+        } else if (exception.getCause() instanceof TransactionBufferException.TransactionNotSealedException
+                || exception.getCause() instanceof ManagedLedgerException.OffloadReadHandleClosedException) {
             waitTimeMillis = 1;
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Error reading transaction entries : {}, Read Type {} - Retrying to read in {} seconds",
