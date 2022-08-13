@@ -483,8 +483,7 @@ public abstract class NamespacesBase extends AdminResource {
                         } else {
                             nonPartitionedTopics.add(topic);
                         }
-                        topicFutures.add(pulsar().getAdminClient().topics().deleteAsync(
-                                topic, true, true));
+                        topicFutures.add(pulsar().getAdminClient().topics().deleteAsync(topic, true));
                     } catch (Exception e) {
                         String errorMessage = String.format("Failed to force delete topic %s, "
                                         + "but the previous deletion command of partitioned-topics:%s "
