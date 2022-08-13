@@ -38,6 +38,7 @@ import java.util.Date;
 import java.util.List;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
+import javax.servlet.http.HttpServletRequest;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
@@ -361,6 +362,27 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
         @Override
         public boolean isExpired() {
             return expiration < System.currentTimeMillis();
+        }
+    }
+    public static final class HttpServletRequestWrapper extends javax.servlet.http.HttpServletRequestWrapper {
+        private final HttpServletRequest request;
+
+        public HttpServletRequestWrapper(HttpServletRequest request) {
+            super(request);
+            this.request = request;
+        }
+
+        @Override
+        public String getHeader(String name) {
+            // The browser javascript WebSocket client couldn't add the auth param to the request header, use the
+            // query param `token` to transport the auth token for the browser javascript WebSocket client.
+            if (name.equals(HTTP_HEADER_NAME) && request.getHeader(HTTP_HEADER_NAME) == null) {
+                String token = request.getParameter(TOKEN);
+                if (token != null) {
+                    return !token.startsWith(HTTP_HEADER_VALUE_PREFIX) ? HTTP_HEADER_VALUE_PREFIX + token : token;
+                }
+            }
+            return super.getHeader(name);
         }
     }
 }
