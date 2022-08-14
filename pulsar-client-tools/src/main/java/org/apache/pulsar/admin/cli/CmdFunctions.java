@@ -228,10 +228,10 @@ public class CmdFunctions extends CmdBase {
                 + "Add SerDe class name for a pattern in --custom-serde-inputs (supported for java fun only)",
                 hidden = true)
         protected String deprecatedTopicsPattern;
-        @Parameter(names = "--topics-pattern", description = "The topic pattern to consume from list of topics "
-                + "under a namespace that match the pattern. [--input] and [--topic-pattern] are mutually exclusive. "
-                + "Add SerDe class name for a pattern in --custom-serde-inputs (supported for java fun only)"
-                + " #Java, Python")
+        @Parameter(names = "--topics-pattern", description = "The topic pattern to consume from a list of topics "
+                + "under a namespace that matches the pattern. [--input] and [--topics-pattern] are mutually "
+                + "exclusive. Add SerDe class name for a pattern in --custom-serde-inputs (supported for java "
+                + "functions only) #Java, Python")
         protected String topicsPattern;
 
         @Parameter(names = {"-o", "--output"},

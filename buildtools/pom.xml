@@ -200,6 +200,14 @@
               <shadedPattern>org.apache.pulsar.buildtools.shaded.org.apache.commons.lang3</shadedPattern>
             </relocation>
           </relocations>
+          <filters>
+            <filter>
+              <artifact>org.apache.commons:commons-lang3</artifact>
+              <excludes>
+                <exclude>META-INF/MANIFEST.MF</exclude>
+              </excludes>
+            </filter>
+          </filters>
         </configuration>
         <executions>
           <execution>

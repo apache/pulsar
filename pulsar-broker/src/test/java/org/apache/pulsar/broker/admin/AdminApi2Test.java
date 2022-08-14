@@ -28,6 +28,7 @@ import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.expectThrows;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -1335,6 +1336,13 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testDeleteTenant() throws Exception {
+        // Disabled conf: systemTopicEnabled. see: https://github.com/apache/pulsar/pull/17070
+        boolean originalSystemTopicEnabled = conf.isSystemTopicEnabled();
+        if (originalSystemTopicEnabled) {
+            internalCleanup();
+            conf.setSystemTopicEnabled(false);
+            setup();
+        }
         pulsar.getConfiguration().setForceDeleteNamespaceAllowed(false);
 
         String tenant = "test-tenant-1";
@@ -1383,6 +1391,12 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         assertFalse(pulsar.getLocalMetadataStore().exists(partitionedTopicPath).join());
         assertFalse(pulsar.getLocalMetadataStore().exists(localPoliciesPath).join());
         assertFalse(pulsar.getLocalMetadataStore().exists(bundleDataPath).join());
+        // Reset conf: systemTopicEnabled
+        if (originalSystemTopicEnabled) {
+            internalCleanup();
+            conf.setSystemTopicEnabled(true);
+            setup();
+        }
     }
 
     @Test
@@ -2532,5 +2546,19 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         List<String> notPersistentTopics = admin.namespaces().getTopics("prop-xyz/ns1",
                 ListNamespaceTopicsOptions.builder().mode(Mode.NON_PERSISTENT).build());
         Assert.assertTrue(notPersistentTopics.contains(nonPersistentTopic));
+    }
+
+    @Test
+    private void testTerminateSystemTopic() throws Exception {
+        final String topic = "persistent://prop-xyz/ns1/testTerminateSystemTopic";
+        admin.topics().createNonPartitionedTopic(topic);
+        final String eventTopic = "persistent://prop-xyz/ns1/__change_events";
+        admin.topicPolicies().setMaxConsumers(topic, 2);
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertEquals(admin.topicPolicies().getMaxConsumers(topic), Integer.valueOf(2));
+        });
+        PulsarAdminException ex = expectThrows(PulsarAdminException.class,
+                () -> admin.topics().terminateTopic(eventTopic));
+        assertTrue(ex instanceof PulsarAdminException.NotAllowedException);
     }
 }
