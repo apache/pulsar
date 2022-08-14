@@ -753,6 +753,18 @@ class PulsarTest(TestCase):
         self._check_value_error(lambda: client.create_reader(topic, MessageId.earliest, reader_name=5))
         client.close()
 
+    def test_get_last_message_id(self):
+        client = Client(self.serviceUrl)
+        consumer = client.subscribe(
+            "persistent://public/default/topic_name_test", "topic_name_test_sub", consumer_type=ConsumerType.Shared
+        )
+        producer = client.create_producer("persistent://public/default/topic_name_test")
+        msg_id = producer.send(b"hello")
+
+        msg = consumer.receive(TM)
+        self.assertEqual(msg.message_id(), msg_id)
+        client.close()
+
     def test_publish_compact_and_consume(self):
         client = Client(self.serviceUrl)
         topic = "compaction_%s" % (uuid.uuid4())

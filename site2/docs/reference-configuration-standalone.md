@@ -58,7 +58,7 @@ Additional Hostname or IP addresses the service binds on: `listener_name:scheme:
 
 ### advertisedAddress
 
-The hostname or IP address that the standalone service advertises to the outside world. If not set, the value of `InetAddress.getLocalHost().getHostName()` is used.
+The hostname or IP address that the standalone service advertises to the outside world. If not set, the value of `InetAddress.getLocalHost().getCanonicalHostName()` is used.
 
 **Default**:
 

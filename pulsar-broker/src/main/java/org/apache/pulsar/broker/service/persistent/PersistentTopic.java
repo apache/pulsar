@@ -1886,6 +1886,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         stats.bytesOutCounter = bytesOutFromRemovedSubscriptions.longValue();
         stats.msgOutCounter = msgOutFromRemovedSubscriptions.longValue();
         stats.publishRateLimitedTimes = publishRateLimitedTimes;
+        TransactionBuffer txnBuffer = getTransactionBuffer();
+        stats.ongoingTxnCount = txnBuffer.getOngoingTxnCount();
+        stats.abortedTxnCount = txnBuffer.getAbortedTxnCount();
+        stats.committedTxnCount = txnBuffer.getCommittedTxnCount();
 
         subscriptions.forEach((name, subscription) -> {
             SubscriptionStatsImpl subStats =
@@ -1958,12 +1962,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     private Optional<CompactorMXBean> getCompactorMXBean() {
-        Compactor compactor = null;
-        try {
-            compactor = brokerService.pulsar().getCompactor(false);
-        } catch (PulsarServerException ex) {
-            log.warn("get compactor error", ex);
-        }
+        Compactor compactor = brokerService.pulsar().getNullableCompactor();
         return Optional.ofNullable(compactor).map(c -> c.getStats());
     }
 

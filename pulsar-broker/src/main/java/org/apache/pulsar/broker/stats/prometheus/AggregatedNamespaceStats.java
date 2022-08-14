@@ -43,6 +43,10 @@ public class AggregatedNamespaceStats {
     public long msgBacklog;
     public long msgDelayed;
 
+    public long ongoingTxnCount;
+    public long abortedTxnCount;
+    public long committedTxnCount;
+
     long backlogQuotaLimit;
     long backlogQuotaLimitTime;
 
@@ -78,6 +82,10 @@ public class AggregatedNamespaceStats {
         bytesOutCounter += stats.bytesOutCounter;
         msgOutCounter += stats.msgOutCounter;
         delayedTrackerMemoryUsage += stats.delayedTrackerMemoryUsage;
+
+        this.ongoingTxnCount += stats.ongoingTxnCount;
+        this.abortedTxnCount += stats.abortedTxnCount;
+        this.committedTxnCount += stats.committedTxnCount;
 
         managedLedgerStats.storageSize += stats.managedLedgerStats.storageSize;
         managedLedgerStats.storageLogicalSize += stats.managedLedgerStats.storageLogicalSize;
