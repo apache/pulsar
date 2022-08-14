@@ -596,6 +596,22 @@ All the web service executor metrics are labelled with the following labels:
 | pulsar_web_executor_active_threads | GAUGE | The number of threads performing tasks of pulsar-web thread pool |
 | pulsar_web_executor_current_threads | GAUGE | The number of threads in the pulsar-web thread pool |
 
+### Metadata store metrics
+
+All the offload metrics are labelled with the following labels:
+
+- *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you configured in `broker.conf`.
+- *name*: `name=${metadata-store-x}`. `${name}` is the metadata store name.
+
+| Name                                       | Type      | Description                                                   |
+|--------------------------------------------|-----------|---------------------------------------------------------------|
+| pulsar_metadata_store_queueing_read        | Gauge     | The number of metadata store queueing read operations.        |
+| pulsar_metadata_store_queueing_write       | Gauge     | The number of metadata store queueing write operations.       |
+| pulsar_metadata_store_executor_queue_size  | Gauge     | The number of blocking operations in metadata store executor. |
+| pulsar_metadata_store_read_overflow_total  | Counter   | The number of read operations can't be queued.                |
+| pulsar_metadata_store_write_overflow_total | Counter   | The number of write operations can't be queued.               |
+| pulsar_metadata_store_waiting_ms           | Histogram | The waiting time of batch operations.                         |
+
 ## Pulsar Functions
 
 All the Pulsar Functions metrics are labelled with the following labels:
