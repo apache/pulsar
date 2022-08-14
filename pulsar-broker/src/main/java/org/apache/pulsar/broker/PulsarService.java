@@ -1241,6 +1241,13 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     }
 
     /**
+     * check the current pulsar service is started or not.
+     */
+    public boolean isStarted() {
+        return this.state == State.Started;
+    }
+
+    /**
      * Get a reference of the current <code>LeaderElectionService</code> instance associated with the current
      * <code>PulsarService</code> instance.
      *
