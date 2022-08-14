@@ -26,10 +26,11 @@ import com.google.common.collect.BoundType;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
+import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
+import java.net.Socket;
 import java.net.URI;
 import java.net.URL;
-import java.net.URLConnection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -48,6 +49,7 @@ import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
 import javax.ws.rs.core.UriInfo;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -458,20 +460,26 @@ public abstract class PulsarWebResource {
 
     protected CompletableFuture<Void> validateClusterOwnershipAsync(String cluster) {
         return getClusterDataIfDifferentCluster(pulsar(), cluster, clientAppId())
-                .thenAccept(differentClusterData -> {
-                    if (differentClusterData != null) {
+                .thenCompose(differentClusterData -> {
+                    if (differentClusterData == null) {
+                        return CompletableFuture.completedFuture(null);
+                    } else {
                         try {
-                            URI redirect = getRedirectionUrl(differentClusterData);
-                            // redirect to the cluster requested
-                            if (log.isDebugEnabled()) {
-                                log.debug("[{}] Redirecting the rest call to {}: cluster={}",
-                                        clientAppId(), redirect, cluster);
-                            }
-                            throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
+                            return getRedirectionUrl(differentClusterData);
                         } catch (MalformedURLException ex) {
                             throw new RestException(ex);
                         }
                     }
+                }).thenCompose(redirect -> {
+                    if (redirect == null) {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    // redirect to the cluster requested
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Redirecting the rest call to {}: cluster={}",
+                                clientAppId(), redirect, cluster);
+                    }
+                    throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
                 });
     }
 
@@ -485,7 +493,7 @@ public abstract class PulsarWebResource {
         sync(()-> validateClusterOwnershipAsync(cluster));
     }
 
-    private URI getRedirectionUrl(ClusterData differentClusterData) throws MalformedURLException {
+    private CompletableFuture<URI> getRedirectionUrl(ClusterData differentClusterData) throws MalformedURLException {
         try {
             PulsarServiceNameResolver serviceNameResolver = new PulsarServiceNameResolver();
             if (isRequestHttps() && pulsar.getConfiguration().getWebServicePortTls().isPresent()
@@ -494,37 +502,45 @@ public abstract class PulsarWebResource {
             } else {
                 serviceNameResolver.updateServiceUrl(differentClusterData.getServiceUrl());
             }
-            URL webUrl = getConnectableURL(serviceNameResolver);
-            return UriBuilder.fromUri(uri.getRequestUri()).host(webUrl.getHost()).port(webUrl.getPort()).build();
+            return getConnectableURI(serviceNameResolver);
         } catch (PulsarClientException.InvalidServiceURL exception) {
             throw new MalformedURLException(exception.getMessage());
         }
     }
 
-    private URL getConnectableURL(PulsarServiceNameResolver serviceNameResolver) throws MalformedURLException {
-        String hostUri = serviceNameResolver.resolveHostUri().toString();
-        String firstHostUri = hostUri;
-        boolean connectable = false;
-        URL webUrl = new URL(hostUri);
-        while (!connectable) {
-            try {
-                webUrl = new URL(hostUri);
-                URLConnection urlConnection = webUrl.openConnection();
-                urlConnection.setDoInput(false);
-                urlConnection.setDoOutput(false);
-                urlConnection.setConnectTimeout(5000);
-                urlConnection.connect();
-                connectable = true;
-            } catch (Exception e) {
-                log.warn("Unable connect to url:{}", hostUri);
-                hostUri = serviceNameResolver.resolveHostUri().toString();
+    private CompletableFuture<URI> getConnectableURI(PulsarServiceNameResolver serviceNameResolver) {
+        return CompletableFuture.supplyAsync(() -> {
+            String hostUri = serviceNameResolver.resolveHostUri().toString();
+            String firstHostUri = hostUri;
+            boolean connectable = false;
+            URL webUrl = null;
+            do {
+                try {
+                    webUrl = new URL(hostUri);
+                    Socket socket = new Socket();
+                    socket.connect(new InetSocketAddress(webUrl.getHost(), webUrl.getPort()), 5000);
+                    socket.close();
+                    connectable = true;
+                } catch (Exception e) {
+                    log.warn("Unable connect to url:{}", hostUri);
+                    hostUri = serviceNameResolver.resolveHostUri().toString();
 
-                if (firstHostUri.equals(hostUri)) {
-                    break;
+                    if (firstHostUri.equals(hostUri)) {
+                        break;
+                    }
+                }
+            } while (!connectable);
+
+            if (webUrl == null) {
+                try {
+                    webUrl = new URL(hostUri);
+                } catch (MalformedURLException e) {
+                    throw new RestException(e);
                 }
             }
-        }
-        return webUrl;
+
+            return UriBuilder.fromUri(uri.getRequestUri()).host(webUrl.getHost()).port(webUrl.getPort()).build();
+        }, pulsar.getExecutor());
     }
 
     protected static CompletableFuture<ClusterData> getClusterDataIfDifferentCluster(PulsarService pulsar,
@@ -832,7 +848,7 @@ public abstract class PulsarWebResource {
             // if peer-cluster-data is present it means namespace is owned by that peer-cluster and request should be
             // redirect to the peer-cluster
             if (peerClusterData != null) {
-                URI redirect = getRedirectionUrl(peerClusterData);
+                URI redirect = getRedirectionUrl(peerClusterData).get(timeout, SECONDS);
                 // redirect to the cluster requested
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Redirecting the rest call to {}: cluster={}", clientAppId(),
@@ -857,26 +873,41 @@ public abstract class PulsarWebResource {
     }
 
     protected CompletableFuture<Void> validateGlobalNamespaceOwnershipAsync(NamespaceName namespace) {
+        MutableObject<ClusterData> cluster = new MutableObject<>();
         return checkLocalOrGetPeerReplicationCluster(pulsar(), namespace)
-                .thenAccept(peerClusterData -> {
+                .thenCompose(peerClusterData -> {
                     // if peer-cluster-data is present it means namespace is owned by that peer-cluster and request
                     // should be redirect to the peer-cluster
-                    if (peerClusterData != null) {
+                    if (peerClusterData == null) {
+                        return CompletableFuture.completedFuture(null);
+                    } else {
+                        cluster.setValue(peerClusterData);
                         try {
-                            URI redirect = getRedirectionUrl(peerClusterData);
-                            // redirect to the cluster requested
-                            if (log.isDebugEnabled()) {
-                                log.debug("[{}] Redirecting the rest call to {}: cluster={}", clientAppId(),
-                                        redirect, peerClusterData);
-
-                            }
-                            throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
-                        } catch (MalformedURLException mue) {
+                            return getRedirectionUrl(peerClusterData);
+                        } catch (MalformedURLException e) {
                             throw new RestException(Status.SERVICE_UNAVAILABLE, String.format(
                                     "Failed to validate global cluster configuration : ns=%s  emsg=%s", namespace,
-                                    mue.getMessage()));
+                                    e.getMessage()));
                         }
                     }
+                }).handle((redirect, ex) -> {
+                    if (ex instanceof MalformedURLException) {
+                        throw new RestException(Status.SERVICE_UNAVAILABLE, String.format(
+                                "Failed to validate global cluster configuration : ns=%s  emsg=%s", namespace,
+                                ex.getMessage()));
+                    }
+
+                    if (redirect == null) {
+                        return null;
+                    }
+
+                    // redirect to the cluster requested
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Redirecting the rest call to {}: cluster={}", clientAppId(),
+                                redirect, cluster.getValue());
+
+                    }
+                    throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
                 });
     }
 
