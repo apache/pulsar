@@ -389,7 +389,8 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
                     if (failIfHasSubscriptions) {
                         if (!subscriptions.isEmpty()) {
                             isFenced = false;
-                            deleteFuture.completeExceptionally(new TopicBusyException("Topic has subscriptions"));
+                            deleteFuture.completeExceptionally(
+                                    new TopicBusyException("Topic has subscriptions:" + subscriptions.keys()));
                             return;
                         }
                     } else {
