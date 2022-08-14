@@ -1130,9 +1130,15 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 log.warn("[{}] Topic is already being closed or deleted", topic);
                 return FutureUtil.failedFuture(new TopicFencedException("Topic is already fenced"));
             } else if (failIfHasSubscriptions && !subscriptions.isEmpty()) {
-                return FutureUtil.failedFuture(new TopicBusyException("Topic has subscriptions"));
+                return FutureUtil.failedFuture(
+                        new TopicBusyException("Topic has subscriptions: " + subscriptions.keys()));
             } else if (failIfHasBacklogs && hasBacklogs()) {
-                return FutureUtil.failedFuture(new TopicBusyException("Topic has subscriptions did not catch up"));
+                List<String> backlogSubs =
+                        subscriptions.values().stream()
+                                .filter(sub -> sub.getNumberOfEntriesInBacklog(false) > 0)
+                                .map(PersistentSubscription::getName).toList();
+                return FutureUtil.failedFuture(
+                        new TopicBusyException("Topic has subscriptions did not catch up: " + backlogSubs));
             }
 
             fenceTopicToCloseOrDelete(); // Avoid clients reconnections while deleting

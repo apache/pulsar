@@ -846,7 +846,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         } catch (Exception e) {
             assertThat(e.getMessage())
                     .isNotNull()
-                    .startsWith("Topic has active producers/subscriptions");
+                    .startsWith("Topic has 2 connected producers/consumers");
         }
         assertEquals(this.getPulsar().getSchemaRegistryService()
                 .trimDeletedSchemaAndGetList(TopicName.get(topic1).getSchemaName()).get().size(), 2);
@@ -936,7 +936,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
             admin.topics().delete(topicOne, false);
             fail();
         } catch (Exception e) {
-            assertTrue(e.getMessage().startsWith("Topic has active producers/subscriptions"));
+            assertTrue(e.getMessage().startsWith("Topic has 2 connected producers/consumers"));
         }
         assertEquals(this.getPulsar().getSchemaRegistryService()
                 .trimDeletedSchemaAndGetList(TopicName.get(topicOne).getSchemaName()).get().size(), 2);
