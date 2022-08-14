@@ -27,6 +27,7 @@ import com.google.common.collect.Sets;
 import java.net.URL;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -549,7 +550,7 @@ public class BacklogQuotaManagerTest {
             consumer2.receive();
         }
 
-        TopicStats stats = getTopicStats(topic1);
+        TopicStats stats = admin.topics().getStats(topic1, true);
         assertEquals(stats.getSubscriptions().get(subName1).getMsgBacklog(), 5);
         assertEquals(stats.getSubscriptions().get(subName2).getMsgBacklog(), 5);
 
@@ -566,7 +567,7 @@ public class BacklogQuotaManagerTest {
         Thread.sleep(2000L);
         rolloverStats();
 
-        TopicStats stats2 = getTopicStats(topic1);
+        TopicStats stats2 = admin.topics().getStats(topic1, true);
         // The first 5 messages should be expired due to limit time is 5 seconds, and the last 9 message should not.
         Awaitility.await().untilAsserted(() -> {
             assertEquals(stats2.getSubscriptions().get(subName1).getMsgBacklog(), 9);
