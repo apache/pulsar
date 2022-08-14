@@ -1759,7 +1759,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
                 Dispatcher dispatcher0 = subscription.getDispatcher();
                 if (null != dispatcher0) {
-                    topicStatsStream.writePair("entryFilterProccessedMsgs",
+                    topicStatsStream.writePair("entryFilterProcessedMsgs",
                             dispatcher0.getFilterProcessedMsgCount());
                     topicStatsStream.writePair("entryFilterAcceptedMsgs",
                             dispatcher0.getFilterAcceptedMsgCount());

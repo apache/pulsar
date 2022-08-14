@@ -753,7 +753,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                 // Write entry filter stats
                 Dispatcher dispatcher0 = subscription.getDispatcher();
                 if (null != dispatcher0) {
-                    topicStatsStream.writePair("entryFilterProccessedMsgs",
+                    topicStatsStream.writePair("entryFilterProcessedMsgs",
                             dispatcher0.getFilterProcessedMsgCount());
                     topicStatsStream.writePair("entryFilterAcceptedMsgs",
                             dispatcher0.getFilterAcceptedMsgCount());
