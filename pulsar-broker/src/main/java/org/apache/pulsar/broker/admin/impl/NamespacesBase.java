@@ -478,16 +478,12 @@ public abstract class NamespacesBase extends AdminResource {
                         if (topicName.isPartitioned()) {
                             String partitionedTopic = topicName.getPartitionedTopicName();
                             if (!partitionedTopics.contains(partitionedTopic)) {
-                                // Distinguish partitioned topic to avoid duplicate deletion of the same schema
-                                topicFutures.add(pulsar().getAdminClient().topics().deletePartitionedTopicAsync(
-                                        partitionedTopic, true, true));
                                 partitionedTopics.add(partitionedTopic);
                             }
                         } else {
-                            topicFutures.add(pulsar().getAdminClient().topics().deleteAsync(
-                                    topic, true, true));
                             nonPartitionedTopics.add(topic);
                         }
+                        topicFutures.add(pulsar().getAdminClient().topics().deleteAsync(topic, true));
                     } catch (Exception e) {
                         String errorMessage = String.format("Failed to force delete topic %s, "
                                         + "but the previous deletion command of partitioned-topics:%s "
@@ -498,6 +494,11 @@ public abstract class NamespacesBase extends AdminResource {
                         asyncResponse.resume(new RestException(Status.INTERNAL_SERVER_ERROR, errorMessage));
                         return;
                     }
+                }
+
+                for (String partitionedTopic : partitionedTopics) {
+                    topicFutures.add(namespaceResources().getPartitionedTopicResources()
+                            .deletePartitionedTopicAsync(TopicName.get(partitionedTopic)));
                 }
 
                 if (log.isDebugEnabled()) {
