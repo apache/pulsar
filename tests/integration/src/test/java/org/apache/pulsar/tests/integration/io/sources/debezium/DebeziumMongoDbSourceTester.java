@@ -115,11 +115,9 @@ public class DebeziumMongoDbSourceTester extends SourceTester<DebeziumMongoDbCon
 
     @Override
     public void close() {
-        if (pulsarCluster != null) {
-            if (debeziumMongoDbContainer != null) {
-                pulsarCluster.stopService(DebeziumMongoDbContainer.NAME, debeziumMongoDbContainer);
-                debeziumMongoDbContainer = null;
-            }
+        if (debeziumMongoDbContainer != null) {
+            PulsarCluster.stopService(DebeziumMongoDbContainer.NAME, debeziumMongoDbContainer);
+            debeziumMongoDbContainer = null;
         }
     }
 }

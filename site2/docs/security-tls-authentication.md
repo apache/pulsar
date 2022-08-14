@@ -6,9 +6,7 @@ sidebar_label: "Authentication using TLS"
 
 ## TLS authentication overview
 
-TLS authentication is an extension of [TLS transport encryption](security-tls-transport). Not only servers have keys and certs that the client uses to verify the identity of servers, clients also have keys and certs that the server uses to verify the identity of clients. You must have TLS transport encryption configured on your cluster before you can use TLS authentication. This guide assumes you already have TLS transport encryption configured.
-
-`Bouncy Castle Provider` provides TLS related cipher suites and algorithms in Pulsar. If you need [FIPS](https://www.bouncycastle.org/fips_faq.html) version of `Bouncy Castle Provider`, please reference [Bouncy Castle page](security-bouncy-castle).
+TLS authentication is an extension of [TLS transport encryption](security-tls-transport.md). Not only servers have keys and certs that the client uses to verify the identity of servers, clients also have keys and certs that the server uses to verify the identity of clients. You must have TLS transport encryption configured on your cluster before you can use TLS authentication. This guide assumes you already have TLS transport encryption configured.
 
 ### Create client certificates
 
@@ -87,11 +85,6 @@ To configure brokers to authenticate clients, add the following parameters to `b
 authenticationEnabled=true
 authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderTls
 
-# operations and publish/consume from all topics
-superUserRoles=admin
-
-# Authentication settings of the broker itself. Used when the broker connects to other brokers, either in same or other clusters
-brokerClientTlsEnabled=true
 brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.AuthenticationTls
 brokerClientAuthenticationParameters={"tlsCertFile":"/path/my-ca/admin.cert.pem","tlsKeyFile":"/path/my-ca/admin.key-pk8.pem"}
 brokerClientTrustCertsFilePath=/path/my-ca/certs/ca.cert.pem
@@ -102,7 +95,7 @@ brokerClientTrustCertsFilePath=/path/my-ca/certs/ca.cert.pem
 
 To configure proxies to authenticate clients, add the following parameters to `proxy.conf`, alongside [the configuration to enable tls transport](security-tls-transport.md#proxy-configuration):
 
-The proxy should have its own client key pair for connecting to brokers. You need to configure the role token for this key pair in the ``proxyRoles`` of the brokers. See the [authorization guide](security-authorization) for more details.
+The proxy should have its own client key pair for connecting to brokers. You need to configure the role token for this key pair in the ``proxyRoles`` of the brokers. See the [authorization guide](security-authorization.md) for more details.
 
 ```properties
 
@@ -124,15 +117,10 @@ When you use TLS authentication, client connects via TLS transport. You need to 
 
 [Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](/tools/pulsar-admin/), [`pulsar-perf`](reference-cli-tools.md#pulsar-perf), and [`pulsar-client`](reference-cli-tools.md#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
 
-You need to add the following parameters to that file to use TLS authentication with the CLI tools of Pulsar:
+To use TLS authentication with the CLI tools of Pulsar, you need to add the following parameters to the `conf/client.conf` file, alongside [the configuration to enable TLS transport](security-tls-transport.md#cli-tools):
 
 ```properties
 
-webServiceUrl=https://broker.example.com:8443/
-brokerServiceUrl=pulsar+ssl://broker.example.com:6651/
-useTls=true
-tlsAllowInsecureConnection=false
-tlsTrustCertsFilePath=/path/to/ca.cert.pem
 authPlugin=org.apache.pulsar.client.impl.auth.AuthenticationTls
 authParams=tlsCertFile:/path/to/my-role.cert.pem,tlsKeyFile:/path/to/my-role.key-pk8.pem
 
@@ -146,7 +134,6 @@ import org.apache.pulsar.client.api.PulsarClient;
 
 PulsarClient client = PulsarClient.builder()
     .serviceUrl("pulsar+ssl://broker.example.com:6651/")
-    .enableTls(true)
     .tlsTrustCertsFilePath("/path/to/ca.cert.pem")
     .authentication("org.apache.pulsar.client.impl.auth.AuthenticationTls",
                     "tlsCertFile:/path/to/my-role.cert.pem,tlsKeyFile:/path/to/my-role.key-pk8.pem")

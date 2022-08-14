@@ -42,6 +42,7 @@ import lombok.Cleanup;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-naming")
@@ -70,6 +71,8 @@ public class ServiceConfigurationTest {
         assertEquals(config.getMaxMessagePublishBufferSizeInMB(), -1);
         assertEquals(config.getManagedLedgerDataReadPriority(), "bookkeeper-first");
         assertEquals(config.getBacklogQuotaDefaultLimitGB(), 0.05);
+        OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl.create(config.getProperties());
+        assertEquals(offloadPolicies.getManagedLedgerOffloadedReadPriority().getValue(), "bookkeeper-first");
     }
 
     @Test
@@ -132,8 +135,8 @@ public class ServiceConfigurationTest {
         InputStream stream = new ByteArrayInputStream(confFile.getBytes());
         final ServiceConfiguration conf = PulsarConfigurationLoader.create(stream, ServiceConfiguration.class);
 
-        assertEquals(conf.getMetadataStoreUrl(), "zk1:2181");
-        assertEquals(conf.getConfigurationMetadataStoreUrl(), "zk1:2181");
+        assertEquals(conf.getMetadataStoreUrl(), "zk:zk1:2181");
+        assertEquals(conf.getConfigurationMetadataStoreUrl(), "zk:zk1:2181");
         assertEquals(conf.getBookkeeperMetadataStoreUrl(), "metadata-store:zk:zk1:2181/ledgers");
         assertFalse(conf.isConfigurationStoreSeparated());
         assertFalse(conf.isBookkeeperMetadataStoreSeparated());
@@ -235,6 +238,89 @@ public class ServiceConfigurationTest {
                         + key + "' conf/broker.conf default value doesn't match java default value\nConf: "+ fileValue + "\nJava: " + javaValue);
             }
         }
+    }
 
+    @Test
+    public void testBookKeeperClientIoThreads() throws Exception {
+        try (FileInputStream stream = new FileInputStream("../conf/broker.conf")) {
+            final ServiceConfiguration fileConfig = PulsarConfigurationLoader.create(stream, ServiceConfiguration.class);
+            assertFalse(fileConfig.isBookkeeperClientSeparatedIoThreadsEnabled());
+            assertEquals(fileConfig.getBookkeeperClientNumIoThreads(), Runtime.getRuntime().availableProcessors() * 2);
+        }
+        String confFile = "bookkeeperClientNumIoThreads=1\n" +
+                "bookkeeperClientSeparatedIoThreadsEnabled=true\n";
+        try (InputStream stream = new ByteArrayInputStream(confFile.getBytes())) {
+            final ServiceConfiguration conf = PulsarConfigurationLoader.create(stream, ServiceConfiguration.class);
+            assertTrue(conf.isBookkeeperClientSeparatedIoThreadsEnabled());
+            assertEquals(conf.getBookkeeperClientNumIoThreads(), 1);
+        }
+    }
+
+    @Test
+    public void testSubscriptionTypesEnableWins() throws Exception {
+        final Properties properties = new Properties();
+        properties.setProperty("subscriptionKeySharedEnable", "true");
+        properties.setProperty("subscriptionTypesEnabled", "Exclusive,Shared,Failover");
+        final ServiceConfiguration conf = PulsarConfigurationLoader.create(properties, ServiceConfiguration.class);
+        assertFalse(conf.isSubscriptionKeySharedEnable());
+    }
+
+    /**
+     * Verify transaction batch log configuration load correct, cover these cases:
+     *   1. broker.conf. This is default value. If the property is not configured in the file, the default value
+     *      is used. So this case can't verify property names is exactly correct.
+     *   2. pulsar_broker_test.conf. In this configuration file, use a non-default config value. Cover scenarios that
+     *      case-1 does not cover.
+     *   3. read props from string input stream, cover no-file input stream.
+     */
+    @Test
+    public void testTransactionBatchConfigurations() throws Exception{
+        ServiceConfiguration configuration = null;
+        // broker.conf.
+        try (FileInputStream inputStream = new FileInputStream("../conf/broker.conf")) {
+            configuration = PulsarConfigurationLoader.create(inputStream, ServiceConfiguration.class);
+            assertFalse(configuration.isTransactionLogBatchedWriteEnabled());
+            assertEquals(configuration.getTransactionLogBatchedWriteMaxRecords(), 512);
+            assertEquals(configuration.getTransactionLogBatchedWriteMaxSize(), 1024 * 1024 * 4);
+            assertEquals(configuration.getTransactionLogBatchedWriteMaxDelayInMillis(), 1);
+            assertFalse(configuration.isTransactionPendingAckBatchedWriteEnabled());
+            assertEquals(configuration.getTransactionPendingAckBatchedWriteMaxRecords(), 512);
+            assertEquals(configuration.getTransactionPendingAckBatchedWriteMaxSize(), 1024 * 1024 * 4);
+            assertEquals(configuration.getTransactionPendingAckBatchedWriteMaxDelayInMillis(), 1);
+        }
+        // pulsar_broker_test.conf.
+        try (InputStream inputStream = this.getClass().getClassLoader().getResourceAsStream(fileName)) {
+            configuration = PulsarConfigurationLoader.create(inputStream, ServiceConfiguration.class);
+            assertTrue(configuration.isTransactionLogBatchedWriteEnabled());
+            assertEquals(configuration.getTransactionLogBatchedWriteMaxRecords(), 11);
+            assertEquals(configuration.getTransactionLogBatchedWriteMaxSize(), 22);
+            assertEquals(configuration.getTransactionLogBatchedWriteMaxDelayInMillis(), 33);
+            assertTrue(configuration.isTransactionPendingAckBatchedWriteEnabled());
+            assertEquals(configuration.getTransactionPendingAckBatchedWriteMaxRecords(), 44);
+            assertEquals(configuration.getTransactionPendingAckBatchedWriteMaxSize(), 55);
+            assertEquals(configuration.getTransactionPendingAckBatchedWriteMaxDelayInMillis(), 66);
+        }
+        // string input stream.
+        StringBuilder stringBuilder = new StringBuilder();
+        stringBuilder.append("transactionLogBatchedWriteEnabled=true").append(System.lineSeparator());
+        stringBuilder.append("transactionLogBatchedWriteMaxRecords=520").append(System.lineSeparator());
+        stringBuilder.append("transactionLogBatchedWriteMaxSize=1024").append(System.lineSeparator());
+        stringBuilder.append("transactionLogBatchedWriteMaxDelayInMillis=11").append(System.lineSeparator());
+        stringBuilder.append("transactionPendingAckBatchedWriteEnabled=true").append(System.lineSeparator());
+        stringBuilder.append("transactionPendingAckBatchedWriteMaxRecords=521").append(System.lineSeparator());
+        stringBuilder.append("transactionPendingAckBatchedWriteMaxSize=1025").append(System.lineSeparator());
+        stringBuilder.append("transactionPendingAckBatchedWriteMaxDelayInMillis=20").append(System.lineSeparator());
+        try(ByteArrayInputStream inputStream =
+                    new ByteArrayInputStream(stringBuilder.toString().getBytes(StandardCharsets.UTF_8))){
+            configuration = PulsarConfigurationLoader.create(inputStream, ServiceConfiguration.class);
+            assertTrue(configuration.isTransactionLogBatchedWriteEnabled());
+            assertEquals(configuration.getTransactionLogBatchedWriteMaxRecords(), 520);
+            assertEquals(configuration.getTransactionLogBatchedWriteMaxSize(), 1024);
+            assertEquals(configuration.getTransactionLogBatchedWriteMaxDelayInMillis(), 11);
+            assertTrue(configuration.isTransactionPendingAckBatchedWriteEnabled());
+            assertEquals(configuration.getTransactionPendingAckBatchedWriteMaxRecords(), 521);
+            assertEquals(configuration.getTransactionPendingAckBatchedWriteMaxSize(), 1025);
+            assertEquals(configuration.getTransactionPendingAckBatchedWriteMaxDelayInMillis(), 20);
+        }
     }
 }

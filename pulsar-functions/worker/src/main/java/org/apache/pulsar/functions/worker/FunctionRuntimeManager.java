@@ -216,7 +216,7 @@ public class FunctionRuntimeManager implements AutoCloseable {
         }
         // initialize runtime
         this.runtimeFactory.initialize(workerConfig, authConfig,
-                secretsProviderConfigurator, connectorsManager,
+                secretsProviderConfigurator, connectorsManager, functionsManager,
                 functionAuthProvider, runtimeCustomizer);
 
         this.functionActioner = new FunctionActioner(this.workerConfig, runtimeFactory,
@@ -447,9 +447,8 @@ public class FunctionRuntimeManager implements AutoCloseable {
                         }
                     }
                     if (workerInfo == null) {
-                        if (log.isDebugEnabled()) {
-                            log.debug("[{}] has not been assigned yet", fullyQualifiedInstanceId);
-                        }
+                        log.warn("[{}] has not been assigned yet, assignment: [{}], workerList: [{}]",
+                                fullyQualifiedInstanceId, assignment, workerInfoList);
                         continue;
                     }
                     restartFunctionUsingPulsarAdmin(assignment, tenant, namespace, functionName, false);

@@ -4,9 +4,7 @@ title: Connector Admin CLI
 sidebar_label: "CLI"
 ---
 
-:::note
-
-**Important**
+:::tip
 
 This page is deprecated and not updated anymore. For the latest and complete information about `Pulsar-admin`, including commands, flags, descriptions, and more, see [Pulsar admin docs](/tools/pulsar-admin/).
 
@@ -176,7 +174,7 @@ $ pulsar-admin sources status options
 
 |Flag|Description|
 |---|---|
-|`--instance-id`|The source ID.<br />If `instance-id` is not provided, Pulasr gets status of all instances.|
+|`--instance-id`|The source ID.<br />If `instance-id` is not provided, Pulsar gets status of all instances.|
 |`--name`|The source's name.|
 |`--namespace`|The source's namespace.|
 |`--tenant`|The source's tenant.|
@@ -403,7 +401,7 @@ $ pulsar-admin sinks create options
 | `--subs-name` | Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer.
 | `--tenant` | The sink's tenant.
 | `--timeout-ms` | The message timeout in milliseconds.
-| `--topics-pattern` | TopicsPattern to consume from list of topics under a namespace that match the pattern. <br />`--input` and `--topics-Pattern` are mutually exclusive. <br />Add SerDe class name for a pattern in `--customSerdeInputs` (supported for java fun only).
+| `--topics-pattern` | The topic pattern to consume from a list of topics under a namespace that matches the pattern. <br />`--input` and `--topics-pattern` are mutually exclusive. <br />Add SerDe class name for a pattern in `--custom-serde-inputs`.
 
 ### `update`
 
@@ -441,7 +439,7 @@ $ pulsar-admin sinks update options
 | `--subs-name` | Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer.
 | `--tenant` | The sink's tenant.
 | `--timeout-ms` | The message timeout in milliseconds.
-| `--topics-pattern` | TopicsPattern to consume from list of topics under a namespace that match the pattern. <br />`--input` and `--topics-Pattern` are mutually exclusive. <br />Add SerDe class name for a pattern in `--customSerdeInputs` (supported for java fun only).
+| `--topics-pattern` | The topic pattern to consume from a list of topics under a namespace that matches the pattern. <br />`--input` and `--topics-pattern` are mutually exclusive. <br />Add SerDe class name for a pattern in `--custom-serde-inputs`.
 | `--update-auth-data` | Whether or not to update the auth data.<br />**Default value: false.**
 
 ### `delete`
@@ -500,7 +498,7 @@ $ pulsar-admin sinks status options
 
 |Flag|Description|
 |---|---|
-|`--instance-id`|The sink ID.<br />If `instance-id` is not provided, Pulasr gets status of all instances.|
+|`--instance-id`|The sink ID.<br />If `instance-id` is not provided, Pulsar gets status of all instances.|
 |`--name`|The sink's name.|
 |`--namespace`|The sink's namespace.|
 |`--tenant`|The sink's tenant.|
@@ -636,7 +634,7 @@ $ pulsar-admin sinks localrun options
 | `--negative-ack-redelivery-delay-ms` | The negatively-acknowledged message redelivery delay in milliseconds. |
 |`--tls-allow-insecure`|Allow insecure tls connection.<br />**Default value: false**.
 |`--tls-trust-cert-path`|The tls trust cert file path.
-| `--topics-pattern` | TopicsPattern to consume from list of topics under a namespace that match the pattern. <br />`--input` and `--topics-Pattern` are mutually exclusive. <br />Add SerDe class name for a pattern in `--customSerdeInputs` (supported for java fun only).
+| `--topics-pattern` | The topic pattern to consume from a list of topics under a namespace that matches the pattern. <br />`--input` and `--topics-pattern` are mutually exclusive. <br />Add SerDe class name for a pattern in `--custom-serde-inputs`.
 |`--use-tls`|Use tls connection.<br />**Default value: false**.
 
 ### `available-sinks`

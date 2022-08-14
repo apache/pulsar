@@ -29,6 +29,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
@@ -88,6 +89,7 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.stats.AnalyzeSubscriptionBacklogResult;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.slf4j.Logger;
@@ -296,21 +298,8 @@ public class TopicsImpl extends BaseResource implements Topics {
     @Override
     public CompletableFuture<List<String>> getListInBundleAsync(String namespace, String bundleRange) {
         NamespaceName ns = NamespaceName.get(namespace);
-        final CompletableFuture<List<String>> future = new CompletableFuture<>();
         WebTarget path = namespacePath("non-persistent", ns, bundleRange);
-
-        asyncGetRequest(path,
-                new InvocationCallback<List<String>>() {
-                    @Override
-                    public void completed(List<String> response) {
-                        future.complete(response);
-                    }
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<List<String>>(){});
     }
 
 
@@ -323,20 +312,7 @@ public class TopicsImpl extends BaseResource implements Topics {
     public CompletableFuture<Map<String, Set<AuthAction>>> getPermissionsAsync(String topic) {
         TopicName tn = TopicName.get(topic);
         WebTarget path = topicPath(tn, "permissions");
-        final CompletableFuture<Map<String, Set<AuthAction>>> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Map<String, Set<AuthAction>>>() {
-                    @Override
-                    public void completed(Map<String, Set<AuthAction>> permissions) {
-                        future.complete(permissions);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<Map<String, Set<AuthAction>>>(){});
     }
 
     @Override
@@ -465,21 +441,7 @@ public class TopicsImpl extends BaseResource implements Topics {
     public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadataAsync(String topic) {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "partitions");
-        final CompletableFuture<PartitionedTopicMetadata> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<PartitionedTopicMetadata>() {
-
-                    @Override
-                    public void completed(PartitionedTopicMetadata response) {
-                        future.complete(response);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<PartitionedTopicMetadata>(){});
     }
 
     @Override
@@ -491,21 +453,7 @@ public class TopicsImpl extends BaseResource implements Topics {
     public CompletableFuture<Map<String, String>> getPropertiesAsync(String topic) {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "properties");
-        final CompletableFuture<Map<String, String>> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Map<String, String>>() {
-
-                    @Override
-                    public void completed(Map<String, String> response) {
-                        future.complete(response);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<Map<String, String>>(){});
     }
 
     @Override
@@ -651,21 +599,7 @@ public class TopicsImpl extends BaseResource implements Topics {
     public CompletableFuture<List<String>> getSubscriptionsAsync(String topic) {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "subscriptions");
-        final CompletableFuture<List<String>> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<List<String>>() {
-
-                    @Override
-                    public void completed(List<String> response) {
-                        future.complete(response);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<List<String>>(){});
     }
 
     @Override
@@ -741,21 +675,7 @@ public class TopicsImpl extends BaseResource implements Topics {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "internalStats");
         path = path.queryParam("metadata", metadata);
-        final CompletableFuture<PersistentTopicInternalStats> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<PersistentTopicInternalStats>() {
-
-                    @Override
-                    public void completed(PersistentTopicInternalStats response) {
-                        future.complete(response);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<PersistentTopicInternalStats>(){});
     }
 
     @Override
@@ -767,37 +687,27 @@ public class TopicsImpl extends BaseResource implements Topics {
     public CompletableFuture<String> getInternalInfoAsync(String topic) {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "internal-info");
-        final CompletableFuture<String> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<String>() {
-                    @Override
-                    public void completed(String response) {
-                        future.complete(response);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<String>(){});
     }
 
     @Override
     public PartitionedTopicStats getPartitionedStats(String topic, boolean perPartition, boolean getPreciseBacklog,
-                                                     boolean subscriptionBacklogSize)
+                                                     boolean subscriptionBacklogSize, boolean getEarliestTimeInBacklog)
             throws PulsarAdminException {
-        return sync(() -> getPartitionedStatsAsync(topic, perPartition, getPreciseBacklog, subscriptionBacklogSize));
+        return sync(() -> getPartitionedStatsAsync(topic, perPartition, getPreciseBacklog,
+                subscriptionBacklogSize, getEarliestTimeInBacklog));
     }
 
     @Override
     public CompletableFuture<PartitionedTopicStats> getPartitionedStatsAsync(String topic,
-            boolean perPartition, boolean getPreciseBacklog, boolean subscriptionBacklogSize) {
+            boolean perPartition, boolean getPreciseBacklog, boolean subscriptionBacklogSize,
+                                                                             boolean getEarliestTimeInBacklog) {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "partitioned-stats");
         path = path.queryParam("perPartition", perPartition)
                 .queryParam("getPreciseBacklog", getPreciseBacklog)
-                .queryParam("subscriptionBacklogSize", subscriptionBacklogSize);
+                .queryParam("subscriptionBacklogSize", subscriptionBacklogSize)
+                .queryParam("getEarliestTimeInBacklog", getEarliestTimeInBacklog);
         final CompletableFuture<PartitionedTopicStats> future = new CompletableFuture<>();
 
         InvocationCallback<NonPersistentPartitionedTopicStats> nonpersistentCB =
@@ -851,21 +761,7 @@ public class TopicsImpl extends BaseResource implements Topics {
     public CompletableFuture<PartitionedTopicInternalStats> getPartitionedInternalStatsAsync(String topic) {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "partitioned-internalStats");
-        final CompletableFuture<PartitionedTopicInternalStats> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<PartitionedTopicInternalStats>() {
-
-                    @Override
-                    public void completed(PartitionedTopicInternalStats response) {
-                        future.complete(response);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<PartitionedTopicInternalStats>(){});
     }
 
     @Override
@@ -1132,20 +1028,8 @@ public class TopicsImpl extends BaseResource implements Topics {
     public CompletableFuture<MessageId> getMessageIdByTimestampAsync(String topic, long timestamp) {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "messageid", Long.toString(timestamp));
-        final CompletableFuture<MessageId> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<MessageIdImpl>() {
-                    @Override
-                    public void completed(MessageIdImpl response) {
-                        future.complete(response);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<MessageIdImpl>(){})
+                .thenApply(messageIdImpl -> messageIdImpl);
     }
 
 
@@ -1214,6 +1098,12 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
+    public Map<String, String> getSubscriptionProperties(String topic, String subName)
+            throws PulsarAdminException {
+        return sync(() -> getSubscriptionPropertiesAsync(topic, subName));
+    }
+
+    @Override
     public CompletableFuture<Void> updateSubscriptionPropertiesAsync(String topic, String subName,
                                                                      Map<String, String> subscriptionProperties) {
         TopicName tn = validateTopic(topic);
@@ -1224,6 +1114,15 @@ public class TopicsImpl extends BaseResource implements Topics {
             subscriptionProperties = new HashMap<>();
         }
         return asyncPutRequest(path, Entity.entity(subscriptionProperties, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public CompletableFuture<Map<String, String>> getSubscriptionPropertiesAsync(String topic, String subName) {
+        TopicName tn = validateTopic(topic);
+        String encodedSubName = Codec.encode(subName);
+        WebTarget path = topicPath(tn, "subscription", encodedSubName,
+                "properties");
+        return asyncGetRequest(path, new FutureCallback<Map<String, String>>(){});
     }
 
     @Override
@@ -1270,20 +1169,7 @@ public class TopicsImpl extends BaseResource implements Topics {
     public CompletableFuture<LongRunningProcessStatus> compactionStatusAsync(String topic) {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "compaction");
-        final CompletableFuture<LongRunningProcessStatus> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<LongRunningProcessStatus>() {
-                    @Override
-                    public void completed(LongRunningProcessStatus longRunningProcessStatus) {
-                        future.complete(longRunningProcessStatus);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<LongRunningProcessStatus>(){});
     }
 
     @Override
@@ -1325,20 +1211,7 @@ public class TopicsImpl extends BaseResource implements Topics {
     public CompletableFuture<OffloadProcessStatus> offloadStatusAsync(String topic) {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "offload");
-        final CompletableFuture<OffloadProcessStatus> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<OffloadProcessStatus>() {
-                    @Override
-                    public void completed(OffloadProcessStatus offloadProcessStatus) {
-                        future.complete(offloadProcessStatus);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<OffloadProcessStatus>(){});
     }
 
     private WebTarget namespacePath(String domain, NamespaceName namespace, String... parts) {
@@ -1630,6 +1503,46 @@ public class TopicsImpl extends BaseResource implements Topics {
         }
     }
 
+
+    @Override
+    public AnalyzeSubscriptionBacklogResult analyzeSubscriptionBacklog(String topic,
+                                                                       String subscriptionName,
+                                                                       Optional<MessageId> startPosition)
+            throws PulsarAdminException {
+        return sync(() -> analyzeSubscriptionBacklogAsync(topic, subscriptionName, startPosition));
+    }
+
+    @Override
+    public CompletableFuture<AnalyzeSubscriptionBacklogResult> analyzeSubscriptionBacklogAsync(String topic,
+                                                                                String subscriptionName,
+                                                                                Optional<MessageId> startPosition) {
+        TopicName topicName = validateTopic(topic);
+        String encodedSubName = Codec.encode(subscriptionName);
+        WebTarget path = topicPath(topicName, "subscription", encodedSubName, "analyzeBacklog");
+
+        final CompletableFuture<AnalyzeSubscriptionBacklogResult> future = new CompletableFuture<>();
+        Entity entity = null;
+        if (startPosition.isPresent()) {
+            ResetCursorData resetCursorData = new ResetCursorData(startPosition.get());
+            entity = Entity.entity(resetCursorData, MediaType.APPLICATION_JSON);
+        } else {
+            entity = null;
+        }
+
+        asyncPostRequestWithResponse(path, entity, new InvocationCallback<AnalyzeSubscriptionBacklogResult>() {
+            @Override
+            public void completed(AnalyzeSubscriptionBacklogResult res) {
+                future.complete(res);
+            }
+
+            @Override
+            public void failed(Throwable throwable) {
+                future.completeExceptionally(getApiException(throwable.getCause()));
+            }
+        });
+        return future;
+    }
+
     @Override
     public Long getBacklogSizeByMessageId(String topic, MessageId messageId)
             throws PulsarAdminException {
@@ -1708,19 +1621,7 @@ public class TopicsImpl extends BaseResource implements Topics {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "maxUnackedMessagesOnConsumer");
         path = path.queryParam("applied", applied);
-        final CompletableFuture<Integer> future = new CompletableFuture<>();
-        asyncGetRequest(path, new InvocationCallback<Integer>() {
-            @Override
-            public void completed(Integer maxNum) {
-                future.complete(maxNum);
-            }
-
-            @Override
-            public void failed(Throwable throwable) {
-                future.completeExceptionally(getApiException(throwable.getCause()));
-            }
-        });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<Integer>(){});
     }
 
     @Override
@@ -1757,19 +1658,7 @@ public class TopicsImpl extends BaseResource implements Topics {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "inactiveTopicPolicies");
         path = path.queryParam("applied", applied);
-        final CompletableFuture<InactiveTopicPolicies> future = new CompletableFuture<>();
-        asyncGetRequest(path, new InvocationCallback<InactiveTopicPolicies>() {
-            @Override
-            public void completed(InactiveTopicPolicies inactiveTopicPolicies) {
-                future.complete(inactiveTopicPolicies);
-            }
-
-            @Override
-            public void failed(Throwable throwable) {
-                future.completeExceptionally(getApiException(throwable.getCause()));
-            }
-        });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<InactiveTopicPolicies>(){});
     }
 
     @Override
@@ -1820,19 +1709,7 @@ public class TopicsImpl extends BaseResource implements Topics {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "delayedDelivery");
         path = path.queryParam("applied", applied);
-        final CompletableFuture<DelayedDeliveryPolicies> future = new CompletableFuture<>();
-        asyncGetRequest(path, new InvocationCallback<DelayedDeliveryPolicies>() {
-            @Override
-            public void completed(DelayedDeliveryPolicies delayedDeliveryPolicies) {
-                future.complete(delayedDeliveryPolicies);
-            }
-
-            @Override
-            public void failed(Throwable throwable) {
-                future.completeExceptionally(getApiException(throwable.getCause()));
-            }
-        });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<DelayedDeliveryPolicies>(){});
     }
 
     @Override
@@ -1880,19 +1757,7 @@ public class TopicsImpl extends BaseResource implements Topics {
     public CompletableFuture<Boolean> getDeduplicationEnabledAsync(String topic) {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "deduplicationEnabled");
-        final CompletableFuture<Boolean> future = new CompletableFuture<>();
-        asyncGetRequest(path, new InvocationCallback<Boolean>() {
-            @Override
-            public void completed(Boolean enabled) {
-                future.complete(enabled);
-            }
-
-            @Override
-            public void failed(Throwable throwable) {
-                future.completeExceptionally(getApiException(throwable.getCause()));
-            }
-        });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<Boolean>(){});
     }
 
     @Override
@@ -1915,19 +1780,7 @@ public class TopicsImpl extends BaseResource implements Topics {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "deduplicationEnabled");
         path = path.queryParam("applied", applied);
-        final CompletableFuture<Boolean> future = new CompletableFuture<>();
-        asyncGetRequest(path, new InvocationCallback<Boolean>() {
-            @Override
-            public void completed(Boolean enabled) {
-                future.complete(enabled);
-            }
-
-            @Override
-            public void failed(Throwable throwable) {
-                future.completeExceptionally(getApiException(throwable.getCause()));
-            }
-        });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<Boolean>(){});
     }
 
     @Override
@@ -1998,19 +1851,8 @@ public class TopicsImpl extends BaseResource implements Topics {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "offloadPolicies");
         path = path.queryParam("applied", applied);
-        final CompletableFuture<OffloadPolicies> future = new CompletableFuture<>();
-        asyncGetRequest(path, new InvocationCallback<OffloadPoliciesImpl>() {
-            @Override
-            public void completed(OffloadPoliciesImpl offloadPolicies) {
-                future.complete(offloadPolicies);
-            }
-
-            @Override
-            public void failed(Throwable throwable) {
-                future.completeExceptionally(getApiException(throwable.getCause()));
-            }
-        });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<OffloadPoliciesImpl>(){})
+                .thenApply(offloadPolicies -> offloadPolicies);
     }
 
     @Override
@@ -2058,19 +1900,7 @@ public class TopicsImpl extends BaseResource implements Topics {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "maxUnackedMessagesOnSubscription");
         path = path.queryParam("applied", applied);
-        final CompletableFuture<Integer> future = new CompletableFuture<>();
-        asyncGetRequest(path, new InvocationCallback<Integer>() {
-            @Override
-            public void completed(Integer maxNum) {
-                future.complete(maxNum);
-            }
-
-            @Override
-            public void failed(Throwable throwable) {
-                future.completeExceptionally(getApiException(throwable.getCause()));
-            }
-        });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<Integer>(){});
     }
 
     @Override
@@ -2169,20 +1999,7 @@ public class TopicsImpl extends BaseResource implements Topics {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "retention");
         path = path.queryParam("applied", applied);
-        final CompletableFuture<RetentionPolicies> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<RetentionPolicies>() {
-                    @Override
-                    public void completed(RetentionPolicies retentionPolicies) {
-                        future.complete(retentionPolicies);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<RetentionPolicies>(){});
     }
 
     @Override
@@ -2229,20 +2046,7 @@ public class TopicsImpl extends BaseResource implements Topics {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "persistence");
         path = path.queryParam("applied", applied);
-        final CompletableFuture<PersistencePolicies> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<PersistencePolicies>() {
-                    @Override
-                    public void completed(PersistencePolicies persistencePolicies) {
-                        future.complete(persistencePolicies);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<PersistencePolicies>(){});
     }
 
     @Override
@@ -2267,20 +2071,7 @@ public class TopicsImpl extends BaseResource implements Topics {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "dispatchRate");
         path = path.queryParam("applied", applied);
-        final CompletableFuture<DispatchRate> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<DispatchRate>() {
-                    @Override
-                    public void completed(DispatchRate dispatchRate) {
-                        future.complete(dispatchRate);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<DispatchRate>(){});
     }
 
     @Override
@@ -2327,20 +2118,7 @@ public class TopicsImpl extends BaseResource implements Topics {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "subscriptionDispatchRate");
         path = path.queryParam("applied", applied);
-        final CompletableFuture<DispatchRate> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<DispatchRate>() {
-                    @Override
-                    public void completed(DispatchRate dispatchRate) {
-                        future.complete(dispatchRate);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<DispatchRate>(){});
     }
 
     @Override
@@ -2397,20 +2175,7 @@ public class TopicsImpl extends BaseResource implements Topics {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "compactionThreshold");
         path = path.queryParam("applied", applied);
-        final CompletableFuture<Long> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-            new InvocationCallback<Long>() {
-                @Override
-                public void completed(Long compactionThreshold) {
-                  future.complete(compactionThreshold);
-                }
-
-                @Override
-                public void failed(Throwable throwable) {
-                  future.completeExceptionally(getApiException(throwable.getCause()));
-                }
-            });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<Long>(){});
     }
 
     @Override
@@ -2446,20 +2211,7 @@ public class TopicsImpl extends BaseResource implements Topics {
     public CompletableFuture<PublishRate> getPublishRateAsync(String topic) {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "publishRate");
-        final CompletableFuture<PublishRate> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-            new InvocationCallback<PublishRate>() {
-                @Override
-                public void completed(PublishRate publishRate) {
-                    future.complete(publishRate);
-                }
-
-                @Override
-                public void failed(Throwable throwable) {
-                    future.completeExceptionally(getApiException(throwable.getCause()));
-                }
-            });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<PublishRate>(){});
     }
 
     @Override
@@ -2495,20 +2247,7 @@ public class TopicsImpl extends BaseResource implements Topics {
     public CompletableFuture<Integer> getMaxConsumersPerSubscriptionAsync(String topic) {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "maxConsumersPerSubscription");
-        final CompletableFuture<Integer> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Integer>() {
-                    @Override
-                    public void completed(Integer maxConsumersPerSubscription) {
-                        future.complete(maxConsumersPerSubscription);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<Integer>(){});
     }
 
     @Override
@@ -2556,20 +2295,7 @@ public class TopicsImpl extends BaseResource implements Topics {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "maxProducers");
         path = path.queryParam("applied", applied);
-        final CompletableFuture<Integer> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Integer>() {
-                    @Override
-                    public void completed(Integer maxProducers) {
-                        future.complete(maxProducers);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<Integer>(){});
     }
 
     @Override
@@ -2605,20 +2331,7 @@ public class TopicsImpl extends BaseResource implements Topics {
     public CompletableFuture<Integer> getMaxSubscriptionsPerTopicAsync(String topic) {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "maxSubscriptionsPerTopic");
-        final CompletableFuture<Integer> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Integer>() {
-                    @Override
-                    public void completed(Integer maxSubscriptionsPerTopic) {
-                        future.complete(maxSubscriptionsPerTopic);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<Integer>(){});
     }
 
     @Override
@@ -2654,20 +2367,7 @@ public class TopicsImpl extends BaseResource implements Topics {
     public CompletableFuture<Integer> getMaxMessageSizeAsync(String topic) {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "maxMessageSize");
-        final CompletableFuture<Integer> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Integer>() {
-                    @Override
-                    public void completed(Integer maxMessageSize) {
-                        future.complete(maxMessageSize);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<Integer>(){});
     }
 
     @Override
@@ -2714,20 +2414,7 @@ public class TopicsImpl extends BaseResource implements Topics {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "maxConsumers");
         path = path.queryParam("applied", applied);
-        final CompletableFuture<Integer> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Integer>() {
-                    @Override
-                    public void completed(Integer maxProducers) {
-                        future.complete(maxProducers);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<Integer>(){});
     }
 
     @Override
@@ -2764,20 +2451,7 @@ public class TopicsImpl extends BaseResource implements Topics {
     public CompletableFuture<Integer> getDeduplicationSnapshotIntervalAsync(String topic) {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "deduplicationSnapshotInterval");
-        final CompletableFuture<Integer> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Integer>() {
-                    @Override
-                    public void completed(Integer interval) {
-                        future.complete(interval);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<Integer>(){});
     }
 
     @Override
@@ -2828,20 +2502,7 @@ public class TopicsImpl extends BaseResource implements Topics {
     public CompletableFuture<Set<SubscriptionType>> getSubscriptionTypesEnabledAsync(String topic) {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "subscriptionTypesEnabled");
-        final CompletableFuture<Set<SubscriptionType>> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Set<SubscriptionType>>() {
-                    @Override
-                    public void completed(Set<SubscriptionType> subscriptionTypesEnabled) {
-                        future.complete(subscriptionTypesEnabled);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<Set<SubscriptionType>>(){});
     }
 
     @Override
@@ -2876,20 +2537,7 @@ public class TopicsImpl extends BaseResource implements Topics {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "replicatorDispatchRate");
         path = path.queryParam("applied", applied);
-        final CompletableFuture<DispatchRate> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<DispatchRate>() {
-                    @Override
-                    public void completed(DispatchRate dispatchRate) {
-                        future.complete(dispatchRate);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<DispatchRate>(){});
     }
 
     @Override
@@ -2936,20 +2584,7 @@ public class TopicsImpl extends BaseResource implements Topics {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "subscribeRate");
         path = path.queryParam("applied", applied);
-        final CompletableFuture<SubscribeRate> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<SubscribeRate>() {
-                    @Override
-                    public void completed(SubscribeRate subscribeRate) {
-                        future.complete(subscribeRate);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<SubscribeRate>(){});
     }
 
     @Override
@@ -2999,20 +2634,7 @@ public class TopicsImpl extends BaseResource implements Topics {
         TopicName topicName = validateTopic(topic);
         String encodedSubName = Codec.encode(subName);
         WebTarget path = topicPath(topicName, "subscription", encodedSubName, "replicatedSubscriptionStatus");
-        final CompletableFuture<Map<String, Boolean>> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Map<String, Boolean>>() {
-                    @Override
-                    public void completed(Map<String, Boolean> subscriptionStatus) {
-                        future.complete(subscriptionStatus);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<Map<String, Boolean>>(){});
     }
 
     @Override
@@ -3030,20 +2652,7 @@ public class TopicsImpl extends BaseResource implements Topics {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "schemaValidationEnforced");
         path = path.queryParam("applied", applied);
-        final CompletableFuture<Boolean> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Boolean>() {
-                    @Override
-                    public void completed(Boolean enforced) {
-                        future.complete(enforced);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<Boolean>(){});
     }
 
     @Override
@@ -3063,20 +2672,7 @@ public class TopicsImpl extends BaseResource implements Topics {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "replication");
         path = path.queryParam("applied", applied);
-        final CompletableFuture<Set<String>> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Set<String>>() {
-                    @Override
-                    public void completed(Set<String> clusterIds) {
-                        future.complete(clusterIds);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<Set<String>>(){});
     }
 
     @Override

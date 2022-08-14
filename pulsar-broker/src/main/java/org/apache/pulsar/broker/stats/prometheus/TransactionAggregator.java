@@ -297,15 +297,15 @@ public class TransactionAggregator {
                                                  long coordinatorId) {
         metric(stream, cluster, "pulsar_txn_active_count",
                 stats.actives, coordinatorId);
-        metric(stream, cluster, "pulsar_txn_committed_count",
+        metric(stream, cluster, "pulsar_txn_committed_total",
                 stats.committedCount, coordinatorId);
-        metric(stream, cluster, "pulsar_txn_aborted_count",
+        metric(stream, cluster, "pulsar_txn_aborted_total",
                 stats.abortedCount, coordinatorId);
-        metric(stream, cluster, "pulsar_txn_created_count",
+        metric(stream, cluster, "pulsar_txn_created_total",
                 stats.createdCount, coordinatorId);
-        metric(stream, cluster, "pulsar_txn_timeout_count",
+        metric(stream, cluster, "pulsar_txn_timeout_total",
                 stats.timeoutCount, coordinatorId);
-        metric(stream, cluster, "pulsar_txn_append_log_count",
+        metric(stream, cluster, "pulsar_txn_append_log_total",
                 stats.appendLogCount, coordinatorId);
         long[] latencyBuckets = stats.executionLatency;
         metric(stream, cluster, "pulsar_txn_execution_latency_le_10", latencyBuckets[0], coordinatorId);

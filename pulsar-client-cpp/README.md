@@ -162,6 +162,7 @@ brew install protobuf boost boost-python log4cxx jsoncpp
 cd $HOME
 git clone https://github.com/google/googletest.git
 cd googletest
+git checkout release-1.12.1
 cmake .
 make install
 # Refer gtest documentation in case you get stuck somewhere
@@ -280,7 +281,7 @@ ${PULSAR_PATH}/pulsar-test-service-stop.sh
 
 ## Requirements for Contributors
 
-It's recommended to install [LLVM](https://llvm.org/builds/) for `clang-tidy` and `clang-format`. Pulsar C++ client use `clang-format` 6.0+ to format files. 
+It's required to install [LLVM](https://llvm.org/builds/) for `clang-tidy` and `clang-format`. Pulsar C++ client use `clang-format` 6.0+ to format files.  `make format` automatically formats the files.
 
 Use `pulsar-client-cpp/docker-format.sh` to ensure the C++ sources are correctly formatted.
 

@@ -8,7 +8,7 @@ sidebar_label: "Transport Encryption using TLS"
 
 By default, Apache Pulsar clients communicate with the Apache Pulsar service in plain text. This means that all data is sent in the clear. You can use TLS to encrypt this traffic to protect the traffic from the snooping of a man-in-the-middle attacker.
 
-You can also configure TLS for both encryption and authentication. Use this guide to configure just TLS transport encryption and refer to [here](security-tls-authentication.md) for TLS authentication configuration. Alternatively, you can use [another authentication mechanism](security-athenz) on top of TLS transport encryption.
+You can also configure TLS for both encryption and authentication. Use this guide to configure just TLS transport encryption and refer to [here](security-tls-authentication.md) for TLS authentication configuration. Alternatively, you can use [another authentication mechanism](security-athenz.md) on top of TLS transport encryption.
 
 > Note that enabling TLS may impact the performance due to encryption overhead.
 
@@ -18,7 +18,7 @@ TLS is a form of [public key cryptography](https://en.wikipedia.org/wiki/Public-
 
 To use TLS transport encryption, you need two kinds of key pairs, **server key pairs** and a **certificate authority**.
 
-You can use a third kind of key pair, **client key pairs**, for [client authentication](security-tls-authentication).
+You can use a third kind of key pair, **client key pairs**, for [client authentication](security-tls-authentication.md).
 
 You should store the **certificate authority** private key in a very secure location (a fully encrypted, disconnected, air gapped computer). As for the certificate authority public key, the **trust cert**, you can freely shared it.
 
@@ -26,9 +26,11 @@ For both client and server key pairs, the administrator first generates a privat
 
 For TLS transport encryption, the clients can use the **trust cert** to verify that the server has a key pair that the certificate authority signed when the clients are talking to the server. A man-in-the-middle attacker does not have access to the certificate authority, so they couldn't create a server with such a key pair.
 
-For TLS authentication, the server uses the **trust cert** to verify that the client has a key pair that the certificate authority signed. The common name of the **client cert** is then used as the client's role token (see [Overview](security-overview)).
+For TLS authentication, the server uses the **trust cert** to verify that the client has a key pair that the certificate authority signed. The common name of the **client cert** is then used as the client's role token (see [Overview](security-overview.md)).
 
-`Bouncy Castle Provider` provides cipher suites and algorithms in Pulsar. If you need [FIPS](https://www.bouncycastle.org/fips_faq.html) version of `Bouncy Castle Provider`, please reference [Bouncy Castle page](security-bouncy-castle).
+Pulsar uses [netty-tcnative](https://github.com/netty/netty-tcnative) and [Conscrypt](https://github.com/google/conscrypt) as security providers. There are two certificate formats:
+* Java KeyStore(JKS): Pulsar uses Conscrypt by default for both broker service and Web service.
+* CAcerts: Pulsar uses netty-tcnative by default, which includes two implementations, OpenSSL (default) and JDK. When OpenSSL is unavailable, JDK is used.
 
 ## Create TLS certificates
 
@@ -46,7 +48,7 @@ Follow the guide below to set up a certificate authority. You can also refer to 
 
 mkdir my-ca
 cd my-ca
-wget https://raw.githubusercontent.com/apache/pulsar/master/site2/website/static/examples/openssl.cnf
+wget https://raw.githubusercontent.com/apache/pulsar-site/main/site2/website/static/examples/openssl.cnf
 export CA_HOME=$(pwd)
 
 ```
@@ -144,9 +146,49 @@ openssl ca -config openssl.cnf -extensions server_cert \
 
 At this point, you have a cert, `broker.cert.pem`, and a key, `broker.key-pk8.pem`, which you can use along with `ca.cert.pem` to configure TLS transport encryption for your broker and proxy nodes.
 
+### Client certificate
+
+1. Enter the command below to generate the key.
+
+```bash
+
+openssl genrsa -out client.key.pem 2048
+
+```
+
+The client expects the key to be in [PKCS 8](https://en.wikipedia.org/wiki/PKCS_8) format, so enter the following command to convert it.
+
+```bash
+
+openssl pkcs8 -topk8 -inform PEM -outform PEM \
+      -in client.key.pem -out client.key-pk8.pem -nocrypt
+
+```
+
+2. Enter the following command to generate the certificate request.
+
+```bash
+
+openssl req -config openssl.cnf \
+    -key client.key.pem -new -sha256 -out client.csr.pem
+
+```
+
+3. Sign it with the certificate authority by entering the command below.
+
+```bash
+
+openssl ca -config openssl.cnf -extensions client_cert \
+    -days 1000 -notext -md sha256 \
+    -in client.csr.pem -out client.cert.pem
+
+```
+
+At this point, you have a cert `client.cert.pem` and a key `client.key-pk8.pem`, which you can use along with `ca.cert.pem` to configure TLS encryption for your client.
+
 ## Configure broker
 
-To configure a Pulsar [broker](reference-terminology.md#broker) to use TLS transport encryption, you need to make some changes to `broker.conf`, which locates in the `conf` directory of your [Pulsar installation](getting-started-standalone).
+To configure a Pulsar [broker](reference-terminology.md#broker) to use TLS transport encryption, you need to make some changes to `broker.conf`, which locates in the `conf` directory of your [Pulsar installation](getting-started-standalone.md).
 
 Add these values to the configuration file (substituting the appropriate certificate paths where necessary):
 
@@ -159,6 +201,10 @@ tlsCertificateFilePath=/path/to/broker.cert.pem
 tlsKeyFilePath=/path/to/broker.key-pk8.pem
 tlsTrustCertsFilePath=/path/to/ca.cert.pem
 
+brokerClientTlsEnabled=true
+brokerClientTrustCertsFilePath=/path/to/ca.cert.pem
+brokerClientCertificateFilePath=/path/to/client.cert.pem
+brokerClientKeyFilePath=/path/to/client.key-pk8.pem
 ```
 
 > You can find a full list of parameters available in the `conf/broker.conf` file,
@@ -189,8 +235,11 @@ Proxies need to configure TLS in two directions, for clients connecting to the p
 
 ```properties
 
+servicePortTls=6651
+webServicePortTls=8081
+
 # For clients connecting to the proxy
-tlsEnabledInProxy=true
+tlsRequireTrustedClientCertOnConnect=true
 tlsCertificateFilePath=/path/to/broker.cert.pem
 tlsKeyFilePath=/path/to/broker.key-pk8.pem
 tlsTrustCertsFilePath=/path/to/ca.cert.pem
@@ -198,7 +247,8 @@ tlsTrustCertsFilePath=/path/to/ca.cert.pem
 # For the proxy to connect to brokers
 tlsEnabledWithBroker=true
 brokerClientTrustCertsFilePath=/path/to/ca.cert.pem
-
+brokerClientCertificateFilePath=/path/to/client.cert.pem
+brokerClientKeyFilePath=/path/to/client.key-pk8.pem
 ```
 
 ## Client configuration
@@ -219,7 +269,7 @@ The examples below show that hostname verification is disabled for the CLI tools
 
 ### CLI tools
 
-[Command-line tools](reference-cli-tools) like [`pulsar-admin`](reference-cli-tools.md#pulsar-admin), [`pulsar-perf`](reference-cli-tools.md#pulsar-perf), and [`pulsar-client`](reference-cli-tools.md#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
+[Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](reference-cli-tools.md#pulsar-admin), [`pulsar-perf`](reference-cli-tools.md#pulsar-perf), and [`pulsar-client`](reference-cli-tools.md#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
 
 You need to add the following parameters to that file to use TLS transport with the CLI tools of Pulsar:
 
@@ -227,9 +277,10 @@ You need to add the following parameters to that file to use TLS transport with 
 
 webServiceUrl=https://broker.example.com:8443/
 brokerServiceUrl=pulsar+ssl://broker.example.com:6651/
-useTls=true
 tlsAllowInsecureConnection=false
 tlsTrustCertsFilePath=/path/to/ca.cert.pem
+tlsKeyFilePath=/path/to/client.key-pk8.pem
+tlsCertFile=/path/to/client-cert.pem
 tlsEnableHostnameVerification=false
 
 ```
@@ -242,7 +293,8 @@ import org.apache.pulsar.client.api.PulsarClient;
 
 PulsarClient client = PulsarClient.builder()
     .serviceUrl("pulsar+ssl://broker.example.com:6651/")
-    .enableTls(true)
+    .tlsKeyFilePath("/path/to/client.key-pk8.pem")
+    .tlsCertificateFilePath("/path/to/client.cert.pem")
     .tlsTrustCertsFilePath("/path/to/ca.cert.pem")
     .enableTlsHostnameVerification(false) // false by default, in any case
     .allowTlsInsecureConnection(false) // false by default, in any case

@@ -19,10 +19,9 @@
 package org.apache.bookkeeper.mledger.impl.cache;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Objects.requireNonNull;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.createManagedLedgerException;
 import com.google.common.collect.Lists;
-import com.google.common.primitives.Longs;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
 import java.util.Collection;
@@ -98,6 +97,11 @@ public class RangeEntryCacheImpl implements EntryCache {
                     entry.getLength());
         }
 
+        PositionImpl position = entry.getPosition();
+        if (entries.exists(position)) {
+            return false;
+        }
+
         ByteBuf cachedData;
         if (copyEntries) {
             cachedData = copyEntry(entry);
@@ -109,7 +113,6 @@ public class RangeEntryCacheImpl implements EntryCache {
             cachedData = entry.getDataBuffer().retain();
         }
 
-        PositionImpl position = entry.getPosition();
         EntryImpl cacheEntry = EntryImpl.create(position, cachedData);
         cachedData.release();
         if (entries.put(position, cacheEntry)) {
@@ -239,10 +242,10 @@ public class RangeEntryCacheImpl implements EntryCache {
     }
 
     @Override
-    public void asyncReadEntry(ReadHandle lh, long firstEntry, long lastEntry, boolean isSlowestReader,
+    public void asyncReadEntry(ReadHandle lh, long firstEntry, long lastEntry, boolean shouldCacheEntry,
             final ReadEntriesCallback callback, Object ctx) {
         try {
-            asyncReadEntry0(lh, firstEntry, lastEntry, isSlowestReader, callback, ctx);
+            asyncReadEntry0(lh, firstEntry, lastEntry, shouldCacheEntry, callback, ctx);
         } catch (Throwable t) {
             log.warn("failed to read entries for {}--{}-{}", lh.getId(), firstEntry, lastEntry, t);
             // invalidate all entries related to ledger from the cache (it might happen if entry gets corrupt
@@ -254,7 +257,7 @@ public class RangeEntryCacheImpl implements EntryCache {
     }
 
     @SuppressWarnings({ "unchecked", "rawtypes" })
-    private void asyncReadEntry0(ReadHandle lh, long firstEntry, long lastEntry, boolean isSlowestReader,
+    private void asyncReadEntry0(ReadHandle lh, long firstEntry, long lastEntry, boolean shouldCacheEntry,
             final ReadEntriesCallback callback, Object ctx) {
         final long ledgerId = lh.getId();
         final int entriesToRead = (int) (lastEntry - firstEntry) + 1;
@@ -294,8 +297,8 @@ public class RangeEntryCacheImpl implements EntryCache {
             // Read all the entries from bookkeeper
             lh.readAsync(firstEntry, lastEntry).thenAcceptAsync(
                     ledgerEntries -> {
-                        checkNotNull(ml.getName());
-                        checkNotNull(ml.getExecutor());
+                        requireNonNull(ml.getName());
+                        requireNonNull(ml.getExecutor());
 
                         try {
                             // We got the entries, we need to transform them to a List<> type
@@ -303,9 +306,11 @@ public class RangeEntryCacheImpl implements EntryCache {
                             final List<EntryImpl> entriesToReturn = Lists.newArrayListWithExpectedSize(entriesToRead);
                             for (LedgerEntry e : ledgerEntries) {
                                 EntryImpl entry = RangeEntryCacheManagerImpl.create(e, interceptor);
-
                                 entriesToReturn.add(entry);
                                 totalSize += entry.getLength();
+                                if (shouldCacheEntry) {
+                                    insert(entry);
+                                }
                             }
 
                             manager.mlFactoryMBean.recordCacheMiss(entriesToReturn.size(), totalSize);
@@ -342,7 +347,7 @@ public class RangeEntryCacheImpl implements EntryCache {
 
     @Override
     public int compareTo(EntryCache other) {
-        return Longs.compare(getSize(), other.getSize());
+        return Long.compare(getSize(), other.getSize());
     }
 
     @Override

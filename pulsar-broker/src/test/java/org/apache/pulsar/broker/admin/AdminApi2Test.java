@@ -28,6 +28,7 @@ import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.expectThrows;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -61,6 +62,8 @@ import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.admin.ListNamespaceTopicsOptions;
+import org.apache.pulsar.client.admin.Mode;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
@@ -1333,6 +1336,13 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testDeleteTenant() throws Exception {
+        // Disabled conf: systemTopicEnabled. see: https://github.com/apache/pulsar/pull/17070
+        boolean originalSystemTopicEnabled = conf.isSystemTopicEnabled();
+        if (originalSystemTopicEnabled) {
+            internalCleanup();
+            conf.setSystemTopicEnabled(false);
+            setup();
+        }
         pulsar.getConfiguration().setForceDeleteNamespaceAllowed(false);
 
         String tenant = "test-tenant-1";
@@ -1381,6 +1391,12 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         assertFalse(pulsar.getLocalMetadataStore().exists(partitionedTopicPath).join());
         assertFalse(pulsar.getLocalMetadataStore().exists(localPoliciesPath).join());
         assertFalse(pulsar.getLocalMetadataStore().exists(bundleDataPath).join());
+        // Reset conf: systemTopicEnabled
+        if (originalSystemTopicEnabled) {
+            internalCleanup();
+            conf.setSystemTopicEnabled(true);
+            setup();
+        }
     }
 
     @Test
@@ -1565,7 +1581,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         TopicStats topicStats = admin.topics().getPartitionedStats(topic, false);
         assertEquals(topicStats.getSubscriptions().get(subName).getMsgBacklog(), 20);
 
-        topicStats = admin.topics().getPartitionedStats(topic, false, true, true);
+        topicStats = admin.topics().getPartitionedStats(topic, false, true, true, true);
         assertEquals(topicStats.getSubscriptions().get(subName).getMsgBacklog(), 1);
         assertEquals(topicStats.getSubscriptions().get(subName).getBacklogSize(), 40);
     }
@@ -1604,7 +1620,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
             }
         }
 
-        TopicStats topicStats = admin.topics().getPartitionedStats(topic, false, true, true);
+        TopicStats topicStats = admin.topics().getPartitionedStats(topic, false, true, true, true);
         assertEquals(topicStats.getSubscriptions().get(subName).getMsgBacklog(), 10);
         assertEquals(topicStats.getSubscriptions().get(subName).getBacklogSize(), 440);
         assertEquals(topicStats.getSubscriptions().get(subName).getMsgBacklogNoDelayed(), 5);
@@ -1614,7 +1630,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         }
         // Wait the ack send.
         Awaitility.await().untilAsserted(() -> {
-            TopicStats topicStats2 = admin.topics().getPartitionedStats(topic, false, true, true);
+            TopicStats topicStats2 = admin.topics().getPartitionedStats(topic, false, true, true, true);
             assertEquals(topicStats2.getSubscriptions().get(subName).getMsgBacklog(), 5);
             assertEquals(topicStats2.getSubscriptions().get(subName).getBacklogSize(), 223);
             assertEquals(topicStats2.getSubscriptions().get(subName).getMsgBacklogNoDelayed(), 0);
@@ -2508,5 +2524,41 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         Awaitility.await().untilAsserted(() ->
             assertEquals(admin.topics().getSchemaValidationEnforced(topic, false), true)
         );
+    }
+
+    @Test
+    public void testGetNamespaceTopicList() throws Exception {
+        final String persistentTopic = "persistent://prop-xyz/ns1/testGetNamespaceTopicList";
+        final String nonPersistentTopic = "non-persistent://prop-xyz/ns1/non-testGetNamespaceTopicList";
+        final String eventTopic = "persistent://prop-xyz/ns1/__change_events";
+        admin.topics().createNonPartitionedTopic(persistentTopic);
+        Awaitility.await().untilAsserted(() ->
+                admin.namespaces().getTopics("prop-xyz/ns1",
+                ListNamespaceTopicsOptions.builder().mode(Mode.PERSISTENT).includeSystemTopic(true).build())
+                        .contains(eventTopic));
+        List<String> notIncludeSystemTopics = admin.namespaces().getTopics("prop-xyz/ns1",
+                ListNamespaceTopicsOptions.builder().includeSystemTopic(false).build());
+        Assert.assertFalse(notIncludeSystemTopics.contains(eventTopic));
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(nonPersistentTopic)
+                .create();
+        List<String> notPersistentTopics = admin.namespaces().getTopics("prop-xyz/ns1",
+                ListNamespaceTopicsOptions.builder().mode(Mode.NON_PERSISTENT).build());
+        Assert.assertTrue(notPersistentTopics.contains(nonPersistentTopic));
+    }
+
+    @Test
+    private void testTerminateSystemTopic() throws Exception {
+        final String topic = "persistent://prop-xyz/ns1/testTerminateSystemTopic";
+        admin.topics().createNonPartitionedTopic(topic);
+        final String eventTopic = "persistent://prop-xyz/ns1/__change_events";
+        admin.topicPolicies().setMaxConsumers(topic, 2);
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertEquals(admin.topicPolicies().getMaxConsumers(topic), Integer.valueOf(2));
+        });
+        PulsarAdminException ex = expectThrows(PulsarAdminException.class,
+                () -> admin.topics().terminateTopic(eventTopic));
+        assertTrue(ex instanceof PulsarAdminException.NotAllowedException);
     }
 }

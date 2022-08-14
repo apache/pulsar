@@ -340,7 +340,7 @@ You can check the following statistics of a given non-partitioned topic.
 
                 -   **availablePermits**: The number of messages that the consumer has space for in the client library's listen queue. `0` means the client library's queue is full and `receive()` isn't being called. A non-zero value means this consumer is ready for dispatched messages.
 
-                -   **unackedMessages**: The number of unacknowledged messages for the consumer.
+                -   **unackedMessages**: The number of unacknowledged messages for the consumer, where an unacknowledged message is one that has been sent to the consumer but not yet acknowledged. This field is only meaningful when using a subscription that tracks individual message acknowledgement.
 
                 -   **blockedConsumerOnUnackedMsgs**: The flag used to verify if the consumer is blocked due to reaching threshold of the unacknowledged messages.
                 
@@ -476,7 +476,7 @@ You can get the detailed statistics of a topic.
 
       -   **ledgerId**: The ID of this ledger.
 
-      -   **entries**: The total number of entries belong to this ledger.
+      -   **entries**: The total number of entries that belong to this ledger.
 
       -   **size**: The size of messages written to this ledger (in bytes).
 
@@ -486,7 +486,7 @@ You can get the detailed statistics of a topic.
  
       -   **ledgerId**: The ID of this ledger.
      
-      -   **entries**: The total number of entries belong to this ledger.
+      -   **entries**: The total number of entries that belong to this ledger.
      
       -   **size**: The size of messages written to this ledger (in bytes).
      

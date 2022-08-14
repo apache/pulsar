@@ -490,7 +490,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertTrue(metrics.containsKey("pulsar_lb_bandwidth_in_usage"));
         assertTrue(metrics.containsKey("pulsar_lb_bandwidth_out_usage"));
 
-        assertTrue(metrics.containsKey("pulsar_lb_bundles_split_count"));
+        assertTrue(metrics.containsKey("pulsar_lb_bundles_split_total"));
     }
 
     @Test
@@ -847,6 +847,16 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                     if (!typeDefs.containsKey(summaryMetricName)) {
                         fail("Metric " + metricName + " does not have a corresponding summary type definition");
                     }
+                } else if (metricName.endsWith("_created")) {
+                    String summaryMetricName = metricName.substring(0, metricName.indexOf("_created"));
+                    if (!typeDefs.containsKey(summaryMetricName)) {
+                        fail("Metric " + metricName + " does not have a corresponding summary type definition");
+                    }
+                } else if (metricName.endsWith("_total")) {
+                    String summaryMetricName = metricName.substring(0, metricName.indexOf("_total"));
+                    if (!typeDefs.containsKey(summaryMetricName)) {
+                        fail("Metric " + metricName + " does not have a corresponding counter type definition");
+                    }
                 } else {
                     fail("Metric " + metricName + " does not have a type definition");
                 }
@@ -1008,6 +1018,24 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                         "pulsar_managedLedger_client", "bookkeeper_ml_scheduler_total_tasks"));
         assertEquals(cm.size(), 1);
         assertEquals(cm.get(0).tags.get("cluster"), "test");
+
+        cm = (List<Metric>) metrics.get(
+                keyNameBySubstrings(metrics,
+                        "pulsar_managedLedger_client", "bookkeeper_ml_scheduler_threads"));
+        assertEquals(cm.size(), 1);
+        assertEquals(cm.get(0).tags.get("cluster"), "test");
+
+        cm = (List<Metric>) metrics.get(
+                keyNameBySubstrings(metrics,
+                        "pulsar_managedLedger_client", "bookkeeper_ml_scheduler_task_execution_sum"));
+        assertEquals(cm.size(), 2);
+        assertEquals(cm.get(0).tags.get("cluster"), "test");
+
+        cm = (List<Metric>) metrics.get(
+                keyNameBySubstrings(metrics,
+                        "pulsar_managedLedger_client", "bookkeeper_ml_scheduler_max_queue_size"));
+        assertEquals(cm.size(), 1);
+        assertEquals(cm.get(0).tags.get("cluster"), "test");
     }
 
     private static String keyNameBySubstrings(Multimap<String, Metric> metrics, String... substrings) {
@@ -1069,7 +1097,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         PrometheusMetricsGenerator.generate(pulsar, false, false, false, statsOut);
         String metricsStr = statsOut.toString();
         Multimap<String, Metric> metrics = parseMetrics(metricsStr);
-        List<Metric> cm = (List<Metric>) metrics.get("pulsar_authentication_success_count");
+        List<Metric> cm = (List<Metric>) metrics.get("pulsar_authentication_success_total");
         boolean haveSucceed = false;
         for (Metric metric : cm) {
             if (Objects.equals(metric.tags.get("auth_method"), "token")
@@ -1079,7 +1107,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         }
         Assert.assertTrue(haveSucceed);
 
-        cm = (List<Metric>) metrics.get("pulsar_authentication_failures_count");
+        cm = (List<Metric>) metrics.get("pulsar_authentication_failures_total");
 
         boolean haveFailed = false;
         for (Metric metric : cm) {
@@ -1129,7 +1157,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         PrometheusMetricsGenerator.generate(pulsar, false, false, false, statsOut);
         String metricsStr = statsOut.toString();
         Multimap<String, Metric> metrics = parseMetrics(metricsStr);
-        List<Metric> cm = (List<Metric>) metrics.get("pulsar_expired_token_count");
+        List<Metric> cm = (List<Metric>) metrics.get("pulsar_expired_token_total");
         assertEquals(cm.size(), 1);
 
         provider.close();
@@ -1389,7 +1417,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                     .value(data)
                     .send();
         }
-        Compactor compactor = pulsar.getCompactor(true);
+        Compactor compactor = pulsar.getCompactor();
         compactor.compact(topicName).get();
         statsOut = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);

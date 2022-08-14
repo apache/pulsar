@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.transaction.buffer.impl;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
@@ -29,6 +30,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.LongAdder;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -58,6 +60,7 @@ import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.util.Codec;
+import org.apache.pulsar.common.util.RecoverTimeRecord;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.SpscArrayQueue;
 
@@ -87,6 +90,10 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     // when add abort or change max read position, the count will +1. Take snapshot will set 0 into it.
     private final AtomicLong changeMaxReadPositionAndAddAbortTimes = new AtomicLong();
 
+    private final LongAdder txnCommittedCounter = new LongAdder();
+
+    private final LongAdder txnAbortedCounter = new LongAdder();
+
     private final Timer timer;
 
     private final int takeSnapshotIntervalNumber;
@@ -101,6 +108,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
      * The map is used to store the lowWaterMarks which key is TC ID and value is lowWaterMark of the TC.
      */
     private final ConcurrentHashMap<Long, Long> lowWaterMarks = new ConcurrentHashMap<>();
+
+    public final RecoverTimeRecord recoverTime = new RecoverTimeRecord();
 
     private final Semaphore handleLowWaterMark = new Semaphore(1);
 
@@ -119,6 +128,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     }
 
     private void recover() {
+        recoverTime.setRecoverStartTime(System.currentTimeMillis());
         this.topic.getBrokerService().getPulsar().getTransactionExecutorProvider().getExecutor(this)
                 .execute(new TopicTransactionBufferRecover(new TopicTransactionBufferRecoverCallBack() {
                     @Override
@@ -131,11 +141,17 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                                 maxReadPosition = (PositionImpl) topic.getManagedLedger().getLastConfirmedEntry();
                             }
                             if (!changeToReadyState()) {
-                                log.error("[{}]Transaction buffer recover fail", topic.getName());
+                                log.error("[{}]Transaction buffer recover fail, current state: {}",
+                                        topic.getName(), getState());
+                                transactionBufferFuture.completeExceptionally
+                                        (new BrokerServiceException.ServiceUnitNotReadyException(
+                                                "Transaction buffer recover failed to change the status to Ready,"
+                                                        + "current state is: " + getState()));
                             } else {
                                 timer.newTimeout(TopicTransactionBuffer.this,
                                         takeSnapshotIntervalTime, TimeUnit.MILLISECONDS);
                                 transactionBufferFuture.complete(null);
+                                recoverTime.setRecoverEndTime(System.currentTimeMillis());
                             }
                         }
                     }
@@ -151,6 +167,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                                 log.error("[{}]Transaction buffer recover fail", topic.getName());
                             } else {
                                 transactionBufferFuture.complete(null);
+                                recoverTime.setRecoverEndTime(System.currentTimeMillis());
                             }
                         }
                     }
@@ -204,6 +221,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                         } else {
                             transactionBufferFuture.completeExceptionally(e);
                         }
+                        recoverTime.setRecoverEndTime(System.currentTimeMillis());
                         topic.close(true);
                     }
                 }, this.topic, this, takeSnapshotWriter));
@@ -245,6 +263,20 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         }
     }
 
+    @Override
+    public long getOngoingTxnCount() {
+        return this.ongoingTxns.size();
+    }
+
+    @Override
+    public long getAbortedTxnCount() {
+        return this.txnAbortedCounter.sum();
+    }
+
+    @Override
+    public long getCommittedTxnCount() {
+        return this.txnCommittedCounter.sum();
+    }
 
     @Override
     public CompletableFuture<Position> appendBufferToTxn(TxnID txnId, long sequenceId, ByteBuf buffer) {
@@ -309,12 +341,14 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                             clearAbortedTransactions();
                             takeSnapshotByChangeTimes();
                         }
+                        txnCommittedCounter.increment();
                         completableFuture.complete(null);
                     }
 
                     @Override
                     public void addFailed(ManagedLedgerException exception, Object ctx) {
                         log.error("Failed to commit for txn {}", txnID, exception);
+                        checkAppendMarkerException(exception);
                         completableFuture.completeExceptionally(new PersistenceException(exception));
                     }
                 }, null);
@@ -354,6 +388,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                             clearAbortedTransactions();
                             takeSnapshotByChangeTimes();
                         }
+                        txnAbortedCounter.increment();
                         completableFuture.complete(null);
                         handleLowWaterMark(txnID, lowWaterMark);
                     }
@@ -361,6 +396,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     @Override
                     public void addFailed(ManagedLedgerException exception, Object ctx) {
                         log.error("Failed to abort for txn {}", txnID, exception);
+                        checkAppendMarkerException(exception);
                         completableFuture.completeExceptionally(new PersistenceException(exception));
                     }
                 }, null);
@@ -373,6 +409,12 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
             return null;
         });
         return completableFuture;
+    }
+
+    private void checkAppendMarkerException(ManagedLedgerException exception) {
+        if (exception instanceof ManagedLedgerException.ManagedLedgerAlreadyClosedException) {
+            topic.getManagedLedger().readyToCreateNewLedger();
+        }
     }
 
     private void handleLowWaterMark(TxnID txnID, long lowWaterMark) {
@@ -541,11 +583,18 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     }
 
     @Override
-    public TransactionBufferStats getStats() {
+    public TransactionBufferStats getStats(boolean lowWaterMarks) {
         TransactionBufferStats transactionBufferStats = new TransactionBufferStats();
         transactionBufferStats.lastSnapshotTimestamps = this.lastSnapshotTimestamps;
         transactionBufferStats.state = this.getState().name();
         transactionBufferStats.maxReadPosition = this.maxReadPosition.toString();
+        if (lowWaterMarks) {
+            transactionBufferStats.lowWaterMarks = this.lowWaterMarks;
+        }
+        transactionBufferStats.ongoingTxnSize = ongoingTxns.size();
+
+        transactionBufferStats.recoverStartTime = recoverTime.getRecoverStartTime();
+        transactionBufferStats.recoverEndTime = recoverTime.getRecoverEndTime();
         return transactionBufferStats;
     }
 
@@ -558,7 +607,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
     // we store the maxReadPosition from snapshot then open the non-durable cursor by this topic's manageLedger.
     // the non-durable cursor will read to lastConfirmedEntry.
-    static class TopicTransactionBufferRecover implements Runnable {
+    @VisibleForTesting
+    public static class TopicTransactionBufferRecover implements Runnable {
 
         private final PersistentTopic topic;
 

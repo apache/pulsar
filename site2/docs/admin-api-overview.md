@@ -26,6 +26,8 @@ You can interact with the admin interface via:
    
   For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more information, see [Pulsar admin doc](/tools/pulsar-admin/).
 
+  [Pulsar Shell](administration-pulsar-shell.md) extends `pulsar-admin` with an improved user experience for more flexibility and easier navigation between multiple clusters.
+  
   :::
 
 - HTTP calls, which are made against the admin {@inject: rest:REST:/} API provided by Pulsar brokers. For some RESTful APIs, they might be redirected to the owner brokers for serving with [`307 Temporary Redirect`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/307), hence the HTTP callers should handle `307 Temporary Redirect`. If you use `curl` commands, you should specify `-L` to handle redirections.
@@ -142,8 +144,8 @@ Kubernetes requires a name that can be used as a DNS subdomain name as defined i
   
 :::tip
 
-- If you get an error in translating Pulsar object names into Kubernetes resource labels (for example, you may have a naming collision if your Pulsar object name is too long) or want to customize the translating rules, see [customize Kubernetes runtime](/functions-runtime.md#customize-kubernetes-runtime).
-- For how to configure Kubernetes runtime, see [here](/functions-runtime.md#configure-kubernetes-runtime).
+- If you get an error in translating Pulsar object names into Kubernetes resource labels (for example, you may have a naming collision if your Pulsar object name is too long) or want to customize the translating rules, see [customize Kubernetes runtime](functions-runtime-kubernetes.md#customize-kubernetes-runtime).
+- For how to configure Kubernetes runtime, see [instructions](functions-runtime-kubernetes.md).
 
 :::
 

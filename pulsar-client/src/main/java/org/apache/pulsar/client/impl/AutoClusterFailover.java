@@ -22,6 +22,7 @@ import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowabl
 import com.google.common.base.Strings;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.List;
 import java.util.Map;
@@ -126,8 +127,9 @@ public class AutoClusterFailover implements ServiceUrlProvider {
     boolean probeAvailable(String url) {
         try {
             resolver.updateServiceUrl(url);
+            InetSocketAddress endpoint = resolver.resolveHost();
             Socket socket = new Socket();
-            socket.connect(resolver.resolveHost(), TIMEOUT);
+            socket.connect(new InetSocketAddress(endpoint.getHostName(), endpoint.getPort()), TIMEOUT);
             socket.close();
             return true;
         } catch (Exception e) {

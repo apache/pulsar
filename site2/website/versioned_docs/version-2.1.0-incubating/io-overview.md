@@ -25,7 +25,7 @@ This diagram illustrates the relationship between sources, sinks, and Pulsar:
 
 Pulsar IO connectors can be managed via the [`pulsar-admin`](reference-pulsar-admin) CLI tool, in particular the [`source`](reference-pulsar-admin.md#source) and [`sink`](reference-pulsar-admin.md#sink) commands.
 
-> For a guide to managing connectors in your Pulsar installation, see the [Getting started with Pulsar IO](io-quickstart)
+> For a guide to managing connectors in your Pulsar installation, see the [Getting started with Pulsar IO](io-quickstart.md)
 
 The following connectors are currently available for Pulsar:
 

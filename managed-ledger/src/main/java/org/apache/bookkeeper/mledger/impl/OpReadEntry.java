@@ -19,9 +19,9 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
-import com.google.common.collect.Lists;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
+import java.util.ArrayList;
 import java.util.List;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
@@ -52,7 +52,7 @@ class OpReadEntry implements ReadEntriesCallback {
         op.cursor = cursor;
         op.count = count;
         op.callback = callback;
-        op.entries = Lists.newArrayList();
+        op.entries = new ArrayList<>();
         if (maxPosition == null) {
             maxPosition = PositionImpl.LATEST;
         }

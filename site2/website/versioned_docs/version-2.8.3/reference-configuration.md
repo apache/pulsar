@@ -41,7 +41,7 @@ BookKeeper is a replicated log storage system that Pulsar uses for durable stora
 |zkLedgersRootPath|The root ZooKeeper path used to store ledger metadata. This parameter is used by the ZooKeeper-based ledger manager as a root znode to store all ledgers.|/ledgers|
 |ledgerStorageClass|Ledger storage implementation class|org.apache.bookkeeper.bookie.storage.ldb.DbLedgerStorage|
 |entryLogFilePreallocationEnabled|Enable or disable entry logger preallocation|true|
-|logSizeLimit|Max file size of the entry logger, in bytes. A new entry log file will be created when the old one reaches the file size limitation.|2147483648|
+|logSizeLimit|Max file size of the entry logger, in bytes. A new entry log file will be created when the old one reaches the file size limitation.|1073741824|
 |minorCompactionThreshold|Threshold of minor compaction. Entry log files whose remaining size percentage reaches below this threshold will be compacted in a minor compaction. If set to less than zero, the minor compaction is disabled.|0.2|
 |minorCompactionInterval|Time interval to run minor compaction, in seconds. If set to less than zero, the minor compaction is disabled. Note: should be greater than gcWaitTime. |3600|
 |majorCompactionThreshold|The threshold of major compaction. Entry log files whose remaining size percentage reaches below this threshold will be compacted in a major compaction. Those entry log files whose remaining size percentage is still higher than the threshold will never be compacted. If set to less than zero, the minor compaction is disabled.|0.5|
@@ -355,7 +355,8 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 |haProxyProtocolEnabled | Enable or disable the [HAProxy](http://www.haproxy.org/) protocol. |false|
 | maxTopicsPerNamespace | The maximum number of persistent topics that can be created in the namespace. When the number of topics reaches this threshold, the broker rejects the request of creating a new topic, including the auto-created topics by the producer or consumer, until the number of connected consumers decreases. The default value 0 disables the check. | 0 |
 |subscriptionTypesEnabled| Enable all subscription types, which are exclusive, shared, failover, and key_shared. | Exclusive, Shared, Failover, Key_Shared |
-/ managedLedgerInfoCompressionType / ManagedLedgerInfo compression type, option values (NONE, LZ4, ZLIB, ZSTD, SNAPPY), if value is NONE or invalid, the managedLedgerInfo will not be compressed. Notice, after enable this configuration, if you want to degrade broker, you should change the configuration to `NONE` and make sure all ledger metadata are saved without compression. | None |
+| managedLedgerInfoCompressionType | ManagedLedgerInfo compression type, option values (NONE, LZ4, ZLIB, ZSTD, SNAPPY), if value is NONE or invalid, the managedLedgerInfo will not be compressed. Notice, after enable this configuration, if you want to degrade broker, you should change the configuration to `NONE` and make sure all ledger metadata are saved without compression. | None |
+|narExtractionDirectory | The extraction directory of the nar package. <br />Available for Protocol Handler, Additional Servlets, Offloaders, Broker Interceptor. | System.getProperty("java.io.tmpdir") |
 
 ## Client
 
@@ -375,7 +376,7 @@ You can use the [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool
 | tlsTrustStoreType | TLS TrustStore type configuration. <li>JKS </li><li>PKCS12 </li>|JKS|
 | tlsTrustStore | TLS TrustStore path. | |
 | tlsTrustStorePassword | TLS TrustStore password. | |
-
+| webserviceTlsProvider | The TLS provider for the web service. <br />When TLS authentication with CACert is used, the valid value is either `OPENSSL` or `JDK`.<br />When TLS authentication with KeyStore is used, available options can be `SunJSSE`, `Conscrypt` and so on. | N/A |
 
 ## Service discovery
 

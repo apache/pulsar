@@ -36,6 +36,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
+import org.apache.pulsar.metadata.api.MetadataEventSynchronizer;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
@@ -62,6 +63,7 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
 
     private final NavigableMap<String, Value> map;
     private final AtomicLong sequentialIdGenerator;
+    private MetadataEventSynchronizer synchronizer;
 
     private static final Map<String, NavigableMap<String, Value>> STATIC_MAPS = new MapMaker()
             .weakValues().makeMap();
@@ -75,6 +77,9 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
             throws MetadataStoreException {
         String name = metadataURL.substring(MEMORY_SCHEME_IDENTIFIER.length());
         // Local means a private data set
+        // update synchronizer and register sync listener
+        synchronizer = metadataStoreConfig.getSynchronizer();
+        registerSyncLister(Optional.ofNullable(synchronizer));
         if ("local".equals(name)) {
             map = new TreeMap<>();
             sequentialIdGenerator = new AtomicLong();
@@ -217,5 +222,10 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
                 return FutureUtils.value(null);
             }
         }
+    }
+
+    @Override
+    public Optional<MetadataEventSynchronizer> getMetadataEventSynchronizer() {
+        return Optional.ofNullable(synchronizer);
     }
 }

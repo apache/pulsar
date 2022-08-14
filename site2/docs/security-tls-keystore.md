@@ -6,7 +6,7 @@ sidebar_label: "Using TLS with KeyStore configure"
 
 ## Overview
 
-Apache Pulsar supports [TLS encryption](security-tls-transport.md) and [TLS authentication](security-tls-authentication) between clients and Apache Pulsar service. 
+Apache Pulsar supports [TLS encryption](security-tls-transport.md) and [TLS authentication](security-tls-authentication.md) between clients and Apache Pulsar service. 
 By default it uses PEM format file configuration. This page tries to describe use [KeyStore](https://en.wikipedia.org/wiki/Java_KeyStore) type configure for TLS.
 
 
@@ -85,6 +85,7 @@ The next step is to sign all certificates in the keystore with the CA we generat
 ```shell
 
 keytool -keystore broker.keystore.jks -alias localhost -certreq -file cert-file
+keytool -keystore client.keystore.jks -alias localhost -certreq -file cert-file
 
 ```
 
@@ -103,6 +104,8 @@ Finally, you need to import both the certificate of the CA and the signed certif
 keytool -keystore broker.keystore.jks -alias CARoot -import -file ca-cert
 keytool -keystore broker.keystore.jks -alias localhost -import -file cert-signed
 
+keytool -keystore client.keystore.jks -alias CARoot -import -file ca-cert
+keytool -keystore client.keystore.jks -alias localhost -import -file cert-signed
 ```
 
 The definitions of the parameters are the following:
@@ -124,7 +127,10 @@ If `tlsRequireTrustedClientCertOnConnect` is `true`, broker will reject the Conn
 The following TLS configs are needed on the broker side:
 
 ```properties
+brokerServicePortTls=6651
+webServicePortTls=8081
 
+tlsRequireTrustedClientCertOnConnect=true
 tlsEnabledWithKeyStore=true
 # key store
 tlsKeyStoreType=JKS
@@ -142,6 +148,9 @@ brokerClientTlsEnabledWithKeyStore=true
 brokerClientTlsTrustStoreType=JKS
 brokerClientTlsTrustStore=/var/private/tls/client.truststore.jks
 brokerClientTlsTrustStorePassword=clientpw
+brokerClientTlsKeyStoreType=JKS
+brokerClientTlsKeyStore=/var/private/tls/client.keystore.jks
+brokerClientTlsKeyStorePassword=clientpw
 
 ```
 
@@ -183,7 +192,7 @@ This is similar to [TLS encryption configuing for client with PEM type](security
 For a minimal configuration, you need to provide the TrustStore information.
 
 For example:
-1. for [Command-line tools](reference-cli-tools) like [`pulsar-admin`](reference-cli-tools#pulsar-admin), [`pulsar-perf`](reference-cli-tools#pulsar-perf), and [`pulsar-client`](reference-cli-tools#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
+1. for [Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](reference-cli-tools#pulsar-admin), [`pulsar-perf`](reference-cli-tools#pulsar-perf), and [`pulsar-client`](reference-cli-tools#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
 
    ```properties
    
@@ -193,7 +202,10 @@ For example:
    tlsTrustStoreType=JKS
    tlsTrustStorePath=/var/private/tls/client.truststore.jks
    tlsTrustStorePassword=clientpw
-   
+   tlsKeyStoreType=JKS
+   tlsKeyStorePath=/var/private/tls/client.keystore.jks
+   keyStorePassword=clientpw
+
    ```
 
 1. for java client
@@ -204,11 +216,15 @@ For example:
    
    PulsarClient client = PulsarClient.builder()
        .serviceUrl("pulsar+ssl://broker.example.com:6651/")
-       .enableTls(true)
        .useKeyStoreTls(true)
+       .tlsTrustStoreType("JKS")
        .tlsTrustStorePath("/var/private/tls/client.truststore.jks")
        .tlsTrustStorePassword("clientpw")
-       .allowTlsInsecureConnection(false)
+       .tlsKeyStoreType("JKS")
+       .tlsKeyStorePath("/var/private/tls/client.keystore.jks")
+       .tlsKeyStorePassword("clientpw")
+       .enableTlsHostnameVerification(false) // false by default, in any case
+       .allowTlsInsecureConnection(false) // false by default, in any case
        .build();
    
    ```
@@ -218,10 +234,14 @@ For example:
    ```java
    
        PulsarAdmin amdin = PulsarAdmin.builder().serviceHttpUrl("https://broker.example.com:8443")
-           .useKeyStoreTls(true)
+           .tlsTrustStoreType("JKS")
            .tlsTrustStorePath("/var/private/tls/client.truststore.jks")
            .tlsTrustStorePassword("clientpw")
-           .allowTlsInsecureConnection(false)
+           .tlsKeyStoreType("JKS")
+           .tlsKeyStorePath("/var/private/tls/client.keystore.jks")
+           .tlsKeyStorePassword("clientpw")
+           .enableTlsHostnameVerification(false) // false by default, in any case
+           .allowTlsInsecureConnection(false) // false by default, in any case
            .build();
    
    ```
@@ -230,7 +250,7 @@ For example:
 
 ## TLS authentication with KeyStore configure
 
-This similar to [TLS authentication with PEM type](security-tls-authentication)
+This similar to [TLS authentication with PEM type](security-tls-authentication.md)
 
 ### broker authentication config
 
@@ -242,12 +262,9 @@ This similar to [TLS authentication with PEM type](security-tls-authentication)
 authenticationEnabled=true
 authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderTls
 
-# this should be the CN for one of client keystore.
-superUserRoles=admin
-
 # Enable KeyStore type
 tlsEnabledWithKeyStore=true
-requireTrustedClientCertOnConnect=true
+tlsRequireTrustedClientCertOnConnect=true
 
 # key store
 tlsKeyStoreType=JKS
@@ -268,8 +285,6 @@ brokerClientTlsTrustStorePassword=clientpw
 # internal auth config
 brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.AuthenticationKeyStoreTls
 brokerClientAuthenticationParameters={"keyStoreType":"JKS","keyStorePath":"/var/private/tls/client.keystore.jks","keyStorePassword":"clientpw"}
-# currently websocket not support keystore type
-webSocketServiceEnabled=false
 
 ```
 
@@ -278,7 +293,7 @@ webSocketServiceEnabled=false
 Besides the TLS encryption configuring. The main work is configuring the KeyStore, which contains a valid CN as client role, for client.
 
 For example:
-1. for [Command-line tools](reference-cli-tools) like [`pulsar-admin`](reference-cli-tools#pulsar-admin), [`pulsar-perf`](reference-cli-tools#pulsar-perf), and [`pulsar-client`](reference-cli-tools#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
+1. for [Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](reference-cli-tools#pulsar-admin), [`pulsar-perf`](reference-cli-tools#pulsar-perf), and [`pulsar-client`](reference-cli-tools#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
 
    ```properties
    
@@ -289,7 +304,7 @@ For example:
    tlsTrustStorePath=/var/private/tls/client.truststore.jks
    tlsTrustStorePassword=clientpw
    authPlugin=org.apache.pulsar.client.impl.auth.AuthenticationKeyStoreTls
-   authParams={"keyStoreType":"JKS","keyStorePath":"/path/to/keystorefile","keyStorePassword":"keystorepw"}
+   authParams={"keyStoreType":"JKS","keyStorePath":"/var/private/tls/client.keystore.jks","keyStorePassword":"clientpw"}
    
    ```
 
@@ -301,11 +316,11 @@ For example:
    
    PulsarClient client = PulsarClient.builder()
        .serviceUrl("pulsar+ssl://broker.example.com:6651/")
-       .enableTls(true)
        .useKeyStoreTls(true)
        .tlsTrustStorePath("/var/private/tls/client.truststore.jks")
        .tlsTrustStorePassword("clientpw")
        .allowTlsInsecureConnection(false)
+       .enableTlsHostnameVerification(false)
        .authentication(
                "org.apache.pulsar.client.impl.auth.AuthenticationKeyStoreTls",
                "keyStoreType:JKS,keyStorePath:/var/private/tls/client.keystore.jks,keyStorePassword:clientpw")
@@ -322,6 +337,7 @@ For example:
            .tlsTrustStorePath("/var/private/tls/client.truststore.jks")
            .tlsTrustStorePassword("clientpw")
            .allowTlsInsecureConnection(false)
+           .enableTlsHostnameVerification(false)
            .authentication(
                   "org.apache.pulsar.client.impl.auth.AuthenticationKeyStoreTls",
                   "keyStoreType:JKS,keyStorePath:/var/private/tls/client.keystore.jks,keyStorePassword:clientpw")

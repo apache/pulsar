@@ -43,27 +43,24 @@ public class BrokersImpl extends BaseResource implements Brokers {
     }
 
     @Override
+    public List<String> getActiveBrokers() throws PulsarAdminException {
+        return sync(() -> getActiveBrokersAsync(null));
+    }
+
+    @Override
+    public CompletableFuture<List<String>> getActiveBrokersAsync() {
+        return getActiveBrokersAsync(null);
+    }
+
+    @Override
     public List<String> getActiveBrokers(String cluster) throws PulsarAdminException {
         return sync(() -> getActiveBrokersAsync(cluster));
     }
 
     @Override
     public CompletableFuture<List<String>> getActiveBrokersAsync(String cluster) {
-        WebTarget path = adminBrokers.path(cluster);
-        final CompletableFuture<List<String>> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<List<String>>() {
-                    @Override
-                    public void completed(List<String> brokers) {
-                        future.complete(brokers);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        WebTarget path = cluster == null ? adminBrokers : adminBrokers.path(cluster);
+        return asyncGetRequest(path, new FutureCallback<List<String>>(){});
     }
 
     @Override
@@ -74,20 +71,7 @@ public class BrokersImpl extends BaseResource implements Brokers {
     @Override
     public CompletableFuture<BrokerInfo> getLeaderBrokerAsync() {
         WebTarget path = adminBrokers.path("leaderBroker");
-        final CompletableFuture<BrokerInfo> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<BrokerInfo>() {
-                    @Override
-                    public void completed(BrokerInfo leaderBroker) {
-                        future.complete(leaderBroker);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<BrokerInfo>(){});
     }
 
     @Override
@@ -100,20 +84,7 @@ public class BrokersImpl extends BaseResource implements Brokers {
     public CompletableFuture<Map<String, NamespaceOwnershipStatus>> getOwnedNamespacesAsync(
             String cluster, String brokerUrl) {
         WebTarget path = adminBrokers.path(cluster).path(brokerUrl).path("ownedNamespaces");
-        final CompletableFuture<Map<String, NamespaceOwnershipStatus>> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Map<String, NamespaceOwnershipStatus>>() {
-                    @Override
-                    public void completed(Map<String, NamespaceOwnershipStatus> ownedNamespaces) {
-                        future.complete(ownedNamespaces);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<Map<String, NamespaceOwnershipStatus>>(){});
     }
 
     @Override
@@ -147,20 +118,7 @@ public class BrokersImpl extends BaseResource implements Brokers {
     @Override
     public CompletableFuture<Map<String, String>> getAllDynamicConfigurationsAsync() {
         WebTarget path = adminBrokers.path("configuration").path("values");
-        final CompletableFuture<Map<String, String>> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Map<String, String>>() {
-                    @Override
-                    public void completed(Map<String, String> allConfs) {
-                        future.complete(allConfs);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<Map<String, String>>(){});
     }
 
     @Override
@@ -171,20 +129,7 @@ public class BrokersImpl extends BaseResource implements Brokers {
     @Override
     public CompletableFuture<List<String>> getDynamicConfigurationNamesAsync() {
         WebTarget path = adminBrokers.path("configuration");
-        final CompletableFuture<List<String>> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<List<String>>() {
-                    @Override
-                    public void completed(List<String> confNames) {
-                        future.complete(confNames);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<List<String>>(){});
     }
 
     @Override
@@ -195,20 +140,7 @@ public class BrokersImpl extends BaseResource implements Brokers {
     @Override
     public CompletableFuture<Map<String, String>> getRuntimeConfigurationsAsync() {
         WebTarget path = adminBrokers.path("configuration").path("runtime");
-        final CompletableFuture<Map<String, String>> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Map<String, String>>() {
-                    @Override
-                    public void completed(Map<String, String> runtimeConfs) {
-                        future.complete(runtimeConfs);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<Map<String, String>>(){});
     }
 
     @Override
@@ -219,20 +151,7 @@ public class BrokersImpl extends BaseResource implements Brokers {
     @Override
     public CompletableFuture<InternalConfigurationData> getInternalConfigurationDataAsync() {
         WebTarget path = adminBrokers.path("internal-configuration");
-        final CompletableFuture<InternalConfigurationData> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<InternalConfigurationData>() {
-                    @Override
-                    public void completed(InternalConfigurationData internalConfigurationData) {
-                        future.complete(internalConfigurationData);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<InternalConfigurationData>(){});
     }
 
     @Override
@@ -319,18 +238,6 @@ public class BrokersImpl extends BaseResource implements Brokers {
     public CompletableFuture<String> getVersionAsync() {
         WebTarget path = adminBrokers.path("version");
 
-        final CompletableFuture<String> future = new CompletableFuture<>();
-        asyncGetRequest(path, new InvocationCallback<String>() {
-            @Override
-            public void completed(String version) {
-                future.complete(version);
-            }
-
-            @Override
-            public void failed(Throwable throwable) {
-                future.completeExceptionally(getApiException(throwable.getCause()));
-            }
-        });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<String>(){});
     }
 }
