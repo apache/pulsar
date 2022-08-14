@@ -101,6 +101,10 @@ public class TopicStatsImpl implements TopicStats {
     /** record last failed offloaded timestamp. If no failed offload, the value should be 0 */
     public long lastOffloadFailureTimeStamp;
 
+    public long ongoingTxnCount;
+    public long abortedTxnCount;
+    public long committedTxnCount;
+
     /** List of connected publishers on this topic w/ their stats. */
     @Getter(AccessLevel.NONE)
     @Setter(AccessLevel.NONE)
@@ -231,6 +235,9 @@ public class TopicStatsImpl implements TopicStats {
         this.nonContiguousDeletedMessagesRanges += stats.nonContiguousDeletedMessagesRanges;
         this.nonContiguousDeletedMessagesRangesSerializedSize += stats.nonContiguousDeletedMessagesRangesSerializedSize;
         this.delayedMessageIndexSizeInBytes += stats.delayedMessageIndexSizeInBytes;
+        this.ongoingTxnCount = stats.ongoingTxnCount;
+        this.abortedTxnCount = stats.abortedTxnCount;
+        this.committedTxnCount = stats.committedTxnCount;
 
         stats.getPublishers().forEach(s -> {
            if (s.isSupportsPartialProducer() && s.getProducerName() != null) {

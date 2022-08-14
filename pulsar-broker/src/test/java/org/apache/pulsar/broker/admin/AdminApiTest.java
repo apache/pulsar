@@ -2919,6 +2919,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         @Override
         protected void setup() throws Exception {
             super.conf.setLoadManagerClassName(conf.getLoadManagerClassName());
+            super.conf.setSystemTopicEnabled(conf.isSystemTopicEnabled());
             super.internalSetup();
         }
 
