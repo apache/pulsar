@@ -20,6 +20,7 @@ package org.apache.pulsar.schema;
 
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 import static org.apache.pulsar.schema.compatibility.SchemaCompatibilityCheckTest.randomName;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
@@ -37,6 +38,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -816,7 +818,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
             } catch (Exception e) {
                 return null;
             }
-        }).collect(Collectors.toList());
+        }).filter(Objects::nonNull).toList();
         assertEquals(schemas1.size(), 2);
         for (SchemaRegistry.SchemaAndMetadata schema : schemas1) {
             assertNotNull(schema);
@@ -831,7 +833,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
             } catch (Exception e) {
                 return null;
             }
-        }).collect(Collectors.toList());
+        }).filter(Objects::nonNull).toList();
         assertEquals(schemas2.size(), 1);
         for (SchemaRegistry.SchemaAndMetadata schema : schemas2) {
             assertNotNull(schema);
@@ -842,7 +844,9 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
             admin.topics().delete(topic1, false);
             fail();
         } catch (Exception e) {
-            assertTrue(e.getMessage().startsWith("Topic has active producers/subscriptions"));
+            assertThat(e.getMessage())
+                    .isNotNull()
+                    .startsWith("Topic has active producers/subscriptions");
         }
         assertEquals(this.getPulsar().getSchemaRegistryService()
                 .trimDeletedSchemaAndGetList(TopicName.get(topic1).getSchemaName()).get().size(), 2);
@@ -850,7 +854,9 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
             admin.topics().deletePartitionedTopic(topic2, false);
             fail();
         } catch (Exception e) {
-            assertTrue(e.getMessage().startsWith("Topic has active producers/subscriptions"));
+            assertThat(e.getMessage())
+                    .isNotNull()
+                    .startsWith("Topic has active producers/subscriptions");
         }
         assertEquals(this.getPulsar().getSchemaRegistryService()
                 .trimDeletedSchemaAndGetList(TopicName.get(topic2).getSchemaName()).get().size(), 1);
