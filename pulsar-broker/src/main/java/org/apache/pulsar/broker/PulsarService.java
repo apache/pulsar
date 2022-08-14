@@ -347,8 +347,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         this.brokerClientSharedTimer =
                 new HashedWheelTimer(new DefaultThreadFactory("broker-client-shared-timer"), 1, TimeUnit.MILLISECONDS);
 
-        int interval = config.getManagedLedgerStatsPeriodSeconds();
-        boolean exposeTopicMetrics = config.isExposeTopicLevelMetricsInPrometheus();
         // here in the constructor we don't have the offloader scheduler yet
         this.offloaderStats = LedgerOffloaderStats.create(false, false, null, 0);
     }
@@ -1419,13 +1417,16 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     }
 
     public synchronized Compactor getCompactor() throws PulsarServerException {
-        return getCompactor(true);
-    }
-
-    public synchronized Compactor getCompactor(boolean shouldInitialize) throws PulsarServerException {
-        if (this.compactor == null && shouldInitialize) {
+        if (this.compactor == null) {
             this.compactor = newCompactor();
         }
+        return this.compactor;
+    }
+
+    // This method is used for metrics, which is allowed to as null
+    // Because it's no operation on the compactor, so let's remove the  synchronized on this method
+    // to avoid unnecessary lock competition.
+    public Compactor getNullableCompactor() {
         return this.compactor;
     }
 
@@ -1484,11 +1485,16 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         conf.setTlsTrustStoreType(this.getConfiguration().getBrokerClientTlsTrustStoreType());
                         conf.setTlsTrustStorePath(this.getConfiguration().getBrokerClientTlsTrustStore());
                         conf.setTlsTrustStorePassword(this.getConfiguration().getBrokerClientTlsTrustStorePassword());
+                        conf.setTlsKeyStoreType(this.getConfiguration().getBrokerClientTlsKeyStoreType());
+                        conf.setTlsKeyStorePath(this.getConfiguration().getBrokerClientTlsKeyStore());
+                        conf.setTlsKeyStorePassword(this.getConfiguration().getBrokerClientTlsKeyStorePassword());
                     } else {
                         conf.setTlsTrustCertsFilePath(
                                 isNotBlank(this.getConfiguration().getBrokerClientTrustCertsFilePath())
                                         ? this.getConfiguration().getBrokerClientTrustCertsFilePath()
                                         : this.getConfiguration().getTlsCertificateFilePath());
+                        conf.setTlsKeyFilePath(this.getConfiguration().getBrokerClientKeyFilePath());
+                        conf.setTlsCertificateFilePath(this.getConfiguration().getBrokerClientCertificateFilePath());
                     }
                 }
 
@@ -1534,12 +1540,16 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                     builder.tlsCiphers(config.getBrokerClientTlsCiphers())
                             .tlsProtocols(config.getBrokerClientTlsProtocols());
                     if (conf.isBrokerClientTlsEnabledWithKeyStore()) {
-                        builder.useKeyStoreTls(true)
-                                .tlsTrustStoreType(conf.getBrokerClientTlsTrustStoreType())
+                        builder.useKeyStoreTls(true).tlsTrustStoreType(conf.getBrokerClientTlsTrustStoreType())
                                 .tlsTrustStorePath(conf.getBrokerClientTlsTrustStore())
-                                .tlsTrustStorePassword(conf.getBrokerClientTlsTrustStorePassword());
+                                .tlsTrustStorePassword(conf.getBrokerClientTlsTrustStorePassword())
+                                .tlsKeyStoreType(conf.getBrokerClientTlsKeyStoreType())
+                                .tlsKeyStorePath(conf.getBrokerClientTlsKeyStore())
+                                .tlsKeyStorePassword(conf.getBrokerClientTlsKeyStorePassword());
                     } else {
-                        builder.tlsTrustCertsFilePath(conf.getBrokerClientTrustCertsFilePath());
+                        builder.tlsTrustCertsFilePath(conf.getBrokerClientTrustCertsFilePath())
+                                .tlsKeyFilePath(conf.getBrokerClientKeyFilePath())
+                                .tlsCertificateFilePath(conf.getBrokerClientCertificateFilePath());
                     }
                     builder.allowTlsInsecureConnection(conf.isTlsAllowInsecureConnection());
                 }

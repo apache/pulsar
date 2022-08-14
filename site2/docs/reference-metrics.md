@@ -444,6 +444,10 @@ All the subscription metrics are labelled with the following labels:
 | pulsar_subscription_total_msg_expired | Gauge | The total number of messages expired on this subscription. |
 | pulsar_subscription_msg_drop_rate | Gauge | The rate of messages dropped on this subscription (message per second). |
 | pulsar_subscription_consumers_count | Gauge | The number of connected consumers on this subscription. |
+| pulsar_subscription_through_filter_msg_count | Counter | The number of messages passes through `EntryFilter`. |
+| pulsar_subscription_filter_accepted_msg_count | Counter | The number of messages accepted by `EntryFilter`. |
+| pulsar_subscription_filter_rejected_msg_count | Counter | The number of messages rejected by `EntryFilter`. |
+| pulsar_subscription_filter_rescheduled_msg_count | Counter | The number of messages rescheduled by `EntryFilter`. |
 
 ### Consumer metrics
 
@@ -574,6 +578,22 @@ All the offload metrics are labelled with the following labels:
 | brk_ledgeroffloader_read_offload_data_latency  | Summary | The latency of reading data from offload ledgers.                               |
 | brk_ledgeroffloader_read_ledger_latency        | Summary | The latency of reading entries from BookKeeper.                                 |
 | brk_ledgeroffloader_delete_offload_ops         | Counter | The total number of successful and failed operations to delete offload ledgers. |
+
+### Metadata store metrics
+
+All the offload metrics are labelled with the following labels:
+
+- *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you configured in `broker.conf`.
+- *name*: `name=${metadata-store-x}`. `${name}` is the metadata store name.
+
+| Name                                       | Type      | Description                                                   |
+|--------------------------------------------|-----------|---------------------------------------------------------------|
+| pulsar_metadata_store_queueing_read        | Gauge     | The number of metadata store queueing read operations.        |
+| pulsar_metadata_store_queueing_write       | Gauge     | The number of metadata store queueing write operations.       |
+| pulsar_metadata_store_executor_queue_size  | Gauge     | The number of blocking operations in metadata store executor. |
+| pulsar_metadata_store_read_overflow_total  | Counter   | The number of read operations can't be queued.                |
+| pulsar_metadata_store_write_overflow_total | Counter   | The number of write operations can't be queued.               |
+| pulsar_metadata_store_waiting_ms           | Histogram | The waiting time of batch operations.                         |
 
 
 ### Web service executor metrics

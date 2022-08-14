@@ -19,8 +19,8 @@
 package org.apache.bookkeeper.mledger.util;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import com.google.common.collect.Lists;
 import io.netty.util.ReferenceCounted;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -111,7 +111,7 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
      * @return a collections of the value found in cache
      */
     public Collection<Value> getRange(Key first, Key last) {
-        List<Value> values = Lists.newArrayList();
+        List<Value> values = new ArrayList();
 
         // Return the values of the entries found in cache
         for (Value value : entries.subMap(first, true, last, true).values()) {

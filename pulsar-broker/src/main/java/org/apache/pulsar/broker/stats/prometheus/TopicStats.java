@@ -42,6 +42,10 @@ class TopicStats {
     long bytesOutCounter;
     double averageMsgSize;
 
+    long ongoingTxnCount;
+    long abortedTxnCount;
+    long committedTxnCount;
+
     public long msgBacklog;
     long publishRateLimitedTimes;
 
@@ -67,6 +71,7 @@ class TopicStats {
     long compactionCompactedEntriesCount;
     long compactionCompactedEntriesSize;
     StatsBuckets compactionLatencyBuckets = new StatsBuckets(CompactionRecord.WRITE_LATENCY_BUCKETS_USEC);
+    public int delayedTrackerMemoryUsage;
 
     public void reset() {
         subscriptionsCount = 0;
@@ -80,6 +85,10 @@ class TopicStats {
         msgInCounter = 0;
         bytesOutCounter = 0;
         msgOutCounter = 0;
+
+        ongoingTxnCount = 0;
+        abortedTxnCount = 0;
+        committedTxnCount = 0;
 
         managedLedgerStats.reset();
         msgBacklog = 0;
@@ -100,6 +109,7 @@ class TopicStats {
         compactionCompactedEntriesCount = 0;
         compactionCompactedEntriesSize = 0;
         compactionLatencyBuckets.reset();
+        delayedTrackerMemoryUsage = 0;
     }
 
     static void resetTypes() {
@@ -127,6 +137,13 @@ class TopicStats {
         metric(stream, cluster, namespace, topic, "pulsar_average_msg_size", stats.averageMsgSize,
                 splitTopicAndPartitionIndexLabel);
 
+        metric(stream, cluster, namespace, topic, "pulsar_txn_tb_active_total", stats.ongoingTxnCount,
+                splitTopicAndPartitionIndexLabel);
+        metric(stream, cluster, namespace, topic, "pulsar_txn_tb_aborted_total", stats.abortedTxnCount,
+                splitTopicAndPartitionIndexLabel);
+        metric(stream, cluster, namespace, topic, "pulsar_txn_tb_committed_total", stats.committedTxnCount,
+                splitTopicAndPartitionIndexLabel);
+
         metric(stream, cluster, namespace, topic, "pulsar_storage_size", stats.managedLedgerStats.storageSize,
                 splitTopicAndPartitionIndexLabel);
         metric(stream, cluster, namespace, topic, "pulsar_storage_logical_size",
@@ -147,6 +164,9 @@ class TopicStats {
                 splitTopicAndPartitionIndexLabel);
         metric(stream, cluster, namespace, topic, "pulsar_storage_backlog_quota_limit_time",
                 stats.backlogQuotaLimitTime, splitTopicAndPartitionIndexLabel);
+
+        metric(stream, cluster, namespace, topic, "pulsar_delayed_message_index_size_bytes",
+                stats.delayedTrackerMemoryUsage, splitTopicAndPartitionIndexLabel);
 
         long[] latencyBuckets = stats.managedLedgerStats.storageWriteLatencyBuckets.getBuckets();
         metric(stream, cluster, namespace, topic, "pulsar_storage_write_latency_le_0_5", latencyBuckets[0],
