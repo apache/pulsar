@@ -579,6 +579,22 @@ All the offload metrics are labelled with the following labels:
 | brk_ledgeroffloader_read_ledger_latency        | Summary | The latency of reading entries from BookKeeper.                                 |
 | brk_ledgeroffloader_delete_offload_ops         | Counter | The total number of successful and failed operations to delete offload ledgers. |
 
+### Metadata store metrics
+
+All the offload metrics are labelled with the following labels:
+
+- *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you configured in `broker.conf`.
+- *name*: `name=${metadata-store-x}`. `${name}` is the metadata store name.
+
+| Name                                       | Type      | Description                                                   |
+|--------------------------------------------|-----------|---------------------------------------------------------------|
+| pulsar_metadata_store_queueing_read        | Gauge     | The number of metadata store queueing read operations.        |
+| pulsar_metadata_store_queueing_write       | Gauge     | The number of metadata store queueing write operations.       |
+| pulsar_metadata_store_executor_queue_size  | Gauge     | The number of blocking operations in metadata store executor. |
+| pulsar_metadata_store_read_overflow_total  | Counter   | The number of read operations can't be queued.                |
+| pulsar_metadata_store_write_overflow_total | Counter   | The number of write operations can't be queued.               |
+| pulsar_metadata_store_waiting_ms           | Histogram | The waiting time of batch operations.                         |
+
 
 ### Web service executor metrics
 
