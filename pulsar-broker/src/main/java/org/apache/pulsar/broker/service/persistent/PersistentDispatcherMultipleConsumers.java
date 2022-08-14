@@ -1009,24 +1009,24 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             // If broker has the feature disabled, always deliver messages immediately
             return false;
         }
-
-        synchronized (this) {
-            if (!delayedDeliveryTracker.isPresent()) {
-                if (!msgMetadata.hasDeliverAtTime()) {
-                    // No need to initialize the tracker here
-                    return false;
-                }
-
-                // Initialize the tracker the first time we need to use it
-                delayedDeliveryTracker = Optional
-                        .of(topic.getBrokerService().getDelayedDeliveryTrackerFactory().newTracker(this));
-            }
-
-            delayedDeliveryTracker.get().resetTickTime(topic.getDelayedDeliveryTickTimeMillis());
-
-            long deliverAtTime = msgMetadata.hasDeliverAtTime() ? msgMetadata.getDeliverAtTime() : -1L;
-            return delayedDeliveryTracker.get().addMessage(ledgerId, entryId, deliverAtTime);
+        if (!msgMetadata.hasDeliverAtTime()) {
+            // No need to initialize the tracker here
+            return false;
         }
+
+        if (!delayedDeliveryTracker.isPresent()) {
+            synchronized (this) {
+                if (!delayedDeliveryTracker.isPresent()) {
+                    // Initialize the tracker the first time we need to use it
+                    DelayedDeliveryTracker newDelayedDeliveryTracker = topic.getBrokerService()
+                            .getDelayedDeliveryTrackerFactory()
+                            .newTracker(this);
+                    newDelayedDeliveryTracker.resetTickTime(topic.getDelayedDeliveryTickTimeMillis());
+                    delayedDeliveryTracker = Optional.of(newDelayedDeliveryTracker);
+                }
+            }
+        }
+        return delayedDeliveryTracker.get().addMessage(ledgerId, entryId, msgMetadata.getDeliverAtTime());
     }
 
     protected synchronized Set<PositionImpl> getMessagesToReplayNow(int maxMessagesToRead) {

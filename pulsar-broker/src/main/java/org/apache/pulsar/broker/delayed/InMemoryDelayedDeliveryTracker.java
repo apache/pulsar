@@ -111,8 +111,10 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
         }
 
 
-        priorityQueue.add(deliverAt, ledgerId, entryId);
-        updateTimer();
+        synchronized (this) {
+            priorityQueue.add(deliverAt, ledgerId, entryId);
+            updateTimer();
+        }
 
         // Check that new delivery time comes after the current highest, or at
         // least within a single tick time interval of 1 second.
