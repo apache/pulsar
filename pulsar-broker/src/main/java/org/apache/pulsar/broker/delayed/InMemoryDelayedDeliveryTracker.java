@@ -21,14 +21,15 @@ package org.apache.pulsar.broker.delayed;
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import io.netty.util.TimerTask;
-import java.time.Clock;
-import java.util.Set;
-import java.util.TreeSet;
-import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.common.util.collections.TripleLongPriorityQueue;
+
+import java.time.Clock;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, TimerTask {
@@ -99,7 +100,7 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
     }
 
     @Override
-    public boolean addMessage(long ledgerId, long entryId, long deliverAt) {
+    public synchronized boolean addMessage(long ledgerId, long entryId, long deliverAt) {
         if (deliverAt < 0 || deliverAt <= getCutoffTime()) {
             messagesHaveFixedDelay = false;
             return false;
@@ -110,11 +111,8 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
                     deliverAt - clock.millis());
         }
 
-
-        synchronized (this) {
-            priorityQueue.add(deliverAt, ledgerId, entryId);
-            updateTimer();
-        }
+        priorityQueue.add(deliverAt, ledgerId, entryId);
+        updateTimer();
 
         // Check that new delivery time comes after the current highest, or at
         // least within a single tick time interval of 1 second.
