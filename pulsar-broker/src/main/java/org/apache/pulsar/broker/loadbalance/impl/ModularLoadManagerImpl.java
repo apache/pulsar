@@ -1137,13 +1137,11 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     }
 
     private void deleteBundleDataFromMetadataStore(String bundle) {
-        try {
-            bundlesCache.delete(getBundleDataPath(bundle)).join();
-        } catch (Exception e) {
-            if (!(e.getCause() instanceof NotFoundException)) {
-                log.warn("Failed to delete bundle-data {} from metadata store", bundle, e);
+        bundlesCache.delete(getBundleDataPath(bundle)).whenComplete((__, ex) -> {
+            if (ex != null && !(ex.getCause() instanceof MetadataStoreException.NotFoundException)) {
+                log.warn("Failed to delete bundle-data {} from metadata store", bundle, ex);
             }
-        }
+        });
     }
 
     private void deleteTimeAverageDataFromMetadataStoreAsync(String broker) {
