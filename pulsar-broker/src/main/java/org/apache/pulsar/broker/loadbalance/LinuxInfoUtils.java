@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.loadbalance;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import java.io.IOException;
 import java.lang.reflect.Method;
@@ -53,7 +54,8 @@ public class LinuxInfoUtils {
     private static final int ARPHRD_ETHER = 1;
     private static final String NIC_SPEED_TEMPLATE = "/sys/class/net/%s/speed";
 
-    private static Object /*jdk.internal.platform.Metrics*/ metrics;
+    @VisibleForTesting
+    public static Object /*jdk.internal.platform.Metrics*/ metrics;
     private static Method getMetricsProviderMethod;
     private static Method getCpuQuotaMethod;
     private static Method getCpuPeriodMethod;
