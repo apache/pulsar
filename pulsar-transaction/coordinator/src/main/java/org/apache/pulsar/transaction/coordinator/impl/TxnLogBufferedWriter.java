@@ -122,12 +122,6 @@ public class TxnLogBufferedWriter<T> implements Closeable {
 
     private final TxnLogBufferedWriterMetricsStats metrics;
 
-    /**
-     * In the {@link #asyncAddData}, exceptions may occur. To avoid losing the callback, use a variable to mark whether
-     * a callback needs to be compensated.
-     */
-    private boolean shouldCompensateCallBackWhenWriteFail;
-
     private final TimerTask timingFlushTask = (timeout) -> {
         if (timeout.isCancelled()) {
             return;
@@ -230,19 +224,7 @@ public class TxnLogBufferedWriter<T> implements Closeable {
             return;
         }
         singleThreadExecutorForWrite.execute(() -> {
-            shouldCompensateCallBackWhenWriteFail = true;
-            try {
-                internalAsyncAddData(data, callback, ctx);
-            } catch (Exception e){
-                // Avoid missing callback, do failed callback when error occur before add data to the array.
-                if (shouldCompensateCallBackWhenWriteFail){
-                    log.error("Failed to add data asynchronously, and do failed callback when error occur before add"
-                            + " data to the array.", e);
-                    callback.addFailed(new ManagedLedgerInterceptException(e), ctx);
-                } else {
-                    log.error("Failed to add data asynchronously", e);
-                }
-            }
+            internalAsyncAddData(data, callback, ctx);
         });
     }
 
@@ -255,24 +237,36 @@ public class TxnLogBufferedWriter<T> implements Closeable {
      * This ensures the sequential nature of multiple writes to BK.
      */
     private void internalAsyncAddData(T data, AddDataCallback callback, Object ctx){
-        if (state == State.CLOSING || state == State.CLOSED){
-            callback.addFailed(BUFFERED_WRITER_CLOSED_EXCEPTION, ctx);
-            return;
-        }
-        int dataLength = dataSerializer.getSerializedSize(data);
-        if (dataLength >= batchedWriteMaxSize){
-            trigFlushByLargeSingleData();
-            ByteBuf byteBuf = dataSerializer.serialize(data);
+        // Avoid missing callback, do failed callback when error occur before add data to the array.
+        boolean shouldCompensateCallBackWhenWriteFail = false;
+        try {
+            if (state == State.CLOSING || state == State.CLOSED){
+                callback.addFailed(BUFFERED_WRITER_CLOSED_EXCEPTION, ctx);
+                return;
+            }
+            int dataLength = dataSerializer.getSerializedSize(data);
+            if (dataLength >= batchedWriteMaxSize){
+                trigFlushByLargeSingleData();
+                ByteBuf byteBuf = dataSerializer.serialize(data);
+                shouldCompensateCallBackWhenWriteFail = false;
+                managedLedger.asyncAddEntry(byteBuf, DisabledBatchCallback.INSTANCE,
+                        AsyncAddArgs.newInstance(callback, ctx, System.currentTimeMillis(), byteBuf));
+                return;
+            }
+            dataArray.add(data);
+            flushContext.addCallback(callback, ctx);
+            bytesSize += dataLength;
             shouldCompensateCallBackWhenWriteFail = false;
-            managedLedger.asyncAddEntry(byteBuf, DisabledBatchCallback.INSTANCE,
-                    AsyncAddArgs.newInstance(callback, ctx, System.currentTimeMillis(), byteBuf));
-            return;
+            trigFlushIfReachMaxRecordsOrMaxSize();
+        } catch (Exception e){
+            if (shouldCompensateCallBackWhenWriteFail){
+                log.error("Failed to add data asynchronously, and do failed callback when error occur before add"
+                        + " data to the array.", e);
+                callback.addFailed(new ManagedLedgerInterceptException(e), ctx);
+            } else {
+                log.error("Failed to add data asynchronously", e);
+            }
         }
-        dataArray.add(data);
-        flushContext.addCallback(callback, ctx);
-        bytesSize += dataLength;
-        shouldCompensateCallBackWhenWriteFail = false;
-        trigFlushIfReachMaxRecordsOrMaxSize();
     }
 
     private void trigFlushByTimingTask(){
