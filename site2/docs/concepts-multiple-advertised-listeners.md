@@ -8,7 +8,7 @@ When a Pulsar cluster is deployed in the production environment, it may require 
 
 ## Advertised listeners
 
-To ensure clients in both internal and external networks can connect to a Pulsar cluster, Pulsar introduces `advertisedListeners` and `internalListenerName` configuration options into the [broker configuration file](reference-configuration.md#broker) to ensure that the broker supports exposing multiple advertised listeners and support the separation of internal and external network traffic.
+To ensure clients in both internal and external networks can connect to a Pulsar cluster, Pulsar introduces `advertisedListeners` and `internalListenerName` configuration options into the [broker configuration file](https://pulsar.apache.org/reference/#/config/reference-configuration-broker) to ensure that the broker supports exposing multiple advertised listeners and support the separation of internal and external network traffic.
 
 - The `advertisedListeners` is used to specify multiple advertised listeners. The broker uses the listener as the broker identifier in the load manager and the bundle owner data. The `advertisedListeners` is formatted as `<listener_name>:pulsar://<host>:<port>, <listener_name>:pulsar+ssl://<host>:<port>`. You can set up the `advertisedListeners` like
 `advertisedListeners=internal:pulsar://192.168.1.11:6660,internal:pulsar+ssl://192.168.1.11:6651`.

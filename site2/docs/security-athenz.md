@@ -63,7 +63,7 @@ brokerClientAuthenticationParameters={"tenantDomain":"shopping","tenantService":
 ```
 
 > A full listing of parameters is available in the `conf/broker.conf` file, you can also find the default
-> values for those parameters in [Broker Configuration](reference-configuration.md#broker).
+> values for those parameters in [Broker Configuration](https://pulsar.apache.org/reference/#/config/reference-configuration-broker).
 
 ## Configure clients for Athenz
 

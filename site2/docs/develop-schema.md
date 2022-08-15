@@ -58,5 +58,5 @@ To use your custom schema storage implementation, you need to:
 
 1. Package the implementation in a [JAR](https://docs.oracle.com/javase/tutorial/deployment/jar/basicsindex.html) file.
 1. Add that jar to the `lib` folder in your Pulsar [binary or source distribution](getting-started-standalone.md#installing-pulsar).
-1. Change the `schemaRegistryStorageClassName` configuration in [`broker.conf`](reference-configuration.md#broker) to your custom factory class (i.e. the `SchemaStorageFactory` implementation, not the `SchemaStorage` implementation).
+1. Change the `schemaRegistryStorageClassName` configuration in [`broker.conf`](https://pulsar.apache.org/reference/#/config/reference-configuration-broker?id=schemaregistrystorageclassname) to your custom factory class (i.e. the `SchemaStorageFactory` implementation, not the `SchemaStorage` implementation).
 1. Start up Pulsar.

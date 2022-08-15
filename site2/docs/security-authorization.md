@@ -14,7 +14,7 @@ When a superuser creates a [tenant](reference-terminology.md#tenant), that tenan
 ## Broker and Proxy Setup
 
 ### Enable authorization and assign superusers
-You can enable the authorization and assign the superusers in the broker ([`conf/broker.conf`](reference-configuration.md#broker) or `conf/standalone.conf`) configuration files.
+You can enable the authorization and assign the superusers in the broker ([`conf/broker.conf`](https://pulsar.apache.org/reference/#/config/reference-configuration-broker) or `conf/standalone.conf`) configuration files.
 
 ```conf
 authorizationEnabled=true
@@ -22,7 +22,7 @@ superUserRoles=my-super-user-1,my-super-user-2
 ```
 
 > A full list of parameters is available in the `conf/broker.conf` or `conf/standalone.conf` file.
-> You can also find the default values for those parameters in [Broker Configuration](reference-configuration.md#broker). 
+> You can also find the default values for those parameters in [Broker Configuration](https://pulsar.apache.org/reference/#/config/reference-configuration-broker). 
 
 Typically, you use superuser roles for administrators, clients as well as broker-to-broker authorization. When you use [geo-replication](concepts-replication.md), every broker needs to be able to publish to all the other topics of clusters.
 
@@ -33,7 +33,7 @@ If you enable authorization on the broker, the broker checks the authorization o
 
 By default, the broker treats the connection between a proxy and the broker as a normal user connection. The broker authenticates the user as the role configured in `proxy.conf`(see ["Enable TLS Authentication on Proxies"](security-tls-authentication.md#enable-tls-authentication-on-proxies)). However, when the user connects to the cluster through a proxy, the user rarely requires authentication. The user expects to be able to interact with the cluster as the role for which they have authenticated with the proxy.
 
-Pulsar uses *Proxy roles* to enable the authentication. Proxy roles are specified in the broker configuration file, [`conf/broker.conf`](reference-configuration.md#broker). If a client that is authenticated with a broker is one of its `proxyRoles`, all requests from that client must also carry information about the role of the client that is authenticated with the proxy. This information is called the *original principal*. If the *original principal* is absent, the client is not able to access anything.
+Pulsar uses *Proxy roles* to enable the authentication. Proxy roles are specified in the broker configuration file, [`conf/broker.conf`](https://pulsar.apache.org/reference/#/config/reference-configuration-broker). If a client that is authenticated with a broker is one of its ```proxyRoles```, all requests from that client must also carry information about the role of the client that is authenticated with the proxy. This information is called the *original principal*. If the *original principal* is absent, the client is not able to access anything.
 
 You must authorize both the *proxy role* and the *original principal* to access a resource to ensure that the resource is accessible via the proxy. Administrators can take two approaches to authorize the *proxy role* and the *original principal*.
 
@@ -41,7 +41,7 @@ The more secure approach is to grant access to the proxy roles each time you gra
 
 Another approach is to make the proxy role a superuser. This allows the proxy to access all resources. The client still needs to authenticate with the proxy, and all requests made through the proxy have their role downgraded to the *original principal* of the authenticated client. However, if the proxy is compromised, a bad actor could get full access to your cluster.
 
-You can specify the roles as proxy roles in [`conf/broker.conf`](reference-configuration.md#broker).
+You can specify the roles as proxy roles in [`conf/broker.conf`](https://pulsar.apache.org/reference/#/config/reference-configuration-broker).
 
 ```properties
 proxyRoles=my-proxy-role

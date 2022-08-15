@@ -185,8 +185,7 @@ brokerClientKeyFilePath=/path/to/client.key-pk8.pem
 ```
 
 > You can find a full list of parameters available in the `conf/broker.conf` file,
-> as well as the default values for those parameters, in [Broker Configuration](reference-configuration.md#broker)
->
+> as well as the default values for those parameters, in [Broker Configuration](https://pulsar.apache.org/reference/#/config/reference-configuration-broker)
 ### TLS Protocol Version and Cipher
 
 You can configure the broker (and proxy) to require specific TLS protocol versions and ciphers for TLS negiotation. You can use the TLS protocol versions and ciphers to stop clients from requesting downgraded TLS protocol versions or ciphers that may have weaknesses.

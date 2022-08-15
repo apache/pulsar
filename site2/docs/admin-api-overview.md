@@ -56,7 +56,7 @@ Each of the three admin interfaces (the `pulsar-admin` CLI tool, the {@inject: r
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
-If you have enabled authentication, you need to provide an auth configuration to use the `pulsar-admin` tool. By default, the configuration for the `pulsar-admin` tool is in the [`conf/client.conf`](reference-configuration.md#client) file. The following are the available parameters:
+If you have enabled authentication, you need to provide an auth configuration to use the `pulsar-admin` tool. By default, the configuration for the `pulsar-admin` tool is in the [`conf/client.conf`](https://pulsar.apache.org/reference/#/config/reference-configuration-client) file. The following are the available parameters:
 
 |Name|Description|Default|
 |----|-----------|-------|

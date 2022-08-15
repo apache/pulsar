@@ -35,7 +35,7 @@ Pulsar brokers consist of two components:
 
 In addition to being configurable when you start them up, brokers can also be [dynamically configured](#dynamic-broker-configuration).
 
-For a full listing of broker-specific configuration parameters, see the [Configuration](reference-configuration.md#broker) page.
+For a full listing of broker-specific configuration parameters, see the [Configuration](https://pulsar.apache.org/reference/#/config/reference-configuration-broker) page.
 
 ## Brokers resources
 
@@ -147,7 +147,7 @@ admin.brokers().getOwnedNamespaces(cluster,brokerUrl);
 
 ### Dynamic broker configuration
 
-One way to configure a Pulsar [broker](reference-terminology.md#broker) is to supply a [configuration](reference-configuration.md#broker) when the broker is [started up](reference-cli-tools.md#pulsar-broker).
+One way to configure a Pulsar [broker](reference-terminology.md#broker) is to supply a [configuration](https://pulsar.apache.org/reference/#/config/reference-configuration-broker) when the broker is [started up](reference-cli-tools.md#pulsar-broker).
 
 But since all broker configuration in Pulsar is stored in ZooKeeper, configuration values can also be dynamically updated *while the broker is running*. When you update broker configuration dynamically, ZooKeeper will notify the broker of the change and the broker will then override any existing configuration values.
 
@@ -162,7 +162,7 @@ But since all broker configuration in Pulsar is stored in ZooKeeper, configurati
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
-The [`update-dynamic-config`](/tools/pulsar-admin/) subcommand will update existing configuration. It takes two arguments: the name of the parameter and the new value using the `config` and `value` flag respectively. Here's an example of the [`brokerShutdownTimeoutMs`](reference-configuration.md#broker-brokerShutdownTimeoutMs) parameter:
+The [`update-dynamic-config`](/tools/pulsar-admin/) subcommand will update existing configuration. It takes two arguments: the name of the parameter and the new value using the `config` and `value` flag respectively. Here's an example for the [`brokerShutdownTimeoutMs`](https://pulsar.apache.org/reference/#/config/reference-configuration-broker?id=brokershutdowntimeoutms) parameter:
 
 ```shell
 pulsar-admin brokers update-dynamic-config --config brokerShutdownTimeoutMs --value 100

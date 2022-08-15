@@ -115,7 +115,7 @@ Internally, a single managed ledger uses multiple BookKeeper ledgers to store th
 
 ### Journal storage
 
-In BookKeeper, *journal* files contain BookKeeper transaction logs. Before making an update to a [ledger](#ledgers), a bookie needs to ensure that a transaction describing the update is written to persistent (non-volatile) storage. A new journal file is created once the bookie starts or the older journal file reaches the journal file size threshold (configured using the [`journalMaxSizeMB`](reference-configuration.md#bookkeeper) parameter).
+In BookKeeper, *journal* files contain BookKeeper transaction logs. Before making an update to a [ledger](#ledgers), a bookie needs to ensure that a transaction describing the update is written to persistent (non-volatile) storage. A new journal file is created once the bookie starts or the older journal file reaches the journal file size threshold (configured using the [`journalMaxSizeMB`](https://pulsar.apache.org/reference/#/config/reference-configuration-bookkeeper?id=journalmaxsizemb) parameter).
 
 ## Pulsar proxy
 

@@ -1540,7 +1540,7 @@ Non-partitioned topics must be explicitly created. When creating a new non-parti
 
 By default, 60 seconds after creation, topics are considered inactive and deleted automatically to avoid generating trash data. To disable this feature, set `brokerDeleteInactiveTopicsEnabled` to `false`. To change the frequency of checking inactive topics, set `brokerDeleteInactiveTopicsFrequencySeconds` to a specific value.
 
-For more information about the two parameters, see [here](reference-configuration.md#broker).
+For more information about the two parameters, see [here](https://pulsar.apache.org/reference/#/config/reference-configuration-broker).
 
 You can create non-partitioned topics in the following ways.
 
@@ -1723,7 +1723,7 @@ Partitioned topics must be explicitly created. When creating a new partitioned t
 
 By default, 60 seconds after creation, topics are considered inactive and deleted automatically to avoid generating trash data. To disable this feature, set `brokerDeleteInactiveTopicsEnabled` to `false`. To change the frequency of checking inactive topics, set `brokerDeleteInactiveTopicsFrequencySeconds` to a specific value.
 
-For more information about the two parameters, see [here](reference-configuration.md#broker).
+For more information about the two parameters, see [here](reference-configuration-broker.md).
 
 You can create partitioned topics in the following ways.
 

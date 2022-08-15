@@ -62,7 +62,7 @@ The Pulsar binary package initially contains the following directories:
 Directory | Contains
 :---------|:--------
 `bin` | [Command-line tools](reference-cli-tools.md) of Pulsar, such as [`pulsar`](reference-cli-tools.md#pulsar) and [`pulsar-admin`](/tools/pulsar-admin/)
-`conf` | Configuration files for Pulsar, including for [broker configuration](reference-configuration.md#broker), [ZooKeeper configuration](reference-configuration.md#zookeeper), and more
+`conf` | Configuration files for Pulsar, including for [broker configuration](https://pulsar.apache.org/reference/#/config/reference-configuration-broker), [ZooKeeper configuration](https://pulsar.apache.org/reference/#/config/reference-configuration-zookeeper), and more
 `examples` | A Java JAR file containing example [Pulsar Functions](functions-overview.md)
 `lib` | The [JAR](https://en.wikipedia.org/wiki/JAR_(file_format)) files that Pulsar uses 
 `licenses` | License files, in `.txt` form, for various components of the Pulsar codebase
@@ -92,7 +92,7 @@ ZooKeeper manages a variety of essential coordination-related and configuration-
 
 You need to stand up one local ZooKeeper cluster per Pulsar cluster for deploying a Pulsar instance. 
 
-To begin, add all ZooKeeper servers to the quorum configuration specified in the [`conf/zookeeper.conf`](reference-configuration.md#zookeeper) file. Add a `server.N` line for each node in the cluster to the configuration, where `N` is the number of the ZooKeeper node. The following is an example of a three-node cluster:
+To begin, add all ZooKeeper servers to the quorum configuration specified in the [`conf/zookeeper.conf`](https://pulsar.apache.org/reference/#/config/reference-configuration-zookeeper) file. Add a `server.N` line for each node in the cluster to the configuration, where `N` is the number of the ZooKeeper node. The following is an example for a three-node cluster:
 
 ```properties
 server.1=zk1.us-west.example.com:2888:3888
@@ -100,7 +100,7 @@ server.2=zk2.us-west.example.com:2888:3888
 server.3=zk3.us-west.example.com:2888:3888
 ```
 
-On each host, you need to specify the ID of the node in the `myid` file of each node, which is in `data/zookeeper` folder of each server by default (you can change the file location via the [`dataDir`](reference-configuration.md#zookeeper-dataDir) parameter).
+On each host, you need to specify the ID of the node in the `myid` file of each node, which is in `data/zookeeper` folder of each server by default (you can change the file location via the [`dataDir`](https://pulsar.apache.org/reference/#/config/reference-configuration-zookeeper?id=datadir) parameter).
 
 :::tip
 
@@ -234,7 +234,7 @@ Each Pulsar broker needs its own cluster of bookies. The BookKeeper cluster shar
 
 ### Configure bookies
 
-You can configure BookKeeper bookies using the [`conf/bookkeeper.conf`](reference-configuration.md#bookkeeper) configuration file. The most important aspect of configuring each bookie is ensuring that the [`zkServers`](reference-configuration.md#bookkeeper-zkServers) parameter is set to the connection string for the local ZooKeeper of Pulsar cluster.
+You can configure BookKeeper bookies using the [`conf/bookkeeper.conf`](https://pulsar.apache.org/reference/#/config/reference-configuration-bookkeeper) configuration file. The most important aspect of configuring each bookie is ensuring that the [`zkServers`](https://pulsar.apache.org/reference/#/config/reference-configuration-bookkeeper?id=zkservers) parameter is set to the connection string for the local ZooKeeper of Pulsar cluster.
 
 ### Start bookies
 
@@ -279,11 +279,11 @@ Once you set up ZooKeeper, initialize cluster metadata, and spin up BookKeeper b
 
 ### Broker configuration
 
-You can configure brokers using the [`conf/broker.conf`](reference-configuration.md#broker) configuration file.
+You can configure brokers using the [`conf/broker.conf`](https://pulsar.apache.org/reference/#/config/reference-configuration-broker) configuration file.
 
-The most important element of broker configuration is ensuring that each broker is aware of its local ZooKeeper quorum as well as the configuration store quorum. Make sure that you set the [`metadataStoreUrl`](reference-configuration.md#broker) parameter to reflect the local quorum and the [`configurationMetadataStoreUrl`](reference-configuration.md#broker) parameter to reflect the configuration store quorum (although you need to specify only those ZooKeeper servers located in the same cluster).
+The most important element of broker configuration is ensuring that each broker is aware of its local ZooKeeper quorum as well as the configuration store quorum. Make sure that you set the [`metadataStoreUrl`](https://pulsar.apache.org/reference/#/config/reference-configuration-broker?id=metadatastoreurl) parameter to reflect the local quorum and the [`configurationMetadataStoreUrl`](https://pulsar.apache.org/reference/#/config/reference-configuration-broker?id=configurationmetadatastoreurl) parameter to reflect the configuration store quorum (although you need to specify only those ZooKeeper servers located in the same cluster).
 
-You also need to specify the name of the [cluster](reference-terminology.md#cluster) to which the broker belongs using the [`clusterName`](reference-configuration.md#broker-clusterName) parameter. In addition, you need to match the broker and web service ports provided when you initialize the metadata (especially when you use a different port from default) of the cluster.
+You also need to specify the name of the [cluster](reference-terminology.md#cluster) to which the broker belongs using the [`clusterName`](https://pulsar.apache.org/reference/#/config/reference-configuration-broker?id=clustername) parameter. In addition, you need to match the broker and web service ports provided when you initialize the metadata (especially when you use a different port from default) of the cluster.
 
 The following is an example configuration:
 
@@ -338,9 +338,9 @@ You can use your own service discovery system, and you only need to satisfy just
 
 ## Admin client and verification
 
-At this point, your Pulsar instance should be ready to use. You can now configure client machines that can serve as [administrative clients](admin-api-overview.md) for each cluster. You can use the [`conf/client.conf`](reference-configuration.md#client) configuration file to configure admin clients.
+At this point your Pulsar instance should be ready to use. You can now configure client machines that can serve as [administrative clients](admin-api-overview.md) for each cluster. You can use the [`conf/client.conf`](https://pulsar.apache.org/reference/#/config/reference-configuration-client) configuration file to configure admin clients.
 
-The most important thing is that you point the [`serviceUrl`](reference-configuration.md#client-serviceUrl) parameter to the correct service URL for the cluster:
+The most important thing is that you point the [`serviceUrl`](https://pulsar.apache.org/reference/#/config/reference-configuration-client?id=serviceurl) parameter to the correct service URL for the cluster:
 
 ```properties
 serviceUrl=http://pulsar.us-west.example.com:8080/

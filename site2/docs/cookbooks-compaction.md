@@ -58,7 +58,7 @@ bin/pulsar compact-topic \
 
 > Running compaction in its own process is recommended when you want to avoid interfering with the broker's performance. Broker performance should only be affected, however, when running compaction on topics with a large keyspace (i.e when there are many keys on the topic). The first phase of the compaction process keeps a copy of each key in the topic, which can create memory pressure as the number of keys grows. Using the `pulsar-admin topics compact` command to run compaction through the REST API should present no issues in the overwhelming majority of cases; using `pulsar compact-topic` should correspondingly be considered an edge case.
 
-The `pulsar compact-topic` command communicates with [ZooKeeper](https://zookeeper.apache.org) directly. To establish communication with ZooKeeper, though, the `pulsar` CLI tool will need to have a valid [broker configuration](reference-configuration.md#broker). You can either supply a proper configuration in `conf/broker.conf` or specify a non-default location for the configuration:
+The `pulsar compact-topic` command communicates with [ZooKeeper](https://zookeeper.apache.org) directly. In order to establish communication with ZooKeeper, though, the `pulsar` CLI tool will need to have a valid [broker configuration](https://pulsar.apache.org/reference/#/config/reference-configuration-broker). You can either supply a proper configuration in `conf/broker.conf` or specify a non-default location for the configuration:
 
 ```bash
 bin/pulsar compact-topic \

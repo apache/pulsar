@@ -202,7 +202,7 @@ In Pulsar, a topic is automatically deleted when the topic meets the following t
 - no more messages are kept for retention. 
 For geo-replication topics, each region uses a fault-tolerant mechanism to decide when deleting the topic locally is safe.
 
-You can explicitly disable topic garbage collection by setting `brokerDeleteInactiveTopicsEnabled` to `false` in your [broker configuration](reference-configuration.md#broker).
+You can explicitly disable topic garbage collection by setting `brokerDeleteInactiveTopicsEnabled` to `false` in your [broker configuration](https://pulsar.apache.org/reference/#/config/reference-configuration-broker).
 
 To delete a geo-replication topic, close all producers and consumers on the topic, and delete all of its local subscriptions in every replication cluster. When Pulsar determines that no valid subscription for the topic remains across the system, it will garbage collect the topic.
 

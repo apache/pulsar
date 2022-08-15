@@ -119,7 +119,7 @@ The extracted directory contains the following subdirectories:
 Directory | Contains
 :---------|:--------
 `bin` |[command-line tools](reference-cli-tools.md) of Pulsar, such as [`pulsar`](reference-cli-tools.md#pulsar) and [`pulsar-admin`](/tools/pulsar-admin/)
-`conf` | Configuration files for Pulsar, including for [broker configuration](reference-configuration.md#broker), [ZooKeeper configuration](reference-configuration.md#zookeeper), and more
+`conf` | Configuration files for Pulsar, including for [broker configuration](https://pulsar.apache.org/reference/#/config/reference-configuration-broker), [ZooKeeper configuration](https://pulsar.apache.org/reference/#/config/reference-configuration-zookeeper), and more
 `data` | The data storage directory that ZooKeeper and BookKeeper use
 `lib` | The [JAR](https://en.wikipedia.org/wiki/JAR_(file_format)) files that Pulsar uses
 `logs` | Logs that the installation creates
@@ -198,7 +198,7 @@ For more details of how to configure tiered storage feature, you can refer to th
 
 [ZooKeeper](https://zookeeper.apache.org) manages a variety of essential coordination-related and configuration-related tasks for Pulsar. To deploy a Pulsar cluster, you need to deploy ZooKeeper first. A 3-node ZooKeeper cluster is the recommended configuration. Pulsar does not make heavy use of ZooKeeper, so the lightweight machines or VMs should suffice for running ZooKeeper.
 
-To begin, add all ZooKeeper servers to the configuration specified in [`conf/zookeeper.conf`](reference-configuration.md#zookeeper) (in the Pulsar directory that you create [above](#install-the-pulsar-binary-package)). The following is an example:
+To begin, add all ZooKeeper servers to the configuration specified in [`conf/zookeeper.conf`](https://pulsar.apache.org/reference/#/config/reference-configuration-zookeeper) (in the Pulsar directory that you create [above](#install-the-pulsar-binary-package)). The following is an example:
 
 ```properties
 server.1=zk1.us-west.example.com:2888:3888
@@ -218,7 +218,7 @@ server.2=zk2.us-west.example.com:2888:3888
 server.3=0.0.0.0:2888:3888
 ```
 
-On each host, you need to specify the ID of the node in the `myid` file, which is in the `data/zookeeper` folder of each server by default (you can change the file location via the [`dataDir`](reference-configuration.md#zookeeper-dataDir) parameter).
+On each host, you need to specify the ID of the node in the `myid` file, which is in the `data/zookeeper` folder of each server by default (you can change the file location via the [`dataDir`](https://pulsar.apache.org/reference/#/config/reference-configuration-zookeeper?id=datadir) parameter).
 
 > See the [Multi-server setup guide](https://zookeeper.apache.org/doc/r3.4.10/zookeeperAdmin.html#sc_zkMulitServerSetup) in the ZooKeeper documentation for detailed information on `myid` and more.
 
@@ -295,13 +295,13 @@ Flag | Description
 
 [BookKeeper](https://bookkeeper.apache.org) handles all persistent data storage in Pulsar. You need to deploy a cluster of BookKeeper bookies to use Pulsar. You can choose to run a **3-bookie BookKeeper cluster**.
 
-You can configure BookKeeper bookies using the [`conf/bookkeeper.conf`](reference-configuration.md#bookkeeper) configuration file. The most important step in configuring bookies for our purposes here is ensuring that [`zkServers`](reference-configuration.md#bookkeeper-zkServers) is set to the connection string for the ZooKeeper cluster. The following is an example:
+You can configure BookKeeper bookies using the [`conf/bookkeeper.conf`](https://pulsar.apache.org/reference/#/config/reference-configuration-zookeeper) configuration file. The most important step in configuring bookies for our purposes here is ensuring that [`zkServers`](https://pulsar.apache.org/reference/#/config/reference-configuration-bookkeeper?id=zkservers) is set to the connection string for the ZooKeeper cluster. The following is an example:
 
 ```properties
 zkServers=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181
 ```
 
-Once you appropriately modify the `zkServers` parameter, you can make any other configuration changes that you require. You can find a full listing of the available BookKeeper configuration parameters [here](reference-configuration.md#bookkeeper). However, consulting the [BookKeeper documentation](https://bookkeeper.apache.org/docs/next/reference/config/) for a more in-depth guide might be a better choice.
+Once you appropriately modify the `zkServers` parameter, you can make any other configuration changes that you require. You can find a full listing of the available BookKeeper configuration parameters [here](https://pulsar.apache.org/reference/#/config/reference-configuration-zookeeper). However, consulting the [BookKeeper documentation](https://bookkeeper.apache.org/docs/next/reference/config/) for a more in-depth guide might be a better choice.
 
 Once you apply the desired configuration in `conf/bookkeeper.conf`, you can start up a bookie on each of your BookKeeper hosts. You can start up each bookie either in the background, using [nohup](https://en.wikipedia.org/wiki/Nohup), or in the foreground.
 
@@ -340,7 +340,7 @@ Pulsar brokers are the last thing you need to deploy in your Pulsar cluster. Bro
 
 ### Configure Brokers
 
-The most important element of broker configuration is ensuring that each broker is aware of the ZooKeeper cluster that you have deployed. Ensure that the [`metadataStoreUrl`](reference-configuration.md#broker) and [`configurationMetadataStoreUrl`](reference-configuration.md#broker) parameters are correct. In this case, since you only have 1 cluster and no configuration store setup, the `configurationMetadataStoreUrl` point to the same `metadataStoreUrl`.
+The most important element of broker configuration is ensuring that each broker is aware of the ZooKeeper cluster that you have deployed. Ensure that the [`metadataStoreUrl`](https://pulsar.apache.org/reference/#/config/reference-configuration-broker?id=metadatastoreurl) and [`configurationMetadataStoreUrl`](https://pulsar.apache.org/reference/#/config/reference-configuration-broker?id=configurationmetadatastoreurl) parameters are correct. In this case, since you only have 1 cluster and no configuration store setup, the `configurationMetadataStoreUrl` point to the same `metadataStoreUrl`.
 
 ```properties
 metadataStoreUrl=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181
@@ -396,7 +396,7 @@ If you want to learn more options about deploying the functions worker, check ou
 
 ### Start Brokers
 
-You can then provide any other configuration changes that you want in the [`conf/broker.conf`](reference-configuration.md#broker) file. Once you decide on a configuration, you can start up the brokers for your Pulsar cluster. Like ZooKeeper and BookKeeper, you can start brokers either in the foreground or in the background, using nohup.
+You can then provide any other configuration changes that you want in the [`conf/broker.conf`](https://pulsar.apache.org/reference/#/config/reference-configuration-broker) file. Once you decide on a configuration, you can start up the brokers for your Pulsar cluster. Like ZooKeeper and BookKeeper, you can start brokers either in the foreground or in the background, using nohup.
 
 You can start a broker in the foreground using the [`pulsar broker`](reference-cli-tools.md#pulsar-broker) command:
 
@@ -416,7 +416,7 @@ Once you successfully start up all the brokers that you intend to use, your Puls
 
 Once your Pulsar cluster is up and running, you should be able to connect with it using Pulsar clients. One such client is the [`pulsar-client`](reference-cli-tools.md#pulsar-client) tool, which is included with the Pulsar binary package. The `pulsar-client` tool can publish messages to and consume messages from Pulsar topics and thus provide a simple way to make sure that your cluster runs properly.
 
-To use the `pulsar-client` tool, first modify the client configuration file in [`conf/client.conf`](reference-configuration.md#client) in your binary package. You need to change the values for `webServiceUrl` and `brokerServiceUrl`, substituting `localhost` (which is the default), with the DNS name that you assign to your broker/bookie hosts. The following is an example:
+To use the `pulsar-client` tool, first modify the client configuration file in [`conf/client.conf`](https://pulsar.apache.org/reference/#/config/reference-configuration-client) in your binary package. You need to change the values for `webServiceUrl` and `brokerServiceUrl`, substituting `localhost` (which is the default), with the DNS name that you assign to your broker/bookie hosts. The following is an example:
 
 ```properties
 webServiceUrl=http://us-west.example.com:8080

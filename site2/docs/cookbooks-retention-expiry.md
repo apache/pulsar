@@ -60,7 +60,7 @@ When a retention limit on a topic is exceeded, the oldest message is marked for 
 
 You can set message retention at instance level with the following two parameters: `defaultRetentionTimeInMinutes` and `defaultRetentionSizeInMB`. Both parameters are set to `0` by default. 
 
-For more information on the two parameters, refer to the [`broker.conf`](reference-configuration.md#broker) configuration file.
+For more information of the two parameters, refer to the [`broker.conf`](https://pulsar.apache.org/reference/#/config/reference-configuration-broker) configuration file.
 
 ### Set retention policy
 

@@ -30,7 +30,7 @@ ZooKeeper manages a variety of essential coordination-related and configuration-
 
 To deploy a Pulsar instance, you need to stand up one local ZooKeeper cluster *per Pulsar cluster*.
 
-To begin, add all ZooKeeper servers to the quorum configuration specified in the [`conf/zookeeper.conf`](reference-configuration.md#zookeeper) file. Add a `server.N` line for each node in the cluster to the configuration, where `N` is the number of the ZooKeeper node. The following is an example of a three-node cluster:
+To begin, add all ZooKeeper servers to the quorum configuration specified in the [`conf/zookeeper.conf`](https://pulsar.apache.org/reference/#/config/reference-configuration-zookeeper) file. Add a `server.N` line for each node in the cluster to the configuration, where `N` is the number of the ZooKeeper node. The following is an example for a three-node cluster:
 
 ```properties
 server.1=zk1.us-west.example.com:2888:3888
@@ -38,7 +38,7 @@ server.2=zk2.us-west.example.com:2888:3888
 server.3=zk3.us-west.example.com:2888:3888
 ```
 
-On each host, you need to specify the node ID in `myid` file of each node, which is in `data/zookeeper` folder of each server by default (you can change the file location via the [`dataDir`](reference-configuration.md#zookeeper-dataDir) parameter).
+On each host, you need to specify the node ID in `myid` file of each node, which is in `data/zookeeper` folder of each server by default (you can change the file location via the [`dataDir`](https://pulsar.apache.org/reference/#/config/reference-configuration-zookeeper?id=datadir) parameter).
 
 For detailed information on `myid` and more, see the [Multi-server setup guide](https://zookeeper.apache.org/doc/r3.4.10/zookeeperAdmin.html#sc_zkMulitServerSetup) in the ZooKeeper documentation.
 
@@ -132,8 +132,8 @@ bin/pulsar-daemon start configuration-store
 
 In Pulsar, ZooKeeper configuration is handled by two separate configuration files in the `conf` directory of your Pulsar installation:
 * The `conf/zookeeper.conf` file handles the configuration for local ZooKeeper.
-* The `conf/global-zookeeper.conf` file handles the configuration for the configuration store.
-See [parameters](reference-configuration.md#zookeeper) for more details.
+* The `conf/global-zookeeper.conf` file handles the configuration for configuration store.
+See [parameters](https://pulsar.apache.org/reference/#/config/reference-configuration-zookeeper) for more details.
 
 #### Configure batching operations
 Using the batching operations reduces the remote procedure call (RPC) traffic between the ZooKeeper client and servers. It also reduces the number of write transactions, because each batching operation corresponds to a single ZooKeeper transaction, containing multiple read and write operations.
@@ -142,7 +142,7 @@ The following figure demonstrates a basic benchmark of batching read/write opera
 
 ![Zookeeper batching benchmark](/assets/zookeeper-batching.png)
 
-To enable batching operations, set the [`metadataStoreBatchingEnabled`](reference-configuration.md#broker) parameter to `true` on the broker side.
+To enable batching operations, set the [`metadataStoreBatchingEnabled`](https://pulsar.apache.org/reference/#/config/reference-configuration-broker) parameter to `true` on the broker side.
 
 
 ## BookKeeper
@@ -165,7 +165,7 @@ Message entries written to bookies are always synced to disk before returning an
 
 ### Configure BookKeeper
 
-You can configure BookKeeper bookies using the [`conf/bookkeeper.conf`](reference-configuration.md#bookkeeper) configuration file. When you configure each bookie, ensure that the [`zkServers`](reference-configuration.md#bookkeeper-zkServers) parameter is set to the connection string for local ZooKeeper of the Pulsar cluster.
+You can configure BookKeeper bookies using the [`conf/bookkeeper.conf`](https://pulsar.apache.org/reference/#/config/reference-configuration-bookkeeper) configuration file. When you configure each bookie, ensure that the [`zkServers`](https://pulsar.apache.org/reference/#/config/reference-configuration-bookkeeper?id=zkservers) parameter is set to the connection string for local ZooKeeper of the Pulsar cluster.
 
 The minimum configuration changes required in `conf/bookkeeper.conf` are as follows:
 

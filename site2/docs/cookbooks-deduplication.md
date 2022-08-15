@@ -27,7 +27,7 @@ You can enable or disable message deduplication at broker, namespace, or topic l
 
 ## Configure message deduplication
 
-You can configure message deduplication in Pulsar using the [`broker.conf`](reference-configuration.md#broker) configuration file. The following deduplication-related parameters are available.
+You can configure message deduplication in Pulsar using the [`broker.conf`](https://pulsar.apache.org/reference/#/config/reference-configuration-broker) configuration file. The following deduplication-related parameters are available.
 
 Parameter | Description | Default
 :---------|:------------|:-------

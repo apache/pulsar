@@ -38,13 +38,13 @@ bin/pulsar-client produce non-persistent://public/default/example-np-topic \
 
 ## Enable
 
-To enable non-persistent topics in a Pulsar broker, the [`enableNonPersistentTopics`](reference-configuration.md#broker-enableNonPersistentTopics) must be set to `true`. This is the default, so you won't need to take any action to enable non-persistent messaging.
+Tto enable non-persistent topics in a Pulsar broker, the [`enableNonPersistentTopics`](https://pulsar.apache.org/reference/#/config/reference-configuration-broker?id=enablenonpersistenttopics) must be set to `true`. This is the default, and so you won't need to take any action to enable non-persistent messaging.
 
 
 > #### Configuration for standalone mode
-> If you're running Pulsar in standalone mode, the same configurable parameters are available but in the [`standalone.conf`](reference-configuration.md#standalone) configuration file. 
+> If you're running Pulsar in standalone mode, the same configurable parameters are available but in the [`standalone.conf`](https://pulsar.apache.org/reference/#/config/reference-configuration-standalone) configuration file. 
 
-If you'd like to enable *only* non-persistent topics in a broker, you can set the [`enablePersistentTopics`](reference-configuration.md#broker-enablePersistentTopics) parameter to `false` and the `enableNonPersistentTopics` parameter to `true`.
+If you'd like to enable *only* non-persistent topics in a broker, you can set the [`enablePersistentTopics`](https://pulsar.apache.org/reference/#/config/reference-configuration-broker?id=enablepersistenttopics) parameter to `false` and the `enableNonPersistentTopics` parameter to `true`.
 
 ## Manage with cli
 

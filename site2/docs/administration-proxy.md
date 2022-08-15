@@ -78,4 +78,4 @@ You can run Pulsar proxy behind some kind of load-distributing frontend, such as
 
 Once your Pulsar proxy is up and running, preferably behind a load-distributing [frontend](#proxy-frontends), clients can connect to the proxy via whichever address that the frontend uses. If the address is the DNS address `pulsar.cluster.default`, for example, the connection URL for clients is `pulsar://pulsar.cluster.default:6650`.
 
-For more information on Proxy configuration, refer to [Pulsar proxy](reference-configuration.md#pulsar-proxy).
+For more information on Proxy configuration, refer to [Pulsar proxy](https://pulsar.apache.org/reference/#/config/reference-configuration-pulsar-proxy).
