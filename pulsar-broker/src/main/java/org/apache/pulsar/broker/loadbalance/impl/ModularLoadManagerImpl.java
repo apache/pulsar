@@ -567,7 +567,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                 if (!activeBundles.contains(bundle)){
                     bundleData.remove(bundle);
                     if (pulsar.getLeaderElectionService().isLeader()){
-                        deleteBundleDataFromMetadataStore(bundle);
+                        deleteBundleDataFromMetadataStoreAsync(bundle);
                     }
                 }
             }
@@ -771,7 +771,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                     // Clear namespace bundle-cache
                     this.pulsar.getNamespaceService().getNamespaceBundleFactory()
                             .invalidateBundleCache(NamespaceName.get(namespaceName));
-                    deleteBundleDataFromMetadataStore(bundleName);
+                    deleteBundleDataFromMetadataStoreAsync(bundleName);
 
                     log.info("Load-manager splitting bundle {} and unloading {}", bundleName, unloadSplitBundles);
                     pulsar.getAdminClient().namespaces().splitNamespaceBundle(namespaceName, bundleRange,
@@ -1136,7 +1136,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         }
     }
 
-    private void deleteBundleDataFromMetadataStore(String bundle) {
+    private void deleteBundleDataFromMetadataStoreAsync(String bundle) {
         bundlesCache.delete(getBundleDataPath(bundle)).whenComplete((__, ex) -> {
             if (ex != null && !(ex.getCause() instanceof MetadataStoreException.NotFoundException)) {
                 log.warn("Failed to delete bundle-data {} from metadata store", bundle, ex);
