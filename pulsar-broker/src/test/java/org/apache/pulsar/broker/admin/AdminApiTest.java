@@ -1002,7 +1002,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         if (isPersistent) {
             // TODO: for non-persistent topics, getSubscriptions will return a empty set
-            assertEquals(Set.of(admin.topics().getSubscriptions(partitionedTopicName)),
+            assertEquals(new HashSet<>(admin.topics().getSubscriptions(partitionedTopicName)),
                     Set.of("my-sub", "my-sub-1"));
         }
 
@@ -1025,7 +1025,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             producer.send(message.getBytes());
         }
 
-        assertEquals(Set.of(admin.topics().getList(namespace)),
+        assertEquals(new HashSet<>(admin.topics().getList(namespace)),
                 Set.of(partitionedTopicName + "-partition-0", partitionedTopicName + "-partition-1",
                         partitionedTopicName + "-partition-2", partitionedTopicName + "-partition-3"));
 

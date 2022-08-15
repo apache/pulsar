@@ -836,7 +836,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         Consumer<byte[]> consumer1 = client.newConsumer().topic(partitionedTopicName).subscriptionName("my-sub-1")
                 .subscribe();
 
-        assertEquals(Set.of(admin.topics().getSubscriptions(partitionedTopicName)),
+        assertEquals(new HashSet<>(admin.topics().getSubscriptions(partitionedTopicName)),
                 Set.of("my-sub", "my-sub-1"));
 
         consumer1.close();
@@ -854,7 +854,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
             producer.send(message.getBytes());
         }
 
-        assertEquals(Set.of(admin.topics().getList("prop-xyz/use/ns1")),
+        assertEquals(new HashSet<>(admin.topics().getList("prop-xyz/use/ns1")),
                 Set.of(partitionedTopicName + "-partition-0", partitionedTopicName + "-partition-1",
                         partitionedTopicName + "-partition-2", partitionedTopicName + "-partition-3"));
 

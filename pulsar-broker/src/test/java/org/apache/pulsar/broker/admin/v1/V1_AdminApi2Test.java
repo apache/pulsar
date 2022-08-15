@@ -87,7 +87,7 @@ public class V1_AdminApi2Test extends MockedPulsarServiceBaseTest {
         conf.setLoadBalancerEnabled(true);
         super.internalSetup();
 
-        // create otherbroker to test redirect on calls that need
+        // create other broker to test redirect on calls that need
         // namespace ownership
         mockPulsarSetup = new MockedPulsarService(this.conf);
         mockPulsarSetup.setup();
@@ -155,7 +155,7 @@ public class V1_AdminApi2Test extends MockedPulsarServiceBaseTest {
         assertEquals(admin.topics().getSubscriptions(partitionedTopicName), Lists.newArrayList(subName1));
         Consumer<byte[]> consumer2 = client.newConsumer().topic(partitionedTopicName).subscriptionName(subName2)
                 .subscriptionType(SubscriptionType.Shared).subscribe();
-        assertEquals(Set.of(admin.topics().getSubscriptions(partitionedTopicName)),
+        assertEquals(new HashSet<>(admin.topics().getSubscriptions(partitionedTopicName)),
                 Set.of(subName1, subName2));
 
         // (1) update partitions
@@ -183,10 +183,10 @@ public class V1_AdminApi2Test extends MockedPulsarServiceBaseTest {
         consumer2.close();
         consumer2 = client.newConsumer().topic(partitionedTopicName).subscriptionName(subName2)
                 .subscriptionType(SubscriptionType.Shared).subscribe();
-        assertEquals(Set.of(admin.topics().getSubscriptions(newPartitionTopicName)),
+        assertEquals(new HashSet<>(admin.topics().getSubscriptions(newPartitionTopicName)),
                 Set.of(subName1, subName2));
 
-        assertEquals(Set.of(admin.topics().getList("prop-xyz/use/ns1")).size(), newPartitions);
+        assertEquals(new HashSet<>(admin.topics().getList("prop-xyz/use/ns1")).size(), newPartitions);
 
         // test cumulative stats for partitioned topic
         PartitionedTopicStats topicStats = admin.topics().getPartitionedStats(partitionedTopicName, false);

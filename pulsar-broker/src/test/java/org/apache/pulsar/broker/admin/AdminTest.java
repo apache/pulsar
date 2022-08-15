@@ -33,6 +33,7 @@ import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.util.ArrayList;
@@ -611,7 +612,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         }
 
         // Check tenantInfo contains empty cluster
-        Set<String> containBlankClusters = Set.of(blankCluster);
+        Set<String> containBlankClusters = Sets.newHashSet(blankCluster);
         containBlankClusters.add(configClusterName);
         TenantInfoImpl tenantContainEmptyCluster = TenantInfoImpl.builder()
                 .adminRoles(new HashSet<>())
