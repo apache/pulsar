@@ -891,10 +891,14 @@ public abstract class PulsarWebResource {
                         }
                     }
                 }).handle((redirect, ex) -> {
-                    if (ex instanceof MalformedURLException) {
-                        throw new RestException(Status.SERVICE_UNAVAILABLE, String.format(
-                                "Failed to validate global cluster configuration : ns=%s  emsg=%s", namespace,
-                                ex.getMessage()));
+                    if (ex != null) {
+                        if (ex instanceof RuntimeException runtimeEx) {
+                            throw runtimeEx;
+                        } else {
+                            throw new RestException(Status.SERVICE_UNAVAILABLE, String.format(
+                                    "Failed to validate global cluster configuration : ns=%s  emsg=%s", namespace,
+                                    ex.getMessage()));
+                        }
                     }
 
                     if (redirect == null) {

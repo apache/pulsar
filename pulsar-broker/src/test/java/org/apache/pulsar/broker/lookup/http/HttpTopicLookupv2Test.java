@@ -26,12 +26,15 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import com.google.common.collect.Sets;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
@@ -56,6 +59,8 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.mockito.ArgumentCaptor;
+import org.testcontainers.shaded.org.awaitility.Awaitility;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -71,6 +76,8 @@ public class HttpTopicLookupv2Test {
     private ServiceConfiguration config;
     private Set<String> clusters;
     private NamespaceResources namespaceResources;
+
+    private ScheduledExecutorService executors;
 
     @SuppressWarnings("unchecked")
     @BeforeMethod
@@ -104,6 +111,17 @@ public class HttpTopicLookupv2Test {
         doReturn(brokerService).when(pulsar).getBrokerService();
         doReturn(auth).when(brokerService).getAuthorizationService();
         doReturn(new Semaphore(1000)).when(brokerService).getLookupRequestSemaphore();
+
+        executors = Executors.newScheduledThreadPool(config.getNumExecutorThreadPoolSize(),
+                new DefaultThreadFactory("pulsar"));
+        doReturn(executors).when(pulsar).getExecutor();
+    }
+
+    @AfterMethod
+    public void clean() throws Exception {
+        if (executors != null) {
+            executors.shutdown();
+        }
     }
 
     @Test
@@ -125,7 +143,14 @@ public class HttpTopicLookupv2Test {
         destLookup.lookupTopicAsync(asyncResponse, TopicDomain.persistent.value(), "myprop", "usc", "ns2", "topic1", false, null, null);
 
         ArgumentCaptor<Throwable> arg = ArgumentCaptor.forClass(Throwable.class);
-        verify(asyncResponse).resume(arg.capture());
+        Awaitility.await().until(()-> {
+            try {
+                verify(asyncResponse).resume(arg.capture());
+                return true;
+            } catch (Throwable throwable) {
+                return false;
+            }
+        });
         assertEquals(arg.getValue().getClass(), WebApplicationException.class);
         WebApplicationException wae = (WebApplicationException) arg.getValue();
         assertEquals(wae.getResponse().getStatus(), Status.TEMPORARY_REDIRECT.getStatusCode());
