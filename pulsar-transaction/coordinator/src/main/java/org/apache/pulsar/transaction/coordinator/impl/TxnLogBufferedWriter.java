@@ -122,6 +122,12 @@ public class TxnLogBufferedWriter<T> implements Closeable {
 
     private final TxnLogBufferedWriterMetricsStats metrics;
 
+    /**
+     * In the {@link #asyncAddData}, exceptions may occur. To avoid losing the callback, use a variable to mark whether
+     * a callback needs to be compensated.
+     */
+    private boolean shouldCallBackWhenWriteFail;
+
     private final TimerTask timingFlushTask = (timeout) -> {
         if (timeout.isCancelled()) {
             return;
@@ -154,8 +160,15 @@ public class TxnLogBufferedWriter<T> implements Closeable {
                                 int batchedWriteMaxRecords, int batchedWriteMaxSize, int batchedWriteMaxDelayInMillis,
                                 boolean batchEnabled, TxnLogBufferedWriterMetricsStats metrics){
         if (batchedWriteMaxRecords <= 1 && batchEnabled){
-            log.warn("The current maximum number of records per batch is set to 1. Disabling Batch will improve"
-                    + " performance, so disabled batch feature.");
+            if (metrics != null){
+                log.warn("Transaction Log Buffered Writer with the metrics name beginning with {} has batching enabled"
+                        + " yet the maximum batch size was configured to less than or equal to 1 record, hence due to"
+                        + " performance reasons batching is disabled", metrics.getMetricsPrefix());
+            } else {
+                log.warn("Transaction Log Buffered Writer has batching enabled"
+                        + " yet the maximum batch size was configured to less than or equal to 1 record, hence due to"
+                        + " performance reasons batching is disabled");
+            }
         }
         this.batchEnabled = batchEnabled && batchedWriteMaxRecords > 1;
         this.managedLedger = managedLedger;
@@ -217,16 +230,18 @@ public class TxnLogBufferedWriter<T> implements Closeable {
             return;
         }
         singleThreadExecutorForWrite.execute(() -> {
-            int recordsCountBeforeAdd = dataArray.size();
+            shouldCallBackWhenWriteFail = true;
             try {
                 internalAsyncAddData(data, callback, ctx);
             } catch (Exception e){
                 // Avoid missing callback, do failed callback when error occur before add data to the array.
-                int recordsCountAfter = dataArray.size();
-                if (recordsCountAfter == recordsCountBeforeAdd){
+                if (shouldCallBackWhenWriteFail){
+                    log.error("Failed to add data asynchronously, and do failed callback when error occur before add"
+                            + " data to the array.", e);
                     callback.addFailed(new ManagedLedgerInterceptException(e), ctx);
+                } else {
+                    log.error("Failed to add data asynchronously", e);
                 }
-                log.error("Failed to add data asynchronously", e);
             }
         });
     }
@@ -248,6 +263,7 @@ public class TxnLogBufferedWriter<T> implements Closeable {
         if (dataLength >= batchedWriteMaxSize){
             trigFlushByLargeSingleData();
             ByteBuf byteBuf = dataSerializer.serialize(data);
+            shouldCallBackWhenWriteFail = false;
             managedLedger.asyncAddEntry(byteBuf, DisabledBatchCallback.INSTANCE,
                     AsyncAddArgs.newInstance(callback, ctx, System.currentTimeMillis(), byteBuf));
             return;
@@ -255,6 +271,7 @@ public class TxnLogBufferedWriter<T> implements Closeable {
         dataArray.add(data);
         flushContext.addCallback(callback, ctx);
         bytesSize += dataLength;
+        shouldCallBackWhenWriteFail = false;
         trigFlushIfReachMaxRecordsOrMaxSize();
     }
 

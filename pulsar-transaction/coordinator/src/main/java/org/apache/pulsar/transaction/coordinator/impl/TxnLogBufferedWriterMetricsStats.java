@@ -22,6 +22,7 @@ import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Histogram;
 import java.io.Closeable;
+import lombok.Getter;
 
 /***
  * Describes the working status of the {@link TxnLogBufferedWriter}, helps users tune the thresholds of
@@ -45,6 +46,7 @@ public class TxnLogBufferedWriterMetricsStats implements Closeable {
 
     static final double[] MAX_DELAY_TIME_BUCKETS = {1, 5, 10};
 
+    @Getter
     private final String metricsPrefix;
 
     private final String[] labelNames;
