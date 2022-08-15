@@ -1521,13 +1521,13 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(topicHashPositions.getTopicHashPositions().size(), topicPartitionNumber);
 
         assertEquals((long) topicHashPositions.getTopicHashPositions().get(topic + "-partition-0"),
-                hashFunction.hashString(topic + "-partition-0", Charsets.UTF_8).padToLong());
+                hashFunction.hashString(topic + "-partition-0", StandardCharsets.UTF_8).padToLong());
         assertEquals((long) topicHashPositions.getTopicHashPositions().get(topic + "-partition-1"),
-                hashFunction.hashString(topic + "-partition-1", Charsets.UTF_8).padToLong());
+                hashFunction.hashString(topic + "-partition-1", StandardCharsets.UTF_8).padToLong());
         assertEquals((long) topicHashPositions.getTopicHashPositions().get(topic + "-partition-2"),
-                hashFunction.hashString(topic + "-partition-2", Charsets.UTF_8).padToLong());
+                hashFunction.hashString(topic + "-partition-2", StandardCharsets.UTF_8).padToLong());
         assertEquals((long) topicHashPositions.getTopicHashPositions().get(topic + "-partition-3"),
-                hashFunction.hashString(topic + "-partition-3", Charsets.UTF_8).padToLong());
+                hashFunction.hashString(topic + "-partition-3", StandardCharsets.UTF_8).padToLong());
 
         // test non-exist topic
         topicHashPositions = admin.namespaces().getTopicHashPositions(namespace,
@@ -1538,11 +1538,11 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         topicHashPositions = admin.namespaces().getTopicHashPositions(namespace,
                 bundleRange, null);
         assertEquals((long) topicHashPositions.getTopicHashPositions().get(topic + "-partition-0"),
-                hashFunction.hashString(topic + "-partition-0", Charsets.UTF_8).padToLong());
+                hashFunction.hashString(topic + "-partition-0", StandardCharsets.UTF_8).padToLong());
         assertEquals((long) topicHashPositions.getTopicHashPositions().get(topic + "-partition-1"),
-                hashFunction.hashString(topic + "-partition-1", Charsets.UTF_8).padToLong());
+                hashFunction.hashString(topic + "-partition-1", StandardCharsets.UTF_8).padToLong());
         assertEquals((long) topicHashPositions.getTopicHashPositions().get(topic + "-partition-2"),
-                hashFunction.hashString(topic + "-partition-2", Charsets.UTF_8).padToLong());
+                hashFunction.hashString(topic + "-partition-2", StandardCharsets.UTF_8).padToLong());
         assertEquals((long) topicHashPositions.getTopicHashPositions().get(topic + "-partition-3"),
                 hashFunction.hashString(topic + "-partition-3", StandardCharsets.UTF_8).padToLong());
 

@@ -430,7 +430,7 @@
         <artifactId>modernizer-maven-plugin</artifactId>
         <configuration>
           <failOnViolations>false</failOnViolations>
-          <javaVersion>8</javaVersion>
+          <javaVersion>17</javaVersion>
           <violationLogLevel>warn</violationLogLevel>
         </configuration>
         <executions>
