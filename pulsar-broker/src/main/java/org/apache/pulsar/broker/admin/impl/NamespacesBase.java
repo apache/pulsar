@@ -649,7 +649,9 @@ public abstract class NamespacesBase extends AdminResource {
                                         deleteTopicsFuture = FutureUtil.waitForAll(futures);
                                     }
                                     return deleteTopicsFuture.thenCompose(
-                                            ___ -> pulsar().getNamespaceService().removeOwnedServiceUnitAsync(bundle));
+                                            ___ -> pulsar().getNamespaceService().removeOwnedServiceUnitAsync(bundle))
+                                            .thenRun(() -> pulsar().getBrokerService().getBundleStats()
+                                                    .remove(bundle.toString()));
                                 });
                     });
                 });
