@@ -115,7 +115,7 @@ public class SimpleBrokerStartTest {
         Assert.assertTrue(totalCpuLimit > 0.0);
 
         if (cGroupEnabled) {
-            Assert.assertNotNull(LinuxInfoUtils.metrics);
+            Assert.assertNotNull(LinuxInfoUtils.getMetrics());
 
             long cpuUsageForCGroup = LinuxInfoUtils.getCpuUsageForCGroup();
             log.info("cpuUsageForCGroup: {}", cpuUsageForCGroup);

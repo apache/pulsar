@@ -54,8 +54,7 @@ public class LinuxInfoUtils {
     private static final int ARPHRD_ETHER = 1;
     private static final String NIC_SPEED_TEMPLATE = "/sys/class/net/%s/speed";
 
-    @VisibleForTesting
-    public static Object /*jdk.internal.platform.Metrics*/ metrics;
+    private static Object /*jdk.internal.platform.Metrics*/ metrics;
     private static Method getMetricsProviderMethod;
     private static Method getCpuQuotaMethod;
     private static Method getCpuPeriodMethod;
@@ -284,6 +283,11 @@ public class LinuxInfoUtils {
 
     private static double readDoubleFromFile(Path path) throws IOException {
         return Double.parseDouble(readTrimStringFromFile(path));
+    }
+
+    @VisibleForTesting
+    public static Object getMetrics() {
+        return metrics;
     }
 
     @AllArgsConstructor
