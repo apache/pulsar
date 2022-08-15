@@ -18,23 +18,33 @@
  */
 package org.apache.pulsar.broker.stats;
 
+import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
+import static org.mockito.Mockito.mock;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Multimap;
+import java.io.ByteArrayOutputStream;
+import java.lang.reflect.Field;
+import java.util.Collection;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.service.Dispatcher;
+import org.apache.pulsar.broker.service.EntryFilterSupport;
+import org.apache.pulsar.broker.service.plugin.*;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConsumerBase;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.*;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.nar.NarClassLoader;
+import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
-import java.util.UUID;
 
 @Slf4j
 @Test(groups = "broker")
@@ -133,5 +143,124 @@ public class SubscriptionStatsTest extends ProducerConsumerBase {
             Assert.assertTrue(stats.getSubscriptions().get(subName)
                     .getNonContiguousDeletedMessagesRangesSerializedSize() > 0);
         });
+    }
+
+    @DataProvider(name = "testSubscriptionMetrics")
+    public Object[][] topicAndSubscription() {
+        return new Object[][]{
+                {"persistent://my-property/my-ns/testSubscriptionStats-" + UUID.randomUUID(), "my-sub1", true},
+                {"non-persistent://my-property/my-ns/testSubscriptionStats-" + UUID.randomUUID(), "my-sub2", true},
+                {"persistent://my-property/my-ns/testSubscriptionStats-" + UUID.randomUUID(), "my-sub3", false},
+                {"non-persistent://my-property/my-ns/testSubscriptionStats-" + UUID.randomUUID(), "my-sub4", false},
+        };
+    }
+
+    @Test(dataProvider = "testSubscriptionMetrics")
+    public void testSubscriptionStats(final String topic, final String subName, boolean enableTopicStats)
+            throws Exception {
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .enableBatching(false)
+                .create();
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscriptionName(subName)
+                .subscribe();
+
+        boolean isPersistent = pulsar.getBrokerService().getTopic(topic, false).get().get().isPersistent();
+        Dispatcher dispatcher = pulsar.getBrokerService().getTopic(topic, false).get()
+                .get().getSubscription(subName).getDispatcher();
+
+        Field field = EntryFilterSupport.class.getDeclaredField("entryFilters");
+        field.setAccessible(true);
+        NarClassLoader narClassLoader = mock(NarClassLoader.class);
+        EntryFilter filter1 = new EntryFilterTest();
+        EntryFilterWithClassLoader loader1 = spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter1, narClassLoader);
+        field.set(dispatcher, ImmutableList.of(loader1));
+
+        for (int i = 0; i < 100; i++) {
+            producer.newMessage().property("ACCEPT", " ").value(UUID.randomUUID().toString()).send();
+        }
+        for (int i = 0; i < 100; i++) {
+            producer.newMessage().property("REJECT", " ").value(UUID.randomUUID().toString()).send();
+        }
+        for (int i = 0; i < 100; i++) {
+            producer.newMessage().property("RESCHEDULE", " ").value(UUID.randomUUID().toString()).send();
+        }
+
+        for (;;) {
+            Message<String> message = consumer.receive(10, TimeUnit.SECONDS);
+            if (message == null) {
+                break;
+            }
+            consumer.acknowledge(message);
+        }
+
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, enableTopicStats, false, false, output);
+        String metricsStr = output.toString();
+        Multimap<String, PrometheusMetricsTest.Metric> metrics = PrometheusMetricsTest.parseMetrics(metricsStr);
+
+        Collection<PrometheusMetricsTest.Metric> throughFilterMetrics =
+                metrics.get("pulsar_subscription_filter_processed_msg_count");
+        Collection<PrometheusMetricsTest.Metric> acceptedMetrics =
+                metrics.get("pulsar_subscription_filter_accepted_msg_count");
+        Collection<PrometheusMetricsTest.Metric> rejectedMetrics =
+                metrics.get("pulsar_subscription_filter_rejected_msg_count");
+        Collection<PrometheusMetricsTest.Metric> rescheduledMetrics =
+                metrics.get("pulsar_subscription_filter_rescheduled_msg_count");
+
+        if (enableTopicStats) {
+            Assert.assertTrue(throughFilterMetrics.size() > 0);
+            Assert.assertTrue(acceptedMetrics.size() > 0);
+            Assert.assertTrue(rejectedMetrics.size() > 0);
+            Assert.assertTrue(rescheduledMetrics.size() > 0);
+
+            double throughFilter = throughFilterMetrics.stream()
+                    .filter(m -> m.tags.get("subscription").equals(subName) && m.tags.get("topic").equals(topic))
+                    .mapToDouble(m-> m.value).sum();
+            double filterAccepted = acceptedMetrics.stream()
+                    .filter(m -> m.tags.get("subscription").equals(subName) && m.tags.get("topic").equals(topic))
+                    .mapToDouble(m-> m.value).sum();
+            double filterRejected = rejectedMetrics.stream()
+                    .filter(m -> m.tags.get("subscription").equals(subName) && m.tags.get("topic").equals(topic))
+                    .mapToDouble(m-> m.value).sum();
+            double filterRescheduled = rescheduledMetrics.stream()
+                    .filter(m -> m.tags.get("subscription").equals(subName) && m.tags.get("topic").equals(topic))
+                    .mapToDouble(m-> m.value).sum();
+
+            Assert.assertEquals(filterAccepted, 100);
+            if (isPersistent) {
+                Assert.assertEquals(filterRejected, 100);
+                Assert.assertEquals(throughFilter, filterAccepted + filterRejected + filterRescheduled, 0.01 * throughFilter);
+            }
+        } else {
+            Assert.assertEquals(throughFilterMetrics.size(), 0);
+            Assert.assertEquals(acceptedMetrics.size(), 0);
+            Assert.assertEquals(rejectedMetrics.size(), 0);
+            Assert.assertEquals(rescheduledMetrics.size(), 0);
+        }
+
+        testSubscriptionStatsAdminApi(topic, subName);
+    }
+
+    private void testSubscriptionStatsAdminApi(String topic, String subName) throws Exception {
+        boolean persistent = TopicName.get(topic).isPersistent();
+        TopicStats topicStats = admin.topics().getStats(topic);
+        SubscriptionStats stats = topicStats.getSubscriptions().get(subName);
+        Assert.assertNotNull(stats);
+
+        Assert.assertEquals(stats.getFilterAcceptedMsgCount(), 100);
+        if (persistent) {
+            Assert.assertEquals(stats.getFilterRejectedMsgCount(), 100);
+            Assert.assertEquals(stats.getFilterProcessedMsgCount(),
+                    stats.getFilterAcceptedMsgCount() + stats.getFilterRejectedMsgCount()
+                            + stats.getFilterRescheduledMsgCount(),
+                    0.01 * stats.getFilterProcessedMsgCount());
+        }
     }
 }
