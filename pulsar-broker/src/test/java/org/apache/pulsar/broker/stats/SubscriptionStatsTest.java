@@ -257,10 +257,10 @@ public class SubscriptionStatsTest extends ProducerConsumerBase {
         Assert.assertEquals(stats.getFilterAcceptedMsgCount(), 100);
         if (persistent) {
             Assert.assertEquals(stats.getFilterRejectedMsgCount(), 100);
-            Assert.assertEquals(stats.getThroughFilterMsgCount(),
+            Assert.assertEquals(stats.getFilterProcessedMsgCount(),
                     stats.getFilterAcceptedMsgCount() + stats.getFilterRejectedMsgCount()
                             + stats.getFilterRescheduledMsgCount(),
-                    0.01 * stats.getThroughFilterMsgCount());
+                    0.01 * stats.getFilterProcessedMsgCount());
         }
     }
 }

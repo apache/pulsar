@@ -137,7 +137,7 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
     /** SubscriptionProperties (key/value strings) associated with this subscribe. */
     public Map<String, String> subscriptionProperties;
 
-    public long throughFilterMsgCount;
+    public long filterProcessedMsgCount;
 
     public long filterAcceptedMsgCount;
 
@@ -171,7 +171,7 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         nonContiguousDeletedMessagesRangesSerializedSize = 0;
         delayedTrackerMemoryUsage = 0;
         subscriptionProperties.clear();
-        throughFilterMsgCount = 0;
+        filterProcessedMsgCount = 0;
         filterAcceptedMsgCount = 0;
         filterRejectedMsgCount = 0;
         filterRescheduledMsgCount = 0;
@@ -211,7 +211,7 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         this.nonContiguousDeletedMessagesRangesSerializedSize += stats.nonContiguousDeletedMessagesRangesSerializedSize;
         this.delayedTrackerMemoryUsage += stats.delayedTrackerMemoryUsage;
         this.subscriptionProperties.putAll(stats.subscriptionProperties);
-        this.throughFilterMsgCount += stats.throughFilterMsgCount;
+        this.filterProcessedMsgCount += stats.filterProcessedMsgCount;
         this.filterAcceptedMsgCount += stats.filterAcceptedMsgCount;
         this.filterRejectedMsgCount += stats.filterRejectedMsgCount;
         this.filterRescheduledMsgCount += stats.filterRescheduledMsgCount;

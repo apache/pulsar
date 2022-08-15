@@ -127,7 +127,7 @@ public interface SubscriptionStats {
     /** The serialized size of non-contiguous deleted messages ranges. */
     int getNonContiguousDeletedMessagesRangesSerializedSize();
 
-    long getThroughFilterMsgCount();
+    long getFilterProcessedMsgCount();
 
     long getFilterAcceptedMsgCount();
 

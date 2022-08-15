@@ -136,7 +136,7 @@ public class NamespaceStatsAggregator {
         });
         stats.rateOut += subsStats.msgRateOut;
         stats.throughputOut += subsStats.msgThroughputOut;
-        subsStats.filterProcessedMsgCount = subscriptionStats.throughFilterMsgCount;
+        subsStats.filterProcessedMsgCount = subscriptionStats.filterProcessedMsgCount;
         subsStats.filterAcceptedMsgCount = subscriptionStats.filterAcceptedMsgCount;
         subsStats.filterRejectedMsgCount = subscriptionStats.filterRejectedMsgCount;
         subsStats.filterRescheduledMsgCount = subscriptionStats.filterRescheduledMsgCount;
