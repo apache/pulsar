@@ -167,7 +167,7 @@ public class TxnLogBufferedWriter<T> implements Closeable {
         this.batchedWriteMaxDelayInMillis = batchedWriteMaxDelayInMillis;
         this.flushContext = FlushContext.newInstance();
         this.dataArray = new ArrayList<>();
-        this.state = State.OPEN;
+        STATE_UPDATER.set(this, State.OPEN);
         this.metrics = metrics;
         this.timer = timer;
         // scheduler task.
@@ -389,10 +389,10 @@ public class TxnLogBufferedWriter<T> implements Closeable {
                             + " is null. managedLedger: " + managedLedger.getName());
                 } else if (timeout.isCancelled()) {
                     // TODO How decisions the timer-task has been finished ?
-                    state = State.CLOSED;
+                    STATE_UPDATER.set(this, State.CLOSED);
                 } else {
                     if (this.timeout.cancel()) {
-                        state = State.CLOSED;
+                        STATE_UPDATER.set(this, State.CLOSED);
                     } else {
                         // Cancel task failure, The state will stay at CLOSING.
                         log.error("Cancel timeout-task that schedule at fixed rate trig flush failure. The state will"
