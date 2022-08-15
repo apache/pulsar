@@ -127,6 +127,10 @@ public class AggregatedNamespaceStats {
             subsStats.msgDelayed += as.msgDelayed;
             subsStats.msgRateRedeliver += as.msgRateRedeliver;
             subsStats.unackedMessages += as.unackedMessages;
+            subsStats.filterProcessedMsgCount += as.filterProcessedMsgCount;
+            subsStats.filterAcceptedMsgCount += as.filterAcceptedMsgCount;
+            subsStats.filterRejectedMsgCount += as.filterRejectedMsgCount;
+            subsStats.filterRescheduledMsgCount += as.filterRescheduledMsgCount;
             as.consumerStat.forEach((c, v) -> {
                 AggregatedConsumerStats consumerStats =
                         subsStats.consumerStat.computeIfAbsent(c, k -> new AggregatedConsumerStats());

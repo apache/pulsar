@@ -296,6 +296,16 @@ class TopicStats {
                     subsStats.msgDropRate, splitTopicAndPartitionIndexLabel);
             metric(stream, cluster, namespace, topic, n, "pulsar_subscription_consumers_count",
                     subsStats.consumersCount, splitTopicAndPartitionIndexLabel);
+
+            metric(stream, cluster, namespace, topic, n, "pulsar_subscription_filter_processed_msg_count",
+                    subsStats.filterProcessedMsgCount, splitTopicAndPartitionIndexLabel);
+            metric(stream, cluster, namespace, topic, n, "pulsar_subscription_filter_accepted_msg_count",
+                    subsStats.filterAcceptedMsgCount, splitTopicAndPartitionIndexLabel);
+            metric(stream, cluster, namespace, topic, n, "pulsar_subscription_filter_rejected_msg_count",
+                    subsStats.filterRejectedMsgCount, splitTopicAndPartitionIndexLabel);
+            metric(stream, cluster, namespace, topic, n, "pulsar_subscription_filter_rescheduled_msg_count",
+                    subsStats.filterRescheduledMsgCount, splitTopicAndPartitionIndexLabel);
+
             subsStats.consumerStat.forEach((c, consumerStats) -> {
                 metric(stream, cluster, namespace, topic, n, c.consumerName(), c.consumerId(),
                         "pulsar_consumer_msg_rate_redeliver", consumerStats.msgRateRedeliver,
