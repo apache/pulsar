@@ -120,8 +120,8 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
                     "Can't create SystemTopicBasedLedgerDeletionService, " + "because the topicName is null!");
         }
         return namespaceEventsSystemTopicFactory.createLedgerDeletionSystemTopicClient(ledgerDeletionSystemTopic,
-                serviceConfiguration.getSendDelaySecondsOfTopicTwoPhaseDeletion(),
-                serviceConfiguration.getReconsumeLaterSecondsOfTopicTwoPhaseDeletion());
+                serviceConfiguration.getSendDelayOfTopicTwoPhaseDeletionInSeconds(),
+                serviceConfiguration.getReconsumeLaterOfTopicTwoPhaseDeletionInSeconds());
     }
 
     @Override

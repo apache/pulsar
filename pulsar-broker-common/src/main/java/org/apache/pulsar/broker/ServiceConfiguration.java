@@ -2686,7 +2686,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "When delete ledger of two phase deletion, it will send PendingDeleteLedgerInfo to system topic,"
                     + " send it delay according this value. (Default 60s)"
     )
-    private int sendDelaySecondsOfTopicTwoPhaseDeletion = 60;
+    private int sendDelayOfTopicTwoPhaseDeletionInSeconds = 60;
 
     @FieldContext(
             category = CATEGORY_SERVER,
@@ -2694,7 +2694,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + " when consume PendingDeleteLedgerInfo failed, will reconsume later according this value."
                     + " (Default 600s)"
     )
-    private int reconsumeLaterSecondsOfTopicTwoPhaseDeletion = 600;
+    private int reconsumeLaterOfTopicTwoPhaseDeletionInSeconds = 600;
 
     @FieldContext(
             category = CATEGORY_STORAGE_ML,
