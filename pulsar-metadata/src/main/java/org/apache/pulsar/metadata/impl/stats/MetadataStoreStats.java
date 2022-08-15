@@ -25,39 +25,40 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public final class MetadataStoreStats implements AutoCloseable {
     private static final double[] BUCKETS = new double[]{1, 3, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000};
     private static final String LABEL_NAME = "name";
+    protected static final String PREFIX = "pulsar_metadata_store_";
 
     private static final Histogram GET_OPS_SUCCEED = Histogram
-            .build("pulsar_metadata_store_get_latency", "-")
+            .build(PREFIX + "get_latency", "-")
             .unit("ms")
             .buckets(BUCKETS)
             .labelNames(LABEL_NAME)
             .register();
     private static final Histogram DEL_OPS_SUCCEED = Histogram
-            .build("pulsar_metadata_store_del_latency", "-")
+            .build(PREFIX + "del_latency", "-")
             .unit("ms")
             .buckets(BUCKETS)
             .labelNames(LABEL_NAME)
             .register();
     private static final Histogram PUT_OPS_SUCCEED = Histogram
-            .build("pulsar_metadata_store_put_latency", "-")
+            .build(PREFIX + "put_latency", "-")
             .unit("ms")
             .buckets(BUCKETS)
             .labelNames(LABEL_NAME)
             .register();
     private static final Counter GET_OPS_FAILED = Counter
-            .build("pulsar_metadata_store_get_failed", "-")
+            .build(PREFIX + "get_failed", "-")
             .labelNames(LABEL_NAME)
             .register();
     private static final Counter DEL_OPS_FAILED = Counter
-            .build("pulsar_metadata_store_del_failed", "-")
+            .build(PREFIX + "del_failed", "-")
             .labelNames(LABEL_NAME)
             .register();
     private static final Counter PUT_OPS_FAILED = Counter
-            .build("pulsar_metadata_store_put_failed", "-")
+            .build(PREFIX + "put_failed", "-")
             .labelNames(LABEL_NAME)
             .register();
     private static final Counter PUT_BYTES = Counter
-            .build("pulsar_metadata_store_put", "-")
+            .build(PREFIX + "put", "-")
             .unit("bytes")
             .labelNames(LABEL_NAME)
             .register();
