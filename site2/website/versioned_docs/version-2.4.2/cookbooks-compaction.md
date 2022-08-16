@@ -85,7 +85,7 @@ How often you [trigger compaction](#trigger) will vary widely based on the use c
 
 ## Consumer configuration
 
-Pulsar consumers and readers need to be configured to read from compacted topics. The sections below show you how to enable compacted topic reads for Pulsar's language clients. If the
+Pulsar consumers and readers need to be configured to read from compacted topics. The sections below show you how to enable compacted topic reads for Pulsar's language clients.
 
 ### Java
 

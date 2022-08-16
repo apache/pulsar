@@ -690,7 +690,7 @@
                   <springmvc>false</springmvc>
                   <locations>org.apache.pulsar.broker.lookup.v2</locations>
                   <schemes>http,https</schemes>
-                  <basePath>/lookup/v2</basePath>
+                  <basePath>/lookup</basePath>
                   <info>
                     <title>Pulsar Lookup REST API</title>
                     <version>v2</version>

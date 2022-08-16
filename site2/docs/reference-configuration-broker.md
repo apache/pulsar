@@ -1667,7 +1667,7 @@ Whether to enable the acknowledge of batch local index
 **Category**: Server
 
 ### advertisedAddress
-Hostname or IP address the service advertises to the outside world. If not set, the value of `InetAddress.getLocalHost().getHostname()` is used.
+Hostname or IP address the service advertises to the outside world. If not set, the value of `InetAddress.getLocalHost().getCanonicalHostName()` is used.
 
 **Default**: `null`
 

@@ -163,7 +163,7 @@ function test_group_pulsar_io() {
     echo "::endgroup::"
 
     echo "::group::Running pulsar-sql tests"
-    mvn_test --install -Ppulsar-sql-tests,-main
+    mvn_test --install -Ppulsar-sql-tests,-main -DtestForkCount=1
     echo "::endgroup::"
 }
 
