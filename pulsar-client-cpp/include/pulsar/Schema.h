@@ -27,6 +27,22 @@
 
 namespace pulsar {
 
+enum KeyValueEncodingType
+{
+    /**
+     * Key is stored as message key, while value is stored as message payload.
+     */
+    SEPARATED,
+
+    /**
+     * Key and value are stored as message payload.
+     */
+    INLINE
+};
+
+// Return string representation of result code
+PULSAR_PUBLIC const char *strEncodingType(KeyValueEncodingType schemaType);
+
 enum SchemaType
 {
     /**
@@ -142,6 +158,15 @@ class PULSAR_PUBLIC SchemaInfo {
      */
     SchemaInfo(SchemaType schemaType, const std::string &name, const std::string &schema,
                const StringMap &properties = StringMap());
+
+    /**
+     * @param schemaType the schema type
+     * @param name the name of the schema definition
+     * @param schema the schema definition as a JSON string
+     * @param properties a map of custom defined properties attached to the schema
+     */
+    SchemaInfo(const SchemaInfo &keySchema, const SchemaInfo &valueSchema,
+               KeyValueEncodingType keyValueEncodingType);
 
     /**
      * @return the schema type

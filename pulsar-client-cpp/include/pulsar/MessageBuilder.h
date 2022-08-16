@@ -25,6 +25,7 @@
 
 #include <pulsar/Message.h>
 #include <pulsar/defines.h>
+#include "KeyValue.h"
 
 namespace pulsar {
 class PulsarWrapper;
@@ -59,6 +60,13 @@ class PULSAR_PUBLIC MessageBuilder {
      * @param data the content of the message. The given data is moved into message.
      */
     MessageBuilder& setContent(std::string&& data);
+
+    /**
+     * Set the key value content of the message
+     *
+     * @param data the content of the key value.
+     */
+    MessageBuilder& setContent(KeyValue data);
 
     /**
      * Set content of the message to a buffer already allocated by the caller. No copies of

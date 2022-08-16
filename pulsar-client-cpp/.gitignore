@@ -44,6 +44,9 @@ lib*.so*
 /examples/SampleConsumerListenerCApi
 /examples/SampleReaderCApi
 /examples/SampleFileLogger
+/examples/SampleKeyValueSchemaConsumer
+/examples/SampleKeyValueSchemaProducer
+/examples/SampleFileLogger
 /tests/main
 /perf/perfProducer
 /perf/perfConsumer

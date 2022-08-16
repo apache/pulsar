@@ -81,6 +81,16 @@ MessageBuilder& MessageBuilder::setContent(std::string&& data) {
     return *this;
 }
 
+MessageBuilder& MessageBuilder::setContent(KeyValue data) {
+    if (data.getEncodingType() == INLINE) {
+        setContent(data.getContent());
+    } else {
+        setPartitionKey(data.getKeyData());
+        setContent(data.getContent());
+    }
+    return *this;
+}
+
 MessageBuilder& MessageBuilder::setProperty(const std::string& name, const std::string& value) {
     checkMetadata();
     proto::KeyValue* keyValue = proto::KeyValue().New();
