@@ -618,6 +618,7 @@ public abstract class NamespacesBase extends AdminResource {
 
             // remove from owned namespace map and ephemeral node from ZK
             pulsar().getNamespaceService().removeOwnedServiceUnit(bundle);
+            pulsar().getBrokerService().getBundleStats().remove(bundle.toString());
         } catch (WebApplicationException wae) {
             throw wae;
         } catch (Exception e) {
@@ -684,6 +685,7 @@ public abstract class NamespacesBase extends AdminResource {
                 authoritative, true);
             // directly remove from owned namespace map and ephemeral node from ZK
             pulsar().getNamespaceService().removeOwnedServiceUnit(bundle);
+            pulsar().getBrokerService().getBundleStats().remove(bundle.toString());
         } catch (WebApplicationException wae) {
             throw wae;
         } catch (Exception e) {
