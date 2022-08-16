@@ -52,6 +52,7 @@ class SharedCacheSegmentBufferCopy implements AutoCloseable, SharedCacheSegment 
 
         if (offset + entrySize > segmentSize) {
             // The segment is full
+            currentOffset.getAndAdd(-alignedSize);
             return false;
         } else {
             // Copy entry into read cache segment

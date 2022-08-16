@@ -45,11 +45,13 @@ class SharedCacheSegmentBufferRefCount implements SharedCacheSegment {
 
         if (newSize > segmentSize) {
             // The segment is full
+            currentSize.getAndAdd(-entry.readableBytes());
             return false;
         } else {
             // Insert entry into read cache segment
             ByteBuf oldValue = index.putIfAbsent(ledgerId, entryId, entry.retain());
             if (oldValue != null) {
+                currentSize.getAndAdd(-entry.readableBytes());
                 entry.release();
                 return false;
             } else {
@@ -87,5 +89,6 @@ class SharedCacheSegmentBufferRefCount implements SharedCacheSegment {
     public void clear() {
         index.forEach((ledgerId, entryId, e) -> e.release());
         index.clear();
+        currentSize.set(0);
     }
 }
