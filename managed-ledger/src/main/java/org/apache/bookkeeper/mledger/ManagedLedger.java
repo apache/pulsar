@@ -302,7 +302,7 @@ public interface ManagedLedger {
                                               MLDataFormats.OffloadContext offloadContext);
 
     void deleteLedger(long ledgerId, LedgerType ledgerType,  String topicName,
-                      MLDataFormats.OffloadContext offloadContext) throws ExecutionException, InterruptedException;
+                      MLDataFormats.OffloadContext offloadContext) throws InterruptedException, ManagedLedgerException;
 
     /**
      * Remove a ManagedCursor from this ManagedLedger's waitingCursors.

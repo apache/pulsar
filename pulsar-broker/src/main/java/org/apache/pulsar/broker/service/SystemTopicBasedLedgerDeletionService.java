@@ -48,7 +48,9 @@ import org.apache.bookkeeper.stats.OpStatsLogger;
 import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.bookkeeper.util.MathUtils;
+import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.configuration.Configuration;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -477,9 +479,14 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
                                                            MLDataFormats.OffloadContext offloadContext) {
         CompletableFuture<Void> future = new CompletableFuture<>();
         final long startTime = MathUtils.nowInNano();
-
-        OffloadPoliciesImpl offloadPolicies = buildOffloadPolicies(offloadContext);
-
+        OffloadPoliciesImpl offloadPolicies;
+        try {
+            offloadPolicies = buildOffloadPolicies(offloadContext);
+        } catch (PendingDeleteLedgerInvalidException e) {
+            log.warn("[{}] Couldn't parse offload policies from offload context. ledgerId: {}", topicName, ledgerId, e);
+            future.completeExceptionally(e);
+            return future;
+        }
         LedgerOffloader ledgerOffloader = offloaderMap.get(offloadPolicies);
         if (ledgerOffloader == null) {
             synchronized (this) {
@@ -525,20 +532,39 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
         return future;
     }
 
-    private OffloadPoliciesImpl buildOffloadPolicies(MLDataFormats.OffloadContext offloadContext) {
+    private OffloadPoliciesImpl buildOffloadPolicies(MLDataFormats.OffloadContext offloadContext)
+            throws PendingDeleteLedgerInvalidException {
         String driverName = OffloadUtils.getOffloadDriverName(offloadContext, "");
+        if (StringUtils.isBlank(driverName)) {
+            throw new PendingDeleteLedgerInvalidException("The offload context driverName is empty");
+        }
+        Map<String, String> metadata =
+                OffloadUtils.getOffloadDriverMetadata(offloadContext, Collections.emptyMap());
+        if (MapUtils.isEmpty(metadata)) {
+            throw new PendingDeleteLedgerInvalidException("The offload context metadata is empty");
+        }
         if (FILE_SYSTEM_DRIVER.equals(driverName)) {
-            // TODO: 2022/7/13 Filesystem offloader params needs more info
-            return null;
+            OffloadPoliciesImpl.OffloadPoliciesImplBuilder builder =
+                    new OffloadPoliciesImpl.OffloadPoliciesImplBuilder();
+            builder.managedLedgerOffloadDriver(driverName);
+            builder.fileSystemProfilePath(metadata.get(FILE_SYSTEM_PROFILE_PATH));
+            builder.fileSystemURI(metadata.get(FILE_SYSTEM_URI));
+            return builder.build();
         } else {
-            Map<String, String> metadata =
-                    OffloadUtils.getOffloadDriverMetadata(offloadContext, Collections.emptyMap());
             String bucket = metadata.get(METADATA_FIELD_BUCKET);
             String region = metadata.get(METADATA_FIELD_REGION);
             String endpoint = metadata.get(METADATA_FIELD_ENDPOINT);
             return OffloadPoliciesImpl.create(driverName, bucket, region, endpoint);
         }
     }
+
+    //FileSystemManagedLedgerOffloader.STORAGE_BASE_PATH
+    private static final String STORAGE_BASE_PATH = "storageBasePath";
+    //FileSystemManagedLedgerOffloader.FILE_SYSTEM_PROFILE_PATH
+    private static final String FILE_SYSTEM_PROFILE_PATH = "fileSystemProfilePath";
+    //FileSystemManagedLedgerOffloader.FILE_SYSTEM_URI
+    private static final String FILE_SYSTEM_URI = "fileSystemURI";
+
 
     //TieredStorageConfiguration.METADATA_FIELD_BUCKET
     private static final String METADATA_FIELD_BUCKET = "bucket";

@@ -1130,8 +1130,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     @Override
     public void deleteLedger(long ledgerId, LedgerType ledgerType, String topicName,
                              MLDataFormats.OffloadContext offloadContext)
-            throws ExecutionException, InterruptedException {
-        asyncDeleteLedger(ledgerId, ledgerType, topicName, offloadContext).get();
+            throws InterruptedException, ManagedLedgerException {
+        try {
+            asyncDeleteLedger(ledgerId, ledgerType, topicName, offloadContext).get();
+        } catch (ExecutionException e) {
+            log.error("[{}] Delete ledger {} error.", name, ledgerId, e.getCause());
+            throw ManagedLedgerException.getManagedLedgerException(e.getCause());
+        }
     }
 
 
