@@ -105,7 +105,7 @@ flexible messaging model and an intuitive client API.</description>
     <commons-compress.version>1.21</commons-compress.version>
 
     <!-- Use Luna Streaming BookKeeper custom version -->
-    <bookkeeper.version>4.14.5.1.0.1</bookkeeper.version>
+    <bookkeeper.version>4.14.5.1.0.2</bookkeeper.version>
     <zookeeper.version>3.8.0</zookeeper.version>
     <commons-cli.version>1.5.0</commons-cli.version>
     <commons-text.version>1.9</commons-text.version>
