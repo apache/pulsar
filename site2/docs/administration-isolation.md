@@ -16,6 +16,8 @@ Pulsar supports isolation at either of the following two levels or both.
 * [Broker-level isolation](administration-isolation-broker.md) divides brokers into different groups and assigns broker groups to different namespaces. In this way, you can bind topics in a namespace to a set of brokers that belong to the specific groups.
 * [Bookie-level isolation](administration-isolation-bookie.md) divides bookies into different racks/regions and assigns data replicas to bookies based on a specified data placement policy for disaster tolerance.
 
+![Isolation levels](/assets/admin-isolation.svg)
+
 :::tip
 
 On top of [broker-level isolation](administration-isolation-broker.md) and [bookie-level isolation](administration-isolation-bookie.md), if you want to guarantee all the data that belongs to a namespace is stored in desired bookies, you can define and configure [bookie affinity groups](administration-isolation-bookie.md#configure-bookie-affinity-groups). See [shared BookKeeper cluster deployment](#shared-bookkeeper-cluster) for more details.
