@@ -122,6 +122,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     @Override
     public void setup() throws Exception {
+        conf.setForceDeleteNamespaceAllowed(true);
         conf.setLoadBalancerEnabled(true);
         conf.setEnableNamespaceIsolationUpdateOnTime(true);
         super.internalSetup();
@@ -1336,6 +1337,13 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testDeleteTenant() throws Exception {
+        // Disabled conf: systemTopicEnabled. see: https://github.com/apache/pulsar/pull/17070
+        boolean originalSystemTopicEnabled = conf.isSystemTopicEnabled();
+        if (originalSystemTopicEnabled) {
+            internalCleanup();
+            conf.setSystemTopicEnabled(false);
+            setup();
+        }
         pulsar.getConfiguration().setForceDeleteNamespaceAllowed(false);
 
         String tenant = "test-tenant-1";
@@ -1384,6 +1392,12 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         assertFalse(pulsar.getLocalMetadataStore().exists(partitionedTopicPath).join());
         assertFalse(pulsar.getLocalMetadataStore().exists(localPoliciesPath).join());
         assertFalse(pulsar.getLocalMetadataStore().exists(bundleDataPath).join());
+        // Reset conf: systemTopicEnabled
+        if (originalSystemTopicEnabled) {
+            internalCleanup();
+            conf.setSystemTopicEnabled(true);
+            setup();
+        }
     }
 
     @Test
@@ -2547,5 +2561,16 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         PulsarAdminException ex = expectThrows(PulsarAdminException.class,
                 () -> admin.topics().terminateTopic(eventTopic));
         assertTrue(ex instanceof PulsarAdminException.NotAllowedException);
+    }
+
+    @Test
+    private void testDeleteNamespaceForciblyWithManyTopics() throws Exception {
+        final String ns = "prop-xyz/ns-testDeleteNamespaceForciblyWithManyTopics";
+        admin.namespaces().createNamespace(ns, 2);
+        for (int i = 0; i < 100; i++) {
+            admin.topics().createPartitionedTopic(String.format("persistent://%s", ns + "/topic" + i), 3);
+        }
+        admin.namespaces().deleteNamespace(ns, true);
+        Assert.assertFalse(admin.namespaces().getNamespaces("prop-xyz").contains(ns));
     }
 }
