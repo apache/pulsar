@@ -69,7 +69,6 @@ import org.apache.pulsar.functions.runtime.RuntimeUtils;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 import org.apache.pulsar.functions.utils.Actions;
 import org.apache.pulsar.functions.utils.FunctionCommon;
-import org.apache.pulsar.packages.management.core.common.PackageType;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -835,13 +834,8 @@ public class KubernetesRuntime implements Runtime {
     }
 
     private List<String> getDownloadCommand(Function.FunctionDetails functionDetails, String userCodeFilePath) {
-        if (Arrays.stream(PackageType.values()).anyMatch(type ->
-            functionDetails.getPackageUrl().startsWith(type.toString()))) {
-            return getPackageDownloadCommand(functionDetails.getPackageUrl(), userCodeFilePath);
-        } else {
-            return getDownloadCommand(functionDetails.getTenant(), functionDetails.getNamespace(),
+        return getDownloadCommand(functionDetails.getTenant(), functionDetails.getNamespace(),
                 functionDetails.getName(), userCodeFilePath);
-        }
     }
 
     private List<String> getDownloadCommand(String tenant, String namespace, String name, String userCodeFilePath) {
@@ -886,39 +880,6 @@ public class KubernetesRuntime implements Runtime {
                 name,
                 "--destination-file",
                 userCodeFilePath);
-    }
-
-    private List<String> getPackageDownloadCommand(String packageName, String userCodeFilePath) {
-        // add auth plugin and parameters if necessary
-        if (authenticationEnabled && authConfig != null) {
-            if (isNotBlank(authConfig.getClientAuthenticationPlugin())
-                && isNotBlank(authConfig.getClientAuthenticationParameters())
-                && instanceConfig.getFunctionAuthenticationSpec() != null) {
-                return Arrays.asList(
-                    pulsarRootDir + configAdminCLI,
-                    "--auth-plugin",
-                    authConfig.getClientAuthenticationPlugin(),
-                    "--auth-params",
-                    authConfig.getClientAuthenticationParameters(),
-                    "--admin-url",
-                    pulsarAdminUrl,
-                    "packages",
-                    "download",
-                    packageName,
-                    "--path",
-                    userCodeFilePath);
-            }
-        }
-
-        return Arrays.asList(
-            pulsarRootDir + configAdminCLI,
-            "--admin-url",
-            pulsarAdminUrl,
-            "packages",
-            "download",
-            packageName,
-            "--path",
-            userCodeFilePath);
     }
 
     private static String setShardIdEnvironmentVariableCommand() {
