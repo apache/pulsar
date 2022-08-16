@@ -96,18 +96,32 @@ import org.apache.pulsar.common.api.proto.AuthMethod;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.BaseCommand.Type;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.CommandAddPartitionToTxn;
+import org.apache.pulsar.common.api.proto.CommandAddSubscriptionToTxn;
 import org.apache.pulsar.common.api.proto.CommandAuthResponse;
 import org.apache.pulsar.common.api.proto.CommandConnected;
+import org.apache.pulsar.common.api.proto.CommandConsumerStats;
+import org.apache.pulsar.common.api.proto.CommandEndTxn;
+import org.apache.pulsar.common.api.proto.CommandEndTxnOnPartition;
+import org.apache.pulsar.common.api.proto.CommandEndTxnOnSubscription;
 import org.apache.pulsar.common.api.proto.CommandError;
+import org.apache.pulsar.common.api.proto.CommandGetOrCreateSchema;
+import org.apache.pulsar.common.api.proto.CommandGetSchema;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespaceResponse;
+import org.apache.pulsar.common.api.proto.CommandLookupTopic;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
+import org.apache.pulsar.common.api.proto.CommandNewTxn;
+import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadata;
 import org.apache.pulsar.common.api.proto.CommandProducerSuccess;
 import org.apache.pulsar.common.api.proto.CommandSendError;
 import org.apache.pulsar.common.api.proto.CommandSendReceipt;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.CommandSuccess;
+import org.apache.pulsar.common.api.proto.CommandTcClientConnectRequest;
+import org.apache.pulsar.common.api.proto.CommandWatchTopicList;
+import org.apache.pulsar.common.api.proto.CommandWatchTopicListClose;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
@@ -2152,5 +2166,158 @@ public class ServerCnxTest {
         }
         verify(authResponse, times(1)).hasClientVersion();
         verify(authResponse, times(0)).getClientVersion();
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    void shouldFailHandleLookup() throws Exception {
+        resetChannel();
+        Field stateUpdater = ServerCnx.class.getDeclaredField("state");
+        stateUpdater.setAccessible(true);
+        stateUpdater.set(serverCnx, ServerCnx.State.Failed);
+
+        CommandLookupTopic commandLookupTopic = spy(CommandLookupTopic.class);
+        serverCnx.handleLookup(commandLookupTopic);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    void shouldFailHandlePartitionMetadataRequest() throws Exception {
+        resetChannel();
+        Field stateUpdater = ServerCnx.class.getDeclaredField("state");
+        stateUpdater.setAccessible(true);
+        stateUpdater.set(serverCnx, ServerCnx.State.Failed);
+
+        CommandPartitionedTopicMetadata partitionMetadata = spy(CommandPartitionedTopicMetadata.class);
+        serverCnx.handlePartitionMetadataRequest(partitionMetadata);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    void shouldFailHandleConsumerStats() throws Exception {
+        resetChannel();
+        Field stateUpdater = ServerCnx.class.getDeclaredField("state");
+        stateUpdater.setAccessible(true);
+        stateUpdater.set(serverCnx, ServerCnx.State.Failed);
+        CommandConsumerStats commandConsumerStats = spy(CommandConsumerStats.class);
+        serverCnx.handleConsumerStats(commandConsumerStats);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    void shouldFailHandleGetTopicsOfNamespace() throws Exception {
+        resetChannel();
+        Field stateUpdater = ServerCnx.class.getDeclaredField("state");
+        stateUpdater.setAccessible(true);
+        stateUpdater.set(serverCnx, ServerCnx.State.Failed);
+        CommandGetTopicsOfNamespace commandGetTopicsOfNamespace = spy(CommandGetTopicsOfNamespace.class);
+        serverCnx.handleGetTopicsOfNamespace(commandGetTopicsOfNamespace);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    void shouldFailHandleGetSchema() throws Exception {
+        resetChannel();
+        Field stateUpdater = ServerCnx.class.getDeclaredField("state");
+        stateUpdater.setAccessible(true);
+        stateUpdater.set(serverCnx, ServerCnx.State.Failed);
+        CommandGetSchema commandGetSchem = spy(CommandGetSchema.class);
+        serverCnx.handleGetSchema(commandGetSchem);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    void shouldFailHandleGetOrCreateSchema() throws Exception {
+        resetChannel();
+        Field stateUpdater = ServerCnx.class.getDeclaredField("state");
+        stateUpdater.setAccessible(true);
+        stateUpdater.set(serverCnx, ServerCnx.State.Failed);
+        CommandGetOrCreateSchema commandGetOrCreateSchema = spy(CommandGetOrCreateSchema.class);
+        serverCnx.handleGetOrCreateSchema(commandGetOrCreateSchema);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    void shouldFailHandleTcClientConnectRequest() throws Exception {
+        resetChannel();
+        Field stateUpdater = ServerCnx.class.getDeclaredField("state");
+        stateUpdater.setAccessible(true);
+        stateUpdater.set(serverCnx, ServerCnx.State.Failed);
+        CommandTcClientConnectRequest command = spy(CommandTcClientConnectRequest.class);
+        serverCnx.handleTcClientConnectRequest(command);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    void shouldFailHandleNewTxn() throws Exception {
+        resetChannel();
+        Field stateUpdater = ServerCnx.class.getDeclaredField("state");
+        stateUpdater.setAccessible(true);
+        stateUpdater.set(serverCnx, ServerCnx.State.Failed);
+        CommandNewTxn command = spy(CommandNewTxn.class);
+        serverCnx.handleNewTxn(command);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    void shouldFailHandleAddPartitionToTxn() throws Exception {
+        resetChannel();
+        Field stateUpdater = ServerCnx.class.getDeclaredField("state");
+        stateUpdater.setAccessible(true);
+        stateUpdater.set(serverCnx, ServerCnx.State.Failed);
+        CommandAddPartitionToTxn command = spy(CommandAddPartitionToTxn.class);
+        serverCnx.handleAddPartitionToTxn(command);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    void shouldFailHandleEndTxn() throws Exception {
+        resetChannel();
+        Field stateUpdater = ServerCnx.class.getDeclaredField("state");
+        stateUpdater.setAccessible(true);
+        stateUpdater.set(serverCnx, ServerCnx.State.Failed);
+        CommandEndTxn command = spy(CommandEndTxn.class);
+        serverCnx.handleEndTxn(command);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    void shouldFailHandleEndTxnOnPartition() throws Exception {
+        resetChannel();
+        Field stateUpdater = ServerCnx.class.getDeclaredField("state");
+        stateUpdater.setAccessible(true);
+        stateUpdater.set(serverCnx, ServerCnx.State.Failed);
+        CommandEndTxnOnPartition command = spy(CommandEndTxnOnPartition.class);
+        serverCnx.handleEndTxnOnPartition(command);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    void shouldFailHandleEndTxnOnSubscription() throws Exception {
+        resetChannel();
+        Field stateUpdater = ServerCnx.class.getDeclaredField("state");
+        stateUpdater.setAccessible(true);
+        stateUpdater.set(serverCnx, ServerCnx.State.Failed);
+        CommandEndTxnOnSubscription command = spy(CommandEndTxnOnSubscription.class);
+        serverCnx.handleEndTxnOnSubscription(command);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    void shouldFailHandleAddSubscriptionToTxn() throws Exception {
+        resetChannel();
+        Field stateUpdater = ServerCnx.class.getDeclaredField("state");
+        stateUpdater.setAccessible(true);
+        stateUpdater.set(serverCnx, ServerCnx.State.Failed);
+        CommandAddSubscriptionToTxn command = spy(CommandAddSubscriptionToTxn.class);
+        serverCnx.handleAddSubscriptionToTxn(command);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    void shouldFailHandleCommandWatchTopicList() throws Exception {
+        resetChannel();
+        Field stateUpdater = ServerCnx.class.getDeclaredField("state");
+        stateUpdater.setAccessible(true);
+        stateUpdater.set(serverCnx, ServerCnx.State.Failed);
+        CommandWatchTopicList commandWatchTopicList = spy(CommandWatchTopicList.class);
+        serverCnx.handleCommandWatchTopicList(commandWatchTopicList);
+
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    void shouldFailHandleCommandWatchTopicListClose() throws Exception {
+        resetChannel();
+        Field stateUpdater = ServerCnx.class.getDeclaredField("state");
+        stateUpdater.setAccessible(true);
+        stateUpdater.set(serverCnx, ServerCnx.State.Failed);
+        CommandWatchTopicListClose commandWatchTopicListClose = spy(CommandWatchTopicListClose.class);
+        serverCnx.handleCommandWatchTopicListClose(commandWatchTopicListClose);
     }
 }
