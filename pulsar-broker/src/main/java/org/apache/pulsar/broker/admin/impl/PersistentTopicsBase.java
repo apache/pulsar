@@ -1073,9 +1073,8 @@ public class PersistentTopicsBase extends AdminResource {
                         DeleteLedgerPayload.OffloadContext context = deleteLedgerPayload.getOffloadContext();
                         LedgerType ledgerType = LedgerType.valueOf(deleteLedgerPayload.getLedgerType());
                         if (LedgerType.LEDGER == ledgerType) {
-                            managedLedger.asyncDeleteLedger(ledgerId, ledgerType,
-                                            topicName.getPersistenceNamingEncoding(), null)
-                                    .whenComplete((res, ex) -> {
+                            managedLedger.asyncDeleteLedger(topicName.getPersistenceNamingEncoding(), ledgerId,
+                                    ledgerType, null).whenComplete((res, ex) -> {
                                         if (ex != null) {
                                             if (ex instanceof PendingDeleteLedgerInvalidException) {
                                                 if (log.isDebugEnabled()) {
@@ -1105,8 +1104,8 @@ public class PersistentTopicsBase extends AdminResource {
                                         MLDataFormats.KeyValue.newBuilder().setKey(k).setValue(v).build());
                             });
                             MLDataFormats.OffloadContext offloadContext = builder.build();
-                            managedLedger.asyncDeleteLedger(ledgerId, ledgerType, topicName.toString(), offloadContext)
-                                    .whenComplete((res, ex) -> {
+                            managedLedger.asyncDeleteLedger(topicName.getPersistenceNamingEncoding(), ledgerId,
+                                            ledgerType, offloadContext).whenComplete((res, ex) -> {
                                         if (ex != null) {
                                             future.completeExceptionally(ex);
                                             return;

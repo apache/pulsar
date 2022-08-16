@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.deletion;
 
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
@@ -37,10 +38,11 @@ public interface LedgerDeletionService {
      * @param context   ledgerInfo
      * @param component managed_ledger, managed_cursor, schema_storage
      * @param type      ledger, offload_ledger
+     * @param properties properties
      * @return
      */
     CompletableFuture<?> appendPendingDeleteLedger(String topicName, long ledgerId, LedgerInfo context,
-                                                   LedgerComponent component, LedgerType type);
+                                                   LedgerComponent component, LedgerType type, Map<String, String> properties);
 
     /**
      *
@@ -84,7 +86,8 @@ public interface LedgerDeletionService {
 
         @Override
         public CompletableFuture<?> appendPendingDeleteLedger(String topicName, long ledgerId, LedgerInfo context,
-                                                              LedgerComponent component, LedgerType type) {
+                                                              LedgerComponent component, LedgerType type,
+                                                              Map<String, String> properties) {
             return COMPLETABLE_FUTURE;
         }
 

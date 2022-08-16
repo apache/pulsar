@@ -63,11 +63,14 @@ public class PendingDeleteLedgerInfo {
     }
 
     public PendingDeleteLedgerInfo(String topicName, LedgerComponent ledgerComponent, LedgerType ledgerType,
-                                   Long ledgerId, MLDataFormats.ManagedLedgerInfo.LedgerInfo context) {
+                                   Long ledgerId, MLDataFormats.ManagedLedgerInfo.LedgerInfo context,
+                                   Map<String, String> properties) {
         this.topicName = topicName;
         this.ledgerComponent = ledgerComponent;
         this.ledgerType = ledgerType;
         this.ledgerId = ledgerId;
         this.context = context;
+        this.properties.putAll(properties);
     }
+
 }

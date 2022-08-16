@@ -230,12 +230,13 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
 
     @Override
     public CompletableFuture<?> appendPendingDeleteLedger(String topicName, long ledgerId, LedgerInfo context,
-                                                          LedgerComponent component, LedgerType type) {
+                                                          LedgerComponent component, LedgerType type,
+                                                          Map<String, String> properties) {
         topicName = tuneTopicName(topicName);
         PendingDeleteLedgerInfo pendingDeleteLedger = null;
         if (LedgerType.LEDGER == type) {
             pendingDeleteLedger =
-                    new PendingDeleteLedgerInfo(topicName, component, type, ledgerId, context);
+                    new PendingDeleteLedgerInfo(topicName, component, type, ledgerId, context, properties);
         } else if (LedgerType.OFFLOAD_LEDGER == type) {
             if (!context.getOffloadContext().hasUidMsb()) {
                 CompletableFuture<?> future = new CompletableFuture<>();
@@ -244,7 +245,7 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
                 return future;
             }
             pendingDeleteLedger =
-                    new PendingDeleteLedgerInfo(topicName, component, type, ledgerId, context);
+                    new PendingDeleteLedgerInfo(topicName, component, type, ledgerId, context, properties);
         }
         return sendMessage(pendingDeleteLedger);
     }

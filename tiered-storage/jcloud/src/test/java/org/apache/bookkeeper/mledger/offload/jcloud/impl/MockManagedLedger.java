@@ -142,15 +142,15 @@ public class MockManagedLedger implements ManagedLedger {
     }
 
     @Override
-    public CompletableFuture<?> asyncDeleteLedger(long ledgerId, LedgerType ledgerType, String topicName,
+    public CompletableFuture<Void> asyncDeleteLedger( String topicName, long ledgerId, LedgerType ledgerType,
                                                   MLDataFormats.OffloadContext offloadContext) {
         return CompletableFuture.completedFuture(null);
     }
 
     @Override
-    public void deleteLedger(long ledgerId, LedgerType ledgerType, String topicName,
+    public void deleteLedger(String topicName, long ledgerId, LedgerType ledgerType,
                              MLDataFormats.OffloadContext offloadContext)
-            throws ExecutionException, InterruptedException {
+            throws InterruptedException, ManagedLedgerException {
 
     }
 

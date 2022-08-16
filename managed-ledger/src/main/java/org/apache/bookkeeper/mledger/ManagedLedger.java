@@ -298,10 +298,10 @@ public interface ManagedLedger {
      */
     void deleteCursor(String name) throws InterruptedException, ManagedLedgerException;
 
-    CompletableFuture<?> asyncDeleteLedger(long ledgerId, LedgerType ledgerType, String topicName,
-                                              MLDataFormats.OffloadContext offloadContext);
+    CompletableFuture<Void> asyncDeleteLedger(String topicName, long ledgerId, LedgerType ledgerType,
+                                           MLDataFormats.OffloadContext offloadContext);
 
-    void deleteLedger(long ledgerId, LedgerType ledgerType,  String topicName,
+    void deleteLedger(String topicName, long ledgerId, LedgerType ledgerType,
                       MLDataFormats.OffloadContext offloadContext) throws InterruptedException, ManagedLedgerException;
 
     /**
