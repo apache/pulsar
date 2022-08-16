@@ -1407,7 +1407,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         ConcurrentOpenHashMap<String, Replicator> replicators = topic.getReplicators();
         PersistentReplicator replicator = (PersistentReplicator) replicators.get("r2");
 
-        Awaitility.await().timeout(50, TimeUnit.SECONDS)
+        Awaitility.await().pollInterval(1, TimeUnit.SECONDS).timeout(30, TimeUnit.SECONDS)
                 .untilAsserted(() -> assertEquals(org.apache.pulsar.broker.service.AbstractReplicator.State.Started,
                         replicator.getState()));
 
@@ -1416,6 +1416,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         // Make sure all the data has replicated to the remote cluster before close the cursor.
         Awaitility.await().untilAsserted(() -> assertEquals(cursor.getMarkDeletedPosition(), lastPosition));
+
         cursor.setState(State.Closed);
 
         Field field = ManagedCursorImpl.class.getDeclaredField("state");
