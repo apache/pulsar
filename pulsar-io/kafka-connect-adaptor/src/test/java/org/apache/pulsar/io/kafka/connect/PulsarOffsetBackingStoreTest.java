@@ -99,6 +99,7 @@ public class PulsarOffsetBackingStoreTest extends ProducerConsumerBase {
 
     @Test(timeOut = 60000)
     public void testGetSetNullValue() throws Exception {
+        testOffsetBackingStore(false);
         Map<ByteBuffer, ByteBuffer> kvs = new HashMap<>();
         ByteBuffer keyToSet = ByteBuffer.wrap(("test-key").getBytes(UTF_8));
         kvs.put(keyToSet, null);
