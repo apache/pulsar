@@ -4053,7 +4053,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     public Position getTheSlowestNonDurationReadPosition() {
-        PositionImpl theSlowestNonDurableReadPosition = PositionImpl.LATEST;
+        PositionImpl theSlowestNonDurableReadPosition = PositionImpl.latest;
         for (ManagedCursor cursor : cursors) {
             if (cursor instanceof NonDurableCursorImpl) {
                 PositionImpl readPosition = (PositionImpl) cursor.getReadPosition();

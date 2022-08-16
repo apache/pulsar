@@ -3533,15 +3533,15 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             positions.add(ledger.addEntry(("entry-" + i).getBytes(UTF_8)));
         }
 
-        Assert.assertEquals(ledger.getTheSlowestNonDurationReadPosition(), PositionImpl.LATEST);
+        Assert.assertEquals(ledger.getTheSlowestNonDurationReadPosition(), PositionImpl.latest);
 
-        ManagedCursor nonDurableCursor = ledger.newNonDurableCursor(PositionImpl.EARLIEST);
+        ManagedCursor nonDurableCursor = ledger.newNonDurableCursor(PositionImpl.earliest);
 
         Assert.assertEquals(ledger.getTheSlowestNonDurationReadPosition(), positions.get(0));
 
         ledger.deleteCursor(nonDurableCursor.getName());
 
-        Assert.assertEquals(ledger.getTheSlowestNonDurationReadPosition(), PositionImpl.LATEST);
+        Assert.assertEquals(ledger.getTheSlowestNonDurationReadPosition(), PositionImpl.latest);
 
         ledger.close();
     }
