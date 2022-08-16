@@ -42,6 +42,10 @@ class TopicStats {
     long bytesOutCounter;
     double averageMsgSize;
 
+    long ongoingTxnCount;
+    long abortedTxnCount;
+    long committedTxnCount;
+
     public long msgBacklog;
     long publishRateLimitedTimes;
 
@@ -78,6 +82,10 @@ class TopicStats {
         msgInCounter = 0;
         bytesOutCounter = 0;
         msgOutCounter = 0;
+
+        ongoingTxnCount = 0;
+        abortedTxnCount = 0;
+        committedTxnCount = 0;
 
         managedLedgerStats.reset();
         msgBacklog = 0;
@@ -120,6 +128,13 @@ class TopicStats {
         writeMetric(stream, "pulsar_throughput_out", stats.throughputOut,
                 cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
         writeMetric(stream, "pulsar_average_msg_size", stats.averageMsgSize,
+                cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+        
+        writeMetric(stream, "pulsar_txn_tb_active_total", stats.ongoingTxnCount,
+                cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_txn_tb_aborted_total", stats.abortedTxnCount,
+                cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_txn_tb_committed_total", stats.committedTxnCount,
                 cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
 
         writeMetric(stream, "pulsar_storage_size", stats.managedLedgerStats.storageSize,
@@ -280,6 +295,15 @@ class TopicStats {
                     subsStats.msgDropRate, cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel);
             writeSubscriptionMetric(stream, "pulsar_subscription_consumers_count",
                     subsStats.consumersCount, cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel);
+
+            writeSubscriptionMetric(stream, "pulsar_subscription_filter_processed_msg_count",
+                    subsStats.filterProcessedMsgCount, cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel);
+            writeSubscriptionMetric(stream, "pulsar_subscription_filter_accepted_msg_count",
+                    subsStats.filterAcceptedMsgCount, cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel);
+            writeSubscriptionMetric(stream, "pulsar_subscription_filter_rejected_msg_count",
+                    subsStats.filterRejectedMsgCount, cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel);
+            writeSubscriptionMetric(stream, "pulsar_subscription_filter_rescheduled_msg_count",
+                    subsStats.filterRescheduledMsgCount, cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel);
 
             subsStats.consumerStat.forEach((c, consumerStats) -> {
                 writeConsumerMetric(stream, "pulsar_consumer_msg_rate_redeliver", consumerStats.msgRateRedeliver,

@@ -43,11 +43,13 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.collections4.map.LinkedMap;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandle;
+import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandleStats;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -127,6 +129,8 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     @Getter
     private final ExecutorService internalPinnedExecutor;
 
+    private final PendingAckHandleStats handleStats;
+
     public final RecoverTimeRecord recoverTime = new RecoverTimeRecord();
 
 
@@ -141,6 +145,10 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                 .getPulsar()
                 .getTransactionExecutorProvider()
                 .getExecutor(this);
+
+        ServiceConfiguration config = persistentSubscription.getTopic().getBrokerService().pulsar().getConfig();
+        boolean exposeTopicLevelMetrics = config.isExposeTopicLevelMetricsInPrometheus();
+        this.handleStats = PendingAckHandleStats.create(topicName, subName, exposeTopicLevelMetrics);
 
         this.pendingAckStoreProvider = this.persistentSubscription.getTopic()
                         .getBrokerService().getPulsar().getTransactionPendingAckStoreProvider();
@@ -483,6 +491,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
 
     @Override
     public CompletableFuture<Void> commitTxn(TxnID txnID, Map<String, Long> properties, long lowWaterMark) {
+        long start = System.nanoTime();
         CompletableFuture<Void> commitFuture = new CompletableFuture<>();
         internalPinnedExecutor.execute(() -> {
             if (!checkIfReady()) {
@@ -507,7 +516,9 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
             }
             internalCommitTxn(txnID, properties, lowWaterMark, commitFuture);
         });
-        return commitFuture;
+        return commitFuture.whenComplete((__, t) ->
+                this.handleStats.recordCommitTxn(t == null, System.nanoTime() - start)
+        );
     }
 
     private void addAbortTxnRequest(TxnID txnId, Consumer consumer, long lowWaterMark,
@@ -575,7 +586,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         } else {
             abortFuture.complete(null);
         }
-        return abortFuture;
+        return abortFuture.whenComplete((__, t) -> this.handleStats.recordAbortTxn(t == null));
     }
 
     @Override

@@ -141,7 +141,10 @@ public class NamespaceStatsAggregator {
         });
         stats.rateOut += subsStats.msgRateOut;
         stats.throughputOut += subsStats.msgThroughputOut;
-
+        subsStats.filterProcessedMsgCount = subscriptionStats.filterProcessedMsgCount;
+        subsStats.filterAcceptedMsgCount = subscriptionStats.filterAcceptedMsgCount;
+        subsStats.filterRejectedMsgCount = subscriptionStats.filterRejectedMsgCount;
+        subsStats.filterRescheduledMsgCount = subscriptionStats.filterRescheduledMsgCount;
     }
 
     private static void getTopicStats(Topic topic, TopicStats stats, boolean includeConsumerMetrics,
@@ -184,6 +187,9 @@ public class NamespaceStatsAggregator {
         stats.averageMsgSize = tStatus.averageMsgSize;
         stats.publishRateLimitedTimes = tStatus.publishRateLimitedTimes;
         stats.delayedTrackerMemoryUsage = tStatus.delayedMessageIndexSizeInBytes;
+        stats.abortedTxnCount = tStatus.abortedTxnCount;
+        stats.ongoingTxnCount = tStatus.ongoingTxnCount;
+        stats.committedTxnCount = tStatus.committedTxnCount;
 
         stats.producersCount = 0;
         topic.getProducers().values().forEach(producer -> {
@@ -333,6 +339,9 @@ public class NamespaceStatsAggregator {
         writeMetric(stream, "pulsar_rate_out", stats.rateOut, cluster, namespace);
         writeMetric(stream, "pulsar_throughput_in", stats.throughputIn, cluster, namespace);
         writeMetric(stream, "pulsar_throughput_out", stats.throughputOut, cluster, namespace);
+        writeMetric(stream, "pulsar_txn_tb_active_total", stats.ongoingTxnCount, cluster, namespace);
+        writeMetric(stream, "pulsar_txn_tb_aborted_total", stats.abortedTxnCount, cluster, namespace);
+        writeMetric(stream, "pulsar_txn_tb_committed_total", stats.committedTxnCount, cluster, namespace);
         writeMetric(stream, "pulsar_consumer_msg_ack_rate", stats.messageAckRate, cluster, namespace);
 
         writeMetric(stream, "pulsar_in_bytes_total", stats.bytesInCounter, cluster, namespace);
@@ -360,7 +369,7 @@ public class NamespaceStatsAggregator {
                 namespace);
 
         writePulsarMsgBacklog(stream, stats.msgBacklog, cluster, namespace);
-
+        
         stats.managedLedgerStats.storageWriteLatencyBuckets.refresh();
         long[] latencyBuckets = stats.managedLedgerStats.storageWriteLatencyBuckets.getBuckets();
         writeMetric(stream, "pulsar_storage_write_latency_le_0_5", latencyBuckets[0], cluster, namespace);
