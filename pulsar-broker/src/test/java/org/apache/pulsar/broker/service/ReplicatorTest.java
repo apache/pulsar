@@ -62,6 +62,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.State;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
@@ -79,6 +80,7 @@ import org.apache.pulsar.client.api.RawReader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
@@ -1400,6 +1402,8 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getTopic(dest.toString(), false)
                 .getNow(null).get();
+        MessageIdImpl lastMessageId = (MessageIdImpl) topic.getLastMessageId().get();
+        Position lastPosition = PositionImpl.get(lastMessageId.getLedgerId(), lastMessageId.getEntryId());
         ConcurrentOpenHashMap<String, Replicator> replicators = topic.getReplicators();
         PersistentReplicator replicator = (PersistentReplicator) replicators.get("r2");
 
@@ -1409,6 +1413,9 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         assertEquals(replicator.getState(), org.apache.pulsar.broker.service.AbstractReplicator.State.Started);
         ManagedCursorImpl cursor = (ManagedCursorImpl) replicator.getCursor();
+
+        // Make sure all the data has replicated to the remote cluster before close the cursor.
+        Awaitility.await().untilAsserted(() -> assertEquals(cursor.getMarkDeletedPosition(), lastPosition));
         cursor.setState(State.Closed);
 
         Field field = ManagedCursorImpl.class.getDeclaredField("state");
@@ -1417,22 +1424,16 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         producer1.produce(10);
 
-        Position deletedPos = cursor.getMarkDeletedPosition();
-        Position readPos = cursor.getReadPosition();
-
-        Awaitility.await().timeout(30, TimeUnit.SECONDS).until(
-                () -> cursor.getMarkDeletedPosition().getEntryId() != (cursor.getReadPosition().getEntryId() - 1));
-
-        assertNotEquals((readPos.getEntryId() - 1), deletedPos.getEntryId());
+        // The cursor is closed, so the mark delete position will not move forward.
+        assertEquals(cursor.getMarkDeletedPosition(), lastPosition);
 
         field.set(cursor, State.Open);
 
         Awaitility.await().timeout(30, TimeUnit.SECONDS).until(
-                () -> cursor.getMarkDeletedPosition().getEntryId() == (cursor.getReadPosition().getEntryId() - 1));
-
-        deletedPos = cursor.getMarkDeletedPosition();
-        readPos = cursor.getReadPosition();
-        assertEquals((readPos.getEntryId() - 1), deletedPos.getEntryId());
+                () -> {
+                    log.info("++++++++++++ {}, {}", cursor.getMarkDeletedPosition(), cursor.getReadPosition());
+                    return cursor.getMarkDeletedPosition().getEntryId() == (cursor.getReadPosition().getEntryId() - 1);
+                });
     }
 
     private static final Logger log = LoggerFactory.getLogger(ReplicatorTest.class);
