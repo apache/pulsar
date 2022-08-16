@@ -129,7 +129,7 @@ class TopicStats {
                 cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
         writeMetric(stream, "pulsar_average_msg_size", stats.averageMsgSize,
                 cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
-        
+
         writeMetric(stream, "pulsar_txn_tb_active_total", stats.ongoingTxnCount,
                 cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
         writeMetric(stream, "pulsar_txn_tb_aborted_total", stats.abortedTxnCount,
@@ -297,13 +297,15 @@ class TopicStats {
                     subsStats.consumersCount, cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel);
 
             writeSubscriptionMetric(stream, "pulsar_subscription_filter_processed_msg_count",
-                    subsStats.filterProcessedMsgCount, cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel);
+                    subsStats.filterProcessedMsgCount, cluster, namespace, topic, sub,
+                    splitTopicAndPartitionIndexLabel);
             writeSubscriptionMetric(stream, "pulsar_subscription_filter_accepted_msg_count",
                     subsStats.filterAcceptedMsgCount, cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel);
             writeSubscriptionMetric(stream, "pulsar_subscription_filter_rejected_msg_count",
                     subsStats.filterRejectedMsgCount, cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel);
             writeSubscriptionMetric(stream, "pulsar_subscription_filter_rescheduled_msg_count",
-                    subsStats.filterRescheduledMsgCount, cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel);
+                    subsStats.filterRescheduledMsgCount, cluster, namespace, topic, sub,
+                    splitTopicAndPartitionIndexLabel);
 
             subsStats.consumerStat.forEach((c, consumerStats) -> {
                 writeConsumerMetric(stream, "pulsar_consumer_msg_rate_redeliver", consumerStats.msgRateRedeliver,
