@@ -893,4 +893,17 @@ public interface Functions {
      */
     CompletableFuture<Void> putFunctionStateAsync(
             String tenant, String namespace, String function, FunctionState state);
+
+    /**
+     * Reload the available built-in functions.
+     *
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void reloadBuiltInFunctions() throws PulsarAdminException;
+
+    /**
+     * Reload the available built-in functions.
+     */
+    CompletableFuture<Void> reloadBuiltInFunctionsAsync();
 }
