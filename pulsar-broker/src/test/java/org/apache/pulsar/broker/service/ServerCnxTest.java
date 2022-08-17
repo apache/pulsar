@@ -96,32 +96,18 @@ import org.apache.pulsar.common.api.proto.AuthMethod;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.BaseCommand.Type;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
-import org.apache.pulsar.common.api.proto.CommandAddPartitionToTxn;
-import org.apache.pulsar.common.api.proto.CommandAddSubscriptionToTxn;
 import org.apache.pulsar.common.api.proto.CommandAuthResponse;
 import org.apache.pulsar.common.api.proto.CommandConnected;
-import org.apache.pulsar.common.api.proto.CommandConsumerStats;
-import org.apache.pulsar.common.api.proto.CommandEndTxn;
-import org.apache.pulsar.common.api.proto.CommandEndTxnOnPartition;
-import org.apache.pulsar.common.api.proto.CommandEndTxnOnSubscription;
 import org.apache.pulsar.common.api.proto.CommandError;
-import org.apache.pulsar.common.api.proto.CommandGetOrCreateSchema;
-import org.apache.pulsar.common.api.proto.CommandGetSchema;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespaceResponse;
-import org.apache.pulsar.common.api.proto.CommandLookupTopic;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
-import org.apache.pulsar.common.api.proto.CommandNewTxn;
-import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadata;
 import org.apache.pulsar.common.api.proto.CommandProducerSuccess;
 import org.apache.pulsar.common.api.proto.CommandSendError;
 import org.apache.pulsar.common.api.proto.CommandSendReceipt;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.CommandSuccess;
-import org.apache.pulsar.common.api.proto.CommandTcClientConnectRequest;
-import org.apache.pulsar.common.api.proto.CommandWatchTopicList;
-import org.apache.pulsar.common.api.proto.CommandWatchTopicListClose;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
@@ -2174,7 +2160,7 @@ public class ServerCnxTest {
         Field stateUpdater = ServerCnx.class.getDeclaredField("state");
         stateUpdater.setAccessible(true);
         stateUpdater.set(serverCnx, ServerCnx.State.Failed);
-        serverCnx.handleLookup(any(CommandLookupTopic.class));
+        serverCnx.handleLookup(any());
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
@@ -2183,7 +2169,7 @@ public class ServerCnxTest {
         Field stateUpdater = ServerCnx.class.getDeclaredField("state");
         stateUpdater.setAccessible(true);
         stateUpdater.set(serverCnx, ServerCnx.State.Failed);
-        serverCnx.handlePartitionMetadataRequest(any(CommandPartitionedTopicMetadata.class));
+        serverCnx.handlePartitionMetadataRequest(any());
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
@@ -2192,7 +2178,7 @@ public class ServerCnxTest {
         Field stateUpdater = ServerCnx.class.getDeclaredField("state");
         stateUpdater.setAccessible(true);
         stateUpdater.set(serverCnx, ServerCnx.State.Failed);
-        serverCnx.handleConsumerStats(any(CommandConsumerStats.class));
+        serverCnx.handleConsumerStats(any());
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
@@ -2201,7 +2187,7 @@ public class ServerCnxTest {
         Field stateUpdater = ServerCnx.class.getDeclaredField("state");
         stateUpdater.setAccessible(true);
         stateUpdater.set(serverCnx, ServerCnx.State.Failed);
-        serverCnx.handleGetTopicsOfNamespace(any(CommandGetTopicsOfNamespace.class));
+        serverCnx.handleGetTopicsOfNamespace(any());
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
@@ -2210,7 +2196,7 @@ public class ServerCnxTest {
         Field stateUpdater = ServerCnx.class.getDeclaredField("state");
         stateUpdater.setAccessible(true);
         stateUpdater.set(serverCnx, ServerCnx.State.Failed);
-        serverCnx.handleGetSchema(any(CommandGetSchema.class));
+        serverCnx.handleGetSchema(any());
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
@@ -2219,7 +2205,7 @@ public class ServerCnxTest {
         Field stateUpdater = ServerCnx.class.getDeclaredField("state");
         stateUpdater.setAccessible(true);
         stateUpdater.set(serverCnx, ServerCnx.State.Failed);
-        serverCnx.handleGetOrCreateSchema(any(CommandGetOrCreateSchema.class));
+        serverCnx.handleGetOrCreateSchema(any());
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
@@ -2228,7 +2214,7 @@ public class ServerCnxTest {
         Field stateUpdater = ServerCnx.class.getDeclaredField("state");
         stateUpdater.setAccessible(true);
         stateUpdater.set(serverCnx, ServerCnx.State.Failed);
-        serverCnx.handleTcClientConnectRequest(any(CommandTcClientConnectRequest.class));
+        serverCnx.handleTcClientConnectRequest(any());
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
@@ -2237,7 +2223,7 @@ public class ServerCnxTest {
         Field stateUpdater = ServerCnx.class.getDeclaredField("state");
         stateUpdater.setAccessible(true);
         stateUpdater.set(serverCnx, ServerCnx.State.Failed);
-        serverCnx.handleNewTxn(any(CommandNewTxn.class));
+        serverCnx.handleNewTxn(any());
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
@@ -2246,7 +2232,7 @@ public class ServerCnxTest {
         Field stateUpdater = ServerCnx.class.getDeclaredField("state");
         stateUpdater.setAccessible(true);
         stateUpdater.set(serverCnx, ServerCnx.State.Failed);
-        serverCnx.handleAddPartitionToTxn(any(CommandAddPartitionToTxn.class));
+        serverCnx.handleAddPartitionToTxn(any());
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
@@ -2255,7 +2241,7 @@ public class ServerCnxTest {
         Field stateUpdater = ServerCnx.class.getDeclaredField("state");
         stateUpdater.setAccessible(true);
         stateUpdater.set(serverCnx, ServerCnx.State.Failed);
-        serverCnx.handleEndTxn(any(CommandEndTxn.class));
+        serverCnx.handleEndTxn(any());
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
@@ -2264,7 +2250,7 @@ public class ServerCnxTest {
         Field stateUpdater = ServerCnx.class.getDeclaredField("state");
         stateUpdater.setAccessible(true);
         stateUpdater.set(serverCnx, ServerCnx.State.Failed);
-        serverCnx.handleEndTxnOnPartition(any(CommandEndTxnOnPartition.class));
+        serverCnx.handleEndTxnOnPartition(any());
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
@@ -2273,7 +2259,7 @@ public class ServerCnxTest {
         Field stateUpdater = ServerCnx.class.getDeclaredField("state");
         stateUpdater.setAccessible(true);
         stateUpdater.set(serverCnx, ServerCnx.State.Failed);
-        serverCnx.handleEndTxnOnSubscription(any(CommandEndTxnOnSubscription.class));
+        serverCnx.handleEndTxnOnSubscription(any());
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
@@ -2282,7 +2268,7 @@ public class ServerCnxTest {
         Field stateUpdater = ServerCnx.class.getDeclaredField("state");
         stateUpdater.setAccessible(true);
         stateUpdater.set(serverCnx, ServerCnx.State.Failed);
-        serverCnx.handleAddSubscriptionToTxn(any(CommandAddSubscriptionToTxn.class));
+        serverCnx.handleAddSubscriptionToTxn(any());
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
@@ -2291,7 +2277,7 @@ public class ServerCnxTest {
         Field stateUpdater = ServerCnx.class.getDeclaredField("state");
         stateUpdater.setAccessible(true);
         stateUpdater.set(serverCnx, ServerCnx.State.Failed);
-        serverCnx.handleCommandWatchTopicList(any(CommandWatchTopicList.class));
+        serverCnx.handleCommandWatchTopicList(any());
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
@@ -2300,6 +2286,6 @@ public class ServerCnxTest {
         Field stateUpdater = ServerCnx.class.getDeclaredField("state");
         stateUpdater.setAccessible(true);
         stateUpdater.set(serverCnx, ServerCnx.State.Failed);
-        serverCnx.handleCommandWatchTopicListClose(any(CommandWatchTopicListClose.class));
+        serverCnx.handleCommandWatchTopicListClose(any());
     }
 }
