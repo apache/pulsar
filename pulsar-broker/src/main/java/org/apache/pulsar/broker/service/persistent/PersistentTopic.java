@@ -1522,7 +1522,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 .thenAccept(replicationClient -> {
                     Replicator replicator = replicators.computeIfAbsent(remoteCluster, r -> {
                         try {
-                            return new PersistentReplicator(PersistentTopic.this, cursor, localCluster,
+                            return new GeoPersistentReplicator(PersistentTopic.this, cursor, localCluster,
                                     remoteCluster, brokerService, (PulsarClientImpl) replicationClient);
                         } catch (PulsarServerException e) {
                             log.error("[{}] Replicator startup failed {}", topic, remoteCluster, e);
