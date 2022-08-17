@@ -29,9 +29,11 @@ Thus, if you're using a Pulsar topic called `stock-values`, some consumers could
 
 ## Configuring compaction to run automatically
 
-Tenant administrators can configure a policy for compaction at the namespace level. The policy specifies how large the topic backlog can grow before compaction is triggered.
+Compaction policy specifies how large the topic backlog can grow before compaction is triggered.
 
-For example, to trigger compaction when the backlog reaches 100MB:
+Tenant administrators can configure a compaction policy at namespace or topic levels. Configuring the compaction policy at the namespace level applies to all topics within that namespace. 
+
+For example, to trigger compaction in a namespace when the backlog reaches 100MB:
 
 ```bash
 
@@ -39,8 +41,6 @@ $ bin/pulsar-admin namespaces set-compaction-threshold \
   --threshold 100M my-tenant/my-namespace
 
 ```
-
-Configuring the compaction threshold on a namespace will apply to all topics within that namespace.
 
 ## Triggering compaction manually
 
