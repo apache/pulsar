@@ -657,6 +657,54 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         }
     }
 
+    private static class WrongDataSerializer extends SumStrDataSerializer {
+
+        private final AtomicInteger counter = new AtomicInteger();
+
+        private final int dataSize;
+
+        private final boolean failOnGetSerializedSize;
+
+        private final boolean failOnSerializeSingleData;
+
+        private final boolean failOnSerializeDataArray;
+
+        public WrongDataSerializer(int dataSize, boolean failOnGetSerializedSize, boolean failOnSerializeSingleData,
+                                   boolean failOnSerializeDataArray) {
+            this.dataSize = dataSize;
+            this.failOnGetSerializedSize = failOnGetSerializedSize;
+            this.failOnSerializeSingleData = failOnSerializeSingleData;
+            this.failOnSerializeDataArray = failOnSerializeDataArray;
+        }
+
+        @Override
+        public int getSerializedSize(Integer data) {
+            if (counter.incrementAndGet() % 2 == 0 && failOnGetSerializedSize){
+                // sometimes error.
+                throw new IllegalArgumentException("serialize wrong");
+            }
+            return dataSize;
+        }
+
+        @Override
+        public ByteBuf serialize(Integer data) {
+            if (failOnSerializeSingleData) {
+                // always error.
+                throw new IllegalArgumentException("serialize wrong");
+            }
+            return super.serialize(data);
+        }
+
+        @Override
+        public ByteBuf serialize(ArrayList<Integer> dataArray) {
+            if (failOnSerializeDataArray){
+                // always error.
+                throw new IllegalArgumentException("serialize wrong");
+            }
+            return super.serialize(dataArray);
+        }
+    }
+
     public enum BookieErrorType{
         NO_ERROR,
         ALWAYS_ERROR,
@@ -836,6 +884,33 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         // after close, verify the metrics change to 0.
         verifyTheCounterMetrics(0,0,0,0);
         verifyTheHistogramMetrics(0,0,0);
+    }
+
+    @Test
+    public void testFailWhenAddData() throws Exception {
+        int batchedWriteMaxSize = 1024;
+        TxnLogBufferedWriter.DataSerializer dataSerializer =
+                new WrongDataSerializer(batchedWriteMaxSize, true, true, true);
+        int writeCount = 100;
+        var callbackWithCounter = createCallBackWithCounter();
+        // Create TxnLogBufferedWriter.
+        var txnLogBufferedWriterContext = createTxnBufferedWriterContextWithMetrics(
+                dataSerializer, Integer.MAX_VALUE, batchedWriteMaxSize, Integer.MAX_VALUE);
+        var txnLogBufferedWriter = txnLogBufferedWriterContext.txnLogBufferedWriter;
+        // Add some data.
+        for (int i = 0; i < writeCount; i++){
+            txnLogBufferedWriter.asyncAddData(1, callbackWithCounter.callback, i);
+        }
+        // Wait for all data write finish.
+        Awaitility.await().atMost(2, TimeUnit.SECONDS).until(
+                () -> {
+                    System.out.println(callbackWithCounter.failureCounter.get());
+                    return callbackWithCounter.failureCounter.get() == writeCount;
+                }
+        );
+        assertEquals(txnLogBufferedWriterContext.mockedManagedLedger.writeCounter.get(), 0);
+        // cleanup.
+        releaseTxnLogBufferedWriterContext(txnLogBufferedWriterContext);
     }
 
     private void releaseTxnLogBufferedWriterContext(TxnLogBufferedWriterContext context)

@@ -261,8 +261,6 @@ public class TxnLogBufferedWriter<T> {
             trigFlushIfReachMaxRecordsOrMaxSize();
         } catch (Exception e){
             if (shouldCompensateCallBackWhenWriteFail){
-                log.error("Failed to add data asynchronously, and do failed callback when error occur before add"
-                        + " data to the array.", e);
                 callback.addFailed(new ManagedLedgerInterceptException(e), ctx);
             } else {
                 log.error("Failed to add data asynchronously", e);
