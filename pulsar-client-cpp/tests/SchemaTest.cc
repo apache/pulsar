@@ -18,6 +18,7 @@
  */
 #include <gtest/gtest.h>
 #include <pulsar/Client.h>
+#include "SharedBuffer.h"
 
 using namespace pulsar;
 
@@ -123,8 +124,44 @@ TEST(SchemaTest, testKeyValueSchema) {
     SchemaInfo keySchema(SchemaType::AVRO, "String", exampleSchema);
     SchemaInfo valueSchema(SchemaType::AVRO, "String", exampleSchema);
     SchemaInfo keyValueSchema(keySchema, valueSchema, pulsar::INLINE);
-    std::cout << keyValueSchema.getSchema() << std::endl;
     ASSERT_EQ(keyValueSchema.getSchemaType(), KEY_VALUE);
     ASSERT_EQ(keyValueSchema.getSchema().size(),
               8 + keySchema.getSchema().size() + valueSchema.getSchema().size());
+}
+
+TEST(SchemaTest, testKeySchemaIsEmpty) {
+    SchemaInfo keySchema(SchemaType::AVRO, "String", "");
+    SchemaInfo valueSchema(SchemaType::AVRO, "String", exampleSchema);
+    SchemaInfo keyValueSchema(keySchema, valueSchema, pulsar::INLINE);
+    ASSERT_EQ(keyValueSchema.getSchemaType(), KEY_VALUE);
+    ASSERT_EQ(keyValueSchema.getSchema().size(),
+              8 + keySchema.getSchema().size() + valueSchema.getSchema().size());
+
+    SharedBuffer buffer = SharedBuffer::wrap(const_cast<char*>(keyValueSchema.getSchema().c_str()),
+                                             keySchema.getSchema().size());
+    int keySchemaSize = buffer.readUnsignedInt();
+    ASSERT_EQ(keySchemaSize, -1);
+    int valueSchemaSize = buffer.readUnsignedInt();
+    ASSERT_EQ(valueSchemaSize, valueSchema.getSchema().size());
+    std::string valueSchemaStr(buffer.slice(0, valueSchemaSize).data(), valueSchemaSize);
+    ASSERT_EQ(valueSchema.getSchema(), valueSchemaStr);
+}
+
+TEST(SchemaTest, testValueSchemaIsEmpty) {
+    SchemaInfo keySchema(SchemaType::AVRO, "String", exampleSchema);
+    SchemaInfo valueSchema(SchemaType::AVRO, "String", "");
+    SchemaInfo keyValueSchema(keySchema, valueSchema, pulsar::INLINE);
+    ASSERT_EQ(keyValueSchema.getSchemaType(), KEY_VALUE);
+    ASSERT_EQ(keyValueSchema.getSchema().size(),
+              8 + keySchema.getSchema().size() + valueSchema.getSchema().size());
+
+    SharedBuffer buffer = SharedBuffer::wrap(const_cast<char*>(keyValueSchema.getSchema().c_str()),
+                                             keySchema.getSchema().size());
+    int keySchemaSize = buffer.readUnsignedInt();
+    ASSERT_EQ(keySchemaSize, keySchema.getSchema().size());
+    std::string keySchemaStr(buffer.slice(0, keySchemaSize).data(), keySchemaSize);
+    ASSERT_EQ(keySchemaStr, keySchema.getSchema());
+    buffer.consume(keySchemaSize);
+    int valueSchemaSize = buffer.readUnsignedInt();
+    ASSERT_EQ(valueSchemaSize, -1);
 }

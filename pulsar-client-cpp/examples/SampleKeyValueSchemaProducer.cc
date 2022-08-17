@@ -55,7 +55,7 @@ int main() {
     Message msg = MessageBuilder().setContent(keyValue).setProperty("x", "1").build();
     producer.send(msg);
     std::this_thread::sleep_for(std::chrono::seconds(1));
-    LOG_ERROR("send message ok");
+    LOG_INFO("send message ok");
 
     client.close();
 }

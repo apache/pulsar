@@ -35,10 +35,9 @@ class PULSAR_PUBLIC KeyValue {
     KeyValue(const std::string &data, const KeyValueEncodingType &keyValueEncodingType);
     KeyValue(const std::string &key, const std::string &value,
              const KeyValueEncodingType &keyValueEncodingType);
-    std::string getContent();
-    std::string getKeyData();
-    std::string getValueData();
-    KeyValueEncodingType getEncodingType();
+    std::string getContent() const;
+    std::string getKeyData() const;
+    KeyValueEncodingType getEncodingType() const;
 
    private:
     typedef std::shared_ptr<KeyValueImpl> KeyValueImplPtr;

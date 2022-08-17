@@ -134,9 +134,9 @@ SchemaInfo::SchemaInfo(const SchemaInfo &keySchema, const SchemaInfo &valueSchem
 
     int buffSize = sizeof keySize + keySize + sizeof valueSize + valueSize;
     SharedBuffer buffer = SharedBuffer::allocate(buffSize);
-    buffer.writeUnsignedInt(keySize);
+    buffer.writeUnsignedInt(keySize == 0 ? -1 : keySize);
     buffer.write(keySchemaStr.c_str(), keySize);
-    buffer.writeUnsignedInt(valueSize);
+    buffer.writeUnsignedInt(valueSize == 0 ? -1 : valueSize);
     buffer.write(valueSchemaStr.c_str(), valueSize);
 
     auto writeJson = [](const StringMap &properties) {

@@ -54,7 +54,7 @@ int main() {
         LOG_INFO("Received: " << msg << "  with partitionKey '" << msg.getPartitionKey() << "'");
         KeyValue keyValue = msg.getKeyValueData(SEPARATED);
         LOG_INFO("Received: " << msg << "  with key '" << keyValue.getKeyData() << "'");
-        LOG_INFO("Received: " << msg << "  with value '" << keyValue.getValueData() << "'");
+        LOG_INFO("Received: " << msg << "  with value '" << keyValue.getContent() << "'");
         consumer.acknowledge(msg);
     }
 

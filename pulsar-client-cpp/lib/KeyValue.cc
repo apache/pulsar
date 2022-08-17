@@ -43,13 +43,17 @@ KeyValue::KeyValue(const std::string &data, const KeyValueEncodingType &keyValue
     if (impl_->keyValueEncodingType == INLINE) {
         SharedBuffer buffer = SharedBuffer::copy(data.c_str(), data.length());
         int keySize = buffer.readUnsignedInt();
-        SharedBuffer keyContent = buffer.slice(0, keySize);
-        impl_->keyContent_ = std::string(keyContent.data(), keySize);
+        if (keySize != -1) {
+            SharedBuffer keyContent = buffer.slice(0, keySize);
+            impl_->keyContent_ = std::string(keyContent.data(), keySize);
+            buffer.consume(keySize);
+        }
 
-        buffer.consume(keySize);
         int valueSize = buffer.readUnsignedInt();
-        SharedBuffer valueContent = buffer.slice(0, valueSize);
-        impl_->valueContent_ = std::string(valueContent.data(), valueSize);
+        if (valueSize != -1) {
+            SharedBuffer valueContent = buffer.slice(0, valueSize);
+            impl_->valueContent_ = std::string(valueContent.data(), valueSize);
+        }
     } else {
         impl_->valueContent_ = data;
     }
@@ -59,7 +63,7 @@ KeyValue::KeyValue(const std::string &key, const std::string &value,
                    const KeyValueEncodingType &keyValueEncodingType)
     : impl_(std::make_shared<KeyValueImpl>(key, value, keyValueEncodingType)) {}
 
-std::string KeyValue::getContent() {
+std::string KeyValue::getContent() const {
     if (impl_->keyValueEncodingType == INLINE) {
         std::string keyContent = impl_->keyContent_;
         std::string valueContent = impl_->valueContent_;
@@ -68,9 +72,9 @@ std::string KeyValue::getContent() {
 
         int buffSize = sizeof(keySize) + keySize + sizeof(valueSize) + valueSize;
         SharedBuffer buffer = SharedBuffer::allocate(buffSize);
-        buffer.writeUnsignedInt(keySize);
+        buffer.writeUnsignedInt(keySize == 0 ? -1 : keySize);
         buffer.write(keyContent.c_str(), keySize);
-        buffer.writeUnsignedInt(valueSize);
+        buffer.writeUnsignedInt(valueSize == 0 ? -1 : valueSize);
         buffer.write(valueContent.c_str(), valueSize);
 
         return std::string(buffer.data(), buffSize);
@@ -79,8 +83,7 @@ std::string KeyValue::getContent() {
     }
 }
 
-std::string KeyValue::getKeyData() { return impl_->keyContent_; }
-std::string KeyValue::getValueData() { return impl_->valueContent_; }
-KeyValueEncodingType KeyValue::getEncodingType() { return impl_->keyValueEncodingType; }
+std::string KeyValue::getKeyData() const { return impl_->keyContent_; }
+KeyValueEncodingType KeyValue::getEncodingType() const { return impl_->keyValueEncodingType; }
 
 }  // namespace pulsar

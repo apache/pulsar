@@ -31,9 +31,46 @@ TEST(KeyValueTest, testEncodeAndDeCode) {
     // test decode
     KeyValue deCodeKeyValue(keyValue.getContent(), INLINE);
     ASSERT_EQ(deCodeKeyValue.getKeyData(), keyContent);
-    ASSERT_EQ(deCodeKeyValue.getValueData(), valueContent);
+    ASSERT_TRUE(deCodeKeyValue.getContent().compare(valueContent) != 0);
 
     // test separated type
     KeyValue sepKeyValue(keyContent, valueContent, SEPARATED);
+    ASSERT_EQ(sepKeyValue.getKeyData(), keyContent);
+    ASSERT_EQ(sepKeyValue.getContent(), valueContent);
+}
+
+TEST(KeyValueTest, testKeyIsEmpty) {
+    // test encode
+    std::string keyContent;
+    std::string valueContent = "valueContent";
+    KeyValue keyValue(keyContent, valueContent, INLINE);
+    ASSERT_EQ(keyValue.getContent().size(), 8 + keyContent.size() + valueContent.size());
+
+    // test decode
+    KeyValue deCodeKeyValue(keyValue.getContent(), INLINE);
+    ASSERT_EQ(deCodeKeyValue.getKeyData(), keyContent);
+    ASSERT_TRUE(deCodeKeyValue.getContent().compare(valueContent) != 0);
+
+    // test separated type
+    KeyValue sepKeyValue(keyContent, valueContent, SEPARATED);
+    ASSERT_EQ(sepKeyValue.getKeyData(), keyContent);
+    ASSERT_EQ(sepKeyValue.getContent(), valueContent);
+}
+
+TEST(KeyValueTest, testValueIsEmpty) {
+    // test encode
+    std::string keyContent = "keyContent";
+    std::string valueContent;
+    KeyValue keyValue(keyContent, valueContent, INLINE);
+    ASSERT_EQ(keyValue.getContent().size(), 8 + keyContent.size() + valueContent.size());
+
+    // test decode
+    KeyValue deCodeKeyValue(keyValue.getContent(), INLINE);
+    ASSERT_EQ(deCodeKeyValue.getKeyData(), keyContent);
+    ASSERT_TRUE(deCodeKeyValue.getContent().compare(valueContent) != 0);
+
+    // test separated type
+    KeyValue sepKeyValue(keyContent, valueContent, SEPARATED);
+    ASSERT_EQ(sepKeyValue.getKeyData(), keyContent);
     ASSERT_EQ(sepKeyValue.getContent(), valueContent);
 }

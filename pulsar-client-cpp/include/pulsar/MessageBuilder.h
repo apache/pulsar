@@ -66,7 +66,7 @@ class PULSAR_PUBLIC MessageBuilder {
      *
      * @param data the content of the key value.
      */
-    MessageBuilder& setContent(KeyValue& data);
+    MessageBuilder& setContent(const KeyValue& data);
 
     /**
      * Set content of the message to a buffer already allocated by the caller. No copies of

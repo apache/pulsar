@@ -112,7 +112,7 @@ TEST(MessageTest, testMessageBuilderSetKeyValueContent) {
         ASSERT_EQ(message.getPartitionKey(), "");
     }
 
-    // test inline encoding type.
+    // test separated encoding type.
     {
         KeyValue keyValue(keyContent, valueContent, SEPARATED);
         const Message& message = MessageBuilder().setContent(keyValue).build();
