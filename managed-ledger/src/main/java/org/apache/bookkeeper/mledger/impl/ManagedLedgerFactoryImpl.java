@@ -99,7 +99,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     protected final OrderedScheduler scheduledExecutor;
     private final ScheduledExecutorService cacheEvictionExecutor;
 
-    private LedgerDeletionService ledgerDeletionService;
+    private LedgerDeletionService ledgerDeletionService = new LedgerDeletionService.LedgerDeletionServiceDisable();
 
     @Getter
     protected final ManagedLedgerFactoryMBeanImpl mbean;
