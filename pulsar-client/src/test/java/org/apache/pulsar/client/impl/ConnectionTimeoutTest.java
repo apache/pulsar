@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import io.netty.channel.ConnectTimeoutException;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
@@ -72,9 +73,7 @@ public class ConnectionTimeoutTest {
                 } catch (TimeoutException e) {
                     Assert.fail("Connection timeout didn't apply.");
                 } catch (Exception e) {
-                    String causeClassName = e.getCause().getCause().getCause().getClass().getName();
-                    Assert.assertTrue(causeClassName.equals("io.netty.channel.ConnectTimeoutException")
-                            || causeClassName.equals("io.netty.channel.StacklessClosedChannelException"));
+                    Assert.assertEquals(e.getCause().getCause().getCause().getClass(), ConnectTimeoutException.class);
                 }
             } finally {
                 threads.stream().forEach(Thread::interrupt);
