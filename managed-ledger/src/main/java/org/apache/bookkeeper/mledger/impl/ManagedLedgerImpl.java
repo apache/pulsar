@@ -2704,7 +2704,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         ledgersStat = stat;
                         metadataMutex.unlock();
                         trimmerMutex.unlock();
-                        if (ledgerDeletionService instanceof LedgerDeletionService.LedgerDeletionServiceDisable) {
+                        if (!ledgerDeletionService.isTopicTwoPhaseDeletionEnabled()) {
                             for (LedgerInfo ls : ledgersToDelete) {
                                 log.info("[{}] Removing ledger {} - size: {}", name, ls.getLedgerId(), ls.getSize());
                                 asyncDeleteLedger(ls.getLedgerId(), ls);
@@ -2931,7 +2931,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             });
             return;
         }
-        if (ledgerDeletionService instanceof LedgerDeletionService.LedgerDeletionServiceDisable) {
+        if (!ledgerDeletionService.isTopicTwoPhaseDeletionEnabled()) {
             AtomicInteger ledgersToDelete = new AtomicInteger(ledgers.size());
             for (LedgerInfo ls : ledgers) {
                 if (log.isDebugEnabled()) {
@@ -3161,8 +3161,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                     if (exception != null) {
                                         log.error("[{}] Failed to offload data for the ledgerId {}",
                                                 name, ledgerId, exception);
-                                        if (ledgerDeletionService
-                                                instanceof LedgerDeletionService.LedgerDeletionServiceDisable) {
+                                        if (!ledgerDeletionService.isTopicTwoPhaseDeletionEnabled()) {
                                             cleanupOffloaded(ledgerId, uuid, driverName, driverMetadata,
                                                     "Metastore failure");
                                         } else {
@@ -3292,7 +3291,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                 oldInfo.getOffloadContext().getUidLsb());
                         log.info("[{}] Found previous offload attempt for ledger {}, uuid {} old uuid {}"
                                 + ", cleaning up", name, ledgerId, uuid, oldUuid);
-                        if (ledgerDeletionService instanceof LedgerDeletionService.LedgerDeletionServiceDisable) {
+                        if (!ledgerDeletionService.isTopicTwoPhaseDeletionEnabled()) {
                             cleanupOffloaded(
                                     ledgerId,
                                     oldUuid,
@@ -3993,7 +3992,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             } else {
                 if (rc == BKException.Code.OK) {
                     log.warn("[{}]-{} ledger creation timed-out, deleting ledger", this.name, lh.getId());
-                    if (ledgerDeletionService instanceof LedgerDeletionService.LedgerDeletionServiceDisable) {
+                    if (!ledgerDeletionService.isTopicTwoPhaseDeletionEnabled()) {
                         asyncDeleteLedger(lh.getId(), DEFAULT_LEDGER_DELETE_RETRIES);
                     } else {
                         ledgerDeletionService.appendPendingDeleteLedger(name, lh.getId(), null,

@@ -75,6 +75,8 @@ public interface LedgerDeletionService {
      */
     CompletableFuture<?> asyncClose();
 
+    boolean isTopicTwoPhaseDeletionEnabled();
+
     class LedgerDeletionServiceDisable implements LedgerDeletionService {
 
         @Override
@@ -82,25 +84,23 @@ public interface LedgerDeletionService {
             //No op
         }
 
-        private static final CompletableFuture<?> COMPLETABLE_FUTURE = CompletableFuture.completedFuture(null);
-
         @Override
         public CompletableFuture<?> appendPendingDeleteLedger(String topicName, long ledgerId, LedgerInfo context,
                                                               LedgerComponent component, LedgerType type,
                                                               Map<String, String> properties) {
-            return COMPLETABLE_FUTURE;
+            return CompletableFuture.completedFuture(null);
         }
 
         @Override
         public CompletableFuture<?> asyncDeleteLedger(String topicName, long ledgerId, LedgerComponent component,
                                                       boolean isBelievedDelete) {
-            return COMPLETABLE_FUTURE;
+            return CompletableFuture.completedFuture(null);
         }
 
         @Override
         public CompletableFuture<?> asyncDeleteOffloadedLedger(String topicName, long ledgerId,
                                                                MLDataFormats.OffloadContext offloadContext) {
-            return COMPLETABLE_FUTURE;
+            return CompletableFuture.completedFuture(null);
         }
 
         @Override
@@ -110,7 +110,12 @@ public interface LedgerDeletionService {
 
         @Override
         public CompletableFuture<?> asyncClose() {
-            return COMPLETABLE_FUTURE;
+            return CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public boolean isTopicTwoPhaseDeletionEnabled() {
+            return false;
         }
     }
 

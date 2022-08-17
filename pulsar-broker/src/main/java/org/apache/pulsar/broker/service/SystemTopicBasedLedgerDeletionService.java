@@ -263,6 +263,11 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
         return CompletableFuture.completedFuture(null);
     }
 
+    @Override
+    public boolean isTopicTwoPhaseDeletionEnabled() {
+        return true;
+    }
+
     private CompletableFuture<?> handleMessage(LedgerDeletionSystemTopicClient.PendingDeleteLedgerReader reader,
                                                Message<PendingDeleteLedgerInfo> message) {
         CompletableFuture<?> future = new CompletableFuture<>();
