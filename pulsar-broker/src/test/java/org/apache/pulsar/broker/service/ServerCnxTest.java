@@ -2169,155 +2169,153 @@ public class ServerCnxTest {
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
-    void shouldFailHandleLookup() throws Exception {
-        resetChannel();
+    public void shouldFailHandleLookup() throws Exception {
+        ServerCnx serverCnx = mock(ServerCnx.class, CALLS_REAL_METHODS);
         Field stateUpdater = ServerCnx.class.getDeclaredField("state");
         stateUpdater.setAccessible(true);
         stateUpdater.set(serverCnx, ServerCnx.State.Failed);
-
-        CommandLookupTopic commandLookupTopic = spy(CommandLookupTopic.class);
+        CommandLookupTopic commandLookupTopic = any(CommandLookupTopic.class);
         serverCnx.handleLookup(commandLookupTopic);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
-    void shouldFailHandlePartitionMetadataRequest() throws Exception {
-        resetChannel();
+    public void shouldFailHandlePartitionMetadataRequest() throws Exception {
+        ServerCnx serverCnx = mock(ServerCnx.class, CALLS_REAL_METHODS);
         Field stateUpdater = ServerCnx.class.getDeclaredField("state");
         stateUpdater.setAccessible(true);
         stateUpdater.set(serverCnx, ServerCnx.State.Failed);
-
-        CommandPartitionedTopicMetadata partitionMetadata = spy(CommandPartitionedTopicMetadata.class);
+        CommandPartitionedTopicMetadata partitionMetadata = any(CommandPartitionedTopicMetadata.class);
         serverCnx.handlePartitionMetadataRequest(partitionMetadata);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
-    void shouldFailHandleConsumerStats() throws Exception {
-        resetChannel();
+    public void shouldFailHandleConsumerStats() throws Exception {
+        ServerCnx serverCnx = mock(ServerCnx.class, CALLS_REAL_METHODS);
         Field stateUpdater = ServerCnx.class.getDeclaredField("state");
         stateUpdater.setAccessible(true);
         stateUpdater.set(serverCnx, ServerCnx.State.Failed);
-        CommandConsumerStats commandConsumerStats = spy(CommandConsumerStats.class);
+        CommandConsumerStats commandConsumerStats = any(CommandConsumerStats.class);
         serverCnx.handleConsumerStats(commandConsumerStats);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
-    void shouldFailHandleGetTopicsOfNamespace() throws Exception {
-        resetChannel();
+    public void shouldFailHandleGetTopicsOfNamespace() throws Exception {
+        ServerCnx serverCnx = mock(ServerCnx.class, CALLS_REAL_METHODS);
         Field stateUpdater = ServerCnx.class.getDeclaredField("state");
         stateUpdater.setAccessible(true);
         stateUpdater.set(serverCnx, ServerCnx.State.Failed);
-        CommandGetTopicsOfNamespace commandGetTopicsOfNamespace = spy(CommandGetTopicsOfNamespace.class);
+        CommandGetTopicsOfNamespace commandGetTopicsOfNamespace = any(CommandGetTopicsOfNamespace.class);
         serverCnx.handleGetTopicsOfNamespace(commandGetTopicsOfNamespace);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
-    void shouldFailHandleGetSchema() throws Exception {
-        resetChannel();
+    public void shouldFailHandleGetSchema() throws Exception {
+        ServerCnx serverCnx = mock(ServerCnx.class, CALLS_REAL_METHODS);
         Field stateUpdater = ServerCnx.class.getDeclaredField("state");
         stateUpdater.setAccessible(true);
         stateUpdater.set(serverCnx, ServerCnx.State.Failed);
-        CommandGetSchema commandGetSchem = spy(CommandGetSchema.class);
-        serverCnx.handleGetSchema(commandGetSchem);
+        CommandGetSchema commandGetSchema = any(CommandGetSchema.class);
+        serverCnx.handleGetSchema(commandGetSchema);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
-    void shouldFailHandleGetOrCreateSchema() throws Exception {
-        resetChannel();
+    public void shouldFailHandleGetOrCreateSchema() throws Exception {
+        ServerCnx serverCnx = mock(ServerCnx.class, CALLS_REAL_METHODS);
         Field stateUpdater = ServerCnx.class.getDeclaredField("state");
         stateUpdater.setAccessible(true);
         stateUpdater.set(serverCnx, ServerCnx.State.Failed);
-        CommandGetOrCreateSchema commandGetOrCreateSchema = spy(CommandGetOrCreateSchema.class);
+        CommandGetOrCreateSchema commandGetOrCreateSchema = any(CommandGetOrCreateSchema.class);
         serverCnx.handleGetOrCreateSchema(commandGetOrCreateSchema);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
-    void shouldFailHandleTcClientConnectRequest() throws Exception {
-        resetChannel();
+    public void shouldFailHandleTcClientConnectRequest() throws Exception {
+        ServerCnx serverCnx = mock(ServerCnx.class, CALLS_REAL_METHODS);
         Field stateUpdater = ServerCnx.class.getDeclaredField("state");
         stateUpdater.setAccessible(true);
         stateUpdater.set(serverCnx, ServerCnx.State.Failed);
-        CommandTcClientConnectRequest command = spy(CommandTcClientConnectRequest.class);
+        CommandTcClientConnectRequest command = any(CommandTcClientConnectRequest.class);
         serverCnx.handleTcClientConnectRequest(command);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
-    void shouldFailHandleNewTxn() throws Exception {
-        resetChannel();
+    public void shouldFailHandleNewTxn() throws Exception {
+        ServerCnx serverCnx = mock(ServerCnx.class, CALLS_REAL_METHODS);
         Field stateUpdater = ServerCnx.class.getDeclaredField("state");
         stateUpdater.setAccessible(true);
         stateUpdater.set(serverCnx, ServerCnx.State.Failed);
-        CommandNewTxn command = spy(CommandNewTxn.class);
+        CommandNewTxn command = any(CommandNewTxn.class);
         serverCnx.handleNewTxn(command);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
-    void shouldFailHandleAddPartitionToTxn() throws Exception {
-        resetChannel();
+    public void shouldFailHandleAddPartitionToTxn() throws Exception {
+        ServerCnx serverCnx = mock(ServerCnx.class, CALLS_REAL_METHODS);
         Field stateUpdater = ServerCnx.class.getDeclaredField("state");
         stateUpdater.setAccessible(true);
         stateUpdater.set(serverCnx, ServerCnx.State.Failed);
-        CommandAddPartitionToTxn command = spy(CommandAddPartitionToTxn.class);
+        CommandAddPartitionToTxn command = any(CommandAddPartitionToTxn.class);
         serverCnx.handleAddPartitionToTxn(command);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
-    void shouldFailHandleEndTxn() throws Exception {
-        resetChannel();
+    public void shouldFailHandleEndTxn() throws Exception {
+        ServerCnx serverCnx = mock(ServerCnx.class, CALLS_REAL_METHODS);
         Field stateUpdater = ServerCnx.class.getDeclaredField("state");
         stateUpdater.setAccessible(true);
         stateUpdater.set(serverCnx, ServerCnx.State.Failed);
-        CommandEndTxn command = spy(CommandEndTxn.class);
+        CommandEndTxn command = any(CommandEndTxn.class);
         serverCnx.handleEndTxn(command);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
-    void shouldFailHandleEndTxnOnPartition() throws Exception {
-        resetChannel();
+    public void shouldFailHandleEndTxnOnPartition() throws Exception {
+        ServerCnx serverCnx = mock(ServerCnx.class, CALLS_REAL_METHODS);
         Field stateUpdater = ServerCnx.class.getDeclaredField("state");
         stateUpdater.setAccessible(true);
         stateUpdater.set(serverCnx, ServerCnx.State.Failed);
-        CommandEndTxnOnPartition command = spy(CommandEndTxnOnPartition.class);
+        CommandEndTxnOnPartition command = any(CommandEndTxnOnPartition.class);
         serverCnx.handleEndTxnOnPartition(command);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
-    void shouldFailHandleEndTxnOnSubscription() throws Exception {
-        resetChannel();
+    public void shouldFailHandleEndTxnOnSubscription() throws Exception {
+        ServerCnx serverCnx = mock(ServerCnx.class, CALLS_REAL_METHODS);
         Field stateUpdater = ServerCnx.class.getDeclaredField("state");
         stateUpdater.setAccessible(true);
         stateUpdater.set(serverCnx, ServerCnx.State.Failed);
-        CommandEndTxnOnSubscription command = spy(CommandEndTxnOnSubscription.class);
+        CommandEndTxnOnSubscription command = any(CommandEndTxnOnSubscription.class);
         serverCnx.handleEndTxnOnSubscription(command);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
-    void shouldFailHandleAddSubscriptionToTxn() throws Exception {
-        resetChannel();
+    public void shouldFailHandleAddSubscriptionToTxn() throws Exception {
+        ServerCnx serverCnx = mock(ServerCnx.class, CALLS_REAL_METHODS);
         Field stateUpdater = ServerCnx.class.getDeclaredField("state");
         stateUpdater.setAccessible(true);
         stateUpdater.set(serverCnx, ServerCnx.State.Failed);
-        CommandAddSubscriptionToTxn command = spy(CommandAddSubscriptionToTxn.class);
+        CommandAddSubscriptionToTxn command = any(CommandAddSubscriptionToTxn.class);
         serverCnx.handleAddSubscriptionToTxn(command);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
-    void shouldFailHandleCommandWatchTopicList() throws Exception {
-        resetChannel();
+    public void shouldFailHandleCommandWatchTopicList() throws Exception {
+        ServerCnx serverCnx = mock(ServerCnx.class, CALLS_REAL_METHODS);
         Field stateUpdater = ServerCnx.class.getDeclaredField("state");
         stateUpdater.setAccessible(true);
         stateUpdater.set(serverCnx, ServerCnx.State.Failed);
-        CommandWatchTopicList commandWatchTopicList = spy(CommandWatchTopicList.class);
+        CommandWatchTopicList commandWatchTopicList = any(CommandWatchTopicList.class);
         serverCnx.handleCommandWatchTopicList(commandWatchTopicList);
 
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
-    void shouldFailHandleCommandWatchTopicListClose() throws Exception {
-        resetChannel();
+    public void shouldFailHandleCommandWatchTopicListClose() throws Exception {
+        ServerCnx serverCnx = mock(ServerCnx.class, CALLS_REAL_METHODS);
         Field stateUpdater = ServerCnx.class.getDeclaredField("state");
         stateUpdater.setAccessible(true);
         stateUpdater.set(serverCnx, ServerCnx.State.Failed);
-        CommandWatchTopicListClose commandWatchTopicListClose = spy(CommandWatchTopicListClose.class);
+        CommandWatchTopicListClose commandWatchTopicListClose = any(CommandWatchTopicListClose.class);
         serverCnx.handleCommandWatchTopicListClose(commandWatchTopicListClose);
     }
 }
