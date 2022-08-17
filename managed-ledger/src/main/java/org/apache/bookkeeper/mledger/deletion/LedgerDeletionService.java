@@ -42,7 +42,8 @@ public interface LedgerDeletionService {
      * @return
      */
     CompletableFuture<?> appendPendingDeleteLedger(String topicName, long ledgerId, LedgerInfo context,
-                                                   LedgerComponent component, LedgerType type, Map<String, String> properties);
+                                                   LedgerComponent component, LedgerType type,
+                                                   Map<String, String> properties);
 
     /**
      *
