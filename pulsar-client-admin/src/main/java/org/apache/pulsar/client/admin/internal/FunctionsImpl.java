@@ -43,6 +43,7 @@ import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.FunctionDefinition;
 import org.apache.pulsar.common.functions.FunctionState;
 import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.functions.UpdateOptionsImpl;
@@ -721,6 +722,35 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     public Set<String> getSinks() throws PulsarAdminException {
         return getConnectorsList().stream().filter(c -> !StringUtils.isEmpty(c.getSinkClass()))
                 .map(ConnectorDefinition::getName).collect(Collectors.toSet());
+    }
+
+    @Override
+    public List<FunctionDefinition> getBuiltInFunctions() throws PulsarAdminException {
+        return sync(this::getBuiltInFunctionsAsync);
+    }
+
+    @Override
+    public CompletableFuture<List<FunctionDefinition>> getBuiltInFunctionsAsync() {
+        WebTarget path = functions.path("builtins");
+        final CompletableFuture<List<FunctionDefinition>> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<Response>() {
+                    @Override
+                    public void completed(Response response) {
+                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
+                            future.completeExceptionally(getApiException(response));
+                        } else {
+                            future.complete(response.readEntity(
+                                    new GenericType<List<FunctionDefinition>>() {}));
+                        }
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
     }
 
     public List<WorkerInfo> getCluster() throws PulsarAdminException {
