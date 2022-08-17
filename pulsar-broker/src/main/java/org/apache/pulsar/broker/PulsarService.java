@@ -303,6 +303,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
         // Validate correctness of configuration
         PulsarConfigurationLoader.isComplete(config);
+        ensureConfigIsAppropriate(config);
 
         // validate `advertisedAddress`, `advertisedListeners`, `internalListenerName`
         this.advertisedListeners = MultipleListenerValidator.validateAndAnalysisAdvertisedListener(config);
@@ -365,6 +366,31 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         .batchingMaxSizeKb(config.getMetadataStoreBatchingMaxSizeKb())
                         .synchronizer(synchronizer)
                         .build());
+    }
+
+    private static void ensureConfigIsAppropriate(ServiceConfiguration configuration){
+        if (configuration.isTransactionPendingAckBatchedWriteEnabled()){
+            if (configuration.getTransactionPendingAckBatchedWriteMaxRecords() < 10){
+                throw new IllegalArgumentException("Txn pending ack batched write max records suggestion at least 9");
+            }
+            if (configuration.getTransactionPendingAckBatchedWriteMaxSize() < 1024 * 128){
+                throw new IllegalArgumentException("Txn pending ack batched write max size suggestion at least 128k");
+            }
+            if (configuration.getTransactionPendingAckBatchedWriteMaxDelayInMillis() < 1){
+                throw new IllegalArgumentException("Txn pending ack batched write max delay at least 1 milli seconds");
+            }
+        }
+        if (configuration.isTransactionLogBatchedWriteEnabled()){
+            if (configuration.getTransactionLogBatchedWriteMaxRecords() < 10){
+                throw new IllegalArgumentException("Txn TC batched write max records suggestion at least 9");
+            }
+            if (configuration.getTransactionLogBatchedWriteMaxSize() < 1024 * 128){
+                throw new IllegalArgumentException("Txn TC batched write max size suggestion at least 128k");
+            }
+            if (configuration.getTransactionLogBatchedWriteMaxDelayInMillis() < 1){
+                throw new IllegalArgumentException("Txn TC batched write max delay at least 1 milli seconds");
+            }
+        }
     }
 
     /**
