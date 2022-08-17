@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import com.google.common.collect.Lists;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -35,8 +36,6 @@ import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.streamingdispatch.PendingReadEntryRequest;
 import org.apache.pulsar.broker.service.streamingdispatch.StreamingDispatcher;
 import org.apache.pulsar.broker.service.streamingdispatch.StreamingEntryReader;
-
-import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 
 /**
  * A {@link PersistentDispatcherMultipleConsumers} implemented {@link StreamingDispatcher}.
