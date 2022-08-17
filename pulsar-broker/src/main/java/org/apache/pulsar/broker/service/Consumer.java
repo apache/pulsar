@@ -290,13 +290,16 @@ public class Consumer {
             return writePromise;
         }
         int unackedMessages = totalMessages;
-        // Note
-        // Must ensure that the message is written to the pendingAcks before sent is first, because this consumer
-        // is possible to disconnect at this time.
-        if (pendingAcks != null) {
-            for (int i = 0; i < entries.size(); i++) {
-                Entry entry = entries.get(i);
-                if (entry != null) {
+        int totalEntries = 0;
+
+        for (int i = 0; i < entries.size(); i++) {
+            Entry entry = entries.get(i);
+            if (entry != null) {
+                totalEntries++;
+                // Note
+                // Must ensure that the message is written to the pendingAcks before sent is first,
+                // because this consumer is possible to disconnect at this time.
+                if (pendingAcks != null) {
                     int batchSize = batchSizes.getBatchSize(i);
                     int stickyKeyHash = getStickyKeyHash(entry);
                     long[] ackSet = getCursorAckSet(PositionImpl.get(entry.getLedgerId(), entry.getEntryId()));
@@ -317,10 +320,10 @@ public class Consumer {
         // calculate avg message per entry
         if (avgMessagesPerEntry.get() < 1) { //valid avgMessagesPerEntry should always >= 1
             // set init value.
-            avgMessagesPerEntry.set(1.0 * totalMessages / entries.size());
+            avgMessagesPerEntry.set(1.0 * totalMessages / totalEntries);
         } else {
             avgMessagesPerEntry.set(avgMessagesPerEntry.get() * avgPercent
-                    + (1 - avgPercent) * totalMessages / entries.size());
+                    + (1 - avgPercent) * totalMessages / totalEntries);
         }
 
         // reduce permit and increment unackedMsg count with total number of messages in batch-msgs
