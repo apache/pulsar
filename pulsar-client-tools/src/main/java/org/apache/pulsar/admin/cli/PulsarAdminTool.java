@@ -25,8 +25,10 @@ import com.beust.jcommander.Parameter;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.FileInputStream;
 import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
@@ -34,6 +36,10 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import lombok.Getter;
 import org.apache.pulsar.PulsarVersion;
+import org.apache.pulsar.admin.cli.extensions.CommandExecutionContext;
+import org.apache.pulsar.admin.cli.extensions.CustomCommandFactory;
+import org.apache.pulsar.admin.cli.extensions.CustomCommandGroup;
+import org.apache.pulsar.admin.cli.utils.CustomCommandFactoryProvider;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.internal.PulsarAdminImpl;
@@ -44,6 +50,7 @@ public class PulsarAdminTool {
 
     private static int lastExitCode = Integer.MIN_VALUE;
 
+    protected List<CustomCommandFactory> customCommandFactories = new ArrayList();
     protected Map<String, Class<?>> commandMap;
     protected JCommander jcommander;
     protected final PulsarAdminBuilder adminBuilder;
@@ -182,6 +189,28 @@ public class PulsarAdminTool {
             for (Map.Entry<String, Class<?>> c : commandMap.entrySet()) {
                 addCommand(c, admin);
             }
+
+            CommandExecutionContext context = new CommandExecutionContext() {
+                @Override
+                public PulsarAdmin getPulsarAdmin() {
+                    return admin.get();
+                }
+
+                @Override
+                public Properties getConfiguration() {
+                    return properties;
+                }
+            };
+            loadCustomCommandFactories();
+
+            for (CustomCommandFactory factory : customCommandFactories) {
+                List<CustomCommandGroup> customCommandGroups = factory.commandGroups(context);
+                for (CustomCommandGroup group : customCommandGroups) {
+                    Object generated = CustomCommandsUtils.generateCliCommand(group, context, admin);
+                    jcommander.addCommand(group.name(), generated);
+                    commandMap.put(group.name(), null);
+                }
+            }
         } catch (Exception e) {
             Throwable cause;
             if (e instanceof InvocationTargetException && null != e.getCause()) {
@@ -193,6 +222,11 @@ public class PulsarAdminTool {
             System.exit(1);
         }
     }
+
+    private void loadCustomCommandFactories() throws Exception {
+        customCommandFactories.addAll(CustomCommandFactoryProvider.createCustomCommandFactories(properties));
+    }
+
 
     private void addCommand(Map.Entry<String, Class<?>> c, Supplier<PulsarAdmin> admin) throws Exception {
         // To remain backwards compatibility for "source" and "sink" commands
@@ -215,8 +249,8 @@ public class PulsarAdminTool {
     }
 
     boolean run(String[] args, Function<PulsarAdminBuilder, ? extends PulsarAdmin> adminFactory) {
+        setupCommands(adminFactory);
         if (args.length == 0) {
-            setupCommands(adminFactory);
             jcommander.usage();
             return false;
         }
@@ -233,7 +267,6 @@ public class PulsarAdminTool {
         } catch (Exception e) {
             System.err.println(e.getMessage());
             System.err.println();
-            setupCommands(adminFactory);
             jcommander.usage();
             return false;
         }
@@ -250,17 +283,14 @@ public class PulsarAdminTool {
         }
 
         if (rootParams.help) {
-            setupCommands(adminFactory);
             jcommander.usage();
             return true;
         }
 
         if (cmdPos == args.length) {
-            setupCommands(adminFactory);
             jcommander.usage();
             return false;
         } else {
-            setupCommands(adminFactory);
             String cmd = args[cmdPos];
 
             // To remain backwards compatibility for "source" and "sink" commands
@@ -391,7 +421,6 @@ public class PulsarAdminTool {
 
         // Automatically generate documents for pulsar-admin
         commandMap.put("documents", CmdGenerateDocument.class);
-
         // To remain backwards compatibility for "source" and "sink" commands
         // TODO eventually remove this
         commandMap.put("source", CmdSources.class);
