@@ -18,7 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.impl.cache;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Objects.requireNonNull;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.createManagedLedgerException;
 import com.google.common.collect.Lists;
 import java.util.ArrayList;
@@ -123,8 +123,8 @@ class SharedEntryCacheImpl implements EntryCache {
             // Read all the entries from bookkeeper
             lh.readAsync(firstEntry, lastEntry).thenAcceptAsync(
                     ledgerEntries -> {
-                        checkNotNull(ml.getName());
-                        checkNotNull(ml.getExecutor());
+                        requireNonNull(ml.getName());
+                        requireNonNull(ml.getExecutor());
 
                         try {
                             // We got the entries, we need to transform them to a List<> type
