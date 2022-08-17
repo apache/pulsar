@@ -192,11 +192,7 @@ public class TxnLogBufferedWriter<T> {
      */
     private void nextTimingTrigger(){
         try {
-            if (state == State.CLOSED){
-                return;
-            }
-            if (state == State.CLOSING){
-                STATE_UPDATER.set(this, State.CLOSED);
+            if (state == State.CLOSED || state == State.CLOSING){
                 return;
             }
             timeout = timer.newTimeout(timingFlushTask, batchedWriteMaxDelayInMillis, TimeUnit.MILLISECONDS);
