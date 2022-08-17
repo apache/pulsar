@@ -36,6 +36,8 @@ import org.apache.pulsar.broker.service.streamingdispatch.PendingReadEntryReques
 import org.apache.pulsar.broker.service.streamingdispatch.StreamingDispatcher;
 import org.apache.pulsar.broker.service.streamingdispatch.StreamingEntryReader;
 
+import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
+
 /**
  * A {@link PersistentDispatcherMultipleConsumers} implemented {@link StreamingDispatcher}.
  * It'll use {@link StreamingEntryReader} to read new entries instead read as micro batch from managed ledger.
@@ -91,7 +93,24 @@ public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDi
 
         cursor.seek(((ManagedLedgerImpl) cursor.getManagedLedger())
                 .getNextValidPosition((PositionImpl) entry.getPosition()));
-        sendMessagesToConsumers(readType, Lists.newArrayList(entry));
+
+        // dispatch messages to a separate thread, but still in order for this subscription
+        // sendMessagesToConsumers is responsible for running broker-side filters
+        // that may be quite expensive
+        if (serviceConfig.isDispatcherDispatchMessagesInSubscriptionThread()) {
+            // setting sendInProgress here, because sendMessagesToConsumers will be executed
+            // in a separate thread, and we want to prevent more reads
+            sendInProgress = true;
+            dispatchMessagesThread.execute(safeRun(() -> {
+                if (sendMessagesToConsumers(readType, Lists.newArrayList(entry))) {
+                    readMoreEntries();
+                }
+            }));
+        } else {
+            if (sendMessagesToConsumers(readType, Lists.newArrayList(entry))) {
+                readMoreEntriesAsync();
+            }
+        }
         ctx.recycle();
     }
 
