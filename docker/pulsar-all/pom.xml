@@ -74,7 +74,6 @@
           <groupId>${project.groupId}</groupId>
           <artifactId>pulsar-docker-image</artifactId>
           <version>${project.version}</version>
-          <classifier>docker-info</classifier>
         </dependency>
       </dependencies>
       <build>

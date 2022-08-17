@@ -48,7 +48,6 @@
           <groupId>org.apache.pulsar</groupId>
           <artifactId>pulsar-all-docker-image</artifactId>
           <version>${project.parent.version}</version>
-          <classifier>docker-info</classifier>
         </dependency>
       </dependencies>
       <build>
