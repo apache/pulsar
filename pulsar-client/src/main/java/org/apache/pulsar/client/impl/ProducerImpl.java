@@ -255,7 +255,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             }
             this.batchMessageContainer = (BatchMessageContainerBase) containerBuilder.build();
             this.batchMessageContainer.setProducer(this);
-            this.lastBatchSendNanoTime = System.nanoTime();
         } else {
             this.batchMessageContainer = null;
         }
@@ -2029,8 +2028,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             return;
         }
         final int numMessagesInBatch = batchMessageContainer.getNumMessagesInBatch();
-        batchMessageContainer.discard(ex);
+        final long currentBatchSize = batchMessageContainer.getCurrentBatchSize();
         semaphoreRelease(numMessagesInBatch);
+        client.getMemoryLimitController().releaseMemory(currentBatchSize);
+        batchMessageContainer.discard(ex);
     }
 
     @Override
@@ -2089,9 +2090,13 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         long microsSinceLastSend = TimeUnit.NANOSECONDS.toMicros(System.nanoTime() - lastBatchSendNanoTime);
         if (microsSinceLastSend < conf.getBatchingMaxPublishDelayMicros()) {
             scheduleBatchFlushTask(conf.getBatchingMaxPublishDelayMicros() - microsSinceLastSend);
-            return;
+        } else if (lastBatchSendNanoTime == 0) {
+            // The first time a producer sends a message, the lastBatchSendNanoTime is 0.
+            lastBatchSendNanoTime = System.nanoTime();
+            scheduleBatchFlushTask(conf.getBatchingMaxPublishDelayMicros());
+        } else {
+            batchMessageAndSend(true);
         }
-        batchMessageAndSend(true);
     }
 
     // must acquire semaphore before enqueuing
@@ -2113,10 +2118,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 for (OpSendMsg opSendMsg : opSendMsgs) {
                     processOpSendMsg(opSendMsg);
                 }
-            } catch (PulsarClientException e) {
-                semaphoreRelease(batchMessageContainer.getNumMessagesInBatch());
             } catch (Throwable t) {
-                semaphoreRelease(batchMessageContainer.getNumMessagesInBatch());
                 log.warn("[{}] [{}] error while create opSendMsg by batch message container", topic, producerName, t);
             } finally {
                 if (shouldScheduleNextBatchFlush) {

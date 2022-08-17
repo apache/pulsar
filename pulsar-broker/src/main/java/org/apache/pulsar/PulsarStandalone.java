@@ -210,7 +210,7 @@ public class PulsarStandalone implements AutoCloseable {
         return help;
     }
 
-    @Parameter(names = { "-c", "--config" }, description = "Configuration file path", required = true)
+    @Parameter(names = { "-c", "--config" }, description = "Configuration file path")
     private String configFile;
 
     @Parameter(names = { "--wipe-data" }, description = "Clean up previous ZK/BK data")
@@ -443,6 +443,7 @@ public class PulsarStandalone implements AutoCloseable {
                 .bkPort(bkPort)
                 .numBookies(numOfBk)
                 .dataDir(bkDir)
+                .clearOldData(wipeData)
                 .build();
         config.setBookkeeperNumberOfChannelsPerBookie(1);
         config.setMetadataStoreUrl(metadataStoreUrl);

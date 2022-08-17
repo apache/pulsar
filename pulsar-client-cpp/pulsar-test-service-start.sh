@@ -40,6 +40,10 @@ DATA_DIR=/tmp/pulsar-test-data
 rm -rf $DATA_DIR
 mkdir -p $DATA_DIR
 
+# Set up basic authentication
+cp $SRC_DIR/pulsar-client-cpp/test-conf/.htpasswd $DATA_DIR/.htpasswd
+export PULSAR_EXTRA_OPTS=-Dpulsar.auth.basic.conf=$DATA_DIR/.htpasswd
+
 # Copy TLS test certificates
 mkdir -p $DATA_DIR/certs
 cp $SRC_DIR/pulsar-broker/src/test/resources/authentication/tls/*.pem $DATA_DIR/certs

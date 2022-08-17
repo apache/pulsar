@@ -135,7 +135,7 @@ public class NamespaceIsolationPolicies {
      * @param nsPolicy
      *            The namespace name
      * @param brokerAddress
-     *            The broker adderss is the format of host:port
+     *            The broker address is the format of host:port
      * @return The broker assignment: {primary, secondary, shared}
      */
     private BrokerAssignment getBrokerAssignment(NamespaceIsolationPolicy nsPolicy, String brokerAddress) {

@@ -35,10 +35,13 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.netty.buffer.Unpooled;
+import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timeout;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -120,6 +123,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
+import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
@@ -130,6 +134,7 @@ import org.apache.pulsar.transaction.coordinator.TransactionTimeoutTracker;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionSequenceIdGenerator;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore;
+import org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriterConfig;
 import org.awaitility.Awaitility;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -157,6 +162,45 @@ public class TransactionTest extends TransactionTestBase {
     @AfterClass(alwaysRun = true)
     protected void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+
+    @Test
+    public void testTopicTransactionMetrics() throws Exception {
+        final String topic = "persistent://tnx/ns1/test_transaction_topic";
+
+        @Cleanup
+        Producer<byte[]> producer = this.pulsarClient.newProducer()
+                .topic(topic)
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .create();
+
+        Transaction txn = pulsarClient.newTransaction()
+                .withTransactionTimeout(1, TimeUnit.MINUTES).build().get();
+        producer.newMessage(txn).value(UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8))
+                .send();
+        txn.commit().get();
+
+        Transaction txn1 = pulsarClient.newTransaction()
+                .withTransactionTimeout(1, TimeUnit.MINUTES).build().get();
+        producer.newMessage(txn1).value(UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8))
+                .send();
+        txn1.abort().get();
+
+        Transaction txn2 = pulsarClient.newTransaction()
+                .withTransactionTimeout(1, TimeUnit.MINUTES).build().get();
+        producer.newMessage(txn2).value(UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8))
+                .send();
+
+        PulsarService pulsarService = pulsarServiceList.get(0);
+        Optional<Topic> optional = pulsarService.getBrokerService().getTopic(topic, false).get();
+        assertTrue(optional.isPresent());
+        PersistentTopic persistentTopic = (PersistentTopic) optional.get();
+        TopicStatsImpl stats = persistentTopic.getStats(false, false, false);
+
+        assertEquals(stats.committedTxnCount, 1);
+        assertEquals(stats.abortedTxnCount, 1);
+        assertEquals(stats.ongoingTxnCount, 1);
     }
 
     @Test
@@ -609,6 +653,10 @@ public class TransactionTest extends TransactionTestBase {
 
     @Test
     public void testEndTPRecoveringWhenManagerLedgerDisReadable() throws Exception{
+        TxnLogBufferedWriterConfig bufferedWriterConfig = new TxnLogBufferedWriterConfig();
+        HashedWheelTimer transactionTimer = new HashedWheelTimer(new DefaultThreadFactory("transaction-timer"),
+                1, TimeUnit.MILLISECONDS);
+
         String topic = NAMESPACE1 + "/testEndTPRecoveringWhenManagerLedgerDisReadable";
         admin.topics().createNonPartitionedTopic(topic);
         @Cleanup
@@ -640,7 +688,8 @@ public class TransactionTest extends TransactionTestBase {
 
         TransactionPendingAckStoreProvider pendingAckStoreProvider = mock(TransactionPendingAckStoreProvider.class);
         doReturn(CompletableFuture.completedFuture(
-                new MLPendingAckStore(persistentTopic.getManagedLedger(), managedCursor, null, 500)))
+                new MLPendingAckStore(persistentTopic.getManagedLedger(), managedCursor, null,
+                        500, bufferedWriterConfig, transactionTimer)))
                 .when(pendingAckStoreProvider).newPendingAckStore(any());
         doReturn(CompletableFuture.completedFuture(true)).when(pendingAckStoreProvider).checkInitializedBefore(any());
 
@@ -673,10 +722,16 @@ public class TransactionTest extends TransactionTestBase {
 
         Awaitility.await().untilAsserted(() ->
                 assertEquals(pendingAckHandle3.getStats(false).state, "Ready"));
+
+        // cleanup
+        transactionTimer.stop();
     }
 
     @Test
     public void testEndTCRecoveringWhenManagerLedgerDisReadable() throws Exception{
+        HashedWheelTimer transactionTimer = new HashedWheelTimer(new DefaultThreadFactory("transaction-timer"),
+                1, TimeUnit.MILLISECONDS);
+
         String topic = NAMESPACE1 + "/testEndTCRecoveringWhenManagerLedgerDisReadable";
         admin.topics().createNonPartitionedTopic(topic);
 
@@ -699,7 +754,8 @@ public class TransactionTest extends TransactionTestBase {
         persistentTopic.getManagedLedger().getConfig().setManagedLedgerInterceptor(mlTransactionSequenceIdGenerator);
         MLTransactionLogImpl mlTransactionLog =
                 new MLTransactionLogImpl(new TransactionCoordinatorID(1), null,
-                        persistentTopic.getManagedLedger().getConfig());
+                        persistentTopic.getManagedLedger().getConfig(), new TxnLogBufferedWriterConfig(),
+                        transactionTimer);
         Class<MLTransactionLogImpl> mlTransactionLogClass = MLTransactionLogImpl.class;
         Field field = mlTransactionLogClass.getDeclaredField("cursor");
         field.setAccessible(true);
@@ -746,6 +802,9 @@ public class TransactionTest extends TransactionTestBase {
         metadataStore3.init(transactionRecoverTracker).get();
         Awaitility.await().untilAsserted(() ->
                 assertEquals(metadataStore3.getCoordinatorStats().state, "Ready"));
+
+        // cleanup.
+        transactionTimer.stop();
     }
 
     @Test
@@ -1301,6 +1360,7 @@ public class TransactionTest extends TransactionTestBase {
         // Mock brokerService.
         BrokerService brokerService = mock(BrokerService.class);
         when(brokerService.getPulsar()).thenReturn(pulsar);
+        when(brokerService.pulsar()).thenReturn(pulsar);
         // Mock topic.
         PersistentTopic topic = mock(PersistentTopic.class);
         when(topic.getBrokerService()).thenReturn(brokerService);

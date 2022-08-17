@@ -488,11 +488,19 @@ public class MessageImpl<T> implements Message<T> {
         if (value != null) {
             return value;
         }
+
         if (null == schemaVersion) {
-            return schema.decode(getData());
+            return schema.decode(getByteBuffer());
         } else {
-            return schema.decode(getData(), schemaVersion);
+            return schema.decode(getByteBuffer(), schemaVersion);
         }
+    }
+
+    private ByteBuffer getByteBuffer() {
+        if (msgMetadata.isNullValue()) {
+            return null;
+        }
+        return this.payload.nioBuffer();
     }
 
     private T getKeyValueBySchemaVersion() {

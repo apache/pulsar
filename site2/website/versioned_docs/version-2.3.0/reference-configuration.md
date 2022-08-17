@@ -36,7 +36,7 @@ BookKeeper is a replicated log storage system that Pulsar uses for durable stora
 |zkLedgersRootPath|The root ZooKeeper path used to store ledger metadata. This parameter is used by the ZooKeeper-based ledger manager as a root znode to store all ledgers.|/ledgers|
 |ledgerStorageClass|Ledger storage implementation class|org.apache.bookkeeper.bookie.storage.ldb.DbLedgerStorage|
 |entryLogFilePreallocationEnabled|Enable or disable entry logger preallocation|true|
-|logSizeLimit|Max file size of the entry logger, in bytes. A new entry log file will be created when the old one reaches the file size limitation.|2147483648|
+|logSizeLimit|Max file size of the entry logger, in bytes. A new entry log file will be created when the old one reaches the file size limitation.|1073741824|
 |minorCompactionThreshold|Threshold of minor compaction. Entry log files whose remaining size percentage reaches below this threshold will be compacted in a minor compaction. If set to less than zero, the minor compaction is disabled.|0.2|
 |minorCompactionInterval|Time interval to run minor compaction, in seconds. If set to less than zero, the minor compaction is disabled.|3600|
 |majorCompactionThreshold|The threshold of major compaction. Entry log files whose remaining size percentage reaches below this threshold will be compacted in a major compaction. Those entry log files whose remaining size percentage is still higher than the threshold will never be compacted. If set to less than zero, the minor compaction is disabled.|0.5|
@@ -215,14 +215,7 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |s3ManagedLedgerOffloadServiceEndpoint| For Amazon S3 ledger offload, Alternative endpoint to connect to (useful for testing) ||
 |s3ManagedLedgerOffloadMaxBlockSizeInBytes| For Amazon S3 ledger offload, Max block size in bytes. (64MB by default, 5MB minimum) |67108864|
 |s3ManagedLedgerOffloadReadBufferSizeInBytes| For Amazon S3 ledger offload, Read buffer size in bytes (1MB by default)  |1048576|
-|transactionLogBatchedWriteEnabled| Provide a mechanism allowing the Transaction Log Store to aggregate multiple records into a batched record and persist into a single BK entry. This will make Pulsar transactions work more  efficiently, aka batched log. see: https://github.com/apache/pulsar/issues/15370  |false|
-|transactionLogBatchedWriteMaxRecords| If enabled the feature that transaction log batch, this attribute means maximum log records count in a batch  |512|
-|transactionLogBatchedWriteMaxSize| If enabled the feature that transaction log batch, this attribute means bytes size in a batch. |4m|
-|transactionLogBatchedWriteMaxDelayInMillis| If enabled the feature that transaction log batch, this attribute means maximum wait time(in millis) for the first record in a batch |1|
-|transactionPendingAckBatchedWriteEnabled| Provide a mechanism allowing the Pending Ack Store to aggregate multiple records into a batched record and persist into a single BK entry. This will make Pulsar transactions work more efficiently, aka batched log. see: https://github.com/apache/pulsar/issues/15370 |false|
-|transactionPendingAckBatchedWriteMaxRecords| If enabled the feature that transaction pending ack log batch, this attribute means maximum log records count in a batch. |512|
-|transactionPendingAckBatchedWriteMaxSize| If enabled the feature that transaction pending ack log batch, this attribute means bytes size in a batch. |4m|
-|transactionPendingAckBatchedWriteMaxDelayInMillis| If enabled the feature that transaction pending ack log batch, this attribute means maximum wait time(in millis) for the first record in a batch |1|
+
 
 
 

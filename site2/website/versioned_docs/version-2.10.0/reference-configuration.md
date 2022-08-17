@@ -40,7 +40,7 @@ BookKeeper is a replicated log storage system that Pulsar uses for durable stora
 |zkLedgersRootPath|The root ZooKeeper path used to store ledger metadata. This parameter is used by the ZooKeeper-based ledger manager as a root znode to store all ledgers.|/ledgers|
 |ledgerStorageClass|Ledger storage implementation class|org.apache.bookkeeper.bookie.storage.ldb.DbLedgerStorage|
 |entryLogFilePreallocationEnabled|Enable or disable entry logger preallocation|true|
-|logSizeLimit|Max file size of the entry logger, in bytes. A new entry log file will be created when the old one reaches the file size limitation.|2147483648|
+|logSizeLimit|Max file size of the entry logger, in bytes. A new entry log file will be created when the old one reaches the file size limitation.|1073741824|
 |minorCompactionThreshold|Threshold of minor compaction. Entry log files whose remaining size percentage reaches below this threshold will be compacted in a minor compaction. If set to less than zero, the minor compaction is disabled.|0.2|
 |minorCompactionInterval|Time interval to run minor compaction, in seconds. If set to less than zero, the minor compaction is disabled. Note: should be greater than gcWaitTime. |3600|
 |majorCompactionThreshold|The threshold of major compaction. Entry log files whose remaining size percentage reaches below this threshold will be compacted in a major compaction. Those entry log files whose remaining size percentage is still higher than the threshold will never be compacted. If set to less than zero, the minor compaction is disabled.|0.5|
@@ -143,6 +143,7 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |statsUpdateFrequencyInSecs||60|
 |statsUpdateInitialDelayInSecs||60|
 |metadataStoreUrl| Metadata store quorum connection string  ||
+| metadataStoreConfigPath | The configuration file path of the local metadata store. See [Configure metadata store](administration-metadata-store.md) for details. |N/A|
 |metadataStoreCacheExpirySeconds|Metadata store cache expiry time in seconds|300|
 |configurationMetadataStoreUrl| Configuration store connection string (as a comma-separated list) ||
 |brokerServicePort| Broker data port  |6650|
@@ -702,7 +703,7 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |haProxyProtocolEnabled | Enable or disable the [HAProxy](http://www.haproxy.org/) protocol. |false|
 |bookieId | If you want to custom a bookie ID or use a dynamic network address for a bookie, you can set the `bookieId`. <br /><br />Bookie advertises itself using the `bookieId` rather than the `BookieSocketAddress` (`hostname:port` or `IP:port`).<br /><br /> The `bookieId` is a non-empty string that can contain ASCII digits and letters ([a-zA-Z9-0]), colons, dashes, and dots. <br /><br />For more information about `bookieId`, see [here](http://bookkeeper.apache.org/bps/BP-41-bookieid/).|/|
 | maxTopicsPerNamespace | The maximum number of persistent topics that can be created in the namespace. When the number of topics reaches this threshold, the broker rejects the request of creating a new topic, including the auto-created topics by the producer or consumer, until the number of connected consumers decreases. The default value 0 disables the check. | 0 |
-| metadataStoreConfigPath | The configuration file path of the local metadata store. Standalone Pulsar uses [RocksDB](http://rocksdb.org/) as the local metadata store. The format is `/xxx/xx/rocksdb.ini`. |N/A|
+| metadataStoreConfigPath | The configuration file path of the local metadata store. See [Configure metadata store](administration-metadata-store.md) for details. |N/A|
 |schemaRegistryStorageClassName|The schema storage implementation used by this broker.|org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorageFactory|
 |isSchemaValidationEnforced| Whether to enable schema validation, when schema validation is enabled, if a producer without a schema attempts to produce the message to a topic with schema, the producer is rejected and disconnected.|false|
 |isAllowAutoUpdateSchemaEnabled|Allow schema to be auto updated at broker level.|true|

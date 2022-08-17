@@ -26,9 +26,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import org.apache.bookkeeper.client.ITopologyAwareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.RackChangeNotifier;
@@ -66,8 +64,8 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
     private ITopologyAwareEnsemblePlacementPolicy<BookieNode> rackawarePolicy = null;
     private List<BookieId> bookieAddressListLastTime = new ArrayList<>();
 
-    private volatile BookiesRackConfiguration racksWithHost = new BookiesRackConfiguration();
-    private volatile Map<String, BookieInfo> bookieInfoMap = new HashMap<>();
+    private BookiesRackConfiguration racksWithHost = new BookiesRackConfiguration();
+    private Map<String, BookieInfo> bookieInfoMap = new HashMap<>();
 
     public static MetadataStore createMetadataStore(Configuration conf) throws MetadataException {
         MetadataStore store;
@@ -110,15 +108,17 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
     }
 
     @Override
-    public void setConf(Configuration conf) {
+    public synchronized void setConf(Configuration conf) {
         super.setConf(conf);
         MetadataStore store;
         try {
             store = createMetadataStore(conf);
             bookieMappingCache = store.getMetadataCache(BookiesRackConfiguration.class);
-            bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH).join();
-            for (Map<String, BookieInfo> bookieMapping : bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH).get()
-                    .map(Map::values).orElse(Collections.emptyList())) {
+            store.registerListener(this::handleUpdates);
+            racksWithHost = bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH).get()
+                    .orElseGet(BookiesRackConfiguration::new);
+            updateRacksWithHost(racksWithHost);
+            for (Map<String, BookieInfo> bookieMapping : racksWithHost.values()) {
                 for (String address : bookieMapping.keySet()) {
                     bookieAddressListLastTime.add(BookieId.parse(address));
                 }
@@ -130,13 +130,9 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
         } catch (InterruptedException | ExecutionException | MetadataException e) {
             throw new RuntimeException(METADATA_STORE_INSTANCE + " failed to init BookieId list");
         }
-        store.registerListener(this::handleUpdates);
-
-        // A previous version of this code tried to eagerly load the cache. However, this is invalid
-        // in later versions of bookkeeper as when setConf is called, the bookieAddressResolver is not yet set
     }
 
-    private void updateRacksWithHost(BookiesRackConfiguration racks) {
+    private synchronized void updateRacksWithHost(BookiesRackConfiguration racks) {
         // In config z-node, the bookies are added in the `ip:port` notation, while BK will ask
         // for just the IP/hostname when trying to get the rack for a bookie.
         // To work around this issue, we insert in the map the bookie ip/hostname with same rack-info
@@ -176,7 +172,7 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
     }
 
     @Override
-    public List<String> resolve(List<String> bookieAddressList) {
+    public synchronized List<String> resolve(List<String> bookieAddressList) {
         List<String> racks = new ArrayList<>(bookieAddressList.size());
         for (String bookieAddress : bookieAddressList) {
             racks.add(getRack(bookieAddress));
@@ -185,32 +181,9 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
     }
 
     private String getRack(String bookieAddress) {
-        try {
-            // Trigger load of z-node in case it didn't exist
-            CompletableFuture<Optional<BookiesRackConfiguration>> future =
-                    bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH);
-
-            Optional<BookiesRackConfiguration> racks = (future.isDone() && !future.isCompletedExceptionally())
-                    ? future.join() : Optional.empty();
-            updateRacksWithHost(racks.orElseGet(BookiesRackConfiguration::new));
-            if (!racks.isPresent()) {
-                // since different placement policy will have different default rack,
-                // don't be smart here and just return null
-                return null;
-            }
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-
         BookieInfo bi = bookieInfoMap.get(bookieAddress);
         if (bi == null) {
-            Optional<BookieInfo> biOpt = racksWithHost.getBookie(bookieAddress);
-            if (biOpt.isPresent()) {
-                bi = biOpt.get();
-            } else {
-                updateRacksWithHost(racksWithHost);
-                bi = bookieInfoMap.get(bookieAddress);
-            }
+            bi = racksWithHost.getBookie(bookieAddress).orElse(null);
         }
 
         if (bi != null
@@ -243,10 +216,11 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
             return;
         }
 
-        if (rackawarePolicy != null) {
-            bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH)
-                    .thenAccept(optVal -> {
+        bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH)
+                .thenAccept(optVal -> {
+                    synchronized (this) {
                         LOG.info("Bookie rack info updated to {}. Notifying rackaware policy.", optVal);
+                        this.updateRacksWithHost(optVal.orElseGet(BookiesRackConfiguration::new));
                         List<BookieId> bookieAddressList = new ArrayList<>();
                         for (Map<String, BookieInfo> bookieMapping : optVal.map(Map::values).orElse(
                                 Collections.emptyList())) {
@@ -261,9 +235,11 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
                         Set<BookieId> bookieIdSet = new HashSet<>(bookieAddressList);
                         bookieIdSet.addAll(bookieAddressListLastTime);
                         bookieAddressListLastTime = bookieAddressList;
-                        rackawarePolicy.onBookieRackChange(new ArrayList<>(bookieIdSet));
-                    });
-        }
+                        if (rackawarePolicy != null) {
+                            rackawarePolicy.onBookieRackChange(new ArrayList<>(bookieIdSet));
+                        }
+                    }
+                });
     }
 
     @Override

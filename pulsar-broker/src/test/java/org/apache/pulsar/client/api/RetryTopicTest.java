@@ -20,14 +20,19 @@ package org.apache.pulsar.client.api;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
-
+import java.lang.reflect.Field;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import org.apache.pulsar.client.impl.ConsumerImpl;
+import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.client.util.RetryMessageUtil;
+import org.reflections.ReflectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
@@ -455,6 +460,60 @@ public class RetryTopicTest extends ProducerConsumerBase {
         }
         assertNull(checkMessage);
         checkConsumer.close();
+    }
+
+
+    @Test(timeOut = 30000L)
+    public void testRetryTopicException() throws Exception {
+        final String topic = "persistent://my-property/my-ns/retry-topic";
+        final int maxRedeliveryCount = 2;
+        final int sendMessages = 1;
+        // subscribe before publish
+        Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
+                .topic(topic)
+                .subscriptionName("my-subscription")
+                .subscriptionType(SubscriptionType.Shared)
+                .enableRetry(true)
+                .receiverQueueSize(100)
+                .deadLetterPolicy(DeadLetterPolicy.builder()
+                        .maxRedeliverCount(maxRedeliveryCount)
+                        .retryLetterTopic("persistent://my-property/my-ns/my-subscription-custom-Retry")
+                        .build())
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+
+        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
+                .topic(topic)
+                .create();
+        for (int i = 0; i < sendMessages; i++) {
+            producer.send(String.format("Hello Pulsar [%d]", i).getBytes());
+        }
+        producer.close();
+
+        // mock a retry producer exception when reconsumelater is called
+        MultiTopicsConsumerImpl<byte[]> multiTopicsConsumer = (MultiTopicsConsumerImpl<byte[]>) consumer;
+        List<ConsumerImpl<byte[]>> consumers = multiTopicsConsumer.getConsumers();
+        for (ConsumerImpl<byte[]> c : consumers) {
+            Set<Field> deadLetterPolicyField =
+                    ReflectionUtils.getAllFields(c.getClass(), ReflectionUtils.withName("deadLetterPolicy"));
+
+            if (deadLetterPolicyField.size() != 0) {
+                Field field = deadLetterPolicyField.iterator().next();
+                field.setAccessible(true);
+                DeadLetterPolicy deadLetterPolicy = (DeadLetterPolicy) field.get(c);
+                deadLetterPolicy.setRetryLetterTopic("#persistent://invlaid-topic#");
+            }
+        }
+        Message<byte[]> message = consumer.receive();
+        log.info("consumer received message : {} {}", message.getMessageId(), new String(message.getData()));
+        try {
+            consumer.reconsumeLater(message, 1, TimeUnit.SECONDS);
+        } catch (PulsarClientException.InvalidTopicNameException e) {
+            assertEquals(e.getClass(), PulsarClientException.InvalidTopicNameException.class);
+        } catch (Exception e) {
+            fail("exception should be PulsarClientException.InvalidTopicNameException");
+        }
+        consumer.close();
     }
 
 }

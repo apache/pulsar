@@ -26,6 +26,8 @@ You can interact with the admin interface via:
    
   For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more information, see [Pulsar admin doc](/tools/pulsar-admin/).
 
+  [Pulsar Shell](administration-pulsar-shell.md) extends `pulsar-admin` with an improved user experience for more flexibility and easier navigation between multiple clusters.
+  
   :::
 
 - HTTP calls, which are made against the admin {@inject: rest:REST:/} API provided by Pulsar brokers. For some RESTful APIs, they might be redirected to the owner brokers for serving with [`307 Temporary Redirect`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/307), hence the HTTP callers should handle `307 Temporary Redirect`. If you use `curl` commands, you should specify `-L` to handle redirections.

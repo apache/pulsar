@@ -48,6 +48,7 @@ public class PulsarAdminTool {
     protected JCommander jcommander;
     protected final PulsarAdminBuilder adminBuilder;
     protected RootParams rootParams;
+    private final Properties properties;
 
     @Getter
     public static class RootParams {
@@ -79,6 +80,12 @@ public class PulsarAdminTool {
                 description = "Enable TLS common name verification")
         Boolean tlsEnableHostnameVerification;
 
+        @Parameter(names = {"--tls-provider"}, description = "Set up TLS provider. "
+                + "When TLS authentication with CACert is used, the valid value is either OPENSSL or JDK. "
+                + "When TLS authentication with KeyStore is used, available options can be SunJSSE, Conscrypt "
+                + "and so on.")
+        String tlsProvider;
+
         @Parameter(names = { "-v", "--version" }, description = "Get version of pulsar admin client")
         boolean version;
 
@@ -87,6 +94,7 @@ public class PulsarAdminTool {
     }
 
     public PulsarAdminTool(Properties properties) throws Exception {
+        this.properties = properties;
         rootParams = new RootParams();
         // fallback to previous-version serviceUrl property to maintain backward-compatibility
         initRootParamsFromProperties(properties);
@@ -100,6 +108,12 @@ public class PulsarAdminTool {
         String tlsTrustStoreType = properties.getProperty("tlsTrustStoreType", "JKS");
         String tlsTrustStorePath = properties.getProperty("tlsTrustStorePath");
         String tlsTrustStorePassword = properties.getProperty("tlsTrustStorePassword");
+        String tlsKeyStoreType = properties.getProperty("tlsKeyStoreType", "JKS");
+        String tlsKeyStorePath = properties.getProperty("tlsKeyStorePath");
+        String tlsKeyStorePassword = properties.getProperty("tlsKeyStorePassword");
+        String tlsKeyFilePath = properties.getProperty("tlsKeyFilePath");
+        String tlsCertificateFilePath = properties.getProperty("tlsCertificateFilePath");
+
         boolean tlsAllowInsecureConnection = this.rootParams.tlsAllowInsecureConnection != null
                 ? this.rootParams.tlsAllowInsecureConnection
                 : Boolean.parseBoolean(properties.getProperty("tlsAllowInsecureConnection", "false"));
@@ -117,7 +131,12 @@ public class PulsarAdminTool {
                 .useKeyStoreTls(useKeyStoreTls)
                 .tlsTrustStoreType(tlsTrustStoreType)
                 .tlsTrustStorePath(tlsTrustStorePath)
-                .tlsTrustStorePassword(tlsTrustStorePassword);
+                .tlsTrustStorePassword(tlsTrustStorePassword)
+                .tlsKeyStoreType(tlsKeyStoreType)
+                .tlsKeyStorePath(tlsKeyStorePath)
+                .tlsKeyStorePassword(tlsKeyStorePassword)
+                .tlsKeyFilePath(tlsKeyFilePath)
+                .tlsCertificateFilePath(tlsCertificateFilePath);
     }
 
     protected void initRootParamsFromProperties(Properties properties) {
@@ -153,6 +172,12 @@ public class PulsarAdminTool {
             adminBuilder.serviceHttpUrl(rootParams.serviceUrl);
             adminBuilder.authentication(rootParams.authPluginClassName, rootParams.authParams);
             adminBuilder.requestTimeout(rootParams.requestTimeout, TimeUnit.SECONDS);
+            if (isBlank(rootParams.tlsProvider)) {
+                rootParams.tlsProvider = properties.getProperty("webserviceTlsProvider");
+            }
+            if (isNotBlank(rootParams.tlsProvider)) {
+                adminBuilder.sslProvider(rootParams.tlsProvider);
+            }
             Supplier<PulsarAdmin> admin = new PulsarAdminSupplier(adminBuilder, adminFactory);
             for (Map.Entry<String, Class<?>> c : commandMap.entrySet()) {
                 addCommand(c, admin);

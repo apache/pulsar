@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.sql.presto;
 
-import io.prestosql.decoder.DecoderColumnHandle;
-import io.prestosql.spi.connector.ColumnMetadata;
+import io.trino.decoder.DecoderColumnHandle;
+import io.trino.spi.connector.ColumnMetadata;
 import java.util.List;
 import java.util.Set;
 import org.apache.pulsar.common.naming.TopicName;

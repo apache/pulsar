@@ -18,10 +18,12 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertNotNull;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -31,12 +33,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.DeadLetterPolicy;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.client.impl.conf.TopicConsumerConfigurationData;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -337,5 +341,19 @@ public class ConsumerBuilderImplTest {
     public void testStartPaused() {
         consumerBuilderImpl.startPaused(true);
         verify(consumerBuilderImpl.getConf()).setStartPaused(true);
+    }
+
+    @Test
+    public void testTopicConsumerBuilder() {
+        List<TopicConsumerConfigurationData> topicConsumerConfigurationDataList = new ArrayList<>();
+        when(consumerBuilderImpl.getConf().getTopicConfigurations()).thenReturn(topicConsumerConfigurationDataList);
+
+        ConsumerBuilder<?> consumerBuilder = consumerBuilderImpl.topicConfiguration(Pattern.compile("foo")).priorityLevel(1).build();
+
+        assertThat(consumerBuilder).isSameAs(consumerBuilderImpl);
+        assertThat(topicConsumerConfigurationDataList).hasSize(1);
+        TopicConsumerConfigurationData topicConsumerConfigurationData = topicConsumerConfigurationDataList.get(0);
+        assertThat(topicConsumerConfigurationData.getTopicNameMatcher().matches("foo")).isTrue();
+        assertThat(topicConsumerConfigurationData.getPriorityLevel()).isEqualTo(1);
     }
 }

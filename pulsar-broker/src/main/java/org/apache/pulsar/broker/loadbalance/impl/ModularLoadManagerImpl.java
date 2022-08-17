@@ -197,7 +197,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     private long unloadBundleCount = 0;
 
     private final Lock lock = new ReentrantLock();
-    private Set<String> knownBrokers = new HashSet<>();
+    private Set<String> knownBrokers = ConcurrentHashMap.newKeySet();
 
     /**
      * Initializes fields which do not depend on PulsarService. initialize(PulsarService) should subsequently be called.
@@ -448,8 +448,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         long timeSinceLastReportWrittenToStore = System.currentTimeMillis() - localData.getLastUpdate();
         if (timeSinceLastReportWrittenToStore > updateMaxIntervalMillis) {
             log.info("Writing local data to metadata store because time since last"
-                            + " update exceeded threshold of {} minutes",
-                    conf.getLoadBalancerReportUpdateMaxIntervalMinutes());
+                            + " update exceeded threshold of {} minutes. ResourceUsage:[{}]",
+                    conf.getLoadBalancerReportUpdateMaxIntervalMinutes(),
+                    localData.printResourceUsage());
             // Always update after surpassing the maximum interval.
             return true;
         }
@@ -463,9 +464,10 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                                         percentChange(lastData.getNumBundles(), localData.getNumBundles()))));
         if (maxChange > conf.getLoadBalancerReportUpdateThresholdPercentage()) {
             log.info("Writing local data to metadata store because maximum change {}% exceeded threshold {}%; "
-                            + "time since last report written is {} seconds", maxChange,
+                            + "time since last report written is {} seconds. ResourceUsage:[{}]", maxChange,
                     conf.getLoadBalancerReportUpdateThresholdPercentage(),
-                    timeSinceLastReportWrittenToStore / 1000.0);
+                    timeSinceLastReportWrittenToStore / 1000.0,
+                    localData.printResourceUsage());
             return true;
         }
         return false;
@@ -485,10 +487,11 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
 
     private void cleanupDeadBrokersData() {
         final Set<String> activeBrokers = getAvailableBrokers();
-        Collection<String> newBrokers = CollectionUtils.subtract(activeBrokers, knownBrokers);
-        knownBrokers.addAll(newBrokers);
-        Collection<String> deadBrokers = CollectionUtils.subtract(knownBrokers, activeBrokers);
-        knownBrokers.removeAll(deadBrokers);
+        final Set<String> knownBrokersCopy = new HashSet<>(this.knownBrokers);
+        Collection<String> newBrokers = CollectionUtils.subtract(activeBrokers, knownBrokersCopy);
+        this.knownBrokers.addAll(newBrokers);
+        Collection<String> deadBrokers = CollectionUtils.subtract(knownBrokersCopy, activeBrokers);
+        this.knownBrokers.removeAll(deadBrokers);
         if (pulsar.getLeaderElectionService() != null
                 && pulsar.getLeaderElectionService().isLeader()) {
             deadBrokers.forEach(this::deleteTimeAverageDataFromMetadataStoreAsync);
@@ -655,6 +658,10 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                 bundles.forEach(bundle -> {
                     final String namespaceName = LoadManagerShared.getNamespaceNameFromBundleName(bundle);
                     final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundle);
+                    if (!shouldNamespacePoliciesUnload(namespaceName, bundleRange, broker)) {
+                        return;
+                    }
+
                     if (!shouldAntiAffinityNamespaceUnload(namespaceName, bundleRange, broker)) {
                         return;
                     }
@@ -693,6 +700,20 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         m.put("brk_lb_unload_bundle_total", unloadBundleCount);
         metrics.add(m);
         this.bundleUnloadMetrics.set(metrics);
+    }
+
+    public boolean shouldNamespacePoliciesUnload(String namespace, String bundle, String currentBroker) {
+        synchronized (brokerCandidateCache) {
+            brokerCandidateCache.clear();
+            ServiceUnitId serviceUnit = pulsar.getNamespaceService().getNamespaceBundleFactory()
+                    .getBundle(namespace, bundle);
+            LoadManagerShared.applyNamespacePolicies(serviceUnit, policies, brokerCandidateCache,
+                    getAvailableBrokers(), brokerTopicLoadingPredicate);
+
+            // if only current broker satisfy the NamespacePolicies should not unload.
+            brokerCandidateCache.remove(currentBroker);
+            return !brokerCandidateCache.isEmpty();
+        }
     }
 
     public boolean shouldAntiAffinityNamespaceUnload(String namespace, String bundle, String currentBroker) {

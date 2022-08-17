@@ -21,12 +21,14 @@ package org.apache.pulsar.transaction.coordinator.impl;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.Recycler;
+import io.netty.util.Timeout;
+import io.netty.util.Timer;
+import io.netty.util.TimerTask;
 import java.io.Closeable;
 import java.util.ArrayList;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import lombok.Getter;
@@ -39,7 +41,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
-import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 
 /***
  * See PIP-160: https://github.com/apache/pulsar/issues/15516.
@@ -58,8 +59,10 @@ import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback, Closeable {
 
     public static final short BATCHED_ENTRY_DATA_PREFIX_MAGIC_NUMBER = 0x0e01;
+    public static final int BATCHED_ENTRY_DATA_PREFIX_MAGIC_NUMBER_LEN = 2;
 
     public static final short BATCHED_ENTRY_DATA_PREFIX_VERSION = 1;
+    public static final short BATCHED_ENTRY_DATA_PREFIX_VERSION_LEN = 2;
 
     private static final ManagedLedgerException BUFFERED_WRITER_CLOSED_EXCEPTION =
             new ManagedLedgerException.ManagedLedgerFencedException(
@@ -73,13 +76,15 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
 
     private final ManagedLedger managedLedger;
 
+    private final Timer timer;
+
     /** All write operation will be executed on single thread. **/
     private final ExecutorService singleThreadExecutorForWrite;
 
     /** The serializer for the object which called by {@link #asyncAddData}. **/
     private final DataSerializer<T> dataSerializer;
 
-    private ScheduledFuture<?> scheduledFuture;
+    private Timeout timeout;
 
     /**
      * Caches “write requests” for a certain for a certain number, if reach this threshold, will trig Bookie writes.
@@ -122,9 +127,10 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
      * @param batchedWriteMaxDelayInMillis Maximum delay for writing to bookie for the earliest request in the batch.
      * @param batchEnabled Enable or disabled the batch feature, will use Managed Ledger directly and without batching
      *                    when disabled.
+     * @param timer Used for periodic flush.
      */
-    public TxnLogBufferedWriter(ManagedLedger managedLedger, OrderedExecutor orderedExecutor,
-                                ScheduledExecutorService scheduledExecutorService, DataSerializer<T> dataSerializer,
+    public TxnLogBufferedWriter(ManagedLedger managedLedger, OrderedExecutor orderedExecutor, Timer timer,
+                                DataSerializer<T> dataSerializer,
                                 int batchedWriteMaxRecords, int batchedWriteMaxSize, int batchedWriteMaxDelayInMillis,
                                 boolean batchEnabled){
         this.batchEnabled = batchEnabled;
@@ -137,12 +143,37 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
         this.batchedWriteMaxDelayInMillis = batchedWriteMaxDelayInMillis;
         this.flushContext = FlushContext.newInstance();
         this.dataArray = new ArrayList<>();
-        // scheduler task.
-        if (batchEnabled) {
-            this.scheduledFuture = scheduledExecutorService.scheduleAtFixedRate(() -> trigFlush(false),
-                    batchedWriteMaxDelayInMillis, batchedWriteMaxDelayInMillis, TimeUnit.MICROSECONDS);
-        }
         this.state = State.OPEN;
+        this.timer = timer;
+        // scheduler task.
+        if (this.batchEnabled) {
+            nextTimingTrigger();
+        }
+    }
+
+    private final TimerTask timingFlush = (timeout) -> {
+        if (timeout.isCancelled()) {
+            return;
+        }
+        trigFlush(false, true);
+    };
+
+    /***
+     * Why not use {@link ScheduledExecutorService#scheduleAtFixedRate(Runnable, long, long, TimeUnit)} ?
+     * Because: when the {@link #singleThreadExecutorForWrite} thread processes slowly, the scheduleAtFixedRate task
+     * will continue to append tasks to the ledger thread, this burdens the ledger thread and leads to an avalanche.
+     * see: https://github.com/apache/pulsar/pull/16679.
+     */
+    private void nextTimingTrigger(){
+        try {
+            if (state == State.CLOSING || state == State.CLOSED){
+                return;
+            }
+            timeout = timer.newTimeout(timingFlush, batchedWriteMaxDelayInMillis, TimeUnit.MILLISECONDS);
+        } catch (Exception e){
+            log.error("Start timing flush trigger failed."
+                    + " managedLedger: " + managedLedger.getName(), e);
+        }
     }
 
     /**
@@ -178,7 +209,7 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
         int len = dataSerializer.getSerializedSize(data);
         if (len >= batchedWriteMaxSize){
             if (!flushContext.asyncAddArgsList.isEmpty()) {
-                doTrigFlush(true);
+                doTrigFlush(true, false);
             }
             ByteBuf byteBuf = dataSerializer.serialize(data);
             managedLedger.asyncAddEntry(byteBuf, DisabledBatchCallback.INSTANCE,
@@ -193,7 +224,7 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
         // Calculate bytes-size.
         this.bytesSize += len;
         // trig flush.
-        doTrigFlush(false);
+        doTrigFlush(false, false);
     }
 
     /***
@@ -231,29 +262,39 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
     /**
      * Trigger write to bookie once, If the conditions are not met, nothing will be done.
      */
-    public void trigFlush(final boolean force){
-        singleThreadExecutorForWrite.execute(() -> doTrigFlush(force));
+    public void trigFlush(final boolean force, boolean byScheduleThreads){
+        singleThreadExecutorForWrite.execute(() -> doTrigFlush(force, byScheduleThreads));
     }
 
-    private void doTrigFlush(boolean force){
-        if (flushContext.asyncAddArgsList.isEmpty()) {
-            return;
-        }
-        if (force){
-            doFlush();
-            return;
-        }
-        AsyncAddArgs firstAsyncAddArgs = flushContext.asyncAddArgsList.get(0);
-        if (System.currentTimeMillis() - firstAsyncAddArgs.addedTime > batchedWriteMaxDelayInMillis){
-            doFlush();
-            return;
-        }
-        if (this.flushContext.asyncAddArgsList.size() >= batchedWriteMaxRecords){
-            doFlush();
-            return;
-        }
-        if (this.bytesSize >= batchedWriteMaxSize){
-            doFlush();
+    private void doTrigFlush(boolean force, boolean byScheduleThreads){
+        try {
+            if (flushContext.asyncAddArgsList.isEmpty()) {
+                return;
+            }
+            if (force) {
+                doFlush();
+                return;
+            }
+            if (byScheduleThreads) {
+                doFlush();
+                return;
+            }
+            AsyncAddArgs firstAsyncAddArgs = flushContext.asyncAddArgsList.get(0);
+            if (System.currentTimeMillis() - firstAsyncAddArgs.addedTime >= batchedWriteMaxDelayInMillis) {
+                doFlush();
+                return;
+            }
+            if (this.flushContext.asyncAddArgsList.size() >= batchedWriteMaxRecords) {
+                doFlush();
+                return;
+            }
+            if (this.bytesSize >= batchedWriteMaxSize) {
+                doFlush();
+            }
+        } finally {
+            if (byScheduleThreads) {
+                nextTimingTrigger();
+            }
         }
     }
 
@@ -288,12 +329,8 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
             final int batchSize = flushContext.asyncAddArgsList.size();
             for (int batchIndex = 0; batchIndex < batchSize; batchIndex++) {
                 final AsyncAddArgs asyncAddArgs = flushContext.asyncAddArgsList.get(batchIndex);
-                BitSetRecyclable bitSetRecyclable = BitSetRecyclable.create();
-                bitSetRecyclable.set(batchIndex);
-                long[] ackSet = bitSetRecyclable.toLongArray();
-                bitSetRecyclable.recycle();
                 final TxnBatchedPositionImpl txnBatchedPosition = new TxnBatchedPositionImpl(position, batchSize,
-                        batchIndex, ackSet);
+                        batchIndex);
                 // Because this task already running at ordered task, so just "run".
                 try {
                     asyncAddArgs.callback.addComplete(txnBatchedPosition, asyncAddArgs.ctx);
@@ -340,13 +377,19 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
             // If some request has been flushed, Bookie triggers the callback.
             failureCallbackByContextAndRecycle(this.flushContext, BUFFERED_WRITER_CLOSED_EXCEPTION);
             // Cancel task that schedule at fixed rate trig flush.
-            if (scheduledFuture != null && !scheduledFuture.isCancelled() && !scheduledFuture.isDone()) {
-                if (this.scheduledFuture.cancel(false)){
+            if (timeout == null){
+                log.error("Cancel timeout-task that schedule at fixed rate trig flush failure. The field-timeout"
+                        + " is null. managedLedger: " + managedLedger.getName());
+            } else if (timeout.isCancelled()){
+                // TODO How decisions the timer-task has been finished ?
+                this.state = State.CLOSED;
+            } else {
+                if (this.timeout.cancel()) {
                     this.state = State.CLOSED;
                 } else {
                     // Cancel task failure, The state will stay at CLOSING.
-                    log.error("Cancel task that schedule at fixed rate trig flush failure. The state will stay at"
-                            + " CLOSING. managedLedger: " + managedLedger.getName());
+                    log.error("Cancel timeout-task that schedule at fixed rate trig flush failure. The state will"
+                            + " stay at CLOSING. managedLedger: " + managedLedger.getName());
                 }
             }
         });
@@ -502,7 +545,7 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
 
 
 
-    interface AddDataCallback {
+    public interface AddDataCallback {
 
         void addComplete(Position position, Object context);
 

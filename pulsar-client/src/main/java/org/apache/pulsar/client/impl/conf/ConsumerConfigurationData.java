@@ -22,6 +22,8 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.collect.Sets;
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedMap;
@@ -163,6 +165,20 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     private boolean startPaused = false;
 
     private boolean autoScaledReceiverQueueSizeEnabled = false;
+
+    private List<TopicConsumerConfigurationData> topicConfigurations = new ArrayList<>();
+
+    public TopicConsumerConfigurationData getMatchingTopicConfiguration(String topicName) {
+        return topicConfigurations.stream()
+                .filter(topicConf -> topicConf.getTopicNameMatcher().matches(topicName))
+                .findFirst()
+                .orElseGet(() -> TopicConsumerConfigurationData.ofTopicName(topicName, this));
+    }
+
+    public void setTopicConfigurations(List<TopicConsumerConfigurationData> topicConfigurations) {
+        checkArgument(topicConfigurations != null, "topicConfigurations should not be null.");
+        this.topicConfigurations = topicConfigurations;
+    }
 
     public void setAutoUpdatePartitionsIntervalSeconds(int interval, TimeUnit timeUnit) {
         checkArgument(interval > 0, "interval needs to be > 0");
