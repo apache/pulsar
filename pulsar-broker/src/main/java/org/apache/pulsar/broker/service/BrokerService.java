@@ -2936,7 +2936,7 @@ public class BrokerService implements Closeable {
                 .getPoliciesAsync(topicName.getNamespaceObject())
                 .thenComposeAsync(optPolicies -> {
                     if (optPolicies.isPresent() && optPolicies.get().deleted) {
-                        // If the namespace is deleted, we can return directly.
+                        // We can return the completed future directly if the namespace is already deleted.
                         return CompletableFuture.completedFuture(null);
                     }
                     TopicName cloneTopicName = TopicName.get(topicName.getPartitionedTopicName());
