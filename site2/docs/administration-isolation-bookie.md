@@ -13,9 +13,8 @@ import TabItem from '@theme/TabItem';
 Isolating bookies equals isolating message storage, which is a data storage mechanism that provides isolation and safety for specific topics. 
 
 Bookie isolation is controlled by BookKeeper clients. For Pulsar, there are two kinds of BookKeeper clients to read and write data. 
-*  BookKeeper clients on the broker side
-  Pulsar brokers use these BookKeeper clients to read and write topic messages. 
-*  BookKeeper clients on the bookie auto-recovery side
+*  BookKeeper clients on the broker side: Pulsar brokers use these BookKeeper clients to read and write topic messages. 
+*  BookKeeper clients on the bookie auto-recovery side:
    * The bookie auditor checks whether ledger replicas fulfill the configured isolation policy;
    * The bookie replication worker writes ledger replicas to target bookies according to the configured isolation policy.
 
@@ -29,7 +28,7 @@ To isolate bookies, you need to complete the following tasks.
 
 Bookie data isolation policy is built on top of the existing BookKeeper rack-aware placement policy. The “rack” concept can be anything, for example, racks, regions, availability zones. It writes the configured isolation policy into the metadata store. Both BookKeeper clients on the broker and bookie auto-recovery side read the configured isolation policy from the metadata store and apply it when choosing bookies to store messages.
 
-BookKeeper provides three kinds of data isolation policy for disaster tolerance.
+BookKeeper provides three kinds of data isolation policies for disaster tolerance.
 * Rack-aware placement policy (default)
 * Region-aware placement policy
 * Zone-aware placement policy
@@ -52,7 +51,7 @@ Rack-aware placement policy enforces different data replicas to be placed in dif
 
 When the available rack size of bookies can meet the requirements configured on a topic, the rack-aware placement policy can work well and you don’t need any extra configurations.
 
-For example, the BookKeeper cluster has 4 racks and 13 bookie instances as shown the following diagram. When a topic is configured with `EnsembleSize=3, WriteQuorum=3, AckQuorum=2`, the BookKeeper client chooses one bookie instance from three different racks to write data to, such as Bookie2, Bookie8, and Bookie12.
+For example, the BookKeeper cluster has 4 racks and 13 bookie instances as shown in the following diagram. When a topic is configured with `EnsembleSize=3, WriteQuorum=3, AckQuorum=2`, the BookKeeper client chooses one bookie instance from three different racks to write data to, such as Bookie2, Bookie8, and Bookie12.
 
 
 ![Rack-aware placement policy](/assets/rack-aware-placement-policy-1.svg)
@@ -63,7 +62,7 @@ When the available rack size of bookies cannot meet the requirements configured 
 
 In this case, if you want to make the rack-aware placement policy work as usual, you need to configure an enforced minimum rack size of bookies (`MinNumRacksPerWriteQuorum`).
 
-For example, you have the same BookKeeper cluster with the same topic requirements `EnsembleSize=3, WriteQuorum=3, AckQuorum=2` as shown in the above diagram. When all the bookie instances in Rack3 and Rack4 failed, you only have 2 available racks and there are the following three possibilities.
+For example, you have the same BookKeeper cluster with the same topic requirements `EnsembleSize=3, WriteQuorum=3, AckQuorum=2` as shown in the above diagram. When all the bookie instances in Rack3 and Rack4 fail, you only have 2 available racks and there are the following three possibilities.
 
 * If you have configured `EnforceMinNumRacksPerWriteQuorum=true` and `MinNumRacksPerWriteQuorum=3`, the BookKeeper client fails to choose bookies, which means new ledgers cannot be created and old ledgers cannot be recovered. Because the requirement of `MinNumRacksPerWriteQuorum=3` cannot be fulfilled.
 
@@ -79,11 +78,11 @@ For example, you have the same BookKeeper cluster with the same topic requiremen
 
 Region-aware placement policy enforces different data replicas to be placed in different regions and racks to guarantee the region-level disaster tolerance. To achieve datacenter level disaster tolerance, you need to write data replicas into different data centers. You can use `RegionAwareEnsemblePlacementPolicy` to configure region and rack information for each bookie node to ensure region-level disaster tolerance.
 
-For example, the BookKeeper cluster has 4 regions, and each region has several racks with their bookie instances, as shown the following diagram. If a topic is configured with `EnsembleSize=3, WriteQuorum=3, and AckQuorum=2`, the BookKeeper client chooses three different regions, such as Region A, Region C and Region D. For each region, it chooses one bookie on a single rack, such as Bookie5 on Rack2, Bookie17 on Rack6, and Bookie21 on Rack8. 
+For example, the BookKeeper cluster has 4 regions, and each region has several racks with their bookie instances, as shown in the following diagram. If a topic is configured with `EnsembleSize=3, WriteQuorum=3, and AckQuorum=2`, the BookKeeper client chooses three different regions, such as Region A, Region C and Region D. For each region, it chooses one bookie on a single rack, such as Bookie5 on Rack2, Bookie17 on Rack6, and Bookie21 on Rack8. 
 
 ![Region-aware placement policy](/assets/region-aware-placement-policy-1.svg)
 
-When two regions failed, such as Region B and Region C, as shown in the following diagram, the BookKeeper client chooses one bookie from Region A or Region D to replace the failed Bookie17 for recovering old ledgers. And it also chooses Region A and Region D to write replicas for creating new ledgers. In Region A, it falls back to rack-aware placement policy and chooses one bookie from Rack1 and Rack2, such as Bookie4 and Bookie7. For Region D, it has to choose one bookie from Rack8, such as Bookie22.
+When two regions fail, such as Region B and Region C, as shown in the following diagram, the BookKeeper client chooses one bookie from Region A or Region D to replace the failed Bookie17 for recovering old ledgers. And it also chooses Region A and Region D to write replicas for creating new ledgers. In Region A, it falls back to rack-aware placement policy and chooses one bookie from Rack1 and Rack2, such as Bookie4 and Bookie7. For Region D, it has to choose one bookie from Rack8, such as Bookie22.
 
 ![Region-aware placement policy for disaster tolerance](/assets/region-aware-placement-policy-2.svg)
 
@@ -185,7 +184,7 @@ In addition, you can also group bookies across racks or regions to serve broker-
 
 #### Example of configuring rack-aware placement policy
 
-The following is an example for how to configure bookie instances with their rack properties.
+The following is an example of how to configure bookie instances with their rack properties.
 
 ```bash
 bin/pulsar-admin bookies set-bookie-rack --bookie bookie1:3181 --hostname bookie1.pulsar.com:3181 --group group1 --rack rack1
@@ -198,7 +197,7 @@ bin/pulsar-admin bookies set-bookie-rack --bookie bookie5:3181 --hostname bookie
 
 #### Example of configuring region-aware placement policy
 
-The following is an example for how to configure bookie instances with their region/rack properties.
+The following is an example of how to configure bookie instances with their region/rack properties.
 
 ```bash
 bin/pulsar-admin bookies set-bookie-rack --bookie bookie1:3181 --hostname bookie1.pulsar.com:3181 --group group1 --rack RegionA/rack1
