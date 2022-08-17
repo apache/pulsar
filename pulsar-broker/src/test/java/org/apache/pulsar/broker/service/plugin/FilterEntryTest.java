@@ -41,7 +41,9 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.EntryFilterSupport;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
@@ -184,10 +186,12 @@ public class FilterEntryTest extends BrokerTestBase {
         producer.close();
         consumer.close();
 
-        BrokerService brokerService = pulsar.getBrokerService();
-        Field field1 = BrokerService.class.getDeclaredField("entryFilters");
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService()
+                .getTopicReference(topic).get();
+        Field field1 = topicRef.getClass().getSuperclass().getDeclaredField("entryFilters");
         field1.setAccessible(true);
-        field1.set(brokerService, ImmutableMap.of("1", loader1, "2", loader2));
+        field1.set(topicRef, ImmutableMap.of("1", loader1, "2", loader2));
+
         cleanup();
         verify(loader1, times(1)).close();
         verify(loader2, times(1)).close();

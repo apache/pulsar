@@ -64,6 +64,7 @@ import org.apache.pulsar.broker.service.SubscriptionOption;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TopicPolicyListener;
 import org.apache.pulsar.broker.service.TransportCnx;
+import org.apache.pulsar.broker.service.plugin.EntryFilterWithClassLoader;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.client.api.MessageId;
@@ -495,6 +496,16 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
         subscriptions.forEach((s, sub) -> futures.add(sub.disconnect()));
         if (this.resourceGroupPublishLimiter != null) {
             this.resourceGroupPublishLimiter.unregisterRateLimitFunction(this.getName());
+        }
+
+        if (entryFilters != null) {
+            entryFilters.forEach((name, filter) -> {
+                try {
+                    filter.close();
+                } catch (Exception e) {
+                    log.warn("Error shutting down entry filter {}", name, e);
+                }
+            });
         }
 
         CompletableFuture<Void> clientCloseFuture =

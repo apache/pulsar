@@ -33,6 +33,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.nar.NarClassLoaderBuilder;
+import org.apache.pulsar.common.policies.data.EntryFilters;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 @Slf4j
@@ -44,12 +45,13 @@ public class EntryFilterProvider {
     /**
      * create entry filter instance.
      */
-    public static ImmutableMap<String, EntryFilterWithClassLoader> createEntryFilters(
-            ServiceConfiguration conf) throws IOException {
-        EntryFilterDefinitions definitions = searchForEntryFilters(conf.getEntryFiltersDirectory(),
+    public static ImmutableMap<String, EntryFilterWithClassLoader> createEntryFilters(ServiceConfiguration conf,
+                                                                                      EntryFilters entryFilters)
+            throws IOException {
+        EntryFilterDefinitions definitions = searchForEntryFilters(entryFilters.getEntryFiltersDirectory(),
                 conf.getNarExtractionDirectory());
         ImmutableMap.Builder<String, EntryFilterWithClassLoader> builder = ImmutableMap.builder();
-        for (String filterName : conf.getEntryFilterNames()) {
+        for (String filterName : entryFilters.getEntryFilterNames().split(",")) {
             EntryFilterMetaData metaData = definitions.getFilters().get(filterName);
             if (null == metaData) {
                 throw new RuntimeException("No entry filter is found for name `" + filterName
@@ -60,7 +62,7 @@ public class EntryFilterProvider {
             if (filter != null) {
                 builder.put(filterName, filter);
             }
-            log.info("Successfully loaded entry filter for name `{}`", filterName);
+            log.info("Successfully loaded entry filter for name `{}` from topic policy", filterName);
         }
         return builder.build();
     }

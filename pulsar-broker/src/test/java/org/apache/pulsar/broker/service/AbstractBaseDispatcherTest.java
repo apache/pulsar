@@ -21,12 +21,16 @@ package org.apache.pulsar.broker.service;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.pulsar.common.protocol.Commands.serializeMetadataAndPayload;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyObject;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import com.google.common.collect.ImmutableMap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -45,6 +49,7 @@ import org.apache.pulsar.common.api.proto.MarkerType;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
+import org.mockito.Mockito;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -78,18 +83,15 @@ public class AbstractBaseDispatcherTest {
 
 
     @Test
-    public void testFilterEntriesForConsumerOfEntryFilter() {
+    public void testFilterEntriesForConsumerOfEntryFilter() throws Exception {
         Topic mockTopic = mock(Topic.class);
         when(this.subscriptionMock.getTopic()).thenReturn(mockTopic);
-
-        BrokerService mockBrokerService = mock(BrokerService.class);
-        when(mockTopic.getBrokerService()).thenReturn(mockBrokerService);
 
         EntryFilterWithClassLoader mockFilter = mock(EntryFilterWithClassLoader.class);
         when(mockFilter.filterEntry(any(Entry.class), any(FilterContext.class))).thenReturn(
                 EntryFilter.FilterResult.REJECT);
         ImmutableMap<String, EntryFilterWithClassLoader> entryFilters = ImmutableMap.of("key", mockFilter);
-        when(mockBrokerService.getEntryFilters()).thenReturn(entryFilters);
+        when(mockTopic.getEntryFilters()).thenReturn(entryFilters);
 
         this.helper = new AbstractBaseDispatcherTestHelper(this.subscriptionMock, this.svcConfig);
 
