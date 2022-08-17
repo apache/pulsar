@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -329,7 +330,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
             assertEquals(entryCounter, positionsOfCallback.size());
         }
         /** cleanup. **/
-        txnLogBufferedWriter.close();
+        txnLogBufferedWriter.close().get();
         // If we already call {@link PulsarMockBookKeeper#failAfter}, the managed ledger could not close anymore.
         if (BookieErrorType.SOMETIMES_ERROR != bookieErrorType){
             managedLedger.close();
@@ -401,7 +402,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         assertEquals(dataArrayFlushedToBookie.size(), 0);
         Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> dataArrayFlushedToBookie.size() == 1);
         assertEquals(dataArrayFlushedToBookie.get(0).intValue(), 100);
-        txnLogBufferedWriter1.close();
+        txnLogBufferedWriter1.close().get();
 
         // Test threshold: batchedWriteMaxRecords.
         TxnLogBufferedWriter txnLogBufferedWriter2 = new TxnLogBufferedWriter<>(managedLedger, orderedExecutor,
@@ -513,7 +514,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         // Assert the timing task count. The above calculation is not accurate, so leave a margin.
         assertTrue(workQueue.size() - maxCountOfRemainingTasks < 10);
         // clean up.
-        txnLogBufferedWriter.close();
+        txnLogBufferedWriter.close().get();
         dataSerializer.cleanup();
         threadPoolExecutor.shutdown();
         transactionTimer.stop();
@@ -695,10 +696,11 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         // Assert metrics stat.
         verifyTheHistogramMetrics(0, 0, 0);
         // cleanup.
-        txnLogBufferedWriter.close();
+        txnLogBufferedWriter.close().get();
         metricsStats.close();
         transactionTimer.stop();
         orderedExecutor.shutdown();
+        CollectorRegistry.defaultRegistry.clear();
     }
 
     @Test
@@ -836,11 +838,13 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         verifyTheHistogramMetrics(0,0,0);
     }
 
-    private void releaseTxnLogBufferedWriterContext(TxnLogBufferedWriterContext context){
-        context.txnLogBufferedWriter.close();
+    private void releaseTxnLogBufferedWriterContext(TxnLogBufferedWriterContext context)
+            throws ExecutionException, InterruptedException {
+        context.txnLogBufferedWriter.close().get();
         context.metrics.close();
         context.timer.stop();
         context.orderedExecutor.shutdown();
+        CollectorRegistry.defaultRegistry.clear();
     }
 
     @AllArgsConstructor

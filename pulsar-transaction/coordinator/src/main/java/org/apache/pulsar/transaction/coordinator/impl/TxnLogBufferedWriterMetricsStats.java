@@ -87,16 +87,6 @@ public class TxnLogBufferedWriterMetricsStats implements Closeable {
     private final Counter batchFlushTriggeredByLargeSingleDataMetric;
     private final Counter.Child batchFlushTriggeredByLargeSingleDataCounter;
 
-    public void close() {
-        recordsPerBatchMetric.remove(labelValues);
-        batchSizeBytesMetric.remove(labelValues);
-        oldestRecordInBatchDelayTimeSecondsMetric.remove(labelValues);
-        batchFlushTriggeredByMaxRecordsMetric.remove(labelValues);
-        batchFlushTriggeredByMaxSizeMetric.remove(labelValues);
-        batchFlushTriggeredByMaxDelayMetric.remove(labelValues);
-        batchFlushTriggeredByLargeSingleDataMetric.remove(labelValues);
-    }
-
     /**
      * Users needs to ensure that the {@link TxnLogBufferedWriterMetricsStats} of the same {@param metricsPrefix} can
      * only create once, otherwise an IllegalArgumentException will be thrown.
@@ -174,6 +164,16 @@ public class TxnLogBufferedWriterMetricsStats implements Closeable {
                         .register(registry);
         batchFlushTriggeredByLargeSingleDataCounter =
                 batchFlushTriggeredByLargeSingleDataMetric.labels(labelValues);
+    }
+
+    public void close() {
+        recordsPerBatchMetric.remove(labelValues);
+        batchSizeBytesMetric.remove(labelValues);
+        oldestRecordInBatchDelayTimeSecondsMetric.remove(labelValues);
+        batchFlushTriggeredByMaxRecordsMetric.remove(labelValues);
+        batchFlushTriggeredByMaxSizeMetric.remove(labelValues);
+        batchFlushTriggeredByMaxDelayMetric.remove(labelValues);
+        batchFlushTriggeredByLargeSingleDataMetric.remove(labelValues);
     }
 
     public void triggerFlushByRecordsCount(int recordCount, long bytesSize, long delayMillis) {

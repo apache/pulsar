@@ -371,7 +371,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private static void ensureConfigIsAppropriate(ServiceConfiguration configuration){
         if (configuration.isTransactionPendingAckBatchedWriteEnabled()){
             if (configuration.getTransactionPendingAckBatchedWriteMaxRecords() < 10){
-                throw new IllegalArgumentException("Txn pending ack batched write max records suggestion at least 9");
+                throw new IllegalArgumentException("Txn pending ack batched write max records suggestion at least 10");
             }
             if (configuration.getTransactionPendingAckBatchedWriteMaxSize() < 1024 * 128){
                 throw new IllegalArgumentException("Txn pending ack batched write max size suggestion at least 128k");
@@ -382,7 +382,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         }
         if (configuration.isTransactionLogBatchedWriteEnabled()){
             if (configuration.getTransactionLogBatchedWriteMaxRecords() < 10){
-                throw new IllegalArgumentException("Txn TC batched write max records suggestion at least 9");
+                throw new IllegalArgumentException("Txn TC batched write max records suggestion at least 10");
             }
             if (configuration.getTransactionLogBatchedWriteMaxSize() < 1024 * 128){
                 throw new IllegalArgumentException("Txn TC batched write max size suggestion at least 128k");

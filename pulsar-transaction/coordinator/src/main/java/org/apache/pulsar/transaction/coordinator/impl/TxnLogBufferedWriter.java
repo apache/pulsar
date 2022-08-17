@@ -28,6 +28,7 @@ import io.netty.util.TimerTask;
 import java.io.Closeable;
 import java.util.ArrayList;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -57,7 +58,7 @@ import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
  * You can enable or disabled the batch feature, will use Managed Ledger directly and without batching when disabled.
  */
 @Slf4j
-public class TxnLogBufferedWriter<T> implements Closeable {
+public class TxnLogBufferedWriter<T> {
 
     public static final short BATCHED_ENTRY_DATA_PREFIX_MAGIC_NUMBER = 0x0e01;
     public static final int BATCHED_ENTRY_DATA_PREFIX_MAGIC_NUMBER_LEN = 2;
@@ -191,7 +192,11 @@ public class TxnLogBufferedWriter<T> implements Closeable {
      */
     private void nextTimingTrigger(){
         try {
-            if (state == State.CLOSING || state == State.CLOSED){
+            if (state == State.CLOSED){
+                return;
+            }
+            if (state == State.CLOSING){
+                STATE_UPDATER.set(this, State.CLOSED);
                 return;
             }
             timeout = timer.newTimeout(timingFlushTask, batchedWriteMaxDelayInMillis, TimeUnit.MILLISECONDS);
@@ -374,21 +379,22 @@ public class TxnLogBufferedWriter<T> implements Closeable {
     /**
      * Release resources and cancel pending tasks.
      */
-    @Override
-    public void close() {
+    public CompletableFuture<Void> close() {
         // If batch feature is disabled, there is nothing to close, so set the stat only.
         if (!batchEnabled) {
             STATE_UPDATER.compareAndSet(this, State.OPEN, State.CLOSED);
-            return;
+            return CompletableFuture.completedFuture(null);
         }
         // If other thread already called "close()", so do nothing.
         if (!STATE_UPDATER.compareAndSet(this, State.OPEN, State.CLOSING)){
-            return;
+            return CompletableFuture.completedFuture(null);
         }
+        CompletableFuture closeFuture = new CompletableFuture();
         // Cancel pending tasks and release resources.
         singleThreadExecutorForWrite.execute(() -> {
             try {
                 if (state == State.CLOSED) {
+                    closeFuture.complete(null);
                     return;
                 }
                 // If some requests are flushed, BK will trigger these callbacks, and the remaining requests in should
@@ -398,25 +404,17 @@ public class TxnLogBufferedWriter<T> implements Closeable {
                             new Exception("Transaction log buffered write has closed")
                         ));
                 // Cancel the timing task.
-                if (timeout == null) {
-                    log.error("Cancel timeout-task that schedule at fixed rate trig flush failure. The field-timeout"
-                            + " is null. managedLedger: " + managedLedger.getName());
-                } else if (timeout.isCancelled()) {
-                    // TODO How decisions the timer-task has been finished ?
-                    STATE_UPDATER.set(this, State.CLOSED);
-                } else {
-                    if (this.timeout.cancel()) {
-                        STATE_UPDATER.set(this, State.CLOSED);
-                    } else {
-                        // Cancel task failure, The state will stay at CLOSING.
-                        log.error("Cancel timeout-task that schedule at fixed rate trig flush failure. The state will"
-                                + " stay at CLOSING. managedLedger: " + managedLedger.getName());
-                    }
+                if (!timeout.isCancelled()){
+                    this.timeout.cancel();
                 }
+                STATE_UPDATER.set(this, State.CLOSED);
+                closeFuture.complete(null);
             } catch (Exception e){
                 log.error("Close Txn log buffered writer fail", e);
+                closeFuture.completeExceptionally(e);
             }
         });
+        return closeFuture;
     }
 
     private void failureCallbackByContextAndRecycle(FlushContext flushContext, ManagedLedgerException ex){
