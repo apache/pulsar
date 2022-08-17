@@ -238,7 +238,7 @@ public class TxnLogBufferedWriter<T> implements Closeable {
      */
     private void internalAsyncAddData(T data, AddDataCallback callback, Object ctx){
         // Avoid missing callback, do failed callback when error occur before add data to the array.
-        boolean shouldCompensateCallBackWhenWriteFail = false;
+        boolean shouldCompensateCallBackWhenWriteFail = true;
         try {
             if (state == State.CLOSING || state == State.CLOSED){
                 callback.addFailed(BUFFERED_WRITER_CLOSED_EXCEPTION, ctx);
