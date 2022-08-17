@@ -1829,6 +1829,9 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         String namespace = BrokerTestUtil.newUniqueName(this.testTenant + "/namespace");
         BundlesData data = BundlesData.builder().numBundles(4).build();
         admin.namespaces().createNamespace(namespace, data);
+        URL localWebServiceUrl = new URL(pulsar.getSafeWebServiceAddress());
+        final NamespaceName testNs = NamespaceName.get(namespace);
+        mockWebUrl(localWebServiceUrl, testNs);
         for (int i = 0; i < 10; i ++) {
             final BundlesData bundles = admin.namespaces().getBundles(namespace);
             final String bundle = bundles.getBoundaries().get(0) + "_" + bundles.getBoundaries().get(1);

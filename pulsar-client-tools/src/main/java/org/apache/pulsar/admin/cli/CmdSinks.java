@@ -301,9 +301,9 @@ public class CmdSinks extends CmdBase {
                 + "Add SerDe class name for a pattern in --customSerdeInputs  (supported for java fun only)",
                 hidden = true)
         protected String deprecatedTopicsPattern;
-        @Parameter(names = "--topics-pattern", description = "TopicsPattern to consume from list of topics "
-                + "under a namespace that match the pattern. [--input] and [--topicsPattern] are mutually exclusive. "
-                + "Add SerDe class name for a pattern in --customSerdeInputs  (supported for java fun only)")
+        @Parameter(names = "--topics-pattern", description = "The topic pattern to consume from a list of topics "
+                + "under a namespace that matches the pattern. [--input] and [--topics-pattern] are mutually "
+                + "exclusive. Add SerDe class name for a pattern in --custom-serde-inputs")
         protected String topicsPattern;
 
         @Parameter(names = "--subsName", description = "Pulsar source subscription name "

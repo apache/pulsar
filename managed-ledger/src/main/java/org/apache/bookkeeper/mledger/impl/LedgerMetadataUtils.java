@@ -18,7 +18,6 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import com.google.common.collect.ImmutableMap;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Map;
@@ -55,7 +54,7 @@ public final class LedgerMetadataUtils {
      * @return an immutable map which describes a ManagedLedger
      */
     static Map<String, byte[]> buildBaseManagedLedgerMetadata(String name) {
-        return ImmutableMap.of(
+        return Map.of(
                 METADATA_PROPERTY_APPLICATION, METADATA_PROPERTY_APPLICATION_PULSAR,
                 METADATA_PROPERTY_COMPONENT, METADATA_PROPERTY_COMPONENT_MANAGED_LEDGER,
                 METADATA_PROPERTY_MANAGED_LEDGER_NAME, name.getBytes(StandardCharsets.UTF_8));
@@ -69,7 +68,7 @@ public final class LedgerMetadataUtils {
      * @see #buildBaseManagedLedgerMetadata(java.lang.String)
      */
     static Map<String, byte[]> buildAdditionalMetadataForCursor(String name) {
-        return ImmutableMap.of(METADATA_PROPERTY_CURSOR_NAME, name.getBytes(StandardCharsets.UTF_8));
+        return Map.of(METADATA_PROPERTY_CURSOR_NAME, name.getBytes(StandardCharsets.UTF_8));
     }
 
     /**
@@ -81,7 +80,7 @@ public final class LedgerMetadataUtils {
      */
     public static Map<String, byte[]> buildMetadataForCompactedLedger(String compactedTopic,
                                                                       byte[] compactedToMessageId) {
-        return ImmutableMap.of(
+        return Map.of(
                 METADATA_PROPERTY_APPLICATION, METADATA_PROPERTY_APPLICATION_PULSAR,
                 METADATA_PROPERTY_COMPONENT, METADATA_PROPERTY_COMPONENT_COMPACTED_LEDGER,
                 METADATA_PROPERTY_COMPACTEDTOPIC, compactedTopic.getBytes(StandardCharsets.UTF_8),
@@ -96,7 +95,7 @@ public final class LedgerMetadataUtils {
      * @return an immutable map which describes the schema
      */
     public static Map<String, byte[]> buildMetadataForSchema(String schemaId) {
-        return ImmutableMap.of(
+        return Map.of(
                 METADATA_PROPERTY_APPLICATION, METADATA_PROPERTY_APPLICATION_PULSAR,
                 METADATA_PROPERTY_COMPONENT, METADATA_PROPERTY_COMPONENT_SCHEMA,
                 METADATA_PROPERTY_SCHEMAID, schemaId.getBytes(StandardCharsets.UTF_8)
@@ -119,7 +118,7 @@ public final class LedgerMetadataUtils {
         Class<? extends EnsemblePlacementPolicy> className, Map<String, Object> properties)
         throws EnsemblePlacementPolicyConfig.ParseEnsemblePlacementPolicyConfigException {
         EnsemblePlacementPolicyConfig config = new EnsemblePlacementPolicyConfig(className, properties);
-        return ImmutableMap.of(EnsemblePlacementPolicyConfig.ENSEMBLE_PLACEMENT_POLICY_CONFIG, config.encode());
+        return Map.of(EnsemblePlacementPolicyConfig.ENSEMBLE_PLACEMENT_POLICY_CONFIG, config.encode());
     }
 
     private LedgerMetadataUtils() {}
