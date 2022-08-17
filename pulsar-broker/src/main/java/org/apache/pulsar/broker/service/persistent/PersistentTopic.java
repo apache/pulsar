@@ -33,6 +33,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.time.Clock;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
@@ -223,6 +224,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     // Record the last time a data message (ie: not an internal Pulsar marker) is published on the topic
     private long lastDataMessagePublishedTimestamp = 0;
+
+    private CompletableFuture<Void> fullyCloseFuture;
 
     private static class TopicStatsHelper {
         public double averageMsgSize;
@@ -1142,6 +1145,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             }
 
             fenceTopicToCloseOrDelete(); // Avoid clients reconnections while deleting
+            this.fullyCloseFuture = deleteFuture;
             CompletableFuture<Void> closeClientFuture = new CompletableFuture<>();
             if (closeIfClientsConnected) {
                 List<CompletableFuture<Void>> futures = Lists.newArrayList();
@@ -1190,7 +1194,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                     ledger.asyncDelete(new AsyncCallbacks.DeleteLedgerCallback() {
                                         @Override
                                         public void deleteLedgerComplete(Object ctx) {
-                                            brokerService.removeTopicFromCache(topic);
+                                            brokerService.removeTopicFromCache(topic, PersistentTopic.this);
 
                                             dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
 
@@ -1243,86 +1247,146 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     /**
-     * Close this topic - close all producers and subscriptions associated with this topic.
-     *
+     * Close this topic - close all resources associated with this topic:
+     *   1.clients (producers and consumers) {@link #asyncCloseClients()}.
+     *   2.managed ledger {@link #asyncCloseLedger()}.
+     *   3.limiters {@link #closeLimiters()}.
      * @param closeWithoutWaitingClientDisconnect don't wait for client disconnect and forcefully close managed-ledger
      * @return Completable future indicating completion of close operation
      */
     @Override
     public CompletableFuture<Void> close(boolean closeWithoutWaitingClientDisconnect) {
-        CompletableFuture<Void> closeFuture = new CompletableFuture<>();
-
         lock.writeLock().lock();
         try {
             // closing managed-ledger waits until all producers/consumers/replicators get closed. Sometimes, broker
             // forcefully wants to close managed-ledger without waiting all resources to be closed.
-            if (!isClosingOrDeleting || closeWithoutWaitingClientDisconnect) {
-                fenceTopicToCloseOrDelete();
+            if (isClosingOrDeleting){
+                if (closeWithoutWaitingClientDisconnect){
+                    return this.fullyCloseFuture;
+                } else {
+                    // Why not return this.fullyCloseFuture ?
+                    // I don't know, just keep the same implementation as before.
+                    log.warn("[{}] Topic is already being closed or deleted", topic);
+                    return CompletableFuture.failedFuture(new TopicFencedException("Topic is already fenced"));
+                }
             } else {
-                log.warn("[{}] Topic is already being closed or deleted", topic);
-                closeFuture.completeExceptionally(new TopicFencedException("Topic is already fenced"));
-                return closeFuture;
+                fenceTopicToCloseOrDelete();
+                this.fullyCloseFuture = new CompletableFuture<>();
             }
         } finally {
             lock.writeLock().unlock();
         }
+        // Declare result.
+        CompletableFuture<Void> resultFuture = new CompletableFuture<>();
+        // Close limiters.
+        try {
+            closeLimiters();
+        } catch (Throwable t){
+            log.error("[{}] Error closing topic", topic, t);
+            unfenceTopicToResumeWithLock();
+            this.fullyCloseFuture.completeExceptionally(t);
+            return CompletableFuture.failedFuture(t);
+        }
 
-        List<CompletableFuture<Void>> futures = Lists.newArrayList();
+        // Close client components.
+        CompletableFuture<Void> closeClientsFuture = asyncCloseClients();
+        // Close managed ledger.
+        CompletableFuture<Void> closePhase2Future;
+        if (closeWithoutWaitingClientDisconnect){
+            closePhase2Future = asyncCloseLedger();
+        } else {
+            closePhase2Future = closeClientsFuture.thenCompose(__ -> asyncCloseLedger());
+        }
+        // Complete resultFuture. If managed ledger close failure, reset topic to resume.
+        closePhase2Future.thenApply(__ -> {
+            resultFuture.complete(null);
+            return null;
+        }).exceptionally(exception -> {
+            log.error("[{}] Error closing topic", topic, exception);
+            // Restart rate-limiter after close managed ledger failure. Success is not guaranteed.
+            // TODO Guarantee rate-limiter open finish.
+            try {
+                restartLimitersAfterCloseTopicFail();
+            } catch (Throwable t){
+                log.error("[{}] Failed to restart traffic limiting after closing ledger failed.", topic, t);
+            }
+            unfenceTopicToResumeWithLock();
+            resultFuture.completeExceptionally(exception);
+            return null;
+        });
+        // Complete this.closeFuture.
+        FutureUtil.waitForAll(Arrays.asList(closeClientsFuture, resultFuture)).thenRun(() -> {
+            this.fullyCloseFuture.complete(null);
+        }).exceptionally(t -> {
+            this.fullyCloseFuture.completeExceptionally(t);
+            return null;
+        });
+        return resultFuture;
+    }
 
-        futures.add(transactionBuffer.closeAsync());
-        replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
-        producers.values().forEach(producer -> futures.add(producer.disconnect()));
+    private void closeLimiters(){
         if (topicPublishRateLimiter != null) {
             topicPublishRateLimiter.close();
         }
-        subscriptions.forEach((s, sub) -> futures.add(sub.disconnect()));
         if (this.resourceGroupPublishLimiter != null) {
             this.resourceGroupPublishLimiter.unregisterRateLimitFunction(this.getName());
         }
+    }
 
-        CompletableFuture<Void> clientCloseFuture = closeWithoutWaitingClientDisconnect
-                ? CompletableFuture.completedFuture(null)
-                : FutureUtil.waitForAll(futures);
+    private void restartLimitersAfterCloseTopicFail(){
+        if (topicPublishRateLimiter != null) {
+            updatePublishDispatcher();
+        }
+        if (this.resourceGroupPublishLimiter != null) {
+            // Why param is "Optional.empty()" ?
+            // Because in updateResourceGroupLimiter() implementation, it will load policy with cache.
+            updateResourceGroupLimiter(Optional.empty());
+        }
+    }
 
-        clientCloseFuture.thenRun(() -> {
-            // After having disconnected all producers/consumers, close the managed ledger
-            ledger.asyncClose(new CloseCallback() {
-                @Override
-                public void closeComplete(Object ctx) {
-                    // Everything is now closed, remove the topic from map
-                    brokerService.removeTopicFromCache(topic)
-                            .thenRun(() -> {
-                                replicatedSubscriptionsController.ifPresent(ReplicatedSubscriptionsController::close);
+    private CompletableFuture<Void> asyncCloseClients(){
+        List<CompletableFuture<Void>> futures = Lists.newArrayList();
+        futures.add(transactionBuffer.closeAsync());
+        replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
+        producers.values().forEach(producer -> futures.add(producer.disconnect()));
+        subscriptions.forEach((s, sub) -> futures.add(sub.disconnect()));
+        return FutureUtil.waitForAll(futures);
+    }
 
-                                dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
+    private CompletableFuture<Void> asyncCloseLedger(){
+        CompletableFuture<Void> closeFuture = new CompletableFuture<>();
+        ledger.asyncClose(new CloseCallback() {
+            @Override
+            public void closeComplete(Object ctx) {
+                // Everything is now closed, remove the topic from map
+                brokerService.removeTopicFromCache(topic, PersistentTopic.this)
+                        .thenRun(() -> {
+                            replicatedSubscriptionsController.ifPresent(ReplicatedSubscriptionsController::close);
 
-                                subscribeRateLimiter.ifPresent(SubscribeRateLimiter::close);
+                            dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
 
-                                unregisterTopicPolicyListener();
-                                log.info("[{}] Topic closed", topic);
-                                cancelFencedTopicMonitoringTask();
-                                closeFuture.complete(null);
-                            })
-                    .exceptionally(ex -> {
-                        closeFuture.completeExceptionally(ex);
-                        return null;
-                    });
-                }
+                            subscribeRateLimiter.ifPresent(SubscribeRateLimiter::close);
 
-                @Override
-                public void closeFailed(ManagedLedgerException exception, Object ctx) {
-                    log.error("[{}] Failed to close managed ledger, proceeding anyway.", topic, exception);
-                    brokerService.removeTopicFromCache(topic);
+                            unregisterTopicPolicyListener();
+                            log.info("[{}] Topic closed", topic);
+                            cancelFencedTopicMonitoringTask();
+                            closeFuture.complete(null);
+                        })
+                        .exceptionally(ex -> {
+                            closeFuture.completeExceptionally(ex);
+                            return null;
+                        });
+            }
+
+            @Override
+            public void closeFailed(ManagedLedgerException exception, Object ctx) {
+                log.error("[{}] Failed to close managed ledger, proceeding anyway.", topic, exception);
+                brokerService.removeTopicFromCache(topic, PersistentTopic.this).thenCompose(__ -> {
                     closeFuture.complete(null);
-                }
-            }, null);
-        }).exceptionally(exception -> {
-            log.error("[{}] Error closing topic", topic, exception);
-            unfenceTopicToResume();
-            closeFuture.completeExceptionally(exception);
-            return null;
-        });
-
+                    return CompletableFuture.completedFuture(null);
+                });
+            }
+        }, null);
         return closeFuture;
     }
 
@@ -2954,6 +3018,15 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private void unfenceTopicToResume() {
         isFenced = false;
         isClosingOrDeleting = false;
+    }
+
+    private void unfenceTopicToResumeWithLock() {
+        lock.writeLock().lock();
+        try {
+            unfenceTopicToResume();
+        } finally {
+            lock.writeLock().unlock();
+        }
     }
 
     @Override
