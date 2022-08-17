@@ -99,3 +99,24 @@ TEST(MessageTest, testMessageBuilder) {
         ASSERT_EQ(msg.getData(), originalAddress);
     }
 }
+
+TEST(MessageTest, testMessageBuilderSetKeyValueContent) {
+    std::string keyContent = "keyContent";
+    std::string valueContent = "valueContent";
+
+    // test inline encoding type.
+    {
+        KeyValue keyValue(keyContent, valueContent, INLINE);
+        const Message& message = MessageBuilder().setContent(keyValue).build();
+        ASSERT_EQ(message.getDataAsString(), keyValue.getContent());
+        ASSERT_EQ(message.getPartitionKey(), "");
+    }
+
+    // test inline encoding type.
+    {
+        KeyValue keyValue(keyContent, valueContent, SEPARATED);
+        const Message& message = MessageBuilder().setContent(keyValue).build();
+        ASSERT_EQ(message.getDataAsString(), valueContent);
+        ASSERT_EQ(message.getPartitionKey(), keyContent);
+    }
+}

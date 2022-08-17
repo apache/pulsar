@@ -81,7 +81,7 @@ MessageBuilder& MessageBuilder::setContent(std::string&& data) {
     return *this;
 }
 
-MessageBuilder& MessageBuilder::setContent(KeyValue data) {
+MessageBuilder& MessageBuilder::setContent(KeyValue& data) {
     if (data.getEncodingType() == INLINE) {
         setContent(data.getContent());
     } else {

@@ -16,34 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#ifndef KEY_VALUE_HPP_
-#define KEY_VALUE_HPP_
+#include <gtest/gtest.h>
+#include <pulsar/Client.h>
 
-#include <map>
-#include <string>
-#include <memory>
-#include "defines.h"
-#include "Schema.h"
+using namespace pulsar;
 
-namespace pulsar {
+TEST(KeyValueTest, testEncodeAndDeCode) {
+    // test encode
+    std::string keyContent = "keyContent";
+    std::string valueContent = "valueContent";
+    KeyValue keyValue(keyContent, valueContent, INLINE);
+    ASSERT_EQ(keyValue.getContent().size(), 8 + keyContent.size() + valueContent.size());
 
-class KeyValueImpl;
+    // test decode
+    KeyValue deCodeKeyValue(keyValue.getContent(), INLINE);
+    ASSERT_EQ(deCodeKeyValue.getKeyData(), keyContent);
+    ASSERT_EQ(deCodeKeyValue.getValueData(), valueContent);
 
-class PULSAR_PUBLIC KeyValue {
-   public:
-    KeyValue();
-    KeyValue(const std::string &data, const KeyValueEncodingType &keyValueEncodingType);
-    KeyValue(const std::string &key, const std::string &value,
-             const KeyValueEncodingType &keyValueEncodingType);
-    std::string getContent();
-    std::string getKeyData();
-    std::string getValueData();
-    KeyValueEncodingType getEncodingType();
-
-   private:
-    typedef std::shared_ptr<KeyValueImpl> KeyValueImplPtr;
-    KeyValueImplPtr impl_;
-};
-}  // namespace pulsar
-
-#endif /* KEY_VALUE_HPP_ */
+    // test separated type
+    KeyValue sepKeyValue(keyContent, valueContent, SEPARATED);
+    ASSERT_EQ(sepKeyValue.getContent(), valueContent);
+}

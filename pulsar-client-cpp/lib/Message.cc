@@ -223,7 +223,7 @@ PULSAR_PUBLIC std::ostream& operator<<(std::ostream& s, const Message& msg) {
       << ", msg_id=" << msg.getMessageId() << ", props=" << msg.getProperties() << ')';
     return s;
 }
-KeyValue Message::getKeyValueData(KeyValueEncodingType keyValueEncodingType) const {
+KeyValue Message::getKeyValueData(const KeyValueEncodingType& keyValueEncodingType) const {
     return KeyValue(getDataAsString(), keyValueEncodingType);
 }
 

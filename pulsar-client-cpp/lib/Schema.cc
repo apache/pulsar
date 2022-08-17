@@ -118,10 +118,10 @@ SchemaInfo::SchemaInfo(SchemaType schemaType, const std::string &name, const std
     : impl_(std::make_shared<SchemaInfoImpl>(schemaType, name, schema, properties)) {}
 
 SchemaInfo::SchemaInfo(const SchemaInfo &keySchema, const SchemaInfo &valueSchema,
-                       KeyValueEncodingType keyValueEncodingType) {
-    auto checkType = [](SchemaInfo schemaInfo) {
+                       const KeyValueEncodingType &keyValueEncodingType) {
+    auto checkType = [](const SchemaInfo &schemaInfo) {
         if (schemaInfo.getSchemaType() != JSON && schemaInfo.getSchemaType() != AVRO) {
-            throw std::invalid_argument("Key and value schema just support JSON or AVRO:");
+            throw std::invalid_argument("Key and value schema just support JSON or AVRO.");
         }
     };
     checkType(keySchema);

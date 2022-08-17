@@ -37,7 +37,7 @@ class PULSAR_PUBLIC KeyValueImpl {
 
 KeyValue::KeyValue() : impl_() {}
 
-KeyValue::KeyValue(std::string data, KeyValueEncodingType keyValueEncodingType) {
+KeyValue::KeyValue(const std::string &data, const KeyValueEncodingType &keyValueEncodingType) {
     impl_ = std::make_shared<KeyValueImpl>();
     impl_->keyValueEncodingType = keyValueEncodingType;
     if (impl_->keyValueEncodingType == INLINE) {
@@ -49,23 +49,24 @@ KeyValue::KeyValue(std::string data, KeyValueEncodingType keyValueEncodingType) 
         buffer.consume(keySize);
         int valueSize = buffer.readUnsignedInt();
         SharedBuffer valueContent = buffer.slice(0, valueSize);
-        impl_->valueContent_ = std::string(valueContent.data(), keySize);
+        impl_->valueContent_ = std::string(valueContent.data(), valueSize);
     } else {
         impl_->valueContent_ = data;
     }
 }
 
-KeyValue::KeyValue(std::string key, std::string value, KeyValueEncodingType keyValueEncodingType)
+KeyValue::KeyValue(const std::string &key, const std::string &value,
+                   const KeyValueEncodingType &keyValueEncodingType)
     : impl_(std::make_shared<KeyValueImpl>(key, value, keyValueEncodingType)) {}
 
 std::string KeyValue::getContent() {
     if (impl_->keyValueEncodingType == INLINE) {
         std::string keyContent = impl_->keyContent_;
         std::string valueContent = impl_->valueContent_;
-        auto keySize = keyContent.length();
-        auto valueSize = valueContent.length();
+        int keySize = keyContent.length();
+        int valueSize = valueContent.length();
 
-        int buffSize = sizeof keySize + keySize + sizeof valueSize + valueSize;
+        int buffSize = sizeof(keySize) + keySize + sizeof(valueSize) + valueSize;
         SharedBuffer buffer = SharedBuffer::allocate(buffSize);
         buffer.writeUnsignedInt(keySize);
         buffer.write(keyContent.c_str(), keySize);

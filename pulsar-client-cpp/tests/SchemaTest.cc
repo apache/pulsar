@@ -107,3 +107,24 @@ TEST(SchemaTest, testHasSchemaVersion) {
 
     client.close();
 }
+
+TEST(SchemaTest, testKeyValueSchema) {
+    // 0. test key value only support JSON or AVRO.
+    try {
+        SchemaInfo keySchema(SchemaType::STRING, "String", "");
+        SchemaInfo valueSchema(SchemaType::STRING, "String", "");
+        SchemaInfo keyValueSchema(keySchema, valueSchema, pulsar::INLINE);
+        FAIL();
+    } catch (std::invalid_argument const& er) {
+        SUCCEED();
+    }
+
+    // 1. test create key value schema success.
+    SchemaInfo keySchema(SchemaType::AVRO, "String", exampleSchema);
+    SchemaInfo valueSchema(SchemaType::AVRO, "String", exampleSchema);
+    SchemaInfo keyValueSchema(keySchema, valueSchema, pulsar::INLINE);
+    std::cout << keyValueSchema.getSchema() << std::endl;
+    ASSERT_EQ(keyValueSchema.getSchemaType(), KEY_VALUE);
+    ASSERT_EQ(keyValueSchema.getSchema().size(),
+              8 + keySchema.getSchema().size() + valueSchema.getSchema().size());
+}

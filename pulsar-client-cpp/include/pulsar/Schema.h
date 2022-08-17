@@ -27,6 +27,9 @@
 
 namespace pulsar {
 
+/**
+ *  Encoding types of supported KeyValueSchema for Pulsar messages.
+ */
 enum KeyValueEncodingType
 {
     /**
@@ -160,13 +163,12 @@ class PULSAR_PUBLIC SchemaInfo {
                const StringMap &properties = StringMap());
 
     /**
-     * @param schemaType the schema type
-     * @param name the name of the schema definition
-     * @param schema the schema definition as a JSON string
-     * @param properties a map of custom defined properties attached to the schema
+     * @param keySchema  the key schema.
+     * @param valueSchema  the value schema.
+     * @param keyValueEncodingType Encoding types of supported KeyValueSchema for Pulsar messages.
      */
     SchemaInfo(const SchemaInfo &keySchema, const SchemaInfo &valueSchema,
-               KeyValueEncodingType keyValueEncodingType);
+               const KeyValueEncodingType &keyValueEncodingType);
 
     /**
      * @return the schema type
