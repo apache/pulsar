@@ -417,13 +417,13 @@ You can check the following statistics of a given non-partitioned topic.
 
           -   **nonContiguousDeletedMessagesRangesSerializedSize**: The serialized size of non-contiguous deleted messages ranges.
               
-          -   **throughEntryFilterMsgs**: The number of messages passes through `EntryFilter`.
+          -   **filterProcessedMsgCount**: The number of messages processed by `EntryFilter`.
               
-          -   **entryFilterAccepted**: The number of messages accepted by `EntryFilter`.
+          -   **filterAcceptedMsgCount**: The number of messages accepted by `EntryFilter`.
               
-          -   **entryFilterRejected**: The number of messages rejected by `EntryFilter`.
+          -   **filterRejectedMsgCount**: The number of messages rejected by `EntryFilter`.
               
-          -   **entryFilterRescheduled**: The number of messages rescheduled by `EntryFilter`.
+          -   **filterRescheduledMsgCount**: The number of messages rescheduled by `EntryFilter`.
 
           -   **consumers**: The list of connected consumers for this subscription.
 
