@@ -51,7 +51,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
-
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -1404,11 +1403,11 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         assertEquals(replicator.getState(), org.apache.pulsar.broker.service.AbstractReplicator.State.Started);
         ManagedCursorImpl cursor = (ManagedCursorImpl) replicator.getCursor();
-        cursor.setState(State.Closed);
 
-        Field field = ManagedCursorImpl.class.getDeclaredField("state");
-        field.setAccessible(true);
-        field.set(cursor, State.Closed);
+        Awaitility.await().timeout(10, TimeUnit.SECONDS)
+                .untilAsserted(() -> assertEquals(cursor.getState(), State.Open.toString()));
+
+        cursor.setState(State.Closed);
 
         producer1.produce(10);
 
@@ -1420,7 +1419,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         assertNotEquals((readPos.getEntryId() - 1), deletedPos.getEntryId());
 
-        field.set(cursor, State.Open);
+        cursor.setState(State.Open);
 
         Awaitility.await().timeout(30, TimeUnit.SECONDS).until(
                 () -> cursor.getMarkDeletedPosition().getEntryId() == (cursor.getReadPosition().getEntryId() - 1));
