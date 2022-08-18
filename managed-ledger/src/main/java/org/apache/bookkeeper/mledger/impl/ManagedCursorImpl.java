@@ -46,6 +46,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
@@ -95,6 +96,7 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.MessageRange;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.StringProperty;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet.LongPairConsumer;
@@ -119,6 +121,11 @@ public class ManagedCursorImpl implements ManagedCursor {
     protected final ManagedLedgerConfig config;
     protected final ManagedLedgerImpl ledger;
     private final String name;
+
+    protected static final AtomicReferenceFieldUpdater<ManagedCursorImpl, Map>
+            CURSOR_PROPERTIES_UPDATER =
+            AtomicReferenceFieldUpdater.newUpdater(ManagedCursorImpl.class, Map.class,
+                    "cursorProperties");
     private volatile Map<String, String> cursorProperties;
     private final BookKeeper.DigestType digestType;
 
@@ -324,8 +331,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         return cursorProperties;
     }
 
-    @Override
-    public CompletableFuture<Void> setCursorProperties(Map<String, String> cursorProperties) {
+    private CompletableFuture<Void> setCursorProperties(Map<String, String> cursorProperties) {
         CompletableFuture<Void> updateCursorPropertiesResult = new CompletableFuture<>();
         ledger.getStore().asyncGetCursorInfo(ledger.getName(), name, new MetaStoreCallback<>() {
             @Override
@@ -341,7 +347,6 @@ public class ManagedCursorImpl implements ManagedCursor {
                     public void operationComplete(Void result, Stat stat) {
                         log.info("[{}] Updated ledger cursor: {} properties {}", ledger.getName(),
                                 name, cursorProperties);
-                        ManagedCursorImpl.this.cursorProperties = cursorProperties;
                         cursorLedgerStat = stat;
                         updateCursorPropertiesResult.complete(result);
                     }
@@ -363,6 +368,36 @@ public class ManagedCursorImpl implements ManagedCursor {
             }
         });
         return updateCursorPropertiesResult;
+    }
+
+    @Override
+    public void putCursorProperty(String key, String value) {
+        CURSOR_PROPERTIES_UPDATER.updateAndGet(this, map -> {
+            Map<String, String> newProperties = map == null ? new TreeMap<>() : new TreeMap<>(map);
+            newProperties.put(key, value);
+            FutureUtil.waitForAll(Collections.singleton(setCursorProperties(newProperties)));
+            return newProperties;
+        });
+    }
+
+    @Override
+    public void putAllCursorProperties(Map<String, String> properties) {
+        CURSOR_PROPERTIES_UPDATER.updateAndGet(this, map -> {
+            Map<String, String> newProperties = map == null ? new TreeMap<>() : new TreeMap<>(map);
+            newProperties.putAll(properties);
+            FutureUtil.waitForAll(Collections.singleton(setCursorProperties(newProperties)));
+            return newProperties;
+        });
+    }
+
+    @Override
+    public void removeCursorProperty(String key) {
+        CURSOR_PROPERTIES_UPDATER.updateAndGet(this, map -> {
+            Map<String, String> newProperties = map == null ? new TreeMap<>() : new TreeMap<>(map);
+            newProperties.remove(key);
+            FutureUtil.waitForAll(Collections.singleton(setCursorProperties(newProperties)));
+            return newProperties;
+        });
     }
 
     @Override

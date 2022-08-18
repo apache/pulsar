@@ -19,12 +19,9 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static org.testng.Assert.assertEquals;
-
 import java.util.Collections;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.concurrent.TimeUnit;
-
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -198,7 +195,7 @@ public class ManagedCursorPropertiesTest extends MockedBookKeeperTestCase {
         cursorPropertiesUpdated.put("custom1", "three");
         cursorPropertiesUpdated.put("custom2", "four");
 
-        c1.setCursorProperties(cursorPropertiesUpdated).get(10, TimeUnit.SECONDS);
+        c1.putAllCursorProperties(cursorPropertiesUpdated);
 
         ledger.close();
 
@@ -207,6 +204,12 @@ public class ManagedCursorPropertiesTest extends MockedBookKeeperTestCase {
         c1 = ledger.openCursor("c1");
 
         assertEquals(c1.getProperties(), properties);
+        assertEquals(c1.getCursorProperties(), cursorPropertiesUpdated);
+
+        c1.putCursorProperty("custom3", "Five");
+        cursorPropertiesUpdated.put("custom3", "Five");
+        c1.removeCursorProperty("custom1");
+        cursorPropertiesUpdated.remove("custom1");
         assertEquals(c1.getCursorProperties(), cursorPropertiesUpdated);
 
         // Create a new factory to force a managed ledger close and recovery

@@ -86,14 +86,20 @@ public interface ManagedCursor {
      */
     Map<String, String> getCursorProperties();
 
-     /**
-      * Updates the properties.
-      * @param cursorProperties
-      * @return a handle to the result of the operation
-      */
-     default CompletableFuture<Void> setCursorProperties(Map<String, String> cursorProperties) {
-         return CompletableFuture.completedFuture(null);
-     }
+    /**
+     * Add a property associated with the cursor.
+     */
+    void putCursorProperty(String key, String value);
+
+    /**
+     * Add all properties associated with the cursor.
+     */
+    void putAllCursorProperties(Map<String, String> property);
+
+    /**
+     * Remove a property associated with the cursor.
+     */
+    void removeCursorProperty(String key);
 
     /**
      * Add a property associated with the last stored position.

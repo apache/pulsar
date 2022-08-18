@@ -29,7 +29,6 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -72,6 +71,21 @@ public class ManagedCursorContainerTest {
         @Override
         public Map<String, String> getCursorProperties() {
             return Collections.emptyMap();
+        }
+
+        @Override
+        public void putCursorProperty(String key, String value) {
+
+        }
+
+        @Override
+        public void putAllCursorProperties(Map<String, String> property) {
+
+        }
+
+        @Override
+        public void removeCursorProperty(String key) {
+
         }
 
         @Override
