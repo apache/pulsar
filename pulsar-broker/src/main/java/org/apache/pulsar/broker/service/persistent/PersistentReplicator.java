@@ -378,10 +378,11 @@ public class PersistentReplicator extends AbstractReplicator
                 headersAndPayload.retain();
 
                 CompletableFuture<SchemaInfo> schemaFuture = getSchemaInfo(msg);
-                if (!schemaFuture.isDone()) {
+                if (!schemaFuture.isDone() || schemaFuture.isCompletedExceptionally()) {
                     // Mark the replicator is fetching the schema for now and rewind the cursor
                     // and trigger the next read after complete the schema fetching.
                     fetchSchemaInProgress = true;
+                    cursor.cancelPendingReadRequest();
                     log.info("[{}][{} -> {}] Pause the data replication due to new detected schema", topicName,
                             localCluster, remoteCluster);
                     schemaFuture.whenComplete((__, e) -> {
@@ -391,11 +392,11 @@ public class PersistentReplicator extends AbstractReplicator
                        }
                        log.info("[{}][{} -> {}] Resume the data replication after the schema fetching done", topicName,
                                localCluster, remoteCluster);
-                       fetchSchemaInProgress = false;
                        cursor.rewind();
+                       fetchSchemaInProgress = false;
                        readMoreEntries();
                     });
-                } else if (!schemaFuture.isCompletedExceptionally()) {
+                } else {
                     msg.setSchemaInfoForReplicator(schemaFuture.get());
                     producer.sendAsync(msg, ProducerSendCallback.create(this, entry, msg));
                     atLeastOneMessageSentForReplication = true;
