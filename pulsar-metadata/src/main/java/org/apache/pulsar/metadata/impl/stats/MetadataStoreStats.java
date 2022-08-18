@@ -101,7 +101,7 @@ public final class MetadataStoreStats implements AutoCloseable {
             OPS_SUCCEED.remove(this.metadataStoreName, OPS_TYPE_DEL);
             OPS_SUCCEED.remove(this.metadataStoreName, OPS_TYPE_PUT);
             OPS_FAILED.remove(this.metadataStoreName, OPS_TYPE_GET);
-            OPS_FAILED.remove(this.metadataStoreName,OPS_TYPE_DEL);
+            OPS_FAILED.remove(this.metadataStoreName, OPS_TYPE_DEL);
             OPS_FAILED.remove(this.metadataStoreName, OPS_TYPE_PUT);
             PUT_BYTES.remove(this.metadataStoreName);
         }
