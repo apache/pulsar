@@ -101,14 +101,11 @@ public class DefaultMessageFormatter implements IMessageFormatter {
     }
 
     private String getIntValue(float size) {
-        int i = 0;
-        if (size != 0) {
-            i = (int) _getFloatValue(size);
+        if (size == 0) {
+            return String.valueOf(r.nextInt());
         }
-        if (i == 0) {
-            i = r.nextInt() + 1;
-        }
-        return String.valueOf(i);
+
+        return String.valueOf((int) _getFloatValue(size));
     }
     private String getLongValue(float size) {
         if (size == 0) {
