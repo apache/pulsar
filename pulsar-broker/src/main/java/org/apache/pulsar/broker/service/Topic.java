@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.netty.buffer.ByteBuf;
 import java.util.Map;

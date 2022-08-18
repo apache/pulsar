@@ -4313,7 +4313,8 @@ public class PersistentTopics extends PersistentTopicsBase {
                                             @PathParam("namespace") String namespace,
                                             @PathParam("topic") @Encoded String encodedTopic,
                                             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-                                            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+                                            @ApiParam(value = "Whether leader broker redirected this"
+                                                    + "call to this broker. For internal use.")
                                             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
                                             @ApiParam(value = "Entry filters for the specified topic")
                                         EntryFilters entryFilters) {
@@ -4340,7 +4341,8 @@ public class PersistentTopics extends PersistentTopicsBase {
                                     @PathParam("namespace") String namespace,
                                     @PathParam("topic") @Encoded String encodedTopic,
                                     @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-                                    @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+                                    @ApiParam(value = "Whether leader broker redirected this"
+                                            + "call to this broker. For internal use.")
                                     @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)

@@ -5365,7 +5365,8 @@ public class PersistentTopicsBase extends AdminResource {
                             TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
                             topicPolicies.setEntryFilters(entryFilters);
                             topicPolicies.setIsGlobal(isGlobal);
-                            return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+                            return pulsar().getTopicPoliciesService()
+                                    .updateTopicPoliciesAsync(topicName, topicPolicies);
                         }));
     }
 

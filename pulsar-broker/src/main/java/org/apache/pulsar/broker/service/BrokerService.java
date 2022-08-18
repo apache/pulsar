@@ -1442,7 +1442,8 @@ public class BrokerService implements Closeable {
                                                 } catch (IOException e) {
                                                     log.warn("Failed to set entry filters on topic {}-{}", topic,
                                                             e.getMessage());
-                                                    pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
+                                                    pulsar.getExecutor().execute(() ->
+                                                            topics.remove(topic, topicFuture));
                                                     topicFuture.completeExceptionally(e);
                                                 }
                                             }

@@ -57,7 +57,6 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.EntryFilters;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentPartitionedTopicStatsImpl;
@@ -552,7 +551,8 @@ public class NonPersistentTopics extends PersistentTopics {
                                 @PathParam("namespace") String namespace,
                                 @PathParam("topic") @Encoded String encodedTopic,
                                 @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-                                @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+                                @ApiParam(value = "Whether leader broker redirected this "
+                                        + "call to this broker. For internal use.")
                                 @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
                                 @ApiParam(value = "Enable sub types for the specified topic")
                                         EntryFilters entryFilters) {
@@ -579,7 +579,8 @@ public class NonPersistentTopics extends PersistentTopics {
                                    @PathParam("namespace") String namespace,
                                    @PathParam("topic") @Encoded String encodedTopic,
                                    @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
-                                   @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+                                   @ApiParam(value = "Whether leader broker redirected this"
+                                           + "call to this broker. For internal use.")
                                    @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)

@@ -2616,7 +2616,7 @@ public class CmdNamespaces extends CmdBase {
 
 
         @Parameter(names = { "--entry-filters-dir", "-efd" },
-                description = " The directory for all the entry filter implementations.", required = true)
+                description = "The directory for all the entry filter implementations.", required = true)
         private String  entryFiltersDirectory = "";
 
         @Override
