@@ -22,33 +22,29 @@ import static org.mockito.Mockito.doReturn;
 
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
-
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
+import org.apache.pulsar.broker.limiter.ConnectionController;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.mockito.Mockito;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+@Slf4j
 public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
 
     private final int NUM_CONCURRENT_LOOKUP = 3;
-    private final int NUM_CONCURRENT_INBOUND_CONNECTION = 2;
     private ProxyService proxyService;
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
 
     @Override
-    @BeforeClass
     protected void setup() throws Exception {
         internalSetup();
 
@@ -57,9 +53,8 @@ public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setMetadataStoreUrl(DUMMY_VALUE);
         proxyConfig.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
         proxyConfig.setMaxConcurrentLookupRequests(NUM_CONCURRENT_LOOKUP);
-        proxyConfig.setMaxConcurrentInboundConnections(NUM_CONCURRENT_INBOUND_CONNECTION);
         proxyService = Mockito.spy(new ProxyService(proxyConfig, new AuthenticationService(
-                                                            PulsarConfigurationLoader.convertFrom(proxyConfig))));
+                PulsarConfigurationLoader.convertFrom(proxyConfig))));
         doReturn(new ZKMetadataStore(mockZooKeeper)).when(proxyService).createLocalMetadataStore();
         doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(proxyService).createConfigurationMetadataStore();
 
@@ -67,15 +62,28 @@ public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
     }
 
     @Override
-    @AfterClass(alwaysRun = true)
     protected void cleanup() throws Exception {
         internalCleanup();
+        // clear some unchanged static variables.
+        ProxyService.REJECTED_CONNECTIONS.clear();
+        ConnectionController.DefaultConnectionController.getConnections().clear();
         proxyService.close();
     }
 
-    @Test
-    public void testInboundConnection() throws Exception {
-        LOG.info("Creating producer 1");
+    @DataProvider(name = "connectionLimit")
+    public static Object[][] connectionLimit() {
+        return new Object[][]{
+                {2, 2},
+                {100, 2}
+        };
+    }
+
+    @Test(dataProvider = "connectionLimit")
+    public void testInboundConnection(int maxConnections, int maxConnectionsPerIP) throws Exception {
+        proxyConfig.setMaxConcurrentInboundConnectionsPerIp(maxConnectionsPerIP);
+        proxyConfig.setMaxConcurrentInboundConnections(maxConnections);
+        setup();
+        log.info("Creating producer 1");
         @Cleanup
         PulsarClient client1 = PulsarClient.builder()
                 .serviceUrl(proxyService.getServiceUrl())
@@ -85,25 +93,27 @@ public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
         @Cleanup
         Producer<byte[]> producer1 = client1.newProducer(Schema.BYTES).topic("persistent://sample/test/local/producer-topic-1").create();
 
-        LOG.info("Creating producer 2");
+        log.info("Creating producer 2");
         @Cleanup
         PulsarClient client2 = PulsarClient.builder()
                 .serviceUrl(proxyService.getServiceUrl())
                 .operationTimeout(1000, TimeUnit.MILLISECONDS)
                 .build();
 
-        Assert.assertEquals(ProxyService.REJECTED_CONNECTIONS.get(), 0.0d);
         try {
             @Cleanup
-            Producer<byte[]> producer2 = client2.newProducer(Schema.BYTES).topic("persistent://sample/test/local/producer-topic-1").create();
+            Producer<byte[]> producer2 = client2.newProducer(Schema.BYTES)
+                    .topic("persistent://sample/test/local/producer-topic-1").create();
             producer2.send("Message 1".getBytes());
-            Assert.fail("Should have failed since max num of connections is 2 and the first producer used them all up - one for discovery and other for producing.");
+            Assert.fail("Should have failed since max num of connections is 2 and the first" +
+                    " producer used them all up - one for discovery and other for producing.");
         } catch (Exception ex) {
             // OK
         }
-        // should add retry count since retry every 100ms and operation timeout is set to 1000ms
-        Assert.assertEquals(ProxyService.REJECTED_CONNECTIONS.get(), 5.0d);
+        Assert.assertEquals(ConnectionController.DefaultConnectionController.getTotalConnectionNum(), 2);
+        Assert.assertEquals(ConnectionController.DefaultConnectionController.getConnections().size(), 1);
+        Assert.assertEquals(ProxyService.ACTIVE_CONNECTIONS.get(), 2.0d);
+        Assert.assertEquals(ProxyService.REJECTED_CONNECTIONS.get(), 1.0d);
+        cleanup();
     }
-
-    private static final Logger LOG = LoggerFactory.getLogger(ProxyConnectionThrottlingTest.class);
 }

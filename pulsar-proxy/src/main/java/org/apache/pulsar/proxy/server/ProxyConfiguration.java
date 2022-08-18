@@ -386,6 +386,13 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private int maxConcurrentInboundConnections = 10000;
 
     @FieldContext(
+            category = CATEGORY_RATE_LIMITING,
+            doc = "Max concurrent inbound connections per IP, The proxy will reject requests beyond that"
+    )
+    private int maxConcurrentInboundConnectionsPerIp = 0;
+
+
+    @FieldContext(
         category = CATEGORY_RATE_LIMITING,
         doc = "Max concurrent lookup requests. The proxy will reject requests beyond that"
     )
