@@ -1491,7 +1491,7 @@ public class PersistentTopicsBase extends AdminResource {
     private void internalDeleteSubscriptionForNonPartitionedTopic(AsyncResponse asyncResponse,
                                                                   String subName, boolean authoritative) {
         validateTopicOwnershipAsync(topicName, authoritative)
-            .thenRun(() -> validateTopicOperation(topicName, TopicOperation.UNSUBSCRIBE))
+            .thenRun(() -> validateTopicOperation(topicName, TopicOperation.UNSUBSCRIBE, subName))
             .thenCompose(__ -> {
                 Topic topic = getTopicReference(topicName);
                 Subscription sub = topic.getSubscription(subName);
@@ -1591,7 +1591,7 @@ public class PersistentTopicsBase extends AdminResource {
     private void internalDeleteSubscriptionForNonPartitionedTopicForcefully(AsyncResponse asyncResponse,
                                                                             String subName, boolean authoritative) {
         validateTopicOwnershipAsync(topicName, authoritative)
-                .thenRun(() -> validateTopicOperation(topicName, TopicOperation.UNSUBSCRIBE))
+                .thenRun(() -> validateTopicOperation(topicName, TopicOperation.UNSUBSCRIBE, subName))
                 .thenCompose(__ -> {
                     Topic topic = getTopicReference(topicName);
                     Subscription sub = topic.getSubscription(subName);
@@ -1746,7 +1746,7 @@ public class PersistentTopicsBase extends AdminResource {
         }
 
         validateTopicOwnership(topicName, authoritative);
-        validateTopicOperation(topicName, TopicOperation.SKIP);
+        validateTopicOperation(topicName, TopicOperation.SKIP, subName);
 
         PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
         try {
@@ -2151,7 +2151,7 @@ public class PersistentTopicsBase extends AdminResource {
 
         validateTopicOwnershipAsync(topicName, authoritative)
                 .thenCompose(__ -> {
-                    validateTopicOperation(topicName, TopicOperation.SUBSCRIBE);
+                    validateTopicOperation(topicName, TopicOperation.SUBSCRIBE, subscriptionName);
                     return pulsar().getBrokerService().getTopic(topicName.toString(), isAllowAutoTopicCreation);
                 }).thenApply(optTopic -> {
             if (optTopic.isPresent()) {
@@ -2448,7 +2448,7 @@ public class PersistentTopicsBase extends AdminResource {
         }
 
         validateTopicOwnership(topicName, authoritative);
-        validateTopicOperation(topicName, TopicOperation.PEEK_MESSAGES);
+        validateTopicOperation(topicName, TopicOperation.PEEK_MESSAGES, subName);
 
         if (!(getTopicReference(topicName) instanceof PersistentTopic)) {
             log.error("[{}] Not supported operation of non-persistent topic {} {}", clientAppId(), topicName,
@@ -3294,7 +3294,7 @@ public class PersistentTopicsBase extends AdminResource {
         }
 
         validateTopicOwnership(topicName, authoritative);
-        validateTopicOperation(topicName, TopicOperation.EXPIRE_MESSAGES);
+        validateTopicOperation(topicName, TopicOperation.EXPIRE_MESSAGES, subName);
 
         if (!(getTopicReference(topicName) instanceof PersistentTopic)) {
             log.error("[{}] Not supported operation of non-persistent topic {} {}", clientAppId(), topicName, subName);
@@ -3357,7 +3357,7 @@ public class PersistentTopicsBase extends AdminResource {
         }
 
         validateTopicOwnership(topicName, authoritative);
-        validateTopicOperation(topicName, TopicOperation.EXPIRE_MESSAGES);
+        validateTopicOperation(topicName, TopicOperation.EXPIRE_MESSAGES, subName);
 
         log.info("[{}][{}] received expire messages on subscription {} to position {}", clientAppId(), topicName,
                 subName, messageId);
