@@ -604,15 +604,11 @@ All the offload metrics are labelled with the following labels:
 - *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you configured in `broker.conf`.
 - *name*: `name=${metadata-store-x}`. `${name}` is the metadata store name.
 
-| Name                                   | Type      | Description                                                         |
-|----------------------------------------|-----------|---------------------------------------------------------------------|
-| pulsar_metadata_store_get_latency      | Histogram | The latency of getting data from metadata store.                    |
-| pulsar_metadata_store_del_latency      | Histogram | The latency of deleting data from metadata store.                   |
-| pulsar_metadata_store_put_latency      | Histogram | The latency of putting data to metadata store.                      |
-| pulsar_metadata_store_get_failed_total | Counter   | The number of failed operations to get data from metadata store.    |
-| pulsar_metadata_store_del_failed_total | Counter   | The number of failed operations to delete data from metadata store. |
-| pulsar_metadata_store_put_failed_total | Counter   | The number of failed operations to put data to metadata store.      |
-| pulsar_metadata_store_put_bytes_total  | Counter   | The number of data put to metadata store.                           |
+| Name                                   | Type      | Description                                                                    |
+|----------------------------------------|-----------|--------------------------------------------------------------------------------|
+| pulsar_metadata_store_ops_latency      | Histogram | The latency of getting/deleting/putting data from/to metadata store.           |
+| pulsar_metadata_store_ops_failed_total | Counter   | The number of failed operations to get/delete/put data from/to metadata store. |
+| pulsar_metadata_store_put_bytes_total  | Counter   | The number of data put to metadata store.                                      |
 
 
 ## Pulsar Functions
