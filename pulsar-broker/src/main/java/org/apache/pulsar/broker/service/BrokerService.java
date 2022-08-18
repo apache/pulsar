@@ -1966,20 +1966,24 @@ public class BrokerService implements Closeable {
         if (!createTopicFuture.isDone()){
             return CompletableFuture.completedFuture(null);
         }
-        // If @param topic is not equals with cached, do nothing.
-        Topic topicInCache = createTopicFuture.getNow(Optional.empty()).orElse(null);
-        if (topicInCache == null || topicInCache != topic){
-            return CompletableFuture.completedFuture(null);
-        }
-        // Do remove topic reference.
-        return removeTopicFromCache(topicNameString, createTopicFuture);
+        return createTopicFuture.thenCompose(topicOptional -> {
+            Topic topicInCache = topicOptional.orElse(null);
+            // If @param topic is not equals with cached, do nothing.
+            if (topicInCache == null || topicInCache != topic){
+                return CompletableFuture.completedFuture(null);
+            } else {
+                // Do remove.
+                return removeTopicFromCache(topicNameString, createTopicFuture);
+            }
+        });
     }
 
     public CompletableFuture<Void> removeTopicFromCache(String topic){
         return removeTopicFromCache(topic, (CompletableFuture) null);
     }
 
-    public CompletableFuture<Void> removeTopicFromCache(String topic, CompletableFuture createTopicFuture) {
+    public CompletableFuture<Void> removeTopicFromCache(String topic,
+                                                        CompletableFuture<Optional<Topic>> createTopicFuture) {
         TopicName topicName = TopicName.get(topic);
         return pulsar.getNamespaceService().getBundleAsync(topicName)
                 .thenAccept(namespaceBundle -> {
@@ -1992,7 +1996,7 @@ public class BrokerService implements Closeable {
     }
 
     public void removeTopicFromCache(String topic, NamespaceBundle namespaceBundle,
-                                     CompletableFuture createTopicFuture) {
+                                     CompletableFuture<Optional<Topic>> createTopicFuture) {
         String bundleName = namespaceBundle.toString();
         String namespaceName = TopicName.get(topic).getNamespaceObject().toString();
 

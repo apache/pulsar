@@ -1265,7 +1265,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     return this.fullyCloseFuture;
                 } else {
                     // Why not return this.fullyCloseFuture ?
-                    // I don't know, just keep the same implementation as before.
+                    // Just keep the same implementation as before.
                     log.warn("[{}] Topic is already being closed or deleted", topic);
                     return CompletableFuture.failedFuture(new TopicFencedException("Topic is already fenced"));
                 }
@@ -1281,7 +1281,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         // Close limiters.
         try {
             closeLimiters();
-        } catch (Throwable t){
+        } catch (Exception t){
             log.error("[{}] Error closing topic", topic, t);
             unfenceTopicToResumeWithLock();
             this.fullyCloseFuture.completeExceptionally(t);
@@ -1298,21 +1298,20 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             closePhase2Future = closeClientsFuture.thenCompose(__ -> asyncCloseLedger());
         }
         // Complete resultFuture. If managed ledger close failure, reset topic to resume.
-        closePhase2Future.thenApply(__ -> {
-            resultFuture.complete(null);
-            return null;
-        }).exceptionally(exception -> {
-            log.error("[{}] Error closing topic", topic, exception);
-            // Restart rate-limiter after close managed ledger failure. Success is not guaranteed.
-            // TODO Guarantee rate-limiter open finish.
-            try {
-                restartLimitersAfterCloseTopicFail();
-            } catch (Throwable t){
-                log.error("[{}] Failed to restart traffic limiting after closing ledger failed.", topic, t);
+        closePhase2Future.whenComplete((__, ex) -> {
+            if (ex == null){
+                resultFuture.complete(null);
+            } else {
+                log.error("[{}] Error closing topic", topic, ex);
+                // Restart rate-limiter after close managed ledger failure. Success is not guaranteed.
+                try {
+                    restartLimitersAfterCloseTopicFail();
+                } catch (Exception t){
+                    log.error("[{}] Failed to restart traffic limiting after closing ledger failed.", topic, t);
+                }
+                unfenceTopicToResumeWithLock();
+                resultFuture.completeExceptionally(ex);
             }
-            unfenceTopicToResumeWithLock();
-            resultFuture.completeExceptionally(exception);
-            return null;
         });
         // Complete this.closeFuture.
         FutureUtil.waitForAll(Arrays.asList(closeClientsFuture, resultFuture)).thenRun(() -> {
