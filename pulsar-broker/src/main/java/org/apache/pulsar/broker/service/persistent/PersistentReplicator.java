@@ -297,11 +297,12 @@ public class PersistentReplicator extends AbstractReplicator
             // This flag is set to true when we skip atleast one local message,
             // in order to skip remaining local messages.
             boolean isLocalMessageSkippedOnce = false;
+            boolean skipRemainingMessages = false;
             for (int i = 0; i < entries.size(); i++) {
                 Entry entry = entries.get(i);
                 // Skip the messages since the replicator need to fetch the schema info to replicate the schema to the
                 // remote cluster. Rewind the cursor first and continue the message read after fetched the schema.
-                if (fetchSchemaInProgress) {
+                if (skipRemainingMessages) {
                     entry.release();
                     continue;
                 }
@@ -382,6 +383,7 @@ public class PersistentReplicator extends AbstractReplicator
                     // Mark the replicator is fetching the schema for now and rewind the cursor
                     // and trigger the next read after complete the schema fetching.
                     fetchSchemaInProgress = true;
+                    skipRemainingMessages = true;
                     cursor.cancelPendingReadRequest();
                     log.info("[{}][{} -> {}] Pause the data replication due to new detected schema", topicName,
                             localCluster, remoteCluster);
