@@ -24,48 +24,32 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class MetadataStoreStats implements AutoCloseable {
     private static final double[] BUCKETS = new double[]{1, 3, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000};
-    private static final String LABEL_NAME = "name";
+    private static final String OPS_TYPE_LABEL_NAME = "type";
+    private static final String METADATA_STORE_LABEL_NAME = "name";
+    private static final String OPS_TYPE_GET = "get";
+    private static final String OPS_TYPE_DEL = "del";
+    private static final String OPS_TYPE_PUT = "put";
     protected static final String PREFIX = "pulsar_metadata_store_";
 
-    private static final Histogram GET_OPS_SUCCEED = Histogram
-            .build(PREFIX + "get_latency", "-")
+    private static final Histogram OPS_SUCCEED = Histogram
+            .build(PREFIX + "ops_latency", "-")
             .unit("ms")
             .buckets(BUCKETS)
-            .labelNames(LABEL_NAME)
+            .labelNames(METADATA_STORE_LABEL_NAME, OPS_TYPE_LABEL_NAME)
             .register();
-    private static final Histogram DEL_OPS_SUCCEED = Histogram
-            .build(PREFIX + "del_latency", "-")
-            .unit("ms")
-            .buckets(BUCKETS)
-            .labelNames(LABEL_NAME)
-            .register();
-    private static final Histogram PUT_OPS_SUCCEED = Histogram
-            .build(PREFIX + "put_latency", "-")
-            .unit("ms")
-            .buckets(BUCKETS)
-            .labelNames(LABEL_NAME)
-            .register();
-    private static final Counter GET_OPS_FAILED = Counter
-            .build(PREFIX + "get_failed", "-")
-            .labelNames(LABEL_NAME)
-            .register();
-    private static final Counter DEL_OPS_FAILED = Counter
-            .build(PREFIX + "del_failed", "-")
-            .labelNames(LABEL_NAME)
-            .register();
-    private static final Counter PUT_OPS_FAILED = Counter
-            .build(PREFIX + "put_failed", "-")
-            .labelNames(LABEL_NAME)
+    private static final Counter OPS_FAILED = Counter
+            .build(PREFIX + "ops_failed", "-")
+            .labelNames(METADATA_STORE_LABEL_NAME, OPS_TYPE_LABEL_NAME)
             .register();
     private static final Counter PUT_BYTES = Counter
-            .build(PREFIX + "put", "-")
+            .build(PREFIX + "put_", "-")
             .unit("bytes")
-            .labelNames(LABEL_NAME)
+            .labelNames(METADATA_STORE_LABEL_NAME)
             .register();
 
     private final Histogram.Child getOpsSucceedChild;
     private final Histogram.Child delOpsSucceedChild;
-    private final Histogram.Child puttOpsSucceedChild;
+    private final Histogram.Child putOpsSucceedChild;
     private final Counter.Child getOpsFailedChild;
     private final Counter.Child delOpsFailedChild;
     private final Counter.Child putOpsFailedChild;
@@ -76,12 +60,12 @@ public final class MetadataStoreStats implements AutoCloseable {
     public MetadataStoreStats(String metadataStoreName) {
         this.metadataStoreName = metadataStoreName;
 
-        this.getOpsSucceedChild = GET_OPS_SUCCEED.labels(metadataStoreName);
-        this.delOpsSucceedChild = DEL_OPS_SUCCEED.labels(metadataStoreName);
-        this.puttOpsSucceedChild = PUT_OPS_SUCCEED.labels(metadataStoreName);
-        this.getOpsFailedChild = GET_OPS_FAILED.labels(metadataStoreName);
-        this.delOpsFailedChild = DEL_OPS_FAILED.labels(metadataStoreName);
-        this.putOpsFailedChild = PUT_OPS_FAILED.labels(metadataStoreName);
+        this.getOpsSucceedChild = OPS_SUCCEED.labels(metadataStoreName, OPS_TYPE_GET);
+        this.delOpsSucceedChild = OPS_SUCCEED.labels(metadataStoreName, OPS_TYPE_DEL);
+        this.putOpsSucceedChild = OPS_SUCCEED.labels(metadataStoreName, OPS_TYPE_PUT);
+        this.getOpsFailedChild = OPS_FAILED.labels(metadataStoreName, OPS_TYPE_GET);
+        this.delOpsFailedChild = OPS_FAILED.labels(metadataStoreName, OPS_TYPE_DEL);
+        this.putOpsFailedChild = OPS_FAILED.labels(metadataStoreName, OPS_TYPE_PUT);
         this.putBytesChild = PUT_BYTES.labels(metadataStoreName);
     }
 
@@ -94,7 +78,7 @@ public final class MetadataStoreStats implements AutoCloseable {
     }
 
     public void recordPutOpsLatency(long millis, int bytes) {
-        this.puttOpsSucceedChild.observe(millis);
+        this.putOpsSucceedChild.observe(millis);
         this.putBytesChild.inc(bytes);
     }
 
@@ -113,12 +97,12 @@ public final class MetadataStoreStats implements AutoCloseable {
     @Override
     public void close() throws Exception {
         if (this.closed.compareAndSet(false, true)) {
-            GET_OPS_SUCCEED.remove(this.metadataStoreName);
-            DEL_OPS_SUCCEED.remove(this.metadataStoreName);
-            PUT_OPS_SUCCEED.remove(this.metadataStoreName);
-            GET_OPS_FAILED.remove(this.metadataStoreName);
-            DEL_OPS_FAILED.remove(this.metadataStoreName);
-            PUT_OPS_FAILED.remove(this.metadataStoreName);
+            OPS_SUCCEED.remove(this.metadataStoreName, OPS_TYPE_GET);
+            OPS_SUCCEED.remove(this.metadataStoreName, OPS_TYPE_DEL);
+            OPS_SUCCEED.remove(this.metadataStoreName, OPS_TYPE_PUT);
+            OPS_FAILED.remove(this.metadataStoreName, OPS_TYPE_GET);
+            OPS_FAILED.remove(this.metadataStoreName,OPS_TYPE_DEL);
+            OPS_FAILED.remove(this.metadataStoreName, OPS_TYPE_PUT);
             PUT_BYTES.remove(this.metadataStoreName);
         }
     }

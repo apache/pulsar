@@ -1557,49 +1557,40 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         String metricsStr = output.toString();
         Multimap<String, Metric> metricsMap = parseMetrics(metricsStr);
 
-        Collection<Metric> getOpsFailed = metricsMap.get("pulsar_metadata_store_get_failed" + "_total");
-        Collection<Metric> delOpsFailed = metricsMap.get("pulsar_metadata_store_del_failed" + "_total");
-        Collection<Metric> putOpsFailed = metricsMap.get("pulsar_metadata_store_put_failed" + "_total");
-
-        Collection<Metric> getOpsLatency = metricsMap.get("pulsar_metadata_store_get_latency_ms" + "_sum");
-        Collection<Metric> delOpsLatency = metricsMap.get("pulsar_metadata_store_del_latency_ms" + "_sum");
-        Collection<Metric> putOpsLatency = metricsMap.get("pulsar_metadata_store_put_latency_ms" + "_sum");
-
+        Collection<Metric> opsFailed = metricsMap.get("pulsar_metadata_store_ops_failed" + "_total");
+        Collection<Metric> opsLatency = metricsMap.get("pulsar_metadata_store_ops_latency_ms" + "_sum");
         Collection<Metric> putBytes = metricsMap.get("pulsar_metadata_store_put_bytes" + "_total");
 
-        Assert.assertTrue(getOpsFailed.size() > 1);
-        Assert.assertTrue(delOpsFailed.size() > 1);
-        Assert.assertTrue(putOpsFailed.size() > 1);
-        Assert.assertTrue(getOpsLatency.size() > 1);
-        Assert.assertTrue(delOpsLatency.size() > 1);
-        Assert.assertTrue(putOpsLatency.size() > 1);
+        Assert.assertTrue(opsFailed.size() > 1);
+        Assert.assertTrue(opsLatency.size() > 1);
         Assert.assertTrue(putBytes.size() > 1);
 
-        for (Metric m : getOpsFailed) {
+        for (Metric m : opsFailed) {
             Assert.assertEquals(m.tags.get("cluster"), "test");
             Assert.assertTrue(m.tags.get("name").startsWith("metadata-store"));
+            if (m.tags.get("type").equals("get")) {
+                Assert.assertTrue(m.value >= 0);
+            } else if (m.tags.get("type").equals("del")) {
+                Assert.assertTrue(m.value >= 0);
+            } else if (m.tags.get("type").equals("put")) {
+                Assert.assertTrue(m.value >= 0);
+            } else {
+                Assert.fail();
+            }
         }
-        for (Metric m : delOpsFailed) {
+
+        for (Metric m : opsLatency) {
             Assert.assertEquals(m.tags.get("cluster"), "test");
             Assert.assertTrue(m.tags.get("name").startsWith("metadata-store"));
-        }
-        for (Metric m : putOpsFailed) {
-            Assert.assertEquals(m.tags.get("cluster"), "test");
-            Assert.assertTrue(m.tags.get("name").startsWith("metadata-store"));
-        }
-        for (Metric m : getOpsLatency) {
-            Assert.assertEquals(m.tags.get("cluster"), "test");
-            Assert.assertTrue(m.tags.get("name").startsWith("metadata-store"));
-            Assert.assertTrue(m.value > 0);
-        }
-        for (Metric m : delOpsLatency) {
-            Assert.assertEquals(m.tags.get("cluster"), "test");
-            Assert.assertTrue(m.tags.get("name").startsWith("metadata-store"));
-        }
-        for (Metric m : putOpsLatency) {
-            Assert.assertEquals(m.tags.get("cluster"), "test");
-            Assert.assertTrue(m.tags.get("name").startsWith("metadata-store"));
-            Assert.assertTrue(m.value > 0);
+            if (m.tags.get("type").equals("get")) {
+                Assert.assertTrue(m.value > 0);
+            } else if (m.tags.get("type").equals("del")) {
+                Assert.assertTrue(m.value > 0);
+            } else if (m.tags.get("type").equals("put")) {
+                Assert.assertTrue(m.value > 0);
+            } else {
+                Assert.fail();
+            }
         }
         for (Metric m : putBytes) {
             Assert.assertEquals(m.tags.get("cluster"), "test");
