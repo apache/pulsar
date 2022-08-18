@@ -32,6 +32,7 @@ import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.nar.NarClassLoader;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -111,7 +112,7 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
         BrokerInterceptor listener = pulsar.getBrokerInterceptor();
         Assert.assertTrue(listener instanceof CounterBrokerInterceptor);
         admin.namespaces().createNamespace("public/test", 4);
-        Assert.assertTrue(((CounterBrokerInterceptor)listener).getCount() >= 1);
+        Awaitility.await().until(() -> ((CounterBrokerInterceptor) listener).getCount() >= 1);
     }
 
     @Test
@@ -120,7 +121,7 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
         Assert.assertTrue(listener instanceof CounterBrokerInterceptor);
         pulsarClient.newProducer(Schema.BOOL).topic("test").create();
         // CONNECT and PRODUCER
-        Assert.assertTrue(((CounterBrokerInterceptor)listener).getCount() >= 2);
+        Awaitility.await().until(() -> ((CounterBrokerInterceptor) listener).getCount() >= 2);
     }
 
     @Test
@@ -173,6 +174,7 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
             }
         });
         future.get();
+        Awaitility.await().until(() -> !interceptor.getResponseList().isEmpty());
         CounterBrokerInterceptor.ResponseEvent responseEvent = interceptor.getResponseList().get(0);
         Assert.assertEquals(responseEvent.getRequestUri(), "/admin/v3/test/asyncGet/my-topic/1000");
         Assert.assertEquals(responseEvent.getResponseStatus(),
