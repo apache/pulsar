@@ -39,7 +39,7 @@ import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
  */
 @Slf4j
 public class LeastResourceUsageWithWeight implements ModularLoadManagerStrategy {
-    private final static double MAX_RESOURCE_USAGE = 1.0d;
+    private static final double MAX_RESOURCE_USAGE = 1.0d;
     // Maintain this list to reduce object creation.
     private final ArrayList<String> bestBrokers;
     private final Map<String, Double> brokerAvgResourceUsageWithWeight;
