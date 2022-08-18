@@ -105,6 +105,8 @@ public class PersistentReplicator extends AbstractReplicator
 
     private final ReplicatorStatsImpl stats = new ReplicatorStatsImpl();
 
+    private volatile boolean fetchSchemaInProgress = false;
+
     public PersistentReplicator(PersistentTopic topic, ManagedCursor cursor, String localCluster, String remoteCluster,
                                 BrokerService brokerService, PulsarClientImpl replicationClient)
             throws PulsarServerException {
@@ -220,6 +222,11 @@ public class PersistentReplicator extends AbstractReplicator
     }
 
     protected void readMoreEntries() {
+        if (fetchSchemaInProgress) {
+            log.info("[{}][{} -> {}] Skip the reading due to new detected schema",
+                    topicName, localCluster, remoteCluster);
+            return;
+        }
         int availablePermits = getAvailablePermits();
 
         if (availablePermits > 0) {
@@ -292,6 +299,12 @@ public class PersistentReplicator extends AbstractReplicator
             boolean isLocalMessageSkippedOnce = false;
             for (int i = 0; i < entries.size(); i++) {
                 Entry entry = entries.get(i);
+                // Skip the messages since the replicator need to fetch the schema info to replicate the schema to the
+                // remote cluster. Rewind the cursor first and continue the message read after fetched the schema.
+                if (fetchSchemaInProgress) {
+                    entry.release();
+                    continue;
+                }
                 int length = entry.getLength();
                 ByteBuf headersAndPayload = entry.getDataBuffer();
                 MessageImpl msg;
@@ -364,16 +377,29 @@ public class PersistentReplicator extends AbstractReplicator
 
                 headersAndPayload.retain();
 
-                getSchemaInfo(msg).thenAccept(schemaInfo -> {
-                    msg.setSchemaInfoForReplicator(schemaInfo);
+                CompletableFuture<SchemaInfo> schemaFuture = getSchemaInfo(msg);
+                if (!schemaFuture.isDone()) {
+                    // Mark the replicator is fetching the schema for now and rewind the cursor
+                    // and trigger the next read after complete the schema fetching.
+                    fetchSchemaInProgress = true;
+                    log.info("[{}][{} -> {}] Pause the data replication due to new detected schema", topicName,
+                            localCluster, remoteCluster);
+                    schemaFuture.whenComplete((__, e) -> {
+                       if (e != null) {
+                           log.warn("[{}][{} -> {}] Failed to get schema from local cluster, will try in the next loop",
+                                   topicName, localCluster, remoteCluster, e);
+                       }
+                       log.info("[{}][{} -> {}] Resume the data replication after the schema fetching done", topicName,
+                               localCluster, remoteCluster);
+                       fetchSchemaInProgress = false;
+                       cursor.rewind();
+                       readMoreEntries();
+                    });
+                } else if (!schemaFuture.isCompletedExceptionally()) {
+                    msg.setSchemaInfoForReplicator(schemaFuture.get());
                     producer.sendAsync(msg, ProducerSendCallback.create(this, entry, msg));
-                }).exceptionally(ex -> {
-                    log.error("[{}][{} -> {}] Failed to get schema from local cluster", topicName,
-                            localCluster, remoteCluster, ex);
-                    return null;
-                });
-
-                atLeastOneMessageSentForReplication = true;
+                    atLeastOneMessageSentForReplication = true;
+                }
             }
         } catch (Exception e) {
             log.error("[{}][{} -> {}] Unexpected exception: {}", topicName, localCluster, remoteCluster, e.getMessage(),
