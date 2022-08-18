@@ -74,6 +74,7 @@ import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.utils.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1614,6 +1615,10 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("replicated") boolean replicated
     ) {
         try {
+            String subscriptionName = decode(encodedSubName);
+            if (StringUtil.isSpecialChar(subscriptionName)) {
+                throw new RestException(Response.Status.BAD_REQUEST, "subscriptionName contains special characters");
+            }
             validateTopicName(tenant, namespace, topic);
             if (!topicName.isPersistent()) {
                 throw new RestException(Response.Status.BAD_REQUEST, "Create subscription on non-persistent topic "
@@ -1624,7 +1629,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             MessageIdImpl messageId = resetCursorData == null ? null :
                     new MessageIdImpl(resetCursorData.getLedgerId(), resetCursorData.getEntryId(),
                             resetCursorData.getPartitionIndex());
-            internalCreateSubscription(asyncResponse, decode(encodedSubName), messageId, authoritative,
+            internalCreateSubscription(asyncResponse, subscriptionName, messageId, authoritative,
                     replicated, subscriptionProperties);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
