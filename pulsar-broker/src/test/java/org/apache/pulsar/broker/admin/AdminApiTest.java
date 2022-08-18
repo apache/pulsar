@@ -495,6 +495,19 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(admin.clusters().getClusters(), Lists.newArrayList());
     }
 
+    public void testUpdateDynamicLoadBalancerSheddingIntervalMinutes() throws Exception {
+        // update configuration
+        admin.brokers().updateDynamicConfiguration("loadBalancerSheddingIntervalMinutes", "10");
+
+        // wait config to be updated
+        Awaitility.await().until(() -> {
+            return conf.getLoadBalancerSheddingIntervalMinutes() == 10;
+        });
+
+        // verify value is updated
+        assertEquals(conf.getLoadBalancerSheddingIntervalMinutes(), 10);
+    }
+
     /**
      * <pre>
      * Verifies: zk-update configuration updates service-config
