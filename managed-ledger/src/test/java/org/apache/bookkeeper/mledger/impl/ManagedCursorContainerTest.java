@@ -79,7 +79,7 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public void putAllCursorProperties(Map<String, String> property) {
+        public void setAllCursorProperties(Map<String, String> properties) {
 
         }
 

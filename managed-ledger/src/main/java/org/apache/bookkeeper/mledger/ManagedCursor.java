@@ -92,9 +92,9 @@ public interface ManagedCursor {
     void putCursorProperty(String key, String value);
 
     /**
-     * Add all properties associated with the cursor.
+     * Set all properties associated with the cursor, internal properties are still preserved.
      */
-    void putAllCursorProperties(Map<String, String> property);
+    void setAllCursorProperties(Map<String, String> properties);
 
     /**
      * Remove a property associated with the cursor.

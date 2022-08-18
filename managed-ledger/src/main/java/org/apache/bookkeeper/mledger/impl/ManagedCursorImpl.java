@@ -126,6 +126,8 @@ public class ManagedCursorImpl implements ManagedCursor {
             CURSOR_PROPERTIES_UPDATER =
             AtomicReferenceFieldUpdater.newUpdater(ManagedCursorImpl.class, Map.class,
                     "cursorProperties");
+
+    public static final String CURSOR_INTERNAL_PROPERTY_PREFIX = "#pulsar.";
     private volatile Map<String, String> cursorProperties;
     private final BookKeeper.DigestType digestType;
 
@@ -381,10 +383,16 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     @Override
-    public void putAllCursorProperties(Map<String, String> properties) {
+    public void setAllCursorProperties(Map<String, String> properties) {
         CURSOR_PROPERTIES_UPDATER.updateAndGet(this, map -> {
-            Map<String, String> newProperties = map == null ? new TreeMap<>() : new TreeMap<>(map);
-            newProperties.putAll(properties);
+            Map<String, String> newProperties = properties == null ? new TreeMap<>() : new TreeMap<>(properties);
+            if (map != null) {
+                map.forEach((k, v) -> {
+                    if (((String) k).startsWith(CURSOR_INTERNAL_PROPERTY_PREFIX)) {
+                        newProperties.put((String) k, (String) v);
+                    }
+                });
+            }
             FutureUtil.waitForAll(Collections.singleton(setCursorProperties(newProperties)));
             return newProperties;
         });

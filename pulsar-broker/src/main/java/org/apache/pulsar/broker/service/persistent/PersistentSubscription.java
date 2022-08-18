@@ -1225,7 +1225,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         } else {
             newSubscriptionProperties = Collections.unmodifiableMap(subscriptionProperties);
         }
-        cursor.putAllCursorProperties(newSubscriptionProperties);
+        cursor.setAllCursorProperties(newSubscriptionProperties);
         this.subscriptionProperties = newSubscriptionProperties;
         return CompletableFuture.completedFuture(null);
     }
