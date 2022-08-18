@@ -49,6 +49,13 @@
           <artifactId>pulsar-all-docker-image</artifactId>
           <version>${project.parent.version}</version>
           <type>pom</type>
+          <scope>provided</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>*</groupId>
+              <artifactId>*</artifactId>
+            </exclusion>
+          </exclusions>
         </dependency>
       </dependencies>
       <build>
