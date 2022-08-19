@@ -20,6 +20,7 @@ package org.apache.pulsar.proxy.server;
 
 import static org.mockito.Mockito.doReturn;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
@@ -107,6 +108,11 @@ public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
         }
         Assert.assertEquals(ConnectionController.DefaultConnectionController.getTotalConnectionNum(), 2);
         Assert.assertEquals(ConnectionController.DefaultConnectionController.getConnections().size(), 1);
+        Set<String> keys = ConnectionController.DefaultConnectionController.getConnections().keySet();
+        for (String key : keys) {
+            Assert.assertEquals((int)ConnectionController.DefaultConnectionController
+                    .getConnections().get(key).toInteger(), 2);
+        }
         Assert.assertEquals(ProxyService.ACTIVE_CONNECTIONS.get(), 2.0d);
         Assert.assertEquals(ProxyService.REJECTED_CONNECTIONS.get(), 1.0d);
     }
