@@ -29,10 +29,12 @@ import static org.mockito.Mockito.verify;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import java.util.concurrent.locks.LockSupport;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Messages;
@@ -256,5 +258,22 @@ public class ConsumerImplTest {
         createConsumer(consumerConf);
 
         assertThat(consumer.getPriorityLevel()).isEqualTo(1);
+    }
+
+    @Test
+    public void testPause() throws PulsarClientException {
+        consumer.pause();
+        boolean returned = false;
+        int minDuration = 20;
+        try {
+            Assert.assertNull(consumer.receive(minDuration, TimeUnit.MILLISECONDS));
+            long diff = System.currentTimeMillis() - minDuration;
+            Assert.assertTrue(diff>=minDuration);
+        } catch (PulsarClientException e) {
+
+        }
+        Assert.assertFalse(consumer.pauseFuture.isDone());
+        consumer.resume();
+        Assert.assertTrue(consumer.pauseFuture.isDone());
     }
 }
