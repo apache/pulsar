@@ -19,7 +19,6 @@
 package org.apache.pulsar.proxy.server;
 
 import static org.mockito.Mockito.doReturn;
-
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
@@ -71,7 +70,7 @@ public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
     protected void cleanup() throws Exception {
         internalCleanup();
         // clear static value
-        ProxyService.ACTIVE_CONNECTIONS.clear();
+        ProxyService.REJECTED_CONNECTIONS.clear();
         ConnectionController.DefaultConnectionController.getConnections().clear();
         proxyService.close();
     }
@@ -86,7 +85,8 @@ public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
                 .build();
 
         @Cleanup
-        Producer<byte[]> producer1 = client1.newProducer(Schema.BYTES).topic("persistent://sample/test/local/producer-topic-1").create();
+        Producer<byte[]> producer1 = client1.newProducer(Schema.BYTES)
+                .topic("persistent://sample/test/local/producer-topic-1").create();
 
         log.info("Creating producer 2");
         @Cleanup

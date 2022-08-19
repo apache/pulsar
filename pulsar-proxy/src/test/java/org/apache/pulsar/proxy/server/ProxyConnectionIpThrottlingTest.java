@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.proxy.server;
 
+import static org.mockito.Mockito.doReturn;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -33,11 +36,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-
-import java.util.Optional;
-import java.util.concurrent.TimeUnit;
-
-import static org.mockito.Mockito.doReturn;
 
 @Slf4j
 public class ProxyConnectionIpThrottlingTest extends MockedPulsarServiceBaseTest {
@@ -69,7 +67,7 @@ public class ProxyConnectionIpThrottlingTest extends MockedPulsarServiceBaseTest
     protected void cleanup() throws Exception {
         internalCleanup();
         // clear static value
-        ProxyService.ACTIVE_CONNECTIONS.clear();
+        ProxyService.REJECTED_CONNECTIONS.clear();
         ConnectionController.DefaultConnectionController.getConnections().clear();
         proxyService.close();
     }
