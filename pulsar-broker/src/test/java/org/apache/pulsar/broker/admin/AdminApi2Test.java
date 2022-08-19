@@ -105,6 +105,7 @@ import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
@@ -1458,8 +1459,8 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
             return;
         }
         // Trigger change event topic create.
-        Consumer consumer = pulsarClient.newConsumer().subscriptionName("del-ns-sub").topic(topic).subscribe();
-        consumer.close();
+        SubscribeRate subscribeRate = new SubscribeRate(-1, 60);
+        admin.topicPolicies().setSubscribeRate(topic, subscribeRate);
         // Wait for change event topic and compaction create finish.
         String allowAutoTopicCreationType = pulsar.getConfiguration().getAllowAutoTopicCreationType();
         int defaultNumPartitions = pulsar.getConfiguration().getDefaultNumPartitions();
