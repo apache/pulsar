@@ -446,6 +446,11 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                                             (long) (GRACEFUL_SHUTDOWN_TIMEOUT_RATIO_OF_TOTAL_TIMEOUT
                                                     * getConfiguration()
                                                     .getBrokerShutdownTimeoutMs())));
+            // close protocol handler before closing broker service
+            if (protocolHandlers != null) {
+                protocolHandlers.close();
+                protocolHandlers = null;
+            }
 
             List<CompletableFuture<Void>> asyncCloseFutures = new ArrayList<>();
             if (this.brokerService != null) {
@@ -524,10 +529,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             offloadersCache.close();
 
-            if (protocolHandlers != null) {
-                protocolHandlers.close();
-                protocolHandlers = null;
-            }
 
             if (transactionBufferClient != null) {
                 transactionBufferClient.close();
