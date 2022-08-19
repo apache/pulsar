@@ -5345,9 +5345,8 @@ public class PersistentTopicsBase extends AdminResource {
                             if (applied) {
                                 EntryFilters entryFilters = getNamespacePolicies(namespaceName).entryFilters;
                                 if (entryFilters == null) {
-                                    return new EntryFilters("",
-                                            String.join(",", pulsar().getConfiguration().getEntryFilterNames()),
-                                            pulsar().getConfiguration().getEntryFiltersDirectory());
+                                    return new EntryFilters(String.join(",",
+                                            pulsar().getConfiguration().getEntryFilterNames()));
                                 }
                                 return entryFilters;
                             }

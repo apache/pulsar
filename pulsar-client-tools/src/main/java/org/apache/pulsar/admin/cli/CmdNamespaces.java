@@ -2602,28 +2602,18 @@ public class CmdNamespaces extends CmdBase {
     }
 
     @Parameters(commandDescription = "Set entry filters for a namespace")
-    private class setEntryFiltersPerTopic extends CliCommand {
+    private class SetEntryFiltersPerTopic extends CliCommand {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
-
-        @Parameter(names = { "--desc", "-d" },
-                description = "The description of the entry filter to be used for user help.", required = false)
-        private String  description = "";
 
         @Parameter(names = { "--entry-filters-name", "-efn" },
                 description = "The class name for the entry filter.", required = true)
         private String  entryFiltersName = "";
 
-
-        @Parameter(names = { "--entry-filters-dir", "-efd" },
-                description = "The directory for all the entry filter implementations.", required = true)
-        private String  entryFiltersDirectory = "";
-
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            getAdmin().namespaces().setNamespaceEntryFilters(namespace, new EntryFilters(description,
-                    entryFiltersName, entryFiltersDirectory));
+            getAdmin().namespaces().setNamespaceEntryFilters(namespace, new EntryFilters(entryFiltersName));
         }
     }
 
@@ -2821,7 +2811,7 @@ public class CmdNamespaces extends CmdBase {
         jcommander.addCommand("remove-resource-group", new RemoveResourceGroup());
 
         jcommander.addCommand("get-entry-filters", new GetEntryFiltersPerTopic());
-        jcommander.addCommand("set-entry-filters", new setEntryFiltersPerTopic());
+        jcommander.addCommand("set-entry-filters", new SetEntryFiltersPerTopic());
         jcommander.addCommand("remove-entry-filters", new RemoveEntryFiltersPerTopic());
     }
 }

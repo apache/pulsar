@@ -2135,8 +2135,8 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
     @Test(timeOut = 30000)
     public void testSetNamespaceEntryFilters() throws Exception {
-        EntryFilters entryFilters = new EntryFilters("Test purpose", "org.apache.pulsar.broker.service.plugin"
-                + ".EntryFilterTest", "/tmp");
+        EntryFilters entryFilters = new EntryFilters(
+                "org.apache.pulsar.broker.service.plugin.EntryFilterTest");
 
         final String myNamespace = "prop-xyz/ns" + UUID.randomUUID();
         admin.namespaces().createNamespace(myNamespace, Sets.newHashSet("test"));
@@ -2151,8 +2151,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
     @Test(dataProvider = "topicType")
     public void testSetTopicLevelEntryFilters(String topicType) throws Exception {
-        EntryFilters entryFilters = new EntryFilters("Test purpose", "org.apache.pulsar.broker.service.plugin"
-                + ".EntryFilterTest", "/tmp");
+        EntryFilters entryFilters = new EntryFilters("org.apache.pulsar.broker.service.plugin.EntryFilterTest");
         final String topic = topicType + "://prop-xyz/ns1/test-schema-validation-enforced";
         admin.topics().createPartitionedTopic(topic, 1);
         @Cleanup

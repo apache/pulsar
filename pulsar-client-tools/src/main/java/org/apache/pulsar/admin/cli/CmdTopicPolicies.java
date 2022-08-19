@@ -149,7 +149,7 @@ public class CmdTopicPolicies extends CmdBase {
         jcommander.addCommand("get-schema-compatibility-strategy", new GetSchemaCompatibilityStrategy());
 
         jcommander.addCommand("get-entry-filters-per-topic", new GetEntryFiltersPerTopic());
-        jcommander.addCommand("set-entry-filters-per-topic", new setEntryFiltersPerTopic());
+        jcommander.addCommand("set-entry-filters-per-topic", new SetEntryFiltersPerTopic());
         jcommander.addCommand("remove-entry-filters-per-topic", new RemoveEntryFiltersPerTopic());
     }
 
@@ -173,22 +173,14 @@ public class CmdTopicPolicies extends CmdBase {
     }
 
     @Parameters(commandDescription = "Set entry filters for a topic")
-    private class setEntryFiltersPerTopic extends CliCommand {
+    private class SetEntryFiltersPerTopic extends CliCommand {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "--desc", "-d" },
-                description = "The description of the entry filter to be used for user help.", required = false)
-        private String  description = "";
 
         @Parameter(names = { "--entry-filters-name", "-efn" },
                 description = "The class name for the entry filter.", required = true)
         private String  entryFiltersName = "";
-
-
-        @Parameter(names = { "--entry-filters-dir", "-efd" },
-                description = " The directory for all the entry filter implementations.", required = true)
-        private String  entryFiltersDirectory = "";
 
         @Parameter(names = { "--global", "-g" }, description = "Whether to set this policy globally. "
                 + "If set to true, broker returned global topic policies")
@@ -197,8 +189,7 @@ public class CmdTopicPolicies extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            getTopicPolicies(isGlobal).setEntryFiltersPerTopic(persistentTopic, new EntryFilters(description,
-                    entryFiltersName, entryFiltersDirectory));
+            getTopicPolicies(isGlobal).setEntryFiltersPerTopic(persistentTopic, new EntryFilters(entryFiltersName));
         }
     }
 

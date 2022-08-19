@@ -48,7 +48,7 @@ public class EntryFilterProvider {
     public static ImmutableMap<String, EntryFilterWithClassLoader> createEntryFilters(ServiceConfiguration conf,
                                                                                       EntryFilters entryFilters)
             throws IOException {
-        EntryFilterDefinitions definitions = searchForEntryFilters(entryFilters.getEntryFiltersDirectory(),
+        EntryFilterDefinitions definitions = searchForEntryFilters(conf.getEntryFiltersDirectory(),
                 conf.getNarExtractionDirectory());
         ImmutableMap.Builder<String, EntryFilterWithClassLoader> builder = ImmutableMap.builder();
         for (String filterName : entryFilters.getEntryFilterNames().split(",")) {
