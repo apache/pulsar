@@ -34,17 +34,20 @@ import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.mockito.Mockito;
 import org.testng.Assert;
-import org.testng.annotations.DataProvider;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Slf4j
 public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
 
     private final int NUM_CONCURRENT_LOOKUP = 3;
+    private final int NUM_CONCURRENT_INBOUND_CONNECTION = 2;
     private ProxyService proxyService;
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
 
     @Override
+    @BeforeClass
     protected void setup() throws Exception {
         internalSetup();
 
@@ -53,6 +56,8 @@ public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setMetadataStoreUrl(DUMMY_VALUE);
         proxyConfig.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
         proxyConfig.setMaxConcurrentLookupRequests(NUM_CONCURRENT_LOOKUP);
+        proxyConfig.setMaxConcurrentInboundConnections(NUM_CONCURRENT_INBOUND_CONNECTION);
+        proxyConfig.setMaxConcurrentInboundConnectionsPerIp(NUM_CONCURRENT_INBOUND_CONNECTION);
         proxyService = Mockito.spy(new ProxyService(proxyConfig, new AuthenticationService(
                 PulsarConfigurationLoader.convertFrom(proxyConfig))));
         doReturn(new ZKMetadataStore(mockZooKeeper)).when(proxyService).createLocalMetadataStore();
@@ -62,6 +67,7 @@ public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
     }
 
     @Override
+    @AfterClass
     protected void cleanup() throws Exception {
         internalCleanup();
         // clear some unchanged static variables.
@@ -70,19 +76,8 @@ public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
         proxyService.close();
     }
 
-    @DataProvider(name = "connectionLimit")
-    public static Object[][] connectionLimit() {
-        return new Object[][]{
-                {2, 2},
-                {100, 2}
-        };
-    }
-
-    @Test(dataProvider = "connectionLimit")
-    public void testInboundConnection(int maxConnections, int maxConnectionsPerIP) throws Exception {
-        proxyConfig.setMaxConcurrentInboundConnectionsPerIp(maxConnectionsPerIP);
-        proxyConfig.setMaxConcurrentInboundConnections(maxConnections);
-        setup();
+    @Test
+    public void testInboundConnection() throws Exception {
         log.info("Creating producer 1");
         @Cleanup
         PulsarClient client1 = PulsarClient.builder()
@@ -114,6 +109,5 @@ public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(ConnectionController.DefaultConnectionController.getConnections().size(), 1);
         Assert.assertEquals(ProxyService.ACTIVE_CONNECTIONS.get(), 2.0d);
         Assert.assertEquals(ProxyService.REJECTED_CONNECTIONS.get(), 1.0d);
-        cleanup();
     }
 }
