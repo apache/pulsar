@@ -80,6 +80,7 @@ import org.apache.pulsar.client.api.RawReader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -384,8 +385,11 @@ public class ReplicatorTest extends ReplicatorTestBase {
         consumer3.receive(1);
     }
 
-    @Test
+    @Test(invocationCount = 5)
     public void testReplicationWithSchema() throws Exception {
+        config1.setBrokerDeduplicationEnabled(true);
+        config2.setBrokerDeduplicationEnabled(true);
+        config3.setBrokerDeduplicationEnabled(true);
         PulsarClient client1 = pulsar1.getClient();
         PulsarClient client2 = pulsar2.getClient();
         PulsarClient client3 = pulsar3.getClient();
@@ -395,17 +399,29 @@ public class ReplicatorTest extends ReplicatorTestBase {
         final String subName = "my-sub";
 
         @Cleanup
-        Producer<Schemas.PersonOne> producer = client1.newProducer(Schema.AVRO(Schemas.PersonOne.class))
+        Producer<Schemas.PersonOne> producer1 = client1.newProducer(Schema.AVRO(Schemas.PersonOne.class))
                 .topic(topic.toString())
+                .enableBatching(false)
+                .create();
+
+        @Cleanup
+        Producer<Schemas.PersonThree> producer2 = client1.newProducer(Schema.AVRO(Schemas.PersonThree.class))
+                .topic(topic.toString())
+                .enableBatching(false)
                 .create();
 
         admin1.topics().createSubscription(topic.toString(), subName, MessageId.earliest);
         admin2.topics().createSubscription(topic.toString(), subName, MessageId.earliest);
         admin3.topics().createSubscription(topic.toString(), subName, MessageId.earliest);
 
+        final int totalMessages = 1000;
 
-        for (int i = 0; i < 10; i++) {
-            producer.send(new Schemas.PersonOne(i));
+        for (int i = 0; i < totalMessages / 2; i++) {
+            producer1.sendAsync(new Schemas.PersonOne(i));
+        }
+
+        for (int i = 500; i < totalMessages; i++) {
+            producer2.sendAsync(new Schemas.PersonThree(i, "name-" + i));
         }
 
         Awaitility.await().untilAsserted(() -> {
@@ -415,29 +431,39 @@ public class ReplicatorTest extends ReplicatorTestBase {
         });
 
         @Cleanup
-        Consumer<Schemas.PersonOne> consumer1 = client1.newConsumer(Schema.AVRO(Schemas.PersonOne.class))
+        Consumer<GenericRecord> consumer1 = client1.newConsumer(Schema.AUTO_CONSUME())
                 .topic(topic.toString())
                 .subscriptionName(subName)
                 .subscribe();
 
         @Cleanup
-        Consumer<Schemas.PersonOne> consumer2 = client2.newConsumer(Schema.AVRO(Schemas.PersonOne.class))
+        Consumer<GenericRecord> consumer2 = client2.newConsumer(Schema.AUTO_CONSUME())
                 .topic(topic.toString())
                 .subscriptionName(subName)
                 .subscribe();
 
         @Cleanup
-        Consumer<Schemas.PersonOne> consumer3 = client3.newConsumer(Schema.AVRO(Schemas.PersonOne.class))
+        Consumer<GenericRecord> consumer3 = client3.newConsumer(Schema.AUTO_CONSUME())
                 .topic(topic.toString())
                 .subscriptionName(subName)
                 .subscribe();
 
-        for (int i = 0; i < 10; i++) {
-            Message<Schemas.PersonOne> msg1 = consumer1.receive();
-            Message<Schemas.PersonOne> msg2 = consumer2.receive();
-            Message<Schemas.PersonOne> msg3 = consumer3.receive();
+        int lastId = -1;
+        for (int i = 0; i < totalMessages; i++) {
+            Message<GenericRecord> msg1 = consumer1.receive();
+            Message<GenericRecord> msg2 = consumer2.receive();
+            Message<GenericRecord> msg3 = consumer3.receive();
             assertTrue(msg1 != null && msg2 != null && msg3 != null);
-            assertTrue(msg1.getValue().equals(msg2.getValue()) && msg2.getValue().equals(msg3.getValue()));
+            GenericRecord record1 = msg1.getValue();
+            GenericRecord record2 = msg2.getValue();
+            GenericRecord record3 = msg3.getValue();
+            int id1 = (int) record1.getField("id");
+            int id2 = (int) record2.getField("id");
+            int id3 = (int) record3.getField("id");
+            log.info("Received ids, id1: {}, id2: {}, id3: {}, lastId: {}", id1, id2, id3, lastId);
+            assertTrue(id1 == id2 && id2 == id3);
+            assertTrue(id1 > lastId);
+            lastId = id1;
             consumer1.acknowledge(msg1);
             consumer2.acknowledge(msg2);
             consumer3.acknowledge(msg3);
