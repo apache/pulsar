@@ -55,7 +55,7 @@ public class CustomCommandFactoryProvider {
             return result;
         }
 
-        String directory = conf.getProperty("customCommandFactoriesDirectory", "customCommands");
+        String directory = conf.getProperty("cliExtensionsDirectory", "cliExtensions");
         String narExtractionDirectory = NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR;
         CustomCommandFactoryDefinitions definitions = searchForCustomCommandFactories(directory,
                 narExtractionDirectory);
