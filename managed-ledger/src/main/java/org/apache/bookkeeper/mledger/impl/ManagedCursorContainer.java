@@ -18,8 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-import com.google.common.collect.Lists;
+import static java.util.Objects.requireNonNull;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Map;
@@ -75,7 +74,7 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
     private final CursorType cursorType;
 
     // Used to keep track of slowest cursor. Contains all of all active cursors.
-    private final ArrayList<Item> heap = Lists.newArrayList();
+    private final ArrayList<Item> heap = new ArrayList();
 
     // Maps a cursor to its position in the heap
     private final ConcurrentMap<String, Item> cursors = new ConcurrentSkipListMap<>();
@@ -157,7 +156,7 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
      *         update).
      */
     public Pair<PositionImpl, PositionImpl> cursorUpdated(ManagedCursor cursor, Position newPosition) {
-        checkNotNull(cursor);
+        requireNonNull(cursor);
 
         long stamp = rwLock.writeLock();
         try {
