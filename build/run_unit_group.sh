@@ -134,7 +134,7 @@ function test_group_other() {
            -Dexclude='**/ManagedLedgerTest.java,
                    **/OffloadersCacheTest.java
                   **/PrimitiveSchemaTest.java,
-                  BlobStoreManagedLedgerOffloaderTest.java'
+                  BlobStoreManagedLedgerOffloaderTest.java' -DtestReuseFork=false
 
   mvn_test -pl managed-ledger -Dinclude='**/ManagedLedgerTest.java,
                                                   **/OffloadersCacheTest.java'
