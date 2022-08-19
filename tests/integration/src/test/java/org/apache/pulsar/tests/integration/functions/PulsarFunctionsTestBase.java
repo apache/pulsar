@@ -48,6 +48,9 @@ public abstract class PulsarFunctionsTestBase extends PulsarTestSuite {
     public static final String REMOVE_AVRO_FIELD_FUNCTION_JAVA_CLASS =
             "org.apache.pulsar.tests.integration.functions.RemoveAvroFieldFunction";
 
+    public static final String REMOVE_AVRO_FIELD_RECORD_FUNCTION_JAVA_CLASS =
+        "org.apache.pulsar.tests.integration.functions.RemoveAvroFieldRecordFunction";
+
     public static final String SERDE_JAVA_CLASS =
             "org.apache.pulsar.functions.api.examples.CustomBaseToBaseFunction";
 
