@@ -381,9 +381,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
                 .updateBrokerValue(formatSchemaCompatibilityStrategy(schemaCompatibilityStrategy));
         topicPolicies.getDispatchRate().updateBrokerValue(dispatchRateInBroker(config));
         topicPolicies.getSchemaValidationEnforced().updateBrokerValue(config.isSchemaValidationEnforced());
-        topicPolicies.getEntryFilters().updateBrokerValue(new EntryFilters("",
-                String.join(",", config.getEntryFilterNames()),
-                config.getEntryFiltersDirectory()));
+        topicPolicies.getEntryFilters().updateBrokerValue(new EntryFilters(String.join(",",
+                config.getEntryFilterNames())));
     }
 
     private DispatchRateImpl dispatchRateInBroker(ServiceConfiguration config) {
