@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.compaction;
 
-import com.google.common.collect.ImmutableMap;
 import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.time.Duration;
