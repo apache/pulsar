@@ -10,10 +10,19 @@ In an organization, a Pulsar instance provides services to multiple teams. When 
 The multi-layer and segment-centric architecture and hierarchical resource management of Pulsar provide a solid foundation for isolation, which allows you to isolate resources in your desired manner, prevent resource competition, and attain stability.
 
 
-## Isolation methods
-To enforce resource isolation within Pulsar, you can use the following methods of isolating broker and bookie resources:
-* [Isolate brokers](administration-isolation-broker.md)
-* [Isolate bookies](administration-isolation-bookie.md)
+## Isolation levels
+
+Pulsar supports isolation at either of the following two levels or both. 
+* [Broker-level isolation](administration-isolation-broker.md) divides brokers into different groups and assigns broker groups to different namespaces. In this way, you can bind topics in a namespace to a set of brokers that belong to the specific groups.
+* [Bookie-level isolation](administration-isolation-bookie.md) divides bookies into different racks/regions and assigns data replicas to bookies based on a specified data placement policy for disaster tolerance.
+
+![Isolation levels](/assets/admin-isolation.svg)
+
+:::tip
+
+On top of [broker-level isolation](administration-isolation-broker.md) and [bookie-level isolation](administration-isolation-bookie.md), if you want to guarantee all the data that belongs to a namespace is stored in desired bookies, you can define and configure [bookie affinity groups](administration-isolation-bookie.md#configure-bookie-affinity-groups). See [shared BookKeeper cluster deployment](#shared-bookkeeper-cluster) for more details.
+
+:::
 
 
 ## Deployments to achieve isolation within Pulsar
@@ -48,7 +57,7 @@ Here are some key points for understanding how it works:
 - Each Pulsar cluster has one or multiple brokers.
 - Each Pulsar cluster has one metadata store. 
 
-As illustrated below, storage isolation is achieved by setting [bookie affinity groups](administration-isolation-bookie.md). All bookie groups use a shared BookKeeper cluster and a metadata store, and each bookie isolation group has one or several bookies. You can specify one or multiple primary/secondary groups for a namespace. Topics under the namespace are created on the bookies in the primary group firstly and then created on the bookies in the secondary group.
+As illustrated below, all bookie groups use a shared BookKeeper cluster and a metadata store, and each [bookie affinity group](administration-isolation-bookie.md#configure-bookie-affinity-groups) has one or several bookies. You can specify one or multiple primary/secondary groups for a namespace. Topics under the namespace are created on the bookies in the primary group firstly and then created on the bookies in the secondary group.
 
 ![Storage isolation achieved by bookie affinity groups](/assets/isolation-3.png)
 
