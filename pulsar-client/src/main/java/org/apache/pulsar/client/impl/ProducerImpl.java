@@ -716,8 +716,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             completeCallbackAndReleaseSemaphore(msg.getUncompressedSize(), callback, e);
             return false;
         }
-        SchemaHash schemaHash = SchemaHash.of(msg.getSchemaInternal());
-        byte[] schemaVersion = schemaCache.get(schemaHash);
+        byte[] schemaVersion = schemaCache.get(msg.getSchemaHash());
         if (schemaVersion != null) {
             msgMetadataBuilder.setSchemaVersion(schemaVersion);
             msg.setSchemaState(MessageImpl.SchemaState.Ready);
@@ -726,8 +725,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     }
 
     private boolean rePopulateMessageSchema(MessageImpl msg) {
-        SchemaHash schemaHash = SchemaHash.of(msg.getSchemaInternal());
-        byte[] schemaVersion = schemaCache.get(schemaHash);
+        byte[] schemaVersion = schemaCache.get(msg.getSchemaHash());
         if (schemaVersion == null) {
             return false;
         }
@@ -758,8 +756,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 // case, we should not cache the schema version so that the schema version of the message metadata will
                 // be null, instead of an empty array.
                 if (v.length != 0) {
-                    SchemaHash schemaHash = SchemaHash.of(msg.getSchemaInternal());
-                    schemaCache.putIfAbsent(schemaHash, v);
+                    schemaCache.putIfAbsent(msg.getSchemaHash(), v);
                     msg.getMessageBuilder().setSchemaVersion(v);
                 }
                 msg.setSchemaState(MessageImpl.SchemaState.Ready);
