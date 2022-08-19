@@ -426,6 +426,25 @@
   <build>
     <plugins>
       <plugin>
+        <groupId>org.gaul</groupId>
+        <artifactId>modernizer-maven-plugin</artifactId>
+        <configuration>
+          <failOnViolations>false</failOnViolations>
+          <javaVersion>17</javaVersion>
+          <violationLogLevel>warn</violationLogLevel>
+        </configuration>
+        <executions>
+          <execution>
+            <id>modernizer</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>modernizer</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-checkstyle-plugin</artifactId>
         <executions>
@@ -685,6 +704,23 @@
                   </info>
                   <swaggerDirectory>${basedir}/target/docs</swaggerDirectory>
                   <swaggerFileName>swagger</swaggerFileName>
+                </apiSource>
+                <apiSource>
+                  <springmvc>false</springmvc>
+                  <locations>org.apache.pulsar.broker.lookup.v2</locations>
+                  <schemes>http,https</schemes>
+                  <basePath>/lookup</basePath>
+                  <info>
+                    <title>Pulsar Lookup REST API</title>
+                    <version>v2</version>
+                    <description>This provides the REST API for lookup operations</description>
+                    <license>
+                      <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
+                      <name>Apache 2.0</name>
+                    </license>
+                  </info>
+                  <swaggerDirectory>${basedir}/target/docs</swaggerDirectory>
+                  <swaggerFileName>swaggerlookup</swaggerFileName>
                 </apiSource>
                 <apiSource>
                   <springmvc>false</springmvc>

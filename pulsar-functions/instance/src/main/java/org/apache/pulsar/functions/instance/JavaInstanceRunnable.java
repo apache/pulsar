@@ -21,6 +21,7 @@ package org.apache.pulsar.functions.instance;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.pulsar.functions.utils.FunctionCommon.convertFromFunctionDetailsSubscriptionPosition;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.google.common.annotations.VisibleForTesting;
 import com.scurrilous.circe.checksum.Crc32cIntChecksum;
 import java.io.IOException;
 import java.util.HashMap;
@@ -350,7 +351,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
     }
 
-    private void handleResult(Record srcRecord, JavaExecutionResult result) throws Exception {
+    @VisibleForTesting
+    void handleResult(Record srcRecord, JavaExecutionResult result) throws Exception {
         if (result.getUserException() != null) {
             Exception t = result.getUserException();
             log.warn("Encountered exception when processing message {}",
@@ -361,9 +363,17 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             if (result.getResult() != null) {
                 sendOutputMessage(srcRecord, result.getResult());
             } else {
-                if (instanceConfig.getFunctionDetails().getAutoAck()) {
-                    // the function doesn't produce any result or the user doesn't want the result.
-                    srcRecord.ack();
+                org.apache.pulsar.functions.proto.Function.FunctionDetails functionDetails =
+                        instanceConfig.getFunctionDetails();
+                // When function return null, needs to be acked directly.
+                if (functionDetails.getProcessingGuarantees()
+                        != org.apache.pulsar.functions.proto.Function.ProcessingGuarantees.MANUAL) {
+                    // This condition has been automatically acked.
+                    // After waiting to remove the autoAck configuration,can be removing the judgment condition.
+                    if (!functionDetails.getAutoAck() || functionDetails.getProcessingGuarantees()
+                            != org.apache.pulsar.functions.proto.Function.ProcessingGuarantees.ATMOST_ONCE) {
+                        srcRecord.ack();
+                    }
                 }
             }
             // increment total successfully processed

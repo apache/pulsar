@@ -1196,6 +1196,9 @@ public class BrokerService implements Closeable {
                 clientBuilder.loadConf(PropertiesUtils.filterAndMapProperties(pulsar.getConfiguration().getProperties(),
                         "brokerClient_"));
 
+                // Disabled auto release useless connection.
+                clientBuilder.connectionMaxIdleSeconds(-1);
+
                 if (data.getAuthenticationPlugin() != null && data.getAuthenticationParameters() != null) {
                     clientBuilder.authentication(data.getAuthenticationPlugin(), data.getAuthenticationParameters());
                 } else if (pulsar.getConfiguration().isAuthenticationEnabled()) {
@@ -1288,9 +1291,14 @@ public class BrokerService implements Closeable {
                         builder.useKeyStoreTls(true)
                                 .tlsTrustStoreType(conf.getBrokerClientTlsTrustStoreType())
                                 .tlsTrustStorePath(conf.getBrokerClientTlsTrustStore())
-                                .tlsTrustStorePassword(conf.getBrokerClientTlsTrustStorePassword());
+                                .tlsTrustStorePassword(conf.getBrokerClientTlsTrustStorePassword())
+                                .tlsKeyStoreType(conf.getBrokerClientTlsKeyStoreType())
+                                .tlsKeyStorePath(conf.getBrokerClientTlsKeyStore())
+                                .tlsKeyStorePassword(conf.getBrokerClientTlsKeyStorePassword());
                     } else {
-                        builder.tlsTrustCertsFilePath(conf.getBrokerClientTrustCertsFilePath());
+                        builder.tlsTrustCertsFilePath(conf.getBrokerClientTrustCertsFilePath())
+                                .tlsKeyFilePath(conf.getBrokerClientKeyFilePath())
+                                .tlsCertificateFilePath(conf.getBrokerClientCertificateFilePath());
                     }
                 }
 
@@ -1982,12 +1990,9 @@ public class BrokerService implements Closeable {
         }
         topics.remove(topic);
 
-        try {
-            Compactor compactor = pulsar.getCompactor(false);
-            if (compactor != null) {
-                compactor.getStats().removeTopic(topic);
-            }
-        } catch (PulsarServerException ignore) {
+        Compactor compactor = pulsar.getNullableCompactor();
+        if (compactor != null) {
+            compactor.getStats().removeTopic(topic);
         }
     }
 
@@ -2342,6 +2347,11 @@ public class BrokerService implements Closeable {
         // add listener to notify partitioned topic maxNumPartitionsPerPartitionedTopic changed
         registerConfigurationListener("maxNumPartitionsPerPartitionedTopic", maxNumPartitions -> {
             this.updateMaxNumPartitionsPerPartitionedTopic((int) maxNumPartitions);
+        });
+
+        // add listener to notify web service httpRequestsFailOnUnknownPropertiesEnabled changed.
+        registerConfigurationListener("httpRequestsFailOnUnknownPropertiesEnabled", enabled -> {
+            pulsar.getWebService().updateHttpRequestsFailOnUnknownPropertiesEnabled((boolean) enabled);
         });
 
         // add more listeners here

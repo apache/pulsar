@@ -1025,6 +1025,8 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
         assertEquals(newProducerPartitions.get(), newPartitions);
         assertEquals(newConsumerPartitions.get(), newPartitions);
 
+        Awaitility.await().untilAsserted(() -> consumer.isConnected());
+
         producer.close();
         consumer.unsubscribe();
         consumer.close();

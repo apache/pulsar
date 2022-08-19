@@ -83,6 +83,7 @@ public interface ConsumerStats {
 
     long getLastAckedTimestamp();
     long getLastConsumedTimestamp();
+    long getLastConsumedFlowTimestamp();
 
     /** Hash ranges assigned to this consumer if is Key_Shared sub mode. **/
     List<String> getKeyHashRanges();

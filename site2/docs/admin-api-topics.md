@@ -325,6 +325,8 @@ You can check the following statistics of a given non-partitioned topic.
   
   -   **topicEpoch**: The topic epoch or empty if not set.
 
+  -   **filteredEntriesCount**: The count of skipped entries for the topic.
+
   -   **nonContiguousDeletedMessagesRanges**: The number of non-contiguous deleted messages ranges.
 
   -   **nonContiguousDeletedMessagesRangesSerializedSize**: The serialized size of non-contiguous deleted messages ranges.  
@@ -413,7 +415,15 @@ You can check the following statistics of a given non-partitioned topic.
 
           -   **nonContiguousDeletedMessagesRanges**: The number of non-contiguous deleted messages ranges.
 
-          -   **nonContiguousDeletedMessagesRangesSerializedSize**: The serialized size of non-contiguous deleted messages ranges. 
+          -   **nonContiguousDeletedMessagesRangesSerializedSize**: The serialized size of non-contiguous deleted messages ranges.
+              
+          -   **throughEntryFilterMsgs**: The number of messages passes through `EntryFilter`.
+              
+          -   **entryFilterAccepted**: The number of messages accepted by `EntryFilter`.
+              
+          -   **entryFilterRejected**: The number of messages rejected by `EntryFilter`.
+              
+          -   **entryFilterRescheduled**: The number of messages rescheduled by `EntryFilter`.
 
           -   **consumers**: The list of connected consumers for this subscription.
 
@@ -498,6 +508,7 @@ The following is an example of a topic status.
   "msgChunkPublished" : false,
   "storageSize" : 504,
   "backlogSize" : 0,
+  "filteredEntriesCount" : 100,
   "earliestMsgPublishTimeInBacklogs": 0,
   "offloadedStorageSize" : 0,
   "publishers" : [ {
@@ -538,6 +549,10 @@ The following is an example of a topic status.
       "lastConsumedTimestamp" : 1623230583946,
       "lastAckedTimestamp" : 1623230584033,
       "lastMarkDeleteAdvancedTimestamp" : 1623230584033,
+      "throughEntryFilterMsgs": 100,
+      "entryFilterAccepted": 100,
+      "entryFilterRejected": 0,
+      "entryFilterRescheduled": 0,
       "consumers" : [ {
         "msgRateOut" : 0.0,
         "msgThroughputOut" : 0.0,
@@ -638,7 +653,7 @@ You can get the detailed statistics of a topic.
 
       -   **ledgerId**: The ID of this ledger.
 
-      -   **entries**: The total number of entries belong to this ledger.
+      -   **entries**: The total number of entries that belong to this ledger.
 
       -   **size**: The size of messages written to this ledger (in bytes).
 
@@ -650,7 +665,7 @@ You can get the detailed statistics of a topic.
   
       -   **ledgerId**: The ID of this ledger.
   
-      -   **entries**: The total number of entries belong to this ledger.
+      -   **entries**: The total number of entries that belong to this ledger.
   
       -   **size**: The size of messages written to this ledger (in bytes).
   
@@ -662,7 +677,7 @@ You can get the detailed statistics of a topic.
  
       -   **ledgerId**: The ID of this ledger.
      
-      -   **entries**: The total number of entries belong to this ledger.
+      -   **entries**: The total number of entries that belong to this ledger.
      
       -   **size**: The size of messages written to this ledger (in bytes).
      
