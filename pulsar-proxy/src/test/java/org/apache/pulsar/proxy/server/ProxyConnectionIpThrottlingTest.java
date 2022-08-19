@@ -18,10 +18,6 @@
  */
 package org.apache.pulsar.proxy.server;
 
-import static org.mockito.Mockito.doReturn;
-
-import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -38,11 +34,14 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Slf4j
-public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
-    private final int NUM_CONCURRENT_LOOKUP = 3;
-    private final int NUM_CONCURRENT_INBOUND_CONNECTION = 2;
+import static org.mockito.Mockito.doReturn;
+
+@Slf4j
+public class ProxyConnectionIpThrottlingTest extends MockedPulsarServiceBaseTest {
+
     private ProxyService proxyService;
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
 
@@ -55,9 +54,8 @@ public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setBrokerProxyAllowedTargetPorts("*");
         proxyConfig.setMetadataStoreUrl(DUMMY_VALUE);
         proxyConfig.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
-        proxyConfig.setMaxConcurrentLookupRequests(NUM_CONCURRENT_LOOKUP);
-        proxyConfig.setMaxConcurrentInboundConnections(NUM_CONCURRENT_INBOUND_CONNECTION);
-        proxyConfig.setMaxConcurrentInboundConnectionsPerIp(NUM_CONCURRENT_INBOUND_CONNECTION);
+        proxyConfig.setMaxConcurrentInboundConnections(100);
+        proxyConfig.setMaxConcurrentInboundConnectionsPerIp(2);
         proxyService = Mockito.spy(new ProxyService(proxyConfig, new AuthenticationService(
                 PulsarConfigurationLoader.convertFrom(proxyConfig))));
         doReturn(new ZKMetadataStore(mockZooKeeper)).when(proxyService).createLocalMetadataStore();
@@ -86,7 +84,8 @@ public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
                 .build();
 
         @Cleanup
-        Producer<byte[]> producer1 = client1.newProducer(Schema.BYTES).topic("persistent://sample/test/local/producer-topic-1").create();
+        Producer<byte[]> producer1 = client1.newProducer(Schema.BYTES)
+                .topic("persistent://sample/test/local/producer-topic-1").create();
 
         log.info("Creating producer 2");
         @Cleanup
