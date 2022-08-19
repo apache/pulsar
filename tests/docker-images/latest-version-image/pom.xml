@@ -127,6 +127,8 @@
                           <tag>latest</tag>
                           <tag>${project.version}</tag>
                         </tags>
+                        <imagePullPolicy>Never</imagePullPolicy>
+                        <noCache>true</noCache>
                       </build>
                     </image>
                   </images>

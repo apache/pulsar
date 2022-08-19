@@ -132,6 +132,9 @@
           <plugin>
             <groupId>io.fabric8</groupId>
             <artifactId>docker-maven-plugin</artifactId>
+            <configuration>
+              <imagePullPolicy>Never</imagePullPolicy>
+            </configuration>
             <executions>
               <execution>
                 <id>default</id>
