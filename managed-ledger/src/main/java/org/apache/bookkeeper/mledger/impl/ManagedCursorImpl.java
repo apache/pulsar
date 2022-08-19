@@ -21,6 +21,7 @@ package org.apache.bookkeeper.mledger.impl;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 import static org.apache.bookkeeper.mledger.ManagedLedgerException.getManagedLedgerException;
+import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.AsyncOperationTimeoutSeconds;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_LEDGER_DELETE_RETRIES;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.createManagedLedgerException;
@@ -96,7 +97,6 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.MessageRange;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.StringProperty;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet.LongPairConsumer;
@@ -377,7 +377,12 @@ public class ManagedCursorImpl implements ManagedCursor {
         CURSOR_PROPERTIES_UPDATER.updateAndGet(this, map -> {
             Map<String, String> newProperties = map == null ? new TreeMap<>() : new TreeMap<>(map);
             newProperties.put(key, value);
-            FutureUtil.waitForAll(Collections.singleton(setCursorProperties(newProperties)));
+            try {
+                setCursorProperties(newProperties).get(AsyncOperationTimeoutSeconds * 2, TimeUnit.SECONDS);
+            } catch (Exception e) {
+                log.error("Failed to set cursor properties", e);
+                throw new RuntimeException(e);
+            }
             return newProperties;
         });
     }
@@ -393,7 +398,12 @@ public class ManagedCursorImpl implements ManagedCursor {
                     }
                 });
             }
-            FutureUtil.waitForAll(Collections.singleton(setCursorProperties(newProperties)));
+            try {
+                setCursorProperties(newProperties).get(AsyncOperationTimeoutSeconds * 2, TimeUnit.SECONDS);
+            } catch (Exception e) {
+                log.error("Failed to set cursor properties", e);
+                throw new RuntimeException(e);
+            }
             return newProperties;
         });
     }
@@ -403,7 +413,12 @@ public class ManagedCursorImpl implements ManagedCursor {
         CURSOR_PROPERTIES_UPDATER.updateAndGet(this, map -> {
             Map<String, String> newProperties = map == null ? new TreeMap<>() : new TreeMap<>(map);
             newProperties.remove(key);
-            FutureUtil.waitForAll(Collections.singleton(setCursorProperties(newProperties)));
+            try {
+                setCursorProperties(newProperties).get(AsyncOperationTimeoutSeconds * 2, TimeUnit.SECONDS);
+            } catch (Exception e) {
+                log.error("Failed to set cursor properties", e);
+                throw new RuntimeException(e);
+            }
             return newProperties;
         });
     }
