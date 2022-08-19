@@ -45,6 +45,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.LockSupport;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -358,6 +359,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     protected Message<T> internalReceive() throws PulsarClientException {
         Message<T> message;
         try {
+            pauseFuture.get();
             if (incomingMessages.isEmpty()) {
                 expectMoreIncomingMessages();
             }
