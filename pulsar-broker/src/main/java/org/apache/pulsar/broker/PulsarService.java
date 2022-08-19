@@ -213,7 +213,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private LedgerOffloaderStats offloaderStats;
     private Map<NamespaceName, LedgerOffloader> ledgerOffloaderMap = new ConcurrentHashMap<>();
     private ScheduledFuture<?> loadReportTask = null;
-    private ScheduledFuture<?> loadSheddingTask = null;
+    private LoadSheddingTask loadSheddingTask = null;
     private ScheduledFuture<?> loadResourceQuotaTask = null;
     private final AtomicReference<LoadManager> loadManager = new AtomicReference<>();
     private PulsarAdmin adminClient = null;
@@ -347,8 +347,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         this.brokerClientSharedTimer =
                 new HashedWheelTimer(new DefaultThreadFactory("broker-client-shared-timer"), 1, TimeUnit.MILLISECONDS);
 
-        int interval = config.getManagedLedgerStatsPeriodSeconds();
-        boolean exposeTopicMetrics = config.isExposeTopicLevelMetricsInPrometheus();
         // here in the constructor we don't have the offloader scheduler yet
         this.offloaderStats = LedgerOffloaderStats.create(false, false, null, 0);
     }
@@ -1064,20 +1062,17 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                     if (state == LeaderElectionState.Leading) {
                         LOG.info("This broker was elected leader");
                         if (getConfiguration().isLoadBalancerEnabled()) {
-                            long loadSheddingInterval = TimeUnit.MINUTES
-                                    .toMillis(getConfiguration().getLoadBalancerSheddingIntervalMinutes());
                             long resourceQuotaUpdateInterval = TimeUnit.MINUTES
                                     .toMillis(getConfiguration().getLoadBalancerResourceQuotaUpdateIntervalMinutes());
 
                             if (loadSheddingTask != null) {
-                                loadSheddingTask.cancel(false);
+                                loadSheddingTask.cancel();
                             }
                             if (loadResourceQuotaTask != null) {
                                 loadResourceQuotaTask.cancel(false);
                             }
-                            loadSheddingTask = loadManagerExecutor.scheduleAtFixedRate(
-                                    new LoadSheddingTask(loadManager),
-                                    loadSheddingInterval, loadSheddingInterval, TimeUnit.MILLISECONDS);
+                            loadSheddingTask = new LoadSheddingTask(loadManager, loadManagerExecutor, config);
+                            loadSheddingTask.start();
                             loadResourceQuotaTask = loadManagerExecutor.scheduleAtFixedRate(
                                     new LoadResourceQuotaUpdaterTask(loadManager), resourceQuotaUpdateInterval,
                                     resourceQuotaUpdateInterval, TimeUnit.MILLISECONDS);
@@ -1088,7 +1083,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                                     leaderElectionService.getCurrentLeader());
                         }
                         if (loadSheddingTask != null) {
-                            loadSheddingTask.cancel(false);
+                            loadSheddingTask.cancel();
                             loadSheddingTask = null;
                         }
                         if (loadResourceQuotaTask != null) {

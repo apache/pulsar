@@ -114,7 +114,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                     "blockedDispatcherOnUnackedMsgs");
     protected Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
     private AtomicBoolean isRescheduleReadInProgress = new AtomicBoolean(false);
-    private final ExecutorService dispatchMessagesThread;
+    protected final ExecutorService dispatchMessagesThread;
     private final SharedConsumerAssignor assignor;
 
     protected enum ReadType {
@@ -792,7 +792,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 // Notify the consumer only if all the messages were already acknowledged
                 consumerList.forEach(Consumer::reachedEndOfTopic);
             }
-        } else if (exception.getCause() instanceof TransactionBufferException.TransactionNotSealedException) {
+        } else if (exception.getCause() instanceof TransactionBufferException.TransactionNotSealedException
+                || exception.getCause() instanceof ManagedLedgerException.OffloadReadHandleClosedException) {
             waitTimeMillis = 1;
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Error reading transaction entries : {}, Read Type {} - Retrying to read in {} seconds",
@@ -931,8 +932,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         if (unAckedMessages >= maxUnackedMessages && maxUnackedMessages > 0
                 && BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.compareAndSet(this, FALSE, TRUE)) {
             // block dispatcher if it reaches maxUnAckMsg limit
-            log.info("[{}] Dispatcher is blocked due to unackMessages {} reached to max {}", name,
-                    TOTAL_UNACKED_MESSAGES_UPDATER.get(this), maxUnackedMessages);
+            log.debug("[{}] Dispatcher is blocked due to unackMessages {} reached to max {}", name,
+                    unAckedMessages, maxUnackedMessages);
         } else if (topic.getBrokerService().isBrokerDispatchingBlocked()
                 && blockedDispatcherOnUnackedMsgs == TRUE) {
             // unblock dispatcher: if dispatcher is blocked due to broker-unackMsg limit and if it ack back enough
@@ -946,7 +947,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         } else if (blockedDispatcherOnUnackedMsgs == TRUE && unAckedMessages < maxUnackedMessages / 2) {
             // unblock dispatcher if it acks back enough messages
             if (BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.compareAndSet(this, TRUE, FALSE)) {
-                log.info("[{}] Dispatcher is unblocked", name);
+                log.debug("[{}] Dispatcher is unblocked", name);
                 readMoreEntriesAsync();
             }
         }

@@ -806,24 +806,6 @@ public class KubernetesRuntimeTest {
         assertEquals(spec.getSpec().getTemplate().getSpec().getServiceAccountName(), "my-service-account");
     }
 
-    @Test
-    public void testCustomKubernetesDownloadCommands() throws Exception {
-        InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, false);
-        config.setFunctionDetails(createFunctionDetails(FunctionDetails.Runtime.JAVA, false, (fb) -> {
-            return fb.setPackageUrl("function://public/default/test@v1");
-        }));
-
-        factory = createKubernetesRuntimeFactory(null, 10, 1.0, 1.0);
-
-        verifyJavaInstance(config, pulsarRootDir + "/instances/deps", false);
-        KubernetesRuntime container = factory.createContainer(config, userJarFile, userJarFile, 30l);
-        V1StatefulSet spec = container.createStatefulSet();
-        String expectedDownloadCommand = "pulsar-admin --admin-url http://localhost:8080 packages download "
-            + "function://public/default/test@v1 --path " + pulsarRootDir + "/" + userJarFile;
-        String containerCommand = spec.getSpec().getTemplate().getSpec().getContainers().get(0).getCommand().get(2);
-        assertTrue(containerCommand.contains(expectedDownloadCommand));
-    }
-
     InstanceConfig createGolangInstanceConfig() {
         InstanceConfig config = new InstanceConfig();
 
@@ -1131,25 +1113,6 @@ public class KubernetesRuntimeTest {
         factory = createKubernetesRuntimeFactory(null, 10, 1.0, 1.0, Optional.empty(), downloadDirectory);
 
         verifyJavaInstance(config, pulsarRootDir + "/instances/deps", false, factory.getDownloadDirectory());
-    }
-
-    @Test
-    public void testCustomKubernetesDownloadCommandsWithDownloadDirectoryDefined() throws Exception {
-        String downloadDirectory = "download/pulsar_functions";
-        InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, false);
-        config.setFunctionDetails(createFunctionDetails(FunctionDetails.Runtime.JAVA, false, (fb) -> {
-            return fb.setPackageUrl("function://public/default/test@v1");
-        }));
-
-        factory = createKubernetesRuntimeFactory(null, 10, 1.0, 1.0, Optional.empty(), downloadDirectory);
-
-        verifyJavaInstance(config, pulsarRootDir + "/instances/deps", false, factory.getDownloadDirectory());
-        KubernetesRuntime container = factory.createContainer(config, userJarFile, userJarFile, 30l);
-        V1StatefulSet spec = container.createStatefulSet();
-        String expectedDownloadCommand = "pulsar-admin --admin-url http://localhost:8080 packages download "
-                + "function://public/default/test@v1 --path " + factory.getDownloadDirectory() + "/" + userJarFile;
-        String containerCommand = spec.getSpec().getTemplate().getSpec().getContainers().get(0).getCommand().get(2);
-        assertTrue(containerCommand.contains(expectedDownloadCommand));
     }
 
     @Test
