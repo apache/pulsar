@@ -1066,7 +1066,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                     Throwable t = FutureUtil.unwrapCompletionException(ex);
                     if (!force && (t instanceof BrokerServiceException.TopicBusyException)) {
                         ex = new RestException(Response.Status.PRECONDITION_FAILED,
-                                "Topic has active producers/subscriptions");
+                                t.getMessage());
                     }
                     if (isManagedLedgerNotFoundException(t)) {
                         ex = new RestException(Response.Status.NOT_FOUND,

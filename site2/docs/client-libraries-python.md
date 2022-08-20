@@ -14,7 +14,7 @@ Pulsar Python client library is a wrapper over the existing [C++ client library]
 
 All the methods in producer, consumer, and reader of a Python client are thread-safe.
 
-[pdoc](https://github.com/BurntSushi/pdoc)-generated API docs for the Python client are available [here](/api/python).
+pdoc-generated API docs for the Python client are available [here](/api/python).
 
 ## Install
 
