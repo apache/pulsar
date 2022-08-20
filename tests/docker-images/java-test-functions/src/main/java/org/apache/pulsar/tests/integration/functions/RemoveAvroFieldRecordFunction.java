@@ -156,8 +156,7 @@ public class RemoveAvroFieldRecordFunction implements Function<GenericObject, Re
         }
         log.info("output {} schema {}", outputObject, outputSchema);
 
-        return context.newOutputRecordBuilder()
-            .schema(outputSchema)
+        return context.newOutputRecordBuilder(outputSchema)
             .value(outputObject)
             .build();
     }
