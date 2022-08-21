@@ -52,24 +52,6 @@ Payload commands have this basic structure:
 | `metadata`                         | Required  | The message [metadata](#message-metadata) stored as a binary protobuf message               |                 |
 | `payload`                          | Required  | Anything left in the frame is considered the payload and can include any sequence of bytes  |                 |
 
-## Broker entry metadata
-
-Broker entry metadata is stored alongside the message metadata as a serialized protobuf message.
-It is created by the broker when the message arrived at the broker and passed without changes to the consumer if configured.
-
-| Field              | Required or optional       | Description                                                                                                                   |
-|:-------------------|:----------------|:------------------------------------------------------------------------------------------------------------------------------|
-| `broker_timestamp` | Optional        | The timestamp when a message arrived at the broker (`id est` as the number of milliseconds since January 1st, 1970 in UTC)      |
-| `index`            | Optional        | The index of the message. It is assigned by the broker.
-
-If you want to use broker entry metadata for **brokers**, configure the [`brokerEntryMetadataInterceptors`](reference-configuration.md#broker) parameter in the `broker.conf` file.
-
-If you want to use broker entry metadata for **consumers**:
-
-1. Use the client protocol version [18 or later](https://github.com/apache/pulsar/blob/ca37e67211feda4f7e0984e6414e707f1c1dfd07/pulsar-common/src/main/proto/PulsarApi.proto#L259).
-   
-2. Configure the [`brokerEntryMetadataInterceptors`](reference-configuration.md#broker) parameter and set the [`enableExposingBrokerEntryMetadataToClient`](reference-configuration.md#broker) parameter to `true` in the `broker.conf` file.
-
 ## Message metadata
 
 Message metadata is stored alongside the application-specified payload as a serialized protobuf message. Metadata is created by the producer and passed without changes to the consumer.
