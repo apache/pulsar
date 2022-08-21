@@ -1541,11 +1541,14 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
                 producer.send("message-1".getBytes(StandardCharsets.UTF_8));
             }
         }
+        // wait until the message add to delay queue.
+        Awaitility.await().untilAsserted(() -> {
+            TopicStats topicStats = admin.topics().getPartitionedStats(topic, false, true, true);
+            assertEquals(topicStats.getSubscriptions().get(subName).getMsgBacklog(), 10);
+            assertEquals(topicStats.getSubscriptions().get(subName).getBacklogSize(), 440);
+            assertEquals(topicStats.getSubscriptions().get(subName).getMsgBacklogNoDelayed(), 5);
+        });
 
-        TopicStats topicStats = admin.topics().getPartitionedStats(topic, false, true, true);
-        assertEquals(topicStats.getSubscriptions().get(subName).getMsgBacklog(), 10);
-        assertEquals(topicStats.getSubscriptions().get(subName).getBacklogSize(), 440);
-        assertEquals(topicStats.getSubscriptions().get(subName).getMsgBacklogNoDelayed(), 5);
 
         for (int i = 0; i < 5; i++) {
             consumer.acknowledge(consumer.receive());
