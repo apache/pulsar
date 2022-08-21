@@ -174,7 +174,7 @@ public class PulsarLedgerIdGenerator implements LedgerIdGenerator {
                                 if (log.isDebugEnabled()) {
                                     log.debug("DELETING HIGH ORDER DIR: {}", path);
                                 }
-                                store.delete(handleTheDeletePath(path), Optional.of(0L));
+                                store.delete(path, Optional.of(0L));
                             }
                         }
                         return ledgerId;
