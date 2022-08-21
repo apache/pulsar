@@ -1404,13 +1404,13 @@ Deploy the schema compatibility checker for a specific schema type to enforce sc
 
 ### schemaCompatibilityStrategy
 
-The schema compatibility strategy at broker level, see [here](schema-evolution-compatibility.md#schema-compatibility-check-strategy) for available values.
+The schema compatibility strategy at broker level, see [here](https://pulsar.apache.org/docs/next/schema-evolution-compatibility/#schema-compatibility-check-strategy) for available values.
 
 **Default**: FULL
 
 ### systemTopicSchemaCompatibilityStrategy
 
-The schema compatibility strategy is used for system topics, see [here](schema-evolution-compatibility.md#schema-compatibility-check-strategy) for available values.
+The schema compatibility strategy is used for system topics, see [here](https://pulsar.apache.org/docs/next/schema-evolution-compatibility/#schema-compatibility-check-strategy) for available values.
 
 **Default**: ALWAYS_COMPATIBLE
 
