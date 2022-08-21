@@ -43,14 +43,14 @@ import org.apache.pulsar.compaction.CompactorMXBean;
 public class NamespaceStatsAggregator {
 
     private static final FastThreadLocal<AggregatedNamespaceStats> localNamespaceStats =
-            new FastThreadLocal<>() {
+            new FastThreadLocal<AggregatedNamespaceStats>() {
                 @Override
                 protected AggregatedNamespaceStats initialValue() {
                     return new AggregatedNamespaceStats();
                 }
             };
 
-    private static final FastThreadLocal<TopicStats> localTopicStats = new FastThreadLocal<>() {
+    private static final FastThreadLocal<TopicStats> localTopicStats = new FastThreadLocal<TopicStats>() {
         @Override
         protected TopicStats initialValue() {
             return new TopicStats();

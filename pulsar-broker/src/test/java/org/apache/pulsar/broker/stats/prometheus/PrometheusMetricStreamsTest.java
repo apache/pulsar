@@ -77,7 +77,7 @@ public class PrometheusMetricStreamsTest {
             for (int i = 0; i < readableBytes; i++) {
                 out.write(buffer.getByte(readIndex + i));
             }
-            return out.toString(StandardCharsets.UTF_8);
+            return out.toString();
         } finally {
             buffer.release();
         }

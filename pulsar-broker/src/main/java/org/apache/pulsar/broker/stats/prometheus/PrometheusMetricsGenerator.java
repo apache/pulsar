@@ -56,8 +56,6 @@ import org.apache.pulsar.common.util.SimpleTextOutputStream;
  * href="https://prometheus.io/docs/instrumenting/exposition_formats/">Exposition Formats</a>
  */
 public class PrometheusMetricsGenerator {
-    private static volatile TimeWindow<ByteBuf> timeWindow;
-    private static final int MAX_COMPONENTS = 64;
 
     static {
         DefaultExports.initialize();
@@ -100,78 +98,12 @@ public class PrometheusMetricsGenerator {
                 splitTopicAndPartitionIndexLabel, out, null);
     }
 
-    public static synchronized void generate(PulsarService pulsar, boolean includeTopicMetrics,
-                                             boolean includeConsumerMetrics, boolean includeProducerMetrics,
-                                             boolean splitTopicAndPartitionIndexLabel, OutputStream out,
-                                             List<PrometheusRawMetricsProvider> metricsProviders) throws IOException {
-        ByteBuf buffer;
-        boolean exposeBufferMetrics = pulsar.getConfiguration().isMetricsBufferResponse();
-
-        if (!exposeBufferMetrics) {
-            buffer = generate0(pulsar, includeTopicMetrics, includeConsumerMetrics, includeProducerMetrics,
-                    splitTopicAndPartitionIndexLabel, metricsProviders);
-        } else {
-            if (null == timeWindow) {
-                int period = pulsar.getConfiguration().getManagedLedgerStatsPeriodSeconds();
-                timeWindow = new TimeWindow<>(1, (int) TimeUnit.SECONDS.toMillis(period));
-            }
-            WindowWrap<ByteBuf> window = timeWindow.current(oldBuf -> {
-                // release expired buffer, in case of memory leak
-                if (oldBuf != null && oldBuf.refCnt() > 0) {
-                    oldBuf.release();
-                    log.debug("Cached metrics buffer released");
-                }
-
-                try {
-                    ByteBuf buf = generate0(pulsar, includeTopicMetrics, includeConsumerMetrics, includeProducerMetrics,
-                            splitTopicAndPartitionIndexLabel, metricsProviders);
-                    log.debug("Generated metrics buffer size {}", buf.readableBytes());
-                    return buf;
-                } catch (IOException e) {
-                    log.error("Generate metrics failed", e);
-                    //return empty buffer if exception happens
-                    return ByteBufAllocator.DEFAULT.heapBuffer(0);
-                }
-            });
-
-            if (null == window || null == window.value()) {
-                return;
-            }
-            buffer = window.value();
-            log.debug("Current window start {}, current cached buf size {}", window.start(), buffer.readableBytes());
-        }
-
-        try {
-            if (out instanceof HttpOutput) {
-                HttpOutput output = (HttpOutput) out;
-                //no mem_copy and memory allocations here
-                ByteBuffer[] buffers = buffer.nioBuffers();
-                for (ByteBuffer buffer0 : buffers) {
-                    output.write(buffer0);
-                }
-            } else {
-                //read data from buffer and write it to output stream, with no more heap buffer(byte[]) allocation.
-                //not modify buffer readIndex/writeIndex here.
-                int readIndex = buffer.readerIndex();
-                int readableBytes = buffer.readableBytes();
-                for (int i = 0; i < readableBytes; i++) {
-                    out.write(buffer.getByte(readIndex + i));
-                }
-            }
-        } finally {
-            if (!exposeBufferMetrics && buffer.refCnt() > 0) {
-                buffer.release();
-                log.debug("Metrics buffer released.");
-            }
-        }
-    }
-
-    private static ByteBuf generate0(PulsarService pulsar, boolean includeTopicMetrics, boolean includeConsumerMetrics,
-                                     boolean includeProducerMetrics, boolean splitTopicAndPartitionIndexLabel,
-                                     List<PrometheusRawMetricsProvider> metricsProviders) throws IOException {
-        //Use unpooled buffers here to avoid direct buffer usage increasing.
-        //when write out 200MB data, MAX_COMPONENTS = 64 needn't mem_copy. see: CompositeByteBuf#consolidateIfNeeded()
-        ByteBuf buf = UnpooledByteBufAllocator.DEFAULT.compositeDirectBuffer(MAX_COMPONENTS);
+    public static void generate(PulsarService pulsar, boolean includeTopicMetrics, boolean includeConsumerMetrics,
+                                boolean includeProducerMetrics, boolean splitTopicAndPartitionIndexLabel,
+                                OutputStream out,
+                                List<PrometheusRawMetricsProvider> metricsProviders)
+            throws IOException {
+        ByteBuf buf = ByteBufAllocator.DEFAULT.heapBuffer();
         boolean exceptionHappens = false;
         //Used in namespace/topic and transaction aggregators as share metric names
         PrometheusMetricStreams metricStreams = new PrometheusMetricStreams();
@@ -347,17 +279,17 @@ public class PrometheusMetricsGenerator {
 
     static String getTypeStr(Collector.Type type) {
         switch (type) {
-        case COUNTER:
-            return "counter";
-        case GAUGE:
-            return "gauge";
-        case SUMMARY        :
-            return "summary";
-        case HISTOGRAM:
-            return "histogram";
-        case UNTYPED:
-        default:
-            return "untyped";
+            case COUNTER:
+                return "counter";
+            case GAUGE:
+                return "gauge";
+            case SUMMARY:
+                return "summary";
+            case HISTOGRAM:
+                return "histogram";
+            case UNTYPED:
+            default:
+                return "untyped";
         }
     }
 
