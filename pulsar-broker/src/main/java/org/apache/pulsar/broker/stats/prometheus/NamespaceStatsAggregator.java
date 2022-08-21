@@ -369,7 +369,7 @@ public class NamespaceStatsAggregator {
                 namespace);
 
         writePulsarMsgBacklog(stream, stats.msgBacklog, cluster, namespace);
-        
+
         stats.managedLedgerStats.storageWriteLatencyBuckets.refresh();
         long[] latencyBuckets = stats.managedLedgerStats.storageWriteLatencyBuckets.getBuckets();
         writeMetric(stream, "pulsar_storage_write_latency_le_0_5", latencyBuckets[0], cluster, namespace);
