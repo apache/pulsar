@@ -309,7 +309,9 @@ public class RangeEntryCacheImpl implements EntryCache {
                                 entriesToReturn.add(entry);
                                 totalSize += entry.getLength();
                                 if (shouldCacheEntry) {
-                                    insert(entry);
+                                    EntryImpl cacheEntry = EntryImpl.create(entry);
+                                    insert(cacheEntry);
+                                    cacheEntry.release();
                                 }
                             }
 

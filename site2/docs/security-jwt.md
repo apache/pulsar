@@ -270,7 +270,6 @@ authenticationEnabled=true
 authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderToken
 
 # Authentication settings of the broker itself. Used when the broker connects to other brokers, either in same or other clusters
-brokerClientTlsEnabled=true
 brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.AuthenticationToken
 brokerClientAuthenticationParameters={"token":"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0LXVzZXIifQ.9OHgE9ZUDeBTZs7nSMEFIuGNEX18FLR3qvy8mqxSxXw"}
 # Either configure the token string or specify to read it from a file. The following three available formats are all valid:
