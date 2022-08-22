@@ -1576,12 +1576,9 @@ public abstract class NamespacesBase extends AdminResource {
         return updatePoliciesAsync(namespaceName, policies -> {
             policies.persistence = persistence;
             return policies;
-        }).thenAccept(v -> {
-            try {
-                log.info("[{}] Successfully updated persistence configuration: namespace={}, map={}", clientAppId(),
-                        namespaceName, jsonMapper().writeValueAsString(persistence));
-            } catch (Exception ignore) {}
-        }).exceptionally(ex -> {
+        }).thenAccept(__ -> log.info("[{}] Successfully updated persistence configuration: namespace={}, map={}",
+                clientAppId(), namespaceName, persistence)
+        ).exceptionally(ex -> {
             log.error("[{}] Failed to update persistence configuration for namespace {}", clientAppId(), namespaceName,
                     ex);
             throw new RestException(ex);
