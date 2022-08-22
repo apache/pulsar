@@ -1347,9 +1347,13 @@ void ConsumerImpl::internalGetLastMessageIdAsync(const BackoffPtr& backoff, Time
         timer->expires_from_now(next);
 
         timer->async_wait([this, backoff, remainTime, timer, next,
-                           callback](const boost::system::error_code& ec) -> void {
-            if (ec) {
+                                  callback](const boost::system::error_code &ec) -> void {
+            if (ec == boost::asio::error::operation_aborted) {
                 LOG_DEBUG(getName() << " Get last message id operation was cancelled, code[" << ec << "].");
+                return;
+            }
+            if (ec) {
+                LOG_ERROR(getName() << " Failed to get last message id, code[" << ec << "].");
                 return;
             }
             LOG_WARN(getName() << " Could not get connection while getLastMessageId -- Will try again in "
