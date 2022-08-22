@@ -450,12 +450,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         try {
             this.sink.write(sinkRecord);
         } catch (Exception e) {
-            if (e instanceof ClassCastException && functionClassLoader != componentClassLoader) {
-                log.info("Encountered ClassCastException in sink write. "
-                        + "Is the Function return type compatible with the Sink type ? ", e);
-            } else {
-                log.info("Encountered exception in sink write: ", e);
-            }
+            log.info("Encountered exception in sink write: ", e);
             stats.incrSinkExceptions(e);
             // fail the source record
             srcRecord.fail();

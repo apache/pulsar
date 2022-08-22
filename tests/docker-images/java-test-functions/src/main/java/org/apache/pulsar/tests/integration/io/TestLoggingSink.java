@@ -21,12 +21,13 @@ package org.apache.pulsar.tests.integration.io;
 import java.util.Map;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
 import org.slf4j.Logger;
 
-public class TestLoggingSink implements Sink<String> {
+public class TestLoggingSink implements Sink<GenericObject> {
 
     private Logger logger;
     private Producer<String> producer;
@@ -41,16 +42,20 @@ public class TestLoggingSink implements Sink<String> {
     }
 
     @Override
-    public void write(Record<String> record) throws Exception {
-        logger.info("Got message: " + record.getValue());
-        producer.newMessage()
+    public void write(Record<GenericObject> record) throws Exception {
+        Object nativeObject = record.getValue().getNativeObject();
+        logger.info("Got message: " + nativeObject);
+        if (nativeObject instanceof String) {
+            logger.info("Got message: " + nativeObject);
+            producer.newMessage()
                 .properties(record.getProperties())
-                .value(record.getValue())
+                .value((String) nativeObject)
                 .send();
+        }
     }
 
     @Override
-    public void close() throws Exception {
+    public void close() {
 
     }
 }
