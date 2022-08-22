@@ -1163,7 +1163,7 @@ public class PersistentTopic extends AbstractTopic
 
                     deleteTopicAuthenticationFuture.thenCompose(
                                     __ -> deleteSchema ? deleteSchema() : CompletableFuture.completedFuture(null))
-                            .thenAccept(__ -> deleteTopicPolicies())
+                            .thenCompose(__ -> deleteTopicPolicies())
                             .thenCompose(__ -> transactionBufferCleanupAndClose())
                             .whenComplete((v, ex) -> {
                         if (ex != null) {
