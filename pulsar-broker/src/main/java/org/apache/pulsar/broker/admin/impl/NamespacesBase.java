@@ -22,6 +22,7 @@ package org.apache.pulsar.broker.admin.impl;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.common.policies.data.PoliciesUtil.defaultBundle;
 import static org.apache.pulsar.common.policies.data.PoliciesUtil.getBundles;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
@@ -1543,10 +1544,10 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected void internalDeletePersistence() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.PERSISTENCE, PolicyOperation.WRITE);
-        validatePoliciesReadOnlyAccess();
-        doUpdatePersistence(null);
+    protected CompletableFuture<Void> internalDeletePersistenceAsyn() {
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.PERSISTENCE, PolicyOperation.WRITE)
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenCompose(__ -> doUpdatePersistenceAsyn(null));
     }
 
     protected void internalSetPersistence(PersistencePolicies persistence) {
@@ -1559,17 +1560,35 @@ public abstract class NamespacesBase extends AdminResource {
 
     private void doUpdatePersistence(PersistencePolicies persistence) {
         try {
-            updatePolicies(namespaceName, policies -> {
-                policies.persistence = persistence;
-                return policies;
-            });
-            log.info("[{}] Successfully updated persistence configuration: namespace={}, map={}", clientAppId(),
-                    namespaceName, jsonMapper().writeValueAsString(persistence));
+            doUpdatePersistenceAsyn(persistence).get(namespaceResources().getOperationTimeoutSec(), TimeUnit.SECONDS);
         } catch (Exception e) {
-            log.error("[{}] Failed to update persistence configuration for namespace {}", clientAppId(), namespaceName,
-                    e);
-            throw new RestException(e);
+            Throwable cause = e.getCause();
+            if (!(cause instanceof RestException)) {
+                throw new RestException(cause);
+            } else {
+                throw (RestException) cause;
+            }
         }
+    }
+
+    private CompletableFuture<Void> doUpdatePersistenceAsyn(PersistencePolicies persistence) {
+        CompletableFuture<Void> result = new CompletableFuture<>();
+        updatePoliciesAsync(namespaceName, policies -> {
+            policies.persistence = persistence;
+            return policies;
+        }).thenAccept(v -> {
+            try {
+                log.info("[{}] Successfully updated persistence configuration: namespace={}, map={}", clientAppId(),
+                        namespaceName, jsonMapper().writeValueAsString(persistence));
+            } catch (JsonProcessingException ignore) {}
+            result.complete(null);
+        }).exceptionally(ex -> {
+            log.error("[{}] Failed to update persistence configuration for namespace {}", clientAppId(), namespaceName,
+                    ex);
+            result.completeExceptionally(new RestException(ex));
+            return null;
+        });
+        return result;
     }
 
     protected void internalClearNamespaceBacklog(AsyncResponse asyncResponse, boolean authoritative) {
