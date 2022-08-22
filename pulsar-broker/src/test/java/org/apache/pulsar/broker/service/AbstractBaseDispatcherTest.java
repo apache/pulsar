@@ -214,8 +214,7 @@ public class AbstractBaseDispatcherTest {
 
         @Override
         public boolean trackDelayedDelivery(long ledgerId, long entryId, MessageMetadata msgMetadata) {
-            //for test.
-            return true;
+            return msgMetadata.hasDeliverAtTime();
         }
 
         @Override

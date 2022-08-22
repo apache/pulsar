@@ -401,7 +401,7 @@ $ pulsar-admin sinks create options
 | `--subs-name` | Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer.
 | `--tenant` | The sink's tenant.
 | `--timeout-ms` | The message timeout in milliseconds.
-| `--topics-pattern` | TopicsPattern to consume from list of topics under a namespace that match the pattern. <br />`--input` and `--topics-Pattern` are mutually exclusive. <br />Add SerDe class name for a pattern in `--customSerdeInputs` (supported for java fun only).
+| `--topics-pattern` | The topic pattern to consume from a list of topics under a namespace that matches the pattern. <br />`--input` and `--topics-pattern` are mutually exclusive. <br />Add SerDe class name for a pattern in `--custom-serde-inputs`.
 
 ### `update`
 
@@ -439,7 +439,7 @@ $ pulsar-admin sinks update options
 | `--subs-name` | Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer.
 | `--tenant` | The sink's tenant.
 | `--timeout-ms` | The message timeout in milliseconds.
-| `--topics-pattern` | TopicsPattern to consume from list of topics under a namespace that match the pattern. <br />`--input` and `--topics-Pattern` are mutually exclusive. <br />Add SerDe class name for a pattern in `--customSerdeInputs` (supported for java fun only).
+| `--topics-pattern` | The topic pattern to consume from a list of topics under a namespace that matches the pattern. <br />`--input` and `--topics-pattern` are mutually exclusive. <br />Add SerDe class name for a pattern in `--custom-serde-inputs`.
 | `--update-auth-data` | Whether or not to update the auth data.<br />**Default value: false.**
 
 ### `delete`
@@ -634,7 +634,7 @@ $ pulsar-admin sinks localrun options
 | `--negative-ack-redelivery-delay-ms` | The negatively-acknowledged message redelivery delay in milliseconds. |
 |`--tls-allow-insecure`|Allow insecure tls connection.<br />**Default value: false**.
 |`--tls-trust-cert-path`|The tls trust cert file path.
-| `--topics-pattern` | TopicsPattern to consume from list of topics under a namespace that match the pattern. <br />`--input` and `--topics-Pattern` are mutually exclusive. <br />Add SerDe class name for a pattern in `--customSerdeInputs` (supported for java fun only).
+| `--topics-pattern` | The topic pattern to consume from a list of topics under a namespace that matches the pattern. <br />`--input` and `--topics-pattern` are mutually exclusive. <br />Add SerDe class name for a pattern in `--custom-serde-inputs`.
 |`--use-tls`|Use tls connection.<br />**Default value: false**.
 
 ### `available-sinks`
