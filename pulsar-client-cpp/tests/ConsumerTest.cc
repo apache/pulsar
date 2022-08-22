@@ -764,7 +764,7 @@ TEST(ConsumerTest, testPartitionsWithCloseUnblock) {
 }
 
 TEST(ConsumerTest, testGetLastMessageIdBlockWhenConnectionDisconnected) {
-    int operationTimeout = 10;
+    int operationTimeout = 5;
     ClientConfiguration clientConfiguration;
     clientConfiguration.setOperationTimeoutSeconds(operationTimeout);
 
