@@ -17,7 +17,7 @@
 # under the License.
 #
 
-name: 'Add flaky test issues and PRs to flaky test project'
+name: 'Add labeled issues and PRs to correspond projects'
 
 on:
   issues:
@@ -30,13 +30,21 @@ on:
       - labeled
 
 jobs:
-  add-to-project:
-    name: Add flaky test issues and PRs to flaky test project
+  add-to-projects:
+    name: Add labeled issues and PRs to correspond projects
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/add-to-project@v0.3.0
+      - name: Add flaky test issues and PRs to flaky test project
+        uses: actions/add-to-project@v0.3.0
         with:
           project-url: https://github.com/apache/pulsar/projects/11
           github-token: ${{ secrets.GITHUB_TOKEN }}
           labeled: flaky-tests
+          label-operator: OR
+      - name: Add C++ and Python client issues and PRs to Multi Clients project
+        uses: actions/add-to-project@v0.3.0
+        with:
+          project-url: https://github.com/apache/pulsar/projects/12
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          labeled: component/client-python, component/client-c++
           label-operator: OR
