@@ -224,7 +224,7 @@ PULSAR_PUBLIC std::ostream& operator<<(std::ostream& s, const Message& msg) {
     return s;
 }
 KeyValue Message::getKeyValueData(const KeyValueEncodingType& keyValueEncodingType) const {
-    return KeyValue(getDataAsString(), keyValueEncodingType);
+    return KeyValue((char*)getData(), getLength(), keyValueEncodingType);
 }
 
 }  // namespace pulsar

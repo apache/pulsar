@@ -32,7 +32,7 @@ class KeyValueImpl;
 class PULSAR_PUBLIC KeyValue {
    public:
     KeyValue();
-    KeyValue(const std::string &data, const KeyValueEncodingType &keyValueEncodingType);
+    KeyValue(char *data, const int length, const KeyValueEncodingType &keyValueEncodingType);
     KeyValue(const std::string &key, const std::string &value,
              const KeyValueEncodingType &keyValueEncodingType);
     std::string getContent() const;

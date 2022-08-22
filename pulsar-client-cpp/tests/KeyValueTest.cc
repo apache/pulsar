@@ -29,7 +29,8 @@ TEST(KeyValueTest, testEncodeAndDeCode) {
     ASSERT_EQ(keyValue.getContent().size(), 8 + keyContent.size() + valueContent.size());
 
     // test decode
-    KeyValue deCodeKeyValue(keyValue.getContent(), KeyValueEncodingType::INLINE);
+    KeyValue deCodeKeyValue((char *)keyValue.getContent().c_str(), keyValue.getContent().length(),
+                            KeyValueEncodingType::INLINE);
     ASSERT_EQ(deCodeKeyValue.getKeyData(), keyContent);
     ASSERT_TRUE(deCodeKeyValue.getContent().compare(valueContent) != 0);
 
@@ -47,7 +48,8 @@ TEST(KeyValueTest, testKeyIsEmpty) {
     ASSERT_EQ(keyValue.getContent().size(), 8 + keyContent.size() + valueContent.size());
 
     // test decode
-    KeyValue deCodeKeyValue(keyValue.getContent(), KeyValueEncodingType::INLINE);
+    KeyValue deCodeKeyValue((char *)keyValue.getContent().c_str(), keyValue.getContent().length(),
+                            KeyValueEncodingType::INLINE);
     ASSERT_EQ(deCodeKeyValue.getKeyData(), keyContent);
     ASSERT_TRUE(deCodeKeyValue.getContent().compare(valueContent) != 0);
 
@@ -65,7 +67,8 @@ TEST(KeyValueTest, testValueIsEmpty) {
     ASSERT_EQ(keyValue.getContent().size(), 8 + keyContent.size() + valueContent.size());
 
     // test decode
-    KeyValue deCodeKeyValue(keyValue.getContent(), KeyValueEncodingType::INLINE);
+    KeyValue deCodeKeyValue((char *)keyValue.getContent().c_str(), keyValue.getContent().length(),
+                            KeyValueEncodingType::INLINE);
     ASSERT_EQ(deCodeKeyValue.getKeyData(), keyContent);
     ASSERT_TRUE(deCodeKeyValue.getContent().compare(valueContent) != 0);
 

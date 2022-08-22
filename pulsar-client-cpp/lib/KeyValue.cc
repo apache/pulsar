@@ -37,11 +37,11 @@ class PULSAR_PUBLIC KeyValueImpl {
 
 KeyValue::KeyValue() : impl_() {}
 
-KeyValue::KeyValue(const std::string &data, const KeyValueEncodingType &keyValueEncodingType) {
+KeyValue::KeyValue(char *data, const int length, const KeyValueEncodingType &keyValueEncodingType) {
     impl_ = std::make_shared<KeyValueImpl>();
     impl_->keyValueEncodingType = keyValueEncodingType;
     if (impl_->keyValueEncodingType == KeyValueEncodingType::INLINE) {
-        SharedBuffer buffer = SharedBuffer::copy(data.c_str(), data.length());
+        SharedBuffer buffer = SharedBuffer::wrap(data, length);
         int keySize = buffer.readUnsignedInt();
         if (keySize != -1) {
             SharedBuffer keyContent = buffer.slice(0, keySize);
@@ -55,7 +55,7 @@ KeyValue::KeyValue(const std::string &data, const KeyValueEncodingType &keyValue
             impl_->valueContent_ = std::string(valueContent.data(), valueSize);
         }
     } else {
-        impl_->valueContent_ = data;
+        impl_->valueContent_ = std::string(data, length);
     }
 }
 
