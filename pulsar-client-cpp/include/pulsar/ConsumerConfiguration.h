@@ -499,6 +499,20 @@ class PULSAR_PUBLIC ConsumerConfiguration {
      */
     bool isAutoAckOldestChunkedMessageOnQueueFull() const;
 
+    /**
+     * Set the consumer to include the given position of any reset operation like Consumer::seek.
+     *
+     * Default: false
+     *
+     * @param startMessageIdInclusive whether to include the reset position
+     */
+    ConsumerConfiguration& setStartMessageIdInclusive(bool startMessageIdInclusive);
+
+    /**
+     * The associated getter of setStartMessageIdInclusive
+     */
+    bool isStartMessageIdInclusive() const;
+
     friend class PulsarWrapper;
 
    private:

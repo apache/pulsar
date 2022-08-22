@@ -260,4 +260,11 @@ bool ConsumerConfiguration::isAutoAckOldestChunkedMessageOnQueueFull() const {
     return impl_->autoAckOldestChunkedMessageOnQueueFull;
 }
 
+ConsumerConfiguration& ConsumerConfiguration::setStartMessageIdInclusive(bool startMessageIdInclusive) {
+    impl_->startMessageIdInclusive = startMessageIdInclusive;
+    return *this;
+}
+
+bool ConsumerConfiguration::isStartMessageIdInclusive() const { return impl_->startMessageIdInclusive; }
+
 }  // namespace pulsar
