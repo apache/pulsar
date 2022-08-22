@@ -40,7 +40,7 @@ KeyValue::KeyValue() : impl_() {}
 KeyValue::KeyValue(const std::string &data, const KeyValueEncodingType &keyValueEncodingType) {
     impl_ = std::make_shared<KeyValueImpl>();
     impl_->keyValueEncodingType = keyValueEncodingType;
-    if (impl_->keyValueEncodingType == INLINE) {
+    if (impl_->keyValueEncodingType == KeyValueEncodingType::INLINE) {
         SharedBuffer buffer = SharedBuffer::copy(data.c_str(), data.length());
         int keySize = buffer.readUnsignedInt();
         if (keySize != -1) {
@@ -64,7 +64,7 @@ KeyValue::KeyValue(const std::string &key, const std::string &value,
     : impl_(std::make_shared<KeyValueImpl>(key, value, keyValueEncodingType)) {}
 
 std::string KeyValue::getContent() const {
-    if (impl_->keyValueEncodingType == INLINE) {
+    if (impl_->keyValueEncodingType == KeyValueEncodingType::INLINE) {
         std::string keyContent = impl_->keyContent_;
         std::string valueContent = impl_->valueContent_;
         int keySize = keyContent.length();

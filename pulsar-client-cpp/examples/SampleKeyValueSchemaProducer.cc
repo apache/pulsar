@@ -29,12 +29,11 @@ int main() {
     Client client("pulsar://localhost:6650");
 
     std::string jsonSchema =
-        "{\"type\":\"record\",\"name\":\"cpx\",\"fields\":[{\"name\":\"re\",\"type\":\"double\"},{\"name\":"
-        "\"im\",\"type\":\"double\"}]}";
+        R"({"type":"record","name":"cpx","fields":[{"name":"re","type":"double"},{"name":"im","type":"double"}]})";
 
     SchemaInfo keySchema(JSON, "key-json", jsonSchema);
     SchemaInfo valueSchema(JSON, "value-json", jsonSchema);
-    SchemaInfo keyValueSchema(keySchema, valueSchema, SEPARATED);
+    SchemaInfo keyValueSchema(keySchema, valueSchema, KeyValueEncodingType::SEPARATED);
     std::cout << keyValueSchema.getSchema() << std::endl;
 
     ProducerConfiguration producerConfiguration;
@@ -50,7 +49,7 @@ int main() {
 
     std::string jsonData = "{\"re\":2.1,\"im\":1.23}";
 
-    KeyValue keyValue(jsonData, jsonData, SEPARATED);
+    KeyValue keyValue(jsonData, jsonData, KeyValueEncodingType::SEPARATED);
 
     Message msg = MessageBuilder().setContent(keyValue).setProperty("x", "1").build();
     producer.send(msg);

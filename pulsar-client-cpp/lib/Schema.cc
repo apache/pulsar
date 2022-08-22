@@ -33,6 +33,10 @@ PULSAR_PUBLIC std::ostream &operator<<(std::ostream &s, pulsar::SchemaType schem
     return s << strSchemaType(schemaType);
 }
 
+PULSAR_PUBLIC std::ostream &operator<<(std::ostream &s, pulsar::KeyValueEncodingType encodingType) {
+    return s << strEncodingType(encodingType);
+}
+
 namespace pulsar {
 
 static const std::string KEY_SCHEMA_NAME = "key.schema.name";
@@ -45,9 +49,9 @@ static const std::string KV_ENCODING_TYPE = "kv.encoding.type";
 
 PULSAR_PUBLIC const char *strEncodingType(KeyValueEncodingType keyValueEncodingType) {
     switch (keyValueEncodingType) {
-        case INLINE:
+        case KeyValueEncodingType::INLINE:
             return "INLINE";
-        case SEPARATED:
+        case KeyValueEncodingType::SEPARATED:
             return "SEPARATED";
     };
     // NOTE : Do not add default case in the switch above. In future if we get new cases for

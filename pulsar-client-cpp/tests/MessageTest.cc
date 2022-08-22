@@ -106,7 +106,7 @@ TEST(MessageTest, testMessageBuilderSetKeyValueContent) {
 
     // test inline encoding type.
     {
-        KeyValue keyValue(keyContent, valueContent, INLINE);
+        KeyValue keyValue(keyContent, valueContent, KeyValueEncodingType::INLINE);
         const Message& message = MessageBuilder().setContent(keyValue).build();
         ASSERT_EQ(message.getDataAsString(), keyValue.getContent());
         ASSERT_EQ(message.getPartitionKey(), "");
@@ -114,7 +114,7 @@ TEST(MessageTest, testMessageBuilderSetKeyValueContent) {
 
     // test separated encoding type.
     {
-        KeyValue keyValue(keyContent, valueContent, SEPARATED);
+        KeyValue keyValue(keyContent, valueContent, KeyValueEncodingType::SEPARATED);
         const Message& message = MessageBuilder().setContent(keyValue).build();
         ASSERT_EQ(message.getDataAsString(), valueContent);
         ASSERT_EQ(message.getPartitionKey(), keyContent);

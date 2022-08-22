@@ -82,7 +82,7 @@ MessageBuilder& MessageBuilder::setContent(std::string&& data) {
 }
 
 MessageBuilder& MessageBuilder::setContent(const KeyValue& data) {
-    if (data.getEncodingType() == INLINE) {
+    if (data.getEncodingType() == KeyValueEncodingType::INLINE) {
         setContent(data.getContent());
     } else {
         setPartitionKey(data.getKeyData());

@@ -28,12 +28,11 @@ int main() {
     Client client("pulsar://localhost:6650");
 
     std::string jsonSchema =
-        "{\"type\":\"record\",\"name\":\"cpx\",\"fields\":[{\"name\":\"re\",\"type\":\"double\"},{\"name\":"
-        "\"im\",\"type\":\"double\"}]}";
+        R"({"type":"record","name":"cpx","fields":[{"name":"re","type":"double"},{"name":"im","type":"double"}]})";
 
     SchemaInfo keySchema(JSON, "key-json", jsonSchema);
     SchemaInfo valueSchema(JSON, "value-json", jsonSchema);
-    SchemaInfo keyValueSchema(keySchema, valueSchema, SEPARATED);
+    SchemaInfo keyValueSchema(keySchema, valueSchema, KeyValueEncodingType::SEPARATED);
     ConsumerConfiguration consumerConfiguration;
     consumerConfiguration.setSchema(keyValueSchema);
 
@@ -52,7 +51,7 @@ int main() {
         consumer.receive(msg);
         LOG_INFO("Received: " << msg << "  with payload '" << msg.getDataAsString() << "'");
         LOG_INFO("Received: " << msg << "  with partitionKey '" << msg.getPartitionKey() << "'");
-        KeyValue keyValue = msg.getKeyValueData(SEPARATED);
+        KeyValue keyValue = msg.getKeyValueData(KeyValueEncodingType::SEPARATED);
         LOG_INFO("Received: " << msg << "  with key '" << keyValue.getKeyData() << "'");
         LOG_INFO("Received: " << msg << "  with value '" << keyValue.getContent() << "'");
         consumer.acknowledge(msg);

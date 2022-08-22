@@ -25,8 +25,7 @@ using namespace pulsar;
 static std::string lookupUrl = "pulsar://localhost:6650";
 
 static const std::string exampleSchema =
-    "{\"type\":\"record\",\"name\":\"Example\",\"namespace\":\"test\","
-    "\"fields\":[{\"name\":\"a\",\"type\":\"int\"},{\"name\":\"b\",\"type\":\"int\"}]}";
+    R"({"type":"record","name":"Example","namespace":"test","fields":[{"name":"a","type":"int"},{"name":"b","type":"int"}]})";
 
 TEST(SchemaTest, testSchema) {
     ClientConfiguration config;
@@ -114,7 +113,7 @@ TEST(SchemaTest, testKeyValueSchema) {
     try {
         SchemaInfo keySchema(SchemaType::STRING, "String", "");
         SchemaInfo valueSchema(SchemaType::STRING, "String", "");
-        SchemaInfo keyValueSchema(keySchema, valueSchema, pulsar::INLINE);
+        SchemaInfo keyValueSchema(keySchema, valueSchema, KeyValueEncodingType::INLINE);
         FAIL();
     } catch (std::invalid_argument const& er) {
         SUCCEED();
@@ -123,7 +122,7 @@ TEST(SchemaTest, testKeyValueSchema) {
     // 1. test create key value schema success.
     SchemaInfo keySchema(SchemaType::AVRO, "String", exampleSchema);
     SchemaInfo valueSchema(SchemaType::AVRO, "String", exampleSchema);
-    SchemaInfo keyValueSchema(keySchema, valueSchema, pulsar::INLINE);
+    SchemaInfo keyValueSchema(keySchema, valueSchema, KeyValueEncodingType::INLINE);
     ASSERT_EQ(keyValueSchema.getSchemaType(), KEY_VALUE);
     ASSERT_EQ(keyValueSchema.getSchema().size(),
               8 + keySchema.getSchema().size() + valueSchema.getSchema().size());
@@ -132,7 +131,7 @@ TEST(SchemaTest, testKeyValueSchema) {
 TEST(SchemaTest, testKeySchemaIsEmpty) {
     SchemaInfo keySchema(SchemaType::AVRO, "String", "");
     SchemaInfo valueSchema(SchemaType::AVRO, "String", exampleSchema);
-    SchemaInfo keyValueSchema(keySchema, valueSchema, pulsar::INLINE);
+    SchemaInfo keyValueSchema(keySchema, valueSchema, KeyValueEncodingType::INLINE);
     ASSERT_EQ(keyValueSchema.getSchemaType(), KEY_VALUE);
     ASSERT_EQ(keyValueSchema.getSchema().size(),
               8 + keySchema.getSchema().size() + valueSchema.getSchema().size());
@@ -150,7 +149,7 @@ TEST(SchemaTest, testKeySchemaIsEmpty) {
 TEST(SchemaTest, testValueSchemaIsEmpty) {
     SchemaInfo keySchema(SchemaType::AVRO, "String", exampleSchema);
     SchemaInfo valueSchema(SchemaType::AVRO, "String", "");
-    SchemaInfo keyValueSchema(keySchema, valueSchema, pulsar::INLINE);
+    SchemaInfo keyValueSchema(keySchema, valueSchema, KeyValueEncodingType::INLINE);
     ASSERT_EQ(keyValueSchema.getSchemaType(), KEY_VALUE);
     ASSERT_EQ(keyValueSchema.getSchema().size(),
               8 + keySchema.getSchema().size() + valueSchema.getSchema().size());
