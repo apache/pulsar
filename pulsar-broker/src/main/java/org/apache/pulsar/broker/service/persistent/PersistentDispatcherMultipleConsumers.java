@@ -109,7 +109,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     protected Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
 
     private AtomicBoolean isRescheduleReadInProgress = new AtomicBoolean(false);
-    private final ExecutorService dispatchMessagesThread;
+    protected final ExecutorService dispatchMessagesThread;
 
     protected enum ReadType {
         Normal, Replay
