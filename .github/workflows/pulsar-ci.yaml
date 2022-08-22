@@ -322,7 +322,7 @@ jobs:
         run: |
           # build docker image
           mvn -B -am -pl tests/docker-images/java-test-image install -Pcore-modules,-main,integrationTests,docker \
-          -Dmaven.test.skip=true -Ddockerfile.build.squash=true -DskipSourceReleaseAssembly=true \
+          -Dmaven.test.skip=true -Ddocker.squash=true -DskipSourceReleaseAssembly=true \
           -Dspotbugs.skip=true  -Dlicense.skip=true -Dcheckstyle.skip=true -Drat.skip=true
 
       - name: save docker image apachepulsar/java-test-image:latest to Github artifact cache
@@ -576,7 +576,7 @@ jobs:
           # build docker image
           # include building of Pulsar SQL, Connectors, Offloaders and server distros
           mvn -B -am -pl pulsar-sql/presto-distribution,distribution/io,distribution/offloaders,distribution/server,tests/docker-images/latest-version-image install \
-          -Pmain,docker -Dmaven.test.skip=true -Ddockerfile.build.squash=true \
+          -Pmain,docker -Dmaven.test.skip=true -Ddocker.squash=true \
           -Dspotbugs.skip=true -Dlicense.skip=true -Dcheckstyle.skip=true -Drat.skip=true
 
       - name: save docker image apachepulsar/pulsar-test-latest-version:latest to Github artifact cache
