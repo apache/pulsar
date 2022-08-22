@@ -1258,7 +1258,7 @@ public class Namespaces extends NamespacesBase {
     public void deletePersistence(@Suspended final AsyncResponse asyncResponse, @PathParam("tenant") String tenant,
                                   @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        internalDeletePersistenceAsyn()
+        internalDeletePersistenceAsync()
                 .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
                     log.error("[{}] Failed to delete the persistence for a namespace {}", clientAppId(), namespaceName,
