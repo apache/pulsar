@@ -22,7 +22,6 @@ package org.apache.pulsar.broker.admin.impl;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.common.policies.data.PoliciesUtil.defaultBundle;
 import static org.apache.pulsar.common.policies.data.PoliciesUtil.getBundles;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
