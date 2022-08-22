@@ -1503,7 +1503,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     currentLedgerEntries = 0;
                     currentLedgerSize = 0;
                     metadataMutex.unlock();
-                    updateLedgersIdsComplete(stat);
+                    updateLedgersIdsComplete();
                     synchronized (ManagedLedgerImpl.this) {
                         mbean.addLedgerSwitchLatencySample(System.currentTimeMillis()
                                 - lastLedgerCreationInitiationTimestamp, TimeUnit.MILLISECONDS);
@@ -1568,15 +1568,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         ManagedLedgerInfo mlInfo = getManagedLedgerInfo(newLedger);
         store.asyncUpdateLedgerIds(name, mlInfo, ledgersStat, callback);
     }
-
-    public synchronized void updateLedgersIdsComplete(Stat stat) {
-        STATE_UPDATER.set(this, State.LedgerOpened);
-        updateLastLedgerCreatedTimeAndScheduleRolloverTask();
-
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Resending {} pending messages", name, pendingAddEntries.size());
-        }
-
+    
+    public void createNewOpAddEntryForNewLedger() {
         // Avoid use same OpAddEntry between different ledger handle
         int pendingSize = pendingAddEntries.size();
         OpAddEntry existsOp;
@@ -1593,7 +1586,18 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 pendingAddEntries.add(existsOp);
             }
         } while (existsOp != null && --pendingSize > 0);
+    }
 
+    private synchronized void updateLedgersIdsComplete() {
+        STATE_UPDATER.set(this, State.LedgerOpened);
+        updateLastLedgerCreatedTimeAndScheduleRolloverTask();
+
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] Resending {} pending messages", name, pendingAddEntries.size());
+        }
+        
+        createNewOpAddEntryForNewLedger();
+        
         // Process all the pending addEntry requests
         for (OpAddEntry op : pendingAddEntries) {
             ++currentLedgerEntries;
