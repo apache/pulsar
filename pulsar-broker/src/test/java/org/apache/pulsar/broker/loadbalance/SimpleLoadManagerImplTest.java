@@ -455,7 +455,7 @@ public class SimpleLoadManagerImplTest {
         task1.run();
         verify(loadManager, times(1)).writeResourceQuotasToZooKeeper();
 
-        LoadSheddingTask task2 = new LoadSheddingTask(atomicLoadManager);
+        LoadSheddingTask task2 = new LoadSheddingTask(atomicLoadManager, null, null);
         task2.run();
         verify(loadManager, times(1)).doLoadShedding();
     }

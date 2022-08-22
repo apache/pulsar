@@ -49,11 +49,15 @@ public class FunctionRecord<T> implements Record<T> {
      * @param <T> type of Record to build
      * @return a Record builder initialised with values from the Function Context
      */
-     public static <T> FunctionRecord.FunctionRecordBuilder<T> from(Context context) {
+    public static <T> FunctionRecord.FunctionRecordBuilder<T> from(Context context, Schema<T> schema) {
+        if (schema == null) {
+            throw new IllegalArgumentException("Schema should not be null.");
+        }
         Record<?> currentRecord = context.getCurrentRecord();
         FunctionRecordBuilder<T> builder = new FunctionRecordBuilder<T>()
-                .destinationTopic(context.getOutputTopic())
-                .properties(currentRecord.getProperties());
+            .schema(schema)
+            .destinationTopic(context.getOutputTopic())
+            .properties(currentRecord.getProperties());
         currentRecord.getTopicName().ifPresent(builder::topicName);
         currentRecord.getKey().ifPresent(builder::key);
         currentRecord.getEventTime().ifPresent(builder::eventTime);
