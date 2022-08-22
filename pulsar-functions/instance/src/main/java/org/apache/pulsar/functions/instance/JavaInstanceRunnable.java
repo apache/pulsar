@@ -728,6 +728,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     convertFromFunctionDetailsSubscriptionPosition(sourceSpec.getSubscriptionPosition())
             );
 
+            pulsarSourceConfig.setSkipToLatest(
+                sourceSpec.getSkipToLatest()
+            );
+
             checkNotNull(contextImpl.getSubscriptionType());
             pulsarSourceConfig.setSubscriptionType(contextImpl.getSubscriptionType());
 
