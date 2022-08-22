@@ -55,6 +55,10 @@
   <profiles>
     <profile>
       <id>docker</id>
+      <properties>
+        <docker.buildArg.PULSAR_TARBALL>target/pulsar-server-distribution-${project.version}-bin.tar.gz</docker.buildArg.PULSAR_TARBALL>
+        <docker.buildArg.UBUNTU_MIRROR>${env.UBUNTU_MIRROR}</docker.buildArg.UBUNTU_MIRROR>
+      </properties>
       <build>
         <plugins>
           <!-- build Python client, copy the wheel file and then build docker image -->
@@ -103,57 +107,71 @@
             </executions>
           </plugin>
           <plugin>
-            <groupId>com.spotify</groupId>
-            <artifactId>dockerfile-maven-plugin</artifactId>
-            <version>${dockerfile-maven.version}</version>
+            <groupId>io.fabric8</groupId>
+            <artifactId>docker-maven-plugin</artifactId>
             <executions>
               <execution>
                 <id>default</id>
+                <phase>package</phase>
                 <goals>
                   <goal>build</goal>
                 </goals>
-              </execution>
-              <execution>
-                <id>add-no-repo-and-version</id>
-                <goals>
-                  <goal>tag</goal>
-                </goals>
                 <configuration>
-                  <repository>pulsar</repository>
-                  <tag>${project.version}</tag>
+                  <images>
+                    <image>
+                      <name>${docker.organization}/pulsar</name>
+                      <build>
+                        <contextDir>${project.basedir}</contextDir>
+                        <tags>
+                          <tag>latest</tag>
+                          <tag>${project.version}</tag>
+                        </tags>
+                      </build>
+                    </image>
+                  </images>
                 </configuration>
               </execution>
               <execution>
-                <id>add-no-repo-and-latest</id>
+                <id>push-latest</id>
                 <goals>
-                  <goal>tag</goal>
-                </goals>
-                <configuration>
-                  <repository>pulsar</repository>
-                  <tag>latest</tag>
-                </configuration>
-              </execution>
-              <execution>
-                <id>tag-and-push-latest</id>
-                <goals>
-                  <goal>tag</goal>
                   <goal>push</goal>
                 </goals>
                 <configuration>
-                  <repository>${docker.organization}/pulsar</repository>
-                  <tag>latest</tag>
+                  <images>
+                    <image>
+                      <name>${docker.organization}/pulsar</name>
+                      <build>
+                        <contextDir>${project.basedir}</contextDir>
+                        <tags>
+                          <tag>latest</tag>
+                        </tags>
+                      </build>
+                    </image>
+                  </images>
+                </configuration>
+              </execution>
+              <execution>
+                <id>add-no-repo</id>
+                <phase>package</phase>
+                <goals>
+                  <goal>build</goal>
+                </goals>
+                <configuration>
+                  <images>
+                    <image>
+                      <name>pulsar</name>
+                      <build>
+                        <contextDir>${project.basedir}</contextDir>
+                        <tags>
+                          <tag>latest</tag>
+                          <tag>${project.version}</tag>
+                        </tags>
+                      </build>
+                    </image>
+                  </images>
                 </configuration>
               </execution>
             </executions>
-            <configuration>
-              <repository>${docker.organization}/pulsar</repository>
-              <pullNewerImage>false</pullNewerImage>
-              <tag>${project.version}</tag>
-              <buildArgs>
-                <PULSAR_TARBALL>target/pulsar-server-distribution-${project.version}-bin.tar.gz</PULSAR_TARBALL>
-                <UBUNTU_MIRROR>${env.UBUNTU_MIRROR}</UBUNTU_MIRROR>
-              </buildArgs>
-            </configuration>
           </plugin>
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
