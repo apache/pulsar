@@ -67,12 +67,9 @@ public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
     }
 
     @Override
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     protected void cleanup() throws Exception {
         internalCleanup();
-        // clear static value
-        ProxyService.REJECTED_CONNECTIONS.clear();
-        ConnectionController.DefaultConnectionController.getConnections().clear();
         proxyService.close();
     }
 
