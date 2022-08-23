@@ -1568,7 +1568,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         ManagedLedgerInfo mlInfo = getManagedLedgerInfo(newLedger);
         store.asyncUpdateLedgerIds(name, mlInfo, ledgersStat, callback);
     }
-    
+
     public void createNewOpAddEntryForNewLedger() {
         // Avoid use same OpAddEntry between different ledger handle
         int pendingSize = pendingAddEntries.size();
@@ -1595,9 +1595,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         if (log.isDebugEnabled()) {
             log.debug("[{}] Resending {} pending messages", name, pendingAddEntries.size());
         }
-        
+
         createNewOpAddEntryForNewLedger();
-        
+
         // Process all the pending addEntry requests
         for (OpAddEntry op : pendingAddEntries) {
             ++currentLedgerEntries;
