@@ -420,7 +420,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         verify(consumer2, times(1)).notifyActiveConsumerChange(same(consumer1));
         verify(consumer2, times(1)).notifyActiveConsumerChange(same(consumer0));
 
-        // 7. Remove last consumer to make active consumer change.  due to
+        // 7. Remove last consumer to make active consumer change.
         pdfc.removeConsumer(consumer2);
         consumers = pdfc.getConsumers();
         assertSame(pdfc.getActiveConsumer().consumerName(), consumer1.consumerName());
