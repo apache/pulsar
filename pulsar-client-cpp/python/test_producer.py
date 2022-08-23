@@ -18,7 +18,7 @@
 # under the License.
 #
 
-from _pulsar import BatchingType
+from pulsar import BatchingType
 import pulsar
 
 
