@@ -444,7 +444,7 @@ All the subscription metrics are labelled with the following labels:
 | pulsar_subscription_total_msg_expired | Gauge | The total number of messages expired on this subscription. |
 | pulsar_subscription_msg_drop_rate | Gauge | The rate of messages dropped on this subscription (message per second). |
 | pulsar_subscription_consumers_count | Gauge | The number of connected consumers on this subscription. |
-| pulsar_subscription_through_filter_msg_count | Counter | The number of messages passes through `EntryFilter`. |
+| pulsar_subscription_filter_processed_msg_count | Counter | The number of messages processed by `EntryFilter`. |
 | pulsar_subscription_filter_accepted_msg_count | Counter | The number of messages accepted by `EntryFilter`. |
 | pulsar_subscription_filter_rejected_msg_count | Counter | The number of messages rejected by `EntryFilter`. |
 | pulsar_subscription_filter_rescheduled_msg_count | Counter | The number of messages rescheduled by `EntryFilter`. |
