@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.bookkeeper.util.ZkUtils;
@@ -120,7 +121,12 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
                             return null;
                         });
                         future.complete(Optional.empty());
-                    } else {
+                    } else if (code == Code.CONNECTIONLOSS) {
+                        // There is the chance that we caused a connection reset by sending or requesting a batch
+                        // that passed the max ZK limit. Retry with the individual operations
+                        executor.schedule(() -> get(path),
+                            100, TimeUnit.MILLISECONDS);
+                    }  else {
                         future.completeExceptionally(getException(code, path));
                     }
                 }, future);
@@ -163,6 +169,11 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
                             future.completeExceptionally(ex);
                             return null;
                         });
+                    } else if (code == Code.CONNECTIONLOSS) {
+                        // There is the chance that we caused a connection reset by sending or requesting a batch
+                        // that passed the max ZK limit. Retry with the individual operations
+                        executor.schedule(() -> getChildrenFromStore(path),
+                            100, TimeUnit.MILLISECONDS);
                     } else {
                         future.completeExceptionally(getException(code, path));
                     }
@@ -187,6 +198,11 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
                         future.complete(true);
                     } else if (code == Code.NONODE) {
                         future.complete(false);
+                    } else if (code == Code.CONNECTIONLOSS) {
+                        // There is the chance that we caused a connection reset by sending or requesting a batch
+                        // that passed the max ZK limit. Retry with the individual operations
+                        executor.schedule(() -> existsFromStore(path),
+                            100, TimeUnit.MILLISECONDS);
                     } else {
                         future.completeExceptionally(getException(code, path));
                     }
@@ -224,6 +240,11 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
                                 } else if (code == Code.NODEEXISTS) {
                                     // We're emulating a request to create node, so the version is invalid
                                     future.completeExceptionally(getException(Code.BADVERSION, path));
+                                } else if (code == Code.CONNECTIONLOSS) {
+                                    // There is the chance that we caused a connection reset by sending or requesting a batch
+                                    // that passed the max ZK limit. Retry with the individual operations
+                                    executor.schedule(() -> storePut(path, value, optExpectedVersion, options),
+                                        100, TimeUnit.MILLISECONDS);
                                 } else {
                                     future.completeExceptionally(getException(code, path));
                                 }
@@ -248,6 +269,11 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
                                             return null;
                                         });
                             }
+                        } else if (code == Code.CONNECTIONLOSS) {
+                            // There is the chance that we caused a connection reset by sending or requesting a batch
+                            // that passed the max ZK limit. Retry with the individual operations
+                            executor.schedule(() -> storePut(path, value, optExpectedVersion, options),
+                                100, TimeUnit.MILLISECONDS);
                         } else {
                             future.completeExceptionally(getException(code, path));
                         }
@@ -273,6 +299,11 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
                     Code code = Code.get(rc);
                     if (code == Code.OK) {
                         future.complete(null);
+                    } else if (code == Code.CONNECTIONLOSS) {
+                        // There is the chance that we caused a connection reset by sending or requesting a batch
+                        // that passed the max ZK limit. Retry with the individual operations
+                        executor.schedule(() -> storeDelete(path, optExpectedVersion),
+                            100, TimeUnit.MILLISECONDS);
                     } else {
                         future.completeExceptionally(getException(code, path));
                     }
