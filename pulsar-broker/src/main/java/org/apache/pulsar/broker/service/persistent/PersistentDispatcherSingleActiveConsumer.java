@@ -332,10 +332,15 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
     }
 
     @Override
-    protected void readMoreEntries(Consumer consumer) {
+    protected synchronized void readMoreEntries(Consumer consumer) {
         // consumer can be null when all consumers are disconnected from broker.
         // so skip reading more entries if currently there is no active consumer.
         if (null == consumer) {
+            return;
+        }
+        if (havePendingRead) {
+            // we cannot read more entries while sending the previous batch
+            // otherwise we could re-read the same entries and send duplicates
             return;
         }
 
@@ -354,17 +359,15 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                 log.debug("[{}-{}] Schedule read of {} messages", name, consumer, messagesToRead);
             }
 
-            synchronized (this) {
-                havePendingRead = true;
-                if (consumer.readCompacted()) {
-                    topic.getCompactedTopic().asyncReadEntriesOrWait(cursor, messagesToRead, isFirstRead,
-                            this, consumer);
-                } else {
-                    ReadEntriesCtx readEntriesCtx =
-                            ReadEntriesCtx.create(consumer, consumer.getConsumerEpoch());
-                    cursor.asyncReadEntriesOrWait(messagesToRead,
-                            bytesToRead, this, readEntriesCtx, topic.getMaxReadPosition());
-                }
+            havePendingRead = true;
+            if (consumer.readCompacted()) {
+                topic.getCompactedTopic().asyncReadEntriesOrWait(cursor, messagesToRead, isFirstRead,
+                        this, consumer);
+            } else {
+                ReadEntriesCtx readEntriesCtx =
+                        ReadEntriesCtx.create(consumer, consumer.getConsumerEpoch());
+                cursor.asyncReadEntriesOrWait(messagesToRead,
+                        bytesToRead, this, readEntriesCtx, topic.getMaxReadPosition());
             }
         } else {
             if (log.isDebugEnabled()) {

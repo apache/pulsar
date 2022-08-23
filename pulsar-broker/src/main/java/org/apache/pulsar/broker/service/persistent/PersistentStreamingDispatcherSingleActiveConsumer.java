@@ -175,14 +175,19 @@ public class PersistentStreamingDispatcherSingleActiveConsumer extends Persisten
     }
 
     @Override
-    protected void readMoreEntries(Consumer consumer) {
+    protected synchronized void readMoreEntries(Consumer consumer) {
         // consumer can be null when all consumers are disconnected from broker.
         // so skip reading more entries if currently there is no active consumer.
         if (null == consumer) {
             return;
         }
+        if (havePendingRead) {
+            // we cannot read more entries while sending the previous batch
+            // otherwise we could re-read the same entries and send duplicates
+            return;
+        }
 
-        if (!havePendingRead && consumer.getAvailablePermits() > 0) {
+        if (consumer.getAvailablePermits() > 0) {
             Pair<Integer, Long> calculateResult = calculateToRead(consumer);
             int messagesToRead = calculateResult.getLeft();
             long bytesToRead = calculateResult.getRight();
