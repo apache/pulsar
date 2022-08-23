@@ -734,12 +734,10 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
                 tenant + "/" + namespace,
                 Sets.newHashSet(CLUSTER_NAME));
 
-        @Cleanup
         Producer<Schemas.PersonOne> p1 = pulsarClient.newProducer(Schema.JSON(Schemas.PersonOne.class))
                 .topic(topic)
                 .create();
 
-        @Cleanup
         Producer<Schemas.PersonThree> p2 = pulsarClient.newProducer(Schema.JSON(Schemas.PersonThree.class))
                 .topic(topic)
                 .create();
@@ -763,6 +761,10 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         List<Long> ledgers = ((BookkeeperSchemaStorage)this.getPulsar().getSchemaStorage())
                 .getSchemaLedgerList(TopicName.get(topic).getSchemaName());
         assertEquals(ledgers.size(), 2);
+
+        // Close producer to avoid reconnect.
+        p1.close();
+        p2.close();
         admin.topics().delete(topic, true, true);
         assertEquals(this.getPulsar().getSchemaRegistryService()
                 .trimDeletedSchemaAndGetList(TopicName.get(topic).getSchemaName()).get().size(), 0);
@@ -795,16 +797,14 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         // persistent, partitioned v1/topic
         admin.topics().createPartitionedTopic(topic2, 1);
 
-        @Cleanup
         Producer<Schemas.PersonOne> p1_1 = pulsarClient.newProducer(Schema.JSON(Schemas.PersonOne.class))
                 .topic(topic1)
                 .create();
 
-        @Cleanup
         Producer<Schemas.PersonThree> p1_2 = pulsarClient.newProducer(Schema.JSON(Schemas.PersonThree.class))
                 .topic(topic1)
                 .create();
-        @Cleanup
+
         Producer<Schemas.PersonThree> p2_1 = pulsarClient.newProducer(Schema.JSON(Schemas.PersonThree.class))
                 .topic(topic2)
                 .create();
@@ -861,6 +861,10 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         assertEquals(this.getPulsar().getSchemaRegistryService()
                 .trimDeletedSchemaAndGetList(TopicName.get(topic2).getSchemaName()).get().size(), 1);
 
+        // Close producer to avoid reconnect.
+        p1_1.close();
+        p1_2.close();
+        p2_1.close();
         // force and delete-schema when delete topic
         admin.topics().delete(topic1, true);
         assertEquals(this.getPulsar().getSchemaRegistryService()
@@ -885,16 +889,13 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         // persistent, partitioned v2/topic
         admin.topics().createPartitionedTopic(topicTwo, 1);
 
-        @Cleanup
         Producer<Schemas.PersonOne> p1_1 = pulsarClient.newProducer(Schema.JSON(Schemas.PersonOne.class))
                 .topic(topicOne)
                 .create();
 
-        @Cleanup
         Producer<Schemas.PersonThree> p1_2 = pulsarClient.newProducer(Schema.JSON(Schemas.PersonThree.class))
                 .topic(topicOne)
                 .create();
-        @Cleanup
         Producer<Schemas.PersonThree> p2_1 = pulsarClient.newProducer(Schema.JSON(Schemas.PersonThree.class))
                 .topic(topicTwo)
                 .create();
@@ -949,6 +950,10 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         assertEquals(this.getPulsar().getSchemaRegistryService()
                 .trimDeletedSchemaAndGetList(TopicName.get(topicTwo).getSchemaName()).get().size(), 1);
 
+        // Close producer to avoid reconnect.
+        p1_1.close();
+        p1_2.close();
+        p2_1.close();
         // force delete topic and will delete schema by default
         admin.topics().delete(topicOne, true);
         assertEquals(this.getPulsar().getSchemaRegistryService()
