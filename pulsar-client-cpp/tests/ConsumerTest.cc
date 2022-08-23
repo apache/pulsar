@@ -829,7 +829,7 @@ TEST_P(ConsumerSeekTest, testSeekForMessageId) {
         }
     }
 
-    LOG_INFO("The seekMessageId is: " << seekMessageId << ",r : " << r);
+    LOG_INFO("The seekMessageId is: " << seekMessageId << ", r : " << r);
 
     Consumer consumerExclusive;
     ASSERT_EQ(ResultOk, client.subscribe(topic, "sub-0", consumerExclusive));
@@ -848,9 +848,8 @@ TEST_P(ConsumerSeekTest, testSeekForMessageId) {
     LOG_INFO("consumerExclusive received " << msg0.getDataAsString() << " from " << msg0.getMessageId());
     LOG_INFO("consumerInclusive received " << msg1.getDataAsString() << " from " << msg1.getMessageId());
 
-    ASSERT_EQ(msg0.getMessageId(), MessageId(seekMessageId.partition(), seekMessageId.ledgerId(),
-                                             seekMessageId.entryId() + 1, seekMessageId.batchIndex()));
-    ASSERT_EQ(msg1.getMessageId(), seekMessageId);
+    ASSERT_EQ(msg0.getDataAsString(), "msg-" + std::to_string(r + 1));
+    ASSERT_EQ(msg1.getDataAsString(), "msg-" + std::to_string(r));
 
     consumerInclusive.close();
     consumerExclusive.close();
