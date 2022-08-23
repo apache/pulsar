@@ -28,6 +28,7 @@ public class PartitionedTopicMetadata {
 
     /* Number of partitions for the topic */
     public int partitions;
+    public boolean deleted;
 
     /* Topic properties */
     public Map<String, String> properties;

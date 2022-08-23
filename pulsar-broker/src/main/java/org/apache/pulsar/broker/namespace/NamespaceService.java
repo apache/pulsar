@@ -1183,7 +1183,15 @@ public class NamespaceService implements AutoCloseable {
 
     public CompletableFuture<Boolean> checkTopicExists(TopicName topic) {
         if (topic.isPersistent()) {
-            return pulsar.getPulsarResources().getTopicResources().persistentTopicExists(topic);
+            if (topic.isPartitioned()) {
+                return pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
+                        .partitionedTopicExistsAsync(TopicName.get(topic.getPartitionedTopicName()))
+                        .thenCompose(exists -> exists
+                                ? pulsar.getPulsarResources().getTopicResources().persistentTopicExists(topic)
+                                : CompletableFuture.completedFuture(false));
+            } else {
+                return pulsar.getPulsarResources().getTopicResources().persistentTopicExists(topic);
+            }
         } else {
             if (topic.isPartitioned()) {
                 final TopicName partitionedTopicName = TopicName.get(topic.getPartitionedTopicName());
