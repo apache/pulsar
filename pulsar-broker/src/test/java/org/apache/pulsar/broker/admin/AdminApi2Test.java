@@ -888,6 +888,76 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testUpdatePartitionedTopicProperties() throws Exception {
+        final String namespace = "prop-xyz/ns2";
+        final String topicName = "persistent://" + namespace + "/testUpdatePartitionedTopicProperties";
+        admin.namespaces().createNamespace(namespace, 20);
+
+        // create partitioned topic with properties
+        Map<String, String> topicProperties = new HashMap<>();
+        topicProperties.put("key1", "value1");
+        admin.topics().createPartitionedTopic(topicName, 2, topicProperties);
+        Map<String, String> properties = admin.topics().getProperties(topicName);
+        Assert.assertNotNull(properties);
+        Assert.assertEquals(properties.get("key1"), "value1");
+
+        // update with new key, old properties should keep
+        topicProperties = new HashMap<>();
+        topicProperties.put("key2", "value2");
+        admin.topics().updateProperties(topicName, topicProperties);
+        properties = admin.topics().getProperties(topicName);
+        Assert.assertNotNull(properties);
+        Assert.assertEquals(properties.size(), 2);
+        Assert.assertEquals(properties.get("key1"), "value1");
+        Assert.assertEquals(properties.get("key2"), "value2");
+
+        // override old values
+        topicProperties = new HashMap<>();
+        topicProperties.put("key1", "value11");
+        admin.topics().updateProperties(topicName, topicProperties);
+        properties = admin.topics().getProperties(topicName);
+        Assert.assertNotNull(properties);
+        Assert.assertEquals(properties.size(), 2);
+        Assert.assertEquals(properties.get("key1"), "value11");
+        Assert.assertEquals(properties.get("key2"), "value2");
+    }
+
+    @Test
+    public void testUpdateNonPartitionedTopicProperties() throws Exception {
+        final String namespace = "prop-xyz/ns2";
+        final String topicName = "persistent://" + namespace + "/testUpdateNonPartitionedTopicProperties";
+        admin.namespaces().createNamespace(namespace, 20);
+
+        // create non-partitioned topic with properties
+        Map<String, String> topicProperties = new HashMap<>();
+        topicProperties.put("key1", "value1");
+        admin.topics().createNonPartitionedTopic(topicName, topicProperties);
+        Map<String, String> properties = admin.topics().getProperties(topicName);
+        Assert.assertNotNull(properties);
+        Assert.assertEquals(properties.get("key1"), "value1");
+
+        // update with new key, old properties should keep
+        topicProperties = new HashMap<>();
+        topicProperties.put("key2", "value2");
+        admin.topics().updateProperties(topicName, topicProperties);
+        properties = admin.topics().getProperties(topicName);
+        Assert.assertNotNull(properties);
+        Assert.assertEquals(properties.size(), 2);
+        Assert.assertEquals(properties.get("key1"), "value1");
+        Assert.assertEquals(properties.get("key2"), "value2");
+
+        // override old values
+        topicProperties = new HashMap<>();
+        topicProperties.put("key1", "value11");
+        admin.topics().updateProperties(topicName, topicProperties);
+        properties = admin.topics().getProperties(topicName);
+        Assert.assertNotNull(properties);
+        Assert.assertEquals(properties.size(), 2);
+        Assert.assertEquals(properties.get("key1"), "value11");
+        Assert.assertEquals(properties.get("key2"), "value2");
+    }
+
+    @Test
     public void testNonPersistentTopics() throws Exception {
         final String namespace = "prop-xyz/ns2";
         final String topicName = "non-persistent://" + namespace + "/topic";
