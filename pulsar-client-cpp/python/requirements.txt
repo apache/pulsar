@@ -1,0 +1,3 @@
+certifi==2022.6.15
+fastavro==1.5.4
+setuptools==60.2.0
