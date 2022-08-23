@@ -1088,6 +1088,13 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                     consumerStats.keyHashRanges = consumerKeyHashRanges.get(consumer).stream()
                             .map(Range::toString)
                             .collect(Collectors.toList());
+                    long sameNameConsumerCount = consumerKeyHashRanges.keySet()
+                            .stream()
+                            .filter(c -> c.consumerName().equals(consumer.consumerName()))
+                            .count();
+                    if (sameNameConsumerCount > 1) {
+                        consumerStats.keyHashRangeIndex = (int) (consumer.consumerId() % sameNameConsumerCount);
+                    }
                 }
             });
 

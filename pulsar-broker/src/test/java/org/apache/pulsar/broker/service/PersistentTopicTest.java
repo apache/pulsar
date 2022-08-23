@@ -2264,6 +2264,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         PersistentSubscription sub1 = new PersistentSubscription(topic, "key-shared-stats1", cursorMock, false);
         PersistentSubscription sub2 = new PersistentSubscription(topic, "key-shared-stats2", cursorMock, false);
         PersistentSubscription sub3 = new PersistentSubscription(topic, "key-shared-stats3", cursorMock, false);
+        PersistentSubscription sub4 = new PersistentSubscription(topic, "key-shared-stats4", cursorMock, false);
 
         Consumer consumer1 = new Consumer(sub1, SubType.Key_Shared, topic.getName(), 1, 0, "Cons1", true, serverCnx,
                 "myrole-1", Collections.emptyMap(), false,
@@ -2298,6 +2299,18 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         SubscriptionStatsImpl stats3 = sub3.getStats(false, false, false);
         assertEquals(stats3.keySharedMode, "STICKY");
         assertFalse(stats3.allowOutOfOrderDelivery);
+
+        KeySharedMeta ksm4 =  new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT).setAllowOutOfOrderDelivery(false);
+        Consumer consumer4 = new Consumer(sub4, SubType.Key_Shared, topic.getName(), 4, 0, "Cons4", true, serverCnx,
+                "myrole-1", Collections.emptyMap(), false, ksm4, MessageId.latest, DEFAULT_CONSUMER_EPOCH);
+        sub4.addConsumer(consumer4);
+        Consumer consumer5 = new Consumer(sub4, SubType.Key_Shared, topic.getName(), 5, 0, "Cons4", true, serverCnx,
+                "myrole-1", Collections.emptyMap(), false, ksm4, MessageId.latest, DEFAULT_CONSUMER_EPOCH);
+        sub4.addConsumer(consumer5);
+        SubscriptionStatsImpl stats4 = sub4.getStats(false, false, false);
+        assertEquals(stats4.getConsumers().size(), 2);
+        assertEquals(stats4.getConsumers().get(0).keyHashRangeIndex, Integer.valueOf(0));
+        assertEquals(stats4.getConsumers().get(1).keyHashRangeIndex, Integer.valueOf(1));
     }
 
     private ByteBuf getMessageWithMetadata(byte[] data) {

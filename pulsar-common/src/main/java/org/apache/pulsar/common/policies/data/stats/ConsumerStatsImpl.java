@@ -103,6 +103,9 @@ public class ConsumerStatsImpl implements ConsumerStats {
     /** Hash ranges assigned to this consumer if is Key_Shared sub mode. **/
     public List<String> keyHashRanges;
 
+    /** Hash range index if is Key_Shared sub mode. **/
+    public Integer keyHashRangeIndex;
+
     /** Metadata (key/value strings) associated with this consumer. */
     public Map<String, String> metadata;
 
