@@ -160,27 +160,6 @@ Check out the Javadoc for the {@inject: javadoc:PulsarClient:/client/org/apache/
 
 > In addition to client-level configuration, you can also apply [producer](#configure-producer) and [consumer](#configure-consumer) specific configuration as described in sections below.
 
-### Client memory allocator configuration
-You can set the client memory allocator configurations through Java properties.<br />
-
-| Property | Type |  <div>Description</div> | Default | Available values
-|---|---|---|---|---
-`pulsar.allocator.pooled` | String | If set to `true`, the client uses a direct memory pool. <br /> If set to `false`, the client uses a heap memory without pool | true | <li> true </li> <li> false </li> 
-`pulsar.allocator.exit_on_oom` | String | Whether to exit the JVM when OOM happens | false |  <li> true </li> <li> false </li>
-`pulsar.allocator.leak_detection` | String | Service URL provider for Pulsar service | Disabled | <li> Disabled </li> <li> Simple </li> <li> Advanced </li> <li> Paranoid </li>
-`pulsar.allocator.out_of_memory_policy` | String | When an OOM occurs, the client throws an exception or fallbacks to heap | FallbackToHeap | <li> ThrowException </li> <li> FallbackToHeap </li>
-
-**Example**:
-
-```
-
--Dpulsar.allocator.pooled=true
--Dpulsar.allocator.exit_on_oom=false
--Dpulsar.allocator.leak_detection=Disabled
--Dpulsar.allocator.out_of_memory_policy=ThrowException
-
-```
-
 ### Cluster-level failover
 
 This chapter describes the concept, benefits, use cases, constraints, usage, working principles, and more information about the cluster-level failover. It contains the following sections:

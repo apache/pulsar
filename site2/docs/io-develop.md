@@ -70,7 +70,7 @@ interface, which means you need to implement the {@inject: github:open:/pulsar-i
    
    ```
 
-   If nothing to return, the implementation should be blocking rather than returning `null`. 
+   If there is nothing to return, the implementation should be blocking rather than returning `null`.
 
    The returned {@inject: github:Record:/pulsar-functions/api-java/src/main/java/org/apache/pulsar/functions/api/Record.java} should encapsulate the following information, which is needed by Pulsar IO runtime. 
 
@@ -95,10 +95,10 @@ interface, which means you need to implement the {@inject: github:open:/pulsar-i
        `ack` |Acknowledge that the record is fully processed.
        `fail`|Indicate that the record fails to be processed.
 
-## Handle schema information
+#### Handle schema information
 
 Pulsar IO automatically handles the schema and provides a strongly typed API based on Java generics.
-If you know the schema type that you are producing, you can declare the Java class relative to that type in your sink declaration.
+If you know the schema type that you are producing, you can declare the Java class relative to that type in your source declaration.
 
 ```
 
@@ -136,8 +136,8 @@ To handle the `KeyValue` type properly, follow the guidelines for your record im
 - It must return a `KeyValue` object as `Record.getValue()`
 - It may return null in `Record.getSchema()`
 
-When Pulsar IO runtime encounters a `KVRecord`, it brings the following changes automatically:
-- Set properly the `KeyValueSchema`
+When Pulsar IO runtime encounters a `KVRecord`, it does the following changes automatically:
+- Set the proper `KeyValueSchema`
 - Encode the Message Key and the Message Value according to the `KeyValueEncoding` (SEPARATED or INLINE)
 
 :::tip
@@ -179,14 +179,14 @@ Developing a sink connector **is similar to** developing a source connector, tha
    ```
 
    During the implementation, you can decide how to write the `Value` and
-   the `Key` to the actual source, and leverage all the provided information such as
+   the `Key` to the actual sink, and leverage all the provided information such as
    `PartitionId` and `RecordSequence` to achieve different processing guarantees. 
 
    You also need to ack records (if messages are sent successfully) or fail records (if messages fail to send). 
 
-## Handling Schema information
+#### Handle schema information
 
-Pulsar IO handles automatically the Schema and provides a strongly typed API based on Java generics.
+Pulsar IO automatically handles the Schema and provides a strongly typed API based on Java generics.
 If you know the Schema type that you are consuming from you can declare the Java class relative to that type in your Sink declaration.
 
 ```
@@ -282,11 +282,11 @@ work with Pulsar Functions' runtime, that is, [NAR](#nar) and [uber JAR](#uber-j
 :::note
 
 If you plan to package and distribute your connector for others to use, you are obligated to
+license and copyright your own code properly. Remember to add the license and copyright to
+all libraries your code uses and to your distribution.
 
 :::
 
-license and copyright your own code properly. Remember to add the license and copyright to
-all libraries your code uses and to your distribution. 
 >
 > If you use the [NAR](#nar) method, the NAR plugin 
 automatically creates a `DEPENDENCIES` file in the generated NAR package, including the proper

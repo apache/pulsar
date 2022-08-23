@@ -4,7 +4,9 @@ title: Configure thread runtime
 sidebar_label: "Configure thread runtime"
 ---
 
-You can use the default configurations of thread runtime in the `conf/functions_worker.yml` file. If you want to customize parameters, such as thread group name, refer to the following example.
+You can use the default configurations of thread runtime in the `conf/functions_worker.yml` file. 
+
+If you want to customize more parameters, such as thread group name, refer to the following example.
 
 ```yaml
 
@@ -32,3 +34,5 @@ functionRuntimeFactoryConfigs:
 If `absoluteValue` and `percentOfMaxDirectMemory` are both set, the smaller value is used.
 
 :::
+
+For more details, see [code](https://github.com/apache/pulsar/blob/master/pulsar-functions/runtime/src/main/java/org/apache/pulsar/functions/runtime/thread/ThreadRuntimeFactoryConfig.java).
