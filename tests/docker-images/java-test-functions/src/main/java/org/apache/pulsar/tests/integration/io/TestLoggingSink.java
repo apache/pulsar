@@ -22,6 +22,7 @@ import java.util.Map;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericObject;
+import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
@@ -44,14 +45,26 @@ public class TestLoggingSink implements Sink<GenericObject> {
     @Override
     public void write(Record<GenericObject> record) throws Exception {
         Object nativeObject = record.getValue().getNativeObject();
-        logger.info("Got message: " + nativeObject);
-        if (nativeObject instanceof String) {
-            logger.info("Got message: " + nativeObject);
-            producer.newMessage()
-                .properties(record.getProperties())
-                .value((String) nativeObject)
-                .send();
+        logger.info("Got message: " + nativeObject + " with schema" + record.getSchema());
+        String payload = nativeObject.toString();
+        if (nativeObject instanceof KeyValue) {
+            KeyValue kv = (KeyValue) nativeObject;
+            String key = kv.getKey().toString();
+            String value = kv.getValue().toString();
+
+            if (kv.getKey() instanceof GenericObject) {
+                key = ((GenericObject) kv.getKey()).getNativeObject().toString();
+            }
+            if (kv.getValue() instanceof GenericObject) {
+                value = ((GenericObject) kv.getValue()).getNativeObject().toString();
+            }
+            payload = "(key = " + key + ", value = " + value + ")";
         }
+        producer.newMessage()
+            .properties(record.getProperties())
+            .value(record.getSchema().getSchemaInfo().getType().name() + " - " + payload)
+            .send();
+        record.ack();
     }
 
     @Override

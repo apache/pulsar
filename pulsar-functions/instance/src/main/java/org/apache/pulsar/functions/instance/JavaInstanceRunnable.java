@@ -47,11 +47,13 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericObject;
+import org.apache.pulsar.client.api.schema.KeyValueSchema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
+import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
 import org.apache.pulsar.client.impl.schema.ProtobufNativeSchema;
 import org.apache.pulsar.client.impl.schema.ProtobufSchema;
 import org.apache.pulsar.common.functions.ConsumerConfig;
@@ -59,6 +61,7 @@ import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.KeyValue;
+import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.Reflections;
@@ -416,7 +419,18 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             if (sinkSchemaInfoProvider != null) {
                 // Function and Sink coupled together so we need to encode with the Function Schema
                 // and decode with the Sink schema
-                byte[] encoded = record.getSchema().encode(record.getValue());
+                Schema encodingSchema = record.getSchema();
+                boolean isKeyValueSeparated = false;
+                if (encodingSchema instanceof KeyValueSchema) {
+                    KeyValueSchema<?, ?> kvSchema = (KeyValueSchema<?, ?>) encodingSchema;
+                    // If the encoding is SEPARATED, it's easier to encode/decode with INLINE
+                    // and rebuild the SEPARATED KeyValueSchema after decoding
+                    if (kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
+                        encodingSchema = KeyValueSchemaImpl.of(kvSchema.getKeySchema(), kvSchema.getValueSchema());
+                        isKeyValueSeparated = true;
+                    }
+                }
+                byte[] encoded = encodingSchema.encode(record.getValue());
 
                 if (sinkSchema.get() == null) {
                     Schema<?> schema = getSinkSchema(record, sinkTypeArg);
@@ -424,9 +438,22 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     sinkSchema.compareAndSet(null, schema);
                 }
                 Schema<?> schema = sinkSchema.get();
-                SchemaVersion schemaVersion = sinkSchemaInfoProvider.getSchemaVersion(record);
+                SchemaVersion schemaVersion = sinkSchemaInfoProvider.getSchemaVersion(encodingSchema);
                 final byte[] schemaVersionBytes = schemaVersion.bytes();
                 Object decoded = schema.decode(encoded, schemaVersionBytes);
+
+                if (schema instanceof AutoConsumeSchema) {
+                    schema = ((AutoConsumeSchema) schema).getInternalSchema(schemaVersionBytes);
+                }
+
+                final Schema<?> finalSchema;
+                if (isKeyValueSeparated && schema instanceof KeyValueSchema) {
+                    KeyValueSchema<?, ?> kvSchema = (KeyValueSchema<?, ?>) schema;
+                    finalSchema = KeyValueSchemaImpl.of(kvSchema.getKeySchema(), kvSchema.getValueSchema(),
+                        KeyValueEncodingType.SEPARATED);
+                } else {
+                    finalSchema = schema;
+                }
 
                 sinkRecord = new OutputRecordSinkRecord<>(srcRecord, record) {
                     @Override
@@ -436,9 +463,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
                     @Override
                     public Schema getSchema() {
-                        return schema instanceof AutoConsumeSchema
-                            ? ((AutoConsumeSchema) schema).getInternalSchema(schemaVersionBytes)
-                            : schema;
+                        return finalSchema;
                     }
                 };
             } else {

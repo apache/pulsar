@@ -32,6 +32,9 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.schema.KeyValue;
+import org.apache.pulsar.common.schema.KeyValueEncodingType;
+import org.apache.pulsar.functions.api.examples.pojo.Users;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.apache.pulsar.tests.integration.containers.StandaloneContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecException;
@@ -79,9 +82,10 @@ public class SinkWithPreprocessingFunctionTest extends PulsarStandaloneTestSuite
 
         final int numRecords = 10;
 
-        String sinkName = "sink-with-preprocessing-function";
-        String topicName = "test-sink-with-preprocessing-function";
-        String packageName = "function://public/default/test-function@1.0";
+        String sinkName = "sink-with-function";
+        String topicName = "sink-with-function";
+        String logTopicName = "log-sink-with-function";
+        String packageName = "function://public/default/sink-with-function-function@1.0";
 
         submitPackage(packageName, "package-function", JAVAJAR);
 
@@ -90,7 +94,7 @@ public class SinkWithPreprocessingFunctionTest extends PulsarStandaloneTestSuite
                 topicName,
                 "org.apache.pulsar.tests.integration.io.TestLoggingSink",
                 JAVAJAR,
-                "{\"log-topic\": \"log\"}",
+                "{\"log-topic\": \"" + logTopicName + "\"}",
                 packageName,
                 "org.apache.pulsar.functions.api.examples.RecordFunction");
 
@@ -102,7 +106,7 @@ public class SinkWithPreprocessingFunctionTest extends PulsarStandaloneTestSuite
                     .create();
 
         @Cleanup Consumer<String> consumer = client.newConsumer(Schema.STRING)
-                .topic("log")
+                .topic(logTopicName)
                 .subscriptionName("sub")
                 .subscribe();
 
@@ -116,7 +120,7 @@ public class SinkWithPreprocessingFunctionTest extends PulsarStandaloneTestSuite
             for (int i = 0; i < numRecords; i++) {
                 Message<String> receive = consumer.receive(5, TimeUnit.SECONDS);
                 assertNotNull(receive);
-                assertEquals(receive.getValue(), i + "-test!");
+                assertEquals(receive.getValue(), "STRING - " + i + "-test!");
             }
         } finally {
             dumpFunctionLogs(sinkName);
@@ -125,6 +129,148 @@ public class SinkWithPreprocessingFunctionTest extends PulsarStandaloneTestSuite
         deleteSink(sinkName);
         getSinkInfoNotFound(sinkName);
     }
+
+    @Test(groups = {"sink"})
+    public void testGenericObjectSinkWithPreprocessingFunction() throws Exception {
+
+        @Cleanup PulsarClient client = PulsarClient.builder()
+            .serviceUrl(container.getPlainTextServiceUrl())
+            .build();
+
+        final int numRecords = 10;
+
+        String sinkName = "sink-with-genericobject-function";
+        String topicName = "sink-with-genericobject-function";
+        String logTopicName = "log-sink-with-genericobject-function";
+        String packageName = "function://public/default/sink-with-genericobject-function-function@1.0";
+
+        submitPackage(packageName, "package-function", JAVAJAR);
+
+        submitSinkConnector(
+            sinkName,
+            topicName,
+            "org.apache.pulsar.tests.integration.io.TestLoggingSink",
+            JAVAJAR,
+            "{\"log-topic\": \"" + logTopicName + "\"}",
+            packageName,
+            "org.apache.pulsar.tests.integration.functions.RemoveAvroFieldRecordFunction");
+
+        getSinkInfoSuccess(sinkName);
+        getSinkStatus(sinkName);
+
+        try {
+            @Cleanup Consumer<String> consumer = client.newConsumer(Schema.STRING)
+                .topic(logTopicName)
+                .subscriptionName("sub")
+                .subscribe();
+
+            @Cleanup Producer<Users.UserV1> producer1 = client.newProducer(Schema.AVRO(Users.UserV1.class))
+                .topic(topicName)
+                .create();
+
+            for (int i = 0; i < numRecords; i++) {
+                producer1.send(new Users.UserV1("foo" + i, i));
+            }
+
+            for (int i = 0; i < numRecords; i++) {
+                Message<String> receive = consumer.receive(5, TimeUnit.SECONDS);
+                assertNotNull(receive);
+                assertEquals(receive.getValue(), "AVRO - {\"name\": \"foo" + i + "\"}");
+            }
+
+            // Test with schema evolution
+            @Cleanup Producer<Users.UserV2> producer2 = client.newProducer(Schema.AVRO(Users.UserV2.class))
+                .topic(topicName)
+                .create();
+
+            for (int i = 0; i < numRecords; i++) {
+                producer2.send(new Users.UserV2("foo" + i, i, "bar" + i));
+            }
+
+            for (int i = 0; i < numRecords; i++) {
+                Message<String> receive = consumer.receive(5, TimeUnit.SECONDS);
+                assertNotNull(receive);
+                assertEquals(receive.getValue(), "AVRO - {\"name\": \"foo" + i + "\", \"phone\": \"bar"+ i + "\"}");
+            }
+
+            for (int i = 0; i < numRecords; i++) {
+                producer1.send(new Users.UserV1("foo" + i, i));
+            }
+
+            for (int i = 0; i < numRecords; i++) {
+                Message<String> receive = consumer.receive(5, TimeUnit.SECONDS);
+                assertNotNull(receive);
+                assertEquals(receive.getValue(), "AVRO - {\"name\": \"foo" + i + "\"}");
+            }
+        } finally {
+            dumpFunctionLogs(sinkName);
+        }
+
+        deleteSink(sinkName);
+        getSinkInfoNotFound(sinkName);
+    }
+
+    @Test(groups = {"sink"})
+    public void testKeyValueSinkWithPreprocessingFunction() throws Exception {
+
+        @Cleanup PulsarClient client = PulsarClient.builder()
+            .serviceUrl(container.getPlainTextServiceUrl())
+            .build();
+
+        final int numRecords = 10;
+
+        String sinkName = "sink-with-kv-function";
+        String topicName = "sink-with-kv-function";
+        String logTopicName = "log-sink-with-kv-function";
+        String packageName = "function://public/default/sink-with-kv-function-function@1.0";
+
+        submitPackage(packageName, "package-function", JAVAJAR);
+
+        submitSinkConnector(
+            sinkName,
+            topicName,
+            "org.apache.pulsar.tests.integration.io.TestLoggingSink",
+            JAVAJAR,
+            "{\"log-topic\": \"" + logTopicName + "\"}",
+            packageName,
+            "org.apache.pulsar.tests.integration.functions.RemoveAvroFieldRecordFunction");
+
+        getSinkInfoSuccess(sinkName);
+        getSinkStatus(sinkName);
+
+        try {
+            @Cleanup Consumer<String> consumer = client.newConsumer(Schema.STRING)
+                .topic(logTopicName)
+                .subscriptionName("sub")
+                .subscribe();
+
+            @Cleanup Producer<KeyValue<Users.UserV1, Users.UserV1>> producer = client
+                .newProducer(Schema.KeyValue(
+                    Schema.AVRO(Users.UserV1.class),
+                    Schema.AVRO(Users.UserV1.class), KeyValueEncodingType.SEPARATED))
+                .topic(topicName)
+                .create();
+
+            for (int i = 0; i < numRecords; i++) {
+                producer.send(new KeyValue<>(new Users.UserV1("foo" + i, i),
+                    new Users.UserV1("bar" + i, i + 100)));
+            }
+
+            for (int i = 0; i < numRecords; i++) {
+                Message<String> receive = consumer.receive(5, TimeUnit.SECONDS);
+                assertNotNull(receive);
+                assertEquals(receive.getValue(), "KEY_VALUE - (key = {\"age\": " + i
+                    + ", \"name\": \"foo" + i + "\"}, value = "
+                    + "{\"name\": \"bar" + i + "\"})");
+            }
+        } finally {
+            dumpFunctionLogs(sinkName);
+        }
+
+        deleteSink(sinkName);
+        getSinkInfoNotFound(sinkName);
+    }
+
 
     private void submitPackage(String packageName, String description, String packagePath) throws Exception {
         String[] commands = {
