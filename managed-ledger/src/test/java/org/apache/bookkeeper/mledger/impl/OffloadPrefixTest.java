@@ -765,6 +765,46 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    public void testOffloadCompletionFailed() throws Exception {
+        MockLedgerOffloader offloader = new MockLedgerOffloader();
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(10);
+        config.setRetentionTime(10, TimeUnit.MINUTES);
+        config.setRetentionSizeInMB(10);
+        config.setLedgerOffloader(offloader);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl)factory.open("my_test_ledger", config);
+
+        for (int i = 0; i < 25; i++) {
+            ledger.addEntry(buildEntry(10, "entry-" + i));
+        }
+
+        final long failedLedgerId = ledger.getLedgersInfoAsList().get(1).getLedgerId();
+
+        ledger.setInjection(new ManagedLedgerImpl.Injection() {
+            @Override
+            public void throwException(long ledgerId) throws CompletionException {
+                log.info("Trying to throw exceptions {}", ledgerId);
+                if (ledgerId == failedLedgerId) {
+                    throw new CompletionException(new Exception("inject exception"));
+                }
+            }
+        });
+        try {
+            ledger.offloadPrefix(ledger.getLastConfirmedEntry());
+        } catch (Exception e) {
+            if (!e.getCause().getCause().getMessage().equals("inject exception")) {
+                throw e;
+            }
+        }
+        assertFalse(ledger.isRefreshedIfOffloadCompleteFailed());
+        assertTrue(ledger.isLastOffloadCompleteFailed());
+        ledger.setInjection(null);
+        ledger.offloadPrefix(ledger.getLastConfirmedEntry());
+        assertTrue(ledger.isRefreshedIfOffloadCompleteFailed());
+        assertTrue(ledger.isLastOffloadCompleteFailed());
+    }
+
+    @Test
     public void manualTriggerWhileAutoInProgress() throws Exception {
         CompletableFuture<Void> slowOffload = new CompletableFuture<>();
         CountDownLatch offloadRunning = new CountDownLatch(1);
