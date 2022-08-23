@@ -839,10 +839,6 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
             assertNotNull(schema);
         }
 
-        // Close producer to avoid reconnect.
-        p1_1.close();
-        p1_2.close();
-        p2_1.close();
         // not-force delete topic
         try {
             admin.topics().delete(topic1, false);
@@ -865,6 +861,10 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         assertEquals(this.getPulsar().getSchemaRegistryService()
                 .trimDeletedSchemaAndGetList(TopicName.get(topic2).getSchemaName()).get().size(), 1);
 
+        // Close producer to avoid reconnect.
+        p1_1.close();
+        p1_2.close();
+        p2_1.close();
         // force and delete-schema when delete topic
         admin.topics().delete(topic1, true);
         assertEquals(this.getPulsar().getSchemaRegistryService()
@@ -932,10 +932,6 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
             assertNotNull(schema);
         }
 
-        // Close producer to avoid reconnect.
-        p1_1.close();
-        p1_2.close();
-        p2_1.close();
         // not force delete topic and will fail because it has active producers or subscriptions
         try {
             admin.topics().delete(topicOne, false);
@@ -954,6 +950,10 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         assertEquals(this.getPulsar().getSchemaRegistryService()
                 .trimDeletedSchemaAndGetList(TopicName.get(topicTwo).getSchemaName()).get().size(), 1);
 
+        // Close producer to avoid reconnect.
+        p1_1.close();
+        p1_2.close();
+        p2_1.close();
         // force delete topic and will delete schema by default
         admin.topics().delete(topicOne, true);
         assertEquals(this.getPulsar().getSchemaRegistryService()
