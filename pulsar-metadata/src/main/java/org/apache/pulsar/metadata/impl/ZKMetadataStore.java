@@ -95,7 +95,11 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
     @Override
     public CompletableFuture<Optional<GetResult>> get(String path) {
         CompletableFuture<Optional<GetResult>> future = new CompletableFuture<>();
+        getInternal(path, future);
+        return future;
+    }
 
+    private void getInternal(String path, CompletableFuture<Optional<GetResult>> future) {
         try {
             zkc.getData(path, this, (rc, path1, ctx, data, stat) -> {
                 execute(() -> {
@@ -124,7 +128,8 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
                     } else if (code == Code.CONNECTIONLOSS) {
                         // There is the chance that we caused a connection reset by sending or requesting a batch
                         // that passed the max ZK limit. Retry with the individual operations
-                        executor.schedule(() -> get(path),
+                        log.warn("Zookeeper connection loss, get {}, retry after 100ms", path);
+                        executor.schedule(() -> getInternal(path, future),
                             100, TimeUnit.MILLISECONDS);
                     }  else {
                         future.completeExceptionally(getException(code, path));
@@ -134,14 +139,16 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
         } catch (Throwable t) {
             future.completeExceptionally(new MetadataStoreException(t));
         }
-
-        return future;
     }
 
     @Override
     public CompletableFuture<List<String>> getChildrenFromStore(String path) {
         CompletableFuture<List<String>> future = new CompletableFuture<>();
+        getChildrenFromStoreInternal(path, future);
+        return future;
+    }
 
+    private void getChildrenFromStoreInternal(String path, CompletableFuture<List<String>> future) {
         try {
             zkc.getChildren(path, this, (rc, path1, ctx, children) -> {
                 execute(() -> {
@@ -172,7 +179,7 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
                     } else if (code == Code.CONNECTIONLOSS) {
                         // There is the chance that we caused a connection reset by sending or requesting a batch
                         // that passed the max ZK limit. Retry with the individual operations
-                        executor.schedule(() -> getChildrenFromStore(path),
+                        executor.schedule(() -> getChildrenFromStoreInternal(path, future),
                             100, TimeUnit.MILLISECONDS);
                     } else {
                         future.completeExceptionally(getException(code, path));
@@ -182,14 +189,16 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
         } catch (Throwable t) {
             future.completeExceptionally(new MetadataStoreException(t));
         }
-
-        return future;
     }
 
     @Override
     public CompletableFuture<Boolean> existsFromStore(String path) {
         CompletableFuture<Boolean> future = new CompletableFuture<>();
+        existsFromStoreInternal(path, future);
+        return future;
+    }
 
+    private void existsFromStoreInternal(String path, CompletableFuture<Boolean> future) {
         try {
             zkc.exists(path, this, (rc, path1, ctx, stat) -> {
                 execute(() -> {
@@ -201,7 +210,8 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
                     } else if (code == Code.CONNECTIONLOSS) {
                         // There is the chance that we caused a connection reset by sending or requesting a batch
                         // that passed the max ZK limit. Retry with the individual operations
-                        executor.schedule(() -> existsFromStore(path),
+                        log.warn("Zookeeper connection loss, existsFromStore {}, retry after 100ms", path);
+                        executor.schedule(() -> existsFromStoreInternal(path, future),
                             100, TimeUnit.MILLISECONDS);
                     } else {
                         future.completeExceptionally(getException(code, path));
@@ -211,8 +221,6 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
         } catch (Throwable t) {
             future.completeExceptionally(new MetadataStoreException(t));
         }
-
-        return future;
     }
 
     @Override
@@ -222,11 +230,16 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
 
     @Override
     public CompletableFuture<Stat> storePut(String path, byte[] value, Optional<Long> optExpectedVersion,
-            EnumSet<CreateOption> options) {
+                                            EnumSet<CreateOption> options) {
+        CompletableFuture<Stat> future = new CompletableFuture<>();
+        storePutInternal(path, value, optExpectedVersion, options, future);
+        return future;
+    }
+
+    private void storePutInternal(String path, byte[] value, Optional<Long> optExpectedVersion,
+            EnumSet<CreateOption> options, CompletableFuture<Stat> future) {
         boolean hasVersion = optExpectedVersion.isPresent();
         int expectedVersion = optExpectedVersion.orElse(-1L).intValue();
-
-        CompletableFuture<Stat> future = new CompletableFuture<>();
 
         try {
             if (hasVersion && expectedVersion == -1) {
@@ -243,7 +256,9 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
                                 } else if (code == Code.CONNECTIONLOSS) {
                                     // There is the chance that we caused a connection reset by sending or requesting a batch
                                     // that passed the max ZK limit. Retry with the individual operations
-                                    executor.schedule(() -> storePut(path, value, optExpectedVersion, options),
+                                    log.warn("Zookeeper connection loss, storePut {}, retry after 100ms", path);
+                                    executor.schedule(() ->
+                                            storePutInternal(path, value, optExpectedVersion, options, future),
                                         100, TimeUnit.MILLISECONDS);
                                 } else {
                                     future.completeExceptionally(getException(code, path));
@@ -272,7 +287,8 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
                         } else if (code == Code.CONNECTIONLOSS) {
                             // There is the chance that we caused a connection reset by sending or requesting a batch
                             // that passed the max ZK limit. Retry with the individual operations
-                            executor.schedule(() -> storePut(path, value, optExpectedVersion, options),
+                            log.warn("Zookeeper connection loss, storePut {}, retry after 100ms", path);
+                            executor.schedule(() -> storePutInternal(path, value, optExpectedVersion, options, future),
                                 100, TimeUnit.MILLISECONDS);
                         } else {
                             future.completeExceptionally(getException(code, path));
@@ -283,15 +299,18 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
         } catch (Throwable t) {
             future.completeExceptionally(new MetadataStoreException(t));
         }
-
-        return future;
     }
 
     @Override
     public CompletableFuture<Void> storeDelete(String path, Optional<Long> optExpectedVersion) {
-        int expectedVersion = optExpectedVersion.orElse(-1L).intValue();
-
         CompletableFuture<Void> future = new CompletableFuture<>();
+        storeDeleteInternal(path, optExpectedVersion, future);
+        return future;
+    }
+
+    public void storeDeleteInternal(String path, Optional<Long> optExpectedVersion,
+                                                       CompletableFuture<Void> future) {
+        int expectedVersion = optExpectedVersion.orElse(-1L).intValue();
 
         try {
             zkc.delete(path, expectedVersion, (rc, path1, ctx) -> {
@@ -302,7 +321,8 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
                     } else if (code == Code.CONNECTIONLOSS) {
                         // There is the chance that we caused a connection reset by sending or requesting a batch
                         // that passed the max ZK limit. Retry with the individual operations
-                        executor.schedule(() -> storeDelete(path, optExpectedVersion),
+                        log.warn("Zookeeper connection loss, storeDelete {}, retry after 100ms", path);
+                        executor.schedule(() -> storeDeleteInternal(path, optExpectedVersion, future),
                             100, TimeUnit.MILLISECONDS);
                     } else {
                         future.completeExceptionally(getException(code, path));
@@ -312,8 +332,6 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
         } catch (Throwable t) {
             future.completeExceptionally(new MetadataStoreException(t));
         }
-
-        return future;
     }
 
     @Override
