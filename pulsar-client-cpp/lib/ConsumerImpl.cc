@@ -1347,8 +1347,8 @@ void ConsumerImpl::internalGetLastMessageIdAsync(const BackoffPtr& backoff, Time
         timer->expires_from_now(next);
 
         auto self = shared_from_this();
-        timer->async_wait([this, backoff, remainTime, timer, next,
-                                  callback, self](const boost::system::error_code &ec) -> void {
+        timer->async_wait([this, backoff, remainTime, timer, next, callback,
+                           self](const boost::system::error_code& ec) -> void {
             if (ec == boost::asio::error::operation_aborted) {
                 LOG_DEBUG(getName() << " Get last message id operation was cancelled, code[" << ec << "].");
                 return;
