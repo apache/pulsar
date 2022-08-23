@@ -810,14 +810,17 @@ class ConsumerSeekTest : public ::testing::TestWithParam<bool> {
 
 TEST_P(ConsumerSeekTest, testSeekForMessageId) {
     Client client(lookupUrl);
-    const std::string topic = "test-seek-for-message-id-" + std::to_string(time(nullptr));
+    auto n = std::chrono::system_clock::now();
+    auto now = std::chrono::duration_cast<std::chrono::nanoseconds>(n.time_since_epoch());
+
+    const std::string topic = "test-seek-for-message-id-" + std::to_string(now.count());
 
     Producer producer;
     ASSERT_EQ(ResultOk, client.createProducer(topic, producerConf_, producer));
 
     const auto numMessages = 100;
     MessageId seekMessageId;
-    srand(time(nullptr));
+
     int r = (rand() % (numMessages - 1));
     for (int i = 0; i < numMessages; i++) {
         MessageId id;
