@@ -22,3 +22,5 @@ functionRuntimeFactoryConfigs:
   extraFunctionDependenciesDir:
 
 ```
+
+For more details, see [code](https://github.com/apache/pulsar/blob/master/pulsar-functions/runtime/src/main/java/org/apache/pulsar/functions/runtime/process/ProcessRuntimeFactoryConfig.java).
