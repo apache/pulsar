@@ -196,7 +196,7 @@ public class ManagedCursorPropertiesTest extends MockedBookKeeperTestCase {
         cursorPropertiesUpdated.put("custom1", "three");
         cursorPropertiesUpdated.put("custom2", "four");
 
-        c1.setAllCursorProperties(cursorPropertiesUpdated);
+        c1.setCursorProperties(cursorPropertiesUpdated).get();
 
         ledger.close();
 
@@ -207,9 +207,9 @@ public class ManagedCursorPropertiesTest extends MockedBookKeeperTestCase {
         assertEquals(c1.getProperties(), properties);
         assertEquals(c1.getCursorProperties(), cursorPropertiesUpdated);
 
-        c1.putCursorProperty("custom3", "Five");
+        c1.putCursorProperty("custom3", "Five").get();
         cursorPropertiesUpdated.put("custom3", "Five");
-        c1.removeCursorProperty("custom1");
+        c1.removeCursorProperty("custom1").get();
         cursorPropertiesUpdated.remove("custom1");
         assertEquals(c1.getCursorProperties(), cursorPropertiesUpdated);
 
@@ -230,9 +230,9 @@ public class ManagedCursorPropertiesTest extends MockedBookKeeperTestCase {
         ledger = factory3.open("testUpdateCursorProperties", new ManagedLedgerConfig());
         c1 = ledger.openCursor("c1");
 
-        c1.putCursorProperty(CURSOR_INTERNAL_PROPERTY_PREFIX + "test", "test");
-        c1.putCursorProperty("custom4", "custom4");
-        c1.setAllCursorProperties(cursorPropertiesUpdated);
+        c1.putCursorProperty(CURSOR_INTERNAL_PROPERTY_PREFIX + "test", "test").get();
+        c1.putCursorProperty("custom4", "custom4").get();
+        c1.setCursorProperties(cursorPropertiesUpdated).get();
 
         cursorPropertiesUpdated.put(CURSOR_INTERNAL_PROPERTY_PREFIX + "test", "test");
 

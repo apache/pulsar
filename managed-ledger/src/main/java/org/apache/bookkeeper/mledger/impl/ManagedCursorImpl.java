@@ -21,7 +21,6 @@ package org.apache.bookkeeper.mledger.impl;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 import static org.apache.bookkeeper.mledger.ManagedLedgerException.getManagedLedgerException;
-import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.AsyncOperationTimeoutSeconds;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_LEDGER_DELETE_RETRIES;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.createManagedLedgerException;
@@ -96,6 +95,7 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.Ledge
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.MessageRange;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.StringProperty;
+import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet;
@@ -333,7 +333,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         return cursorProperties;
     }
 
-    private CompletableFuture<Void> setCursorProperties(Map<String, String> cursorProperties) {
+    private CompletableFuture<Void> asyncUpdateCursorProperties(Map<String, String> cursorProperties) {
         CompletableFuture<Void> updateCursorPropertiesResult = new CompletableFuture<>();
         ledger.getStore().asyncGetCursorInfo(ledger.getName(), name, new MetaStoreCallback<>() {
             @Override
@@ -373,54 +373,46 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     @Override
-    public void putCursorProperty(String key, String value) {
+    public CompletableFuture<Void> setCursorProperties(Map<String, String> cursorProperties) {
+        MutableObject<CompletableFuture<Void>> updateCursorPropertiesResultRef = new MutableObject<>();
         CURSOR_PROPERTIES_UPDATER.updateAndGet(this, map -> {
-            Map<String, String> newProperties = map == null ? new TreeMap<>() : new TreeMap<>(map);
-            newProperties.put(key, value);
-            try {
-                setCursorProperties(newProperties).get(AsyncOperationTimeoutSeconds * 2, TimeUnit.SECONDS);
-            } catch (Exception e) {
-                log.error("Failed to set cursor properties", e);
-                throw new RuntimeException(e);
-            }
-            return newProperties;
-        });
-    }
-
-    @Override
-    public void setAllCursorProperties(Map<String, String> properties) {
-        CURSOR_PROPERTIES_UPDATER.updateAndGet(this, map -> {
-            Map<String, String> newProperties = properties == null ? new TreeMap<>() : new TreeMap<>(properties);
+            Map<String, String> newProperties = cursorProperties == null ? new TreeMap<>() : new TreeMap<>(cursorProperties);
             if (map != null) {
                 map.forEach((k, v) -> {
                     if (((String) k).startsWith(CURSOR_INTERNAL_PROPERTY_PREFIX)) {
                         newProperties.put((String) k, (String) v);
                     }
                 });
-            }
-            try {
-                setCursorProperties(newProperties).get(AsyncOperationTimeoutSeconds * 2, TimeUnit.SECONDS);
-            } catch (Exception e) {
-                log.error("Failed to set cursor properties", e);
-                throw new RuntimeException(e);
+
+                updateCursorPropertiesResultRef.setValue(asyncUpdateCursorProperties(newProperties));
             }
             return newProperties;
         });
+        return updateCursorPropertiesResultRef.getValue();
     }
 
     @Override
-    public void removeCursorProperty(String key) {
+    public CompletableFuture<Void> putCursorProperty(String key, String value) {
+        MutableObject<CompletableFuture<Void>> updateCursorPropertiesResultRef = new MutableObject<>();
+        CURSOR_PROPERTIES_UPDATER.updateAndGet(this, map -> {
+            Map<String, String> newProperties = map == null ? new TreeMap<>() : new TreeMap<>(map);
+            newProperties.put(key, value);
+            updateCursorPropertiesResultRef.setValue(asyncUpdateCursorProperties(newProperties));
+            return newProperties;
+        });
+        return updateCursorPropertiesResultRef.getValue();
+    }
+
+    @Override
+    public CompletableFuture<Void> removeCursorProperty(String key) {
+        MutableObject<CompletableFuture<Void>> updateCursorPropertiesResultRef = new MutableObject<>();
         CURSOR_PROPERTIES_UPDATER.updateAndGet(this, map -> {
             Map<String, String> newProperties = map == null ? new TreeMap<>() : new TreeMap<>(map);
             newProperties.remove(key);
-            try {
-                setCursorProperties(newProperties).get(AsyncOperationTimeoutSeconds * 2, TimeUnit.SECONDS);
-            } catch (Exception e) {
-                log.error("Failed to set cursor properties", e);
-                throw new RuntimeException(e);
-            }
+            updateCursorPropertiesResultRef.setValue(asyncUpdateCursorProperties(newProperties));
             return newProperties;
         });
+        return updateCursorPropertiesResultRef.getValue();
     }
 
     @Override

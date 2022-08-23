@@ -88,18 +88,22 @@ public interface ManagedCursor {
 
     /**
      * Add a property associated with the cursor.
+     *
+     * @return
      */
-    void putCursorProperty(String key, String value);
+    CompletableFuture<Void> putCursorProperty(String key, String value);
 
     /**
      * Set all properties associated with the cursor, internal properties are still preserved.
+     *
+     * @return
      */
-    void setAllCursorProperties(Map<String, String> properties);
+    CompletableFuture<Void> setCursorProperties(Map<String, String> properties);
 
     /**
      * Remove a property associated with the cursor.
      */
-    void removeCursorProperty(String key);
+    CompletableFuture<Void> removeCursorProperty(String key);
 
     /**
      * Add a property associated with the last stored position.

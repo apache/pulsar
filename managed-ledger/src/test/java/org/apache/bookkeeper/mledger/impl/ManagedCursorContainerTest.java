@@ -34,6 +34,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
@@ -74,18 +75,18 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public void putCursorProperty(String key, String value) {
-
+        public CompletableFuture<Void> putCursorProperty(String key, String value) {
+            return CompletableFuture.completedFuture(null);
         }
 
         @Override
-        public void setAllCursorProperties(Map<String, String> properties) {
-
+        public CompletableFuture<Void> setCursorProperties(Map<String, String> properties) {
+            return CompletableFuture.completedFuture(null);
         }
 
         @Override
-        public void removeCursorProperty(String key) {
-
+        public CompletableFuture<Void> removeCursorProperty(String key) {
+            return CompletableFuture.completedFuture(null);
         }
 
         @Override
