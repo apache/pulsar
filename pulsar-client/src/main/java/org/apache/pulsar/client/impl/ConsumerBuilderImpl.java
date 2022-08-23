@@ -52,8 +52,10 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.TopicConsumerBuilder;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.client.impl.conf.TopicConsumerConfigurationData;
 import org.apache.pulsar.client.util.RetryMessageUtil;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
@@ -535,6 +537,34 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     @Override
     public ConsumerBuilder<T> autoScaledReceiverQueueSizeEnabled(boolean enabled) {
         conf.setAutoScaledReceiverQueueSizeEnabled(enabled);
+        return this;
+    }
+
+    @Override
+    public TopicConsumerBuilder<T> topicConfiguration(String topicName) {
+        TopicConsumerConfigurationData topicConf = TopicConsumerConfigurationData.ofTopicName(topicName, conf);
+        conf.getTopicConfigurations().add(topicConf);
+        return new TopicConsumerBuilderImpl<>(this, topicConf);
+    }
+
+    @Override
+    public ConsumerBuilder<T> topicConfiguration(String topicName,
+                                                 java.util.function.Consumer<TopicConsumerBuilder<T>> builderConsumer) {
+        builderConsumer.accept(topicConfiguration(topicName));
+        return this;
+    }
+
+    @Override
+    public TopicConsumerBuilder<T> topicConfiguration(Pattern topicsPattern) {
+        TopicConsumerConfigurationData topicConf = TopicConsumerConfigurationData.ofTopicsPattern(topicsPattern, conf);
+        conf.getTopicConfigurations().add(topicConf);
+        return new TopicConsumerBuilderImpl<>(this, topicConf);
+    }
+
+    @Override
+    public ConsumerBuilder<T> topicConfiguration(Pattern topicsPattern,
+                                                 java.util.function.Consumer<TopicConsumerBuilder<T>> builderConsumer) {
+        builderConsumer.accept(topicConfiguration(topicsPattern));
         return this;
     }
 }

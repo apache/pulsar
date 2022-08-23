@@ -18,10 +18,10 @@
  */
 package org.apache.bookkeeper.mledger.offload;
 
-import com.google.common.collect.Maps;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -43,7 +43,7 @@ public final class OffloadUtils {
     private OffloadUtils() {}
 
     public static Map<String, String> getOffloadDriverMetadata(LedgerInfo ledgerInfo) {
-        Map<String, String> metadata = Maps.newHashMap();
+        Map<String, String> metadata = new HashMap();
         if (ledgerInfo.hasOffloadContext()) {
             OffloadContext ctx = ledgerInfo.getOffloadContext();
             if (ctx.hasDriverMetadata()) {
@@ -63,7 +63,7 @@ public final class OffloadUtils {
             if (ctx.hasDriverMetadata()) {
                 OffloadDriverMetadata driverMetadata = ctx.getDriverMetadata();
                 if (driverMetadata.getPropertiesCount() > 0) {
-                    Map<String, String> metadata = Maps.newHashMap();
+                    Map<String, String> metadata = new HashMap();
                     driverMetadata.getPropertiesList().forEach(kv -> metadata.put(kv.getKey(), kv.getValue()));
                     return metadata;
                 }
@@ -155,7 +155,7 @@ public final class OffloadUtils {
         });
 
         if (ledgerMetadataFormat.getCustomMetadataCount() > 0) {
-            Map<String, byte[]> customMetadata = Maps.newHashMap();
+            Map<String, byte[]> customMetadata = new HashMap();
             ledgerMetadataFormat.getCustomMetadataList().forEach(
                     entry -> customMetadata.put(entry.getKey(), entry.getValue().toByteArray()));
             builder.withCustomMetadata(customMetadata);
