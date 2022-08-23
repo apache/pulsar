@@ -308,7 +308,7 @@ public class ZKMetadataStore extends AbstractMetadataStore implements MetadataSt
         return future;
     }
 
-    public void storeDeleteInternal(String path, Optional<Long> optExpectedVersion,
+    private void storeDeleteInternal(String path, Optional<Long> optExpectedVersion,
                                                        CompletableFuture<Void> future) {
         int expectedVersion = optExpectedVersion.orElse(-1L).intValue();
 
