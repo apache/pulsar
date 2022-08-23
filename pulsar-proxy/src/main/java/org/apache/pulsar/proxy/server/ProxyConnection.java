@@ -587,10 +587,15 @@ public class ProxyConnection extends PulsarHandler {
                 clientConf.setTlsTrustStoreType(proxyConfig.getBrokerClientTlsTrustStoreType());
                 clientConf.setTlsTrustStorePath(proxyConfig.getBrokerClientTlsTrustStore());
                 clientConf.setTlsTrustStorePassword(proxyConfig.getBrokerClientTlsTrustStorePassword());
+                clientConf.setTlsKeyStoreType(proxyConfig.getBrokerClientTlsKeyStoreType());
+                clientConf.setTlsKeyStorePath(proxyConfig.getBrokerClientTlsKeyStore());
+                clientConf.setTlsKeyStorePassword(proxyConfig.getBrokerClientTlsKeyStorePassword());
             } else {
                 clientConf.setTlsTrustCertsFilePath(proxyConfig.getBrokerClientTrustCertsFilePath());
-                clientConf.setTlsAllowInsecureConnection(proxyConfig.isTlsAllowInsecureConnection());
+                clientConf.setTlsKeyFilePath(proxyConfig.getBrokerClientKeyFilePath());
+                clientConf.setTlsCertificateFilePath(proxyConfig.getBrokerClientCertificateFilePath());
             }
+            clientConf.setTlsAllowInsecureConnection(proxyConfig.isTlsAllowInsecureConnection());
         }
         return clientConf;
     }

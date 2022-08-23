@@ -29,6 +29,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.SourceContext;
@@ -62,8 +63,9 @@ public class IOConfigUtils {
             field.setAccessible(true);
             for (Annotation annotation : field.getAnnotations()) {
                 if (annotation.annotationType().equals(FieldDoc.class)) {
-                    if (((FieldDoc) annotation).sensitive()) {
-                        String secret = null;
+                    FieldDoc fieldDoc = (FieldDoc) annotation;
+                    if (fieldDoc.sensitive()) {
+                        String secret;
                         try {
                             secret = secretsGetter.apply(field.getName());
                         } catch (Exception e) {
@@ -74,8 +76,17 @@ public class IOConfigUtils {
                             configs.put(field.getName(), secret);
                         }
                     }
+                    configs.computeIfAbsent(field.getName(), key -> {
+                        if (fieldDoc.required()) {
+                            throw new IllegalArgumentException(field.getName() + " cannot be null");
+                        }
+                        String value = fieldDoc.defaultValue();
+                        if (!StringUtils.isEmpty(value)) {
+                            return value;
+                        }
+                        return null;
+                    });
                 }
-
             }
         }
         return new ObjectMapper().convertValue(configs, clazz);

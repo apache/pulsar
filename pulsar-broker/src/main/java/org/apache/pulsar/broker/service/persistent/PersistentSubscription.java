@@ -1065,6 +1065,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         subStats.lastMarkDeleteAdvancedTimestamp = lastMarkDeleteAdvancedTimestamp;
         subStats.bytesOutCounter = bytesOutFromRemovedConsumers.longValue();
         subStats.msgOutCounter = msgOutFromRemovedConsumer.longValue();
+
         Dispatcher dispatcher = this.dispatcher;
         if (dispatcher != null) {
             Map<Consumer, List<Range>> consumerKeyHashRanges = getType() == SubType.Key_Shared
@@ -1089,6 +1090,11 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                             .collect(Collectors.toList());
                 }
             });
+
+            subStats.filterProcessedMsgCount = dispatcher.getFilterProcessedMsgCount();
+            subStats.filterAcceptedMsgCount = dispatcher.getFilterAcceptedMsgCount();
+            subStats.filterRejectedMsgCount = dispatcher.getFilterRejectedMsgCount();
+            subStats.filterRescheduledMsgCount = dispatcher.getFilterRescheduledMsgCount();
         }
 
         SubType subType = getType();
@@ -1099,6 +1105,12 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                 subStats.activeConsumerName = activeConsumer.consumerName();
             }
         }
+
+        if (dispatcher instanceof PersistentDispatcherMultipleConsumers) {
+            subStats.delayedTrackerMemoryUsage =
+                    ((PersistentDispatcherMultipleConsumers) dispatcher).getDelayedTrackerMemoryUsage();
+        }
+
         if (Subscription.isIndividualAckMode(subType)) {
             if (dispatcher instanceof PersistentDispatcherMultipleConsumers) {
                 PersistentDispatcherMultipleConsumers d = (PersistentDispatcherMultipleConsumers) dispatcher;

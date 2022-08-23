@@ -294,6 +294,52 @@ class PULSAR_PUBLIC AuthToken : public Authentication {
 };
 
 /**
+ * Basic based implementation of Pulsar client authentication
+ */
+class PULSAR_PUBLIC AuthBasic : public Authentication {
+   public:
+    explicit AuthBasic(AuthenticationDataPtr&);
+    ~AuthBasic() override;
+
+    /**
+     * Create an AuthBasic with a ParamMap
+     *
+     * It is equal to create(params[“username”], params[“password”])
+     * @see create(const std::string&, const std::string&)
+     */
+    static AuthenticationPtr create(ParamMap& params);
+
+    /**
+     * Create an AuthBasic with an authentication parameter string
+     *
+     * @param authParamsString the JSON format string: {"username": "admin", "password": "123456"}
+     */
+    static AuthenticationPtr create(const std::string& authParamsString);
+
+    /**
+     * Create an AuthBasic with the required parameters
+     */
+    static AuthenticationPtr create(const std::string& username, const std::string& password);
+
+    /**
+     * @return “basic”
+     */
+    const std::string getAuthMethodName() const override;
+
+    /**
+     * Get AuthenticationData from the current instance
+     *
+     * @param[out] authDataBasic the shared pointer of AuthenticationData. The content of AuthenticationData
+     * is changed to the internal data of the current instance.
+     * @return ResultOk
+     */
+    Result getAuthData(AuthenticationDataPtr& authDataBasic) override;
+
+   private:
+    AuthenticationDataPtr authDataBasic_;
+};
+
+/**
  * Athenz implementation of Pulsar client authentication
  */
 class PULSAR_PUBLIC AuthAthenz : public Authentication {
