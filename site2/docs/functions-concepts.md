@@ -130,7 +130,8 @@ Java, Python, and Go SDKs provide access to a **context object** that can be use
 * An interface for storing and retrieving state in [state storage](functions-develop-state.md).
 * A function to publish new messages onto arbitrary topics.
 * A function to acknowledge the message being processed (if auto-ack is disabled).
-* (Java) get Pulsar admin client.
+* (Java) A function to get the Pulsar admin client.
+* (Java) A function to create a Record to return with default values taken from the Context and the input Record.
 
 :::tip
 

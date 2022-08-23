@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.client.impl;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.util.ReferenceCountUtil;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -61,7 +63,19 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
     // keep track of callbacks for individual messages being published in a batch
     protected SendCallback firstCallback;
 
+    private final ByteBufAllocator allocator;
+
     public BatchMessageContainerImpl() {
+        this(PulsarByteBufAllocator.DEFAULT);
+    }
+
+    /**
+     * This constructor is for testing only. The global allocator is always
+     * {@link PulsarByteBufAllocator#DEFAULT}.
+     */
+    @VisibleForTesting
+    BatchMessageContainerImpl(ByteBufAllocator allocator) {
+        this.allocator = allocator;
     }
 
     public BatchMessageContainerImpl(ProducerImpl<?> producer) {
@@ -84,8 +98,8 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
                 messageMetadata.setSequenceId(msg.getSequenceId());
                 lowestSequenceId = Commands.initBatchMessageMetadata(messageMetadata, msg.getMessageBuilder());
                 this.firstCallback = callback;
-                batchedMessageMetadataAndPayload = PulsarByteBufAllocator.DEFAULT
-                        .buffer(Math.min(maxBatchSize, ClientCnx.getMaxMessageSize()));
+                batchedMessageMetadataAndPayload = allocator.buffer(
+                        Math.min(maxBatchSize, ClientCnx.getMaxMessageSize()));
                 if (msg.getMessageBuilder().hasTxnidMostBits() && currentTxnidMostBits == -1) {
                     currentTxnidMostBits = msg.getMessageBuilder().getTxnidMostBits();
                 }
