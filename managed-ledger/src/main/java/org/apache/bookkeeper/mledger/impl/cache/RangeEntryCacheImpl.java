@@ -65,9 +65,9 @@ public class RangeEntryCacheImpl implements EntryCache {
 
     @Value
     private static class PendingReadKey {
-        private final long ledgerId;
-        private final long startEntry;
-        private final long endEntry;
+        long ledgerId;
+        long startEntry;
+        long endEntry;
     }
 
     public RangeEntryCacheImpl(RangeEntryCacheManagerImpl manager, ManagedLedgerImpl ml, boolean copyEntries) {
