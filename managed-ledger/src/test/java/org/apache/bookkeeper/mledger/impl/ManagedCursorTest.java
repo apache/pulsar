@@ -134,10 +134,10 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ledger.addEntry(new byte[]{3});
         ledger.addEntry(new byte[]{4});
         ledger.addEntry(new byte[]{5});
-        // Persistent cursor info to ledegr.
+        // Persistent cursor info to ledger.
         c1.delete(PositionImpl.get(c1.getReadPosition().getLedgerId(), c1.getReadPosition().getEntryId()));
         Awaitility.await().until(() ->c1.getStats().getPersistLedgerSucceed() > 0);
-        // Make cursor can not work.
+        // Make cursor ledger can not work.
         closeCursorLedger(c1);
         c1.delete(PositionImpl.get(c1.getReadPosition().getLedgerId(), c1.getReadPosition().getEntryId() + 2));
         ledger.close();
