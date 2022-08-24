@@ -290,7 +290,6 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         Assert.assertEquals(admin.namespaces().getDispatchRate(namespace)
                 .getDispatchThrottlingRateInByte(), topicRate);
 
-        // Asynchronously produce messages
         for (int i = 0; i < numProducedMessages; i++) {
             producer.send(new byte[expectRate / 10]);
         }
