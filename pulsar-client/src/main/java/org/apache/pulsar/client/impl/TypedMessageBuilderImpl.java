@@ -106,34 +106,30 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
 
     @Override
     public TypedMessageBuilder<T> key(String key) {
-        return getKeyValueSchema().map(keyValueSchema -> {
-            checkArgument(keyValueSchema.getKeyValueEncodingType() != KeyValueEncodingType.SEPARATED,
-                    "This method is not allowed to set keys when in encoding type is SEPARATED");
-            if (key == null) {
-                msgMetadata.setNullPartitionKey(true);
-            }
+        getKeyValueSchema().ifPresent(keyValueSchema -> checkArgument(
+                keyValueSchema.getKeyValueEncodingType() != KeyValueEncodingType.SEPARATED,
+                "This method is not allowed to set keys when in encoding type is SEPARATED"));
+        if (key == null) {
+            msgMetadata.setNullPartitionKey(true);
             return this;
-        }).orElseGet(() -> {
-            msgMetadata.setPartitionKey(key);
-            msgMetadata.setPartitionKeyB64Encoded(false);
-            return this;
-        });
+        }
+        msgMetadata.setPartitionKey(key);
+        msgMetadata.setPartitionKeyB64Encoded(false);
+        return this;
     }
 
     @Override
     public TypedMessageBuilder<T> keyBytes(byte[] key) {
-        return getKeyValueSchema().map(keyValueSchema -> {
-            checkArgument(keyValueSchema.getKeyValueEncodingType() != KeyValueEncodingType.SEPARATED,
-                    "This method is not allowed to set keys when in encoding type is SEPARATED");
-            if (key == null) {
-                msgMetadata.setNullPartitionKey(true);
-            }
+        getKeyValueSchema().ifPresent(keyValueSchema -> checkArgument(
+                keyValueSchema.getKeyValueEncodingType() != KeyValueEncodingType.SEPARATED,
+                "This method is not allowed to set keys when in encoding type is SEPARATED"));
+        if (key == null) {
+            msgMetadata.setNullPartitionKey(true);
             return this;
-        }).orElseGet(() -> {
-            msgMetadata.setPartitionKey(Base64.getEncoder().encodeToString(key));
-            msgMetadata.setPartitionKeyB64Encoded(true);
-            return this;
-        });
+        }
+        msgMetadata.setPartitionKey(Base64.getEncoder().encodeToString(key));
+        msgMetadata.setPartitionKeyB64Encoded(true);
+        return this;
     }
 
     @Override
