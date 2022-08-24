@@ -22,6 +22,7 @@ import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionCoor
 import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionInternalName;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.github.zafarkhaja.semver.Version;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -480,10 +481,9 @@ public class PersistentTopicsBase extends AdminResource {
                                 if (!updateLocalTopicOnly) {
                                     return updatePartitionInOtherCluster(numPartitions, clusters)
                                         .thenCompose(v -> namespaceResources().getPartitionedTopicResources()
-                                                        .updatePartitionedTopicAsync(topicName, p ->
-                                                                new PartitionedTopicMetadata(numPartitions,
-                                                                    p.properties)
-                                                        ));
+                                                .updatePartitionedTopicAsync(topicName,
+                                                        p -> new PartitionedTopicMetadata(numPartitions,
+                                                                p.properties)));
                                 } else {
                                     return CompletableFuture.completedFuture(null);
                                 }
@@ -4357,39 +4357,50 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
+    private CompletableFuture<Void> updatePartitionedTopicMetadataAsync(int numPartitions) {
+        CompletableFuture<Void> future = namespaceResources().getPartitionedTopicResources()
+                .updatePartitionedTopicAsync(topicName, p -> new PartitionedTopicMetadata(numPartitions, p.properties));
+        future.exceptionally(ex -> {
+            // If the update operation fails, clean up the partitions that were created
+            getPartitionedTopicMetadataAsync(topicName, false, false).thenAccept(metadata -> {
+                int oldPartition = metadata.partitions;
+                for (int i = oldPartition; i < numPartitions; i++) {
+                    topicResources().deletePersistentTopicAsync(topicName.getPartition(i)).exceptionally(ex1 -> {
+                        log.warn("[{}] Failed to clean up managedLedger {}", clientAppId(), topicName,
+                                ex1.getCause());
+                        return null;
+                    });
+                }
+            }).exceptionally(e -> {
+                log.warn("[{}] Failed to clean up managedLedger", topicName, e);
+                return null;
+            });
+            return null;
+        });
+        return future;
+    }
 
     private CompletableFuture<Void> updatePartitionedTopic(TopicName topicName, int numPartitions, boolean force) {
         CompletableFuture<Void> result = new CompletableFuture<>();
-        createSubscriptions(topicName, numPartitions).thenCompose(__ -> {
-            CompletableFuture<Void> future = namespaceResources().getPartitionedTopicResources()
-                    .updatePartitionedTopicAsync(topicName, p ->
-                        new PartitionedTopicMetadata(numPartitions, p.properties));
-            future.exceptionally(ex -> {
-                // If the update operation fails, clean up the partitions that were created
-                getPartitionedTopicMetadataAsync(topicName, false, false).thenAccept(metadata -> {
-                    int oldPartition = metadata.partitions;
-                    for (int i = oldPartition; i < numPartitions; i++) {
-                        topicResources().deletePersistentTopicAsync(topicName.getPartition(i)).exceptionally(ex1 -> {
-                            log.warn("[{}] Failed to clean up managedLedger {}", clientAppId(), topicName,
-                                    ex1.getCause());
+        createSubscriptions(topicName, numPartitions).thenCompose(
+                        __ -> updatePartitionedTopicMetadataAsync(numPartitions))
+                .thenAccept(__ -> result.complete(null))
+                .exceptionally(ex -> {
+                    if (force && ex.getCause() instanceof PulsarAdminException.ConflictException) {
+                        log.warn("[{}] update partitioned topic's partition num {} with ignoring conflict exception",
+                                topicName, numPartitions);
+                        CompletableFuture<Void> future = updatePartitionedTopicMetadataAsync(numPartitions);
+                        future.thenAccept(__ -> result.complete(null)).exceptionally(e -> {
+                            log.error("[{}] Failed to update partitioned topic's partition num {}", topicName,
+                                    numPartitions);
+                            result.completeExceptionally(ex);
                             return null;
                         });
+                    } else {
+                        result.completeExceptionally(ex);
                     }
-                }).exceptionally(e -> {
-                    log.warn("[{}] Failed to clean up managedLedger", topicName, e);
                     return null;
                 });
-                return null;
-            });
-            return future;
-        }).thenAccept(__ -> result.complete(null)).exceptionally(ex -> {
-            if (force && ex.getCause() instanceof PulsarAdminException.ConflictException) {
-                result.complete(null);
-                return null;
-            }
-            result.completeExceptionally(ex);
-            return null;
-        });
         return result;
     }
 
@@ -4399,7 +4410,8 @@ public class PersistentTopicsBase extends AdminResource {
      * @param topicName     : topic-name: persistent://prop/cluster/ns/topic
      * @param numPartitions : number partitions for the topics
      */
-    private CompletableFuture<Void> createSubscriptions(TopicName topicName, int numPartitions) {
+    @VisibleForTesting
+    public CompletableFuture<Void> createSubscriptions(TopicName topicName, int numPartitions) {
         CompletableFuture<Void> result = new CompletableFuture<>();
         pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName).thenAccept(partitionMetadata -> {
             if (partitionMetadata.partitions < 1) {
