@@ -273,8 +273,8 @@ public class RangeEntryCacheImpl implements EntryCache {
 
     @AllArgsConstructor
     private static final class ReadEntriesCallbackWithContext {
-        ReadEntriesCallback callback;
-        Object ctx;
+        final ReadEntriesCallback callback;
+        final Object ctx;
     }
     private class CachedPendingRead {
         final PendingReadKey key;
@@ -396,8 +396,8 @@ public class RangeEntryCacheImpl implements EntryCache {
                     CompletableFuture<List<EntryImpl>> readResult = lh.readAsync(firstEntry, lastEntry)
                             .thenApply(
                                     ledgerEntries -> {
-                                        checkNotNull(ml.getName());
-                                        checkNotNull(ml.getExecutor());
+                                        requireNonNull(ml.getName());
+                                        requireNonNull(ml.getExecutor());
 
                                         try {
                                             // We got the entries, we need to transform them to a List<> type
