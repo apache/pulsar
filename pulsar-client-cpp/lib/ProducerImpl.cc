@@ -418,28 +418,43 @@ void ProducerImpl::sendAsyncWithStatsUpdate(const Message& msg, const SendCallba
         callback(result, {});
     };
 
+    auto& msgMetadata = msg.impl_->metadata;
     const bool compressed = !canAddToBatch(msg);
     const auto payload =
         compressed ? applyCompression(uncompressedPayload, conf_.getCompressionType()) : uncompressedPayload;
     const auto compressedSize = static_cast<uint32_t>(payload.readableBytes());
     const auto maxMessageSize = static_cast<uint32_t>(ClientConnection::getMaxMessageSize());
 
-    if (compressed && compressedSize > ClientConnection::getMaxMessageSize() && !chunkingEnabled_) {
+    auto payloadChunkSize = maxMessageSize;
+    int totalChunks;
+    if (!compressed || !chunkingEnabled_) {
+        totalChunks = 1;
+    } else {
+        const auto metadataSize = static_cast<uint32_t>(msgMetadata.ByteSizeLong());
+        if (metadataSize >= maxMessageSize) {
+            LOG_WARN(getName() << " - compressed Message metadata size " << metadataSize
+                               << " cannot exceed " << ClientConnection::getMaxMessageSize()
+                               << " bytes unless chunking is enabled");
+            handleFailedResult(ResultMessageTooBig);
+            return;
+        }
+        payloadChunkSize = maxMessageSize - metadataSize;
+        totalChunks = getNumOfChunks(compressedSize, payloadChunkSize);
+    }
+
+    if (compressed && compressedSize > payloadChunkSize) {
         LOG_WARN(getName() << " - compressed Message payload size " << payload.readableBytes()
-                           << " cannot exceed " << ClientConnection::getMaxMessageSize()
+                           << " cannot exceed " << payloadChunkSize
                            << " bytes unless chunking is enabled");
         handleFailedResult(ResultMessageTooBig);
         return;
     }
 
-    auto& msgMetadata = msg.impl_->metadata;
     if (!msgMetadata.has_replicated_from() && msgMetadata.has_producer_name()) {
         handleFailedResult(ResultInvalidMessage);
         return;
     }
 
-    const int totalChunks =
-        canAddToBatch(msg) ? 1 : getNumOfChunks(compressedSize, ClientConnection::getMaxMessageSize());
     // Each chunk should be sent individually, so try to acquire extra permits for chunks.
     for (int i = 0; i < (totalChunks - 1); i++) {
         const auto result = canEnqueueRequest(0);  // size is 0 because the memory has already reserved
@@ -490,7 +505,7 @@ void ProducerImpl::sendAsyncWithStatsUpdate(const Message& msg, const SendCallba
             if (sendChunks) {
                 msgMetadata.set_chunk_id(chunkId);
             }
-            const uint32_t endIndex = std::min(compressedSize, beginIndex + maxMessageSize);
+            const uint32_t endIndex = std::min(compressedSize, beginIndex + payloadChunkSize);
             auto chunkedPayload = payload.slice(beginIndex, endIndex - beginIndex);
             beginIndex = endIndex;
 
