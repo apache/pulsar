@@ -222,7 +222,6 @@ The Apache Software License, Version 2.0
     - jackson-module-jsonSchema-2.13.2.jar
  * Guava
     - guava-31.0.1-jre.jar
-    - listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar
     - failureaccess-1.0.1.jar
  * Google Guice
     - guice-5.1.0.jar
@@ -272,7 +271,6 @@ The Apache Software License, Version 2.0
 
  * Joda Time
     - joda-time-2.10.5.jar
-    - failsafe-2.4.4.jar
   * Jetty
     - http2-client-9.4.48.v20220622.jar
     - http2-common-9.4.48.v20220622.jar
@@ -344,6 +342,10 @@ The Apache Software License, Version 2.0
     - leveldb-api-0.10.jar
   * Log4j implemented over SLF4J
     - log4j-over-slf4j-1.7.32.jar
+  * Log4j
+    - log4j-api-2.18.0.jar
+    - log4j-core-2.18.0.jar
+    - log4j-slf4j-impl-2.18.0.jar
   * Lucene Common Analyzers
     - lucene-analyzers-common-8.4.1.jar
     - lucene-core-8.4.1.jar
@@ -388,7 +390,7 @@ The Apache Software License, Version 2.0
   * JCommander
     - jcommander-1.82.jar
   * FindBugs JSR305
-    - jsr305-3.0.2.jar
+    - jsr305-2.0.1.jar
   * Objenesis
     - objenesis-2.6.jar
   * Okio
@@ -407,7 +409,7 @@ The Apache Software License, Version 2.0
     - presto-spi-334.jar
     - presto-record-decoder-334.jar
   * RocksDB JNI
-    - rocksdbjni-6.10.2.jar
+    - rocksdbjni-6.29.4.1.jar
   * SnakeYAML
     - snakeyaml-1.30.jar
   * Bean Validation API
@@ -449,7 +451,7 @@ The Apache Software License, Version 2.0
   * Apache Commons
     - commons-cli-1.5.0.jar
     - commons-codec-1.15.jar
-    - commons-collections4-4.1.jar
+    - commons-collections4-4.4.jar
     - commons-configuration-1.10.jar
     - commons-io-2.8.0.jar
     - commons-lang-2.6.jar
@@ -480,6 +482,8 @@ The Apache Software License, Version 2.0
     - perfmark-api-0.19.0.jar
   * Annotations
     - auto-service-annotations-1.0.jar
+  * AMQP
+    - amqp-client-5.5.3.jar
 
 Protocol Buffers License
  * Protocol Buffers
