@@ -2238,6 +2238,21 @@ public class PulsarAdminToolTest {
         verify(schemas).createSchema("persistent://tn1/ns1/tp1", postSchemaPayload);
     }
 
+    @Test
+    public void customCommands() throws Exception {
+
+        File narFile = new File(PulsarAdminToolTest.class.getClassLoader()
+                .getResource("cliExtensions/customCommands-nar.nar").getFile());
+
+        Properties properties = new Properties();
+        properties.put("webServiceUrl", "http://localhost:2181");
+        properties.put("cliExtensionsDirectory", narFile.getParentFile().getAbsolutePath());
+        properties.put("customCommandFactoryNames", "dummy");
+        PulsarAdminTool tool = new PulsarAdminTool(properties);
+        // see the custom command help
+        tool.run(new String[]{"-h"});
+    }
+
     public static class SchemaDemo {
         public SchemaDemo() {
         }

@@ -1,0 +1,3 @@
+factoryClass: com.datastax.oss.pulsar.jms.cli.CommandFactory
+name: jms
+description: Starlight for JMS - Pulsar Admin Custom Commands
