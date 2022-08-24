@@ -429,9 +429,12 @@
         <groupId>org.gaul</groupId>
         <artifactId>modernizer-maven-plugin</artifactId>
         <configuration>
-          <failOnViolations>false</failOnViolations>
+          <failOnViolations>true</failOnViolations>
           <javaVersion>17</javaVersion>
-          <violationLogLevel>warn</violationLogLevel>
+          <ignorePackages>
+            <ignorePackage>org.apache.pulsar.broker</ignorePackage>
+            <ignorePackage>org.apache.pulsar.client</ignorePackage>
+          </ignorePackages>
         </configuration>
         <executions>
           <execution>
