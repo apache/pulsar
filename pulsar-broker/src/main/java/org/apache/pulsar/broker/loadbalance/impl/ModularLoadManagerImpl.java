@@ -94,6 +94,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     // Path to ZNode whose children contain BundleData jsons for each bundle (new API version of ResourceQuota).
     public static final String BUNDLE_DATA_PATH = "/loadbalance/bundle-data";
 
+    public static final String BUNDLE_ASSIGN_TO_BROKER = "/loadbalance/bundle-assign";
+
+
     // Default message rate to assume for unseen bundles.
     public static final double DEFAULT_MESSAGE_RATE = 50;
 
@@ -121,6 +124,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     private ResourceLock<LocalBrokerData> brokerDataLock;
 
     private MetadataCache<BundleData> bundlesCache;
+    private MetadataCache<String> bundleAssignCache;
     private MetadataCache<ResourceQuota> resourceQuotaCache;
     private MetadataCache<TimeAverageBrokerData> timeAverageBrokerDataCache;
 
@@ -162,6 +166,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
 
     // Used to determine whether a bundle is preallocated.
     private final Map<String, String> preallocatedBundleToBroker;
+
+    // Specify bundle assignment
+    private final Map<String, String> fixedBundleToBroker;
 
     // Strategy used to determine where new topics should be placed.
     private ModularLoadManagerStrategy placementStrategy;
@@ -212,6 +219,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         loadData = new LoadData();
         loadSheddingPipeline = new ArrayList<>();
         preallocatedBundleToBroker = new ConcurrentHashMap<>();
+        fixedBundleToBroker = new ConcurrentHashMap<>();
         scheduler = Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-modular-load-manager"));
         this.brokerToFailureDomainMap = new HashMap<>();
 
@@ -243,6 +251,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         this.pulsar = pulsar;
         brokersData = pulsar.getCoordinationService().getLockManager(LocalBrokerData.class);
         bundlesCache = pulsar.getLocalMetadataStore().getMetadataCache(BundleData.class);
+        bundleAssignCache = pulsar.getLocalMetadataStore().getMetadataCache(String.class);
         resourceQuotaCache = pulsar.getLocalMetadataStore().getMetadataCache(ResourceQuota.class);
         timeAverageBrokerDataCache = pulsar.getLocalMetadataStore().getMetadataCache(TimeAverageBrokerData.class);
         pulsar.getLocalMetadataStore().registerListener(this::handleDataNotification);
@@ -477,6 +486,17 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         updateBundleData();
         // broker has latest load-report: check if any bundle requires split
         checkNamespaceBundleSplit();
+        // Assign a bundle to a given broker
+        updateFixedBundleToBroker();
+    }
+
+    public void updateFixedBundleToBroker() {
+        for (String bundle : bundleAssignCache.getChildren(BUNDLE_ASSIGN_TO_BROKER).join()) {
+            Optional<String> broker = bundleAssignCache.get(String.format("%s/%s", BUNDLE_ASSIGN_TO_BROKER, bundle)).join();
+            if (broker.isPresent()) {
+                fixedBundleToBroker.put(bundle, broker.get());
+            }
+        }
     }
 
     private void cleanupDeadBrokersData() {
@@ -826,6 +846,10 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         try {
             synchronized (brokerCandidateCache) {
                 final String bundle = serviceUnit.toString();
+                if(fixedBundleToBroker.containsKey(bundle)){
+                    // Assign specific bundles to fixed brokers.
+                    return Optional.of(fixedBundleToBroker.get(bundle));
+                }
                 if (preallocatedBundleToBroker.containsKey(bundle)) {
                     // If the given bundle is already in preallocated, return the selected broker.
                     return Optional.of(preallocatedBundleToBroker.get(bundle));
