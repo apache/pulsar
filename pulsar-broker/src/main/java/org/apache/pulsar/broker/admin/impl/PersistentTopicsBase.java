@@ -481,7 +481,8 @@ public class PersistentTopicsBase extends AdminResource {
                                     return updatePartitionInOtherCluster(numPartitions, clusters)
                                         .thenCompose(v -> namespaceResources().getPartitionedTopicResources()
                                                         .updatePartitionedTopicAsync(topicName, p ->
-                                                                new PartitionedTopicMetadata(numPartitions)
+                                                                new PartitionedTopicMetadata(numPartitions,
+                                                                    p.properties)
                                                         ));
                                 } else {
                                     return CompletableFuture.completedFuture(null);
@@ -4361,7 +4362,8 @@ public class PersistentTopicsBase extends AdminResource {
         CompletableFuture<Void> result = new CompletableFuture<>();
         createSubscriptions(topicName, numPartitions).thenCompose(__ -> {
             CompletableFuture<Void> future = namespaceResources().getPartitionedTopicResources()
-                    .updatePartitionedTopicAsync(topicName, p -> new PartitionedTopicMetadata(numPartitions));
+                    .updatePartitionedTopicAsync(topicName, p ->
+                        new PartitionedTopicMetadata(numPartitions, p.properties));
             future.exceptionally(ex -> {
                 // If the update operation fails, clean up the partitions that were created
                 getPartitionedTopicMetadataAsync(topicName, false, false).thenAccept(metadata -> {
