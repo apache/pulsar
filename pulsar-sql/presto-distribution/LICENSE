@@ -396,7 +396,7 @@ The Apache Software License, Version 2.0
     - presto-spi-332.jar
     - presto-record-decoder-332.jar
   * RocksDB JNI
-    - rocksdbjni-6.10.2.jar
+    - rocksdbjni-6.16.4.jar
   * SnakeYAML
     - snakeyaml-1.30.jar
   * Bean Validation API
