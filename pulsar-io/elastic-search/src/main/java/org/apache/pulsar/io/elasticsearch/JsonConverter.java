@@ -46,23 +46,34 @@ public class JsonConverter {
     private static Map<String, LogicalTypeConverter<?>> logicalTypeConverters = new HashMap<>();
     private static final JsonNodeFactory jsonNodeFactory = JsonNodeFactory.withExactBigDecimals(true);
 
-    public static JsonNode toJson(GenericRecord genericRecord) {
+    public static JsonNode topLevelMerge(JsonNode n1, JsonNode n2) {
+        ObjectNode objectNode = jsonNodeFactory.objectNode();
+        n1.fieldNames().forEachRemaining(f -> objectNode.put(f, n1.get(f)));
+        n2.fieldNames().forEachRemaining(f -> objectNode.put(f, n2.get(f)));
+        return objectNode;
+    }
+
+    public static JsonNode toJson(ElasticSearchConfig elasticSearchConfig, GenericRecord genericRecord) {
         if (genericRecord == null) {
             return null;
         }
         ObjectNode objectNode = jsonNodeFactory.objectNode();
         for (Schema.Field field : genericRecord.getSchema().getFields()) {
-            objectNode.set(field.name(), toJson(field.schema(), genericRecord.get(field.name())));
+            objectNode.set(field.name(), toJson(elasticSearchConfig, field.schema(), genericRecord.get(field.name())));
         }
         return objectNode;
     }
 
-    public static JsonNode toJson(Schema schema, Object value) {
-        if (schema.getLogicalType() != null && logicalTypeConverters.containsKey(schema.getLogicalType().getName())) {
-            return logicalTypeConverters.get(schema.getLogicalType().getName()).toJson(schema, value);
-        }
+    public static JsonNode toJson(ElasticSearchConfig elasticSearchConfig, Schema schema, Object value) {
         if (value == null) {
             return jsonNodeFactory.nullNode();
+        }
+        if (schema.getLogicalType() != null) {
+            if (logicalTypeConverters.containsKey(schema.getLogicalType().getName())) {
+                return logicalTypeConverters.get(schema.getLogicalType().getName()).toJson(schema, value);
+            } else if (!elasticSearchConfig.isIgnoreUnsupportedFields()) {
+                throw new UnsupportedOperationException("Unknown AVRO logical type=" + schema.getType());
+            }
         }
         switch(schema.getType()) {
             case NULL: // this should not happen
@@ -94,7 +105,7 @@ public class JsonConverter {
                     iterable = (Object[]) value;
                 }
                 for (Object elem : iterable) {
-                    JsonNode fieldValue = toJson(elementSchema, elem);
+                    JsonNode fieldValue = toJson(elasticSearchConfig, elementSchema, elem);
                     arrayNode.add(fieldValue);
                 }
                 return arrayNode;
@@ -103,7 +114,7 @@ public class JsonConverter {
                 Map<Object, Object> map = (Map<Object, Object>) value;
                 ObjectNode objectNode = jsonNodeFactory.objectNode();
                 for (Map.Entry<Object, Object> entry : map.entrySet()) {
-                    JsonNode jsonNode = toJson(schema.getValueType(), entry.getValue());
+                    JsonNode jsonNode = toJson(elasticSearchConfig, schema.getValueType(), entry.getValue());
                     // can be a String or org.apache.avro.util.Utf8
                     final String entryKey = entry.getKey() == null ? null : entry.getKey().toString();
                     objectNode.set(entryKey, jsonNode);
@@ -111,18 +122,22 @@ public class JsonConverter {
                 return objectNode;
             }
             case RECORD:
-                return toJson((GenericRecord) value);
+                return toJson(elasticSearchConfig, (GenericRecord) value);
             case UNION:
                 for (Schema s : schema.getTypes()) {
                     if (s.getType() == Schema.Type.NULL) {
                         continue;
                     }
-                    return toJson(s, value);
+                    return toJson(elasticSearchConfig, s, value);
                 }
                 // this case should not happen
                 return jsonNodeFactory.textNode(value.toString());
             default:
-                throw new UnsupportedOperationException("Unknown AVRO schema type=" + schema.getType());
+                if (!elasticSearchConfig.isIgnoreUnsupportedFields()) {
+                    throw new UnsupportedOperationException("Unknown AVRO schema type=" + schema.getType());
+                } else {
+                    return jsonNodeFactory.nullNode();
+                }
         }
     }
 
@@ -229,5 +244,4 @@ public class JsonConverter {
         }
         return arrayNode;
     }
-
 }

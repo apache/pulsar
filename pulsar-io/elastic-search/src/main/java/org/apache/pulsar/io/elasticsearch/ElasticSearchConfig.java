@@ -294,6 +294,19 @@ public class ElasticSearchConfig implements Serializable {
     )
     private boolean stripNonPrintableCharacters = true;
 
+    @FieldDoc(
+            defaultValue = "false",
+            help = "When the message key schema is AVRO or JSON, copy the message key fields into the Elasticsearch _source."
+    )
+    private boolean copyKeyFields = false;
+
+    @FieldDoc(
+            required = false,
+            defaultValue = "true",
+            help = "If ignoreUnsupportedFields is true, unsupported AVRO fields are nullified and AVRO logical types are decoded as known AVRO types, otherwise it fails."
+    )
+    private boolean ignoreUnsupportedFields = true;
+
     public enum MalformedDocAction {
         IGNORE,
         WARN,

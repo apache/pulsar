@@ -1350,30 +1350,36 @@ public class TopicReaderTest extends ProducerConsumerBase {
     public void testReaderIsAbleToSeekWithTimeOnMiddleOfTopic() throws Exception {
         final String topicName = "persistent://my-property/my-ns/ReaderIsAbleToSeekWithTimeOnMiddleOfTopic";
         final int numOfMessage = 10;
-        final int halfMessages = numOfMessage / 2;
 
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topicName).create();
 
-        long l = System.currentTimeMillis();
+        long halfTime = 0;
         for (int i = 0; i < numOfMessage; i++) {
+            if (i == 6) {
+                halfTime = System.currentTimeMillis();
+            }
             producer.send(String.format("msg num %d", i).getBytes());
-            Thread.sleep(100);
         }
 
         Reader<byte[]> reader = pulsarClient.newReader().topic(topicName)
-                .startMessageId(MessageId.earliest).create();
+                .startMessageId(MessageId.latest).create();
 
-        int plusTime = (halfMessages + 1) * 100;
-        reader.seek(l + plusTime);
+        reader.seek(halfTime);
 
         Set<String> messageSet = Sets.newHashSet();
-        for (int i = halfMessages + 1; i < numOfMessage; i++) {
-            Message<byte[]> message = reader.readNext();
+        int i = 6;
+        while (true) {
+            Message<byte[]> message = reader.readNext(1, TimeUnit.SECONDS);
+            // make sure we are headed to the end of the topic
+            if (message == null) {
+                break;
+            }
             String receivedMessage = new String(message.getData());
-            String expectedMessage = String.format("msg num %d", i);
+            String expectedMessage = String.format("msg num %d", i++);
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }
+        assertEquals(messageSet.size(), 4);
 
         reader.close();
         producer.close();
@@ -1383,26 +1389,30 @@ public class TopicReaderTest extends ProducerConsumerBase {
     public void testMultiReaderIsAbleToSeekWithTimeOnMiddleOfTopic() throws Exception {
         final String topicName = "persistent://my-property/my-ns/testMultiReaderIsAbleToSeekWithTimeOnMiddleOfTopic" + System.currentTimeMillis();
         final int numOfMessage = 10;
-        final int halfMessages = numOfMessage / 2;
         admin.topics().createPartitionedTopic(topicName, 3);
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         long halfTime = 0;
         for (int i = 0; i < numOfMessage; i++) {
-            if (i == numOfMessage / 2) {
+            if (i == 6) {
                 halfTime = System.currentTimeMillis();
             }
             producer.send(String.format("msg num %d", i).getBytes());
         }
         Assert.assertTrue(halfTime != 0);
-        Reader<byte[]> reader = pulsarClient.newReader().topic(topicName).startMessageId(MessageId.earliest).create();
+        Reader<byte[]> reader = pulsarClient.newReader().topic(topicName).startMessageId(MessageId.latest).create();
 
         reader.seek(halfTime);
         Set<String> messageSet = Sets.newHashSet();
-        for (int i = halfMessages + 1; i < numOfMessage; i++) {
-            Message<byte[]> message = reader.readNext(10, TimeUnit.SECONDS);
+        while (true) {
+            Message<byte[]> message = reader.readNext(1, TimeUnit.SECONDS);
+            // make sure we are headed to the end of the topic
+            if (message == null) {
+                break;
+            }
             String receivedMessage = new String(message.getData());
             Assert.assertTrue(messageSet.add(receivedMessage), "Received duplicate message " + receivedMessage);
         }
+        assertEquals(messageSet.size(), 4);
         reader.close();
         producer.close();
     }

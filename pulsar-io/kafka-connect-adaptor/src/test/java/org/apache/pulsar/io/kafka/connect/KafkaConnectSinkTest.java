@@ -23,6 +23,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumReader;
@@ -33,8 +34,13 @@ import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.io.Encoder;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.reflect.ReflectDatumWriter;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.connect.data.Date;
+import org.apache.kafka.connect.data.Decimal;
 import org.apache.kafka.connect.data.Struct;
+import org.apache.kafka.connect.data.Time;
+import org.apache.kafka.connect.data.Timestamp;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -46,13 +52,17 @@ import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
+import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
+import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.client.impl.schema.generic.GenericAvroRecord;
 import org.apache.pulsar.client.util.MessageIdUtils;
 import org.apache.pulsar.common.schema.KeyValue;
+import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.source.PulsarRecord;
 import org.apache.pulsar.io.core.SinkContext;
@@ -69,16 +79,24 @@ import org.testng.collections.Maps;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.Serializable;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.text.SimpleDateFormat;
 import java.util.AbstractMap;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.TimeZone;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
@@ -91,16 +109,42 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 @SuppressWarnings({"unchecked", "rawtypes"})
 @Slf4j
-public class KafkaConnectSinkTest extends ProducerConsumerBase  {
+public class KafkaConnectSinkTest extends ProducerConsumerBase {
+
+    public class TestSchema implements Schema<byte[]>, Serializable {
+
+        private SchemaInfo schemaInfo;
+
+        public TestSchema(SchemaInfo schemaInfo) {
+            this.schemaInfo = schemaInfo;
+        }
+
+        @Override
+        public byte[] encode(byte[] data) {
+            return data;
+        }
+
+        @Override
+        public SchemaInfo getSchemaInfo() {
+            return schemaInfo;
+        }
+
+        @Override
+        public Schema<byte[]> clone() {
+            return null;
+        }
+    }
 
     public class ResultCaptor<T> implements Answer {
         private T result = null;
+
         public T getResult() {
             return result;
         }
@@ -112,7 +156,7 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
         }
     }
 
-    private String offsetTopicName =  "persistent://my-property/my-ns/kafka-connect-sink-offset";
+    private String offsetTopicName = "persistent://my-property/my-ns/kafka-connect-sink-offset";
 
     private Path file;
     private Map<String, Object> props;
@@ -312,11 +356,11 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
     }
 
     private SinkRecord recordSchemaTest(Object value, Schema schema, Object expected, String expectedSchema) throws Exception {
-        return recordSchemaTest(value, schema, "key",  "STRING", expected, expectedSchema);
+        return recordSchemaTest(value, schema, "key", "STRING", expected, expectedSchema);
     }
 
     private SinkRecord recordSchemaTest(Object value, Schema schema, Object expectedKey, String expectedKeySchema,
-                                  Object expected, String expectedSchema) throws Exception {
+                                        Object expected, String expectedSchema) throws Exception {
         props.put("kafkaConnectorSinkClass", SchemaedFileStreamSinkConnector.class.getCanonicalName());
 
         KafkaConnectSink sink = new KafkaConnectSink();
@@ -347,7 +391,8 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
 
         List<String> lines = Files.readAllLines(file, StandardCharsets.US_ASCII);
         ObjectMapper om = new ObjectMapper();
-        Map<String, Object> result = om.readValue(lines.get(0), new TypeReference<Map<String, Object>>(){});
+        Map<String, Object> result = om.readValue(lines.get(0), new TypeReference<Map<String, Object>>() {
+        });
 
         assertEquals(expectedKey, result.get("key"));
         assertEquals(expected, result.get("value"));
@@ -391,12 +436,12 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
                     .map(f -> new Field(f.name(), f.pos()))
                     .collect(Collectors.toList());
 
-            return new GenericAvroRecord(new byte[]{ 1 }, avroSchema, fields, avroRecord);
+            return new GenericAvroRecord(new byte[]{1}, avroSchema, fields, avroRecord);
         } else {
             rec = MockGenericObjectWrapper.builder()
                     .nativeObject(value)
                     .schemaType(schema != null ? schema.getSchemaInfo().getType() : null)
-                    .schemaVersion(new byte[]{ 1 }).build();
+                    .schemaVersion(new byte[]{1}).build();
         }
         return rec;
     }
@@ -414,11 +459,11 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
 
         final GenericData.Record obj = new GenericData.Record(pulsarAvroSchema.getAvroSchema());
         // schema type INT32
-        obj.put("field1", (byte)10);
+        obj.put("field1", (byte) 10);
         // schema type STRING
         obj.put("field2", "test");
         // schema type INT64
-        obj.put("field3", (short)100);
+        obj.put("field3", (short) 100);
 
         final GenericRecord rec = getGenericRecord(obj, pulsarAvroSchema);
         Message msg = mock(MessageImpl.class);
@@ -475,17 +520,17 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
     @Test
     public void byteRecordSchemaTest() throws Exception {
         // int 1 is coming back from ObjectMapper
-        SinkRecord sinkRecord = recordSchemaTest((byte)1, Schema.INT8, 1, "INT8");
+        SinkRecord sinkRecord = recordSchemaTest((byte) 1, Schema.INT8, 1, "INT8");
         Assert.assertEquals(sinkRecord.value().getClass(), Byte.class);
-        Assert.assertEquals(sinkRecord.value(), (byte)1);
+        Assert.assertEquals(sinkRecord.value(), (byte) 1);
     }
 
     @Test
     public void shortRecordSchemaTest() throws Exception {
         // int 1 is coming back from ObjectMapper
-        SinkRecord sinkRecord = recordSchemaTest((short)1, Schema.INT16, 1, "INT16");
+        SinkRecord sinkRecord = recordSchemaTest((short) 1, Schema.INT16, 1, "INT16");
         Assert.assertEquals(sinkRecord.value().getClass(), Short.class);
-        Assert.assertEquals(sinkRecord.value(), (short)1);
+        Assert.assertEquals(sinkRecord.value(), (short) 1);
     }
 
     @Test
@@ -644,6 +689,77 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
     }
 
     @Test
+    public void kafkaLogicalTypesTimestampTest() {
+        Schema schema = new TestSchema(new SchemaInfoImpl()
+                .setName(Timestamp.LOGICAL_NAME)
+                .setType(SchemaType.INT64)
+                .setSchema(new byte[0]));
+
+        org.apache.kafka.connect.data.Schema kafkaSchema = PulsarSchemaToKafkaSchema
+                .getKafkaConnectSchema(schema);
+
+        java.util.Date date = getDateFromString("12/30/1999 11:12:13");
+        Object connectData = KafkaConnectData
+                .getKafkaConnectData(Timestamp.fromLogical(kafkaSchema, date), kafkaSchema);
+
+        org.apache.kafka.connect.data.ConnectSchema.validateValue(kafkaSchema, connectData);
+    }
+
+    @Test
+    public void kafkaLogicalTypesTimeTest() {
+        Schema schema = new TestSchema(new SchemaInfoImpl()
+                .setName(Time.LOGICAL_NAME)
+                .setType(SchemaType.INT32)
+                .setSchema(new byte[0]));
+
+        org.apache.kafka.connect.data.Schema kafkaSchema = PulsarSchemaToKafkaSchema
+                .getKafkaConnectSchema(schema);
+
+        java.util.Date date = getDateFromString("01/01/1970 11:12:13");
+        Object connectData = KafkaConnectData
+                .getKafkaConnectData(Time.fromLogical(kafkaSchema, date), kafkaSchema);
+
+        org.apache.kafka.connect.data.ConnectSchema.validateValue(kafkaSchema, connectData);
+    }
+
+    @Test
+    public void kafkaLogicalTypesDateTest() {
+        Schema schema = new TestSchema(new SchemaInfoImpl()
+                .setName(Date.LOGICAL_NAME)
+                .setType(SchemaType.INT32)
+                .setSchema(new byte[0]));
+
+        org.apache.kafka.connect.data.Schema kafkaSchema = PulsarSchemaToKafkaSchema
+                .getKafkaConnectSchema(schema);
+
+        java.util.Date date = getDateFromString("12/31/2022 00:00:00");
+        Object connectData = KafkaConnectData
+                .getKafkaConnectData(Date.fromLogical(kafkaSchema, date), kafkaSchema);
+
+        org.apache.kafka.connect.data.ConnectSchema.validateValue(kafkaSchema, connectData);
+    }
+
+    @Test
+    public void kafkaLogicalTypesDecimalTest() {
+        Map<String, String> props = new HashMap<>();
+        props.put("scale", "10");
+        Schema schema = new TestSchema(new SchemaInfoImpl()
+                .setName(Decimal.LOGICAL_NAME)
+                .setType(SchemaType.BYTES)
+                .setProperties(props)
+                .setSchema(new byte[0]));
+
+        org.apache.kafka.connect.data.Schema kafkaSchema = PulsarSchemaToKafkaSchema
+                .getKafkaConnectSchema(schema);
+
+        Object connectData = KafkaConnectData
+                .getKafkaConnectData(Decimal.fromLogical(kafkaSchema, BigDecimal.valueOf(100L, 10)), kafkaSchema);
+
+        org.apache.kafka.connect.data.ConnectSchema.validateValue(kafkaSchema, connectData);
+    }
+
+
+    @Test
     public void connectDataComplexAvroSchemaGenericRecordTest() {
         AvroSchema<PulsarSchemaToKafkaSchemaTest.ComplexStruct> pulsarAvroSchema
                 = AvroSchema.of(PulsarSchemaToKafkaSchemaTest.ComplexStruct.class);
@@ -737,28 +853,28 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
 
     @Test
     public void connectDataPrimitiveArraysTest() throws Exception {
-        testPojoAsAvroAndJsonConversionToConnectData(new String[] {"test", "test2"});
+        testPojoAsAvroAndJsonConversionToConnectData(new String[]{"test", "test2"});
 
-        testPojoAsAvroAndJsonConversionToConnectData(new char[] {'a', 'b', 'c'});
-        testPojoAsAvroAndJsonConversionToConnectData(new Character[] {'a', 'b', 'c'});
+        testPojoAsAvroAndJsonConversionToConnectData(new char[]{'a', 'b', 'c'});
+        testPojoAsAvroAndJsonConversionToConnectData(new Character[]{'a', 'b', 'c'});
 
-        testPojoAsAvroAndJsonConversionToConnectData(new byte[] {Byte.MIN_VALUE, Byte.MAX_VALUE});
-        testPojoAsAvroAndJsonConversionToConnectData(new Byte[] {Byte.MIN_VALUE, Byte.MAX_VALUE});
+        testPojoAsAvroAndJsonConversionToConnectData(new byte[]{Byte.MIN_VALUE, Byte.MAX_VALUE});
+        testPojoAsAvroAndJsonConversionToConnectData(new Byte[]{Byte.MIN_VALUE, Byte.MAX_VALUE});
 
-        testPojoAsAvroAndJsonConversionToConnectData(new short[] {Short.MIN_VALUE, Short.MAX_VALUE});
-        testPojoAsAvroAndJsonConversionToConnectData(new Short[] {Short.MIN_VALUE, Short.MAX_VALUE});
+        testPojoAsAvroAndJsonConversionToConnectData(new short[]{Short.MIN_VALUE, Short.MAX_VALUE});
+        testPojoAsAvroAndJsonConversionToConnectData(new Short[]{Short.MIN_VALUE, Short.MAX_VALUE});
 
-        testPojoAsAvroAndJsonConversionToConnectData(new int[] {Integer.MIN_VALUE, Integer.MAX_VALUE});
-        testPojoAsAvroAndJsonConversionToConnectData(new Integer[] {Integer.MIN_VALUE, Integer.MAX_VALUE});
+        testPojoAsAvroAndJsonConversionToConnectData(new int[]{Integer.MIN_VALUE, Integer.MAX_VALUE});
+        testPojoAsAvroAndJsonConversionToConnectData(new Integer[]{Integer.MIN_VALUE, Integer.MAX_VALUE});
 
-        testPojoAsAvroAndJsonConversionToConnectData(new long[] {Long.MIN_VALUE, Long.MAX_VALUE});
-        testPojoAsAvroAndJsonConversionToConnectData(new Long[] {Long.MIN_VALUE, Long.MAX_VALUE});
+        testPojoAsAvroAndJsonConversionToConnectData(new long[]{Long.MIN_VALUE, Long.MAX_VALUE});
+        testPojoAsAvroAndJsonConversionToConnectData(new Long[]{Long.MIN_VALUE, Long.MAX_VALUE});
 
-        testPojoAsAvroAndJsonConversionToConnectData(new float[] {Float.MIN_VALUE, Float.MAX_VALUE});
-        testPojoAsAvroAndJsonConversionToConnectData(new Float[] {Float.MIN_VALUE, Float.MAX_VALUE});
+        testPojoAsAvroAndJsonConversionToConnectData(new float[]{Float.MIN_VALUE, Float.MAX_VALUE});
+        testPojoAsAvroAndJsonConversionToConnectData(new Float[]{Float.MIN_VALUE, Float.MAX_VALUE});
 
-        testPojoAsAvroAndJsonConversionToConnectData(new double[] {Double.MIN_VALUE, Double.MAX_VALUE});
-        testPojoAsAvroAndJsonConversionToConnectData(new Double[] {Double.MIN_VALUE, Double.MAX_VALUE});
+        testPojoAsAvroAndJsonConversionToConnectData(new double[]{Double.MIN_VALUE, Double.MAX_VALUE});
+        testPojoAsAvroAndJsonConversionToConnectData(new Double[]{Double.MIN_VALUE, Double.MAX_VALUE});
     }
 
     private void testPojoAsAvroAndJsonConversionToConnectData(Object pojo) throws IOException {
@@ -846,20 +962,20 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
         expectedValue.put("doubleField", 0.0d);
 
         KeyValue<GenericRecord, GenericRecord> kv = new KeyValue<>(getGenericRecord(key, pulsarAvroSchema),
-                            getGenericRecord(value, pulsarAvroSchema));
+                getGenericRecord(value, pulsarAvroSchema));
 
         SinkRecord sinkRecord = recordSchemaTest(kv, Schema.KeyValue(pulsarAvroSchema, pulsarAvroSchema),
                 expectedKey, "STRUCT", expectedValue, "STRUCT");
 
         Struct outValue = (Struct) sinkRecord.value();
-        Assert.assertEquals((int)outValue.get("field1"), 10);
-        Assert.assertEquals((String)outValue.get("field2"), "value");
-        Assert.assertEquals((long)outValue.get("field3"), 100L);
+        Assert.assertEquals((int) outValue.get("field1"), 10);
+        Assert.assertEquals((String) outValue.get("field2"), "value");
+        Assert.assertEquals((long) outValue.get("field3"), 100L);
 
         Struct outKey = (Struct) sinkRecord.key();
-        Assert.assertEquals((int)outKey.get("field1"), 11);
-        Assert.assertEquals((String)outKey.get("field2"), "key");
-        Assert.assertEquals((long)outKey.get("field3"), 101L);
+        Assert.assertEquals((int) outKey.get("field1"), 11);
+        Assert.assertEquals((String) outKey.get("field2"), "key");
+        Assert.assertEquals((long) outKey.get("field3"), 101L);
     }
 
     @Test
@@ -928,11 +1044,16 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
 
     @Test
     public void offsetTest() throws Exception {
+        props.put("useIndexAsOffset", "true");
+        props.put("maxBatchBitsForOffset", "12");
+
+        final AtomicLong ledgerId = new AtomicLong(0L);
         final AtomicLong entryId = new AtomicLong(0L);
         final GenericRecord rec = getGenericRecord("value", Schema.STRING);
         Message msg = mock(MessageImpl.class);
         when(msg.getValue()).thenReturn(rec);
-        when(msg.getMessageId()).then(x -> new MessageIdImpl(0, entryId.getAndIncrement(), 0));
+        when(msg.getMessageId()).then(x -> new MessageIdImpl(ledgerId.get(), entryId.get(), 0));
+        when(msg.hasIndex()).thenReturn(false);
 
         final String topicName = "testTopic";
         final int partition = 1;
@@ -959,6 +1080,7 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
         // offset is 0 for the first written record
         assertEquals(sink.currentOffset(topicName, partition), 0);
 
+        entryId.set(1);
         sink.write(record);
         sink.flush();
         // offset is 1 for the second written record
@@ -976,10 +1098,239 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
         // offset is 1 after reopening the producer
         assertEquals(sink.currentOffset(topicName, partition), 1);
 
+        entryId.set(2);
         sink.write(record);
         sink.flush();
         // offset is 2 for the next written record
         assertEquals(sink.currentOffset(topicName, partition), 2);
+
+
+        // use index
+        entryId.set(999);
+        when(msg.hasIndex()).thenReturn(true);
+        when(msg.getIndex()).thenReturn(Optional.of(777L));
+
+        sink.write(record);
+        sink.flush();
+        // offset is 777 for the next written record according to index
+        assertEquals(sink.currentOffset(topicName, partition), 777);
+
+        final AtomicInteger batchIdx = new AtomicInteger(2);
+
+        entryId.set(3);
+        when(msg.getMessageId()).then(x -> new BatchMessageIdImpl(0, entryId.get(), 0, batchIdx.get()));
+        when(msg.hasIndex()).thenReturn(false);
+        sink.write(record);
+        sink.flush();
+        // offset is the batch message id includes batch
+        // (3 << 12) | 2
+        assertEquals(sink.currentOffset(topicName, partition), 12290);
+
+        // batch too large
+        batchIdx.set(Integer.MAX_VALUE);
+        sink.write(record);
+        sink.flush();
+        assertEquals(sink.currentOffset(topicName, partition), 2147483647L);
+
+        // batch too large, entryId changed,
+        // offset stays the same
+        entryId.incrementAndGet();
+        sink.write(record);
+        sink.flush();
+        assertEquals(sink.currentOffset(topicName, partition), 2147483647L);
+
+        // max usable bits for ledger: 64 - 28 used for entry + batch
+        long lastLedger = 1 << (64 - 28);
+        // max usable bits for ledger: 28 - 12 used for batch
+        long lastEntry = 1 << (28 - 12);
+        ledgerId.set(lastLedger);
+        entryId.set(lastEntry);
+        Set<Long> seenOffsets = new HashSet<>(4096);
+        // offsets are unique
+        for (int i = 0; i < 4096; i++) {
+            batchIdx.set(i);
+            sink.write(record);
+            sink.flush();
+            long offset = sink.currentOffset(topicName, partition);
+            assertFalse(seenOffsets.contains(offset));
+            seenOffsets.add(offset);
+        }
+
+        ledgerId.set(0);
+        entryId.set(0);
+        seenOffsets.clear();
+        // offsets are unique
+        for (int i = 0; i < 4096; i++) {
+            batchIdx.set(i);
+            sink.write(record);
+            sink.flush();
+            long offset = sink.currentOffset(topicName, partition);
+            assertFalse(seenOffsets.contains(offset));
+            seenOffsets.add(offset);
+        }
+
+        sink.close();
+    }
+
+    @Test
+    public void offsetNoIndexNoBatchTest() throws Exception {
+        props.put("useIndexAsOffset", "false");
+        props.put("maxBatchBitsForOffset", "0");
+
+        final AtomicLong ledgerId = new AtomicLong(0L);
+        final AtomicLong entryId = new AtomicLong(0L);
+        final GenericRecord rec = getGenericRecord("value", Schema.STRING);
+        Message msg = mock(MessageImpl.class);
+        when(msg.getValue()).thenReturn(rec);
+        when(msg.getMessageId()).then(x -> new MessageIdImpl(ledgerId.get(), entryId.get(), 0));
+        when(msg.hasIndex()).thenReturn(false);
+
+        final String topicName = "testTopic";
+        final int partition = 1;
+        final AtomicInteger status = new AtomicInteger(0);
+        Record<GenericObject> record = PulsarRecord.<String>builder()
+                .topicName(topicName)
+                .partition(partition)
+                .message(msg)
+                .ackFunction(status::incrementAndGet)
+                .failFunction(status::decrementAndGet)
+                .schema(Schema.STRING)
+                .build();
+
+        KafkaConnectSink sink = new KafkaConnectSink();
+        when(context.getSubscriptionType()).thenReturn(SubscriptionType.Exclusive);
+        sink.open(props, context);
+
+        // offset is -1 before any data is written (aka no offset)
+        assertEquals(sink.currentOffset(topicName, partition), -1L);
+
+        sink.write(record);
+        sink.flush();
+
+        // offset is 0 for the first written record
+        assertEquals(sink.currentOffset(topicName, partition), 0);
+
+        entryId.set(1);
+        sink.write(record);
+        sink.flush();
+        // offset is 1 for the second written record
+        assertEquals(sink.currentOffset(topicName, partition), 1);
+
+        sink.close();
+
+        // close the producer, open again
+        sink = new KafkaConnectSink();
+        when(context.getPulsarClient()).thenReturn(PulsarClient.builder()
+                .serviceUrl(brokerUrl.toString())
+                .build());
+        sink.open(props, context);
+
+        // offset is 1 after reopening the producer
+        assertEquals(sink.currentOffset(topicName, partition), 1);
+
+        entryId.set(2);
+        sink.write(record);
+        sink.flush();
+        // offset is 2 for the next written record
+        assertEquals(sink.currentOffset(topicName, partition), 2);
+
+        // use of index is disabled
+        entryId.set(999);
+        when(msg.hasIndex()).thenReturn(true);
+        when(msg.getIndex()).thenReturn(Optional.of(777L));
+
+        sink.write(record);
+        sink.flush();
+        // offset is 999 for the next written record, index is disabled
+        assertEquals(sink.currentOffset(topicName, partition), 999);
+
+        final AtomicInteger batchIdx = new AtomicInteger(2);
+
+        entryId.set(3);
+        when(msg.getMessageId()).then(x -> new BatchMessageIdImpl(0, entryId.get(), 0, batchIdx.get()));
+        when(msg.hasIndex()).thenReturn(false);
+        sink.write(record);
+        sink.flush();
+        // offset does not includes batch - it disabled
+        assertEquals(sink.currentOffset(topicName, partition), 3);
+
+        // max usable bits for ledger: 64 - 28 used for entry + batch
+        long lastLedger = 1 << (64 - 28);
+        // max usable bits for ledger: 28 - 12 used for batch
+        long lastEntry = 1 << (28 - 12);
+        ledgerId.set(lastLedger);
+        entryId.set(lastEntry);
+        Set<Long> seenOffsets = new HashSet<>(4096);
+        // offsets are not unique
+        for (int i = 0; i < 4096; i++) {
+            batchIdx.set(i);
+            sink.write(record);
+            sink.flush();
+            long offset = sink.currentOffset(topicName, partition);
+            seenOffsets.add(offset);
+        }
+        assertEquals(seenOffsets.size(), 1);
+
+        sink.close();
+    }
+
+
+    @Test
+    public void partialPreCommitTest() throws Exception {
+        props.put("useIndexAsOffset", "false");
+        props.put("maxBatchBitsForOffset", "0");
+        final String topicName = "testTopic";
+
+        KafkaConnectSink sink = new KafkaConnectSink();
+        when(context.getSubscriptionType()).thenReturn(SubscriptionType.Exclusive);
+        sink.open(props, context);
+
+        final int numPartitions = 3;
+        for (long i = 0; i < 30; i++) {
+            final AtomicLong ledgerId = new AtomicLong(0L);
+            final AtomicLong entryId = new AtomicLong(i);
+            final GenericRecord rec = getGenericRecord("value", Schema.STRING);
+            Message msg = mock(MessageImpl.class);
+            when(msg.getValue()).thenReturn(rec);
+            when(msg.getMessageId()).then(x -> new MessageIdImpl(ledgerId.get(), entryId.get(), 0));
+            when(msg.hasIndex()).thenReturn(false);
+
+            final int partition = (int) (i % numPartitions);
+            final AtomicInteger status = new AtomicInteger(0);
+            Record<GenericObject> record = PulsarRecord.<String>builder()
+                    .topicName(topicName)
+                    .partition(partition)
+                    .message(msg)
+                    .ackFunction(status::incrementAndGet)
+                    .failFunction(status::decrementAndGet)
+                    .schema(Schema.STRING)
+                    .build();
+
+            sink.write(record);
+        }
+
+        ConcurrentLinkedDeque<Record<GenericObject>> pendingFlushQueue = sink.pendingFlushQueue;
+        assertEquals(pendingFlushQueue.size(), 30);
+
+        Map<TopicPartition, OffsetAndMetadata> committedOffsets = new HashMap<>();
+        committedOffsets.put(new TopicPartition(topicName, 0),
+                new OffsetAndMetadata(3L, Optional.empty(), null));
+        committedOffsets.put(new TopicPartition(topicName, 1),
+                new OffsetAndMetadata(4L, Optional.empty(), null));
+        committedOffsets.put(new TopicPartition(topicName, 2),
+                new OffsetAndMetadata(5L, Optional.empty(), null));
+
+        Record<GenericObject> lastNotFlushed = pendingFlushQueue.peekFirst();
+        Record<GenericObject> lastNotFlushedAfter = (Record<GenericObject>) pendingFlushQueue.stream().toArray()[15];
+
+        final AtomicInteger ackedMessagesCount = new AtomicInteger(0);
+        sink.ackUntil(lastNotFlushed, committedOffsets, x -> ackedMessagesCount.incrementAndGet());
+        assertEquals(ackedMessagesCount.get(), 1);
+        assertEquals(pendingFlushQueue.size(), 29);
+
+        sink.ackUntil(lastNotFlushedAfter, committedOffsets, x -> ackedMessagesCount.incrementAndGet());
+        assertEquals(ackedMessagesCount.get(), 6);
+        assertEquals(pendingFlushQueue.size(), 24);
 
         sink.close();
     }
@@ -1016,14 +1367,14 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
                 .setCharField('c')
                 .setStringField("some text")
 
-                .setByteArr(new byte[] {1 ,2})
-                .setShortArr(new short[] {3, 4})
-                .setIntArr(new int[] {5, 6})
-                .setLongArr(new long[] {7, 8})
-                .setFloatArr(new float[] {9.0f, 10.0f})
-                .setDoubleArr(new double[] {11.0d, 12.0d})
+                .setByteArr(new byte[]{1, 2})
+                .setShortArr(new short[]{3, 4})
+                .setIntArr(new int[]{5, 6})
+                .setLongArr(new long[]{7, 8})
+                .setFloatArr(new float[]{9.0f, 10.0f})
+                .setDoubleArr(new double[]{11.0d, 12.0d})
                 .setCharArr(new char[]{'a', 'b'})
-                .setStringArr(new String[] {"abc", "def"});
+                .setStringArr(new String[]{"abc", "def"});
     }
 
     private static GenericData.Record getStructRecord() {
@@ -1065,13 +1416,13 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
         rec.put("doubleField", 6.1d);
         rec.put("charField", 'c');
         rec.put("stringField", "some string");
-        rec.put("byteArr", new byte[] {(byte) 1, (byte) 2});
-        rec.put("shortArr", new short[] {(short) 3, (short) 4});
-        rec.put("intArr", new int[] {5, 6});
-        rec.put("longArr", new long[] {7L, 8L});
-        rec.put("floatArr", new float[] {9.0f, 10.0f});
-        rec.put("doubleArr", new double[] {11.0d, 12.0d});
-        rec.put("charArr", new char[] {'a', 'b', 'c'});
+        rec.put("byteArr", new byte[]{(byte) 1, (byte) 2});
+        rec.put("shortArr", new short[]{(short) 3, (short) 4});
+        rec.put("intArr", new int[]{5, 6});
+        rec.put("longArr", new long[]{7L, 8L});
+        rec.put("floatArr", new float[]{9.0f, 10.0f});
+        rec.put("doubleArr", new double[]{11.0d, 12.0d});
+        rec.put("charArr", new char[]{'a', 'b', 'c'});
 
         Map<String, GenericData.Record> map = new HashMap<>();
         map.put("key1", getStructRecord());
@@ -1081,4 +1432,14 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
 
         return rec;
     }
+
+    @SneakyThrows
+    private java.util.Date getDateFromString(String dateInString) {
+        SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy hh:mm:ss");
+        formatter.setTimeZone(TimeZone.getTimeZone("GMT"));
+
+        java.util.Date parsedDate = formatter.parse(dateInString);
+        return parsedDate;
+    }
+
 }

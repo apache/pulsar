@@ -32,7 +32,7 @@
   <groupId>com.datastax.oss</groupId>
   <artifactId>pulsar</artifactId>
 
-  <version>2.10.1.1-SNAPSHOT</version>
+  <version>2.10.1.5-SNAPSHOT</version>
 
   <name>Pulsar</name>
   <description>Pulsar is a distributed pub-sub messaging platform with a very
@@ -105,7 +105,7 @@ flexible messaging model and an intuitive client API.</description>
     <commons-compress.version>1.21</commons-compress.version>
 
     <!-- Use Luna Streaming BookKeeper custom version -->
-    <bookkeeper.version>4.14.5.1.0.1</bookkeeper.version>
+    <bookkeeper.version>4.14.5.1.0.2</bookkeeper.version>
     <zookeeper.version>3.8.0</zookeeper.version>
     <commons-cli.version>1.5.0</commons-cli.version>
     <commons-text.version>1.9</commons-text.version>
@@ -123,7 +123,7 @@ flexible messaging model and an intuitive client API.</description>
     <rocksdb.version>6.10.2</rocksdb.version>
     <slf4j.version>1.7.32</slf4j.version>
     <commons.collections.version>3.2.2</commons.collections.version>
-    <log4j2.version>2.17.1</log4j2.version>
+    <log4j2.version>2.18.0</log4j2.version>
     <bouncycastle.version>1.69</bouncycastle.version>
     <bouncycastlefips.version>1.0.2</bouncycastlefips.version>
     <jackson.version>2.13.2</jackson.version>
@@ -140,20 +140,21 @@ flexible messaging model and an intuitive client API.</description>
     <perfmark.version>0.19.0</perfmark.version>
     <protoc-gen-grpc-java.version>${grpc.version}</protoc-gen-grpc-java.version>
     <gson.version>2.8.9</gson.version>
+    <system-lambda.version>1.2.1</system-lambda.version>
     <sketches.version>0.8.3</sketches.version>
     <hbc-core.version>2.2.0</hbc-core.version>
     <cassandra-driver-core.version>3.6.0</cassandra-driver-core.version>
     <aerospike-client.version>4.4.20</aerospike-client.version>
     <kafka-client.version>2.7.2</kafka-client.version>
     <rabbitmq-client.version>5.1.1</rabbitmq-client.version>
-    <aws-sdk.version>1.11.774</aws-sdk.version>
+    <aws-sdk.version>1.12.262</aws-sdk.version>
     <avro.version>1.10.2</avro.version>
     <joda.version>2.10.5</joda.version>
     <jclouds.version>2.5.0</jclouds.version>
     <guice.version>5.1.0</guice.version>
-    <sqlite-jdbc.version>3.8.11.2</sqlite-jdbc.version>
+    <sqlite-jdbc.version>3.36.0.3</sqlite-jdbc.version>
     <mysql-jdbc.version>8.0.11</mysql-jdbc.version>
-    <postgresql-jdbc.version>42.3.3</postgresql-jdbc.version>
+    <postgresql-jdbc.version>42.4.1</postgresql-jdbc.version>
     <clickhouse-jdbc.version>0.3.2</clickhouse-jdbc.version>
     <mariadb-jdbc.version>2.7.5</mariadb-jdbc.version>
     <hdfs-offload-version3>3.3.3</hdfs-offload-version3>
@@ -164,7 +165,7 @@ flexible messaging model and an intuitive client API.</description>
     <scala.binary.version>2.13</scala.binary.version>
     <scala-library.version>2.13.6</scala-library.version>
     <debezium.version>1.7.2.Final</debezium.version>
-    <debezium.postgresql.version>42.3.3</debezium.postgresql.version>
+    <debezium.postgresql.version>42.4.1</debezium.postgresql.version>
     <debezium.mysql.version>8.0.28</debezium.mysql.version>
     <jsonwebtoken.version>0.11.1</jsonwebtoken.version>
     <opencensus.version>0.28.0</opencensus.version>
@@ -1317,6 +1318,13 @@ flexible messaging model and an intuitive client API.</description>
     </dependency>
 
     <dependency>
+      <groupId>com.github.stefanbirkner</groupId>
+      <artifactId>system-lambda</artifactId>
+      <version>${system-lambda.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
       <groupId>org.powermock</groupId>
       <artifactId>powermock-reflect</artifactId>
       <scope>test</scope>
@@ -2080,6 +2088,7 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-client-admin-api</module>
         <module>pulsar-client-admin</module>
         <module>pulsar-client-admin-shaded</module>
+        <module>pulsar-client-tools-api</module>
         <module>pulsar-client-tools</module>
         <module>pulsar-client-tools-test</module>
         <module>pulsar-client-all</module>
@@ -2144,6 +2153,7 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-client</module>
         <module>pulsar-client-admin-api</module>
         <module>pulsar-client-admin</module>
+        <module>pulsar-client-tools-api</module>
         <module>pulsar-client-tools</module>
         <module>pulsar-client-tools-test</module>
         <module>pulsar-websocket</module>

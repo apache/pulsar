@@ -1,0 +1,179 @@
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <parent>
+    <groupId>com.datastax.oss</groupId>
+    <artifactId>docker-images</artifactId>
+    <version>2.10.1.5-SNAPSHOT</version>
+  </parent>
+  <modelVersion>4.0.0</modelVersion>
+  <artifactId>pulsar-experimental-docker-image</artifactId>
+  <name>Apache Pulsar :: Docker Images :: Pulsar Latest Version (Include Experimental Components)</name>
+  <packaging>pom</packaging>
+
+  <dependencies>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-io-distribution</artifactId>
+      <version>${project.parent.version}</version>
+      <type>pom</type>
+      <scope>provided</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>*</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>io.perfmark</groupId>
+      <artifactId>perfmark-api</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-offloader-distribution</artifactId>
+      <version>${project.parent.version}</version>
+      <classifier>bin</classifier>
+      <type>tar.gz</type>
+      <scope>provided</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>*</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+  </dependencies>
+
+  <profiles>
+    <profile>
+      <id>docker</id>
+      <!-- include the docker image only when docker profile is active -->
+      <dependencies>
+        <dependency>
+          <groupId>${project.groupId}</groupId>
+          <artifactId>pulsar-docker-image</artifactId>
+          <version>${project.version}</version>
+          <classifier>docker-info</classifier>
+        </dependency>
+      </dependencies>
+      <build>
+        <plugins>
+          <plugin>
+            <artifactId>maven-resources-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>copy-resources</id>
+                <phase>generate-resources</phase>
+                <goals>
+                  <goal>copy-resources</goal>
+                </goals>
+                <configuration>
+                  <outputDirectory>${basedir}/target/apache-pulsar-io-connectors-${project.version}-bin</outputDirectory>
+                  <resources>
+                    <resource>
+                      <directory>${basedir}/../../distribution/io/target/apache-pulsar-io-connectors-${project.version}-bin</directory>
+                      <filtering>false</filtering>
+                    </resource>
+                  </resources>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-dependency-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>copy-offloader-tarball</id>
+                <goals>
+                  <goal>copy-dependencies</goal>
+                </goals>
+                <phase>generate-resources</phase>
+                <configuration>
+                  <outputDirectory>${project.build.directory}/</outputDirectory>
+                  <includeArtifactIds>pulsar-offloader-distribution</includeArtifactIds>
+                  <excludeTransitive>true</excludeTransitive>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>com.spotify</groupId>
+            <artifactId>dockerfile-maven-plugin</artifactId>
+            <version>${dockerfile-maven.version}</version>
+            <executions>
+              <execution>
+                <id>default-experimental</id>
+                <goals>
+                  <goal>build</goal>
+                </goals>
+              </execution>
+              <execution>
+                <id>add-no-repo-and-version-experimental</id>
+                <goals>
+                  <goal>tag</goal>
+                </goals>
+                <configuration>
+                  <repository>pulsar-experimental</repository>
+                  <tag>${project.version}</tag>
+                </configuration>
+              </execution>
+              <execution>
+                <id>add-no-repo-and-latest-experimental</id>
+                <goals>
+                  <goal>tag</goal>
+                </goals>
+                <configuration>
+                  <repository>pulsar-experimental</repository>
+                  <tag>latest</tag>
+                </configuration>
+              </execution>
+              <execution>
+                <id>tag-and-push-latest-experimental</id>
+                <goals>
+                  <goal>tag</goal>
+                  <goal>push</goal>
+                </goals>
+                <configuration>
+                  <repository>${docker.organization}/pulsar-experimental</repository>
+                  <tag>latest</tag>
+                </configuration>
+              </execution>
+            </executions>
+            <configuration>
+              <repository>${docker.organization}/pulsar-experimental</repository>
+              <pullNewerImage>false</pullNewerImage>
+              <tag>${project.version}</tag>
+              <buildArgs>
+                <PULSAR_IO_DIR>target/apache-pulsar-io-connectors-${project.version}-bin</PULSAR_IO_DIR>
+                <PULSAR_OFFLOADER_TARBALL>target/pulsar-offloader-distribution-${project.version}-bin.tar.gz</PULSAR_OFFLOADER_TARBALL>
+              </buildArgs>
+            </configuration>
+          </plugin>
+
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
+</project>

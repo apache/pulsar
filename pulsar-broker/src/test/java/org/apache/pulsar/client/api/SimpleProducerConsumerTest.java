@@ -113,7 +113,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Test(groups = "flaky")
+@Test(groups = "broker-api")
 public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(SimpleProducerConsumerTest.class);
     private static final int TIMEOUT_MULTIPLIER = Integer.getInteger("SimpleProducerConsumerTest.receive.timeout.multiplier", 1);
@@ -147,6 +147,16 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     @DataProvider(name = "ackReceiptEnabled")
     public Object[][] ackReceiptEnabled() {
         return new Object[][] { { true }, { false } };
+    }
+
+    @DataProvider(name = "ackReceiptEnabledAndSubscriptionTypes")
+    public Object[][] ackReceiptEnabledAndSubscriptionTypes() {
+        return new Object[][] {
+                {true, SubscriptionType.Shared},
+                {true, SubscriptionType.Key_Shared},
+                {false, SubscriptionType.Shared},
+                {false, SubscriptionType.Key_Shared},
+        };
     }
 
     @AfterMethod(alwaysRun = true)
@@ -1588,6 +1598,47 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             fail();
         } finally {
             pulsar.getConfiguration().setMaxUnackedMessagesPerConsumer(unAckedMessages);
+        }
+    }
+
+    @Test(dataProvider = "ackReceiptEnabledAndSubscriptionTypes")
+    public void testMaxUnAckMessagesLowerThanPermits(boolean ackReceiptEnabled, SubscriptionType subType)
+            throws PulsarClientException {
+        final int maxUnacks = 10;
+        pulsar.getConfiguration().setMaxUnackedMessagesPerConsumer(maxUnacks);
+        final String topic = "persistent://my-property/my-ns/testMaxUnAckMessagesLowerThanPermits";
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic).subscriptionName("sub")
+                .subscriptionType(subType)
+                .isAckReceiptEnabled(ackReceiptEnabled)
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .enableBatching(false)
+                .topic(topic)
+                .create();
+
+        final int messages = 1000;
+        for (int i = 0; i < messages; i++) {
+            producer.sendAsync("Message - " + i);
+        }
+        producer.flush();
+        List<MessageId> receives = new ArrayList<>();
+        for (int i = 0; i < maxUnacks; i++) {
+            Message<String> received =  consumer.receive();
+            log.info("Received message {} with message ID {}", received.getValue(), received.getMessageId());
+            receives.add(received.getMessageId());
+        }
+        assertNull(consumer.receive(3, TimeUnit.SECONDS));
+        consumer.acknowledge(receives);
+        for (int i = 0; i < messages - maxUnacks; i++) {
+            Message<String> received =  consumer.receive();
+            log.info("Received message {} with message ID {}", received.getValue(), received.getMessageId());
+            consumer.acknowledge(received);
         }
     }
 

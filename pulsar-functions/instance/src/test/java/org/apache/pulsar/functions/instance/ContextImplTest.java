@@ -396,7 +396,8 @@ public class ContextImplTest {
                 return properties;
             }
         });
-        Record<Integer> record = context.<Integer>newOutputRecordBuilder().build();
+        Record<Integer> record = context.newOutputRecordBuilder(Schema.INT32).build();
+        assertEquals(record.getSchema(), Schema.INT32);
         assertEquals(record.getTopicName().get(), "input-topic");
         assertEquals(record.getKey().get(), "input-key");
         assertEquals(record.getEventTime(), Optional.of(now));
@@ -406,6 +407,5 @@ public class ContextImplTest {
         assertTrue(record.getProperties().containsKey("prop-key"));
         assertEquals(record.getProperties().get("prop-key"), "prop-value");
         assertNull(record.getValue());
-        assertNull(record.getSchema());
     }
 }

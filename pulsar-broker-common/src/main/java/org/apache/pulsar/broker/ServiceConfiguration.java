@@ -588,6 +588,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int activeConsumerFailoverDelayTimeMillis = 1000;
     @FieldContext(
+            category = CATEGORY_POLICIES,
+            doc = "Maximum time to spend while scanning a subscription to calculate the accurate backlog"
+    )
+    private long subscriptionBacklogScanMaxTimeMs = 1000 * 60 * 2L;
+    @FieldContext(
+            category = CATEGORY_POLICIES,
+            doc = "Maximum number of entries to process while scanning a subscription to calculate the accurate backlog"
+    )
+    private long subscriptionBacklogScanMaxEntries = 10_000;
+    @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "How long to delete inactive subscriptions from last consuming."
             + " When it is 0, inactive subscriptions are not deleted automatically"
@@ -940,6 +950,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int dispatcherMaxReadBatchSize = 100;
 
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_SERVER,
+            doc = "Dispatch messages and execute broker side filters in a per-subscription thread"
+    )
+    private boolean dispatcherDispatchMessagesInSubscriptionThread = true;
+
     // <-- dispatcher read settings -->
     @FieldContext(
         dynamic = true,
@@ -977,6 +994,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "The read failure backoff mandatory stop time in milliseconds. By default it is 0s."
     )
     private int dispatcherReadFailureBackoffMandatoryStopTimeInMs = 0;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_SERVER,
+            doc = "Time in milliseconds to delay the new delivery of a message when an EntryFilter returns RESCHEDULE."
+    )
+    private int dispatcherEntryFilterRescheduledMessageDelay = 1000;
 
     @FieldContext(
         dynamic = true,
@@ -1884,13 +1908,35 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "If value is invalid or NONE, then save the ManagedLedgerInfo bytes data directly.")
     private String managedLedgerInfoCompressionType = "NONE";
 
+
     @FieldContext(category = CATEGORY_STORAGE_ML,
             doc = "ManagedCursorInfo compression type, option values (NONE, LZ4, ZLIB, ZSTD, SNAPPY). \n"
                     + "If value is NONE, then save the ManagedCursorInfo bytes data directly.")
     private String managedCursorInfoCompressionType = "NONE";
 
-    /*** --- Load balancer. --- ****/
     @FieldContext(
+            dynamic = true,
+            category = CATEGORY_STORAGE_ML,
+            doc = "Minimum cursors that must be in backlog state to cache and reuse the read entries."
+                    + "(Default =0 to disable backlog reach cache)"
+    )
+    private int managedLedgerMinimumBacklogCursorsForCaching = 0;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_STORAGE_ML,
+            doc = "Minimum backlog entries for any cursor before start caching reads"
+    )
+    private int managedLedgerMinimumBacklogEntriesForCaching = 1000;
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_STORAGE_ML,
+            doc = "Maximum backlog entry difference to prevent caching entries that can't be reused"
+    )
+    private int managedLedgerMaxBacklogBetweenCursorsForCaching = 1000;
+
+    /*** --- Load balancer. --- ****/
+     @FieldContext(
             category = CATEGORY_LOAD_BALANCER,
             doc = "Enable load balancer"
     )

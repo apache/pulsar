@@ -88,8 +88,8 @@ public class Consumer {
     private final LongAdder bytesOutCounter;
     private final Rate messageAckRate;
 
-    private long lastConsumedTimestamp;
-    private long lastAckedTimestamp;
+    private volatile long lastConsumedTimestamp;
+    private volatile long lastAckedTimestamp;
     private Rate chunkedMessageRate;
 
     // Represents how many messages we can safely send to the consumer without
@@ -129,7 +129,7 @@ public class Consumer {
 
     private static final double avgPercent = 0.9;
     private boolean preciseDispatcherFlowControl;
-    private PositionImpl readPositionWhenJoining;
+    private volatile PositionImpl readPositionWhenJoining;
     private final String clientAddress; // IP address only, no port number included
     private final MessageId startMessageId;
     private final boolean isAcknowledgmentAtBatchIndexLevelEnabled;

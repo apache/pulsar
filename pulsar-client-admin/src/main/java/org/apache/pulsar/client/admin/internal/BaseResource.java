@@ -141,6 +141,15 @@ public abstract class BaseResource {
         return future;
     }
 
+    public <T, R> void asyncPostRequestWithResponse(final WebTarget target, Entity<T> entity,
+                                                                    InvocationCallback<R> callback) {
+        try {
+            request(target).async().post(entity, callback);
+        } catch (PulsarAdminException cae) {
+            callback.failed(cae);
+        }
+    }
+
     public <T> CompletableFuture<Void> asyncPostRequest(final WebTarget target, Entity<T> entity) {
         final CompletableFuture<Void> future = new CompletableFuture<>();
         try {

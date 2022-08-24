@@ -121,8 +121,26 @@
     <notes><![CDATA[
    file name: zookeeper-jute-3.8.0.jar
    ]]></notes>
-    <sha1>6560f966bcf1aa78d27bcfa75fb6c4463a72c6c5</sha1>
-    <cve>CVE-2021-34429</cve>
+    <sha1>9dd29797ecabe7d2e7fa892ec6713a5552cfcc59</sha1>
+    <cve>CVE-2022-27376</cve>
+    <cve>CVE-2022-27377</cve>
+    <cve>CVE-2022-27378</cve>
+    <cve>CVE-2022-27379</cve>
+    <cve>CVE-2022-27380</cve>
+    <cve>CVE-2022-27381</cve>
+    <cve>CVE-2022-27382</cve>
+    <cve>CVE-2022-27383</cve>
+    <cve>CVE-2022-27384</cve>
+    <cve>CVE-2022-27385</cve>
+    <cve>CVE-2022-27386</cve>
+    <cve>CVE-2022-27387</cve>
+    <cve>CVE-2022-27444</cve>
+    <cve>CVE-2022-27446</cve>
+    <cve>CVE-2022-27449</cve>
+    <cve>CVE-2022-27451</cve>
+    <cve>CVE-2022-27452</cve>
+    <cve>CVE-2022-27455</cve>
+    <cve>CVE-2022-27457</cve>
   </suppress>
 
   <!-- google-http-client-gson getting confused with gson-->

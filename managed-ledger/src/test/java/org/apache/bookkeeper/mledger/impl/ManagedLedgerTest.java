@@ -3101,7 +3101,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         }, null, PositionImpl.LATEST);
         ledger.asyncReadEntry(ledgerHandle, PositionImpl.EARLIEST.getEntryId(), PositionImpl.EARLIEST.getEntryId(),
-                false, opReadEntry, ctxStr);
+                opReadEntry, ctxStr);
         retryStrategically((test) -> {
             return responseException2.get() != null;
         }, 5, 1000);

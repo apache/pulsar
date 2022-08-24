@@ -170,6 +170,9 @@ public class DispatchRateLimiter {
      */
     public void updateDispatchRate() {
         switch (type) {
+            case TOPIC:
+                updateDispatchRate(topic.getDispatchRate());
+                return;
             case SUBSCRIPTION:
                 updateDispatchRate(topic.getSubscriptionDispatchRate());
                 return;
@@ -273,43 +276,6 @@ public class DispatchRateLimiter {
             }
         }
         return true;
-    }
-
-    @SuppressWarnings("deprecation")
-    public void onPoliciesUpdate(Policies data) {
-        String cluster = brokerService.pulsar().getConfiguration().getClusterName();
-
-        DispatchRate dispatchRate;
-
-        switch (type) {
-            case TOPIC:
-                dispatchRate = data.topicDispatchRate.get(cluster);
-                if (dispatchRate == null) {
-                    dispatchRate = data.clusterDispatchRate.get(cluster);
-                }
-                break;
-            case SUBSCRIPTION:
-                dispatchRate = data.subscriptionDispatchRate.get(cluster);
-                break;
-            case REPLICATOR:
-                dispatchRate = data.replicatorDispatchRate.get(cluster);
-                break;
-            default:
-                log.error("error DispatchRateLimiter type: {} ", type);
-                dispatchRate = null;
-        }
-
-        // update dispatch-rate only if it's configured in policies else ignore
-        if (dispatchRate != null) {
-            final DispatchRate newDispatchRate = createDispatchRate();
-
-            // if policy-throttling rate is disabled and cluster-throttling is enabled then apply
-            // cluster-throttling rate
-            if (!isDispatchRateEnabled(dispatchRate) && isDispatchRateEnabled(newDispatchRate)) {
-                dispatchRate = newDispatchRate;
-            }
-            updateDispatchRate(dispatchRate);
-        }
     }
 
     @SuppressWarnings("deprecation")
