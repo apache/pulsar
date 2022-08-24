@@ -59,7 +59,8 @@ public final class CustomCommandsUtils {
 
         try {
             ClassPool pool = ClassPool.getDefault();
-            CtClass ctClass = pool.makeClass("CustomCommandGroup" + group);
+            CtClass ctClass = pool.makeClass("CustomCommandGroup" + group
+                    + "_" + System.nanoTime());
             ctClass.setSuperclass(pool.get(CmdBaseAdapter.class.getName()));
 
             // add class annotation
@@ -130,7 +131,8 @@ public final class CustomCommandsUtils {
         try {
             String description = command.description();
             ClassPool pool = ClassPool.getDefault();
-            CtClass ctClass = pool.makeClass("CustomCommand" + group + "_" + name);
+            CtClass ctClass = pool.makeClass("CustomCommand" + group
+                    + "_" + name + "_" + System.nanoTime());
             ctClass.setSuperclass(pool.get(DecoratedCommand.class.getName()));
 
             // add class annotation

@@ -31,6 +31,8 @@ public final class ParameterDescriptor {
     private boolean mainParameter;
     @Builder.Default
     private String description = "";
+    @Builder.Default
     private ParameterType type = ParameterType.STRING;
+    @Builder.Default
     private  boolean required = false;
 }
