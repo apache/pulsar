@@ -2556,7 +2556,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
                     @Override
                     public void closeFailed(ManagedLedgerException exception, Object ctx) {
-                        log.info("[{}] [{}] persistent position failure when closing, the state will remain in"
+                        log.warn("[{}] [{}] persistent position failure when closing, the state will remain in"
                                 + " state-closing and will no longer work", ledger.getName(), name);
                         callback.closeFailed(exception, ctx);
                     }
