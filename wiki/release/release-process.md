@@ -471,18 +471,16 @@ Steps and examples see [Pulsar Release Notes Guide](https://docs.google.com/docu
 
 ## 17. Update the site
 
-The workflow for updating the site is slightly different for major and minor releases.
+### Update the site for minor releases
+For minor releases, such as 2.10, the website is updated based on the `master` branch.
 
-### Update the site for major releases
-For major release, the website is updated based on the `master` branch.
-
-1. Create a new branch off master
+1. Create a new branch off master.
 
 ```shell
 git checkout -b doc_release_<release-version>
 ```
 
-2. Go to the website directory
+2. Go to the website directory.
 
 ```shell
 cd site2/website
@@ -502,7 +500,11 @@ After you run this command, a new folder `version-<release-version>` is added in
   versioned_sidebars/version-<release-version>-sidebars.json 
   ```
 
-> Note: You can move the latest version under the old version in the `versions.json` file. Make sure the Algolia index works before moving 2.X.0 as the current stable.
+:::note
+
+You can move the latest version under the old version in the `versions.json` file. Make sure the Algolia index works before moving 2.X.0 as the current stable.
+
+:::
 
 4. Update `releases.json` file by adding `<release-version>` to the second of the list(this is to make search could work. After your PR is merged, the Pulsar website is built and tagged for search, you can change it to the first list).
 
@@ -519,21 +521,11 @@ After you run this command, a new folder `version-<release-version>` is added in
 
 9. Generate the doc set and sidebar file for the next minor release `2.X.1` based on the `site2/docs` folder. You can follow step 1, 2, 3 and submit those files to apache/pulsar repository. This step is a preparation for `2.X.1` release.
 
-### Update the site for minor releases
+:::note
 
-The new updates for the minor release docs are processed in its doc set and sidebar file directly before release. You can follow step 4~8 (in major release) to update the site. You'll also need to add this new version to `versions.json`.
+Starting from 2.8, you don't need to generate the doc set or update the Pulsar site for bug-fix releases, such as 2.8.1, 2.8.2 and so on. The generic doc set 2.8.x is used.
 
-To make preparation for the next minor release, you need to generate the doc set and sidebar file based on the previous release. Take `2.X.2` as example, `2.X.2` doc set and sidebar.json file are generated based on `2.X.1`. You can make it with the following steps:
-
-1. Copy the `version-2.X.1` doc set and `version-2.X.1-sidebars.json` file and rename them as `version-2.X.2` doc set and `version-2.X.2-sidebars.json` file.
-
-2. Update the "id" from `version-2.X.1` to `version-2.X.2` for the md files in the `version-2.X.2` doc set and `version-2.X.2-sidebars.json` file.
-
-3. Submit the new doc set and sidebar.json file to the apache/pulsar repository.
-
-> **Note**
-> - The `yarn run version <release-version>` command generates the new doc set and sidebar.json file based on the `site2/docs` folder.
-> - The minor release doc is generated based on the previous minor release (e.g.: `2.X.2` doc is generated based on `2.X.1`, and `2.X.3`doc is generated based on `2.X.2`), so you cannot use the `yarn run version <release-version>` command directly.
+:::
 
 ## 18. Announce the release
 
