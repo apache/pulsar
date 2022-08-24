@@ -111,6 +111,5 @@ public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
                     .getConnections().get(key).toInteger(), 2);
         }
         Assert.assertEquals(ProxyService.ACTIVE_CONNECTIONS.get(), 2.0d);
-        Assert.assertEquals(ProxyService.REJECTED_CONNECTIONS.get(), 1.0d);
     }
 }
