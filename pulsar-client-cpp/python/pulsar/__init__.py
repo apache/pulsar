@@ -1253,7 +1253,12 @@ class Consumer:
         Check if the consumer is connected or not.
         """
         return self._consumer.is_connected()
-
+    
+    def get_last_message_id(self):
+        """
+        Get the last message id.
+        """
+        return self._consumer.get_last_message_id()
 
 
 class Reader:

@@ -415,7 +415,15 @@ You can check the following statistics of a given non-partitioned topic.
 
           -   **nonContiguousDeletedMessagesRanges**: The number of non-contiguous deleted messages ranges.
 
-          -   **nonContiguousDeletedMessagesRangesSerializedSize**: The serialized size of non-contiguous deleted messages ranges. 
+          -   **nonContiguousDeletedMessagesRangesSerializedSize**: The serialized size of non-contiguous deleted messages ranges.
+              
+          -   **filterProcessedMsgCount**: The number of messages processed by `EntryFilter`.
+              
+          -   **filterAcceptedMsgCount**: The number of messages accepted by `EntryFilter`.
+              
+          -   **filterRejectedMsgCount**: The number of messages rejected by `EntryFilter`.
+              
+          -   **filterRescheduledMsgCount**: The number of messages rescheduled by `EntryFilter`.
 
           -   **consumers**: The list of connected consumers for this subscription.
 
@@ -541,6 +549,10 @@ The following is an example of a topic status.
       "lastConsumedTimestamp" : 1623230583946,
       "lastAckedTimestamp" : 1623230584033,
       "lastMarkDeleteAdvancedTimestamp" : 1623230584033,
+      "filterProcessedMsgCount": 100,
+      "filterAcceptedMsgCount": 100,
+      "filterRejectedMsgCount": 0,
+      "filterRescheduledMsgCount": 0,
       "consumers" : [ {
         "msgRateOut" : 0.0,
         "msgThroughputOut" : 0.0,
