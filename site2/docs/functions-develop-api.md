@@ -102,6 +102,36 @@ public class ExclamationFunction implements Function<String, String> {
 
 For more details, see [code example](https://github.com/apache/pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/ExclamationFunction.java).
 
+The return type of the function can be wrapped in a `Record` generic which gives you more control over the output messages, such as topics, schemas, properties, and so on.
+Use the `Context::newOutputRecordBuilder` method to build this `Record` output.
+
+```java
+
+import java.util.HashMap;
+import java.util.Map;
+import org.apache.pulsar.functions.api.Context;
+import org.apache.pulsar.functions.api.Function;
+import org.apache.pulsar.functions.api.Record;
+
+public class RecordFunction implements Function<String, Record<String>> {
+
+    @Override
+    public Record<String> process(String input, Context context) throws Exception {
+        String output = String.format("%s!", input);
+        Map<String, String> properties = new HashMap<>(context.getCurrentRecord().getProperties());
+        context.getCurrentRecord().getTopicName().ifPresent(topic -> properties.put("input_topic", topic));
+
+        return context.newOutputRecordBuilder(Schema.STRING)
+                .value(output)
+                .properties(properties)
+                .build();
+    }
+}
+
+```
+
+For more details, see [code example](https://github.com/apache/pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/RecordFunction.java).
+
 </TabItem>
 <TabItem value="Python">
 

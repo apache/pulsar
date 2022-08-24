@@ -50,6 +50,17 @@ Payload commands have this basic structure:
 | metadata     | The message [metadata](#message-metadata) stored as a binary protobuf message               |                 |
 | payload      | Anything left in the frame is considered the payload and can include any sequence of bytes  |                 |
 
+## Broker entry metadata
+
+Broker entry metadata is stored alongside the message metadata as a serialized protobuf message.
+
+It is created by the broker when the message arrived at the broker and passed without changes to the consumer if configured.
+
+| Field              | Required or optional       | Description                                                                                                                   |
+|:-------------------|:----------------|:------------------------------------------------------------------------------------------------------------------------------|
+| `broker_timestamp` | Optional        | The timestamp when a message arrived at the broker (`id est` as the number of milliseconds since January 1st, 1970 in UTC)      |
+| `index`            | Optional        | The index of the message. It is assigned by the broker.
+
 ## Message metadata
 
 Message metadata is stored alongside the application-specified payload as a serialized protobuf message. Metadata is created by the producer and passed on unchanged to the consumer.
