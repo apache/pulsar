@@ -166,8 +166,9 @@ public class ManagedCursorImpl implements ManagedCursor {
     // time a message is read or deleted.
     protected volatile long messagesConsumedCounter;
 
+    @VisibleForTesting
     // Current ledger used to append the mark-delete position
-    private volatile LedgerHandle cursorLedger;
+    volatile LedgerHandle cursorLedger;
 
     // Wether the current cursorLedger is read-only or writable
     private boolean isCursorLedgerReadOnly = true;
@@ -493,56 +494,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 initialize(getRollbackPosition(info), Collections.emptyMap(), cursorProperties, callback);
                 return;
             }
-
-            lh.asyncReadEntries(lastEntryInLedger, lastEntryInLedger, (rc1, lh1, seq, ctx1) -> {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}} readComplete rc={} entryId={}", ledger.getName(), rc1, lh1.getLastAddConfirmed());
-                }
-                if (isBkErrorNotRecoverable(rc1)) {
-                    log.error("[{}] Error reading from metadata ledger {} for consumer {}: {}", ledger.getName(),
-                            ledgerId, name, BKException.getMessage(rc1));
-                    // Rewind to oldest entry available
-                    initialize(getRollbackPosition(info), Collections.emptyMap(), cursorProperties, callback);
-                    return;
-                } else if (rc1 != BKException.Code.OK) {
-                    log.warn("[{}] Error reading from metadata ledger {} for consumer {}: {}", ledger.getName(),
-                            ledgerId, name, BKException.getMessage(rc1));
-
-                    callback.operationFailed(createManagedLedgerException(rc1));
-                    return;
-                }
-
-                LedgerEntry entry = seq.nextElement();
-                mbean.addReadCursorLedgerSize(entry.getLength());
-                PositionInfo positionInfo;
-                try {
-                    positionInfo = PositionInfo.parseFrom(entry.getEntry());
-                } catch (InvalidProtocolBufferException e) {
-                    callback.operationFailed(new ManagedLedgerException(e));
-                    return;
-                }
-
-                Map<String, Long> recoveredProperties = Collections.emptyMap();
-                if (positionInfo.getPropertiesCount() > 0) {
-                    // Recover properties map
-                    recoveredProperties = new HashMap<>();
-                    for (int i = 0; i < positionInfo.getPropertiesCount(); i++) {
-                        LongProperty property = positionInfo.getProperties(i);
-                        recoveredProperties.put(property.getName(), property.getValue());
-                    }
-                }
-
-                PositionImpl position = new PositionImpl(positionInfo);
-                if (positionInfo.getIndividualDeletedMessagesCount() > 0) {
-                    recoverIndividualDeletedMessages(positionInfo.getIndividualDeletedMessagesList());
-                }
-                if (config.isDeletionAtBatchIndexLevelEnabled() && batchDeletedIndexes != null
-                    && positionInfo.getBatchedEntryDeletionIndexInfoCount() > 0) {
-                    recoverBatchDeletedIndexes(positionInfo.getBatchedEntryDeletionIndexInfoList());
-                }
-                recoveredCursor(position, recoveredProperties, cursorProperties, lh);
-                callback.operationComplete();
-            }, null);
+            recoverCursorByLedgerEntry(lastEntryInLedger, callback, info, lh);
         };
         try {
             bookkeeper.asyncOpenLedger(ledgerId, digestType, config.getPassword(), openCallback, null);
@@ -551,6 +503,66 @@ public class ManagedCursorImpl implements ManagedCursor {
                 ledger.getName(), ledgerId, name, t);
             openCallback.openComplete(BKException.Code.UnexpectedConditionException, null, null);
         }
+    }
+
+    private void recoverCursorByLedgerEntry(long entryId, VoidCallback callback, ManagedCursorInfo info,
+                                            LedgerHandle recoveredFromCursorLedger){
+        recoveredFromCursorLedger.asyncReadEntries(entryId, entryId, (rc1, lh1, seq, ctx1) -> {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}} readComplete rc={} entryId={}", ledger.getName(), rc1, lh1.getLastAddConfirmed());
+            }
+            boolean tryPreviousEntry = Code.NoSuchEntryException == rc1 && entryId > 0;
+            if (tryPreviousEntry) {
+                recoverCursorByLedgerEntry(entryId - 1, callback, info, recoveredFromCursorLedger);
+                return;
+            } else if (isBkErrorNotRecoverable(rc1)) {
+                log.error("[{}] Error reading from metadata ledger {} for consumer {}: {}", ledger.getName(),
+                        recoveredFromCursorLedger.getId(), name, BKException.getMessage(rc1));
+                // Rewind to oldest entry available
+                initialize(getRollbackPosition(info), Collections.emptyMap(), cursorProperties, callback);
+                return;
+            } else if (rc1 != BKException.Code.OK) {
+                log.warn("[{}] Error reading from metadata ledger {} for consumer {}: {}", ledger.getName(),
+                        recoveredFromCursorLedger.getId(), name, BKException.getMessage(rc1));
+                callback.operationFailed(createManagedLedgerException(rc1));
+                return;
+            }
+            LedgerEntry entry = seq.nextElement();
+            recoverCursorByLedgerEntry(entry, callback, recoveredFromCursorLedger);
+        }, null);
+    }
+
+    private void recoverCursorByLedgerEntry(LedgerEntry entry, VoidCallback callback,
+                                            LedgerHandle recoveredFromCursorLedger){
+        mbean.addReadCursorLedgerSize(entry.getLength());
+        PositionInfo positionInfo;
+        try {
+            positionInfo = PositionInfo.parseFrom(entry.getEntry());
+        } catch (InvalidProtocolBufferException e) {
+            callback.operationFailed(new ManagedLedgerException(e));
+            return;
+        }
+
+        Map<String, Long> recoveredProperties = Collections.emptyMap();
+        if (positionInfo.getPropertiesCount() > 0) {
+            // Recover properties map
+            recoveredProperties = new HashMap<>();
+            for (int i = 0; i < positionInfo.getPropertiesCount(); i++) {
+                LongProperty property = positionInfo.getProperties(i);
+                recoveredProperties.put(property.getName(), property.getValue());
+            }
+        }
+
+        PositionImpl position = new PositionImpl(positionInfo);
+        if (positionInfo.getIndividualDeletedMessagesCount() > 0) {
+            recoverIndividualDeletedMessages(positionInfo.getIndividualDeletedMessagesList());
+        }
+        if (config.isDeletionAtBatchIndexLevelEnabled() && batchDeletedIndexes != null
+                && positionInfo.getBatchedEntryDeletionIndexInfoCount() > 0) {
+            recoverBatchDeletedIndexes(positionInfo.getBatchedEntryDeletionIndexInfoList());
+        }
+        recoveredCursor(position, recoveredProperties, cursorProperties, recoveredFromCursorLedger);
+        callback.operationComplete();
     }
 
     private void recoverIndividualDeletedMessages(List<MLDataFormats.MessageRange> individualDeletedMessagesList) {

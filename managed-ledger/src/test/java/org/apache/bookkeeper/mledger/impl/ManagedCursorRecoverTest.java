@@ -18,28 +18,38 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import static org.apache.bookkeeper.client.api.BKException.Code.*;
 import static org.testng.Assert.*;
+import static org.mockito.Mockito.*;
 import com.google.common.collect.Range;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.AllArgsConstructor;
+import org.apache.bookkeeper.client.AsyncCallback;
 import org.apache.bookkeeper.client.BKException;
+import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
+import org.apache.commons.collections4.IteratorUtils;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.awaitility.Awaitility;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 import org.powermock.reflect.Whitebox;
-import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class ManagedCursorRecoverTest extends MockedBookKeeperTestCase {
@@ -48,18 +58,15 @@ public class ManagedCursorRecoverTest extends MockedBookKeeperTestCase {
 
     private String cursorName = "t_cs_recover_cursor";
 
-    @DataProvider(name = "MlConfig")
-    public Object[][] MlConfigProvider() {
-        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
-        managedLedgerConfig.setMaxUnackedRangesToPersistInMetadataStore(0);
-        managedLedgerConfig.setThrottleMarkDelete(0);
-        return new Object[][]{
-                {managedLedgerConfig}
-        };
+    private ManagedLedgerConfig config = new ManagedLedgerConfig();
+
+    {
+        config.setMaxUnackedRangesToPersistInMetadataStore(0);
+        config.setThrottleMarkDelete(0);
     }
 
-    @Test(dataProvider = "MlConfig")
-    public void testRecoverByLedger(ManagedLedgerConfig config) throws Exception {
+    @Test
+    public void testRecoverByLedger() throws Exception {
         CursorContext context = createCursorContext(config);
         long ledgerId = context.cursor.getReadPosition().getLedgerId();
         long firstEntryId = context.cursor.getReadPosition().getEntryId();
@@ -68,8 +75,8 @@ public class ManagedCursorRecoverTest extends MockedBookKeeperTestCase {
         }
         writeSomeEntries(100, context.ml);
         // persist to ledger.
-        deleteAndWaitCursorPersistentToLedger(context.cursor,
-                createPositionList(ledgerId, firstEntryId, firstEntryId + 1, firstEntryId + 3));
+        deleteAndWaitCursorPersistentToLedger(context.cursor, ledgerId,
+                firstEntryId, firstEntryId + 1, firstEntryId + 3);
         // recover and verify.
         CursorContext recoverContext = releaseAndCreateNewCursorContext(context, false);
         assertEquals(recoverContext.cursor.getMarkDeletedPosition().getEntryId(), firstEntryId + 1);
@@ -81,70 +88,202 @@ public class ManagedCursorRecoverTest extends MockedBookKeeperTestCase {
         cleanup(recoverContext);
     }
 
-    @Test(dataProvider = "MlConfig")
-    public void testRecoverByZk(ManagedLedgerConfig config) throws Exception {
+    @Test
+    public void testRecoverByZk() throws Exception {
         CursorContext context = createCursorContext(config);
         long ledgerId = context.cursor.getReadPosition().getLedgerId();
         long firstEntryId = context.cursor.getReadPosition().getEntryId();
         writeSomeEntries(100, context.ml);
         // persist to ledger.
-        deleteAndWaitCursorPersistentToLedger(context.cursor, PositionImpl.get(ledgerId, firstEntryId));
+        deleteAndWaitCursorPersistentToLedger(context.cursor, ledgerId, firstEntryId);
         // persist to ZK.
         closeCursorLedger(context.cursor);
-        deleteAndWaitCursorPersistentToZk(context.cursor,
-                createPositionList(ledgerId, firstEntryId + 1, firstEntryId + 3));
+        deleteAndWaitCursorPersistentToZk(context.cursor, ledgerId, firstEntryId + 1);
         // recover and verify.
         CursorContext recoverContext = releaseAndCreateNewCursorContext(context, false);
         assertEquals(recoverContext.cursor.getMarkDeletedPosition().getEntryId(), firstEntryId + 1);
-        assertEquals(recoverContext.cursor.getIndividuallyDeletedMessagesSet().size(), 1);
-        Range<PositionImpl> range = recoverContext.cursor.getIndividuallyDeletedMessagesSet().firstRange();
-        assertEquals(range.lowerEndpoint().getEntryId(), firstEntryId + 2);
-        assertEquals(range.upperEndpoint().getEntryId(), firstEntryId + 3);
+        assertEquals(recoverContext.cursor.getIndividuallyDeletedMessagesSet().size(), 0);
         // cleanup.
         cleanup(recoverContext);
     }
 
-    @Test(dataProvider = "MlConfig")
-    public void testRecoverSkipBrokenLedger(ManagedLedgerConfig config) throws Exception {
+    @Test
+    public void testRecoverSkipBrokenLedger() throws Exception {
         CursorContext context = createCursorContext(config);
         long ledgerId = context.cursor.getReadPosition().getLedgerId();
         long firstEntryId = context.cursor.getReadPosition().getEntryId();
         writeSomeEntries(100, context.ml);
         // persist to ledger.
-        deleteAndWaitCursorPersistentToLedger(context.cursor, PositionImpl.get(ledgerId, firstEntryId));
+        deleteAndWaitCursorPersistentToLedger(context.cursor, ledgerId, firstEntryId);
         // persist to ZK.
         closeCursorLedger(context.cursor);
-        deleteAndWaitCursorPersistentToZk(context.cursor,
-                createPositionList(ledgerId, firstEntryId + 1, firstEntryId + 2, firstEntryId + 4));
+        deleteAndWaitCursorPersistentToZk(context.cursor, ledgerId,
+                firstEntryId + 1, firstEntryId + 2, firstEntryId + 4);
         // new ledger, and persist to ledger.
-        deleteAndWaitCursorPersistentToLedger(context.cursor,
-                createPositionList(ledgerId, firstEntryId + 5, firstEntryId + 6, firstEntryId + 8));
+        deleteAndWaitCursorPersistentToLedger(context.cursor, ledgerId,
+                firstEntryId + 5, firstEntryId + 6, firstEntryId + 8);
         // make broken ledger, recover and verify.
         CursorContext recoverContext = releaseAndCreateNewCursorContext(context, true);
         assertEquals(recoverContext.cursor.getMarkDeletedPosition().getEntryId(), firstEntryId + 2);
-        assertEquals(recoverContext.cursor.getIndividuallyDeletedMessagesSet().size(), 1);
-        Range<PositionImpl> range = recoverContext.cursor.getIndividuallyDeletedMessagesSet().firstRange();
-        assertEquals(range.lowerEndpoint().getEntryId(), firstEntryId + 3);
-        assertEquals(range.upperEndpoint().getEntryId(), firstEntryId + 4);
+        // Why "individuallyDeletedMessagesSet().size() == 0"? Because it will rewrite to empty when switch ledger.
+        assertEquals(recoverContext.cursor.getIndividuallyDeletedMessagesSet().size(), 0);
         // cleanup.
         cleanup(recoverContext);
     }
 
-    private ArrayList<Position> createPositionList(long ledgerId, long...entryIds){
+    @Test
+    public void testRecoverSkipAllBrokenEntry() throws Exception {
+        CursorContext context = createCursorContext(config);
+        writeSomeEntries(100, context.ml);
+        long ledgerId = context.cursor.getReadPosition().getLedgerId();
+        long firstEntryId = context.cursor.getReadPosition().getEntryId();
+        // persist to ledger.
+        deleteAndWaitCursorPersistentToLedger(context.cursor, ledgerId, firstEntryId);
+        // persist to ZK.
+        closeCursorLedger(context.cursor);
+        deleteAndWaitCursorPersistentToZk(context.cursor, ledgerId, firstEntryId + 1, firstEntryId + 3);
+        // persist to ledger.
+        deleteAndWaitCursorPersistentToLedger(context.cursor, ledgerId, firstEntryId + 5);
+
+        // create new cursor and recover.
+        BookKeeper mockBookkeeper = mockBookKeeperForMockBrokenEntry(context.cursor, BrokenEntryCase.AllEntryBroken);
+        final ManagedCursorImpl recoverCursor =
+                new ManagedCursorImpl(mockBookkeeper, config, context.cursor.ledger, cursorName);
+        recoverUtilFinish(recoverCursor);
+
+        // verify.
+        assertEquals(recoverCursor.markDeletePosition.getEntryId(), firstEntryId + 1);
+        assertEquals(recoverCursor.getIndividuallyDeletedMessagesSet().size(), 0);
+        // cleanup.
+        cleanup(context);
+    }
+
+    @Test
+    public void testRecoverSkipLatestBrokenEntry() throws Exception {
+        CursorContext context = createCursorContext(config);
+        writeSomeEntries(100, context.ml);
+        long ledgerId = context.cursor.getReadPosition().getLedgerId();
+        long firstEntryId = context.cursor.getReadPosition().getEntryId();
+        // persist to ledger.
+        deleteAndWaitCursorPersistentToLedger(context.cursor, ledgerId, firstEntryId);
+        deleteAndWaitCursorPersistentToLedger(context.cursor, ledgerId, firstEntryId + 1, firstEntryId + 4);
+        deleteAndWaitCursorPersistentToLedger(context.cursor, ledgerId, firstEntryId + 2, firstEntryId + 5);
+
+        // create new cursor and recover.
+        BookKeeper mockBookkeeper =
+                mockBookKeeperForMockBrokenEntry(context.cursor, BrokenEntryCase.OnlyLastEntryBroken);
+        final ManagedCursorImpl recoverCursor =
+                new ManagedCursorImpl(mockBookkeeper, config, context.cursor.ledger, cursorName);
+        recoverUtilFinish(recoverCursor);
+
+        // verify.
+        assertEquals(recoverCursor.markDeletePosition.getEntryId(), firstEntryId + 1);
+        assertEquals(recoverCursor.getIndividuallyDeletedMessagesSet().size(), 1);
+        Range<PositionImpl> range = recoverCursor.getIndividuallyDeletedMessagesSet().firstRange();
+        assertEquals(range.lowerEndpoint().getEntryId(), firstEntryId + 3);
+        assertEquals(range.upperEndpoint().getEntryId(), firstEntryId + 4);
+        // cleanup.
+        cleanup(context);
+    }
+
+    private BookKeeper mockBookKeeperForMockBrokenEntry(ManagedCursorImpl originCursor,
+                                                        BrokenEntryCase brokenEntryCase) throws Exception {
+        BookKeeper mockBookkeeper = mock(BookKeeper.class);
+        Enumeration<LedgerEntry> ledgerEntryEnumeration =
+                originCursor.cursorLedger.readEntries(0, originCursor.cursorLedger.getLastAddConfirmed());
+        ArrayList<LedgerEntry> list = new ArrayList<>();
+        Iterator<LedgerEntry> iterator = ledgerEntryEnumeration.asIterator();
+        while (iterator.hasNext()) {
+            list.add(iterator.next());
+        }
+        LedgerHandle mockLedgerHandle =
+                mockLedgerHandle(brokenEntryCase, list, originCursor.cursorLedger.getLastAddConfirmed());
+        doAnswer(new Answer() {
+            @Override
+            public Object answer(InvocationOnMock invocation) throws Throwable {
+                AsyncCallback.OpenCallback openCallback = (AsyncCallback.OpenCallback) invocation.getArguments()[3];
+                Object ctx = invocation.getArguments()[4];
+                openCallback.openComplete(BKException.Code.OK, mockLedgerHandle, ctx);
+                return null;
+            }
+        }).when(mockBookkeeper).asyncOpenLedger(anyLong(), any(BookKeeper.DigestType.class),
+                any(), any(), any());
+        return mockBookkeeper;
+    }
+
+
+    private void recoverUtilFinish(ManagedCursorImpl cursor) {
+        CompletableFuture<Void> completableFuture = new CompletableFuture();
+        cursor.recover(new ManagedCursorImpl.VoidCallback() {
+            @Override
+            public void operationComplete() {
+                completableFuture.complete(null);
+            }
+
+            @Override
+            public void operationFailed(ManagedLedgerException exception) {
+                completableFuture.completeExceptionally(exception);
+            }
+        });
+        completableFuture.join();
+    }
+
+    private LedgerHandle mockLedgerHandle(final BrokenEntryCase brokenEntryCase,
+                                          ArrayList<LedgerEntry> entryList, long lastEntryId) {
+        final LedgerHandle mock = mock(LedgerHandle.class);
+        when(mock.getLastAddConfirmed()).thenReturn(lastEntryId);
+        switch (brokenEntryCase) {
+            case OnlyLastEntryBroken -> {
+                AtomicInteger atomicInteger = new AtomicInteger();
+                doAnswer(new Answer() {
+                    @Override
+                    public Object answer(InvocationOnMock invocation) throws Throwable {
+                        AsyncCallback.ReadCallback cb = (AsyncCallback.ReadCallback) invocation.getArguments()[2];
+                        Object ctx = invocation.getArguments()[3];
+                        int i = atomicInteger.incrementAndGet();
+                        if (i == 1) {
+                            cb.readComplete(NoSuchEntryException, mock, null, ctx);
+                        } else {
+                            Enumeration<LedgerEntry> entryEnumeration = IteratorUtils.asEnumeration(
+                                    Collections.singletonList(entryList.get(entryList.size() - i)).iterator());
+                            cb.readComplete(OK, mock, entryEnumeration, ctx);
+                        }
+                        return null;
+                    }
+                }).when(mock).asyncReadEntries(anyLong(), anyLong(), any(), any());
+                break;
+            }
+            case AllEntryBroken -> {
+                doAnswer(new Answer() {
+                    @Override
+                    public Object answer(InvocationOnMock invocation) throws Throwable {
+                        AsyncCallback.ReadCallback cb = (AsyncCallback.ReadCallback) invocation.getArguments()[2];
+                        cb.readComplete(NoSuchEntryException, mock, null, invocation.getArguments()[3]);
+                        return null;
+                    }
+                }).when(mock).asyncReadEntries(anyLong(), anyLong(), any(), any());
+                break;
+            }
+        }
+        return mock;
+    }
+
+    private enum BrokenEntryCase {
+        AllEntryBroken,
+        OnlyLastEntryBroken;
+    }
+
+    private ArrayList<Position> createPositionList(long ledgerId, long... entryIds) {
         ArrayList<Position> list = new ArrayList<>();
-        for (long entryId : entryIds){
+        for (long entryId : entryIds) {
             list.add(PositionImpl.get(ledgerId, entryId));
         }
         return list;
     }
 
-    private void deleteAndWaitCursorPersistentToLedger(ManagedCursorImpl cursor, PositionImpl position)
+    private void deleteAndWaitCursorPersistentToLedger(ManagedCursorImpl cursor, long ledgerId, long... entryIds)
             throws Exception {
-        deleteAndWaitCursorPersistentToLedger(cursor, Collections.singletonList(position));
-    }
-
-    private void deleteAndWaitCursorPersistentToLedger(ManagedCursorImpl cursor, Iterable<Position> positions)
-            throws Exception {
+        Iterable<Position> positions = createPositionList(ledgerId, entryIds);
         AtomicInteger expectIncrementCount = new AtomicInteger(1);
         Set<String> stateSupports = new HashSet<>(Arrays.asList("Open", "NoLedger"));
         if (!stateSupports.contains(cursor.getState())) {
@@ -160,12 +299,9 @@ public class ManagedCursorRecoverTest extends MockedBookKeeperTestCase {
                 cursor.getStats().getPersistLedgerSucceed() == originalCount + expectIncrementCount.get());
     }
 
-    private void deleteAndWaitCursorPersistentToZk(ManagedCursorImpl cursor, PositionImpl position) throws Exception {
-        deleteAndWaitCursorPersistentToZk(cursor, Collections.singletonList(position));
-    }
-
-    private void deleteAndWaitCursorPersistentToZk(ManagedCursorImpl cursor, Iterable<Position> positions)
+    private void deleteAndWaitCursorPersistentToZk(ManagedCursorImpl cursor, long ledgerId, long... entryIds)
             throws Exception {
+        Iterable<Position> positions = createPositionList(ledgerId, entryIds);
         long originalCount = cursor.getStats().getPersistZookeeperSucceed();
         cursor.delete(positions);
         Awaitility.await().until(() -> cursor.getStats().getPersistZookeeperSucceed() == originalCount + 1);
@@ -181,7 +317,7 @@ public class ManagedCursorRecoverTest extends MockedBookKeeperTestCase {
         for (long ledgerId : createdLedgerIdSet) {
             try {
                 bkc.deleteLedger(ledgerId);
-            }catch (BKException.BKNoSuchLedgerExistsException e){
+            } catch (BKException.BKNoSuchLedgerExistsException e) {
                 // ignore.
             }
         }
@@ -209,14 +345,14 @@ public class ManagedCursorRecoverTest extends MockedBookKeeperTestCase {
         return new CursorContext(managedLedger, managedCursor);
     }
 
-    private CursorContext releaseAndCreateNewCursorContext(CursorContext cursorContext, boolean makeBrokenLedger)
+    private CursorContext releaseAndCreateNewCursorContext(CursorContext cursorContext, boolean deleteLastValidLedger)
             throws Exception {
         long lastCursorLedger = cursorContext.cursor.getCursorLedger();
         // release old.
         ManagedLedgerConfig config = cursorContext.ml.getConfig();
         cursorContext.release();
         // delete last cursor-ledger.
-        if (makeBrokenLedger){
+        if (deleteLastValidLedger) {
             bkc.deleteLedger(lastCursorLedger);
         }
         // create new.
