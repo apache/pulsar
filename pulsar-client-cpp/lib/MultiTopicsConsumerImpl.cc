@@ -82,8 +82,6 @@ void MultiTopicsConsumerImpl::start() {
 void MultiTopicsConsumerImpl::handleOneTopicSubscribed(Result result, Consumer consumer,
                                                        const std::string& topic,
                                                        std::shared_ptr<std::atomic<int>> topicsNeedCreate) {
-    (*topicsNeedCreate)--;
-
     if (result != ResultOk) {
         state_ = Failed;
         // Use the first failed result
@@ -94,7 +92,7 @@ void MultiTopicsConsumerImpl::handleOneTopicSubscribed(Result result, Consumer c
         LOG_DEBUG("Subscribed to topic " << topic << " in TopicsConsumer ");
     }
 
-    if (topicsNeedCreate->load() == 0) {
+    if (--(*topicsNeedCreate) == 0) {
         MultiTopicsConsumerState state = Pending;
         if (state_.compare_exchange_strong(state, Ready)) {
             LOG_INFO("Successfully Subscribed to Topics");
