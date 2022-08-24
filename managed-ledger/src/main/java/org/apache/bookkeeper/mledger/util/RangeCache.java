@@ -187,8 +187,9 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
     * @param maxTimestamp the max timestamp of the entries to be evicted
     * @return the tota
     */
-   public long evictLEntriesBeforeTimestamp(long maxTimestamp) {
+   public Pair<Integer, Long> evictLEntriesBeforeTimestamp(long maxTimestamp) {
        long removedSize = 0;
+       int removedCount = 0;
 
        while (true) {
            Map.Entry<Key, Value> entry = entries.firstEntry();
@@ -203,11 +204,12 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
 
            Value value = entry.getValue();
            removedSize += weighter.getSize(value);
+           removedCount++;
            value.release();
        }
 
        size.addAndGet(-removedSize);
-       return removedSize;
+       return Pair.of(removedCount, removedSize);
    }
 
     /**
@@ -226,8 +228,9 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
      *
      * @return size of removed entries
      */
-    public synchronized long clear() {
+    public synchronized Pair<Integer, Long> clear() {
         long removedSize = 0;
+        int removedCount = 0;
 
         while (true) {
             Map.Entry<Key, Value> entry = entries.pollFirstEntry();
@@ -236,12 +239,13 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
             }
             Value value = entry.getValue();
             removedSize += weighter.getSize(value);
+            removedCount++;
             value.release();
         }
 
         entries.clear();
         size.getAndAdd(-removedSize);
-        return removedSize;
+        return Pair.of(removedCount, removedSize);
     }
 
     /**
