@@ -3675,6 +3675,11 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<MessageId> internalTerminateAsync(boolean authoritative) {
+        if (SystemTopicNames.isSystemTopic(topicName)) {
+            return FutureUtil.failedFuture(new RestException(Status.METHOD_NOT_ALLOWED,
+                    "Termination of a system topic is not allowed"));
+        }
+
         CompletableFuture<Void> ret;
         if (topicName.isGlobal()) {
             ret = validateGlobalNamespaceOwnershipAsync(namespaceName);
@@ -3688,10 +3693,6 @@ public class PersistentTopicsBase extends AdminResource {
                     if (partitionMetadata.partitions > 0) {
                         throw new RestException(Status.METHOD_NOT_ALLOWED,
                                 "Termination of a partitioned topic is not allowed");
-                    }
-                    if (SystemTopicNames.isSystemTopic(topicName)) {
-                        throw new RestException(Status.METHOD_NOT_ALLOWED,
-                                "Termination of a system topic is not allowed");
                     }
                 })
                 .thenCompose(__ -> getTopicReferenceAsync(topicName))
