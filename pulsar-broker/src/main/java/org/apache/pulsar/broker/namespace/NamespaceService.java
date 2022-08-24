@@ -42,6 +42,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -52,6 +53,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
@@ -588,7 +590,7 @@ public class NamespaceService implements AutoCloseable {
             return CompletableFuture.completedFuture(Optional.of(candidateBrokerResult));
         }
 
-        return pulsar.getLeaderElectionService().readCurrentLeader()
+        return getOrWaitForLeader(new AtomicInteger())
                 .thenCompose(currentLeader -> {
                     try {
                         candidateBrokerResult.authoritativeRedirect = les.isLeader();
@@ -642,6 +644,25 @@ public class NamespaceService implements AutoCloseable {
                     }
                 });
 
+    }
+
+    private CompletableFuture<Optional<LeaderBroker>> getOrWaitForLeader(AtomicInteger retries) {
+        return pulsar.getLeaderElectionService().readCurrentLeader()
+                .handle((leaderBroker, t) -> {
+                    CompletableFuture<Optional<LeaderBroker>> retval;
+                    if ((t != null || !leaderBroker.isPresent()) && retries.getAndIncrement() < 3) {
+                        // retry after a delay of 5 seconds
+                        retval =
+                                CompletableFuture.supplyAsync(() -> null,
+                                                CompletableFuture.delayedExecutor(5, SECONDS))
+                                        .thenCompose(__ -> getOrWaitForLeader(retries));
+                    } else {
+                        retval = CompletableFuture.completedFuture(
+                                leaderBroker != null ? leaderBroker : Optional.empty());
+                    }
+                    return retval;
+                })
+                .thenCompose(Function.identity());
     }
 
     protected CompletableFuture<LookupResult> createLookupResult(String candidateBroker, boolean authoritativeRedirect,
