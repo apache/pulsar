@@ -81,6 +81,7 @@ public abstract class MockedBookKeeperTestCase {
         }
 
         ManagedLedgerFactoryConfig conf = new ManagedLedgerFactoryConfig();
+        conf.setCopyEntriesInCache(true);
         factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, conf);
     }
 

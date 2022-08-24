@@ -18,9 +18,15 @@
  */
 package org.apache.bookkeeper.mledger.impl.cache;
 
+import io.netty.buffer.ByteBuf;
+import org.apache.bookkeeper.client.api.LedgerEntry;
+import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
+import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 
-public interface EntryCacheManager {
+public interface EntryCacheManager extends AutoCloseable {
     EntryCache getEntryCache(ManagedLedgerImpl ml);
 
     void removeEntryCache(String name);
@@ -36,4 +42,32 @@ public interface EntryCacheManager {
     void updateCacheEvictionWatermark(double cacheEvictionWatermark);
 
     double getCacheEvictionWatermark();
+
+    static Entry create(long ledgerId, long entryId, ByteBuf data) {
+        return EntryImpl.create(ledgerId, entryId, data);
+    }
+
+    static EntryImpl create(LedgerEntry ledgerEntry, ManagedLedgerInterceptor interceptor) {
+        ManagedLedgerInterceptor.PayloadProcessorHandle processorHandle = null;
+        if (interceptor != null) {
+            ByteBuf duplicateBuffer = ledgerEntry.getEntryBuffer().retainedDuplicate();
+            processorHandle = interceptor
+                    .processPayloadBeforeEntryCache(duplicateBuffer);
+            if (processorHandle != null) {
+                ledgerEntry  = LedgerEntryImpl.create(ledgerEntry.getLedgerId(), ledgerEntry.getEntryId(),
+                        ledgerEntry.getLength(), processorHandle.getProcessedPayload());
+            } else {
+                duplicateBuffer.release();
+            }
+        }
+        EntryImpl returnEntry = EntryImpl.create(ledgerEntry);
+        if (processorHandle != null) {
+            processorHandle.release();
+            ledgerEntry.close();
+        }
+        return returnEntry;
+    }
+
+    @Override
+    void close();
 }

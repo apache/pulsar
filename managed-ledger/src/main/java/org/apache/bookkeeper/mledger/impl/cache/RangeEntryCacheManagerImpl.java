@@ -20,20 +20,14 @@ package org.apache.bookkeeper.mledger.impl.cache;
 
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import com.google.common.collect.Lists;
-import io.netty.buffer.ByteBuf;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
-import org.apache.bookkeeper.client.api.LedgerEntry;
-import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
-import org.apache.bookkeeper.mledger.Entry;
-import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryMBeanImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -168,29 +162,9 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
         caches.values().forEach(EntryCache::clear);
     }
 
-    public static Entry create(long ledgerId, long entryId, ByteBuf data) {
-        return EntryImpl.create(ledgerId, entryId, data);
-    }
-
-    public static EntryImpl create(LedgerEntry ledgerEntry, ManagedLedgerInterceptor interceptor) {
-        ManagedLedgerInterceptor.PayloadProcessorHandle processorHandle = null;
-        if (interceptor != null) {
-            ByteBuf duplicateBuffer = ledgerEntry.getEntryBuffer().retainedDuplicate();
-            processorHandle = interceptor
-                    .processPayloadBeforeEntryCache(duplicateBuffer);
-            if (processorHandle != null) {
-                ledgerEntry  = LedgerEntryImpl.create(ledgerEntry.getLedgerId(), ledgerEntry.getEntryId(),
-                        ledgerEntry.getLength(), processorHandle.getProcessedPayload());
-            } else {
-                duplicateBuffer.release();
-            }
-        }
-        EntryImpl returnEntry = EntryImpl.create(ledgerEntry);
-        if (processorHandle != null) {
-            processorHandle.release();
-            ledgerEntry.close();
-        }
-        return returnEntry;
+    @Override
+    public void close() {
+        clear();
     }
 
     private static final Logger log = LoggerFactory.getLogger(RangeEntryCacheManagerImpl.class);

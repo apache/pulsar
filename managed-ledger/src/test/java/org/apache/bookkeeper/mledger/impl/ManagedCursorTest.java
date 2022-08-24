@@ -430,7 +430,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         cursor.rewind();
 
         // Clear the cache to force reading from BK
-        ledger.entryCache.clear();
+        factory.getEntryCacheManager().clear();
 
         final CountDownLatch counter2 = new CountDownLatch(1);
 

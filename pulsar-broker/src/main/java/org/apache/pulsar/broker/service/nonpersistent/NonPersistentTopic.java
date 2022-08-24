@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service.nonpersistent;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheManagerImpl.create;
 import static org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import com.carrotsearch.hppc.ObjectObjectHashMap;
@@ -40,6 +39,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.cache.EntryCacheManager;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.NamespaceResources;
@@ -184,7 +184,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
 
         subscriptions.forEach((name, subscription) -> {
             ByteBuf duplicateBuffer = data.retainedDuplicate();
-            Entry entry = create(0L, 0L, duplicateBuffer);
+            Entry entry = EntryCacheManager.create(0L, 0L, duplicateBuffer);
             // entry internally retains data so, duplicateBuffer should be release here
             duplicateBuffer.release();
             if (subscription.getDispatcher() != null) {
@@ -199,7 +199,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
         if (!replicators.isEmpty()) {
             replicators.forEach((name, replicator) -> {
                 ByteBuf duplicateBuffer = data.retainedDuplicate();
-                Entry entry = create(0L, 0L, duplicateBuffer);
+                Entry entry = EntryCacheManager.create(0L, 0L, duplicateBuffer);
                 // entry internally retains data so, duplicateBuffer should be release here
                 duplicateBuffer.release();
                 replicator.sendMessage(entry);

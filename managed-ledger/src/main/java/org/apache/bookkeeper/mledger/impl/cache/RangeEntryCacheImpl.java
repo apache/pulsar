@@ -49,7 +49,7 @@ public class RangeEntryCacheImpl implements EntryCache {
 
     private final RangeEntryCacheManagerImpl manager;
     private final ManagedLedgerImpl ml;
-    private ManagedLedgerInterceptor interceptor;
+    private final ManagedLedgerInterceptor interceptor;
     private final RangeCache<PositionImpl, EntryImpl> entries;
     private final boolean copyEntries;
 
@@ -220,7 +220,7 @@ public class RangeEntryCacheImpl implements EntryCache {
                             Iterator<LedgerEntry> iterator = ledgerEntries.iterator();
                             if (iterator.hasNext()) {
                                 LedgerEntry ledgerEntry = iterator.next();
-                                EntryImpl returnEntry = RangeEntryCacheManagerImpl.create(ledgerEntry, interceptor);
+                                EntryImpl returnEntry = EntryCacheManager.create(ledgerEntry, interceptor);
 
                                 manager.mlFactoryMBean.recordCacheMiss(1, returnEntry.getLength());
                                 ml.getMbean().addReadEntriesSample(1, returnEntry.getLength());
@@ -305,7 +305,7 @@ public class RangeEntryCacheImpl implements EntryCache {
                             long totalSize = 0;
                             final List<EntryImpl> entriesToReturn = Lists.newArrayListWithExpectedSize(entriesToRead);
                             for (LedgerEntry e : ledgerEntries) {
-                                EntryImpl entry = RangeEntryCacheManagerImpl.create(e, interceptor);
+                                EntryImpl entry = EntryCacheManager.create(e, interceptor);
                                 entriesToReturn.add(entry);
                                 totalSize += entry.getLength();
                                 if (shouldCacheEntry) {
