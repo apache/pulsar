@@ -48,6 +48,9 @@ public class ManagedLedgerCacheMetrics extends AbstractMetrics {
 
         m.put("brk_ml_count", mlCacheStats.getNumberOfManagedLedgers());
         m.put("brk_ml_cache_used_size", mlCacheStats.getCacheUsedSize());
+        m.put("brk_ml_cache_inserted_entries_total", mlCacheStats.getCacheInsertedEntriesCount());
+        m.put("brk_ml_cache_evicted_entries_total", mlCacheStats.getCacheEvictedEntriesCount());
+        m.put("brk_ml_cache_entries", mlCacheStats.getCacheEntriesCount());
         m.put("brk_ml_cache_evictions", mlCacheStats.getNumberOfCacheEvictions());
         m.put("brk_ml_cache_hits_rate", mlCacheStats.getCacheHitsRate());
         m.put("brk_ml_cache_misses_rate", mlCacheStats.getCacheMissesRate());
