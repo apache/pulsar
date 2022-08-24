@@ -475,6 +475,77 @@ TEST(ConsumerTest, testPartitionedConsumerUnAckedMessageRedelivery) {
     client.close();
 }
 
+TEST(ConsumerTest, testPartitionedConsumerUnexpectedAckTimeout) {
+    ClientConfiguration clientConfig;
+    clientConfig.setMessageListenerThreads(1);
+    Client client(lookupUrl, clientConfig);
+
+    const std::string partitionedTopic =
+        "testPartitionedConsumerUnexpectedAckTimeout" + std::to_string(time(nullptr));
+    std::string subName = "sub";
+    constexpr int numPartitions = 2;
+    constexpr int numOfMessages = 3;
+    constexpr int unAckedMessagesTimeoutMs = 10000;
+    constexpr int tickDurationInMs = 1000;
+    pulsar::Latch latch(numOfMessages);
+    std::vector<Message> messages;
+    std::mutex mtx;
+
+    int res =
+        makePutRequest(adminUrl + "admin/v2/persistent/public/default/" + partitionedTopic + "/partitions",
+                       std::to_string(numPartitions));
+    ASSERT_TRUE(res == 204 || res == 409) << "res: " << res;
+
+    Consumer consumer;
+    ConsumerConfiguration consumerConfig;
+    consumerConfig.setConsumerType(ConsumerShared);
+    consumerConfig.setUnAckedMessagesTimeoutMs(unAckedMessagesTimeoutMs);
+    consumerConfig.setTickDurationInMs(tickDurationInMs);
+    consumerConfig.setMessageListener([&](Consumer cons, const Message& msg) {
+        // acknowledge received messages immediately, so no ack timeout is expected
+        ASSERT_EQ(ResultOk, cons.acknowledge(msg.getMessageId()));
+        ASSERT_EQ(0, msg.getRedeliveryCount());
+
+        {
+            std::lock_guard<std::mutex> lock(mtx);
+            messages.emplace_back(msg);
+        }
+
+        if (latch.getCount() > 0) {
+            std::this_thread::sleep_for(
+                std::chrono::milliseconds(unAckedMessagesTimeoutMs + tickDurationInMs * 2));
+            latch.countdown();
+        }
+    });
+    ASSERT_EQ(ResultOk, client.subscribe(partitionedTopic, subName, consumerConfig, consumer));
+
+    // send messages
+    ProducerConfiguration producerConfig;
+    producerConfig.setBatchingEnabled(false);
+    producerConfig.setBlockIfQueueFull(true);
+    producerConfig.setPartitionsRoutingMode(ProducerConfiguration::UseSinglePartition);
+    Producer producer;
+    ASSERT_EQ(ResultOk, client.createProducer(partitionedTopic, producerConfig, producer));
+    std::string prefix = "message-";
+    for (int i = 0; i < numOfMessages; i++) {
+        std::string messageContent = prefix + std::to_string(i);
+        Message msg = MessageBuilder().setContent(messageContent).build();
+        ASSERT_EQ(ResultOk, producer.send(msg));
+    }
+    producer.close();
+
+    bool wasUnblocked = latch.wait(
+        std::chrono::milliseconds((unAckedMessagesTimeoutMs + tickDurationInMs * 2) * numOfMessages + 5000));
+    ASSERT_TRUE(wasUnblocked);
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(5000));
+    // messages are expected not to be redelivered
+    ASSERT_EQ(numOfMessages, messages.size());
+
+    consumer.close();
+    client.close();
+}
+
 TEST(ConsumerTest, testMultiTopicsConsumerUnAckedMessageRedelivery) {
     Client client(lookupUrl);
     const std::string nonPartitionedTopic =

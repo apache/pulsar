@@ -451,15 +451,14 @@ void MultiTopicsConsumerImpl::messageReceived(Consumer consumer, const Message& 
         ReceiveCallback callback = pendingReceives_.front();
         pendingReceives_.pop();
         lock.unlock();
-        unAckedMessageTrackerPtr_->add(msg.getMessageId());
-        listenerExecutor_->postWork(std::bind(callback, ResultOk, msg));
+        listenerExecutor_->postWork(std::bind(&MultiTopicsConsumerImpl::notifyPendingReceivedCallback,
+                                              shared_from_this(), ResultOk, msg, callback));
     } else {
         if (messages_.full()) {
             lock.unlock();
         }
 
         if (messages_.push(msg) && messageListener_) {
-            unAckedMessageTrackerPtr_->add(msg.getMessageId());
             listenerExecutor_->postWork(
                 std::bind(&MultiTopicsConsumerImpl::internalListener, shared_from_this(), consumer));
         }
@@ -469,7 +468,7 @@ void MultiTopicsConsumerImpl::messageReceived(Consumer consumer, const Message& 
 void MultiTopicsConsumerImpl::internalListener(Consumer consumer) {
     Message m;
     messages_.pop(m);
-
+    unAckedMessageTrackerPtr_->add(m.getMessageId());
     try {
         messageListener_(Consumer(shared_from_this()), m);
     } catch (const std::exception& e) {
@@ -541,9 +540,18 @@ void MultiTopicsConsumerImpl::failPendingReceiveCallback() {
     while (!pendingReceives_.empty()) {
         ReceiveCallback callback = pendingReceives_.front();
         pendingReceives_.pop();
-        listenerExecutor_->postWork(std::bind(callback, ResultAlreadyClosed, msg));
+        listenerExecutor_->postWork(std::bind(&MultiTopicsConsumerImpl::notifyPendingReceivedCallback,
+                                              shared_from_this(), ResultAlreadyClosed, msg, callback));
     }
     lock.unlock();
+}
+
+void MultiTopicsConsumerImpl::notifyPendingReceivedCallback(Result result, Message& msg,
+                                                            const ReceiveCallback& callback) {
+    if (result == ResultOk) {
+        unAckedMessageTrackerPtr_->add(msg.getMessageId());
+    }
+    callback(result, msg);
 }
 
 void MultiTopicsConsumerImpl::acknowledgeAsync(const MessageId& msgId, ResultCallback callback) {
