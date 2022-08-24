@@ -159,6 +159,9 @@ All the broker metrics are labelled with the following labels:
 | Name | Type   | Description                                          |
 |---|---|---|
 | pulsar_ml_cache_evictions | Gauge  | The number of cache evictions during the last minute. |
+| pulsar_ml_cache_inserted_entries_total | Counter | The number of entries inserted into the entry cache. |
+| pulsar_ml_cache_evicted_entries_total | Counter | The number of entries evicted from the entry cache. |
+| pulsar_ml_cache_entries | Gauge | The number of entries in the entry cache. |
 | pulsar_ml_cache_hits_rate | Gauge  | The number of cache hits per second on the broker side. |
 | pulsar_ml_cache_hits_throughput | Gauge  | The amount of data (byte per second) retrieved from the cache on the broker side. |
 | pulsar_ml_cache_misses_rate | Gauge  | The number of cache missed per second on the broker side. |
