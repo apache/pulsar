@@ -4,7 +4,7 @@ title: How to debug Pulsar connectors
 sidebar_label: "Debug"
 ---
 This guide explains how to debug connectors in localrun or cluster mode and gives a debugging checklist.
-To better demonstrate how to debug Pulsar connectors, here takes a Mongo sink connector as an example.   
+To better demonstrate how to debug Pulsar connectors, take the Mongo sink connector as an example.
 
 **Deploy a Mongo sink environment**
 1. Start a Mongo service.
@@ -106,7 +106,7 @@ Use one of the following methods to get a connector log in localrun mode:
   
   ```
 
-To clearly explain the log information, here breaks down the large block of information into small blocks and add descriptions for each block.
+To clearly explain the log information, the following is a breakdown into smaller blocks with added descriptions.
 * This piece of log information shows the storage path of the nar package after decompression.
 
   ```
