@@ -738,7 +738,7 @@ public interface Topics {
 
     /**
      * Update Topic Properties on a topic.
-     * The new properties will override the existing values, properties that are not passed will be keep.
+     * The new properties will override the existing values, old properties in the topic will be keep if not override.
      * @param topic
      * @param properties
      * @throws PulsarAdminException
@@ -747,7 +747,7 @@ public interface Topics {
 
     /**
      * Update Topic Properties on a topic.
-     * The new properties will override the existing values, properties that are not passed will be keep.
+     * The new properties will override the existing values, old properties in the topic will be keep if not override.
      * @param topic
      * @param properties
      * @return

@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
-import static org.apache.commons.collections4.MapUtils.putAll;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionCoordinatorAssign;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionInternalName;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -65,6 +64,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerOfflineBacklog;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -622,7 +622,7 @@ public class PersistentTopicsBase extends AdminResource {
                             return namespaceResources()
                                 .getPartitionedTopicResources().updatePartitionedTopicAsync(topicName,
                                     p -> new PartitionedTopicMetadata(p.partitions,
-                                        putAll(p.properties, properties.entrySet().toArray())));
+                                        MapUtils.putAll(p.properties, properties.entrySet().toArray())));
                         });
                 }
             }).thenAccept(__ ->
