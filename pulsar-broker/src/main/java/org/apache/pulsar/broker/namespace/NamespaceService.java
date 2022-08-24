@@ -23,6 +23,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.String.format;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.common.naming.NamespaceName.SYSTEM_NAMESPACE;
 import com.google.common.collect.Lists;
@@ -51,7 +52,6 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
@@ -406,9 +406,7 @@ public class NamespaceService implements AutoCloseable {
                         future.complete(Optional.empty());
                     } else {
                         // Now, no one owns the namespace yet. Hence, we will try to dynamically assign it
-                        pulsar.getExecutor().execute(() -> {
-                            searchForCandidateBroker(bundle, future, options);
-                        });
+                        pulsar.getExecutor().execute(safeRun(() -> searchForCandidateBroker(bundle, future, options)));
                     }
                 } else if (nsData.get().isDisabled()) {
                     future.completeExceptionally(
@@ -451,6 +449,12 @@ public class NamespaceService implements AutoCloseable {
         });
     }
 
+    private static final class CandidateBrokerResult {
+        String candidateBroker;
+        String candidateBrokerAdvertisedAddr;
+        boolean authoritativeRedirect;
+    }
+
     private void searchForCandidateBroker(NamespaceBundle bundle,
                                           CompletableFuture<Optional<LookupResult>> lookupFuture,
                                           LookupOptions options) {
@@ -460,8 +464,6 @@ public class NamespaceService implements AutoCloseable {
                     new IllegalStateException("The leader election has not yet been completed!"));
             return;
         }
-        String candidateBroker = null;
-        String candidateBrokerAdvertisedAddr = null;
 
         LeaderElectionService les = pulsar.getLeaderElectionService();
         if (les == null) {
@@ -475,146 +477,171 @@ public class NamespaceService implements AutoCloseable {
             return;
         }
 
-        boolean authoritativeRedirect = les.isLeader();
+        getCandidateBrokerResult(bundle, les, options.isAuthoritative())
+                .thenAccept(candidateBrokerResultOptional -> {
+                    if (candidateBrokerResultOptional.isPresent()) {
+                        CandidateBrokerResult candidateBrokerResult = candidateBrokerResultOptional.get();
+                        try {
+                            checkNotNull(candidateBrokerResult.candidateBroker);
 
-        try {
-            // check if this is Heartbeat or SLAMonitor namespace
-            candidateBroker = checkHeartbeatNamespace(bundle);
-            if (candidateBroker == null) {
-                candidateBroker = checkHeartbeatNamespaceV2(bundle);
-            }
-            if (candidateBroker == null) {
-                String broker = getSLAMonitorBrokerName(bundle);
-                // checking if the broker is up and running
-                if (broker != null && isBrokerActive(broker)) {
-                    candidateBroker = broker;
-                }
-            }
+                            if (candidateBrokerResult.candidateBroker.equals(pulsar.getSafeWebServiceAddress())) {
+                                // Load manager decided that the local broker should try to become the owner
+                                ownershipCache.tryAcquiringOwnership(bundle).thenAccept(ownerInfo -> {
+                                    if (ownerInfo.isDisabled()) {
+                                        if (LOG.isDebugEnabled()) {
+                                            LOG.debug("Namespace bundle {} is currently being unloaded", bundle);
+                                        }
+                                        lookupFuture.completeExceptionally(new IllegalStateException(
+                                                String.format("Namespace bundle %s is currently being unloaded",
+                                                        bundle)));
+                                    } else {
+                                        // Found owner for the namespace bundle
 
-            if (candidateBroker == null) {
-                Optional<LeaderBroker> currentLeader = pulsar.getLeaderElectionService().getCurrentLeader();
+                                        if (options.isLoadTopicsInBundle()) {
+                                            // Schedule the task to pre-load topics
+                                            pulsar.loadNamespaceTopics(bundle);
+                                        }
+                                        // find the target
+                                        if (options.hasAdvertisedListenerName()) {
+                                            AdvertisedListener listener =
+                                                    ownerInfo.getAdvertisedListeners()
+                                                            .get(options.getAdvertisedListenerName());
+                                            if (listener == null) {
+                                                lookupFuture.completeExceptionally(
+                                                        new PulsarServerException("the broker do not have "
+                                                                + options.getAdvertisedListenerName() + " listener"));
+                                            } else {
+                                                URI url = listener.getBrokerServiceUrl();
+                                                URI urlTls = listener.getBrokerServiceUrlTls();
+                                                lookupFuture.complete(Optional.of(
+                                                        new LookupResult(ownerInfo,
+                                                                url == null ? null : url.toString(),
+                                                                urlTls == null ? null : urlTls.toString())));
+                                            }
+                                        } else {
+                                            lookupFuture.complete(Optional.of(new LookupResult(ownerInfo)));
+                                        }
+                                    }
+                                }).exceptionally(exception -> {
+                                    LOG.warn("Failed to acquire ownership for namespace bundle {}: {}", bundle,
+                                            exception);
+                                    lookupFuture.completeExceptionally(new PulsarServerException(
+                                            "Failed to acquire ownership for namespace bundle " + bundle, exception));
+                                    return null;
+                                });
 
-                if (options.isAuthoritative()) {
-                    // leader broker already assigned the current broker as owner
-                    candidateBroker = pulsar.getSafeWebServiceAddress();
-                } else {
-                    LoadManager loadManager = this.loadManager.get();
-                    boolean makeLoadManagerDecisionOnThisBroker = !loadManager.isCentralized() || les.isLeader();
-                    if (!makeLoadManagerDecisionOnThisBroker) {
-                        // If leader is not active, fallback to pick the least loaded from current broker loadmanager
-                        boolean leaderBrokerActive = currentLeader.isPresent()
-                                && isBrokerActive(currentLeader.get().getServiceUrl());
-                        if (!leaderBrokerActive) {
-                            makeLoadManagerDecisionOnThisBroker = true;
-                            if (!currentLeader.isPresent()) {
-                                LOG.warn(
-                                        "The information about the current leader broker wasn't available. "
-                                                + "Handling load manager decisions in a decentralized way. "
-                                                + "NamespaceBundle[{}]",
-                                        bundle);
                             } else {
-                                LOG.warn(
-                                        "The current leader broker {} isn't active. "
-                                                + "Handling load manager decisions in a decentralized way. "
-                                                + "NamespaceBundle[{}]",
-                                        currentLeader.get(), bundle);
+                                // Load managed decider some other broker should try to acquire ownership
+
+                                if (LOG.isDebugEnabled()) {
+                                    LOG.debug("Redirecting to broker {} to acquire ownership of bundle {}",
+                                            candidateBrokerResult.candidateBroker, bundle);
+                                }
+
+                                // Now setting the redirect url
+                                createLookupResult(candidateBrokerResult.candidateBrokerAdvertisedAddr == null
+                                                ? candidateBrokerResult.candidateBroker
+                                                : candidateBrokerResult.candidateBrokerAdvertisedAddr,
+                                        candidateBrokerResult.authoritativeRedirect,
+                                        options.getAdvertisedListenerName())
+                                        .thenAccept(lookupResult -> lookupFuture.complete(Optional.of(lookupResult)))
+                                        .exceptionally(ex -> {
+                                            lookupFuture.completeExceptionally(ex);
+                                            return null;
+                                        });
+
                             }
+                        } catch (Exception e) {
+                            LOG.warn("Error in trying to acquire namespace bundle ownership for {}: {}", bundle,
+                                    e.getMessage(), e);
+                            lookupFuture.completeExceptionally(e);
                         }
-                    }
-                    if (makeLoadManagerDecisionOnThisBroker) {
-                        Optional<Pair<String, String>> availableBroker = getLeastLoadedFromLoadManager(bundle);
-                        if (!availableBroker.isPresent()) {
-                            LOG.warn("Load manager didn't return any available broker. "
-                                            + "Returning empty result to lookup. NamespaceBundle[{}]",
-                                    bundle);
-                            lookupFuture.complete(Optional.empty());
-                            return;
-                        }
-                        candidateBroker = availableBroker.get().getLeft();
-                        candidateBrokerAdvertisedAddr = availableBroker.get().getRight();
-                        authoritativeRedirect = true;
                     } else {
-                        // forward to leader broker to make assignment
-                        candidateBroker = currentLeader.get().getServiceUrl();
+                        lookupFuture.complete(Optional.empty());
                     }
-                }
+                });
+    }
+
+    private CompletableFuture<Optional<CandidateBrokerResult>> getCandidateBrokerResult(NamespaceBundle bundle,
+                                                                                        LeaderElectionService les,
+                                                                                        boolean authoritative) {
+        CandidateBrokerResult candidateBrokerResult = new CandidateBrokerResult();
+        candidateBrokerResult.authoritativeRedirect = les.isLeader();
+
+        // check if this is Heartbeat or SLAMonitor namespace
+        candidateBrokerResult.candidateBroker = checkHeartbeatNamespace(bundle);
+        if (candidateBrokerResult.candidateBroker == null) {
+            candidateBrokerResult.candidateBroker = checkHeartbeatNamespaceV2(bundle);
+        }
+        if (candidateBrokerResult.candidateBroker == null) {
+            String broker = getSLAMonitorBrokerName(bundle);
+            // checking if the broker is up and running
+            if (broker != null && isBrokerActive(broker)) {
+                candidateBrokerResult.candidateBroker = broker;
             }
-        } catch (Exception e) {
-            LOG.warn("Error when searching for candidate broker to acquire {}: {}", bundle, e.getMessage(), e);
-            lookupFuture.completeExceptionally(e);
-            return;
+        }
+        if (candidateBrokerResult.candidateBroker == null && authoritative) {
+            // leader broker already assigned the current broker as owner
+            candidateBrokerResult.candidateBroker = pulsar.getSafeWebServiceAddress();
+        }
+        if (candidateBrokerResult.candidateBroker != null) {
+            return CompletableFuture.completedFuture(Optional.of(candidateBrokerResult));
         }
 
-        try {
-            checkNotNull(candidateBroker);
-
-            if (candidateBroker.equals(pulsar.getSafeWebServiceAddress())) {
-                // Load manager decided that the local broker should try to become the owner
-                ownershipCache.tryAcquiringOwnership(bundle).thenAccept(ownerInfo -> {
-                    if (ownerInfo.isDisabled()) {
-                        if (LOG.isDebugEnabled()) {
-                            LOG.debug("Namespace bundle {} is currently being unloaded", bundle);
-                        }
-                        lookupFuture.completeExceptionally(new IllegalStateException(
-                                String.format("Namespace bundle %s is currently being unloaded", bundle)));
-                    } else {
-                        // Found owner for the namespace bundle
-
-                        if (options.isLoadTopicsInBundle()) {
-                            // Schedule the task to pre-load topics
-                            pulsar.loadNamespaceTopics(bundle);
-                        }
-                        // find the target
-                        if (options.hasAdvertisedListenerName()) {
-                            AdvertisedListener listener =
-                                    ownerInfo.getAdvertisedListeners().get(options.getAdvertisedListenerName());
-                            if (listener == null) {
-                                lookupFuture.completeExceptionally(
-                                        new PulsarServerException("the broker do not have "
-                                                + options.getAdvertisedListenerName() + " listener"));
-                                return;
-                            } else {
-                                URI url = listener.getBrokerServiceUrl();
-                                URI urlTls = listener.getBrokerServiceUrlTls();
-                                lookupFuture.complete(Optional.of(
-                                        new LookupResult(ownerInfo,
-                                                url == null ? null : url.toString(),
-                                                urlTls == null ? null : urlTls.toString())));
-                                return;
+        return pulsar.getLeaderElectionService().readCurrentLeader()
+                .thenCompose(currentLeader -> {
+                    try {
+                        candidateBrokerResult.authoritativeRedirect = les.isLeader();
+                        LoadManager loadManager = this.loadManager.get();
+                        boolean makeLoadManagerDecisionOnThisBroker = !loadManager.isCentralized() || les.isLeader();
+                        if (!makeLoadManagerDecisionOnThisBroker) {
+                            // If leader is not active, fallback to pick the least loaded from current broker
+                            // loadmanager
+                            boolean leaderBrokerActive = currentLeader.isPresent()
+                                    && isBrokerActive(currentLeader.get().getServiceUrl());
+                            if (!leaderBrokerActive) {
+                                makeLoadManagerDecisionOnThisBroker = true;
+                                if (!currentLeader.isPresent()) {
+                                    LOG.warn(
+                                            "The information about the current leader broker wasn't available. "
+                                                    + "Handling load manager decisions in a decentralized way. "
+                                                    + "NamespaceBundle[{}]",
+                                            bundle);
+                                } else {
+                                    LOG.warn(
+                                            "The current leader broker {} isn't active. "
+                                                    + "Handling load manager decisions in a decentralized way. "
+                                                    + "NamespaceBundle[{}]",
+                                            currentLeader.get(), bundle);
+                                }
                             }
-                        } else {
-                            lookupFuture.complete(Optional.of(new LookupResult(ownerInfo)));
-                            return;
                         }
+                        if (makeLoadManagerDecisionOnThisBroker) {
+                            Optional<Pair<String, String>> availableBroker =
+                                    getLeastLoadedFromLoadManager(bundle);
+                            if (!availableBroker.isPresent()) {
+                                LOG.warn("Load manager didn't return any available broker. "
+                                                + "Returning empty result to lookup. NamespaceBundle[{}]",
+                                        bundle);
+                                return CompletableFuture.completedFuture(Optional.empty());
+                            }
+                            candidateBrokerResult.candidateBroker = availableBroker.get().getLeft();
+                            candidateBrokerResult.candidateBrokerAdvertisedAddr =
+                                    availableBroker.get().getRight();
+                            candidateBrokerResult.authoritativeRedirect = true;
+                        } else {
+                            // forward to leader broker to make assignment
+                            candidateBrokerResult.candidateBroker = currentLeader.get().getServiceUrl();
+                        }
+                        return CompletableFuture.completedFuture(Optional.of(candidateBrokerResult));
+                    } catch (Exception e) {
+                        LOG.warn("Error when searching for candidate broker to acquire {}: {}", bundle,
+                                e.getMessage(),
+                                e);
+                        return CompletableFuture.failedFuture(e);
                     }
-                }).exceptionally(exception -> {
-                    LOG.warn("Failed to acquire ownership for namespace bundle {}: {}", bundle, exception);
-                    lookupFuture.completeExceptionally(new PulsarServerException(
-                            "Failed to acquire ownership for namespace bundle " + bundle, exception));
-                    return null;
                 });
 
-            } else {
-                // Load managed decider some other broker should try to acquire ownership
-
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("Redirecting to broker {} to acquire ownership of bundle {}", candidateBroker, bundle);
-                }
-
-                // Now setting the redirect url
-                createLookupResult(candidateBrokerAdvertisedAddr == null ? candidateBroker
-                        : candidateBrokerAdvertisedAddr, authoritativeRedirect, options.getAdvertisedListenerName())
-                        .thenAccept(lookupResult -> lookupFuture.complete(Optional.of(lookupResult)))
-                        .exceptionally(ex -> {
-                            lookupFuture.completeExceptionally(ex);
-                            return null;
-                        });
-
-            }
-        } catch (Exception e) {
-            LOG.warn("Error in trying to acquire namespace bundle ownership for {}: {}", bundle, e.getMessage(), e);
-            lookupFuture.completeExceptionally(e);
-        }
     }
 
     protected CompletableFuture<LookupResult> createLookupResult(String candidateBroker, boolean authoritativeRedirect,
