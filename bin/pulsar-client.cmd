@@ -14,15 +14,15 @@ rem WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 rem See the License for the specific language governing permissions and
 rem limitations under the License.
 
+
 for %%i in ("%~dp0.") do SET "SCRIPT_PATH=%%~fi"
 set "PULSAR_HOME_DIR=%SCRIPT_PATH%\..\"
 for %%i in ("%PULSAR_HOME_DIR%.") do SET "PULSAR_HOME=%%~fi"
 call "%PULSAR_HOME%\bin\pulsar-admin-common.cmd"
 
-set "OPTS=%OPTS% -Dorg.jline.terminal.jansi=false"
-set "DEFAULT_CONFIG=-Dpulsar.shell.config.default="%PULSAR_CLIENT_CONF%""
+cd "%PULSAR_HOME%"
+"%JAVACMD%" %OPTS% org.apache.pulsar.client.cli.PulsarClientTool %PULSAR_CLIENT_CONF% %*
 
-"%JAVACMD%" %OPTS%  %DEFAULT_CONFIG%  org.apache.pulsar.shell.PulsarShell %*
 if ERRORLEVEL 1 goto error
 goto end
 
@@ -31,3 +31,4 @@ set ERROR_CODE=1
 
 :end
 set ERROR_CODE=%ERROR_CODE%
+
