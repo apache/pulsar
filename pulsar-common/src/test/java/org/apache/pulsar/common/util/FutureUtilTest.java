@@ -30,6 +30,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicLong;
 import lombok.Cleanup;
 import org.assertj.core.util.Lists;
 import org.awaitility.Awaitility;
@@ -178,5 +179,16 @@ public class FutureUtilTest {
         } catch (CompletionException ex) {
             assertTrue(ex.getCause() instanceof RuntimeException);
         }
+    }
+
+    @Test
+    public void testDelayedFuture() throws ExecutionException, InterruptedException {
+        @Cleanup("shutdownNow")
+        ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
+        long startTime = System.currentTimeMillis();
+        Duration delay = Duration.ofMillis(250);
+        FutureUtil.delayedFuture(delay, executor, () -> null).get();
+        long elapsedTime = System.currentTimeMillis() - startTime;
+        assertTrue(elapsedTime > delay.toMillis());
     }
 }

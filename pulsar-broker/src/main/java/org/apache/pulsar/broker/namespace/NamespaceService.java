@@ -31,6 +31,7 @@ import com.google.common.hash.Hashing;
 import io.prometheus.client.Counter;
 import java.net.URI;
 import java.net.URL;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -111,6 +112,10 @@ import org.slf4j.LoggerFactory;
  * @see org.apache.pulsar.broker.PulsarService
  */
 public class NamespaceService implements AutoCloseable {
+
+    private static final int MAX_GET_LEADER_RETRIES = 6;
+    private static final int GET_LEADER_BACKOFF_MILLIS = 100;
+    private static final double GET_LEADER_BACKOFF_MULTIPLIER = 2.0;
 
     public enum AddressType {
         BROKER_URL, LOOKUP_URL
@@ -647,16 +652,22 @@ public class NamespaceService implements AutoCloseable {
     }
 
     private CompletableFuture<Optional<LeaderBroker>> getOrWaitForLeader(AtomicInteger retries) {
+        // read current leader and retry with exponential backoff. fallback to no leader if all attempts fail.
         return pulsar.getLeaderElectionService().readCurrentLeader()
                 .handle((leaderBroker, t) -> {
                     CompletableFuture<Optional<LeaderBroker>> retval;
-                    if ((t != null || !leaderBroker.isPresent()) && retries.getAndIncrement() < 3) {
-                        // retry after a delay of 5 seconds
+                    if ((t != null || !leaderBroker.isPresent())
+                            && retries.getAndIncrement() < MAX_GET_LEADER_RETRIES) {
+                        Duration delay = Duration.ofMillis(GET_LEADER_BACKOFF_MILLIS
+                                * (int) Math.pow(GET_LEADER_BACKOFF_MULTIPLIER, retries.get() - 1));
+                        LOG.warn("Leader broker isn't present. Retrying after delay of {}", delay, t);
                         retval =
-                                CompletableFuture.supplyAsync(() -> null,
-                                                CompletableFuture.delayedExecutor(5, SECONDS))
+                                FutureUtil.<Void>delayedFuture(delay, pulsar.getExecutor(), () -> null)
                                         .thenCompose(__ -> getOrWaitForLeader(retries));
                     } else {
+                        if (leaderBroker != null && leaderBroker.isPresent() && retries.get() > 0) {
+                            LOG.info("Leader broker was assigned to {}", leaderBroker.get().getServiceUrl());
+                        }
                         retval = CompletableFuture.completedFuture(
                                 leaderBroker != null ? leaderBroker : Optional.empty());
                     }

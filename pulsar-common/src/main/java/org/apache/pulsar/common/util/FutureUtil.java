@@ -203,6 +203,28 @@ public class FutureUtil {
     }
 
     /**
+     * Completes a future after a given delay.
+     *
+     * @param delay the duration of the delay
+     * @param executor the executor to use for scheduling the delayed execution
+     * @param supplier the supplier for creating the return value
+     * @return a future that completes after a given delay by using the supplier
+     * @param <T> type parameter for the future
+     */
+    public static <T> CompletableFuture<T> delayedFuture(Duration delay, ScheduledExecutorService executor,
+                                                         Supplier<T> supplier) {
+        CompletableFuture<T> future = new CompletableFuture<>();
+        executor.schedule(() -> {
+            try {
+                future.complete(supplier.get());
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        }, delay.toMillis(), TimeUnit.MILLISECONDS);
+        return future;
+    }
+
+    /**
      * Creates a low-overhead timeout exception which is performance optimized to minimize allocations
      * and cpu consumption. It sets the stacktrace of the exception to the given source class and
      * source method name. The instances of this class can be cached or stored as constants and reused
