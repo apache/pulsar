@@ -122,6 +122,7 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("update-partitioned-topic", new UpdatePartitionedCmd());
         jcommander.addCommand("get-partitioned-topic-metadata", new GetPartitionedTopicMetadataCmd());
         jcommander.addCommand("get-properties", new GetPropertiesCmd());
+        jcommander.addCommand("update-properties", new UpdateProperties());
 
         jcommander.addCommand("delete-partitioned-topic", new DeletePartitionedCmd());
         jcommander.addCommand("peek-messages", new PeekMessages());
@@ -621,6 +622,26 @@ public class CmdTopics extends CmdBase {
         void run() throws Exception {
             String topic = validateTopicName(params);
             print(getTopics().getProperties(topic));
+        }
+    }
+
+    @Parameters(commandDescription = "Update the properties of on a topic")
+    private class UpdateProperties extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = {"--property", "-p"}, description = "key value pair properties(-p a=b -p c=d)",
+            required = false, splitter = NoSplitter.class)
+        private java.util.List<String> properties;
+
+        @Override
+        void run() throws Exception {
+            String topic = validateTopicName(params);
+            Map<String, String> map = parseListKeyValueMap(properties);
+            if (map == null) {
+                map = Collections.emptyMap();
+            }
+            getTopics().updateProperties(topic, map);
         }
     }
 
