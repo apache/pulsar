@@ -164,10 +164,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     protected final NavigableMap<Long, LedgerInfo> ledgers = new ConcurrentSkipListMap<>();
     private volatile Stat ledgersStat;
 
+    // contains all cursors ordered by mark delete position
     private final ManagedCursorContainer cursors = new ManagedCursorContainer();
+    // contains active cursors ordered by mark delete position
     private final ManagedCursorContainer activeCursors = new ManagedCursorContainer();
 
-    private final ManagedCursorContainer activeCursorsSortedByReadPosition =
+    // contains active cursors ordered by read position when cacheEvictionByMarkDeletedPosition=false
+    // this container is empty when cacheEvictionByMarkDeletedPosition=true since it's not needed in that case
+    private final ManagedCursorContainer activeCursorsOrderedByReadPosition =
             ManagedCursorContainer.createWithReadPositionOrdering();
 
     // Ever increasing counter of entries added
@@ -2188,7 +2192,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         if (config.isCacheEvictionByMarkDeletedPosition()) {
             evictionPos = activeCursors.getSlowestReaderPosition();
         } else {
-            evictionPos = activeCursorsSortedByReadPosition.getSlowestReaderPosition();
+            evictionPos = activeCursorsOrderedByReadPosition.getSlowestReaderPosition();
         }
         return evictionPos;
     }
@@ -2230,7 +2234,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     public void updateReadPosition(ManagedCursorImpl cursor, Position newReadPosition) {
         if (!config.isCacheEvictionByMarkDeletedPosition()) {
-            activeCursorsSortedByReadPosition.cursorUpdated(cursor, newReadPosition);
+            activeCursorsOrderedByReadPosition.cursorUpdated(cursor, newReadPosition);
         }
     }
 
@@ -3488,7 +3492,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         if (activeCursors.get(cursor.getName()) == null) {
             activeCursors.add(cursor);
             if (!config.isCacheEvictionByMarkDeletedPosition()) {
-                activeCursorsSortedByReadPosition.add(cursor);
+                activeCursorsOrderedByReadPosition.add(cursor);
             }
         }
     }
@@ -3498,7 +3502,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             if (activeCursors.get(cursor.getName()) != null) {
                 activeCursors.removeCursor(cursor.getName());
                 if (!config.isCacheEvictionByMarkDeletedPosition()) {
-                    activeCursorsSortedByReadPosition.removeCursor(cursor.getName());
+                    activeCursorsOrderedByReadPosition.removeCursor(cursor.getName());
                 }
                 if (!activeCursors.hasDurableCursors()) {
                     // cleanup cache if there is no active subscription
