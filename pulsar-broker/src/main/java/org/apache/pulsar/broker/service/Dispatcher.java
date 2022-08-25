@@ -129,4 +129,21 @@ public interface Dispatcher {
         return false;
     }
 
+
+    default long getFilterProcessedMsgCount() {
+        return 0;
+    }
+
+    default long getFilterAcceptedMsgCount() {
+        return 0;
+    }
+
+    default long getFilterRejectedMsgCount() {
+        return 0;
+    }
+
+    default long getFilterRescheduledMsgCount() {
+        return 0;
+    }
+
 }

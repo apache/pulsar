@@ -82,16 +82,17 @@ void MultiTopicsConsumerImpl::start() {
 void MultiTopicsConsumerImpl::handleOneTopicSubscribed(Result result, Consumer consumer,
                                                        const std::string& topic,
                                                        std::shared_ptr<std::atomic<int>> topicsNeedCreate) {
-    (*topicsNeedCreate)--;
-
     if (result != ResultOk) {
         state_ = Failed;
+        // Use the first failed result
+        auto expectedResult = ResultOk;
+        failedResult.compare_exchange_strong(expectedResult, result);
         LOG_ERROR("Failed when subscribed to topic " << topic << " in TopicsConsumer. Error - " << result);
+    } else {
+        LOG_DEBUG("Subscribed to topic " << topic << " in TopicsConsumer ");
     }
 
-    LOG_DEBUG("Subscribed to topic " << topic << " in TopicsConsumer ");
-
-    if (topicsNeedCreate->load() == 0) {
+    if (--(*topicsNeedCreate) == 0) {
         MultiTopicsConsumerState state = Pending;
         if (state_.compare_exchange_strong(state, Ready)) {
             LOG_INFO("Successfully Subscribed to Topics");
@@ -99,11 +100,10 @@ void MultiTopicsConsumerImpl::handleOneTopicSubscribed(Result result, Consumer c
         } else {
             LOG_ERROR("Unable to create Consumer - " << consumerStr_ << " Error - " << result);
             // unsubscribed all of the successfully subscribed partitioned consumers
-            closeAsync(nullptr);
-            multiTopicsConsumerCreatedPromise_.setFailed(result);
-            return;
+            // It's safe to capture only this here, because the callback can be called only when this is valid
+            closeAsync(
+                [this](Result result) { multiTopicsConsumerCreatedPromise_.setFailed(failedResult.load()); });
         }
-        return;
     }
 }
 
@@ -364,13 +364,47 @@ void MultiTopicsConsumerImpl::closeAsync(ResultCallback callback) {
 
     state_ = Closing;
 
-    auto self = shared_from_this();
+    std::weak_ptr<MultiTopicsConsumerImpl> weakSelf{shared_from_this()};
     int numConsumers = 0;
-    consumers_.forEach(
-        [&numConsumers, &self, callback](const std::string& name, const ConsumerImplPtr& consumer) {
+    consumers_.clear(
+        [this, weakSelf, &numConsumers, callback](const std::string& name, const ConsumerImplPtr& consumer) {
+            auto self = weakSelf.lock();
+            if (!self) {
+                return;
+            }
             numConsumers++;
-            consumer->closeAsync([self, name, callback](Result result) {
-                self->handleSingleConsumerClose(result, name, callback);
+            consumer->closeAsync([this, weakSelf, name, callback](Result result) {
+                auto self = weakSelf.lock();
+                if (!self) {
+                    return;
+                }
+                LOG_DEBUG("Closing the consumer for partition - " << name << " numberTopicPartitions_ - "
+                                                                  << numberTopicPartitions_->load());
+                const int numConsumersLeft = --*numberTopicPartitions_;
+                if (numConsumersLeft < 0) {
+                    LOG_ERROR("[" << name << "] Unexpected number of left consumers: " << numConsumersLeft
+                                  << " during close");
+                    return;
+                }
+                if (result != ResultOk) {
+                    state_ = Failed;
+                    LOG_ERROR("Closing the consumer failed for partition - " << name << " with error - "
+                                                                             << result);
+                }
+                // closed all consumers
+                if (numConsumersLeft == 0) {
+                    messages_.clear();
+                    topicsPartitions_.clear();
+                    unAckedMessageTrackerPtr_->clear();
+
+                    if (state_ != Failed) {
+                        state_ = Closed;
+                    }
+
+                    if (callback) {
+                        callback(result);
+                    }
+                }
             });
         });
     if (numConsumers == 0) {
@@ -385,41 +419,6 @@ void MultiTopicsConsumerImpl::closeAsync(ResultCallback callback) {
 
     // fail pending receive
     failPendingReceiveCallback();
-}
-
-void MultiTopicsConsumerImpl::handleSingleConsumerClose(Result result, std::string topicPartitionName,
-                                                        CloseCallback callback) {
-    consumers_.remove(topicPartitionName);
-
-    LOG_DEBUG("Closing the consumer for partition - " << topicPartitionName << " numberTopicPartitions_ - "
-                                                      << numberTopicPartitions_->load());
-
-    assert(numberTopicPartitions_->load() > 0);
-    numberTopicPartitions_->fetch_sub(1);
-
-    if (result != ResultOk) {
-        state_ = Failed;
-        LOG_ERROR("Closing the consumer failed for partition - " << topicPartitionName << " with error - "
-                                                                 << result);
-    }
-
-    // closed all consumers
-    if (numberTopicPartitions_->load() == 0) {
-        messages_.clear();
-        consumers_.clear();
-        topicsPartitions_.clear();
-        unAckedMessageTrackerPtr_->clear();
-
-        if (state_ != Failed) {
-            state_ = Closed;
-        }
-
-        multiTopicsConsumerCreatedPromise_.setFailed(ResultUnknownError);
-        if (callback) {
-            callback(result);
-        }
-        return;
-    }
 }
 
 void MultiTopicsConsumerImpl::messageReceived(Consumer consumer, const Message& msg) {
