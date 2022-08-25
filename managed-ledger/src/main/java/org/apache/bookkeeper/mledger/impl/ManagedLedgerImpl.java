@@ -1569,7 +1569,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         store.asyncUpdateLedgerIds(name, mlInfo, ledgersStat, callback);
     }
 
-    public void createNewOpAddEntryForNewLedger() {
+    @VisibleForTesting
+    void createNewOpAddEntryForNewLedger() {
         // Avoid use same OpAddEntry between different ledger handle
         int pendingSize = pendingAddEntries.size();
         OpAddEntry existsOp;
