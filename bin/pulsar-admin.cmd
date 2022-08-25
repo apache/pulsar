@@ -23,15 +23,8 @@ for %%i in ("%~dp0.") do SET "SCRIPT_PATH=%%~fi"
 set "PULSAR_HOME_DIR=%SCRIPT_PATH%\..\"
 for %%i in ("%PULSAR_HOME_DIR%.") do SET "PULSAR_HOME=%%~fi"
 call "%PULSAR_HOME%\bin\pulsar-admin-common.cmd"
-
+if ERRORLEVEL 1 (
+  exit /b 1
+)
 cd "%PULSAR_HOME%"
 "%JAVACMD%" %OPTS% org.apache.pulsar.admin.cli.PulsarAdminTool %PULSAR_CLIENT_CONF% %*
-
-if ERRORLEVEL 1 goto error
-goto end
-
-:error
-set ERROR_CODE=1
-
-:end
-set ERROR_CODE=%ERROR_CODE%

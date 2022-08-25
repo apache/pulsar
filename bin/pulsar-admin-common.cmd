@@ -19,22 +19,15 @@
 
 @echo off
 
-if not "%JAVA_HOME%" == "" goto javaHomeSet
-for %%i in (java.exe) do set "JAVACMD=%%~$PATH:i"
-goto checkJavaCmd
-
-:javaHomeSet
-set JAVACMD=%JAVA_HOME%\bin\java.exe
-
-if not exist "%JAVACMD%" (
-  echo The JAVA_HOME environment variable is not defined correctly, so Pulsar Shell cannot be started. >&2
-  echo JAVA_HOME is set to "%JAVA_HOME%", but "%JAVACMD%" does not exist. >&2
-  goto error
+if "%JAVA_HOME%" == "" (
+  for %%i in (java.exe) do set "JAVACMD=%%~$PATH:i"
+) else (
+  set "JAVACMD=%JAVA_HOME%\bin\java.exe"
 )
 
-:checkJavaCmd
 if not exist "%JAVACMD%" (
-  echo The java.exe command does not exist in PATH nor is JAVA_HOME set, so Pulsar Shell cannot be started. >&2
+  echo The JAVA_HOME environment variable is not defined correctly, so Pulsar CLI cannot be started. >&2
+  echo JAVA_HOME is set to "%JAVA_HOME%", but "%JAVACMD%" does not exist. >&2
   goto error
 )
 
@@ -86,4 +79,4 @@ set "OPTS=%OPTS% -Dpulsar.log.root.level=%PULSAR_LOG_ROOT_LEVEL%"
 set "OPTS=%OPTS% -Dpulsar.routing.appender.default=%PULSAR_ROUTING_APPENDER_DEFAULT%"
 
 :error
-set ERROR_CODE=1
+exit /b 1
