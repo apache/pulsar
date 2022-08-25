@@ -419,53 +419,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             if (sinkSchemaInfoProvider != null) {
                 // Function and Sink coupled together so we need to encode with the Function Schema
                 // and decode with the Sink schema
-                Schema encodingSchema = record.getSchema();
-                boolean isKeyValueSeparated = false;
-                if (encodingSchema instanceof KeyValueSchema) {
-                    KeyValueSchema<?, ?> kvSchema = (KeyValueSchema<?, ?>) encodingSchema;
-                    // If the encoding is SEPARATED, it's easier to encode/decode with INLINE
-                    // and rebuild the SEPARATED KeyValueSchema after decoding
-                    if (kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
-                        encodingSchema = KeyValueSchemaImpl.of(kvSchema.getKeySchema(), kvSchema.getValueSchema());
-                        isKeyValueSeparated = true;
-                    }
-                }
-                byte[] encoded = encodingSchema.encode(record.getValue());
-
-                if (sinkSchema.get() == null) {
-                    Schema<?> schema = getSinkSchema(record, sinkTypeArg);
-                    schema.setSchemaInfoProvider(sinkSchemaInfoProvider);
-                    sinkSchema.compareAndSet(null, schema);
-                }
-                Schema<?> schema = sinkSchema.get();
-                SchemaVersion schemaVersion = sinkSchemaInfoProvider.getSchemaVersion(encodingSchema);
-                final byte[] schemaVersionBytes = schemaVersion.bytes();
-                Object decoded = schema.decode(encoded, schemaVersionBytes);
-
-                if (schema instanceof AutoConsumeSchema) {
-                    schema = ((AutoConsumeSchema) schema).getInternalSchema(schemaVersionBytes);
-                }
-
-                final Schema<?> finalSchema;
-                if (isKeyValueSeparated && schema instanceof KeyValueSchema) {
-                    KeyValueSchema<?, ?> kvSchema = (KeyValueSchema<?, ?>) schema;
-                    finalSchema = KeyValueSchemaImpl.of(kvSchema.getKeySchema(), kvSchema.getValueSchema(),
-                        KeyValueEncodingType.SEPARATED);
-                } else {
-                    finalSchema = schema;
-                }
-
-                sinkRecord = new OutputRecordSinkRecord<>(srcRecord, record) {
-                    @Override
-                    public Object getValue() {
-                        return decoded;
-                    }
-
-                    @Override
-                    public Schema getSchema() {
-                        return finalSchema;
-                    }
-                };
+                sinkRecord = encodeWithRecordSchemaAndDecodeWithSinkSchema(srcRecord, record);
             } else {
                 sinkRecord = new OutputRecordSinkRecord<>(srcRecord, record);
             }
@@ -483,6 +437,46 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         } finally {
             Thread.currentThread().setContextClassLoader(instanceClassLoader);
         }
+    }
+
+    private OutputRecordSinkRecord encodeWithRecordSchemaAndDecodeWithSinkSchema(Record srcRecord, Record record) {
+        AbstractSinkRecord<?> sinkRecord;
+        Schema encodingSchema = record.getSchema();
+        boolean isKeyValueSeparated = false;
+        if (encodingSchema instanceof KeyValueSchema) {
+            KeyValueSchema<?, ?> kvSchema = (KeyValueSchema<?, ?>) encodingSchema;
+            // If the encoding is SEPARATED, it's easier to encode/decode with INLINE
+            // and rebuild the SEPARATED KeyValueSchema after decoding
+            if (kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
+                encodingSchema = KeyValueSchemaImpl.of(kvSchema.getKeySchema(), kvSchema.getValueSchema());
+                isKeyValueSeparated = true;
+            }
+        }
+        byte[] encoded = encodingSchema.encode(record.getValue());
+
+        if (sinkSchema.get() == null) {
+            Schema<?> schema = getSinkSchema(record, sinkTypeArg);
+            schema.setSchemaInfoProvider(sinkSchemaInfoProvider);
+            sinkSchema.compareAndSet(null, schema);
+        }
+        Schema<?> schema = sinkSchema.get();
+        SchemaVersion schemaVersion = sinkSchemaInfoProvider.addSchemaIfNeeded(encodingSchema);
+        final byte[] schemaVersionBytes = schemaVersion.bytes();
+        Object decoded = schema.decode(encoded, schemaVersionBytes);
+
+        if (schema instanceof AutoConsumeSchema) {
+            schema = ((AutoConsumeSchema) schema).getInternalSchema(schemaVersionBytes);
+        }
+
+        final Schema<?> finalSchema;
+        if (isKeyValueSeparated && schema instanceof KeyValueSchema) {
+            KeyValueSchema<?, ?> kvSchema = (KeyValueSchema<?, ?>) schema;
+            finalSchema = KeyValueSchemaImpl.of(kvSchema.getKeySchema(), kvSchema.getValueSchema(),
+                KeyValueEncodingType.SEPARATED);
+        } else {
+            finalSchema = schema;
+        }
+        return new OutputRecordSinkRecord(srcRecord, record, decoded, finalSchema);
     }
 
     private Record readInput() throws Exception {

@@ -29,22 +29,33 @@ import org.apache.pulsar.common.protocol.schema.SchemaHash;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
+/**
+ * SchemaInfo provider that creates a new schema version for each new schema hash.
+ */
 class SinkSchemaInfoProvider implements SchemaInfoProvider {
 
   AtomicLong latestVersion = new AtomicLong(0);
   ConcurrentHashMap<SchemaVersion, SchemaInfo> schemaInfos = new ConcurrentHashMap<>();
   ConcurrentHashMap<SchemaHash, SchemaVersion> schemaVersions = new ConcurrentHashMap<>();
 
-  public SchemaVersion getSchemaVersion(Schema<?> schema) {
+  /**
+   * Creates a new schema version with the info of the provided schema if the hash of the schema is a new one.
+   *
+   * @param schema schema for which we create a version
+   * @return the version of the schema
+   */
+  public SchemaVersion addSchemaIfNeeded(Schema<?> schema) {
     SchemaHash schemaHash = SchemaHash.of(schema);
-    return schemaVersions.computeIfAbsent(schemaHash, s -> {
-      long l = latestVersion.incrementAndGet();
-      ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
-      buffer.putLong(l);
-      SchemaVersion schemaVersion = BytesSchemaVersion.of(buffer.array());
-      schemaInfos.put(schemaVersion, schema.getSchemaInfo());
-      return schemaVersion;
-    });
+    return schemaVersions.computeIfAbsent(schemaHash, s -> createNewSchemaInfo(schema.getSchemaInfo()));
+  }
+
+  private SchemaVersion createNewSchemaInfo(SchemaInfo schemaInfo) {
+    long l = latestVersion.incrementAndGet();
+    ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
+    buffer.putLong(l);
+    BytesSchemaVersion schemaVersion = BytesSchemaVersion.of(buffer.array());
+    schemaInfos.put(schemaVersion, schemaInfo);
+    return schemaVersion;
   }
 
   @Override
