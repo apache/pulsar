@@ -137,8 +137,12 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
             MessageImpl<?> msg = messages.get(i);
             msg.getDataBuffer().markReaderIndex();
             try {
-                batchedMessageMetadataAndPayload = Commands.serializeSingleMessageInBatchWithPayload(
+                if (n == 1) {
+                    batchedMessageMetadataAndPayload.writeBytes(msg.getDataBuffer());
+                } else  {
+                    batchedMessageMetadataAndPayload = Commands.serializeSingleMessageInBatchWithPayload(
                         msg.getMessageBuilder(), msg.getDataBuffer(), batchedMessageMetadataAndPayload);
+                }
             } catch (Throwable th) {
                 // serializing batch message can corrupt the index of message and batch-message. Reset the index so,
                 // next iteration doesn't send corrupt message to broker.
@@ -211,6 +215,38 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
 
     @Override
     public OpSendMsg createOpSendMsg() throws IOException {
+        if (messages.size() == 1) {
+            messageMetadata.clear();
+            messageMetadata.copyFrom(messages.get(0).getMessageBuilder());
+            ByteBuf encryptedPayload = producer.encryptMessage(messageMetadata, getCompressedBatchMetadataAndPayload());
+            ByteBufPair cmd = producer.sendMessage(producer.producerId, messageMetadata.getSequenceId(),
+                1, messageMetadata, encryptedPayload);
+            final OpSendMsg op;
+
+            // Shouldn't call create(MessageImpl<?> msg, ByteBufPair cmd, long sequenceId, SendCallback callback),
+            // otherwise it will bring message out of order problem.
+            // Because when invoke `ProducerImpl.processOpSendMsg` on flush,
+            // if `op.msg != null && isBatchMessagingEnabled()` checks true, it will call `batchMessageAndSend` to flush
+            // messageContainers before publishing this one-batch message.
+            op = OpSendMsg.create(messages, cmd, messageMetadata.getSequenceId(), firstCallback);
+
+            // NumMessagesInBatch and BatchSizeByte will not be serialized to the binary cmd. It's just useful for the
+            // ProducerStats
+            op.setNumMessagesInBatch(1);
+            op.setBatchSizeByte(encryptedPayload.readableBytes());
+
+            // handle mgs size check as non-batched in `ProducerImpl.isMessageSizeExceeded`
+            if (op.getMessageHeaderAndPayloadSize() > ClientCnx.getMaxMessageSize()) {
+                producer.semaphoreRelease(1);
+                producer.client.getMemoryLimitController().releaseMemory(messages.get(0).getUncompressedSize());
+                discard(new PulsarClientException.InvalidMessageException(
+                    "Message size is bigger than " + ClientCnx.getMaxMessageSize() + " bytes"));
+                return null;
+            }
+            lowestSequenceId = -1L;
+            return op;
+        }
+
         ByteBuf encryptedPayload = producer.encryptMessage(messageMetadata, getCompressedBatchMetadataAndPayload());
         if (encryptedPayload.readableBytes() > ClientCnx.getMaxMessageSize()) {
             producer.semaphoreRelease(messages.size());

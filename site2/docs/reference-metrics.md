@@ -159,6 +159,9 @@ All the broker metrics are labelled with the following labels:
 | Name | Type   | Description                                          |
 |---|---|---|
 | pulsar_ml_cache_evictions | Gauge  | The number of cache evictions during the last minute. |
+| pulsar_ml_cache_inserted_entries_total | Counter | The number of entries inserted into the entry cache. |
+| pulsar_ml_cache_evicted_entries_total | Counter | The number of entries evicted from the entry cache. |
+| pulsar_ml_cache_entries | Gauge | The number of entries in the entry cache. |
 | pulsar_ml_cache_hits_rate | Gauge  | The number of cache hits per second on the broker side. |
 | pulsar_ml_cache_hits_throughput | Gauge  | The amount of data (byte per second) retrieved from the cache on the broker side. |
 | pulsar_ml_cache_misses_rate | Gauge  | The number of cache missed per second on the broker side. |
@@ -444,7 +447,7 @@ All the subscription metrics are labelled with the following labels:
 | pulsar_subscription_total_msg_expired | Gauge | The total number of messages expired on this subscription. |
 | pulsar_subscription_msg_drop_rate | Gauge | The rate of messages dropped on this subscription (message per second). |
 | pulsar_subscription_consumers_count | Gauge | The number of connected consumers on this subscription. |
-| pulsar_subscription_through_filter_msg_count | Counter | The number of messages passes through `EntryFilter`. |
+| pulsar_subscription_filter_processed_msg_count | Counter | The number of messages processed by `EntryFilter`. |
 | pulsar_subscription_filter_accepted_msg_count | Counter | The number of messages accepted by `EntryFilter`. |
 | pulsar_subscription_filter_rejected_msg_count | Counter | The number of messages rejected by `EntryFilter`. |
 | pulsar_subscription_filter_rescheduled_msg_count | Counter | The number of messages rescheduled by `EntryFilter`. |
