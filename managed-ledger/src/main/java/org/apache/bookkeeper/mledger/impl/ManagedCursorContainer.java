@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.locks.StampedLock;
+import java.util.function.Function;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.commons.lang3.tuple.Pair;
@@ -50,28 +51,25 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
         PositionImpl position;
         int idx;
 
-        Item(ManagedCursor cursor, int idx) {
+        Item(ManagedCursor cursor, PositionImpl position, int idx) {
             this.cursor = cursor;
-            this.position = (PositionImpl) cursor.getMarkDeletedPosition();
+            this.position = position;
             this.idx = idx;
         }
     }
 
-    public enum CursorType {
-        DurableCursor,
-        NonDurableCursor,
-        ALL
-    }
-
     public ManagedCursorContainer() {
-        cursorType = CursorType.DurableCursor;
+        this(cursor -> (PositionImpl) cursor.getMarkDeletedPosition());
     }
 
-    public ManagedCursorContainer(CursorType cursorType) {
-        this.cursorType = cursorType;
+    private ManagedCursorContainer(Function<ManagedCursor, PositionImpl> positionFunction) {
+        this.positionFunction = positionFunction;
     }
 
-    private final CursorType cursorType;
+    public static ManagedCursorContainer createWithReadPositionOrdering() {
+        return new ManagedCursorContainer(cursor -> (PositionImpl) cursor.getReadPosition());
+    }
+
 
     // Used to keep track of slowest cursor. Contains all of all active cursors.
     private final ArrayList<Item> heap = new ArrayList();
@@ -81,43 +79,23 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
 
     private final StampedLock rwLock = new StampedLock();
 
+    private int durableCursorCount;
+
+    private final Function<ManagedCursor, PositionImpl> positionFunction;
+
     public void add(ManagedCursor cursor) {
         long stamp = rwLock.writeLock();
         try {
             // Append a new entry at the end of the list
-            Item item = new Item(cursor, heap.size());
+            Item item = new Item(cursor, positionFunction.apply(cursor), heap.size());
             cursors.put(cursor.getName(), item);
-
-            if (shouldTrackInHeap(cursor)) {
-                heap.add(item);
-                siftUp(item);
+            heap.add(item);
+            siftUp(item);
+            if (cursor.isDurable()) {
+                durableCursorCount++;
             }
         } finally {
             rwLock.unlockWrite(stamp);
-        }
-    }
-
-    private boolean shouldTrackInHeap(ManagedCursor cursor) {
-        return CursorType.ALL.equals(cursorType)
-                || (cursor.isDurable() && CursorType.DurableCursor.equals(cursorType))
-                || (!cursor.isDurable() && CursorType.NonDurableCursor.equals(cursorType));
-    }
-
-    public PositionImpl getSlowestReadPositionForActiveCursors() {
-        long stamp = rwLock.readLock();
-        try {
-            return heap.isEmpty() ? null : (PositionImpl) heap.get(0).cursor.getReadPosition();
-        } finally {
-            rwLock.unlockRead(stamp);
-        }
-    }
-
-    public PositionImpl getSlowestMarkDeletedPositionForActiveCursors() {
-        long stamp = rwLock.readLock();
-        try {
-            return heap.isEmpty() ? null : (PositionImpl) heap.get(0).cursor.getMarkDeletedPosition();
-        } finally {
-            rwLock.unlockRead(stamp);
         }
     }
 
@@ -135,13 +113,16 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
         long stamp = rwLock.writeLock();
         try {
             Item item = cursors.remove(name);
-            if (item != null && shouldTrackInHeap(item.cursor)) {
+            if (item != null) {
                 // Move the item to the right end of the heap to be removed
                 Item lastItem = heap.get(heap.size() - 1);
                 swap(item, lastItem);
                 heap.remove(item.idx);
                 // Update the heap
                 siftDown(lastItem);
+                if (item.cursor.isDurable()) {
+                    durableCursorCount--;
+                }
             }
         } finally {
             rwLock.unlockWrite(stamp);
@@ -165,24 +146,20 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
                 return null;
             }
 
+            PositionImpl previousSlowestConsumer = heap.get(0).position;
 
-            if (shouldTrackInHeap(item.cursor)) {
-                PositionImpl previousSlowestConsumer = heap.get(0).position;
+            // When the cursor moves forward, we need to push it toward the
+            // bottom of the tree and push it up if a reset was done
 
-                // When the cursor moves forward, we need to push it toward the
-                // bottom of the tree and push it up if a reset was done
-
-                item.position = (PositionImpl) newPosition;
-                if (item.idx == 0 || getParent(item).position.compareTo(item.position) <= 0) {
-                    siftDown(item);
-                } else {
-                    siftUp(item);
-                }
-
-                PositionImpl newSlowestConsumer = heap.get(0).position;
-                return Pair.of(previousSlowestConsumer, newSlowestConsumer);
+            item.position = (PositionImpl) newPosition;
+            if (item.idx == 0 || getParent(item).position.compareTo(item.position) <= 0) {
+                siftDown(item);
+            } else {
+                siftUp(item);
             }
-            return null;
+
+            PositionImpl newSlowestConsumer = heap.get(0).position;
+            return Pair.of(previousSlowestConsumer, newSlowestConsumer);
         } finally {
             rwLock.unlockWrite(stamp);
         }
@@ -237,18 +214,18 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
      */
     public boolean hasDurableCursors() {
         long stamp = rwLock.tryOptimisticRead();
-        boolean isEmpty = heap.isEmpty();
+        int count = durableCursorCount;
         if (!rwLock.validate(stamp)) {
             // Fallback to read lock
             stamp = rwLock.readLock();
             try {
-                isEmpty = heap.isEmpty();
+                count = durableCursorCount;
             } finally {
                 rwLock.unlockRead(stamp);
             }
         }
 
-        return !isEmpty;
+        return count > 0;
     }
 
     @Override

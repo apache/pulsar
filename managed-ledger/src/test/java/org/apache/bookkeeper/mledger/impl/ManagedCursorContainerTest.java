@@ -402,9 +402,8 @@ public class ManagedCursorContainerTest {
 
     @Test
     public void testSlowestReadPositionForActiveCursors() throws Exception {
-        ManagedCursorContainer container =
-                new ManagedCursorContainer(ManagedCursorContainer.CursorType.NonDurableCursor);
-        assertNull(container.getSlowestReadPositionForActiveCursors());
+        ManagedCursorContainer container = ManagedCursorContainer.createWithReadPositionOrdering();
+        assertNull(container.getSlowestReaderPosition());
 
         // Add no durable cursor
         PositionImpl position = PositionImpl.get(5,5);
@@ -412,7 +411,7 @@ public class ManagedCursorContainerTest {
         doReturn(false).when(cursor1).isDurable();
         doReturn(position).when(cursor1).getReadPosition();
         container.add(cursor1);
-        assertEquals(container.getSlowestReadPositionForActiveCursors(), new PositionImpl(5, 5));
+        assertEquals(container.getSlowestReaderPosition(), new PositionImpl(5, 5));
 
         // Add no durable cursor
         position = PositionImpl.get(1,1);
@@ -420,23 +419,23 @@ public class ManagedCursorContainerTest {
         doReturn(false).when(cursor2).isDurable();
         doReturn(position).when(cursor2).getReadPosition();
         container.add(cursor2);
-        assertEquals(container.getSlowestReadPositionForActiveCursors(), new PositionImpl(1, 1));
+        assertEquals(container.getSlowestReaderPosition(), new PositionImpl(1, 1));
 
         // Move forward cursor, cursor1 = 5:5, cursor2 = 5:6, slowest is 5:5
         position = PositionImpl.get(5,6);
         container.cursorUpdated(cursor2, position);
         doReturn(position).when(cursor2).getReadPosition();
-        assertEquals(container.getSlowestReadPositionForActiveCursors(), new PositionImpl(5, 5));
+        assertEquals(container.getSlowestReaderPosition(), new PositionImpl(5, 5));
 
         // Move forward cursor, cursor1 = 5:8, cursor2 = 5:6, slowest is 5:6
         position = PositionImpl.get(5,8);
         doReturn(position).when(cursor1).getReadPosition();
         container.cursorUpdated(cursor1, position);
-        assertEquals(container.getSlowestReadPositionForActiveCursors(), new PositionImpl(5, 6));
+        assertEquals(container.getSlowestReaderPosition(), new PositionImpl(5, 6));
 
         // Remove cursor, only cursor1 left, cursor1 = 5:8
         container.removeCursor(cursor2.getName());
-        assertEquals(container.getSlowestReadPositionForActiveCursors(), new PositionImpl(5, 8));
+        assertEquals(container.getSlowestReaderPosition(), new PositionImpl(5, 8));
     }
 
     @Test
