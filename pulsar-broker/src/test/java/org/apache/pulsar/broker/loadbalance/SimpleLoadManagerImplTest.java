@@ -29,7 +29,6 @@ import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.Maps;
 import java.lang.reflect.Field;
 import java.net.URL;
 import java.util.Collections;
@@ -202,7 +201,7 @@ public class SimpleLoadManagerImplTest {
         Set<ResourceUnit> rus = new HashSet<>();
         rus.add(ru1);
         LoadRanker lr = new ResourceAvailabilityRanker();
-        AtomicReference<Map<Long, Set<ResourceUnit>>> sortedRankingsInstance = new AtomicReference<>(Maps.newTreeMap());
+        AtomicReference<Map<Long, Set<ResourceUnit>>> sortedRankingsInstance = new AtomicReference<>(new HashMap<>());
         sortedRankingsInstance.get().put(lr.getRank(rd), rus);
 
         Field sortedRankings = SimpleLoadManagerImpl.class.getDeclaredField("sortedRankings");
@@ -252,7 +251,7 @@ public class SimpleLoadManagerImplTest {
         rankings.put(ru1, ranking);
         setObjectField(SimpleLoadManagerImpl.class, loadManager, "resourceUnitRankings", rankings);
 
-        AtomicReference<Map<Long, Set<ResourceUnit>>> sortedRankingsInstance = new AtomicReference<>(Maps.newTreeMap());
+        AtomicReference<Map<Long, Set<ResourceUnit>>> sortedRankingsInstance = new AtomicReference<>(new HashMap<>());
         sortedRankingsInstance.get().put(lr.getRank(rd), rus);
         setObjectField(SimpleLoadManagerImpl.class, loadManager, "sortedRankings", sortedRankingsInstance);
 
@@ -278,7 +277,7 @@ public class SimpleLoadManagerImplTest {
         Set<ResourceUnit> rus = new HashSet<>();
         rus.add(ru1);
         LoadRanker lr = new ResourceAvailabilityRanker();
-        AtomicReference<Map<Long, Set<ResourceUnit>>> sortedRankingsInstance = new AtomicReference<>(Maps.newTreeMap());
+        AtomicReference<Map<Long, Set<ResourceUnit>>> sortedRankingsInstance = new AtomicReference<>(new HashMap<>());
         sortedRankingsInstance.get().put(lr.getRank(rd), rus);
 
         Field sortedRankings = SimpleLoadManagerImpl.class.getDeclaredField("sortedRankings");
@@ -349,7 +348,7 @@ public class SimpleLoadManagerImplTest {
         rus.add(ru1);
         rus.add(ru2);
         LoadRanker lr = new ResourceAvailabilityRanker();
-        AtomicReference<Map<Long, Set<ResourceUnit>>> sortedRankingsInstance = new AtomicReference<>(Maps.newTreeMap());
+        AtomicReference<Map<Long, Set<ResourceUnit>>> sortedRankingsInstance = new AtomicReference<>(new HashMap<>());
         sortedRankingsInstance.get().put(lr.getRank(rd), rus);
 
         Field sortedRankings = SimpleLoadManagerImpl.class.getDeclaredField("sortedRankings");
@@ -359,7 +358,7 @@ public class SimpleLoadManagerImplTest {
         // inject the load report and rankings
         SystemResourceUsage systemResource = new SystemResourceUsage();
         systemResource.setBandwidthIn(new ResourceUsage(90, 100));
-        Map<String, NamespaceBundleStats> stats = Maps.newHashMap();
+        Map<String, NamespaceBundleStats> stats = new HashMap<>();
         NamespaceBundleStats nsb1 = new NamespaceBundleStats();
         nsb1.msgRateOut = 10000;
         NamespaceBundleStats nsb2 = new NamespaceBundleStats();
@@ -462,7 +461,7 @@ public class SimpleLoadManagerImplTest {
 
     @Test
     public void testUsage() {
-        Map<String, Object> metrics = Maps.newHashMap();
+        Map<String, Object> metrics = new HashMap<>();
         metrics.put("brk_conn_cnt", 1L);
         metrics.put("brk_repl_conn_cnt", 1L);
         metrics.put("jvm_thread_cnt", 1L);

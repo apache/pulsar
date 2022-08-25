@@ -21,6 +21,7 @@ package org.apache.bookkeeper.mledger;
 import io.netty.buffer.ByteBuf;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Predicate;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
@@ -635,7 +636,7 @@ public interface ManagedLedger {
     /**
      * Find position by sequenceId.
      * */
-    CompletableFuture<Position> asyncFindPosition(com.google.common.base.Predicate<Entry> predicate);
+    CompletableFuture<Position> asyncFindPosition(Predicate<Entry> predicate);
 
     /**
      * Get the ManagedLedgerInterceptor for ManagedLedger.

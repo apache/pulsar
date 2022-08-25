@@ -36,6 +36,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -526,7 +527,7 @@ public class ModularLoadManagerImplTest {
         // (1) now we have isolation policy : primary=broker1, secondary=broker2, minLimit=1
 
         // test1: shared=1, primary=1, secondary=1 => It should return 1 primary broker only
-        Set<String> brokerCandidateCache = Sets.newHashSet();
+        Set<String> brokerCandidateCache = new HashSet<>();
         Set<String> availableBrokers = Sets.newHashSet(sharedBroker, broker1Address, broker2Address);
         LoadManagerShared.applyNamespacePolicies(serviceUnit, simpleResourceAllocationPolicies, brokerCandidateCache,
                 availableBrokers, brokerTopicLoadingPredicate);
@@ -534,7 +535,7 @@ public class ModularLoadManagerImplTest {
         assertTrue(brokerCandidateCache.contains(broker1Address));
 
         // test2: shared=1, primary=0, secondary=1 => It should return 1 secondary broker only
-        brokerCandidateCache = Sets.newHashSet();
+        brokerCandidateCache = new HashSet<>();
         availableBrokers = Sets.newHashSet(sharedBroker, broker2Address);
         LoadManagerShared.applyNamespacePolicies(serviceUnit, simpleResourceAllocationPolicies, brokerCandidateCache,
                 availableBrokers, brokerTopicLoadingPredicate);
@@ -542,7 +543,7 @@ public class ModularLoadManagerImplTest {
         assertTrue(brokerCandidateCache.contains(broker2Address));
 
         // test3: shared=1, primary=0, secondary=0 => It should return 0 broker
-        brokerCandidateCache = Sets.newHashSet();
+        brokerCandidateCache = new HashSet<>();
         availableBrokers = Sets.newHashSet(sharedBroker);
         LoadManagerShared.applyNamespacePolicies(serviceUnit, simpleResourceAllocationPolicies, brokerCandidateCache,
                 availableBrokers, brokerTopicLoadingPredicate);
@@ -556,7 +557,7 @@ public class ModularLoadManagerImplTest {
         admin1.clusters().createNamespaceIsolationPolicy("use", newPolicyName, nsPolicyData);
 
         // test1: shared=1, primary=1, secondary=1 => It should return primary + secondary
-        brokerCandidateCache = Sets.newHashSet();
+        brokerCandidateCache = new HashSet<>();
         availableBrokers = Sets.newHashSet(sharedBroker, broker1Address, broker2Address);
         LoadManagerShared.applyNamespacePolicies(serviceUnit, simpleResourceAllocationPolicies, brokerCandidateCache,
                 availableBrokers, brokerTopicLoadingPredicate);
@@ -565,7 +566,7 @@ public class ModularLoadManagerImplTest {
         assertTrue(brokerCandidateCache.contains(broker2Address));
 
         // test2: shared=1, secondary=1 => It should return secondary
-        brokerCandidateCache = Sets.newHashSet();
+        brokerCandidateCache = new HashSet<>();
         availableBrokers = Sets.newHashSet(sharedBroker, broker2Address);
         LoadManagerShared.applyNamespacePolicies(serviceUnit, simpleResourceAllocationPolicies, brokerCandidateCache,
                 availableBrokers, brokerTopicLoadingPredicate);
@@ -573,7 +574,7 @@ public class ModularLoadManagerImplTest {
         assertTrue(brokerCandidateCache.contains(broker2Address));
 
         // test3: shared=1, => It should return 0 broker
-        brokerCandidateCache = Sets.newHashSet();
+        brokerCandidateCache = new HashSet<>();
         availableBrokers = Sets.newHashSet(sharedBroker);
         LoadManagerShared.applyNamespacePolicies(serviceUnit, simpleResourceAllocationPolicies, brokerCandidateCache,
                 availableBrokers, brokerTopicLoadingPredicate);

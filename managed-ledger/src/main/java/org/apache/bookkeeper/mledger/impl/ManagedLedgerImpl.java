@@ -1711,7 +1711,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     @Override
-    public CompletableFuture<Position> asyncFindPosition(com.google.common.base.Predicate<Entry> predicate) {
+    public CompletableFuture<Position> asyncFindPosition(Predicate<Entry> predicate) {
 
         CompletableFuture<Position> future = new CompletableFuture();
         Long firstLedgerId = ledgers.firstKey();
@@ -1736,7 +1736,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 } else {
                     finalPosition = getNextValidPosition((PositionImpl) position);
                 }
-                future.complete((PositionImpl) finalPosition);
+                future.complete(finalPosition);
             }
 
             @Override
