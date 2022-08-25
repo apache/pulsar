@@ -3019,7 +3019,7 @@ public class BrokerService implements Closeable {
         }
         return pulsarService.getPulsarResources().getNamespaceResources()
                 .getPoliciesAsync(topicName.getNamespaceObject())
-                .thenComposeAsync(optPolicies -> {
+                .thenCompose(optPolicies -> {
                     if (optPolicies.isPresent() && optPolicies.get().deleted) {
                         // We can return the completed future directly if the namespace is already deleted.
                         return CompletableFuture.completedFuture(null);

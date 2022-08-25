@@ -262,6 +262,17 @@ TEST(ClientTest, testWrongListener) {
 
     client = Client(lookupUrl, ClientConfiguration().setListenerName("test"));
 
+    Consumer multiTopicsConsumer;
+    ASSERT_EQ(ResultServiceUnitNotReady,
+              client.subscribe({topic + "-partition-0", topic + "-partition-1", topic + "-partition-2"},
+                               "sub", multiTopicsConsumer));
+
+    ASSERT_EQ(PulsarFriend::getConsumers(client).size(), 0);
+    ASSERT_EQ(ResultOk, client.close());
+
+    // Currently Reader can only read a non-partitioned topic in C++ client
+    client = Client(lookupUrl, ClientConfiguration().setListenerName("test"));
+
     // Currently Reader can only read a non-partitioned topic in C++ client
     Reader reader;
     ASSERT_EQ(ResultServiceUnitNotReady,

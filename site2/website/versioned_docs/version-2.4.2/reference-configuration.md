@@ -218,8 +218,8 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |replicationProducerQueueSize|  Replicator producer queue size  |1000|
 |replicatorPrefix|  Replicator prefix used for replicator producer name and cursor name pulsar.repl||
 |replicationTlsEnabled| Enable TLS when talking with other clusters to replicate messages |false|
-|defaultRetentionTimeInMinutes| Default message retention time  ||
-|defaultRetentionSizeInMB|  Default retention size  |0|
+|defaultRetentionTimeInMinutes| Default message retention time. 0 means retention is disabled. -1 means data is not removed by time quota  ||
+|defaultRetentionSizeInMB|  Default retention size. 0 means retention is disabled. -1 means data is not removed by size quota  |0|
 |keepAliveIntervalSeconds|  How often to check whether the connections are still alive  |30|
 |loadManagerClassName|  Name of load manager to use |org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl|
 |managedLedgerOffloadDriver|  Driver to use to offload old data to long term storage (Possible values: S3)  ||
