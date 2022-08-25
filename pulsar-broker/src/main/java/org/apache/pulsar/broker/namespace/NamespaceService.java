@@ -595,7 +595,7 @@ public class NamespaceService implements AutoCloseable {
             return CompletableFuture.completedFuture(Optional.of(candidateBrokerResult));
         }
 
-        return getOrWaitForLeader(new AtomicInteger())
+        return getOrWaitForActiveLeader(new AtomicInteger())
                 .thenCompose(currentLeader -> {
                     try {
                         candidateBrokerResult.authoritativeRedirect = les.isLeader();
@@ -651,22 +651,29 @@ public class NamespaceService implements AutoCloseable {
 
     }
 
-    private CompletableFuture<Optional<LeaderBroker>> getOrWaitForLeader(AtomicInteger retries) {
+    private CompletableFuture<Optional<LeaderBroker>> getOrWaitForActiveLeader(AtomicInteger retries) {
         // read current leader and retry with exponential backoff. fallback to no leader if all attempts fail.
         return pulsar.getLeaderElectionService().readCurrentLeader()
                 .handle((leaderBroker, t) -> {
                     CompletableFuture<Optional<LeaderBroker>> retval;
-                    if ((t != null || !leaderBroker.isPresent())
+                    boolean leaderBrokerPresent = leaderBroker != null && leaderBroker.isPresent();
+                    boolean leaderBrokerActive = leaderBrokerPresent
+                            && isBrokerActive(leaderBroker.get().getServiceUrl());
+                    if ((t != null || !leaderBrokerPresent || !leaderBrokerActive)
                             && retries.getAndIncrement() < MAX_GET_LEADER_RETRIES) {
                         Duration delay = Duration.ofMillis(GET_LEADER_BACKOFF_MILLIS
                                 * (int) Math.pow(GET_LEADER_BACKOFF_MULTIPLIER, retries.get() - 1));
-                        LOG.warn("Leader broker isn't present. Retrying after delay of {}", delay, t);
+                        LOG.warn("Leader broker ({}) isn't present (present={}) or active (active={}). "
+                                + "Retrying after delay of {}",
+                                leaderBroker, leaderBrokerPresent, leaderBrokerActive,
+                                delay, t);
                         retval =
                                 FutureUtil.<Void>delayedFuture(delay, pulsar.getExecutor(), () -> null)
-                                        .thenCompose(__ -> getOrWaitForLeader(retries));
+                                        .thenCompose(__ -> getOrWaitForActiveLeader(retries));
                     } else {
-                        if (leaderBroker != null && leaderBroker.isPresent() && retries.get() > 0) {
-                            LOG.info("Leader broker was assigned to {}", leaderBroker.get().getServiceUrl());
+                        if (leaderBrokerPresent && retries.get() > 0) {
+                            LOG.info("Leader broker was assigned to {} (active={})", leaderBroker.get().getServiceUrl(),
+                                    leaderBrokerActive);
                         }
                         retval = CompletableFuture.completedFuture(
                                 leaderBroker != null ? leaderBroker : Optional.empty());
