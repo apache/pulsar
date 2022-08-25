@@ -255,6 +255,7 @@ The Apache Software License, Version 2.0
     - netty-transport-native-epoll-4.1.77.Final-linux-x86_64.jar
     - netty-transport-native-unix-common-4.1.77.Final.jar
     - netty-transport-native-unix-common-4.1.77.Final-linux-x86_64.jar
+    - netty-transport-native-epoll-4.1.77.Final.jar
     - netty-codec-http2-4.1.77.Final.jar
  * GRPC
     - grpc-api-1.45.1.jar
@@ -391,6 +392,10 @@ The Apache Software License, Version 2.0
     - jcommander-1.82.jar
   * FindBugs JSR305
     - jsr305-2.0.1.jar
+<<<<<<< Updated upstream
+=======
+    - jsr305-3.0.2.jar
+>>>>>>> Stashed changes
   * Objenesis
     - objenesis-2.6.jar
   * Okio
@@ -420,6 +425,7 @@ The Apache Software License, Version 2.0
     - metrics-core-4.1.12.1.jar
     - metrics-graphite-4.1.12.1.jar
     - metrics-jvm-4.1.12.1.jar
+    - metrics-jmx-4.1.12.1.jar
   * Prometheus
     - simpleclient-0.16.0.jar
     - simpleclient_common-0.16.0.jar
@@ -540,14 +546,13 @@ CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
     - jersey-client-2.34.jar
     - jersey-container-servlet-2.34.jar
     - jersey-container-servlet-core-2.34.jar
-    - jersey-entity-filtering-2.34.jar
     - jersey-hk2-2.34.jar
-    - jersey-media-json-jackson-2.34.jar
-    - jersey-media-multipart-2.34.jar
     - jersey-server-2.34.jar
     - jersey-common-2.34.jar
  * JAXB
     - jaxb-api-2.3.1.jar
+ * RXJava
+    - rxjava-3.0.1.jar
 
  Eclipse Public License 1.0 -- licenses/LICENSE-AspectJ.txt
   * Aether
