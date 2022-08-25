@@ -52,6 +52,13 @@ class MultiTopicsConsumerImpl : public ConsumerImplBase,
     MultiTopicsConsumerImpl(ClientImplPtr client, const std::vector<std::string>& topics,
                             const std::string& subscriptionName, TopicNamePtr topicName,
                             const ConsumerConfiguration& conf, const LookupServicePtr lookupServicePtr_);
+    MultiTopicsConsumerImpl(ClientImplPtr client, TopicNamePtr topicName, const int numPartitions,
+                            const std::string& subscriptionName, const ConsumerConfiguration& conf,
+                            const LookupServicePtr lookupServicePtr)
+        : MultiTopicsConsumerImpl(client, {topicName->toString()}, subscriptionName, topicName, conf,
+                                  lookupServicePtr) {
+        topicsPartitions_[topicName->toString()] = numPartitions;
+    }
     ~MultiTopicsConsumerImpl();
     // overrided methods from ConsumerImplBase
     Future<Result, ConsumerImplBaseWeakPtr> getConsumerCreatedFuture() override;
@@ -103,12 +110,14 @@ class MultiTopicsConsumerImpl : public ConsumerImplBase,
     BlockingQueue<Message> messages_;
     ExecutorServicePtr listenerExecutor_;
     MessageListener messageListener_;
+    DeadlineTimerPtr partitionsUpdateTimer_;
+    boost::posix_time::time_duration partitionsUpdateInterval_;
     LookupServicePtr lookupServicePtr_;
     std::shared_ptr<std::atomic<int>> numberTopicPartitions_;
     std::atomic<Result> failedResult{ResultOk};
     Promise<Result, ConsumerImplBaseWeakPtr> multiTopicsConsumerCreatedPromise_;
     UnAckedMessageTrackerPtr unAckedMessageTrackerPtr_;
-    const std::vector<std::string>& topics_;
+    const std::vector<std::string> topics_;
     std::queue<ReceiveCallback> pendingReceives_;
 
     /* methods */
@@ -122,9 +131,8 @@ class MultiTopicsConsumerImpl : public ConsumerImplBase,
 
     void handleOneTopicSubscribed(Result result, Consumer consumer, const std::string& topic,
                                   std::shared_ptr<std::atomic<int>> topicsNeedCreate);
-    void subscribeTopicPartitions(const Result result, const LookupDataResultPtr partitionMetadata,
-                                  TopicNamePtr topicName, const std::string& consumerName,
-                                  ConsumerConfiguration conf,
+    void subscribeTopicPartitions(const int numPartitions, TopicNamePtr topicName,
+                                  const std::string& consumerName,
                                   ConsumerSubResultPromisePtr topicSubResultPromise);
     void handleSingleConsumerCreated(Result result, ConsumerImplBaseWeakPtr consumerImplBaseWeakPtr,
                                      std::shared_ptr<std::atomic<int>> partitionsNeedCreate,
@@ -134,11 +142,19 @@ class MultiTopicsConsumerImpl : public ConsumerImplBase,
     void handleOneTopicUnsubscribedAsync(Result result, std::shared_ptr<std::atomic<int>> consumerUnsubed,
                                          int numberPartitions, TopicNamePtr topicNamePtr,
                                          std::string& topicPartitionName, ResultCallback callback);
+    void runPartitionUpdateTask();
+    void topicPartitionUpdate();
+    void handleGetPartitions(const TopicNamePtr topicName, const Result result,
+                             const LookupDataResultPtr& lookupDataResult, int currentNumPartitions);
+    void subscribeSingleNewConsumer(const int numPartitions, TopicNamePtr topicName, int partitionIndex,
+                                    ConsumerSubResultPromisePtr topicSubResultPromise,
+                                    std::shared_ptr<std::atomic<int>> partitionsNeedCreate);
 
    private:
     void setNegativeAcknowledgeEnabledForTesting(bool enabled) override;
 
     FRIEND_TEST(ConsumerTest, testMultiTopicsConsumerUnAckedMessageRedelivery);
+    FRIEND_TEST(ConsumerTest, testPartitionedConsumerUnAckedMessageRedelivery);
 };
 
 typedef std::shared_ptr<MultiTopicsConsumerImpl> MultiTopicsConsumerImplPtr;
