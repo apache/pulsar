@@ -1454,7 +1454,7 @@ public class TransactionTest extends TransactionTestBase {
         when(brokerService.getBacklogQuotaManager()).thenReturn(backlogQuotaManager);
         // Mock managedLedger.
         ManagedLedgerImpl managedLedger = mock(ManagedLedgerImpl.class);
-        ManagedCursorContainer managedCursors = new ManagedCursorContainer();
+        ManagedCursorContainer managedCursors = ManagedCursorContainer.createWithDurableOrderedByMarkDeletedPosition();
         when(managedLedger.getCursors()).thenReturn(managedCursors);
         PositionImpl position = PositionImpl.EARLIEST;
         when(managedLedger.getLastConfirmedEntry()).thenReturn(position);

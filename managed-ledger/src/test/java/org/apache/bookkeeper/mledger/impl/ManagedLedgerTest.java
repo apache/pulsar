@@ -1658,39 +1658,30 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         assertEquals(entryCache.getSize(), 7 * 4);
         assertEquals(cacheManager.getSize(), entryCache.getSize());
-        ledger.doCacheEviction(0);
-        assertEquals(entryCache.getSize(), 7 * 4);
-        assertEquals(cacheManager.getSize(), entryCache.getSize());
 
 
         c2.setReadPosition(p3);
-        ledger.doCacheEviction(0);
 
         assertEquals(entryCache.getSize(), 7 * 4);
         assertEquals(cacheManager.getSize(), entryCache.getSize());
 
         c1.setReadPosition(p2);
-        ledger.doCacheEviction(0);
         assertEquals(entryCache.getSize(), 7 * 3);
         assertEquals(cacheManager.getSize(), entryCache.getSize());
 
         c1.setReadPosition(p3);
-        ledger.doCacheEviction(0);
         assertEquals(entryCache.getSize(), 7 * 2);
         assertEquals(cacheManager.getSize(), entryCache.getSize());
 
         ledger.deactivateCursor(c1);
-        ledger.doCacheEviction(0);
         assertEquals(entryCache.getSize(), 7 * 2); // as c2.readPosition=p3 => Cache contains p3,p4
         assertEquals(cacheManager.getSize(), entryCache.getSize());
 
         c2.setReadPosition(p4);
-        ledger.doCacheEviction(0);
         assertEquals(entryCache.getSize(), 7);
         assertEquals(cacheManager.getSize(), entryCache.getSize());
 
         ledger.deactivateCursor(c2);
-        ledger.doCacheEviction(0);
         assertEquals(entryCache.getSize(), 0);
         assertEquals(cacheManager.getSize(), entryCache.getSize());
     }
@@ -1717,42 +1708,33 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         assertEquals(entryCache.getSize(), 7 * 4);
         assertEquals(cacheManager.getSize(), entryCache.getSize());
-        ledger.doCacheEviction(0);
-        assertEquals(entryCache.getSize(), 7 * 4);
-        assertEquals(cacheManager.getSize(), entryCache.getSize());
 
 
         c2.setReadPosition(p4);
         c2.markDelete(p3);
-        ledger.doCacheEviction(0);
 
         assertEquals(entryCache.getSize(), 7 * 4);
         assertEquals(cacheManager.getSize(), entryCache.getSize());
 
         c1.setReadPosition(p3);
         c1.markDelete(p2);
-        ledger.doCacheEviction(0);
         assertEquals(entryCache.getSize(), 7 * 3);
         assertEquals(cacheManager.getSize(), entryCache.getSize());
 
         c1.setReadPosition(p4);
         c1.markDelete(p3);
-        ledger.doCacheEviction(0);
         assertEquals(entryCache.getSize(), 7 * 2);
         assertEquals(cacheManager.getSize(), entryCache.getSize());
 
         ledger.deactivateCursor(c1);
-        ledger.doCacheEviction(0);
         assertEquals(entryCache.getSize(), 7 * 2);
         assertEquals(cacheManager.getSize(), entryCache.getSize());
 
         c2.markDelete(p4);
-        ledger.doCacheEviction(0);
         assertEquals(entryCache.getSize(), 7);
         assertEquals(cacheManager.getSize(), entryCache.getSize());
 
         ledger.deactivateCursor(c2);
-        ledger.doCacheEviction(0);
         assertEquals(entryCache.getSize(), 0);
         assertEquals(cacheManager.getSize(), entryCache.getSize());
     }
@@ -2640,8 +2622,8 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         }
 
         // (3) Validate: cache should remove all entries read by both active cursors
-        log.info("expected, found : {}, {}", (5 * (totalInsertedEntries)), entryCache.getSize());
-        assertEquals((5 * totalInsertedEntries), entryCache.getSize());
+        log.info("expected, found : {}, {}", 5 * (totalInsertedEntries - readEntries), entryCache.getSize());
+        assertEquals(entryCache.getSize(), 5 * (totalInsertedEntries - readEntries));
 
         final int remainingEntries = totalInsertedEntries - readEntries;
         entries1 = cursor1.readEntries(remainingEntries);
@@ -2655,7 +2637,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         // (4) Validate: cursor2 is active cursor and has not read these entries yet: so, cache should not remove these
         // entries
-        assertEquals((5 * totalInsertedEntries), entryCache.getSize());
+        assertEquals(entryCache.getSize(), 5 * (totalInsertedEntries - readEntries));
 
         ledger.deactivateCursor(cursor1);
         ledger.deactivateCursor(cursor2);
@@ -2680,7 +2662,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         }
 
         // (1) Validate: cache not stores entries as no active cursor
-        assertEquals(0, entryCache.getSize());
+        assertEquals(entryCache.getSize(), 0);
 
         // Open Cursor also adds cursor into activeCursor-container
         ManagedCursor cursor1 = ledger.openCursor("c1");
@@ -2693,7 +2675,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         }
 
         // (2) Validate: cache stores entries as active cursor has not read message
-        assertEquals((5 * totalInsertedEntries), entryCache.getSize());
+        assertEquals(entryCache.getSize(), 5 * totalInsertedEntries);
 
         // read 20 entries
         List<Entry> entries1 = cursor1.readEntries(totalInsertedEntries);
@@ -2704,7 +2686,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         // (3) Validate: cache discards all entries after all cursors are deactivated
         ledger.deactivateCursor(cursor1);
-        assertEquals(0, entryCache.getSize());
+        assertEquals(entryCache.getSize(), 0);
 
         ledger.close();
     }

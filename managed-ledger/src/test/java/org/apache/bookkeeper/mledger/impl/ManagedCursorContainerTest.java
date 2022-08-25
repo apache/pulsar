@@ -402,7 +402,7 @@ public class ManagedCursorContainerTest {
 
     @Test
     public void testSlowestReadPositionForActiveCursors() throws Exception {
-        ManagedCursorContainer container = ManagedCursorContainer.createWithReadPositionOrdering();
+        ManagedCursorContainer container = ManagedCursorContainer.createWithAllOrderedByReadPosition();
         assertNull(container.getSlowestReaderPosition());
 
         // Add no durable cursor
@@ -440,7 +440,7 @@ public class ManagedCursorContainerTest {
 
     @Test
     public void simple() throws Exception {
-        ManagedCursorContainer container = new ManagedCursorContainer();
+        ManagedCursorContainer container = ManagedCursorContainer.createWithDurableOrderedByMarkDeletedPosition();
         assertNull(container.getSlowestReaderPosition());
 
         ManagedCursor cursor1 = new MockManagedCursor(container, "test1", new PositionImpl(5, 5));
@@ -495,7 +495,7 @@ public class ManagedCursorContainerTest {
 
     @Test
     public void updatingCursorOutsideContainer() throws Exception {
-        ManagedCursorContainer container = new ManagedCursorContainer();
+        ManagedCursorContainer container = ManagedCursorContainer.createWithDurableOrderedByMarkDeletedPosition();
 
         ManagedCursor cursor1 = new MockManagedCursor(container, "test1", new PositionImpl(5, 5));
         container.add(cursor1);
@@ -517,7 +517,7 @@ public class ManagedCursorContainerTest {
 
     @Test
     public void removingCursor() throws Exception {
-        ManagedCursorContainer container = new ManagedCursorContainer();
+        ManagedCursorContainer container = ManagedCursorContainer.createWithDurableOrderedByMarkDeletedPosition();
 
         ManagedCursor cursor1 = new MockManagedCursor(container, "test1", new PositionImpl(5, 5));
         container.add(cursor1);
@@ -554,7 +554,7 @@ public class ManagedCursorContainerTest {
 
     @Test
     public void ordering() throws Exception {
-        ManagedCursorContainer container = new ManagedCursorContainer();
+        ManagedCursorContainer container = ManagedCursorContainer.createWithDurableOrderedByMarkDeletedPosition();
 
         ManagedCursor cursor1 = new MockManagedCursor(container, "test1", new PositionImpl(5, 5));
         ManagedCursor cursor2 = new MockManagedCursor(container, "test2", new PositionImpl(5, 1));
@@ -588,7 +588,7 @@ public class ManagedCursorContainerTest {
 
     @Test
     public void orderingWithUpdates() throws Exception {
-        ManagedCursorContainer container = new ManagedCursorContainer();
+        ManagedCursorContainer container = ManagedCursorContainer.createWithDurableOrderedByMarkDeletedPosition();
 
         MockManagedCursor c1 = new MockManagedCursor(container, "test1", new PositionImpl(5, 5));
         MockManagedCursor c2 = new MockManagedCursor(container, "test2", new PositionImpl(5, 1));
@@ -653,7 +653,7 @@ public class ManagedCursorContainerTest {
 
     @Test
     public void orderingWithUpdatesAndReset() throws Exception {
-        ManagedCursorContainer container = new ManagedCursorContainer();
+        ManagedCursorContainer container = ManagedCursorContainer.createWithDurableOrderedByMarkDeletedPosition();
 
         MockManagedCursor c1 = new MockManagedCursor(container, "test1", new PositionImpl(5, 5));
         MockManagedCursor c2 = new MockManagedCursor(container, "test2", new PositionImpl(5, 1));

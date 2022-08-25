@@ -332,7 +332,6 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
 
         PositionImpl pos = (PositionImpl) entries.get(entries.size() - 1).getPosition();
         c2.setReadPosition(pos);
-        ledger.doCacheEviction(0);
         entries.forEach(Entry::release);
 
         factory2.getMbean().refreshStats(1, TimeUnit.SECONDS);
