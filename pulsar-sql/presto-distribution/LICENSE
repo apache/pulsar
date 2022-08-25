@@ -392,10 +392,7 @@ The Apache Software License, Version 2.0
     - jcommander-1.82.jar
   * FindBugs JSR305
     - jsr305-2.0.1.jar
-<<<<<<< Updated upstream
-=======
     - jsr305-3.0.2.jar
->>>>>>> Stashed changes
   * Objenesis
     - objenesis-2.6.jar
   * Okio
