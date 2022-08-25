@@ -138,7 +138,7 @@ Future<Result, Consumer> MultiTopicsConsumerImpl::subscribeOneTopicAsync(const s
     if (entry == topicsPartitions_.end()) {
         lock.unlock();
         lookupServicePtr_->getPartitionMetadataAsync(topicName).addListener(
-            [this, topicName, topicPromise](const Result result, const LookupDataResultPtr lookupDataResult) {
+            [this, topicName, topicPromise](Result result, const LookupDataResultPtr& lookupDataResult) {
                 if (result != ResultOk) {
                     LOG_ERROR("Error Checking/Getting Partition Metadata while MultiTopics Subscribing- "
                               << consumerStr_ << " result: " << result)
@@ -156,7 +156,7 @@ Future<Result, Consumer> MultiTopicsConsumerImpl::subscribeOneTopicAsync(const s
     return topicPromise->getFuture();
 }
 
-void MultiTopicsConsumerImpl::subscribeTopicPartitions(const int numPartitions, TopicNamePtr topicName,
+void MultiTopicsConsumerImpl::subscribeTopicPartitions(int numPartitions, TopicNamePtr topicName,
                                                        const std::string& consumerName,
                                                        ConsumerSubResultPromisePtr topicSubResultPromise) {
     std::shared_ptr<ConsumerImpl> consumer;
@@ -738,11 +738,12 @@ uint64_t MultiTopicsConsumerImpl::getNumberOfConnectedConsumer() {
 }
 void MultiTopicsConsumerImpl::runPartitionUpdateTask() {
     partitionsUpdateTimer_->expires_from_now(partitionsUpdateInterval_);
-    partitionsUpdateTimer_->async_wait([this](const boost::system::error_code& ec) {
+    auto self = shared_from_this();
+    partitionsUpdateTimer_->async_wait([self](const boost::system::error_code& ec) {
         // If two requests call runPartitionUpdateTask at the same time, the timer will fail, and it
         // cannot continue at this time, and the request needs to be ignored.
         if (!ec) {
-            topicPartitionUpdate();
+            self->topicPartitionUpdate();
         }
     });
 }
@@ -756,7 +757,7 @@ void MultiTopicsConsumerImpl::topicPartitionUpdate() {
                       std::placeholders::_1, std::placeholders::_2, currentNumPartitions));
     }
 }
-void MultiTopicsConsumerImpl::handleGetPartitions(const TopicNamePtr topicName, const Result result,
+void MultiTopicsConsumerImpl::handleGetPartitions(TopicNamePtr topicName, Result result,
                                                   const LookupDataResultPtr& lookupDataResult,
                                                   int currentNumPartitions) {
     if (state_ != Ready) {
@@ -788,7 +789,7 @@ void MultiTopicsConsumerImpl::handleGetPartitions(const TopicNamePtr topicName, 
 }
 
 void MultiTopicsConsumerImpl::subscribeSingleNewConsumer(
-    const int numPartitions, TopicNamePtr topicName, int partitionIndex,
+    int numPartitions, TopicNamePtr topicName, int partitionIndex,
     ConsumerSubResultPromisePtr topicSubResultPromise,
     std::shared_ptr<std::atomic<int>> partitionsNeedCreate) {
     ConsumerConfiguration config = conf_.clone();
