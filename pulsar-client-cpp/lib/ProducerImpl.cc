@@ -425,43 +425,9 @@ void ProducerImpl::sendAsyncWithStatsUpdate(const Message& msg, const SendCallba
     const auto compressedSize = static_cast<uint32_t>(payload.readableBytes());
     const auto maxMessageSize = static_cast<uint32_t>(ClientConnection::getMaxMessageSize());
 
-    auto payloadChunkSize = maxMessageSize;
-    int totalChunks;
-    if (!compressed || !chunkingEnabled_) {
-        totalChunks = 1;
-    } else {
-        const auto metadataSize = static_cast<uint32_t>(msgMetadata.ByteSizeLong());
-        if (metadataSize >= maxMessageSize) {
-            LOG_WARN(getName() << " - compressed Message metadata size " << metadataSize
-                               << " cannot exceed " << ClientConnection::getMaxMessageSize()
-                               << " bytes unless chunking is enabled");
-            handleFailedResult(ResultMessageTooBig);
-            return;
-        }
-        payloadChunkSize = maxMessageSize - metadataSize;
-        totalChunks = getNumOfChunks(compressedSize, payloadChunkSize);
-    }
-
-    if (compressed && compressedSize > payloadChunkSize) {
-        LOG_WARN(getName() << " - compressed Message payload size " << payload.readableBytes()
-                           << " cannot exceed " << payloadChunkSize
-                           << " bytes unless chunking is enabled");
-        handleFailedResult(ResultMessageTooBig);
-        return;
-    }
-
     if (!msgMetadata.has_replicated_from() && msgMetadata.has_producer_name()) {
         handleFailedResult(ResultInvalidMessage);
         return;
-    }
-
-    // Each chunk should be sent individually, so try to acquire extra permits for chunks.
-    for (int i = 0; i < (totalChunks - 1); i++) {
-        const auto result = canEnqueueRequest(0);  // size is 0 because the memory has already reserved
-        if (result != ResultOk) {
-            handleFailedResult(result);
-            return;
-        }
     }
 
     Lock lock(mutex_);
@@ -472,6 +438,31 @@ void ProducerImpl::sendAsyncWithStatsUpdate(const Message& msg, const SendCallba
         sequenceId = msgMetadata.sequence_id();
     }
     setMessageMetadata(msg, sequenceId, uncompressedSize);
+
+    auto payloadChunkSize = maxMessageSize;
+    int totalChunks;
+    if (!compressed || !chunkingEnabled_) {
+        totalChunks = 1;
+    } else {
+        const auto metadataSize = static_cast<uint32_t>(msgMetadata.ByteSizeLong());
+        if (metadataSize >= maxMessageSize) {
+            LOG_WARN(getName() << " - metadata size " << metadataSize << " cannot exceed " << maxMessageSize
+                               << " bytes");
+            handleFailedResult(ResultMessageTooBig);
+            return;
+        }
+        payloadChunkSize = maxMessageSize - metadataSize;
+        totalChunks = getNumOfChunks(compressedSize, payloadChunkSize);
+    }
+
+    // Each chunk should be sent individually, so try to acquire extra permits for chunks.
+    for (int i = 0; i < (totalChunks - 1); i++) {
+        const auto result = canEnqueueRequest(0);  // size is 0 because the memory has already reserved
+        if (result != ResultOk) {
+            handleFailedResult(result);
+            return;
+        }
+    }
 
     if (canAddToBatch(msg)) {
         // Batching is enabled and the message is not delayed
@@ -515,9 +506,26 @@ void ProducerImpl::sendAsyncWithStatsUpdate(const Message& msg, const SendCallba
                 return;
             }
 
-            sendMessage(OpSendMsg{msgMetadata, encryptedPayload,
-                                  (chunkId == totalChunks - 1) ? callback : nullptr, producerId_, sequenceId,
-                                  conf_.getSendTimeout(), 1, uncompressedSize});
+            OpSendMsg op =
+                OpSendMsg{msgMetadata, encryptedPayload, (chunkId == totalChunks - 1) ? callback : nullptr,
+                          producerId_, sequenceId,       conf_.getSendTimeout(),
+                          1,           uncompressedSize};
+
+            if (!chunkingEnabled_) {
+                const uint32_t msgMetadataSize = op.metadata_.ByteSize();
+                const uint32_t payloadSize = op.payload_.readableBytes();
+                const uint32_t msgHeadersAndPayloadSize = msgMetadataSize + payloadSize;
+                if (msgHeadersAndPayloadSize > maxMessageSize) {
+                    releaseSemaphoreForSendOp(op);
+                    LOG_WARN(getName()
+                             << " - compressed Message size " << msgHeadersAndPayloadSize << " cannot exceed "
+                             << maxMessageSize << " bytes unless chunking is enabled");
+                    handleFailedResult(ResultMessageTooBig);
+                    return;
+                }
+            }
+
+            sendMessage(op);
         }
     }
 }
