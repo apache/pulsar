@@ -29,19 +29,46 @@ namespace pulsar {
 
 class KeyValueImpl;
 
+/**
+ * Use to when the user uses key value schema.
+ */
 class PULSAR_PUBLIC KeyValue {
    public:
     KeyValue();
-    KeyValue(char *data, const int length, const KeyValueEncodingType &keyValueEncodingType);
+    /**
+     * Constructor key value, according to keyValueEncodingType, whether key and value be encoded together.
+     *
+     * @param key  key data.
+     * @param value value data.
+     * @param keyValueEncodingType key value encoding type.
+     */
     KeyValue(const std::string &key, const std::string &value,
              const KeyValueEncodingType &keyValueEncodingType);
-    std::string getContent() const;
-    std::string getKeyData() const;
+    /**
+     * Get the key of KeyValue.
+     *
+     * @return character stream for key
+     */
+    std::string getKey() const;
+    /**
+     * Get the value of KeyValue.
+     *
+     * @return character stream for value
+     */
+    std::string getValue() const;
+    /**
+     * Get the encoding type of KeyValue.
+     *
+     * @return encoding type
+     */
     KeyValueEncodingType getEncodingType() const;
 
    private:
     typedef std::shared_ptr<KeyValueImpl> KeyValueImplPtr;
+    KeyValue(KeyValueImplPtr keyValueImplPtr);
     KeyValueImplPtr impl_;
+    friend class Message;
+    friend class MessageBuilder;
 };
 }  // namespace pulsar
 

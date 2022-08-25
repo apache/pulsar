@@ -24,6 +24,7 @@
 
 #include "MessageImpl.h"
 #include "SharedBuffer.h"
+#include "KeyValueImpl.h"
 
 #include <iostream>
 
@@ -191,6 +192,12 @@ uint64_t Message::getEventTimestamp() const { return impl_ ? impl_->getEventTime
 
 bool Message::operator==(const Message& msg) const { return getMessageId() == msg.getMessageId(); }
 
+KeyValue Message::getKeyValueData(const KeyValueEncodingType& keyValueEncodingType) const {
+    const std::shared_ptr<KeyValueImpl> keyValueImpl =
+        std::make_shared<KeyValueImpl>((char*)getData(), getLength(), keyValueEncodingType);
+    return KeyValue(keyValueImpl);
+}
+
 PULSAR_PUBLIC std::ostream& operator<<(std::ostream& s, const Message::StringMap& map) {
     // Output at most 10 elements -- appropriate if used for logging.
     s << '{';
@@ -222,9 +229,6 @@ PULSAR_PUBLIC std::ostream& operator<<(std::ostream& s, const Message& msg) {
       << ", publish_time=" << msg.impl_->metadata.publish_time() << ", payload_size=" << msg.getLength()
       << ", msg_id=" << msg.getMessageId() << ", props=" << msg.getProperties() << ')';
     return s;
-}
-KeyValue Message::getKeyValueData(const KeyValueEncodingType& keyValueEncodingType) const {
-    return KeyValue((char*)getData(), getLength(), keyValueEncodingType);
 }
 
 }  // namespace pulsar

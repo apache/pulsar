@@ -32,6 +32,7 @@ DECLARE_LOG_OBJECT()
 
 #include "ObjectPool.h"
 #include "TimeUtils.h"
+#include "KeyValueImpl.h"
 
 using namespace pulsar;
 
@@ -83,10 +84,10 @@ MessageBuilder& MessageBuilder::setContent(std::string&& data) {
 
 MessageBuilder& MessageBuilder::setContent(const KeyValue& data) {
     if (data.getEncodingType() == KeyValueEncodingType::INLINE) {
-        setContent(data.getContent());
+        setContent(data.impl_->getContent());
     } else {
-        setPartitionKey(data.getKeyData());
-        setContent(data.getContent());
+        setPartitionKey(data.getKey());
+        setContent(data.getValue());
     }
     return *this;
 }

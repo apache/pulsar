@@ -16,23 +16,32 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#include <pulsar/KeyValue.h>
-#include "KeyValueImpl.h"
+#ifndef LIB_KEY_VALUEIMPL_H_
+#define LIB_KEY_VALUEIMPL_H_
+
+#include <pulsar/Message.h>
+
+using namespace pulsar;
 
 namespace pulsar {
 
-KeyValue::KeyValue() : impl_() {}
+class PULSAR_PUBLIC KeyValueImpl {
+   public:
+    KeyValueImpl();
+    KeyValueImpl(const char *data, int length, const KeyValueEncodingType &keyValueEncodingType);
+    KeyValueImpl(const std::string &key, const std::string &value,
+                 const KeyValueEncodingType &keyValueEncodingType);
+    std::string getKey() const;
+    std::string getValue() const;
+    std::string getContent() const;
+    KeyValueEncodingType getEncodingType() const;
 
-KeyValue::KeyValue(KeyValueImplPtr impl) : impl_(impl) {}
+   private:
+    std::string keyContent_;
+    std::string valueContent_;
+    KeyValueEncodingType keyValueEncodingType_;
+};
 
-KeyValue::KeyValue(const std::string &key, const std::string &value,
-                   const KeyValueEncodingType &keyValueEncodingType)
-    : impl_(std::make_shared<KeyValueImpl>(key, value, keyValueEncodingType)) {}
+} /* namespace pulsar */
 
-std::string KeyValue::getValue() const { return impl_->getValue(); }
-
-std::string KeyValue::getKey() const { return impl_->getKey(); }
-
-KeyValueEncodingType KeyValue::getEncodingType() const { return impl_->getEncodingType(); }
-
-}  // namespace pulsar
+#endif /* LIB_COMMANDS_H_ */

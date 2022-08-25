@@ -123,14 +123,6 @@ SchemaInfo::SchemaInfo(SchemaType schemaType, const std::string &name, const std
 
 SchemaInfo::SchemaInfo(const SchemaInfo &keySchema, const SchemaInfo &valueSchema,
                        const KeyValueEncodingType &keyValueEncodingType) {
-    auto checkType = [](const SchemaInfo &schemaInfo) {
-        if (schemaInfo.getSchemaType() != JSON && schemaInfo.getSchemaType() != AVRO) {
-            throw std::invalid_argument("Key and value schema just support JSON or AVRO.");
-        }
-    };
-    checkType(keySchema);
-    checkType(valueSchema);
-
     std::string keySchemaStr = keySchema.getSchema();
     std::string valueSchemaStr = valueSchema.getSchema();
     int keySize = keySchemaStr.size();
