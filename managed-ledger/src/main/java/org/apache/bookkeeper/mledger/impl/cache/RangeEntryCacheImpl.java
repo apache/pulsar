@@ -291,10 +291,8 @@ public class RangeEntryCacheImpl implements EntryCache {
             if (existing != null) {
                 return existing;
             }
-            // TODO: use a sorted map
             for (Map.Entry<PendingReadKey, CachedPendingRead> entry : ledgerCache.entrySet()) {
                 if (entry.getKey().includes(key)) {
-                    //log.info("partial match {} with {}", key, entry.getKey());
                     return entry.getValue();
                 }
             }
