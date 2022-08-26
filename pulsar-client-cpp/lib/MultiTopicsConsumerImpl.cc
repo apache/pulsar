@@ -290,13 +290,17 @@ void MultiTopicsConsumerImpl::handleUnsubscribedAsync(Result result,
 }
 
 void MultiTopicsConsumerImpl::unsubscribeOneTopicAsync(const std::string& topic, ResultCallback callback) {
+    Lock lock(mutex_);
     std::map<std::string, int>::iterator it = topicsPartitions_.find(topic);
     if (it == topicsPartitions_.end()) {
+        lock.unlock();
         LOG_ERROR("TopicsConsumer does not subscribe topic : " << topic << " subscription - "
                                                                << subscriptionName_);
         callback(ResultTopicNotFound);
         return;
     }
+    int numberPartitions = it->second;
+    lock.unlock();
 
     const auto state = state_.load();
     if (state == Closing || state == Closed) {
@@ -311,7 +315,6 @@ void MultiTopicsConsumerImpl::unsubscribeOneTopicAsync(const std::string& topic,
         LOG_ERROR("TopicName invalid: " << topic);
         callback(ResultUnknownError);
     }
-    int numberPartitions = it->second;
     std::shared_ptr<std::atomic<int>> consumerUnsubed = std::make_shared<std::atomic<int>>(0);
 
     for (int i = 0; i < numberPartitions; i++) {
@@ -748,7 +751,10 @@ void MultiTopicsConsumerImpl::runPartitionUpdateTask() {
 }
 void MultiTopicsConsumerImpl::topicPartitionUpdate() {
     using namespace std::placeholders;
-    for (const auto& item : topicsPartitions_) {
+    Lock lock(mutex_);
+    auto topicsPartitions = topicsPartitions_;
+    lock.unlock();
+    for (const auto& item : topicsPartitions) {
         auto topicName = TopicName::get(item.first);
         auto currentNumPartitions = item.second;
         lookupServicePtr_->getPartitionMetadataAsync(topicName).addListener(
