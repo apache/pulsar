@@ -734,6 +734,20 @@ public class FunctionsBase extends AdminResource {
         return functions().getListOfConnectors();
     }
 
+    @POST
+    @ApiOperation(
+            value = "Reload the built-in Functions"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "This operation requires super-user access"),
+            @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later."),
+            @ApiResponse(code = 500, message = "Internal server error")
+    })
+    @Path("/builtins/reload")
+    public void reloadBuiltinFunctions() throws IOException {
+        functions().reloadBuiltinFunctions(clientAppId(), clientAuthData());
+    }
+
     @PUT
     @ApiOperation(value = "Updates a Pulsar Function on the worker leader", hidden = true)
     @ApiResponses(value = {
