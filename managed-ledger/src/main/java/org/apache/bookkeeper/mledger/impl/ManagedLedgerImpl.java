@@ -2202,7 +2202,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
-    void updateCursor(ManagedCursorImpl cursor, PositionImpl newPosition) {
+    void onCursorMarkDeletePositionUpdated(ManagedCursorImpl cursor, PositionImpl newPosition) {
         Pair<PositionImpl, PositionImpl> pair = cursors.cursorUpdated(cursor, newPosition);
         if (config.isCacheEvictionByMarkDeletedPosition()) {
             updateActiveCursor(cursor, newPosition);
@@ -2235,7 +2235,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
-    public void updateReadPosition(ManagedCursorImpl cursor, Position newReadPosition) {
+    public void onCursorReadPositionUpdated(ManagedCursorImpl cursor, Position newReadPosition) {
         if (!config.isCacheEvictionByMarkDeletedPosition()) {
             updateActiveCursor(cursor, newReadPosition);
         }
@@ -2301,7 +2301,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             if (!lastAckedPosition.equals((PositionImpl) cursor.getMarkDeletedPosition())) {
                 try {
                     log.info("Reset cursor:{} to {} since ledger consumed completely", cursor, lastAckedPosition);
-                    updateCursor((ManagedCursorImpl) cursor, lastAckedPosition);
+                    onCursorMarkDeletePositionUpdated((ManagedCursorImpl) cursor, lastAckedPosition);
                 } catch (Exception e) {
                     log.warn("Failed to reset cursor: {} from {} to {}. Trimming thread will retry next time.",
                             cursor, cursor.getMarkDeletedPosition(), lastAckedPosition);
