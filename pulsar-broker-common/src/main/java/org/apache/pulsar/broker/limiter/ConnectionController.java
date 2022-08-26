@@ -60,11 +60,11 @@ public interface ConnectionController {
         private final boolean maxConnectionsLimitEnabled;
         private final boolean maxConnectionsLimitPerIpEnabled;
 
-        public DefaultConnectionController(int maximumConnections, int maximumConnectionsPerId) {
-            this.maxConnections = maximumConnections;
-            this.maxConnectionPerIp = maximumConnectionsPerId;
-            this.maxConnectionsLimitEnabled = maximumConnections > 0;
-            this.maxConnectionsLimitPerIpEnabled = maximumConnectionsPerId > 0;
+        public DefaultConnectionController(int maxConnections, int maxConnectionPerIp) {
+            this.maxConnections = maxConnections;
+            this.maxConnectionPerIp = maxConnectionPerIp;
+            this.maxConnectionsLimitEnabled = maxConnections > 0;
+            this.maxConnectionsLimitPerIpEnabled = maxConnectionPerIp > 0;
         }
 
         @Override
