@@ -4401,8 +4401,7 @@ public class PersistentTopicsBase extends AdminResource {
      * @param ignoreConflictException : true: ignore ConflictException: subscription already exists for topic
      *
      */
-    @VisibleForTesting
-    public CompletableFuture<Void> createSubscriptions(TopicName topicName, int numPartitions,
+    private CompletableFuture<Void> createSubscriptions(TopicName topicName, int numPartitions,
                                                        boolean ignoreConflictException) {
         CompletableFuture<Void> result = new CompletableFuture<>();
         pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName).thenAccept(partitionMetadata -> {
