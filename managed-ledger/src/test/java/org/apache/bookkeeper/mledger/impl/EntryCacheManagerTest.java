@@ -324,7 +324,7 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         assertEquals(entries.size(), 10);
 
         factory2.getMbean().refreshStats(1, TimeUnit.SECONDS);
-        assertEquals(factory2.getMbean().getCacheUsedSize(), 70);
+        assertEquals(factory2.getMbean().getCacheUsedSize(), 0);
         assertEquals(factory2.getMbean().getCacheHitsRate(), 10.0);
         assertEquals(factory2.getMbean().getCacheMissesRate(), 0.0);
         assertEquals(factory2.getMbean().getCacheHitsThroughput(), 70.0);
@@ -335,7 +335,7 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         entries.forEach(Entry::release);
 
         factory2.getMbean().refreshStats(1, TimeUnit.SECONDS);
-        assertEquals(factory2.getMbean().getCacheUsedSize(), 7);
+        assertEquals(factory2.getMbean().getCacheUsedSize(), 0);
         assertEquals(factory2.getMbean().getCacheHitsRate(), 0.0);
         assertEquals(factory2.getMbean().getCacheMissesRate(), 0.0);
         assertEquals(factory2.getMbean().getCacheHitsThroughput(), 0.0);
