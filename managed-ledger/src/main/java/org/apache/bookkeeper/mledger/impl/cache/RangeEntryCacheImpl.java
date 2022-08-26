@@ -61,22 +61,22 @@ public class RangeEntryCacheImpl implements EntryCache {
             .build()
             .name("pulsar_ml_cache_pendingreads_matched")
             .help("Pending reads reused with perfect range match")
-            .create();
+            .register();
     private static final Counter COUNT_PENDING_READS_MATCHED_INCLUDED = Counter
             .build()
             .name("pulsar_ml_cache_pendingreads_matched_included")
             .help("Pending reads reused by attaching to a read with a larger range")
-            .create();
+            .register();
     private static final Counter COUNT_PENDING_READS_MISSED = Counter
             .build()
             .name("pulsar_ml_cache_pendingreads_missed")
             .help("Pending reads that didn't find a match")
-            .create();
+            .register();
     private static final Counter COUNT_PENDING_READS_MISSED_BUT_OVERLAPPING = Counter
             .build()
             .name("pulsar_ml_cache_pendingreads_missed_overlapping")
             .help("Pending reads that didn't find a match but they partially overlap with another read")
-            .create();
+            .register();
 
     static final Summary PULSAR_ML_CACHE_ENTRY_RANGE_SIZE = Summary.build()
             .name("pulsar_ml_cache_entry_range_size")
