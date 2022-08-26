@@ -483,7 +483,7 @@ public class PersistentTopicsBase extends AdminResource {
                                                         .updatePartitionedTopicAsync(topicName, p ->
                                                                 new PartitionedTopicMetadata(numPartitions,
                                                                     p.properties)
-                                                    ));
+                                                        ));
                                 } else {
                                     return CompletableFuture.completedFuture(null);
                                 }
