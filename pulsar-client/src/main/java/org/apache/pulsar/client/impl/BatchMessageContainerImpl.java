@@ -220,7 +220,7 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
             messageMetadata.copyFrom(messages.get(0).getMessageBuilder());
             ByteBuf encryptedPayload = producer.encryptMessage(messageMetadata, getCompressedBatchMetadataAndPayload());
             ByteBufPair cmd = producer.sendMessage(producer.producerId, messageMetadata.getSequenceId(),
-                1, messageMetadata, encryptedPayload);
+                1, null, messageMetadata, encryptedPayload);
             final OpSendMsg op;
 
             // Shouldn't call create(MessageImpl<?> msg, ByteBufPair cmd, long sequenceId, SendCallback callback),
