@@ -51,6 +51,7 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.DeadLetterPolicy;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -1168,5 +1169,45 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         } catch (PulsarClientException ex) {
             assertTrue(ex instanceof PulsarClientException.TimeoutException);
         }
+    }
+
+    @Test
+    public void testSendTxnAckMessageToDLQ() throws Exception {
+        String topic = NAMESPACE1 + "/testSendTxnAckMessageToDLQ";
+        @Cleanup
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
+                .topic(topic)
+                .sendTimeout(1, TimeUnit.SECONDS)
+                .create();
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Shared)
+                // consumer can't receive the same message three times
+                .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(1).build())
+                .subscriptionName("test")
+                .subscribe();
+
+        producer.send("test".getBytes());
+        Transaction transaction = pulsarClient.newTransaction().withTransactionTimeout(1, TimeUnit.MINUTES)
+                .build().get();
+
+        // consumer receive the message the first time, redeliverCount = 0
+        consumer.acknowledgeAsync(consumer.receive().getMessageId(), transaction).get();
+
+        transaction.abort().get();
+
+        transaction = pulsarClient.newTransaction().withTransactionTimeout(5, TimeUnit.MINUTES)
+                .build().get();
+
+        // consumer receive the message the second time, redeliverCount = 1, also can be received
+        consumer.acknowledgeAsync(consumer.receive().getMessageId(), transaction).get();
+
+        transaction.abort().get();
+
+        // consumer receive the message the third time, redeliverCount = 2,
+        // the message will be sent to DLQ, can't receive
+        assertNull(consumer.receive(3, TimeUnit.SECONDS));
     }
 }

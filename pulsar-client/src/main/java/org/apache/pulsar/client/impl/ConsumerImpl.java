@@ -1386,10 +1386,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                             schema, redeliveryCount, consumerEpoch);
             uncompressedPayload.release();
 
-            if (deadLetterPolicy != null && possibleSendToDeadLetterTopicMessages != null
-                    && redeliveryCount >= deadLetterPolicy.getMaxRedeliverCount()) {
-                possibleSendToDeadLetterTopicMessages.put((MessageIdImpl) message.getMessageId(),
-                        Collections.singletonList(message));
+            if (deadLetterPolicy != null && possibleSendToDeadLetterTopicMessages != null) {
+                if (redeliveryCount == deadLetterPolicy.getMaxRedeliverCount()) {
+                    possibleSendToDeadLetterTopicMessages.put((MessageIdImpl) message.getMessageId(),
+                            Collections.singletonList(message));
+                } else if (redeliveryCount > deadLetterPolicy.getMaxRedeliverCount()) {
+                    sendMessageToDLQ(message, (MessageIdImpl) message.getMessageId(), false);
+                    return;
+                }
             }
             executeNotifyCallback(message);
         } else {
@@ -2015,53 +2019,60 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
         CompletableFuture<Boolean> result = new CompletableFuture<>();
         if (deadLetterMessages != null) {
-            initDeadLetterProducerIfNeeded();
-            List<MessageImpl<T>> finalDeadLetterMessages = deadLetterMessages;
             MessageIdImpl finalMessageId = messageId;
-            deadLetterProducer.thenAcceptAsync(producerDLQ -> {
-                for (MessageImpl<T> message : finalDeadLetterMessages) {
-                    String originMessageIdStr = getOriginMessageIdStr(message);
-                    String originTopicNameStr = getOriginTopicNameStr(message);
-                    TypedMessageBuilder<byte[]> typedMessageBuilderNew =
-                            producerDLQ.newMessage(Schema.AUTO_PRODUCE_BYTES(message.getReaderSchema().get()))
-                            .value(message.getData())
-                            .properties(getPropertiesMap(message, originMessageIdStr, originTopicNameStr));
-                    if (message.hasKey()) {
-                        typedMessageBuilderNew.key(message.getKey());
-                    }
-                    typedMessageBuilderNew.sendAsync()
-                            .thenAccept(messageIdInDLQ -> {
-                                possibleSendToDeadLetterTopicMessages.remove(finalMessageId);
-                                acknowledgeAsync(finalMessageId).whenComplete((v, ex) -> {
-                                    if (ex != null) {
-                                        log.warn("[{}] [{}] [{}] Failed to acknowledge the message {} of the original"
-                                                        + " topic but send to the DLQ successfully.",
-                                                topicName, subscription, consumerName, finalMessageId, ex);
-                                    } else {
-                                        result.complete(true);
-                                    }
-                                });
-                            }).exceptionally(ex -> {
-                                if (ex instanceof PulsarClientException.ProducerQueueIsFullError) {
-                                    log.warn("[{}] [{}] [{}] Failed to send DLQ message to {} for message id {}: {}",
-                                            topicName, subscription, consumerName, finalMessageId, ex.getMessage());
-                                } else {
-                                    log.warn("[{}] [{}] [{}] Failed to send DLQ message to {} for message id {}",
-                                            topicName, subscription, consumerName, finalMessageId, ex);
-                                }
-                                result.complete(false);
-                                return null;
-                    });
-                }
-            }).exceptionally(ex -> {
-                log.error("Dead letter producer exception with topic: {}", deadLetterPolicy.getDeadLetterTopic(), ex);
-                deadLetterProducer = null;
-                result.complete(false);
-                return null;
-            });
+            deadLetterMessages.forEach(message -> sendMessageToDLQ(message, finalMessageId, true));
         } else {
             result.complete(false);
         }
+        return result;
+    }
+
+    public CompletableFuture<Boolean> sendMessageToDLQ(MessageImpl<T> message, MessageIdImpl messageId,
+                                                       boolean isPossibleSend) {
+        initDeadLetterProducerIfNeeded();
+        CompletableFuture<Boolean> result = new CompletableFuture<>();
+        deadLetterProducer.thenAcceptAsync(producerDLQ -> {
+            String originMessageIdStr = getOriginMessageIdStr(message);
+            String originTopicNameStr = getOriginTopicNameStr(message);
+            TypedMessageBuilder<byte[]> typedMessageBuilderNew =
+                    producerDLQ.newMessage(Schema.AUTO_PRODUCE_BYTES(message.getReaderSchema().get()))
+                            .value(message.getData())
+                            .properties(getPropertiesMap(message, originMessageIdStr, originTopicNameStr));
+            if (message.hasKey()) {
+                typedMessageBuilderNew.key(message.getKey());
+            }
+
+            typedMessageBuilderNew.sendAsync()
+                    .thenAccept(messageIdInDLQ -> {
+                        if (isPossibleSend) {
+                            possibleSendToDeadLetterTopicMessages.remove(messageId);
+                        }
+                        acknowledgeAsync(messageId).whenComplete((v, ex) -> {
+                            if (ex != null) {
+                                log.warn("[{}] [{}] [{}] Failed to acknowledge the message {} of the original"
+                                                + " topic but send to the DLQ successfully.",
+                                        topicName, subscription, consumerName, messageId, ex);
+                            } else {
+                                result.complete(true);
+                            }
+                        });
+                    }).exceptionally(ex -> {
+                        if (ex instanceof PulsarClientException.ProducerQueueIsFullError) {
+                            log.warn("[{}] [{}] [{}] Failed to send DLQ message to {} for message id {}",
+                                    topicName, subscription, consumerName, messageId, ex.getMessage());
+                        } else {
+                            log.warn("[{}] [{}] [{}] Failed to send DLQ message to {} for message id {}",
+                                    topicName, subscription, consumerName, messageId, ex);
+                        }
+                        result.complete(false);
+                        return null;
+                    });
+        }).exceptionally(ex -> {
+            log.error("Dead letter producer exception with topic: {}", deadLetterPolicy.getDeadLetterTopic(), ex);
+            deadLetterProducer = null;
+            result.complete(false);
+            return null;
+        });
         return result;
     }
 
