@@ -4397,7 +4397,7 @@ public class PersistentTopicsBase extends AdminResource {
      *
      * @param topicName     : topic-name: persistent://prop/cluster/ns/topic
      * @param numPartitions : number partitions for the topics
-     * @param ignoreConflictException : true: ignore ConflictException: subscription already exists for topic
+     * @param ignoreConflictException : If true, ignore ConflictException: subscription already exists for topic
      *
      */
     private CompletableFuture<Void> createSubscriptions(TopicName topicName, int numPartitions,
