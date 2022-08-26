@@ -51,10 +51,10 @@ class MultiTopicsConsumerImpl : public ConsumerImplBase,
     };
     MultiTopicsConsumerImpl(ClientImplPtr client, const std::vector<std::string>& topics,
                             const std::string& subscriptionName, TopicNamePtr topicName,
-                            const ConsumerConfiguration& conf, const LookupServicePtr lookupServicePtr_);
-    MultiTopicsConsumerImpl(ClientImplPtr client, TopicNamePtr topicName, const int numPartitions,
+                            const ConsumerConfiguration& conf, LookupServicePtr lookupServicePtr_);
+    MultiTopicsConsumerImpl(ClientImplPtr client, TopicNamePtr topicName, int numPartitions,
                             const std::string& subscriptionName, const ConsumerConfiguration& conf,
-                            const LookupServicePtr lookupServicePtr)
+                            LookupServicePtr lookupServicePtr)
         : MultiTopicsConsumerImpl(client, {topicName->toString()}, subscriptionName, topicName, conf,
                                   lookupServicePtr) {
         topicsPartitions_[topicName->toString()] = numPartitions;
@@ -108,7 +108,7 @@ class MultiTopicsConsumerImpl : public ConsumerImplBase,
     std::mutex pendingReceiveMutex_;
     std::atomic<MultiTopicsConsumerState> state_{Pending};
     BlockingQueue<Message> messages_;
-    ExecutorServicePtr listenerExecutor_;
+    const ExecutorServicePtr listenerExecutor_;
     MessageListener messageListener_;
     DeadlineTimerPtr partitionsUpdateTimer_;
     boost::posix_time::time_duration partitionsUpdateInterval_;
@@ -131,7 +131,7 @@ class MultiTopicsConsumerImpl : public ConsumerImplBase,
 
     void handleOneTopicSubscribed(Result result, Consumer consumer, const std::string& topic,
                                   std::shared_ptr<std::atomic<int>> topicsNeedCreate);
-    void subscribeTopicPartitions(const int numPartitions, TopicNamePtr topicName,
+    void subscribeTopicPartitions(int numPartitions, TopicNamePtr topicName,
                                   const std::string& consumerName,
                                   ConsumerSubResultPromisePtr topicSubResultPromise);
     void handleSingleConsumerCreated(Result result, ConsumerImplBaseWeakPtr consumerImplBaseWeakPtr,
@@ -144,9 +144,9 @@ class MultiTopicsConsumerImpl : public ConsumerImplBase,
                                          std::string& topicPartitionName, ResultCallback callback);
     void runPartitionUpdateTask();
     void topicPartitionUpdate();
-    void handleGetPartitions(const TopicNamePtr topicName, const Result result,
+    void handleGetPartitions(TopicNamePtr topicName, Result result,
                              const LookupDataResultPtr& lookupDataResult, int currentNumPartitions);
-    void subscribeSingleNewConsumer(const int numPartitions, TopicNamePtr topicName, int partitionIndex,
+    void subscribeSingleNewConsumer(int numPartitions, TopicNamePtr topicName, int partitionIndex,
                                     ConsumerSubResultPromisePtr topicSubResultPromise,
                                     std::shared_ptr<std::atomic<int>> partitionsNeedCreate);
 

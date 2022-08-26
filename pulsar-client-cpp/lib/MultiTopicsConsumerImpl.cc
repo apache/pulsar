@@ -26,7 +26,7 @@ using namespace pulsar;
 MultiTopicsConsumerImpl::MultiTopicsConsumerImpl(ClientImplPtr client, const std::vector<std::string>& topics,
                                                  const std::string& subscriptionName, TopicNamePtr topicName,
                                                  const ConsumerConfiguration& conf,
-                                                 const LookupServicePtr lookupServicePtr)
+                                                 LookupServicePtr lookupServicePtr)
     : client_(client),
       subscriptionName_(subscriptionName),
       topic_(topicName ? topicName->toString() : "EmptyTopics"),
@@ -55,7 +55,6 @@ MultiTopicsConsumerImpl::MultiTopicsConsumerImpl(ClientImplPtr client, const std
     }
     auto partitionsUpdateInterval = static_cast<unsigned int>(client_->conf().getPartitionsUpdateInterval());
     if (partitionsUpdateInterval > 0) {
-        listenerExecutor_ = client_->getListenerExecutorProvider()->get();
         partitionsUpdateTimer_ = listenerExecutor_->createDeadlineTimer();
         partitionsUpdateInterval_ = boost::posix_time::seconds(partitionsUpdateInterval);
         lookupServicePtr_ = client_->getLookup();
