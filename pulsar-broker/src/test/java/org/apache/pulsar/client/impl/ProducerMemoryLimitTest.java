@@ -18,16 +18,18 @@
  */
 package org.apache.pulsar.client.impl;
 
-import java.lang.reflect.Method;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import io.netty.buffer.ByteBufAllocator;
+import java.lang.reflect.Field;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SizeUnit;
-import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
-import org.powermock.reflect.Whitebox;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -143,23 +145,24 @@ public class ProducerMemoryLimitTest extends ProducerConsumerBase {
         this.stopBroker();
 
         try {
-            try (MockedStatic<PulsarByteBufAllocator> mockedStatic = Mockito.mockStatic(PulsarByteBufAllocator.class)) {
-                mockedStatic.when(PulsarByteBufAllocator.DEFAULT::buffer).thenThrow(new OutOfMemoryError("testProducerMemoryLimit"));
+            ProducerImpl<byte[]> spyProducer = Mockito.spy(producer);
+            final ByteBufAllocator mockAllocator = mock(ByteBufAllocator.class);
+            doAnswer((ignore) -> {
+                throw new OutOfMemoryError("memory-test");
+            }).when(mockAllocator).buffer(anyInt());
 
-                // Replace ByteBufAllocator
-                Method createByteBufAllocatorMethod = PulsarByteBufAllocator.class.getDeclaredMethod("createByteBufAllocator");
-                createByteBufAllocatorMethod.setAccessible(true);
-                Whitebox.setInternalState(PulsarByteBufAllocator.class, "DEFAULT",
-                        createByteBufAllocatorMethod.invoke(null));
+            final BatchMessageContainerImpl batchMessageContainer = new BatchMessageContainerImpl(mockAllocator);
+            Field batchMessageContainerField = ProducerImpl.class.getDeclaredField("batchMessageContainer");
+            batchMessageContainerField.setAccessible(true);
+            batchMessageContainerField.set(spyProducer, batchMessageContainer);
 
-                producer.send("memory-test".getBytes(StandardCharsets.UTF_8));
-            }
+            spyProducer.send("memory-test".getBytes(StandardCharsets.UTF_8));
             Assert.fail("can not reach here");
-        } catch (PulsarClientException ex) {
-            PulsarClientImpl clientImpl = (PulsarClientImpl) this.pulsarClient;
-            final MemoryLimitController memoryLimitController = clientImpl.getMemoryLimitController();
-            Assert.assertEquals(memoryLimitController.currentUsage(), 0);
-        }
+    } catch (PulsarClientException ex) {
+        PulsarClientImpl clientImpl = (PulsarClientImpl) this.pulsarClient;
+        final MemoryLimitController memoryLimitController = clientImpl.getMemoryLimitController();
+        Assert.assertEquals(memoryLimitController.currentUsage(), 0);
+    }
     }
 
     @Test(timeOut = 10_000)
