@@ -1387,14 +1387,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             uncompressedPayload.release();
 
             if (deadLetterPolicy != null && possibleSendToDeadLetterTopicMessages != null) {
-                if (redeliveryCount == deadLetterPolicy.getMaxRedeliverCount()) {
+                if (redeliveryCount >= deadLetterPolicy.getMaxRedeliverCount()) {
                     possibleSendToDeadLetterTopicMessages.put((MessageIdImpl) message.getMessageId(),
                             Collections.singletonList(message));
-                } else if (redeliveryCount > deadLetterPolicy.getMaxRedeliverCount()) {
-                    possibleSendToDeadLetterTopicMessages.put((MessageIdImpl) message.getMessageId(),
-                            Collections.singletonList(message));
-                    redeliverUnacknowledgedMessages(Collections.singleton(message.getMessageId()));
-                    return;
+                    if (redeliveryCount > deadLetterPolicy.getMaxRedeliverCount()) {
+                        redeliverUnacknowledgedMessages(Collections.singleton(message.getMessageId()));
+                        return;
+                    }
                 }
             }
             executeNotifyCallback(message);
