@@ -596,9 +596,98 @@ Producer<byte[]> producer = client.newProducer()
 
 ```
 
-### Message routing
+### Publish to partitioned topics
 
-When using partitioned topics, you can specify the routing mode whenever you publish messages using a producer. For more information on specifying a routing mode using the Java client, see the [Partitioned Topics cookbook](cookbooks-partitioned.md).
+By default, Pulsar topics are served by a single broker, which limits the maximum throughput of a topic. *Partitioned topics* can span multiple brokers and thus allow for higher throughput.
+
+You can publish messages to partitioned topics using Pulsar client libraries. When publishing messages to partitioned topics, you must specify a routing mode. If you do not specify any routing mode when you create a new producer, the round-robin routing mode is used.
+
+#### Routing mode
+
+You can specify the routing mode in the `ProducerConfiguration` object used to configure your producer. The routing mode determines which partition (internal topic) each message should be published to.
+
+The following {@inject: javadoc:MessageRoutingMode:/client/org/apache/pulsar/client/api/MessageRoutingMode} options are available.
+
+Mode     | Description
+:--------|:------------
+`RoundRobinPartition` | If no key is provided, the producer publishes messages across all partitions in the round-robin policy to achieve the maximum throughput. Round-robin is not done per individual message. It is set to the same boundary of batching delay to ensure that batching is effective. If a key is specified on the message, the partitioned producer hashes the key and assigns the message to a particular partition. This is the default mode.
+`SinglePartition`     | If no key is provided, the producer picks a single partition randomly and publishes all messages into that partition. If a key is specified on the message, the partitioned producer hashes the key and assigns the message to a particular partition.
+`CustomPartition`     | Use custom message router implementation that is called to determine the partition for a particular message. You can create a custom routing mode by using the Java client and implementing the {@inject: javadoc:MessageRouter:/client/org/apache/pulsar/client/api/MessageRouter} interface.
+
+The following is an example:
+
+```java
+
+String pulsarBrokerRootUrl = "pulsar://localhost:6650";
+String topic = "persistent://my-tenant/my-namespace/my-topic";
+
+PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsarBrokerRootUrl).build();
+Producer<byte[]> producer = pulsarClient.newProducer()
+        .topic(topic)
+        .messageRoutingMode(MessageRoutingMode.SinglePartition)
+        .create();
+producer.send("Partitioned topic message".getBytes());
+
+```
+
+#### Custom message router
+
+To use a custom message router, you need to provide an implementation of the {@inject: javadoc:MessageRouter:/client/org/apache/pulsar/client/api/MessageRouter} interface, which has just one `choosePartition` method:
+
+```java
+
+public interface MessageRouter extends Serializable {
+    int choosePartition(Message msg);
+}
+
+```
+
+The following router routes every message to partition 10:
+
+```java
+
+public class AlwaysTenRouter implements MessageRouter {
+    public int choosePartition(Message msg) {
+        return 10;
+    }
+}
+
+```
+
+With that implementation, you can send messages to partitioned topics as below.
+
+```java
+
+String pulsarBrokerRootUrl = "pulsar://localhost:6650";
+String topic = "persistent://my-tenant/my-cluster-my-namespace/my-topic";
+
+PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsarBrokerRootUrl).build();
+Producer<byte[]> producer = pulsarClient.newProducer()
+        .topic(topic)
+        .messageRouter(new AlwaysTenRouter())
+        .create();
+producer.send("Partitioned topic message".getBytes());
+
+```
+
+#### How to choose partitions when using a key
+If a message has a key, it supersedes the round robin routing policy. The following example illustrates how to choose the partition when using a key.
+
+```java
+
+// If the message has a key, it supersedes the round robin routing policy
+        if (msg.hasKey()) {
+            return signSafeMod(hash.makeHash(msg.getKey()), topicMetadata.numPartitions());
+        }
+
+        if (isBatchingEnabled) { // if batching is enabled, choose partition on `partitionSwitchMs` boundary.
+            long currentMs = clock.millis();
+            return signSafeMod(currentMs / partitionSwitchMs + startPtnIdx, topicMetadata.numPartitions());
+        } else {
+            return signSafeMod(PARTITION_INDEX_UPDATER.getAndIncrement(this), topicMetadata.numPartitions());
+        }
+
+```
 
 ### Async send
 
@@ -744,7 +833,7 @@ When you create a consumer, you can use the `loadConf` configuration. The follow
 `autoAckOldestChunkedMessageOnQueueFull`|boolean|Whether to automatically acknowledge pending chunked messages when the threashold of `maxPendingChunkedMessage` is reached. If set to `false`, these messages will be redelivered by their broker. |true
 `maxPendingChunkedMessage`|int| The maximum size of a queue holding pending chunked messages. When the threshold is reached, the consumer drops pending messages to optimize memory utilization.|10
 `expireTimeOfIncompleteChunkedMessageMillis`|long|The time interval to expire incomplete chunks if a consumer fails to receive all the chunks in the specified time period. The default value is 1 minute. | 60000
-`ackReceiptEnabled`|boolean| If `ackReceiptEnabled` is enabled, ACK returns a receipt. The message is resent after getting the receipt.
+`ackReceiptEnabled`|boolean| If `ackReceiptEnabled` is enabled, ACK returns a receipt. The client got the ack receipt means the broker has processed the ack request, but if without transaction, the broker does not guarantee persistence of acknowledgments, which means the messages still have a chance to be redelivered after the broker crashes. With the transaction, the client can only get the receipt after the acknowledgments have been persistent. | false
 
 You can configure parameters if you do not want to use the default configuration. For a full list, see the Javadoc for the {@inject: javadoc:ConsumerBuilder:/client/org/apache/pulsar/client/api/ConsumerBuilder} class. 
 

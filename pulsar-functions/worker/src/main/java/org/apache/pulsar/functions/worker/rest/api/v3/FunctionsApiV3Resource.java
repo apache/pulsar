@@ -353,6 +353,20 @@ public class FunctionsApiV3Resource extends FunctionApiResource {
         return functions().getListOfConnectors();
     }
 
+    @POST
+    @ApiOperation(
+        value = "Reload the built-in Functions"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(code = 401, message = "This operation requires super-user access"),
+        @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later."),
+        @ApiResponse(code = 500, message = "Internal server error")
+    })
+    @Path("/builtins/reload")
+    public void reloadBuiltinFunctions() throws IOException {
+        functions().reloadBuiltinFunctions(clientAppId(), clientAuthData());
+    }
+
     @GET
     @Path("/{tenant}/{namespace}/{functionName}/state/{key}")
     public FunctionState getFunctionState(final @PathParam("tenant") String tenant,
