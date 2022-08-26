@@ -19,6 +19,7 @@
 package org.apache.pulsar.functions.worker;
 
 import static org.apache.pulsar.common.policies.data.PoliciesUtil.getBundles;
+import static org.apache.pulsar.metadata.impl.MetadataStoreFactoryImpl.removeIdentifierFromMetadataURL;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -274,13 +275,14 @@ public class PulsarWorkerService implements WorkerService {
         URI dlogURI;
         try {
             if (workerConfig.isInitializedDlogMetadata()) {
-                dlogURI = WorkerUtils.newDlogNamespaceURI(internalConf.getZookeeperServers());
+                String metadataStoreUrl = removeIdentifierFromMetadataURL(internalConf.getMetadataStoreUrl());
+                dlogURI = WorkerUtils.newDlogNamespaceURI(metadataStoreUrl);
             } else {
                 dlogURI = WorkerUtils.initializeDlogNamespace(internalConf);
             }
         } catch (IOException ioe) {
             log.error("Failed to initialize dlog namespace with zookeeper {} at metadata service uri {} for storing "
-                            + "function packages", internalConf.getZookeeperServers(),
+                            + "function packages", internalConf.getMetadataStoreUrl(),
                     internalConf.getBookkeeperMetadataServiceUri(), ioe);
             throw ioe;
         }
@@ -356,15 +358,16 @@ public class PulsarWorkerService implements WorkerService {
         URI dlogURI;
         try {
             // initializing dlog namespace for function worker
-            if (workerConfig.isInitializedDlogMetadata()){
-                dlogURI = WorkerUtils.newDlogNamespaceURI(internalConf.getZookeeperServers());
+            if (workerConfig.isInitializedDlogMetadata()) {
+                String metadataStoreUrl = removeIdentifierFromMetadataURL(internalConf.getMetadataStoreUrl());
+                dlogURI = WorkerUtils.newDlogNamespaceURI(metadataStoreUrl);
             } else {
                 dlogURI = WorkerUtils.initializeDlogNamespace(internalConf);
             }
         } catch (IOException ioe) {
             LOG.error("Failed to initialize dlog namespace with zookeeper {} at at metadata service uri {} for "
                             + "storing function packages",
-                    internalConf.getZookeeperServers(), internalConf.getBookkeeperMetadataServiceUri(), ioe);
+                    internalConf.getMetadataStoreUrl(), internalConf.getBookkeeperMetadataServiceUri(), ioe);
             throw ioe;
         }
 
