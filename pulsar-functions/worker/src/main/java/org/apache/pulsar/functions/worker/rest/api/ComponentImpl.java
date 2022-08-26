@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.functions.worker.rest.api;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
@@ -47,6 +46,7 @@ import java.util.Base64;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Objects;
 import java.util.TreeMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -274,7 +274,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
     @Override
     public PulsarWorkerService worker() {
         try {
-            return checkNotNull(workerServiceSupplier.get());
+            return Objects.requireNonNull(workerServiceSupplier.get());
         } catch (Throwable t) {
             log.info("Failed to get worker service", t);
             throw t;
