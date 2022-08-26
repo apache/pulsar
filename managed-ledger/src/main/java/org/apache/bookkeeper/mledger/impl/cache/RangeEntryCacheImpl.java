@@ -25,6 +25,7 @@ import com.google.common.collect.Lists;
 import com.google.common.primitives.Longs;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
+import io.prometheus.client.Summary;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
@@ -54,6 +55,12 @@ import org.slf4j.LoggerFactory;
  */
 public class RangeEntryCacheImpl implements EntryCache {
 
+    static final Summary PULSAR_ML_CACHE_ENTRY_RANGE_SIZE = Summary.build()
+            .name("pulsar_ml_cache_entry_range_size")
+            .help("Number of entries in a range request")
+            .quantile(0.5, 0.1)
+            .quantile(0.99, 0.01)
+            .register();
     private final RangeEntryCacheManagerImpl manager;
     private final ManagedLedgerImpl ml;
     private ManagedLedgerInterceptor interceptor;
@@ -355,6 +362,7 @@ public class RangeEntryCacheImpl implements EntryCache {
             log.debug("[{}] Reading entries range ledger {}: {} to {}", ml.getName(), ledgerId, firstEntry, lastEntry);
         }
 
+        PULSAR_ML_CACHE_ENTRY_RANGE_SIZE.observe(entriesToRead);
         Collection<EntryImpl> cachedEntries = entries.getRange(firstPosition, lastPosition);
 
         if (cachedEntries.size() == entriesToRead) {

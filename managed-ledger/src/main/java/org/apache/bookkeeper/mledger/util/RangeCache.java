@@ -21,11 +21,13 @@ package org.apache.bookkeeper.mledger.util;
 import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.collect.Lists;
 import io.netty.util.ReferenceCounted;
+import io.prometheus.client.Summary;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.tuple.Pair;
@@ -44,6 +46,13 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
     private AtomicLong size; // Total size of values stored in cache
     private final Weighter<Value> weighter; // Weighter object used to extract the size from values
     private final TimestampExtractor<Value> timestampExtractor; // Extract the timestamp associated with a value
+
+    static final Summary PULSAR_ML_CACHE_ENTRY_DURATION_MILLIS = Summary.build()
+            .name("pulsar_ml_cache_entry_duration_millis")
+            .help("time an entry has been in the cache")
+            .quantile(0.5, 0.1)
+            .quantile(0.99, 0.01)
+            .register();
 
     /**
      * Construct a new RangeLruCache with default Weighter.
@@ -139,11 +148,15 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
         int removedEntries = 0;
         long removedSize = 0;
 
+        long now = System.nanoTime();
         for (Key key : subMap.keySet()) {
             Value value = entries.remove(key);
             if (value == null) {
                 continue;
             }
+
+            PULSAR_ML_CACHE_ENTRY_DURATION_MILLIS.observe(
+                    TimeUnit.NANOSECONDS.toMillis(now - timestampExtractor.getTimestamp(value)));
 
             removedSize += weighter.getSize(value);
             value.release();
@@ -166,11 +179,15 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
         long removedSize = 0;
         int removedEntries = 0;
 
+        long now = System.nanoTime();
         while (removedSize < minSize) {
             Map.Entry<Key, Value> entry = entries.pollFirstEntry();
             if (entry == null) {
                 break;
             }
+
+            PULSAR_ML_CACHE_ENTRY_DURATION_MILLIS.observe(
+                        TimeUnit.NANOSECONDS.toMillis(now - timestampExtractor.getTimestamp(entry.getValue())));
 
             Value value = entry.getValue();
             ++removedEntries;
@@ -191,6 +208,7 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
        long removedSize = 0;
        int removedCount = 0;
 
+       long now = System.nanoTime();
        while (true) {
            Map.Entry<Key, Value> entry = entries.firstEntry();
            if (entry == null || timestampExtractor.getTimestamp(entry.getValue()) > maxTimestamp) {
@@ -201,6 +219,9 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
            if (entry == null) {
                break;
            }
+
+           PULSAR_ML_CACHE_ENTRY_DURATION_MILLIS.observe(
+                   TimeUnit.NANOSECONDS.toMillis(now - timestampExtractor.getTimestamp(entry.getValue())));
 
            Value value = entry.getValue();
            removedSize += weighter.getSize(value);
@@ -232,12 +253,15 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
         long removedSize = 0;
         int removedCount = 0;
 
+        long now = System.nanoTime();
         while (true) {
             Map.Entry<Key, Value> entry = entries.pollFirstEntry();
             if (entry == null) {
                 break;
             }
             Value value = entry.getValue();
+            PULSAR_ML_CACHE_ENTRY_DURATION_MILLIS.observe(
+                    TimeUnit.NANOSECONDS.toMillis(now - timestampExtractor.getTimestamp(value)));
             removedSize += weighter.getSize(value);
             removedCount++;
             value.release();
