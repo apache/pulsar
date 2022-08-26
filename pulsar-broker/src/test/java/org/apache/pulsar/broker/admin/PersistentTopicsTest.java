@@ -617,6 +617,48 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testUpdatePartitionedTopicHavingProperties() throws Exception {
+        final String tenant = "tenant-testUpdatePartitionedTopicHavingProperties";
+        final String namespace = "ns-testUpdatePartitionedTopicHavingProperties";
+        final String topic = "topic-testUpdatePartitionedTopicHavingProperties";
+        Map<String, String> topicMetadata = new HashMap<>();
+        topicMetadata.put("key1", "value1");
+
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
+        admin.tenants().createTenant(tenant, tenantInfo);
+        admin.namespaces().createNamespace(tenant + "/" + namespace, Set.of("test"));
+
+        // create a 2 partition topic with properties key1->value1
+        AsyncResponse response = mock(AsyncResponse.class);
+        ArgumentCaptor<PartitionedTopicMetadata> responseCaptor =
+            ArgumentCaptor.forClass(PartitionedTopicMetadata.class);
+        PartitionedTopicMetadata metadata = new PartitionedTopicMetadata(2, topicMetadata);
+        persistentTopics.createPartitionedTopic(response, tenant, namespace, topic, metadata, true);
+        Awaitility.await().untilAsserted(() -> {
+            persistentTopics.getPartitionedMetadata(response,
+                tenant, namespace, topic, true, false);
+            verify(response, timeout(5000).atLeast(1)).resume(responseCaptor.capture());
+            Assert.assertEquals(responseCaptor.getValue().properties.size(), 1);
+            Assert.assertEquals(responseCaptor.getValue().properties, topicMetadata);
+        });
+
+        // update partition to 5
+        final int updatedPartition = 5;
+        AsyncResponse response2 = mock(AsyncResponse.class);
+        ArgumentCaptor<PartitionedTopicMetadata> responseCaptor2 =
+            ArgumentCaptor.forClass(PartitionedTopicMetadata.class);
+        persistentTopics.updatePartitionedTopic(response2, tenant, namespace, topic, false, false, false, updatedPartition);
+        Awaitility.await().untilAsserted(() -> {
+            persistentTopics.getPartitionedMetadata(response2,
+                tenant, namespace, topic, true, false);
+            verify(response2, timeout(5000).atLeast(1)).resume(responseCaptor2.capture());
+            Assert.assertEquals(responseCaptor2.getValue().partitions, updatedPartition);
+            Assert.assertEquals(responseCaptor2.getValue().properties.size(), 1);
+            Assert.assertEquals(responseCaptor2.getValue().properties, topicMetadata);
+        });
+    }
+
+    @Test
     public void testUpdatePartitionedTopicHavingNonPartitionTopicWithPartitionSuffix() throws Exception {
         // Already have non partition topic special-topic-partition-10, shouldn't able to update number of
         // partitioned topic to more than 10.

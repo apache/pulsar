@@ -202,9 +202,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                     log.debug("[{}] Consumer are left, reading more entries", name);
                 }
                 consumer.getPendingAcks().forEach((ledgerId, entryId, batchSize, stickyKeyHash) -> {
-                    if (addMessageToReplay(ledgerId, entryId, stickyKeyHash)) {
-                        redeliveryTracker.addIfAbsent(PositionImpl.get(ledgerId, entryId));
-                    }
+                    addMessageToReplay(ledgerId, entryId, stickyKeyHash);
                 });
                 totalAvailablePermits -= consumer.getAvailablePermits();
                 if (log.isDebugEnabled()) {
@@ -894,7 +892,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     @Override
     public synchronized void redeliverUnacknowledgedMessages(Consumer consumer, long consumerEpoch) {
         consumer.getPendingAcks().forEach((ledgerId, entryId, batchSize, stickyKeyHash) -> {
-            addMessageToReplay(ledgerId, entryId, stickyKeyHash);
+            if (addMessageToReplay(ledgerId, entryId, stickyKeyHash)) {
+                redeliveryTracker.incrementAndGetRedeliveryCount((PositionImpl.get(ledgerId, entryId)));
+            }
         });
         if (log.isDebugEnabled()) {
             log.debug("[{}-{}] Redelivering unacknowledged messages for consumer {}", name, consumer,
@@ -909,7 +909,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             // TODO: We want to pass a sticky key hash as a third argument to guarantee the order of the messages
             // on Key_Shared subscription, but it's difficult to get the sticky key here
             if (addMessageToReplay(position.getLedgerId(), position.getEntryId())) {
-                redeliveryTracker.addIfAbsent(position);
+                redeliveryTracker.incrementAndGetRedeliveryCount(position);
             }
         });
         if (log.isDebugEnabled()) {

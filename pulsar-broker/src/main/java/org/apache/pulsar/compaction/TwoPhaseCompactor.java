@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.compaction;
 
-import com.google.common.collect.ImmutableMap;
 import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.time.Duration;
@@ -201,12 +200,12 @@ public class TwoPhaseCompactor extends Compactor {
 
         reader.seekAsync(from).thenCompose((v) -> {
             Semaphore outstanding = new Semaphore(MAX_OUTSTANDING);
-            CompletableFuture<Void> loopPromise = new CompletableFuture<Void>();
+            CompletableFuture<Void> loopPromise = new CompletableFuture<>();
             phaseTwoLoop(reader, to, latestForKey, ledger, outstanding, loopPromise);
             return loopPromise;
         }).thenCompose((v) -> closeLedger(ledger))
                 .thenCompose((v) -> reader.acknowledgeCumulativeAsync(lastReadId,
-                        ImmutableMap.of(COMPACTED_TOPIC_LEDGER_PROPERTY, ledger.getId())))
+                        Map.of(COMPACTED_TOPIC_LEDGER_PROPERTY, ledger.getId())))
                 .whenComplete((res, exception) -> {
                     if (exception != null) {
                         deleteLedger(bk, ledger).whenComplete((res2, exception2) -> {

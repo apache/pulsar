@@ -38,7 +38,6 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import com.google.common.collect.ImmutableList;
 import io.netty.buffer.Unpooled;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -1225,7 +1224,7 @@ public class FunctionRuntimeManagerTest {
                 .setInstance(Function.Instance.newBuilder()
                         .setFunctionMetaData(function).setInstanceId(0).build())
                 .build();
-        doReturn(ImmutableList.of(assignment)).when(functionRuntimeManager)
+        doReturn(List.of(assignment)).when(functionRuntimeManager)
                 .findFunctionAssignments("test-tenant", "test-namespace", "function");
         functionRuntimeManager.restartFunctionInstances("test-tenant", "test-namespace", "function");
         if (expectRestartByPulsarAdmin) {
