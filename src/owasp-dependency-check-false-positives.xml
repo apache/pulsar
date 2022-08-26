@@ -56,9 +56,9 @@
   </suppress>
   <suppress>
     <notes><![CDATA[
-   file name: netty-tcnative-boringssl-static-2.0.52.Final-osx-x86_64.jar
+   file name: netty-tcnative-boringssl-static-2.0.52.Final-osx-aarch_64.jar
    ]]></notes>
-    <sha1>87a933c786d4b38355ebbeea684ab48ae88ec265</sha1>
+    <packageUrl regex="true">^pkg:maven/io\.netty/netty\-tcnative\-boringssl\-static@.*$</packageUrl>
     <cpe>cpe:/a:chromium_project:chromium</cpe>
   </suppress>
   <suppress>
