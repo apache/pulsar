@@ -609,12 +609,6 @@ TEST(BasicEndToEndTest, testMessageTooBig) {
     result = producer.send(msg);
     ASSERT_EQ(ResultMessageTooBig, result);
 
-    // Anything up to MaxMessageSize should be allowed
-    size = ClientConnection::getMaxMessageSize();
-    msg = MessageBuilder().setAllocatedContent(content, size).build();
-    result = producer.send(msg);
-    ASSERT_EQ(ResultOk, result);
-
     delete[] content;
 }
 
