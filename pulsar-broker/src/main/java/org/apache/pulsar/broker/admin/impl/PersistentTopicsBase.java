@@ -479,9 +479,9 @@ public class PersistentTopicsBase extends AdminResource {
                             .thenCompose(clusters -> {
                                 if (!updateLocalTopicOnly) {
                                     return updatePartitionInOtherCluster(numPartitions, clusters)
-                                            .thenCompose(v -> namespaceResources().getPartitionedTopicResources()
-                                                    .updatePartitionedTopicAsync(topicName, p ->
-                                                            new PartitionedTopicMetadata(numPartitions,
+                                        .thenCompose(v -> namespaceResources().getPartitionedTopicResources()
+                                                        .updatePartitionedTopicAsync(topicName, p ->
+                                                                new PartitionedTopicMetadata(numPartitions,
                                                                     p.properties)
                                                     ));
                                 } else {
