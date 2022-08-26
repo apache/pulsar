@@ -193,7 +193,7 @@ public class PulsarAdminTool {
                 cause = e;
             }
             System.err.println(cause.getClass() + ": " + cause.getMessage());
-            System.exit(1);
+            exit(1);
         }
     }
 

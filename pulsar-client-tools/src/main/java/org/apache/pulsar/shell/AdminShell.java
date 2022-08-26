@@ -51,7 +51,6 @@ public class AdminShell extends PulsarAdminTool implements ShellCommandsProvider
     @Override
     public void setupState(Properties properties) {
         getJCommander().setProgramName(getName());
-        setupCommands(b -> null);
     }
 
     @Override
