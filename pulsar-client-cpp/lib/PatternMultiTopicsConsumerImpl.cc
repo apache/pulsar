@@ -55,9 +55,8 @@ void PatternMultiTopicsConsumerImpl::autoDiscoveryTimerTask(const boost::system:
         return;
     }
 
-    const auto state = state_.load();
-    if (state != Ready) {
-        LOG_ERROR("Error in autoDiscoveryTimerTask consumer state not ready: " << state);
+    if (state_ != Ready) {
+        LOG_ERROR("Error in autoDiscoveryTimerTask consumer state not ready: " << state_);
         resetAutoDiscoveryTimer();
         return;
     }

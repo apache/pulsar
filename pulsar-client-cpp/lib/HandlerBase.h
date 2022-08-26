@@ -105,7 +105,7 @@ class HandlerBase {
         Failed
     };
 
-    std::atomic<State> state_;
+    State state_;
     Backoff backoff_;
     uint64_t epoch_;
 
