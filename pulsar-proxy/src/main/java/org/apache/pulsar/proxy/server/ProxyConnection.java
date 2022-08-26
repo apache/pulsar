@@ -156,11 +156,11 @@ public class ProxyConnection extends PulsarHandler {
         SocketAddress rmAddress = ctx.channel().remoteAddress();
         ConnectionController.State state = connectionController.increaseConnection(rmAddress);
         if (!state.equals(ConnectionController.State.OK)) {
-            ctx.channel().writeAndFlush(Commands.newError(-1, ServerError.NotAllowedError,
+            ctx.writeAndFlush(Commands.newError(-1, ServerError.NotAllowedError,
                     state.equals(ConnectionController.State.REACH_MAX_CONNECTION)
                             ? "Reached the maximum number of connections"
-                            : "Reached the maximum number of connections on address" + rmAddress));
-            ctx.channel().close();
+                            : "Reached the maximum number of connections on address" + rmAddress))
+                            .addListener(result -> ctx.close());
             ProxyService.REJECTED_CONNECTIONS.inc();
         }
     }
