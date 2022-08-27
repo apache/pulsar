@@ -24,7 +24,7 @@
 
 This page contains instructions for Pulsar committers on how to perform a release.
 
-If you haven't already done it, [create and publish the GPG key](https://github.com/apache/pulsar/wiki/Create-GPG-keys-to-sign-release-artifacts) to sign the release artifacts.
+If you haven't already done it, [create and publish the GPG key](https://github.com/apache/pulsar/blob/master/wiki/release/create-gpg-keys.md) to sign the release artifacts.
 
 Before you start the next release steps, make sure you have installed the **JDK8** and maven **3.6.1** for Pulsar 2.6 and Pulsar 2.7, and **JDK11** and Maven **3.6.1** for Pulsar 2.8 onwards. And **clean up the bookkeeper's local compiled** to make sure the bookkeeper dependency is fetched from the Maven repo, details to see https://lists.apache.org/thread/gsbh95b2d9xtcg5fmtxpm9k9q6w68gd2
 
@@ -39,18 +39,19 @@ The steps for releasing are as follows:
 6. Move master branch to next version
 7. Write release notes
 8. Run the vote
-19. Promote the release
+9. Promote the release
 10. Publish Docker Images
-11. Publish Python
-12. Publish MacOS `libpulsar` package
-13. Generate Python Client docs
-14. Update swagger file
-15. Update release notes
-16. Update the site
-17. Announce the release
-18. Write a blog post for the release (optional)
-19. Remove old releases
-20. Move branch to next version
+11. Release Helm Chart
+12. Publish Python Clients
+13. Publish MacOS libpulsar package
+14. Update Python Client docs
+15. Update swagger file
+16. Write release notes
+17. Update the site
+18. Announce the release
+19. Write a blog post for the release (optional)
+20. Remove old releases
+21. Move branch to next version
 
 The following are details for each step.
 
@@ -152,10 +153,11 @@ Inspect the artifacts:
 * Unpack bin package: `distribution/server/target/apache-pulsar-2.X.0-bin.tar.gz`, Check that the standalone Pulsar service starts correctly:
  ```shell
  cd apache-pulsar-2.X.0
+ cp -r ../../../io/target/apache-pulsar-io-connectors-2.X.0-bin connectors
  bin/pulsar standalone
  ```
 
-* Use instructions in [Release-Candidate-Validation](Release-Candidate-Validation) to do some sanity checks on the produced binary distributions.
+* Use instructions in [Release-Candidate-Validation](https://github.com/apache/pulsar/blob/master/wiki/release/release-candidate-validation.md) to do some sanity checks on the produced binary distributions.
 
 ### 3.1. Build RPM and DEB packages
 
