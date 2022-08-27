@@ -40,6 +40,7 @@ import org.apache.pulsar.common.configuration.PropertiesContext;
 import org.apache.pulsar.common.configuration.PropertyContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
 import org.apache.pulsar.common.nar.NarClassLoader;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.sasl.SaslConstants;
 
 @Getter
@@ -131,6 +132,12 @@ public class ProxyConfiguration implements PulsarConfiguration {
             doc = "Metadata store cache expiry time in seconds."
     )
     private int metadataStoreCacheExpirySeconds = 300;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Max size of messages.",
+            maxValue = Integer.MAX_VALUE - Commands.MESSAGE_SIZE_FRAME_PADDING)
+    private int maxMessageSize = Commands.DEFAULT_MAX_MESSAGE_SIZE;
 
     @Deprecated
     @FieldContext(

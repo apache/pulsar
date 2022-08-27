@@ -56,6 +56,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.ConsumerImpl;
+import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
@@ -866,6 +867,37 @@ public class BatchMessageTest extends BrokerTestBase {
     }
 
     @Test(dataProvider = "containerBuilder")
+    public void testBatchSendOneMessage(BatcherBuilder builder) throws Exception {
+        final String topicName = "persistent://prop/ns-abc/testBatchSendOneMessage-" + UUID.randomUUID();
+        final String subscriptionName = "sub-1";
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
+            .subscriptionType(SubscriptionType.Shared).subscribe();
+
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+            .batchingMaxPublishDelay(1, TimeUnit.SECONDS).batchingMaxMessages(10).enableBatching(true)
+            .batcherBuilder(builder)
+            .create();
+        String msg = "my-message";
+        MessageId messageId = producer.newMessage().value(msg.getBytes()).property("key1", "value1").send();
+
+        Assert.assertTrue(messageId instanceof MessageIdImpl);
+        Assert.assertFalse(messageId instanceof BatchMessageIdImpl);
+
+        Message<byte[]> received = consumer.receive();
+        assertEquals(received.getSequenceId(), 0);
+        consumer.acknowledge(received);
+
+        Assert.assertEquals(new String(received.getData()), msg);
+        Assert.assertFalse(received.getProperties().isEmpty());
+        Assert.assertEquals(received.getProperties().get("key1"), "value1");
+        Assert.assertFalse(received.getMessageId() instanceof BatchMessageIdImpl);
+
+        producer.close();
+        consumer.close();
+    }
+
+    @Test(dataProvider = "containerBuilder")
     public void testRetrieveSequenceIdGenerated(BatcherBuilder builder) throws Exception {
 
         int numMsgs = 10;
@@ -1034,7 +1066,10 @@ public class BatchMessageTest extends BrokerTestBase {
             if (enableBatch) {
                 // only ack messages which batch index < 2, which means we will not to ack the
                 // whole batch for the batch that with more than 2 messages
-                if (((BatchMessageIdImpl) message.getMessageId()).getBatchIndex() < 2) {
+                if ((message.getMessageId() instanceof BatchMessageIdImpl)
+                    && ((BatchMessageIdImpl) message.getMessageId()).getBatchIndex() < 2) {
+                    consumer.acknowledgeAsync(message).get();
+                } else if (!(message.getMessageId() instanceof BatchMessageIdImpl)){
                     consumer.acknowledgeAsync(message).get();
                 }
             } else {

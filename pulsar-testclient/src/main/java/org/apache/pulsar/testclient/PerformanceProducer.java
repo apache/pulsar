@@ -207,6 +207,10 @@ public class PerformanceProducer {
                 "--delay" }, description = "Mark messages with a given delay in seconds")
         public long delay = 0;
 
+        @Parameter(names = { "-set",
+                "--set-event-time" }, description = "Set the eventTime on messages")
+        public boolean setEventTime = false;
+
         @Parameter(names = { "-ef",
                 "--exit-on-failure" }, description = "Exit from the process on publish failure (default: disable)")
         public boolean exitOnFailure = false;
@@ -634,6 +638,9 @@ public class PerformanceProducer {
                     }
                     if (arguments.delay > 0) {
                         messageBuilder.deliverAfter(arguments.delay, TimeUnit.SECONDS);
+                    }
+                    if (arguments.setEventTime) {
+                        messageBuilder.eventTime(System.currentTimeMillis());
                     }
                     //generate msg key
                     if (msgKeyMode == MessageKeyGenerationMode.random) {

@@ -51,6 +51,7 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.DeadLetterPolicy;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -67,6 +68,7 @@ import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientExce
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.internal.DefaultImplementation;
+import org.apache.pulsar.client.util.RetryMessageUtil;
 import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
@@ -1168,5 +1170,58 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         } catch (PulsarClientException ex) {
             assertTrue(ex instanceof PulsarClientException.TimeoutException);
         }
+    }
+
+    @Test
+    public void testSendTxnAckMessageToDLQ() throws Exception {
+        String topic = NAMESPACE1 + "/testSendTxnAckMessageToDLQ";
+        String subName = "test";
+        String value = "test";
+        @Cleanup
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
+                .topic(topic)
+                .sendTimeout(1, TimeUnit.SECONDS)
+                .create();
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Shared)
+                // consumer can't receive the same message three times
+                .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(1).build())
+                .subscriptionName(subName)
+                .subscribe();
+
+        @Cleanup
+        Consumer<byte[]> deadLetterConsumer = pulsarClient.newConsumer()
+                .topic(String.format("%s-%s" + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX,
+                        topic, subName))
+                .subscriptionType(SubscriptionType.Shared)
+                .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(1).build())
+                .subscriptionName("test")
+                .subscribe();
+
+        producer.send(value.getBytes());
+        Transaction transaction = pulsarClient.newTransaction().withTransactionTimeout(1, TimeUnit.MINUTES)
+                .build().get();
+
+        // consumer receive the message the first time, redeliverCount = 0
+        consumer.acknowledgeAsync(consumer.receive().getMessageId(), transaction).get();
+
+        transaction.abort().get();
+
+        transaction = pulsarClient.newTransaction().withTransactionTimeout(5, TimeUnit.MINUTES)
+                .build().get();
+
+        // consumer receive the message the second time, redeliverCount = 1, also can be received
+        consumer.acknowledgeAsync(consumer.receive().getMessageId(), transaction).get();
+
+        transaction.abort().get();
+
+        // consumer receive the message the third time, redeliverCount = 2,
+        // the message will be sent to DLQ, can't receive
+        assertNull(consumer.receive(3, TimeUnit.SECONDS));
+
+        assertEquals(value, new String(deadLetterConsumer.receive(3, TimeUnit.SECONDS).getValue()));
     }
 }
