@@ -1386,10 +1386,15 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                             schema, redeliveryCount, consumerEpoch);
             uncompressedPayload.release();
 
-            if (deadLetterPolicy != null && possibleSendToDeadLetterTopicMessages != null
-                    && redeliveryCount >= deadLetterPolicy.getMaxRedeliverCount()) {
-                possibleSendToDeadLetterTopicMessages.put((MessageIdImpl) message.getMessageId(),
-                        Collections.singletonList(message));
+            if (deadLetterPolicy != null && possibleSendToDeadLetterTopicMessages != null) {
+                if (redeliveryCount >= deadLetterPolicy.getMaxRedeliverCount()) {
+                    possibleSendToDeadLetterTopicMessages.put((MessageIdImpl) message.getMessageId(),
+                            Collections.singletonList(message));
+                    if (redeliveryCount > deadLetterPolicy.getMaxRedeliverCount()) {
+                        redeliverUnacknowledgedMessages(Collections.singleton(message.getMessageId()));
+                        return;
+                    }
+                }
             }
             executeNotifyCallback(message);
         } else {
