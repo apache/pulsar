@@ -39,8 +39,6 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-import org.testng.collections.Maps;
-import java.util.Map;
 
 @Slf4j
 @Test(groups = "broker-admin")
@@ -112,7 +110,12 @@ public class AdminApiSchemaValidationEnforcedTest extends MockedPulsarServiceBas
         try (Producer p = pulsarClient.newProducer().topic(topicName).create()) {
             p.send("test schemaValidationEnforced".getBytes());
         }
-        assertEquals(admin.schemas().getSchemaInfo(topicName), schemaInfo);
+        SchemaInfo schemaInfo1 = admin.schemas().getSchemaInfo(topicName);
+        assertEquals(schemaInfo1.getSchema(), schemaInfo.getSchema());
+        assertEquals(schemaInfo1.getName(), schemaInfo.getName());
+        assertEquals(schemaInfo1.getType(), schemaInfo.getType());
+        assertEquals(schemaInfo1.getSchemaDefinition(), schemaInfo.getSchemaDefinition());
+        assertEquals(schemaInfo1.getProperties(), schemaInfo.getProperties());
     }
 
 
