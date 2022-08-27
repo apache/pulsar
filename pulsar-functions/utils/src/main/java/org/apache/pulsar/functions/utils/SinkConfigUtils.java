@@ -98,8 +98,8 @@ public class SinkConfigUtils {
         } else {
             functionDetailsBuilder.setClassName(IdentityFunction.class.getName());
         }
-        if (sinkConfig.getPreprocessFunctionConfig() != null) {
-            functionDetailsBuilder.setUserConfig(sinkConfig.getPreprocessFunctionConfig());
+        if (sinkConfig.getTransformFunctionConfig() != null) {
+            functionDetailsBuilder.setUserConfig(sinkConfig.getTransformFunctionConfig());
         }
         if (sinkConfig.getProcessingGuarantees() != null) {
             functionDetailsBuilder.setProcessingGuarantees(
@@ -236,9 +236,9 @@ public class SinkConfigUtils {
             sinkSpecBuilder.setBuiltin(builtin);
         }
 
-        if (!isEmpty(sinkConfig.getPreprocessFunction())
-                && sinkConfig.getPreprocessFunction().startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN)) {
-            functionDetailsBuilder.setBuiltin(sinkConfig.getPreprocessFunction().replaceFirst("^builtin://", ""));
+        if (!isEmpty(sinkConfig.getTransformFunction())
+                && sinkConfig.getTransformFunction().startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN)) {
+            functionDetailsBuilder.setBuiltin(sinkConfig.getTransformFunction().replaceFirst("^builtin://", ""));
         }
 
         if (sinkConfig.getConfigs() != null) {
@@ -387,13 +387,13 @@ public class SinkConfigUtils {
         }
 
         if (!isEmpty(functionDetails.getBuiltin())) {
-            sinkConfig.setPreprocessFunction("builtin://" + functionDetails.getBuiltin());
+            sinkConfig.setTransformFunction("builtin://" + functionDetails.getBuiltin());
         }
         if (!functionDetails.getClassName().equals(IdentityFunction.class.getName())) {
-            sinkConfig.setPreprocessFunctionClassName(functionDetails.getClassName());
+            sinkConfig.setTransformFunctionClassName(functionDetails.getClassName());
         }
         if (!isEmpty(functionDetails.getUserConfig())) {
-            sinkConfig.setPreprocessFunctionConfig(functionDetails.getUserConfig());
+            sinkConfig.setTransformFunctionConfig(functionDetails.getUserConfig());
         }
 
 
@@ -458,7 +458,7 @@ public class SinkConfigUtils {
                     String.format("Sink class %s not found in class loader", sinkClassName), e);
         }
 
-        String functionClassName = sinkConfig.getPreprocessFunctionClassName();
+        String functionClassName = sinkConfig.getTransformFunctionClassName();
         Class<?> typeArg;
         ClassLoader inputClassLoader;
         if (functionClassLoader != null) {
@@ -478,9 +478,9 @@ public class SinkConfigUtils {
                 throw new IllegalArgumentException(
                         String.format("Function class %s not found in class loader", functionClassName), e);
             }
-            // extract type from preprocess function class
+            // extract type from transform function class
             if (!getRawFunctionTypes(functionClass, false)[1].equals(Record.class)) {
-                throw new IllegalArgumentException("Sink preprocess function output must be of type Record");
+                throw new IllegalArgumentException("Sink transform function output must be of type Record");
             }
             typeArg = getFunctionTypes(functionClass, false)[0];
             inputClassLoader = functionClassLoader;
@@ -673,14 +673,14 @@ public class SinkConfigUtils {
         if (newConfig.getCleanupSubscription() != null) {
             mergedConfig.setCleanupSubscription(newConfig.getCleanupSubscription());
         }
-        if (newConfig.getPreprocessFunction() != null) {
-            mergedConfig.setPreprocessFunction(newConfig.getPreprocessFunction());
+        if (newConfig.getTransformFunction() != null) {
+            mergedConfig.setTransformFunction(newConfig.getTransformFunction());
         }
-        if (newConfig.getPreprocessFunctionClassName() != null) {
-            mergedConfig.setPreprocessFunctionClassName(newConfig.getPreprocessFunctionClassName());
+        if (newConfig.getTransformFunctionClassName() != null) {
+            mergedConfig.setTransformFunctionClassName(newConfig.getTransformFunctionClassName());
         }
-        if (newConfig.getPreprocessFunctionConfig() != null) {
-            mergedConfig.setPreprocessFunctionConfig(newConfig.getPreprocessFunctionConfig());
+        if (newConfig.getTransformFunctionConfig() != null) {
+            mergedConfig.setTransformFunctionConfig(newConfig.getTransformFunctionConfig());
         }
 
         return mergedConfig;

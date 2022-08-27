@@ -46,10 +46,10 @@ import org.testcontainers.containers.Network;
 import org.testng.annotations.Test;
 
 /**
- * Test behaviour of sinks with a pre-processing function
+ * Test behaviour of sinks with a transform function
  */
 @Slf4j
-public class SinkWithPreprocessingFunctionTest extends PulsarStandaloneTestSuite {
+public class SinkWithTransformFunctionTest extends PulsarStandaloneTestSuite {
 
     //Use PIP-117 new defaults so that the package management service is enabled.
     @Override
@@ -74,7 +74,7 @@ public class SinkWithPreprocessingFunctionTest extends PulsarStandaloneTestSuite
     }
 
     @Test(groups = {"sink"})
-    public void testSinkWithPreprocessingFunction() throws Exception {
+    public void testSinkWithTransformFunction() throws Exception {
 
         @Cleanup PulsarClient client = PulsarClient.builder()
                 .serviceUrl(container.getPlainTextServiceUrl())
@@ -131,7 +131,7 @@ public class SinkWithPreprocessingFunctionTest extends PulsarStandaloneTestSuite
     }
 
     @Test(groups = {"sink"})
-    public void testGenericObjectSinkWithPreprocessingFunction() throws Exception {
+    public void testGenericObjectSinkWithTransformFunction() throws Exception {
 
         @Cleanup PulsarClient client = PulsarClient.builder()
             .serviceUrl(container.getPlainTextServiceUrl())
@@ -211,7 +211,7 @@ public class SinkWithPreprocessingFunctionTest extends PulsarStandaloneTestSuite
     }
 
     @Test(groups = {"sink"})
-    public void testKeyValueSinkWithPreprocessingFunction() throws Exception {
+    public void testKeyValueSinkWithTransformFunction() throws Exception {
 
         @Cleanup PulsarClient client = PulsarClient.builder()
             .serviceUrl(container.getPlainTextServiceUrl())
@@ -293,8 +293,8 @@ public class SinkWithPreprocessingFunctionTest extends PulsarStandaloneTestSuite
                                      String className,
                                      String archive,
                                      String configs,
-                                     String preprocessFunction,
-                                     String preprocessFunctionClassName) throws Exception {
+                                     String transformFunction,
+                                     String transformFunctionClassName) throws Exception {
         String[] commands = {
                 PulsarCluster.ADMIN_SCRIPT,
                 "sinks", "create",
@@ -303,8 +303,8 @@ public class SinkWithPreprocessingFunctionTest extends PulsarStandaloneTestSuite
                 "--archive", archive,
                 "--classname", className,
                 "--sink-config", configs,
-                "--preprocess-function", preprocessFunction,
-                "--preprocess-function-classname", preprocessFunctionClassName
+                "--transform-function", transformFunction,
+                "--transform-function-classname", transformFunctionClassName
         };
         log.info("Run command : {}", StringUtils.join(commands, ' '));
         ContainerExecResult result = container.execCmd(commands);

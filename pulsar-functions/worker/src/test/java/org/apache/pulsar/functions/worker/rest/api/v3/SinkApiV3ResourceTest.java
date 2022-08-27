@@ -712,7 +712,7 @@ public class SinkApiV3ResourceTest {
     }
 
     @Test
-    public void testRegisterSinkSuccessWithPreprocessFunction() throws Exception {
+    public void testRegisterSinkSuccessWithTransformFunction() throws Exception {
         mockInstanceUtils();
         mockWorkerUtils();
 
@@ -737,13 +737,13 @@ public class SinkApiV3ResourceTest {
         FunctionArchive functionArchive = FunctionArchive.builder()
                 .classLoader(mockedClassLoader)
                 .build();
-        when(mockedFunctionsManager.getFunction("preprocess")).thenReturn(functionArchive);
+        when(mockedFunctionsManager.getFunction("transform")).thenReturn(functionArchive);
 
         when(mockedWorkerService.getFunctionsManager()).thenReturn(mockedFunctionsManager);
 
         SinkConfig sinkConfig = createDefaultSinkConfig();
-        sinkConfig.setPreprocessFunction("builtin://preprocess");
-        sinkConfig.setPreprocessFunctionConfig("{\"dummy\": \"dummy\"}");
+        sinkConfig.setTransformFunction("builtin://transform");
+        sinkConfig.setTransformFunctionConfig("{\"dummy\": \"dummy\"}");
 
         try (FileInputStream inputStream = new FileInputStream(getPulsarIOCassandraNar())) {
             resource.registerSink(
@@ -759,8 +759,8 @@ public class SinkApiV3ResourceTest {
     }
 
     @Test(expectedExceptions = RestException.class,
-            expectedExceptionsMessageRegExp = "Sink preprocess function output must be of type Record")
-    public void testRegisterSinkFailureWithInvalidPreprocessFunction() throws Exception {
+            expectedExceptionsMessageRegExp = "Sink transform function output must be of type Record")
+    public void testRegisterSinkFailureWithInvalidTransformFunction() throws Exception {
         mockInstanceUtils();
         mockWorkerUtils();
 
@@ -785,13 +785,13 @@ public class SinkApiV3ResourceTest {
         FunctionArchive functionArchive = FunctionArchive.builder()
                 .classLoader(mockedClassLoader)
                 .build();
-        when(mockedFunctionsManager.getFunction("preprocess")).thenReturn(functionArchive);
+        when(mockedFunctionsManager.getFunction("transform")).thenReturn(functionArchive);
 
         when(mockedWorkerService.getFunctionsManager()).thenReturn(mockedFunctionsManager);
 
         SinkConfig sinkConfig = createDefaultSinkConfig();
-        sinkConfig.setPreprocessFunction("builtin://preprocess");
-        sinkConfig.setPreprocessFunctionConfig("{\"dummy\": \"dummy\"}");
+        sinkConfig.setTransformFunction("builtin://transform");
+        sinkConfig.setTransformFunctionConfig("{\"dummy\": \"dummy\"}");
 
         try {
             try (FileInputStream inputStream = new FileInputStream(getPulsarIOCassandraNar())) {
@@ -1206,13 +1206,13 @@ public class SinkApiV3ResourceTest {
     }
 
     @Test
-    public void testUpdateSinkDifferentPreprocessFunction() throws Exception {
+    public void testUpdateSinkDifferentTransformFunction() throws Exception {
         mockWorkerUtils();
 
         SinkConfig sinkConfig = createDefaultSinkConfig();
-        sinkConfig.setPreprocessFunction("builtin://preprocess");
-        sinkConfig.setPreprocessFunctionClassName("DummyFunction");
-        sinkConfig.setPreprocessFunctionConfig("{\"dummy\": \"dummy\"}");
+        sinkConfig.setTransformFunction("builtin://transform");
+        sinkConfig.setTransformFunctionClassName("DummyFunction");
+        sinkConfig.setTransformFunctionConfig("{\"dummy\": \"dummy\"}");
 
         NarClassLoader mockedClassLoader = mock(NarClassLoader.class);
         doReturn(RecordFunction.class).when(mockedClassLoader).loadClass("DummyFunction");
@@ -1235,7 +1235,7 @@ public class SinkApiV3ResourceTest {
         FunctionArchive functionArchive = FunctionArchive.builder()
                 .classLoader(mockedClassLoader)
                 .build();
-        when(mockedFunctionsManager.getFunction("preprocess")).thenReturn(functionArchive);
+        when(mockedFunctionsManager.getFunction("transform")).thenReturn(functionArchive);
 
         when(mockedWorkerService.getFunctionsManager()).thenReturn(mockedFunctionsManager);
 

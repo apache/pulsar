@@ -111,8 +111,8 @@ public class SinkConfigUtilsTest {
 
         sinkConfig.setResources(Resources.getDefaultResources());
 
-        sinkConfig.setPreprocessFunction("builtin://preprocess");
-        sinkConfig.setPreprocessFunctionConfig("{\"key\": \"value\"}");
+        sinkConfig.setTransformFunction("builtin://transform");
+        sinkConfig.setTransformFunctionConfig("{\"key\": \"value\"}");
 
         Function.FunctionDetails functionDetails = SinkConfigUtils.convert(sinkConfig, new SinkConfigUtils.ExtractedSinkDetails(null, null, null));
         assertEquals(Function.SubscriptionType.SHARED, functionDetails.getSource().getSubscriptionType());
@@ -429,16 +429,16 @@ public class SinkConfigUtilsTest {
     }
 
     @Test
-    public void testMergeDifferentPreprocessFunction() {
+    public void testMergeDifferentTransformFunction() {
         SinkConfig sinkConfig = createSinkConfig();
         String newFunction = "builtin://new";
-        SinkConfig newSinkConfig = createUpdatedSinkConfig("preprocessFunction", newFunction);
+        SinkConfig newSinkConfig = createUpdatedSinkConfig("transformFunction", newFunction);
         SinkConfig mergedConfig = SinkConfigUtils.validateUpdate(sinkConfig, newSinkConfig);
         assertEquals(
-                mergedConfig.getPreprocessFunction(),
+                mergedConfig.getTransformFunction(),
                 newFunction
         );
-        mergedConfig.setPreprocessFunction(sinkConfig.getPreprocessFunction());
+        mergedConfig.setTransformFunction(sinkConfig.getTransformFunction());
         assertEquals(
                 new Gson().toJson(sinkConfig),
                 new Gson().toJson(mergedConfig)
@@ -446,16 +446,16 @@ public class SinkConfigUtilsTest {
     }
 
     @Test
-    public void testMergeDifferentPreprocessFunctionClassName() {
+    public void testMergeDifferentTransformFunctionClassName() {
         SinkConfig sinkConfig = createSinkConfig();
-        String newFunctionClassName = "NewPreprocessFunction";
-        SinkConfig newSinkConfig = createUpdatedSinkConfig("preprocessFunctionClassName", newFunctionClassName);
+        String newFunctionClassName = "NewTransformFunction";
+        SinkConfig newSinkConfig = createUpdatedSinkConfig("transformFunctionClassName", newFunctionClassName);
         SinkConfig mergedConfig = SinkConfigUtils.validateUpdate(sinkConfig, newSinkConfig);
         assertEquals(
-                mergedConfig.getPreprocessFunctionClassName(),
+                mergedConfig.getTransformFunctionClassName(),
                 newFunctionClassName
         );
-        mergedConfig.setPreprocessFunctionClassName(sinkConfig.getPreprocessFunctionClassName());
+        mergedConfig.setTransformFunctionClassName(sinkConfig.getTransformFunctionClassName());
         assertEquals(
                 new Gson().toJson(sinkConfig),
                 new Gson().toJson(mergedConfig)
@@ -463,16 +463,16 @@ public class SinkConfigUtilsTest {
     }
 
     @Test
-    public void testMergeDifferentPreprocessFunctionConfig() {
+    public void testMergeDifferentTransformFunctionConfig() {
         SinkConfig sinkConfig = createSinkConfig();
         String newFunctionConfig = "{\"new-key\": \"new-value\"}";
-        SinkConfig newSinkConfig = createUpdatedSinkConfig("preprocessFunctionConfig", newFunctionConfig);
+        SinkConfig newSinkConfig = createUpdatedSinkConfig("transformFunctionConfig", newFunctionConfig);
         SinkConfig mergedConfig = SinkConfigUtils.validateUpdate(sinkConfig, newSinkConfig);
         assertEquals(
-                mergedConfig.getPreprocessFunctionConfig(),
+                mergedConfig.getTransformFunctionConfig(),
                 newFunctionConfig
         );
-        mergedConfig.setPreprocessFunctionConfig(sinkConfig.getPreprocessFunctionConfig());
+        mergedConfig.setTransformFunctionConfig(sinkConfig.getTransformFunctionConfig());
         assertEquals(
                 new Gson().toJson(sinkConfig),
                 new Gson().toJson(mergedConfig)
@@ -513,9 +513,9 @@ public class SinkConfigUtilsTest {
         sinkConfig.setCleanupSubscription(true);
         sinkConfig.setArchive("DummyArchive.nar");
         sinkConfig.setCleanupSubscription(true);
-        sinkConfig.setPreprocessFunction("builtin://preprocess");
-        sinkConfig.setPreprocessFunctionClassName("Preprocess");
-        sinkConfig.setPreprocessFunctionConfig("{\"key\": \"value\"}");
+        sinkConfig.setTransformFunction("builtin://transform");
+        sinkConfig.setTransformFunctionClassName("Transform");
+        sinkConfig.setTransformFunctionConfig("{\"key\": \"value\"}");
         return sinkConfig;
     }
 

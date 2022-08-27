@@ -228,9 +228,9 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
 
             functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
 
-            String preprocessFunction = sinkConfig.getPreprocessFunction();
-            if (isNotBlank(preprocessFunction)) {
-                setExtraFunctionPackageLocation(functionMetaDataBuilder, functionDetails, preprocessFunction);
+            String transformFunction = sinkConfig.getTransformFunction();
+            if (isNotBlank(transformFunction)) {
+                setExtraFunctionPackageLocation(functionMetaDataBuilder, functionDetails, transformFunction);
             }
 
             updateRequest(null, functionMetaDataBuilder.build());
@@ -413,10 +413,10 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
 
             functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
 
-            String preprocessFunction = mergedConfig.getPreprocessFunction();
-            if (isNotBlank(preprocessFunction)
-                    && !preprocessFunction.equals(existingSinkConfig.getPreprocessFunction())) {
-                setExtraFunctionPackageLocation(functionMetaDataBuilder, functionDetails, preprocessFunction);
+            String transformFunction = mergedConfig.getTransformFunction();
+            if (isNotBlank(transformFunction)
+                    && !transformFunction.equals(existingSinkConfig.getTransformFunction())) {
+                setExtraFunctionPackageLocation(functionMetaDataBuilder, functionDetails, transformFunction);
             }
 
             updateRequest(existingComponent, functionMetaDataBuilder.build());
@@ -779,16 +779,16 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
             }
 
             ClassLoader functionClassLoader = null;
-            if (isNotBlank(sinkConfig.getPreprocessFunction())) {
+            if (isNotBlank(sinkConfig.getTransformFunction())) {
                 functionClassLoader =
-                        getBuiltinFunctionClassLoader(sinkConfig.getPreprocessFunction());
+                        getBuiltinFunctionClassLoader(sinkConfig.getTransformFunction());
                 if (functionClassLoader == null) {
-                    File functionPackageFile = getPackageFile(sinkConfig.getPreprocessFunction());
-                    functionClassLoader = getClassLoaderFromPackage(sinkConfig.getPreprocessFunctionClassName(),
+                    File functionPackageFile = getPackageFile(sinkConfig.getTransformFunction());
+                    functionClassLoader = getClassLoaderFromPackage(sinkConfig.getTransformFunctionClassName(),
                             functionPackageFile, worker().getWorkerConfig().getNarExtractionDirectory());
                 }
                 if (functionClassLoader == null) {
-                    throw new IllegalArgumentException("Pre-process Function package not found");
+                    throw new IllegalArgumentException("Transform Function package not found");
                 }
             }
 

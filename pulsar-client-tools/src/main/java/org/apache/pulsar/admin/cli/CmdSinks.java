@@ -398,13 +398,13 @@ public class CmdSinks extends CmdBase {
         @Parameter(names = "--secrets", description = "The map of secretName to an object that encapsulates "
                 + "how the secret is fetched by the underlying secrets provider")
         protected String secretsString;
-        @Parameter(names = "--preprocess-function", description = "Preprocess function applied before the Sink")
-        protected String preprocessFunction;
-        @Parameter(names = "--preprocess-function-classname", description = "The preprocess function class name")
-        protected String preprocessFunctionClassName;
-        @Parameter(names = "--preprocess-function-config", description = "Configuration of the preprocess function "
+        @Parameter(names = "--transform-function", description = "Transform function applied before the Sink")
+        protected String transformFunction;
+        @Parameter(names = "--transform-function-classname", description = "The transform function class name")
+        protected String transformFunctionClassName;
+        @Parameter(names = "--transform-function-config", description = "Configuration of the transform function "
                 + "applied before the Sink")
-        protected String preprocessFunctionConfig;
+        protected String transformFunctionConfig;
 
         protected SinkConfig sinkConfig;
 
@@ -585,16 +585,16 @@ public class CmdSinks extends CmdBase {
                 sinkConfig.setSecrets(secretsMap);
             }
 
-            if (preprocessFunction != null) {
-                sinkConfig.setPreprocessFunction(preprocessFunction);
+            if (transformFunction != null) {
+                sinkConfig.setTransformFunction(transformFunction);
             }
 
-            if (preprocessFunctionClassName != null) {
-                sinkConfig.setPreprocessFunctionClassName(preprocessFunctionClassName);
+            if (transformFunctionClassName != null) {
+                sinkConfig.setTransformFunctionClassName(transformFunctionClassName);
             }
 
-            if (preprocessFunctionConfig != null) {
-                sinkConfig.setPreprocessFunctionConfig(preprocessFunctionConfig);
+            if (transformFunctionConfig != null) {
+                sinkConfig.setTransformFunctionConfig(transformFunctionConfig);
             }
 
             // check if configs are valid
