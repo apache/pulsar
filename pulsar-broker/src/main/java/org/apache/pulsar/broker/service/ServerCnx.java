@@ -452,7 +452,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             return;
         }
 
-        if (!this.service.getPulsar().isStarted()) {
+        if (!this.service.getPulsar().isRunning()) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Failed lookup topic {} due to pulsar service is not ready: {} state", remoteAddress,
                         topicName, this.service.getPulsar().getState().toString());

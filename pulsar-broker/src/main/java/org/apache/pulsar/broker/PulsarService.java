@@ -1241,10 +1241,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     }
 
     /**
-     * check the current pulsar service is started or not.
+     * check the current pulsar service is running, including Started and Init state.
      */
-    public boolean isStarted() {
-        return this.state == State.Started;
+    public boolean isRunning() {
+        return this.state == State.Started || this.state == State.Init;
     }
 
     /**
