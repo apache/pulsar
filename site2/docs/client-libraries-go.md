@@ -63,7 +63,7 @@ You can assign Pulsar protocol URLs to specific clusters and use the `pulsar` sc
 pulsar://localhost:6650
 ```
 
-If you have multiple brokers, separate `ip:port` by commas:
+If you have multiple brokers, separate `IP:port` by commas:
 
 ```http
 pulsar://localhost:6550,localhost:6651,localhost:6652
