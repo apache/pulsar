@@ -681,13 +681,15 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     : 1;
             final OpSendMsg op;
             if (msg.getSchemaState() == MessageImpl.SchemaState.Ready) {
-                ByteBufPair cmd = sendMessage(producerId, sequenceId, numMessages, msgMetadata, encryptedPayload);
+                ByteBufPair cmd = sendMessage(producerId, sequenceId, numMessages, msg.getMessageId(), msgMetadata,
+                        encryptedPayload);
                 op = OpSendMsg.create(msg, cmd, sequenceId, callback);
             } else {
                 op = OpSendMsg.create(msg, null, sequenceId, callback);
                 final MessageMetadata finalMsgMetadata = msgMetadata;
                 op.rePopulate = () -> {
-                    op.cmd = sendMessage(producerId, sequenceId, numMessages, finalMsgMetadata, encryptedPayload);
+                    op.cmd = sendMessage(producerId, sequenceId, numMessages, msg.getMessageId(), finalMsgMetadata,
+                            encryptedPayload);
                 };
             }
             op.setNumMessagesInBatch(numMessages);
@@ -813,9 +815,17 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
     }
 
-    protected ByteBufPair sendMessage(long producerId, long sequenceId, int numMessages, MessageMetadata msgMetadata,
-            ByteBuf compressedPayload) {
-        return Commands.newSend(producerId, sequenceId, numMessages, getChecksumType(), msgMetadata, compressedPayload);
+    protected ByteBufPair sendMessage(long producerId, long sequenceId, int numMessages,
+                                      MessageId messageId, MessageMetadata msgMetadata,
+                                      ByteBuf compressedPayload) {
+        if (messageId instanceof MessageIdImpl) {
+            return Commands.newSend(producerId, sequenceId, numMessages, getChecksumType(),
+                    ((MessageIdImpl) messageId).getLedgerId(), ((MessageIdImpl) messageId).getEntryId(),
+                    msgMetadata, compressedPayload);
+        } else {
+            return Commands.newSend(producerId, sequenceId, numMessages, getChecksumType(), -1, -1, msgMetadata,
+                    compressedPayload);
+        }
     }
 
     protected ByteBufPair sendMessage(long producerId, long lowestSequenceId, long highestSequenceId, int numMessages,
@@ -1479,6 +1489,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         void setMessageId(long ledgerId, long entryId, int partitionIndex) {
             if (msg != null) {
                 msg.setMessageId(new MessageIdImpl(ledgerId, entryId, partitionIndex));
+            } else if (msgs.size() == 1) {
+                // If there is only one message in batch, the producer will publish messages like non-batch
+                msgs.get(0).setMessageId(new MessageIdImpl(ledgerId, entryId, partitionIndex));
             } else {
                 for (int batchIndex = 0; batchIndex < msgs.size(); batchIndex++) {
                     msgs.get(batchIndex)

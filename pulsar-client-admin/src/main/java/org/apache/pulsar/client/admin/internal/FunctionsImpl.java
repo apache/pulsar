@@ -841,4 +841,15 @@ public class FunctionsImpl extends ComponentResource implements Functions {
         }
         return future;
     }
+
+    @Override
+    public void reloadBuiltInFunctions() throws PulsarAdminException {
+        sync(this::reloadBuiltInFunctionsAsync);
+    }
+
+    @Override
+    public CompletableFuture<Void> reloadBuiltInFunctionsAsync() {
+        WebTarget path = functions.path("builtins/reload");
+        return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
+    }
 }

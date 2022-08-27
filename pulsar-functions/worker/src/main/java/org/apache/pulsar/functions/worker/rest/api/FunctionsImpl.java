@@ -774,6 +774,19 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
         }
     }
 
+    @Override
+    public void reloadBuiltinFunctions(String clientRole, AuthenticationDataSource authenticationData)
+        throws IOException {
+        if (!isWorkerServiceAvailable()) {
+            throwUnavailableException();
+        }
+
+        if (worker().getWorkerConfig().isAuthorizationEnabled() && !isSuperUser(clientRole, authenticationData)) {
+            throw new RestException(Response.Status.UNAUTHORIZED, "Client is not authorized to perform operation");
+        }
+        worker().getFunctionsManager().reloadFunctions(worker().getWorkerConfig());
+    }
+
     private Function.FunctionDetails validateUpdateRequestParams(final String tenant,
                                                                  final String namespace,
                                                                  final String componentName,

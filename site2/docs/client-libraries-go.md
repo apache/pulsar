@@ -4,13 +4,9 @@ title: Pulsar Go client
 sidebar_label: "Go"
 ---
 
-> Tips: The CGo client has been deprecated since version 2.7.0.
+You can use Pulsar [Go client](https://github.com/apache/pulsar-client-go) to create Pulsar [producers](#producers), [consumers](#consumers), and [readers](#readers) in Golang.
 
-You can use Pulsar [Go client](https://github.com/apache/pulsar-client-go) to create Pulsar [producers](#producers), [consumers](#consumers), and [readers](#readers) in Go (aka Golang).
-
-> **API docs available as well**  
-> For standard API docs, consult the [Godoc](https://godoc.org/github.com/apache/pulsar-client-go/pulsar).
-
+API docs are available on the [Godoc](https://godoc.org/github.com/apache/pulsar-client-go/pulsar) page
 
 ## Installation
 

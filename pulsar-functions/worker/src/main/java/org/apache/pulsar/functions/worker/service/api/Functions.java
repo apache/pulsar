@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.worker.service.api;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
@@ -160,4 +161,7 @@ public interface Functions<W extends WorkerService> extends Component<W> {
                                                          String clientRole,
                                                          AuthenticationDataSource clientAuthenticationDataHttps);
 
+
+    void reloadBuiltinFunctions(String clientRole, AuthenticationDataSource clientAuthenticationDataHttps)
+        throws IOException;
 }
