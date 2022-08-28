@@ -126,7 +126,7 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
         }
     }
 
-    public void removeCursor(String name) {
+    public boolean removeCursor(String name) {
         long stamp = rwLock.writeLock();
         try {
             Item item = cursors.remove(name);
@@ -142,6 +142,9 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
                 if (item.cursor.isDurable()) {
                     durableCursorCount--;
                 }
+                return true;
+            } else {
+                return false;
             }
         } finally {
             rwLock.unlockWrite(stamp);

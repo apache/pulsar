@@ -3502,8 +3502,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     private void deactivateCursorByName(String cursorName) {
         synchronized (activeCursors) {
-            if (activeCursors.get(cursorName) != null) {
-                activeCursors.removeCursor(cursorName);
+            if (activeCursors.removeCursor(cursorName)) {
                 invalidateEntriesUpToSlowestReaderPosition();
             }
         }
