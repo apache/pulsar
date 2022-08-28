@@ -36,8 +36,10 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherSingleActiveConsumer;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -321,6 +323,77 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         ((ConsumerImpl<String>) consumer).grabCnx();
         message = consumer.receive(3, TimeUnit.SECONDS);
         assertNotNull(message);
+        assertEquals(message.getValue(), test3);
+    }
+
+    @Test(dataProvider = "enableBatch")
+    public void testBatchReceiveRedeliveryAddEpoch(boolean enableBatch) throws Exception{
+        final String topic = "testBatchReceiveRedeliveryAddEpoch";
+        final String subName = "my-sub";
+        ConsumerBase<String> consumer = ((ConsumerBase<String>) pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName(subName)
+                .batchReceivePolicy(BatchReceivePolicy.builder().timeout(1000, TimeUnit.MILLISECONDS).build())
+                .subscriptionType(SubscriptionType.Failover)
+                .subscribe());
+
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .enableBatching(enableBatch)
+                .create();
+
+        String test1 = "Pulsar1";
+        String test2 = "Pulsar2";
+        String test3 = "Pulsar3";
+        producer.send(test1);
+
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopics()
+                .get(TopicName.get("persistent://public/default/" + topic).toString()).get().get();
+        PersistentDispatcherSingleActiveConsumer persistentDispatcherSingleActiveConsumer =
+                (PersistentDispatcherSingleActiveConsumer) persistentTopic.getSubscription(subName).getDispatcher();
+
+        Messages<String> messages;
+        Message<String> message;
+
+        consumer.setConsumerEpoch(1);
+        messages = consumer.batchReceive();
+        assertEquals(messages.size(), 0);
+        consumer.redeliverUnacknowledgedMessages();
+        messages = consumer.batchReceive();
+        assertEquals(messages.size(), 1);
+        message = messages.iterator().next();
+        consumer.acknowledgeCumulativeAsync(message).get();
+        assertEquals(message.getValue(), test1);
+
+        consumer.setConsumerEpoch(3);
+        producer.send(test2);
+        messages = consumer.batchReceive();
+        assertEquals(messages.size(), 0);
+        consumer.redeliverUnacknowledgedMessages();
+        messages = consumer.batchReceive();
+        assertEquals(messages.size(), 1);
+        message = messages.iterator().next();
+        assertEquals(message.getValue(), test2);
+        consumer.acknowledgeCumulativeAsync(message).get();
+
+        consumer.setConsumerEpoch(6);
+        producer.send(test3);
+        messages = consumer.batchReceive();
+        assertEquals(messages.size(), 0);
+
+        Field field = consumer.getClass().getDeclaredField("connectionHandler");
+        field.setAccessible(true);
+        ConnectionHandler connectionHandler = (ConnectionHandler) field.get(consumer);
+
+        field = connectionHandler.getClass().getDeclaredField("CLIENT_CNX_UPDATER");
+        field.setAccessible(true);
+
+        connectionHandler.cnx().channel().close();
+
+        ((ConsumerImpl<String>) consumer).grabCnx();
+        messages = consumer.batchReceive();
+        assertEquals(messages.size(), 1);
+        message = messages.iterator().next();
         assertEquals(message.getValue(), test3);
     }
 
