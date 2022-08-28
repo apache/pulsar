@@ -913,7 +913,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
         reentrantLock.lock();
         try {
-            notifyPendingBatchReceivedCallBack(opBatchReceive);
+            notifyPendingBatchReceivedCallBack(opBatchReceive.future);
         } finally {
             reentrantLock.unlock();
         }
@@ -941,21 +941,26 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         return opBatchReceive;
     }
 
-    protected final void notifyPendingBatchReceivedCallBack(OpBatchReceive<T> opBatchReceive) {
+    protected final void notifyPendingBatchReceivedCallBack(CompletableFuture<Messages<T>> batchReceiveFuture) {
         MessagesImpl<T> messages = getNewMessagesImpl();
         Message<T> msgPeeked = incomingMessages.peek();
         while (msgPeeked != null && messages.canAdd(msgPeeked)) {
             Message<T> msg = incomingMessages.poll();
             if (msg != null) {
                 messageProcessed(msg);
+                if (!isValidConsumerEpoch(msg)) {
+                    msgPeeked = incomingMessages.peek();
+                    continue;
+                }
                 Message<T> interceptMsg = beforeConsume(msg);
                 messages.add(interceptMsg);
             }
             msgPeeked = incomingMessages.peek();
         }
-
-        completePendingBatchReceive(opBatchReceive.future, messages);
+        completePendingBatchReceive(batchReceiveFuture, messages);
     }
+
+    abstract boolean isValidConsumerEpoch(Message<T> message);
 
     protected void completePendingBatchReceive(CompletableFuture<Messages<T>> future, Messages<T> messages) {
         if (!future.complete(messages)) {

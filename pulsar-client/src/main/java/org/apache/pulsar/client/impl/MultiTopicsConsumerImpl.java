@@ -337,7 +337,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     // If message consumer epoch is smaller than consumer epoch present that
     // it has been sent to the client before the user calls redeliverUnacknowledgedMessages, this message is invalid.
     // so we should release this message and receive again
-    private boolean isValidConsumerEpoch(Message<T> message) {
+    boolean isValidConsumerEpoch(Message<T> message) {
         return isValidConsumerEpoch(((MessageImpl<T>) (((TopicMessageImpl<T>) message))
                 .getMessage()));
     }
@@ -430,22 +430,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         CompletableFuture<Messages<T>> result = cancellationHandler.createFuture();
         internalPinnedExecutor.execute(() -> {
             if (hasEnoughMessagesForBatchReceive()) {
-                MessagesImpl<T> messages = getNewMessagesImpl();
-                Message<T> msgPeeked = incomingMessages.peek();
-                while (msgPeeked != null && messages.canAdd(msgPeeked)) {
-                    Message<T> msg = incomingMessages.poll();
-                    if (msg != null) {
-                        decreaseIncomingMessageSize(msg);
-                        if (!isValidConsumerEpoch(msg)) {
-                            msgPeeked = incomingMessages.peek();
-                            continue;
-                        }
-                        Message<T> interceptMsg = beforeConsume(msg);
-                        messages.add(interceptMsg);
-                    }
-                    msgPeeked = incomingMessages.peek();
-                }
-                result.complete(messages);
+                notifyPendingBatchReceivedCallBack(result);
             } else {
                 expectMoreIncomingMessages();
                 OpBatchReceive<T> opBatchReceive = OpBatchReceive.of(result);
@@ -740,7 +725,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     @Override
     protected void completeOpBatchReceive(OpBatchReceive<T> op) {
-        notifyPendingBatchReceivedCallBack(op);
+        notifyPendingBatchReceivedCallBack(op.future);
         resumeReceivingFromPausedConsumersIfNeeded();
     }
 
