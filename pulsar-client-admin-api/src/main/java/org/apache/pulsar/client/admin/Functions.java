@@ -25,6 +25,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedExceptio
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.FunctionDefinition;
 import org.apache.pulsar.common.functions.FunctionState;
 import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.io.ConnectorDefinition;
@@ -791,6 +792,19 @@ public interface Functions {
      */
     @Deprecated
     Set<String> getSinks() throws PulsarAdminException;
+
+    /**
+     * Fetches a list of supported Pulsar Functions currently running in cluster mode.
+     *
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    List<FunctionDefinition> getBuiltInFunctions() throws PulsarAdminException;
+
+    /**
+     * Fetches a list of supported Pulsar Functions currently running in cluster mode asynchronously.
+     */
+    CompletableFuture<List<FunctionDefinition>> getBuiltInFunctionsAsync();
 
     /**
      * Fetch the current state associated with a Pulsar Function.
