@@ -72,10 +72,13 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
 
 
     /**
-     * Add a cursor to the container.
+     * Add a cursor to the container. The cursor will be optionally tracked for the slowest reader when
+     * a position is passed as the second argument. It is expected that the position is updated with
+     * {@link #cursorUpdated(ManagedCursor, Position)} method when the position changes.
      *
      * @param cursor cursor to add
-     * @param position position for the cursor, pass null if the cursor's position shouldn't be tracked
+     * @param position position of the cursor to use for ordering, pass null if the cursor's position shouldn't be
+     *                 tracked for the slowest reader.
      */
     public void add(ManagedCursor cursor, Position position) {
         long stamp = rwLock.writeLock();
@@ -130,11 +133,15 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
     }
 
     /**
-     * Signal that a cursor position has been updated and that the container must re-order the cursor list.
+     * Signal that a cursor position has been updated and that the container must re-order the cursor heap
+     * tracking the slowest reader.
+     * Only those cursors are tracked and can be updated which were added to the container with the
+     * {@link #add(ManagedCursor, Position)} method that specified the initial position in the position
+     * parameter.
      *
      * @param cursor the cursor to update the position for
      * @param newPosition the updated position for the cursor
-     * @return a pair of positions, representing the previous slowest consumer and the new slowest consumer (after the
+     * @return a pair of positions, representing the previous slowest reader and the new slowest reader (after the
      *         update).
      */
     public Pair<PositionImpl, PositionImpl> cursorUpdated(ManagedCursor cursor, Position newPosition) {
