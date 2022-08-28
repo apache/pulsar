@@ -166,11 +166,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     // contains all cursors, where durable cursors are ordered by mark delete position
     private final ManagedCursorContainer cursors = ManagedCursorContainer
-            .createWithDurableOrderedByMarkDeletedPosition();
+            .createWithDurableOrdered();
     // contains active cursors eligible for caching,
     // ordered by read position (when cacheEvictionByMarkDeletedPosition=false) or by mark delete position
     // (when cacheEvictionByMarkDeletedPosition=true)
-    private final ManagedCursorContainer activeCursors;
+    private final ManagedCursorContainer activeCursors = ManagedCursorContainer.createWithAllOrdered();
 
 
     // Ever increasing counter of entries added
@@ -352,9 +352,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         this.minBacklogCursorsForCaching = config.getMinimumBacklogCursorsForCaching();
         this.minBacklogEntriesForCaching = config.getMinimumBacklogEntriesForCaching();
         this.maxBacklogBetweenCursorsForCaching = config.getMaxBacklogBetweenCursorsForCaching();
-        this.activeCursors = config.isCacheEvictionByMarkDeletedPosition()
-                ? ManagedCursorContainer.createWithAllOrderedByMarkDeletedPosition()
-                : ManagedCursorContainer.createWithAllOrderedByReadPosition();
     }
 
     synchronized void initialize(final ManagedLedgerInitializeLedgerCallback callback, final Object ctx) {
@@ -565,7 +562,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                 log.info("[{}] Recovery for cursor {} completed. pos={} -- todo={}", name, cursorName,
                                         cursor.getMarkDeletedPosition(), cursorCount.get() - 1);
                                 cursor.setActive();
-                                cursors.add(cursor);
+                                cursors.add(cursor, cursor.getMarkDeletedPosition());
 
                                 if (cursorCount.decrementAndGet() == 0) {
                                     // The initialization is now completed, register the jmx mbean
@@ -599,7 +596,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                         cursorName, cursor.getMarkDeletedPosition(), cursorCount.get() - 1);
                                 cursor.setActive();
                                 synchronized (ManagedLedgerImpl.this) {
-                                    cursors.add(cursor);
+                                    cursors.add(cursor, cursor.getMarkDeletedPosition());
                                     uninitializedCursors.remove(cursor.getName()).complete(cursor);
                                 }
                             }
@@ -967,7 +964,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         : getFirstPositionAndCounter());
 
                 synchronized (ManagedLedgerImpl.this) {
-                    cursors.add(cursor);
+                    cursors.add(cursor, cursor.getMarkDeletedPosition());
                     uninitializedCursors.remove(cursorName).complete(cursor);
                 }
                 callback.openCursorComplete(cursor, ctx);
@@ -1090,7 +1087,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         log.info("[{}] Opened new cursor: {}", name, cursor);
         synchronized (this) {
-            cursors.add(cursor);
+            cursors.add(cursor, cursor.getMarkDeletedPosition());
         }
 
         return cursor;
@@ -3493,7 +3490,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     public void activateCursor(ManagedCursor cursor) {
         if (activeCursors.get(cursor.getName()) == null) {
-            activeCursors.add(cursor);
+            activeCursors.add(cursor, config.isCacheEvictionByMarkDeletedPosition()
+                    ? cursor.getMarkDeletedPosition()
+                    : cursor.getReadPosition());
         }
     }
 

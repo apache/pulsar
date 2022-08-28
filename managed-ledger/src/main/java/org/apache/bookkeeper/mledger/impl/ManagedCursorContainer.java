@@ -45,7 +45,6 @@ import org.apache.commons.lang3.tuple.Pair;
  */
 public class ManagedCursorContainer implements Iterable<ManagedCursor> {
 
-    private final OrderingType orderingType;
     private final OrderingFilter orderingFilter;
 
     private static class Item {
@@ -60,32 +59,22 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
         }
     }
 
-    private enum OrderingType {
-        MARKDELETED_POSITION,
-        READ_POSITION
-    }
-
     private enum OrderingFilter {
         ALL_CURSORS,
         DURABLE_CURSORS
     }
 
 
-    private ManagedCursorContainer(OrderingType orderingType, OrderingFilter orderingFilter) {
-        this.orderingType = orderingType;
+    private ManagedCursorContainer(OrderingFilter orderingFilter) {
         this.orderingFilter = orderingFilter;
     }
 
-    public static ManagedCursorContainer createWithDurableOrderedByMarkDeletedPosition() {
-        return new ManagedCursorContainer(OrderingType.MARKDELETED_POSITION, OrderingFilter.DURABLE_CURSORS);
+    public static ManagedCursorContainer createWithDurableOrdered() {
+        return new ManagedCursorContainer(OrderingFilter.DURABLE_CURSORS);
     }
 
-    public static ManagedCursorContainer createWithAllOrderedByMarkDeletedPosition() {
-        return new ManagedCursorContainer(OrderingType.MARKDELETED_POSITION, OrderingFilter.ALL_CURSORS);
-    }
-
-    public static ManagedCursorContainer createWithAllOrderedByReadPosition() {
-        return new ManagedCursorContainer(OrderingType.READ_POSITION, OrderingFilter.ALL_CURSORS);
+    public static ManagedCursorContainer createWithAllOrdered() {
+        return new ManagedCursorContainer(OrderingFilter.ALL_CURSORS);
     }
 
     // Used to keep track of slowest cursor. Contains all of all active cursors.
@@ -99,11 +88,11 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
     private int durableCursorCount;
 
 
-    public void add(ManagedCursor cursor) {
+    public void add(ManagedCursor cursor, Position position) {
         long stamp = rwLock.writeLock();
         try {
             boolean trackOrderOfCursor = shouldTrackOrderOfCursor(cursor);
-            Item item = new Item(cursor, resolvePosition(cursor), trackOrderOfCursor ? heap.size() : -1);
+            Item item = new Item(cursor, (PositionImpl) position, trackOrderOfCursor ? heap.size() : -1);
             cursors.put(cursor.getName(), item);
             if (trackOrderOfCursor) {
                 heap.add(item);
@@ -120,16 +109,6 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
     private boolean shouldTrackOrderOfCursor(ManagedCursor cursor) {
         return orderingFilter == OrderingFilter.ALL_CURSORS
                 || orderingFilter == OrderingFilter.DURABLE_CURSORS && cursor.isDurable();
-    }
-
-    private PositionImpl resolvePosition(ManagedCursor cursor) {
-        if (orderingType == OrderingType.MARKDELETED_POSITION) {
-            return (PositionImpl) cursor.getMarkDeletedPosition();
-        } else if (orderingType == OrderingType.READ_POSITION) {
-            return (PositionImpl) cursor.getReadPosition();
-        } else {
-            throw new IllegalStateException("Unknown orderingType=" + orderingType);
-        }
     }
 
     public ManagedCursor get(String name) {
