@@ -38,6 +38,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.StreamingOutput;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.FunctionDefinition;
 import org.apache.pulsar.common.functions.FunctionState;
 import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.io.ConnectorDefinition;
@@ -365,6 +366,23 @@ public class FunctionsApiV3Resource extends FunctionApiResource {
     @Path("/builtins/reload")
     public void reloadBuiltinFunctions() throws IOException {
         functions().reloadBuiltinFunctions(clientAppId(), clientAuthData());
+    }
+
+    @GET
+    @ApiOperation(
+        value = "Fetches the list of built-in Pulsar functions",
+        response = FunctionDefinition.class,
+        responseContainer = "List"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+        @ApiResponse(code = 400, message = "Invalid request"),
+        @ApiResponse(code = 408, message = "Request timeout")
+    })
+    @Path("/builtins")
+    @Produces(MediaType.APPLICATION_JSON)
+    public List<FunctionDefinition> getBuiltinFunctions() {
+        return functions().getBuiltinFunctions(clientAppId(), clientAuthData());
     }
 
     @GET
