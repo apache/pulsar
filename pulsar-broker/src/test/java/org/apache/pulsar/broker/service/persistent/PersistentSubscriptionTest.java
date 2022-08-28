@@ -195,7 +195,7 @@ public class PersistentSubscriptionTest {
         ledgerMock = mock(ManagedLedgerImpl.class);
         cursorMock = mock(ManagedCursorImpl.class);
         managedLedgerConfigMock = mock(ManagedLedgerConfig.class);
-        doReturn(ManagedCursorContainer.createWithDurableOrdered()).when(ledgerMock).getCursors();
+        doReturn(new ManagedCursorContainer()).when(ledgerMock).getCursors();
         doReturn("mockCursor").when(cursorMock).getName();
         doReturn(new PositionImpl(1, 50)).when(cursorMock).getMarkDeletedPosition();
         doReturn(ledgerMock).when(cursorMock).getManagedLedger();

@@ -165,12 +165,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private volatile Stat ledgersStat;
 
     // contains all cursors, where durable cursors are ordered by mark delete position
-    private final ManagedCursorContainer cursors = ManagedCursorContainer
-            .createWithDurableOrdered();
+    private final ManagedCursorContainer cursors = new ManagedCursorContainer();
     // contains active cursors eligible for caching,
     // ordered by read position (when cacheEvictionByMarkDeletedPosition=false) or by mark delete position
     // (when cacheEvictionByMarkDeletedPosition=true)
-    private final ManagedCursorContainer activeCursors = ManagedCursorContainer.createWithAllOrdered();
+    private final ManagedCursorContainer activeCursors = new ManagedCursorContainer();
 
 
     // Ever increasing counter of entries added
@@ -562,7 +561,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                 log.info("[{}] Recovery for cursor {} completed. pos={} -- todo={}", name, cursorName,
                                         cursor.getMarkDeletedPosition(), cursorCount.get() - 1);
                                 cursor.setActive();
-                                cursors.add(cursor, cursor.getMarkDeletedPosition());
+                                addCursor(cursor);
 
                                 if (cursorCount.decrementAndGet() == 0) {
                                     // The initialization is now completed, register the jmx mbean
@@ -596,7 +595,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                         cursorName, cursor.getMarkDeletedPosition(), cursorCount.get() - 1);
                                 cursor.setActive();
                                 synchronized (ManagedLedgerImpl.this) {
-                                    cursors.add(cursor, cursor.getMarkDeletedPosition());
+                                    addCursor(cursor);
                                     uninitializedCursors.remove(cursor.getName()).complete(cursor);
                                 }
                             }
@@ -621,6 +620,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 callback.initializeFailed(new ManagedLedgerException(e));
             }
         });
+    }
+
+    private void addCursor(ManagedCursorImpl cursor) {
+        cursors.add(cursor, cursor.isDurable() ? cursor.getMarkDeletedPosition() : null);
     }
 
     @Override
@@ -964,7 +967,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         : getFirstPositionAndCounter());
 
                 synchronized (ManagedLedgerImpl.this) {
-                    cursors.add(cursor, cursor.getMarkDeletedPosition());
+                    addCursor(cursor);
                     uninitializedCursors.remove(cursorName).complete(cursor);
                 }
                 callback.openCursorComplete(cursor, ctx);
@@ -1087,7 +1090,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         log.info("[{}] Opened new cursor: {}", name, cursor);
         synchronized (this) {
-            cursors.add(cursor, cursor.getMarkDeletedPosition());
+            addCursor(cursor);
         }
 
         return cursor;
@@ -2200,10 +2203,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     void onCursorMarkDeletePositionUpdated(ManagedCursorImpl cursor, PositionImpl newPosition) {
-        Pair<PositionImpl, PositionImpl> pair = cursors.cursorUpdated(cursor, newPosition);
         if (config.isCacheEvictionByMarkDeletedPosition()) {
             updateActiveCursor(cursor, newPosition);
         }
+        if (!cursor.isDurable()) {
+            // non-durable cursors aren't tracked for trimming
+            return;
+        }
+        Pair<PositionImpl, PositionImpl> pair = cursors.cursorUpdated(cursor, newPosition);
         if (pair == null) {
             // Cursor has been removed in the meantime
             trimConsumedLedgersInBackground();
