@@ -16,15 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.service;
+package org.apache.pulsar.broker.limiter;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
 import org.apache.commons.lang3.mutable.MutableInt;
-import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.tls.InetAddressUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,11 +60,11 @@ public interface ConnectionController {
         private final boolean maxConnectionsLimitEnabled;
         private final boolean maxConnectionsLimitPerIpEnabled;
 
-        public DefaultConnectionController(ServiceConfiguration configuration) {
-            this.maxConnections = configuration.getBrokerMaxConnections();
-            this.maxConnectionPerIp = configuration.getBrokerMaxConnectionsPerIp();
-            this.maxConnectionsLimitEnabled = configuration.getBrokerMaxConnections() > 0;
-            this.maxConnectionsLimitPerIpEnabled = configuration.getBrokerMaxConnectionsPerIp() > 0;
+        public DefaultConnectionController(int maxConnections, int maxConnectionPerIp) {
+            this.maxConnections = maxConnections;
+            this.maxConnectionPerIp = maxConnectionPerIp;
+            this.maxConnectionsLimitEnabled = maxConnections > 0;
+            this.maxConnectionsLimitPerIpEnabled = maxConnectionPerIp > 0;
         }
 
         @Override
@@ -131,6 +131,17 @@ public interface ConnectionController {
         private boolean isLegalIpAddress(String address) {
             return InetAddressUtils.isIPv4Address(address) || InetAddressUtils.isIPv6Address(address);
         }
+
+        @VisibleForTesting
+        public static int getTotalConnectionNum() {
+            return totalConnectionNum;
+        }
+
+        @VisibleForTesting
+        public static Map<String, MutableInt> getConnections() {
+            return CONNECTIONS;
+        }
+
     }
 
 
