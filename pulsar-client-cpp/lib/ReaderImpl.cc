@@ -84,8 +84,8 @@ void ReaderImpl::start(const MessageId& startMessageId,
     consumer_->getConsumerCreatedFuture().addListener(
         [this, self, callback](Result result, const ConsumerImplBaseWeakPtr& weakConsumerPtr) {
             if (result == ResultOk) {
-                readerCreatedCallback_(result, Reader(self));
                 callback(weakConsumerPtr);
+                readerCreatedCallback_(result, Reader(self));
             } else {
                 readerCreatedCallback_(result, {});
             }
