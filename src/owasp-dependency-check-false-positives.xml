@@ -54,6 +54,13 @@
     <packageUrl regex="true">^pkg:maven/io\.netty/netty\-tcnative\-classes@.*$</packageUrl>
     <cpe>cpe:/a:netty:netty</cpe>
   </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: netty-tcnative-boringssl-static-2.0.52.Final-osx-aarch_64.jar
+   ]]></notes>
+    <packageUrl regex="true">^pkg:maven/io\.netty/netty\-tcnative\-boringssl\-static@.*$</packageUrl>
+    <cpe>cpe:/a:chromium_project:chromium</cpe>
+  </suppress>
 
   <!-- CVE-2021-23214 is about PostGre server -->
   <suppress>
