@@ -18,6 +18,7 @@
  */
 #include <gtest/gtest.h>
 #include <pulsar/ProducerConfiguration.h>
+#include <pulsar/c/producer_configuration.h>
 #include "NoOpsCryptoKeyReader.h"
 
 using namespace pulsar;
@@ -134,3 +135,12 @@ TEST(ProducerConfigurationTest, testCustomConfig) {
     conf.setChunkingEnabled(true);
     ASSERT_EQ(conf.isChunkingEnabled(), true);
 }
+
+TEST(ProducerConfigurationTest, testCApiConfig) {
+    pulsar_producer_configuration_t* producer_conf = pulsar_producer_configuration_create();
+
+    ASSERT_EQ(pulsar_producer_configuration_get_chunking_enabled(producer_conf), false);
+    pulsar_producer_configuration_set_chunking_enabled(producer_conf, true);
+    ASSERT_EQ(pulsar_producer_configuration_get_chunking_enabled(producer_conf), true);
+}
+
