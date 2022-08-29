@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service.plugin;
 
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
+import static org.apache.pulsar.client.api.SubscriptionInitialPosition.Earliest;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -43,6 +44,7 @@ import org.apache.pulsar.broker.service.AbstractTopic;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.EntryFilterSupport;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
@@ -76,11 +78,14 @@ public class FilterEntryTest extends BrokerTestBase {
 
     @Test
     public void testOverride() throws Exception {
+        conf.setAllowOverrideEntryFilters(true);
         String topic = "persistent://prop/ns-abc/topic" + UUID.randomUUID();
         String subName = "sub";
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic)
-                .isAckReceiptEnabled(true)
-                .subscriptionName(subName).subscribe();
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .enableBatching(false).topic(topic).create();
+        for (int i = 0; i < 10; i++) {
+            producer.send("test");
+        }
 
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService()
                 .getTopicReference(topic).get();
@@ -90,20 +95,22 @@ public class FilterEntryTest extends BrokerTestBase {
         when(mockFilter.filterEntry(any(Entry.class), any(FilterContext.class))).thenReturn(
                 EntryFilter.FilterResult.REJECT);
         ImmutableMap<String, EntryFilterWithClassLoader> entryFilters = ImmutableMap.of("key", mockFilter);
-        when(topicRef.getEntryFilters()).thenReturn(entryFilters);
 
+        Field field = topicRef.getClass().getSuperclass().getDeclaredField("entryFilters");
+        field.setAccessible(true);
+        field.set(topicRef, entryFilters);
 
         EntryFilterWithClassLoader mockFilter1 = mock(EntryFilterWithClassLoader.class);
         when(mockFilter1.filterEntry(any(Entry.class), any(FilterContext.class))).thenReturn(
                 EntryFilter.FilterResult.ACCEPT);
-        ImmutableMap<String, EntryFilterWithClassLoader> entryFilters1 = ImmutableMap.of("key", mockFilter1);
-        when(pulsar.getBrokerService().getEntryFilters()).thenReturn(entryFilters1);
+        ImmutableMap<String, EntryFilterWithClassLoader> entryFilters1 = ImmutableMap.of("key2", mockFilter1);
+        Field field2 = pulsar.getBrokerService().getClass().getDeclaredField("entryFilters");
+        field2.setAccessible(true);
+        field2.set(pulsar.getBrokerService(), entryFilters1);
 
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .enableBatching(false).topic(topic).create();
-        for (int i = 0; i < 10; i++) {
-            producer.send("test");
-        }
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic)
+                .subscriptionInitialPosition(Earliest)
+                .subscriptionName(subName).subscribe();
 
         int counter = 0;
         while (true) {
@@ -116,7 +123,8 @@ public class FilterEntryTest extends BrokerTestBase {
             }
         }
         // All normal messages can be received
-        assertEquals(10, counter);
+        assertEquals(0, counter);
+        conf.setAllowOverrideEntryFilters(false);
     }
 
     @Test
