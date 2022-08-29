@@ -1961,22 +1961,4 @@ public class ServerCnxTest {
             channel.finish();
         }
     }
-
-    @Test
-    public void testHandleAuthResponseWithoutClientVersion() {
-        ServerCnx cnx = mock(ServerCnx.class, CALLS_REAL_METHODS);
-        CommandAuthResponse authResponse = mock(CommandAuthResponse.class);
-        org.apache.pulsar.common.api.proto.AuthData authData = mock(org.apache.pulsar.common.api.proto.AuthData.class);
-        when(authResponse.getResponse()).thenReturn(authData);
-        when(authResponse.hasResponse()).thenReturn(true);
-        when(authResponse.getResponse().hasAuthMethodName()).thenReturn(true);
-        when(authResponse.getResponse().hasAuthData()).thenReturn(true);
-        when(authResponse.hasClientVersion()).thenReturn(false);
-        try {
-            cnx.handleAuthResponse(authResponse);
-        } catch (Exception ignore) {
-        }
-        verify(authResponse, times(1)).hasClientVersion();
-        verify(authResponse, times(0)).getClientVersion();
-    }
 }
