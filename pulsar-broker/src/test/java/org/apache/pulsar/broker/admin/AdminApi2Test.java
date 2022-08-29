@@ -924,6 +924,13 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(properties.size(), 2);
         Assert.assertEquals(properties.get("key1"), "value11");
         Assert.assertEquals(properties.get("key2"), "value2");
+
+        // delete key in properties
+        admin.topics().removeProperties(topicName, "key1");
+        properties = admin.topics().getProperties(topicName);
+        Assert.assertNotNull(properties);
+        Assert.assertEquals(properties.size(), 1);
+        Assert.assertEquals(properties.get("key2"), "value2");
     }
 
     @Test
