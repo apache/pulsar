@@ -41,6 +41,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import javax.validation.constraints.NotNull;
 import org.apache.bookkeeper.client.BKException;
@@ -80,6 +81,8 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     private final ConcurrentMap<String, CompletableFuture<StoredSchema>> readSchemaOperations =
             new ConcurrentHashMap<>();
 
+    private volatile Consumer<String> trimDeletedSchemaAction;
+
     @VisibleForTesting
     BookkeeperSchemaStorage(PulsarService pulsar) {
         this.pulsar = pulsar;
@@ -110,6 +113,15 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
         );
     }
 
+    /**
+     * Only can set once.
+     */
+    public void setTrimDeletedSchemaAction(java.util.function.Consumer<String> trimDeletedSchemaAction){
+        if (this.trimDeletedSchemaAction == null){
+            this.trimDeletedSchemaAction = trimDeletedSchemaAction;
+        }
+    }
+
     @Override
     public CompletableFuture<SchemaVersion> put(String key, byte[] value, byte[] hash) {
         return putSchema(key, value, hash).thenApply(LongSchemaVersion::new);
@@ -126,7 +138,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     }
 
     @Override
-    public CompletableFuture<List<CompletableFuture<StoredSchema>>> getAll(String key) {
+    public CompletableFuture<List<CompletableFuture<StoredSchema>>> getAll(final String key) {
         CompletableFuture<List<CompletableFuture<StoredSchema>>> result = new CompletableFuture<>();
         getLocator(key).thenAccept(locator -> {
             if (log.isDebugEnabled()) {
@@ -140,7 +152,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
 
             SchemaStorageFormat.SchemaLocator schemaLocator = locator.get().locator;
             List<CompletableFuture<StoredSchema>> list = new ArrayList<>();
-            schemaLocator.getIndexList().forEach(indexEntry -> list.add(readSchemaEntry(indexEntry.getPosition())
+            schemaLocator.getIndexList().forEach(indexEntry -> list.add(readSchemaEntry(indexEntry.getPosition(), key)
                 .thenApply(entry -> new StoredSchema
                     (
                         entry.getSchemaData().toByteArray(),
@@ -210,7 +222,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
 
                 SchemaStorageFormat.SchemaLocator schemaLocator = locator.get().locator;
 
-                return readSchemaEntry(schemaLocator.getInfo().getPosition())
+                return readSchemaEntry(schemaLocator.getInfo().getPosition(), schemaId)
                         .thenApply(entry -> new StoredSchema(entry.getSchemaData().toByteArray(),
                                 new LongSchemaVersion(schemaLocator.getInfo().getVersion())));
             }).handleAsync((res, ex) -> {
@@ -271,7 +283,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                 return completedFuture(null);
             }
 
-            return findSchemaEntryByVersion(schemaLocator.getIndexList(), version)
+            return findSchemaEntryByVersion(schemaLocator.getIndexList(), version, schemaId)
                 .thenApply(entry ->
                         new StoredSchema(
                             entry.getSchemaData().toByteArray(),
@@ -294,7 +306,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                 }
 
                 //don't check the schema whether already exist
-                return readSchemaEntry(locator.getIndexList().get(0).getPosition())
+                return readSchemaEntry(locator.getIndexList().get(0).getPosition(), schemaId)
                         .thenCompose(schemaEntry -> addNewSchemaEntryToStore(schemaId,
                                 locator.getIndexList(), data).thenCompose(
                                 position -> {
@@ -484,7 +496,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     @NotNull
     private CompletableFuture<SchemaStorageFormat.SchemaEntry> findSchemaEntryByVersion(
         List<SchemaStorageFormat.IndexEntry> index,
-        long version
+        long version, String schemaId
     ) {
 
         if (index.isEmpty()) {
@@ -493,13 +505,13 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
 
         SchemaStorageFormat.IndexEntry lowest = index.get(0);
         if (version < lowest.getVersion()) {
-            return readSchemaEntry(lowest.getPosition())
-                    .thenCompose(entry -> findSchemaEntryByVersion(entry.getIndexList(), version));
+            return readSchemaEntry(lowest.getPosition(), schemaId)
+                    .thenCompose(entry -> findSchemaEntryByVersion(entry.getIndexList(), version, schemaId));
         }
 
         for (SchemaStorageFormat.IndexEntry entry : index) {
             if (entry.getVersion() == version) {
-                return readSchemaEntry(entry.getPosition());
+                return readSchemaEntry(entry.getPosition(), schemaId);
             } else if (entry.getVersion() > version) {
                 break;
             }
@@ -510,19 +522,37 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
 
     @NotNull
     private CompletableFuture<SchemaStorageFormat.SchemaEntry> readSchemaEntry(
-        SchemaStorageFormat.PositionInfo position
+        SchemaStorageFormat.PositionInfo position, String schemaId
     ) {
         if (log.isDebugEnabled()) {
             log.debug("Reading schema entry from {}", position);
         }
 
-        return openLedger(position.getLedgerId())
+        CompletableFuture<SchemaStorageFormat.SchemaEntry> res = openLedger(position.getLedgerId())
             .thenCompose((ledger) ->
                 Functions.getLedgerEntry(ledger, position.getEntryId())
                     .thenCompose(entry -> closeLedger(ledger)
                         .thenApply(ignore -> entry)
                     )
             ).thenCompose(Functions::parseSchemaEntry);
+        res.whenComplete((ignore, ex) -> {
+            if (ex.getCause() == null){
+                return;
+            }
+            if (!(ex.getCause() instanceof SchemaException)){
+                return;
+            }
+            SchemaException schemaException = (SchemaException) ex.getCause();
+            if (schemaException.isRecoverable()){
+                return;
+            }
+            log.error("[{}] Schema data(position-{}:{}) is missing, triggering trim deleted schema data.",
+                    schemaId, position.getLedgerId(), position.getEntryId());
+            if (trimDeletedSchemaAction != null){
+                trimDeletedSchemaAction.accept(schemaId);
+            }
+        });
+        return res;
     }
 
     @NotNull

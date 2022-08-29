@@ -107,6 +107,7 @@ import org.apache.pulsar.broker.service.SystemTopicBasedTopicPoliciesService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TopicPoliciesService;
 import org.apache.pulsar.broker.service.TransactionBufferSnapshotService;
+import org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.stats.MetricsGenerator;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
@@ -752,6 +753,16 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             schemaStorage = createAndStartSchemaStorage();
             schemaRegistryService = SchemaRegistryService.create(
                     schemaStorage, config.getSchemaRegistryCompatibilityCheckers(), this.executor);
+            if (schemaStorage instanceof BookkeeperSchemaStorage){
+                BookkeeperSchemaStorage bookkeeperSchemaStorage = (BookkeeperSchemaStorage) schemaStorage;
+                if (config.isAutoSkipNonRecoverableData()) {
+                    bookkeeperSchemaStorage.setTrimDeletedSchemaAction(schemaId -> {
+                        schemaRegistryService.trimDeletedSchemaAndGetList(schemaId);
+                    });
+                } else {
+                    bookkeeperSchemaStorage.setTrimDeletedSchemaAction(schemaId -> {});
+                }
+            }
 
             OffloadPoliciesImpl defaultOffloadPolicies =
                     OffloadPoliciesImpl.create(this.getConfiguration().getProperties());
