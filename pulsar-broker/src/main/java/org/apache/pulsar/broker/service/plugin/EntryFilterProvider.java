@@ -67,6 +67,27 @@ public class EntryFilterProvider {
         return builder.build();
     }
 
+    public static ImmutableMap<String, EntryFilterWithClassLoader> createEntryFilters(
+            ServiceConfiguration conf) throws IOException {
+        EntryFilterDefinitions definitions = searchForEntryFilters(conf.getEntryFiltersDirectory(),
+                conf.getNarExtractionDirectory());
+        ImmutableMap.Builder<String, EntryFilterWithClassLoader> builder = ImmutableMap.builder();
+        for (String filterName : conf.getEntryFilterNames()) {
+            EntryFilterMetaData metaData = definitions.getFilters().get(filterName);
+            if (null == metaData) {
+                throw new RuntimeException("No entry filter is found for name `" + filterName
+                        + "`. Available entry filters are : " + definitions.getFilters());
+            }
+            EntryFilterWithClassLoader filter;
+            filter = load(metaData, conf.getNarExtractionDirectory());
+            if (filter != null) {
+                builder.put(filterName, filter);
+            }
+            log.info("Successfully loaded entry filter for name `{}`", filterName);
+        }
+        return builder.build();
+    }
+
     private static EntryFilterDefinitions searchForEntryFilters(String entryFiltersDirectory,
                                                                             String narExtractionDirectory)
             throws IOException {

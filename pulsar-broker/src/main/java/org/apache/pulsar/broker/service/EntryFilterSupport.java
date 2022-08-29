@@ -22,6 +22,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.collections4.MapUtils;
 import org.apache.pulsar.broker.service.plugin.EntryFilter;
 import org.apache.pulsar.broker.service.plugin.EntryFilterWithClassLoader;
 import org.apache.pulsar.broker.service.plugin.FilterContext;
@@ -40,12 +41,19 @@ public class EntryFilterSupport {
     public EntryFilterSupport(Subscription subscription) {
         this.subscription = subscription;
         if (subscription != null && subscription.getTopic() != null) {
-            ImmutableMap<String, EntryFilterWithClassLoader>  entryFiltersMap =
-                    subscription.getTopic().getEntryFilters();
-            if (entryFiltersMap != null) {
-                this.entryFilters = subscription.getTopic().getEntryFilters().values().asList();
+            if (MapUtils.isNotEmpty(subscription.getTopic()
+                    .getBrokerService().getEntryFilters())
+                    && !subscription.getTopic().getBrokerService().pulsar()
+                    .getConfiguration().isAllowOverrideEntryFilters()) {
+                this.entryFilters = subscription.getTopic().getBrokerService().getEntryFilters().values().asList();
             } else {
-                this.entryFilters = ImmutableList.of();
+                ImmutableMap<String, EntryFilterWithClassLoader>  entryFiltersMap =
+                        subscription.getTopic().getEntryFilters();
+                if (entryFiltersMap != null) {
+                    this.entryFilters = subscription.getTopic().getEntryFilters().values().asList();
+                } else {
+                    this.entryFilters = ImmutableList.of();
+                }
             }
             this.filterContext = new FilterContext();
         } else {

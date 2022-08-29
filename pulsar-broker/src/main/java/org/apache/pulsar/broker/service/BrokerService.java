@@ -322,6 +322,9 @@ public class BrokerService implements Closeable {
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-stats-updater"));
         this.authorizationService = new AuthorizationService(
                 pulsar.getConfiguration(), pulsar().getPulsarResources());
+        if (!pulsar.getConfiguration().getEntryFilterNames().isEmpty()) {
+            this.entryFilters = EntryFilterProvider.createEntryFilters(pulsar.getConfiguration());
+        }
 
         pulsar.getLocalMetadataStore().registerListener(this::handleMetadataChanges);
         pulsar.getConfigurationMetadataStore().registerListener(this::handleMetadataChanges);
@@ -750,6 +753,17 @@ public class BrokerService implements Closeable {
                     log.warn("Error shutting down repl admin for cluster {}", cluster, e);
                 }
             });
+
+            //close entry filters
+            if (entryFilters != null) {
+                entryFilters.forEach((name, filter) -> {
+                    try {
+                        filter.close();
+                    } catch (Exception e) {
+                        log.warn("Error shutting down entry filter {}", name, e);
+                    }
+                });
+            }
 
             CompletableFuture<CompletableFuture<Void>> cancellableDownstreamFutureReference = new CompletableFuture<>();
             log.info("Event loops shutting down gracefully...");
