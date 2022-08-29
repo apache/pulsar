@@ -124,7 +124,27 @@ public class FilterEntryTest extends BrokerTestBase {
         }
         // All normal messages can be received
         assertEquals(0, counter);
+
+
         conf.setAllowOverrideEntryFilters(false);
+        consumer.close();
+        consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic)
+                .subscriptionInitialPosition(Earliest)
+                .subscriptionName(subName + "1").subscribe();
+        int counter1 = 0;
+        while (true) {
+            Message<String> message = consumer.receive(1, TimeUnit.SECONDS);
+            if (message != null) {
+                counter1++;
+                consumer.acknowledge(message);
+            } else {
+                break;
+            }
+        }
+        // All normal messages can be received
+        assertEquals(10, counter1);
+        conf.setAllowOverrideEntryFilters(false);
+        consumer.close();
     }
 
     @Test
