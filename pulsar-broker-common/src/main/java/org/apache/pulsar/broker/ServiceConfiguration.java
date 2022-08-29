@@ -2378,14 +2378,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean replicationTlsEnabled = false;
     @FieldContext(
         category = CATEGORY_POLICIES,
-        doc = "Default message retention time. The default value is 0, which means the data is removed after all the "
-                + "subscriptions are consumed. Value less than 0 means messages never expire."
+        doc = "Default message retention time."
+            + " 0 means retention is disabled. -1 means data is not removed by time quota"
     )
     private int defaultRetentionTimeInMinutes = 0;
     @FieldContext(
         category = CATEGORY_POLICIES,
-        doc = "Default retention size. The default value is 0, which means the data is removed after all the "
-                + "subscriptions are consumed. Value less than 0 means no infinite size quota."
+        doc = "Default retention size."
+            + " 0 means retention is disabled. -1 means data is not removed by size quota"
     )
     private int defaultRetentionSizeInMB = 0;
     @FieldContext(
