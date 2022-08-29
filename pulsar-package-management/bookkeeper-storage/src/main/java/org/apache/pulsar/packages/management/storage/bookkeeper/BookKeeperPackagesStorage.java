@@ -50,6 +50,7 @@ import org.apache.zookeeper.KeeperException;
 public class BookKeeperPackagesStorage implements PackagesStorage {
 
     private static final String NS_CLIENT_ID = "packages-management";
+    public static final String ZK_SCHEME_IDENTIFIER = "zk:";
     final BookKeeperPackagesStorageConfiguration configuration;
     private Namespace namespace;
 
@@ -100,12 +101,18 @@ public class BookKeeperPackagesStorage implements PackagesStorage {
             ledgersRootPath = metadataServiceUri.getPath();
         } else {
             ledgersRootPath = configuration.getPackagesManagementLedgerRootPath();
-            ledgersStoreServers = configuration.getZookeeperServers();
+            if (StringUtils.isNotBlank(configuration.getMetadataStoreUrl())) {
+                ledgersStoreServers = configuration.getMetadataStoreUrl();
+                if (ledgersStoreServers.startsWith(ZK_SCHEME_IDENTIFIER)) {
+                    ledgersStoreServers = ledgersStoreServers.substring(ZK_SCHEME_IDENTIFIER.length());
+                }
+            } else {
+                ledgersStoreServers = configuration.getZookeeperServers();
+            }
         }
         BKDLConfig bkdlConfig = new BKDLConfig(ledgersStoreServers, ledgersRootPath);
         DLMetadata dlMetadata = DLMetadata.create(bkdlConfig);
-        URI dlogURI = URI.create(String.format("distributedlog://%s/pulsar/packages",
-            configuration.getZookeeperServers()));
+        URI dlogURI = URI.create(String.format("distributedlog://%s/pulsar/packages", ledgersStoreServers));
         try {
             dlMetadata.create(dlogURI);
         } catch (ZKException e) {
