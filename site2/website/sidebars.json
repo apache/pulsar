@@ -7,6 +7,10 @@
     {
       "type": "category",
       "label": "Get Started",
+      "link": {
+        "type": "doc",
+        "id": "getting-started-home"
+      },
       "items": [
         "getting-started-standalone",
         "getting-started-docker",
