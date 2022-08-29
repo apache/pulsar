@@ -623,7 +623,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     private void addCursor(ManagedCursorImpl cursor) {
-        cursors.add(cursor, cursor.isDurable() ? cursor.getMarkDeletedPosition() : null);
+        Position positionForOrdering = null;
+        if (cursor.isDurable()) {
+            positionForOrdering = cursor.getMarkDeletedPosition();
+            if (positionForOrdering == null) {
+                positionForOrdering = PositionImpl.EARLIEST;
+            }
+        }
+        cursors.add(cursor, positionForOrdering);
     }
 
     @Override
@@ -3497,9 +3504,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     public void activateCursor(ManagedCursor cursor) {
         if (activeCursors.get(cursor.getName()) == null) {
-            activeCursors.add(cursor, config.isCacheEvictionByMarkDeletedPosition()
+            Position positionForOrdering = config.isCacheEvictionByMarkDeletedPosition()
                     ? cursor.getMarkDeletedPosition()
-                    : cursor.getReadPosition());
+                    : cursor.getReadPosition();
+            if (positionForOrdering == null) {
+                positionForOrdering = PositionImpl.EARLIEST;
+            }
+            activeCursors.add(cursor, positionForOrdering);
         }
     }
 
