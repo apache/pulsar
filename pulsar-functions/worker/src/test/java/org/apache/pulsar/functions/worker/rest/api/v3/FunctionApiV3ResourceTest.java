@@ -1703,7 +1703,7 @@ public class FunctionApiV3ResourceTest {
 
         FunctionMetaData metaData = FunctionMetaData.newBuilder()
                 .setPackageLocation(PackageLocationMetaData.newBuilder().setPackagePath("file:///" + fileLocation))
-                .setExtraFunctionPackageLocation(PackageLocationMetaData.newBuilder().setPackagePath("http://invalid"))
+                .setTransformFunctionPackageLocation(PackageLocationMetaData.newBuilder().setPackagePath("http://invalid"))
                 .build();
         when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(function))).thenReturn(metaData);
 
@@ -1718,7 +1718,7 @@ public class FunctionApiV3ResourceTest {
     }
 
     @Test
-    public void testDownloadExtraFunctionByName() throws Exception {
+    public void testDownloadTransformFunctionByName() throws Exception {
         URL fileUrl = getClass().getClassLoader().getResource("test_worker_config.yml");
         File file = Paths.get(fileUrl.toURI()).toFile();
         String fileLocation = file.getAbsolutePath().replace('\\', '/');
@@ -1732,7 +1732,7 @@ public class FunctionApiV3ResourceTest {
 
         FunctionMetaData metaData = FunctionMetaData.newBuilder()
                 .setPackageLocation(PackageLocationMetaData.newBuilder().setPackagePath("http://invalid"))
-                .setExtraFunctionPackageLocation(PackageLocationMetaData.newBuilder()
+                .setTransformFunctionPackageLocation(PackageLocationMetaData.newBuilder()
                         .setPackagePath("file:///" + fileLocation))
                 .build();
         when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(function))).thenReturn(metaData);

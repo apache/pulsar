@@ -284,7 +284,7 @@ public class KubernetesRuntimeTest {
 
         config.setFunctionDetails(createFunctionDetails(runtime, addSecrets));
         config.setFunctionId(java.util.UUID.randomUUID().toString());
-        config.setExtraFunctionId(java.util.UUID.randomUUID().toString());
+        config.setTransformFunctionId(java.util.UUID.randomUUID().toString());
         config.setFunctionVersion("1.0");
         config.setInstanceId(0);
         config.setMaxBufferedTuples(1024);
@@ -443,8 +443,8 @@ public class KubernetesRuntimeTest {
                 + " -Xmx" + RESOURCES.getRam()
                 + " org.apache.pulsar.functions.instance.JavaInstanceMain"
                 + " --jar " + jarLocation
-                + " --extra_function_jar " + jarLocation
-                + " --extra_function_id " +  config.getExtraFunctionId()
+                + " --transform_function_jar " + jarLocation
+                + " --transform_function_id " +  config.getTransformFunctionId()
                 + " --instance_id " + "$SHARD_ID"
                 + " --function_id " + config.getFunctionId()
                 + " --function_version " + config.getFunctionVersion()

@@ -107,21 +107,21 @@ public class FunctionActioner {
                     functionDetails.getName(), instanceId);
 
             String packageFile;
-            String extraFunctionPackageFile = null;
+            String transformFunctionPackageFile = null;
 
             Function.PackageLocationMetaData pkgLocation = functionMetaData.getPackageLocation();
-            Function.PackageLocationMetaData extraFunctionPkgLocation =
-                    functionMetaData.getExtraFunctionPackageLocation();
+            Function.PackageLocationMetaData transformFunctionPkgLocation =
+                    functionMetaData.getTransformFunctionPackageLocation();
 
             if (runtimeFactory.externallyManaged()) {
                 packageFile = pkgLocation.getPackagePath();
-                extraFunctionPackageFile = extraFunctionPkgLocation.getPackagePath();
+                transformFunctionPackageFile = transformFunctionPkgLocation.getPackagePath();
             } else {
                 packageFile = getPackageFile(functionMetaData, functionDetails, instanceId, pkgLocation,
                         InstanceUtils.calculateSubjectType(functionDetails));
-                if (!isEmpty(extraFunctionPkgLocation.getPackagePath())) {
-                    extraFunctionPackageFile =
-                            getPackageFile(functionMetaData, functionDetails, instanceId, extraFunctionPkgLocation,
+                if (!isEmpty(transformFunctionPkgLocation.getPackagePath())) {
+                    transformFunctionPackageFile =
+                            getPackageFile(functionMetaData, functionDetails, instanceId, transformFunctionPkgLocation,
                                     FunctionDetails.ComponentType.FUNCTION);
                 }
             }
@@ -130,7 +130,7 @@ public class FunctionActioner {
             setupBatchSource(functionDetails);
 
             RuntimeSpawner runtimeSpawner = getRuntimeSpawner(functionRuntimeInfo.getFunctionInstance(),
-                    packageFile, extraFunctionPackageFile);
+                    packageFile, transformFunctionPackageFile);
             functionRuntimeInfo.setRuntimeSpawner(runtimeSpawner);
 
             runtimeSpawner.start();
@@ -173,7 +173,8 @@ public class FunctionActioner {
         return packageFile;
     }
 
-    RuntimeSpawner getRuntimeSpawner(Function.Instance instance, String packageFile, String extraFunctionPackageFile) {
+    RuntimeSpawner getRuntimeSpawner(Function.Instance instance, String packageFile,
+                                     String transformFunctionPackageFile) {
         FunctionMetaData functionMetaData = instance.getFunctionMetaData();
         int instanceId = instance.getInstanceId();
 
@@ -194,8 +195,8 @@ public class FunctionActioner {
 
         RuntimeSpawner runtimeSpawner = new RuntimeSpawner(instanceConfig, packageFile,
                 functionMetaData.getPackageLocation().getOriginalFileName(),
-                extraFunctionPackageFile,
-                functionMetaData.getExtraFunctionPackageLocation().getOriginalFileName(),
+                transformFunctionPackageFile,
+                functionMetaData.getTransformFunctionPackageLocation().getOriginalFileName(),
                 runtimeFactory, workerConfig.getInstanceLivenessCheckFreqMs());
 
         return runtimeSpawner;
@@ -207,7 +208,7 @@ public class FunctionActioner {
         instanceConfig.setFunctionDetails(functionDetails);
         // TODO: set correct function id and version when features implemented
         instanceConfig.setFunctionId(UUID.randomUUID().toString());
-        instanceConfig.setExtraFunctionId(UUID.randomUUID().toString());
+        instanceConfig.setTransformFunctionId(UUID.randomUUID().toString());
         instanceConfig.setFunctionVersion(UUID.randomUUID().toString());
         instanceConfig.setInstanceId(instanceId);
         instanceConfig.setMaxBufferedTuples(1024);

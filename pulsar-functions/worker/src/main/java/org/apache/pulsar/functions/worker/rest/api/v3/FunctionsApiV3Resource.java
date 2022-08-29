@@ -340,11 +340,11 @@ public class FunctionsApiV3Resource extends FunctionApiResource {
             final @PathParam("namespace") String namespace,
             @ApiParam(value = "The name of functions")
             final @PathParam("functionName") String functionName,
-            @ApiParam(value = "Whether to download the extra-function")
-            final @QueryParam("extra-function") boolean extraFunction) {
+            @ApiParam(value = "Whether to download the transform function")
+            final @QueryParam("transform-function") boolean transformFunction) {
 
         return functions()
-                .downloadFunction(tenant, namespace, functionName, clientAppId(), clientAuthData(), extraFunction);
+                .downloadFunction(tenant, namespace, functionName, clientAppId(), clientAuthData(), transformFunction);
     }
 
     @GET

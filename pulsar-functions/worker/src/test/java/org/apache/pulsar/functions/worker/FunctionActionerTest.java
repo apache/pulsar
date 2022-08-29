@@ -159,7 +159,7 @@ public class FunctionActionerTest {
                 .setFunctionDetails(Function.FunctionDetails.newBuilder().setTenant("test-tenant")
                         .setNamespace("test-namespace").setName("func-1"))
                 .setPackageLocation(packageLocation)
-                .setExtraFunctionPackageLocation(extraPackageLocation)
+                .setTransformFunctionPackageLocation(extraPackageLocation)
                 .build();
         Function.Instance instance = Function.Instance.newBuilder().setFunctionMetaData(function).setInstanceId(0)
                 .build();

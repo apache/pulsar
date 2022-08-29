@@ -68,7 +68,7 @@ public class RuntimeUtils {
                                           String extraDependenciesDir, /* extra dependencies for running instances */
                                           String logDirectory,
                                           String originalCodeFileName,
-                                          String originalExtraFunctionFileName,
+                                          String originalTransformFunctionFileName,
                                           String pulsarServiceUrl,
                                           String stateStorageServiceUrl,
                                           AuthenticationConfig authConfig,
@@ -88,7 +88,7 @@ public class RuntimeUtils {
         final List<String> cmd = getArgsBeforeCmd(instanceConfig, extraDependenciesDir);
 
         cmd.addAll(getCmd(instanceConfig, instanceFile, extraDependenciesDir, logDirectory,
-                originalCodeFileName, originalExtraFunctionFileName, pulsarServiceUrl, stateStorageServiceUrl,
+                originalCodeFileName, originalTransformFunctionFileName, pulsarServiceUrl, stateStorageServiceUrl,
                 authConfig, shardId, grpcPort, expectedHealthCheckInterval,
                 logConfigFile, secretsProviderClassName, secretsProviderConfig,
                 installUserCodeDependencies, pythonDependencyRepository,
@@ -265,7 +265,7 @@ public class RuntimeUtils {
                                       String extraDependenciesDir, /* extra dependencies for running instances */
                                       String logDirectory,
                                       String originalCodeFileName,
-                                      String originalExtraFunctionFileName,
+                                      String originalTransformFunctionFileName,
                                       String pulsarServiceUrl,
                                       String stateStorageServiceUrl,
                                       AuthenticationConfig authConfig,
@@ -348,11 +348,11 @@ public class RuntimeUtils {
 
             args.add("--jar");
             args.add(originalCodeFileName);
-            if (isNotEmpty(originalExtraFunctionFileName)) {
-                args.add("--extra_function_jar");
-                args.add(originalExtraFunctionFileName);
-                args.add("--extra_function_id");
-                args.add(instanceConfig.getExtraFunctionId());
+            if (isNotEmpty(originalTransformFunctionFileName)) {
+                args.add("--transform_function_jar");
+                args.add(originalTransformFunctionFileName);
+                args.add("--transform_function_id");
+                args.add(instanceConfig.getTransformFunctionId());
             }
         } else if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.PYTHON) {
             args.add("python3");

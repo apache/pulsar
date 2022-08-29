@@ -230,7 +230,7 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
 
             String transformFunction = sinkConfig.getTransformFunction();
             if (isNotBlank(transformFunction)) {
-                setExtraFunctionPackageLocation(functionMetaDataBuilder, functionDetails, transformFunction);
+                setTransformFunctionPackageLocation(functionMetaDataBuilder, functionDetails, transformFunction);
             }
 
             updateRequest(null, functionMetaDataBuilder.build());
@@ -416,7 +416,7 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
             String transformFunction = mergedConfig.getTransformFunction();
             if (isNotBlank(transformFunction)
                     && !transformFunction.equals(existingSinkConfig.getTransformFunction())) {
-                setExtraFunctionPackageLocation(functionMetaDataBuilder, functionDetails, transformFunction);
+                setTransformFunctionPackageLocation(functionMetaDataBuilder, functionDetails, transformFunction);
             }
 
             updateRequest(existingComponent, functionMetaDataBuilder.build());
@@ -429,20 +429,20 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
         }
     }
 
-    private void setExtraFunctionPackageLocation(Function.FunctionMetaData.Builder functionMetaDataBuilder,
-                                                 Function.FunctionDetails functionDetails, String extraFunction) {
+    private void setTransformFunctionPackageLocation(Function.FunctionMetaData.Builder functionMetaDataBuilder,
+                                                 Function.FunctionDetails functionDetails, String transformFunction) {
         File functionPackageFile = null;
         try {
             String builtin = null;
-            if (!extraFunction.startsWith(Utils.BUILTIN)) {
-                functionPackageFile = getPackageFile(extraFunction);
+            if (!transformFunction.startsWith(Utils.BUILTIN)) {
+                functionPackageFile = getPackageFile(transformFunction);
             }
             Function.PackageLocationMetaData.Builder functionPackageLocation =
                     getFunctionPackageLocation(functionMetaDataBuilder.build(),
-                            extraFunction, null, functionPackageFile,
+                            transformFunction, null, functionPackageFile,
                             functionDetails.getName() + "__sink-function",
                             Function.FunctionDetails.ComponentType.FUNCTION, builtin);
-            functionMetaDataBuilder.setExtraFunctionPackageLocation(functionPackageLocation);
+            functionMetaDataBuilder.setTransformFunctionPackageLocation(functionPackageLocation);
         } catch (Exception e) {
             log.error("Failed process {} {}/{}/{} extra function package: ",
                     ComponentTypeUtils.toString(componentType), functionDetails.getTenant(),
@@ -450,7 +450,7 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
             throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
         } finally {
             if (functionPackageFile != null && functionPackageFile.exists()) {
-                if (!extraFunction.startsWith(Utils.FILE)) {
+                if (!transformFunction.startsWith(Utils.FILE)) {
                     functionPackageFile.delete();
                 }
             }

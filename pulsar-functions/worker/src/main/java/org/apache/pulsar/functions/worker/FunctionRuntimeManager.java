@@ -762,7 +762,7 @@ public class FunctionRuntimeManager implements AutoCloseable {
                                 assignment
                                         .getInstance()
                                         .getFunctionMetaData()
-                                        .getExtraFunctionPackageLocation()
+                                        .getTransformFunctionPackageLocation()
                                         .getPackagePath());
                         // re-initialize if necessary
                         runtimeSpawner.getRuntime().reinitialize();

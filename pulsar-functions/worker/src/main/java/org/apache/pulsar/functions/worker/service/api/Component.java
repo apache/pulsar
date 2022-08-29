@@ -173,7 +173,7 @@ public interface Component<W extends WorkerService> {
                                      String componentName,
                                      String clientRole,
                                      AuthenticationDataSource clientAuthenticationDataHttps,
-                                     boolean extraFunction);
+                                     boolean transformFunction);
 
     @Deprecated
     default StreamingOutput downloadFunction(String tenant,

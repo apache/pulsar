@@ -332,8 +332,8 @@ public class ProcessRuntimeTest {
                 + " --add-opens java.base/sun.net=ALL-UNNAMED"
                 + " org.apache.pulsar.functions.instance.JavaInstanceMain"
                 + " --jar " + userJarFile
-                + " --extra_function_jar " + userJarFile
-                + " --extra_function_id " +  config.getExtraFunctionId()
+                + " --transform_function_jar " + userJarFile
+                + " --transform_function_id " +  config.getTransformFunctionId()
                 + " --instance_id " + config.getInstanceId()
                 + " --function_id " + config.getFunctionId()
                 + " --function_version " + config.getFunctionVersion()

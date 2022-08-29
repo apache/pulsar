@@ -1384,12 +1384,12 @@ public class SinkApiV3ResourceTest {
 
             String packagePath =
                     "public/default/test/591541f0-c7c5-40c0-983b-610c722f90b0-pulsar-io-batch-data-generator-2.7.0.nar";
-            String extraFunctionPackagePath =
+            String transformFunctionPackagePath =
                     "public/default/test/591541f0-c7c5-40c0-983b-610c722f90b0-test-function.nar";
             FunctionMetaData functionMetaData = FunctionMetaData.newBuilder()
                     .setPackageLocation(Function.PackageLocationMetaData.newBuilder().setPackagePath(packagePath))
-                    .setExtraFunctionPackageLocation(Function.PackageLocationMetaData.newBuilder()
-                            .setPackagePath(extraFunctionPackagePath))
+                    .setTransformFunctionPackageLocation(Function.PackageLocationMetaData.newBuilder()
+                            .setPackagePath(transformFunctionPackagePath))
                     .build();
             when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(sink)))
                     .thenReturn(functionMetaData);
@@ -1397,7 +1397,7 @@ public class SinkApiV3ResourceTest {
             deregisterDefaultSink();
 
             ctx.verify(() -> WorkerUtils.deleteFromBookkeeper(any(), eq(packagePath)), times(1));
-            ctx.verify(() -> WorkerUtils.deleteFromBookkeeper(any(), eq(extraFunctionPackagePath)), times(1));
+            ctx.verify(() -> WorkerUtils.deleteFromBookkeeper(any(), eq(transformFunctionPackagePath)), times(1));
         }
     }
 
@@ -1409,11 +1409,11 @@ public class SinkApiV3ResourceTest {
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
 
             String packagePath = String.format("%s://data-generator", Utils.BUILTIN);
-            String extraFunctionPackagePath = String.format("%s://exclamation", Utils.BUILTIN);
+            String transformFunctionPackagePath = String.format("%s://exclamation", Utils.BUILTIN);
             FunctionMetaData functionMetaData = FunctionMetaData.newBuilder()
                     .setPackageLocation(Function.PackageLocationMetaData.newBuilder().setPackagePath(packagePath))
-                    .setExtraFunctionPackageLocation(Function.PackageLocationMetaData.newBuilder()
-                            .setPackagePath(extraFunctionPackagePath))
+                    .setTransformFunctionPackageLocation(Function.PackageLocationMetaData.newBuilder()
+                            .setPackagePath(transformFunctionPackagePath))
                     .build();
             when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(sink)))
                     .thenReturn(functionMetaData);
@@ -1434,11 +1434,11 @@ public class SinkApiV3ResourceTest {
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
 
             String packagePath = "http://foo.com/connector.jar";
-            String extraFunctionPackagePath = "http://foo.com/function.jar";
+            String transformFunctionPackagePath = "http://foo.com/function.jar";
             FunctionMetaData functionMetaData = FunctionMetaData.newBuilder()
                     .setPackageLocation(Function.PackageLocationMetaData.newBuilder().setPackagePath(packagePath))
-                    .setExtraFunctionPackageLocation(Function.PackageLocationMetaData.newBuilder()
-                            .setPackagePath(extraFunctionPackagePath))
+                    .setTransformFunctionPackageLocation(Function.PackageLocationMetaData.newBuilder()
+                            .setPackagePath(transformFunctionPackagePath))
                     .build();
 
             when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(sink)))
@@ -1460,11 +1460,11 @@ public class SinkApiV3ResourceTest {
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
 
             String packagePath = "file://foo/connector.jar";
-            String extraFunctionPackagePath = "file://foo/function.jar";
+            String transformFunctionPackagePath = "file://foo/function.jar";
             FunctionMetaData functionMetaData = FunctionMetaData.newBuilder()
                     .setPackageLocation(Function.PackageLocationMetaData.newBuilder().setPackagePath(packagePath))
-                    .setExtraFunctionPackageLocation(Function.PackageLocationMetaData.newBuilder()
-                            .setPackagePath(extraFunctionPackagePath))
+                    .setTransformFunctionPackageLocation(Function.PackageLocationMetaData.newBuilder()
+                            .setPackagePath(transformFunctionPackagePath))
                     .build();
 
             when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(sink)))

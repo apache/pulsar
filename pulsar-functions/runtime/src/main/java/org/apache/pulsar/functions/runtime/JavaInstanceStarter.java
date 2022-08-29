@@ -62,10 +62,10 @@ public class JavaInstanceStarter implements AutoCloseable {
     public String jarFile;
 
     @Parameter(
-            names = "--extra_function_jar",
-            description = "Path to Extra Function Jar\n",
+            names = "--transform_function_jar",
+            description = "Path to Transform Function Jar\n",
             listConverter = StringConverter.class)
-    public String extraFunctionJarFile;
+    public String transformFunctionJarFile;
 
     @Parameter(names = "--instance_id", description = "Instance Id\n", required = true)
     public int instanceId;
@@ -73,8 +73,8 @@ public class JavaInstanceStarter implements AutoCloseable {
     @Parameter(names = "--function_id", description = "Function Id\n", required = true)
     public String functionId;
 
-    @Parameter(names = "--extra_function_id", description = "Extra Function Id\n", required = true)
-    public String extraFunctionId;
+    @Parameter(names = "--transform_function_id", description = "Transform Function Id\n", required = true)
+    public String transformFunctionId;
 
     @Parameter(names = "--function_version", description = "Function Version\n", required = true)
     public String functionVersion;
@@ -166,7 +166,7 @@ public class JavaInstanceStarter implements AutoCloseable {
 
         InstanceConfig instanceConfig = new InstanceConfig();
         instanceConfig.setFunctionId(functionId);
-        instanceConfig.setExtraFunctionId(extraFunctionId);
+        instanceConfig.setTransformFunctionId(transformFunctionId);
         instanceConfig.setFunctionVersion(functionVersion);
         instanceConfig.setInstanceId(instanceId);
         instanceConfig.setMaxBufferedTuples(maxBufferedTuples);
@@ -230,7 +230,7 @@ public class JavaInstanceStarter implements AutoCloseable {
                 instanceConfig,
                 jarFile,
                 null, // we really dont use this in thread container
-                extraFunctionJarFile,
+                transformFunctionJarFile,
                 null, // we really dont use this in thread container
                 containerFactory,
                 expectedHealthCheckInterval * 1000);

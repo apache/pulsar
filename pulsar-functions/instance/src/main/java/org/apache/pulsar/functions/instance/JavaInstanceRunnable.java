@@ -167,7 +167,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                                 SecretsProvider secretsProvider,
                                 FunctionCollectorRegistry collectorRegistry,
                                 ClassLoader componentClassLoader,
-                                ClassLoader extraFunctionClassLoader) throws PulsarClientException {
+                                ClassLoader transformFunctionClassLoader) throws PulsarClientException {
         this.instanceConfig = instanceConfig;
         this.clientBuilder = clientBuilder;
         this.client = (PulsarClientImpl) pulsarClient;
@@ -176,7 +176,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         this.stateStorageServiceUrl = stateStorageServiceUrl;
         this.secretsProvider = secretsProvider;
         this.componentClassLoader = componentClassLoader;
-        this.functionClassLoader = extraFunctionClassLoader != null ? extraFunctionClassLoader : componentClassLoader;
+        this.functionClassLoader = transformFunctionClassLoader != null
+            ? transformFunctionClassLoader
+            : componentClassLoader;
         this.metricsLabels = new String[]{
                 instanceConfig.getFunctionDetails().getTenant(),
                 String.format("%s/%s", instanceConfig.getFunctionDetails().getTenant(),

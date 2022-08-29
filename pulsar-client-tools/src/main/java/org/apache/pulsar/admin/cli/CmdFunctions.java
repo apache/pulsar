@@ -1172,9 +1172,9 @@ public class CmdFunctions extends CmdBase {
                 listConverter = StringConverter.class, required = false, hidden = true)
         protected String path;
         @Parameter(
-                names = "--extra-function",
-                description = "Download the extra Function of the connector")
-        protected Boolean extraFunction = false;
+                names = "--transform-function",
+                description = "Download the transform Function of the connector")
+        protected Boolean transformFunction = false;
 
         private void mergeArgs() {
             if (isBlank(destinationFile) && !isBlank(deprecatedDestinationFile)) {
@@ -1200,7 +1200,7 @@ public class CmdFunctions extends CmdBase {
                 getAdmin().functions().downloadFunction(destinationFile, path);
             } else {
                 getAdmin().functions()
-                        .downloadFunction(destinationFile, tenant, namespace, functionName, extraFunction);
+                        .downloadFunction(destinationFile, tenant, namespace, functionName, transformFunction);
             }
             print("Downloaded successfully");
         }

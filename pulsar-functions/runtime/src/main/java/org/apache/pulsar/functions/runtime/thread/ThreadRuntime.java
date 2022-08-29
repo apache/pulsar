@@ -64,7 +64,7 @@ public class ThreadRuntime implements Runtime {
     private final ThreadGroup threadGroup;
     private final FunctionCacheManager fnCache;
     private final String jarFile;
-    private final String extraFunctionFile;
+    private final String transformFunctionFile;
     private final ClientBuilder clientBuilder;
     private final PulsarClient pulsarClient;
     private final PulsarAdmin pulsarAdmin;
@@ -80,7 +80,7 @@ public class ThreadRuntime implements Runtime {
                   FunctionCacheManager fnCache,
                   ThreadGroup threadGroup,
                   String jarFile,
-                  String extraFunctionFile,
+                  String transformFunctionFile,
                   PulsarClient client,
                   ClientBuilder clientBuilder,
                   PulsarAdmin pulsarAdmin,
@@ -99,7 +99,7 @@ public class ThreadRuntime implements Runtime {
         this.threadGroup = threadGroup;
         this.fnCache = fnCache;
         this.jarFile = jarFile;
-        this.extraFunctionFile = extraFunctionFile;
+        this.transformFunctionFile = transformFunctionFile;
         this.clientBuilder = clientBuilder;
         this.pulsarClient = client;
         this.pulsarAdmin = pulsarAdmin;
@@ -199,9 +199,9 @@ public class ThreadRuntime implements Runtime {
                         fnCache, connectorsManager, functionsManager,
                         InstanceUtils.calculateSubjectType(instanceConfig.getFunctionDetails()));
 
-        ClassLoader extraFunctionClassLoader = extraFunctionFile == null ? null : getFunctionClassLoader(
-                instanceConfig, instanceConfig.getExtraFunctionId(), extraFunctionFile, narExtractionDirectory, fnCache,
-                connectorsManager, functionsManager, Function.FunctionDetails.ComponentType.FUNCTION);
+        ClassLoader transformFunctionClassLoader = transformFunctionFile == null ? null : getFunctionClassLoader(
+                instanceConfig, instanceConfig.getTransformFunctionId(), transformFunctionFile, narExtractionDirectory,
+                fnCache, connectorsManager, functionsManager, Function.FunctionDetails.ComponentType.FUNCTION);
 
         // re-initialize JavaInstanceRunnable so that variables in constructor can be re-initialized
         this.javaInstanceRunnable = new JavaInstanceRunnable(
@@ -214,7 +214,7 @@ public class ThreadRuntime implements Runtime {
                 secretsProvider,
                 collectorRegistry,
                 functionClassLoader,
-                extraFunctionClassLoader);
+                transformFunctionClassLoader);
 
         log.info("ThreadContainer starting function with instanceId {} functionId {} namespace {}",
                 instanceConfig.getInstanceId(),

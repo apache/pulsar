@@ -743,7 +743,7 @@ public class FunctionRuntimeManagerTest {
 
             Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
                     .setPackageLocation(Function.PackageLocationMetaData.newBuilder().setPackagePath("path"))
-                    .setExtraFunctionPackageLocation(Function.PackageLocationMetaData.newBuilder()
+                    .setTransformFunctionPackageLocation(Function.PackageLocationMetaData.newBuilder()
                             .setPackagePath("function-path"))
                     .setFunctionDetails(
                             Function.FunctionDetails.newBuilder()
@@ -774,7 +774,7 @@ public class FunctionRuntimeManagerTest {
                     .setFunctionInstance(instance)
                     .setRuntimeSpawner(functionActioner
                             .getRuntimeSpawner(instance, function1.getPackageLocation().getPackagePath(),
-                                    function1.getExtraFunctionPackageLocation().getPackagePath()));
+                                    function1.getTransformFunctionPackageLocation().getPackagePath()));
             functionRuntimeManager.functionRuntimeInfos.put(
                     "test-tenant/test-namespace/func-1:0", functionRuntimeInfo);
 

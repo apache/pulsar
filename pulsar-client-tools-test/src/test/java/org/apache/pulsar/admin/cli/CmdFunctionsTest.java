@@ -884,14 +884,14 @@ public class CmdFunctionsTest {
     }
 
     @Test
-    public void testDownloadExtraFunction() throws Exception {
+    public void testDownloadTransformFunction() throws Exception {
         cmd.run(new String[] {
                 "download",
                 "--destination-file", JAR_NAME,
                 "--name", FN_NAME,
                 "--tenant", TENANT,
                 "--namespace", NAMESPACE,
-                "--extra-function"
+                "--transform-function"
         });
         verify(functions, times(1))
                 .downloadFunction(JAR_NAME, TENANT, NAMESPACE, FN_NAME, true);

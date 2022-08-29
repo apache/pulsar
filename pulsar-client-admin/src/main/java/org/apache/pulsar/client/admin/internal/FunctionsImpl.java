@@ -608,17 +608,17 @@ public class FunctionsImpl extends ComponentResource implements Functions {
 
     @Override
     public void downloadFunction(String destinationPath, String tenant, String namespace, String functionName,
-                                 boolean extraFunction) throws PulsarAdminException {
+                                 boolean transformFunction) throws PulsarAdminException {
         downloadFile(destinationPath, functions.path(tenant).path(namespace).path(functionName).path("download")
-                .queryParam("extra-function", extraFunction));
+                .queryParam("transform-function", transformFunction));
     }
 
     @Override
     public CompletableFuture<Void> downloadFunctionAsync(
-            String destinationPath, String tenant, String namespace, String functionName, boolean extraFunction) {
+            String destinationPath, String tenant, String namespace, String functionName, boolean transformFunction) {
         return downloadFileAsync(destinationPath,
                 functions.path(tenant).path(namespace).path(functionName).path("download")
-                        .queryParam("extra-function", extraFunction));
+                        .queryParam("transform-function", transformFunction));
     }
 
 

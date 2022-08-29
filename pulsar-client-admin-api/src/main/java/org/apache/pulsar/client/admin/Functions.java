@@ -768,12 +768,12 @@ public interface Functions {
      *            Namespace name
      * @param function
      *            Function name
-     * @param extraFunction
-     *            Whether to download the extra-function (for sources and sinks)
+     * @param transformFunction
+     *            Whether to download the transform function (for sources and sinks)
      * @throws PulsarAdminException
      */
     void downloadFunction(String destinationFile, String tenant, String namespace, String function,
-                          boolean extraFunction) throws PulsarAdminException;
+                          boolean transformFunction) throws PulsarAdminException;
 
     /**
      * Download Function Code asynchronously.
@@ -786,11 +786,11 @@ public interface Functions {
      *            Namespace name
      * @param function
      *            Function name
-     * @param extraFunction
-     *            Whether to download the extra-function (for sources and sinks)
+     * @param transformFunction
+     *            Whether to download the transform function (for sources and sinks)
      */
     CompletableFuture<Void> downloadFunctionAsync(
-            String destinationFile, String tenant, String namespace, String function, boolean extraFunction);
+            String destinationFile, String tenant, String namespace, String function, boolean transformFunction);
 
 
     /**

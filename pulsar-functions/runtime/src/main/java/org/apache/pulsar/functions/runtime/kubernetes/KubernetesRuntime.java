@@ -139,7 +139,7 @@ public class KubernetesRuntime implements Runtime {
     private final String configAdminCLI;
     private final String userCodePkgUrl;
     private final String originalCodeFileName;
-    private final String originalExtraFunctionFileName;
+    private final String originalTransformFunctionFileName;
     private final String pulsarAdminUrl;
     private final SecretsProviderConfigurator secretsProviderConfigurator;
     private int percentMemoryPadding;
@@ -174,7 +174,7 @@ public class KubernetesRuntime implements Runtime {
                       String configAdminCLI,
                       String userCodePkgUrl,
                       String originalCodeFileName,
-                      String originalExtraFunctionFileName,
+                      String originalTransformFunctionFileName,
                       String pulsarServiceUrl,
                       String pulsarAdminUrl,
                       String stateStorageServiceUrl,
@@ -207,9 +207,9 @@ public class KubernetesRuntime implements Runtime {
         this.downloadDirectory =
                 isNotEmpty(downloadDirectory) ? downloadDirectory : this.pulsarRootDir; // for backward comp
         this.originalCodeFileName = this.downloadDirectory + "/" + originalCodeFileName;
-        this.originalExtraFunctionFileName = isNotEmpty(originalExtraFunctionFileName)
-                ? this.downloadDirectory + "/" + originalExtraFunctionFileName
-                : originalExtraFunctionFileName;
+        this.originalTransformFunctionFileName = isNotEmpty(originalTransformFunctionFileName)
+                ? this.downloadDirectory + "/" + originalTransformFunctionFileName
+                : originalTransformFunctionFileName;
         this.pulsarAdminUrl = pulsarAdminUrl;
         this.secretsProviderConfigurator = secretsProviderConfigurator;
         this.percentMemoryPadding = percentMemoryPadding;
@@ -268,7 +268,7 @@ public class KubernetesRuntime implements Runtime {
                         extraDependenciesDir,
                         logDirectory,
                         this.originalCodeFileName,
-                        this.originalExtraFunctionFileName,
+                        this.originalTransformFunctionFileName,
                         pulsarServiceUrl,
                         stateStorageServiceUrl,
                         authConfig,
@@ -852,9 +852,10 @@ public class KubernetesRuntime implements Runtime {
     protected List<String> getExecutorCommand() {
         List<String> cmds =
                 new ArrayList<>(getDownloadCommand(instanceConfig.getFunctionDetails(), originalCodeFileName, false));
-        if (isNotEmpty(originalExtraFunctionFileName)) {
+        if (isNotEmpty(originalTransformFunctionFileName)) {
             cmds.add("&&");
-            cmds.addAll(getDownloadCommand(instanceConfig.getFunctionDetails(), originalExtraFunctionFileName, true));
+            cmds.addAll(getDownloadCommand(instanceConfig.getFunctionDetails(),
+                originalTransformFunctionFileName, true));
         }
         cmds.add("&&");
         cmds.add(setShardIdEnvironmentVariableCommand());
@@ -864,13 +865,13 @@ public class KubernetesRuntime implements Runtime {
     }
 
     private List<String> getDownloadCommand(Function.FunctionDetails functionDetails, String userCodeFilePath,
-                                            boolean extraFunction) {
+                                            boolean transformFunction) {
         return getDownloadCommand(functionDetails.getTenant(), functionDetails.getNamespace(),
-                functionDetails.getName(), userCodeFilePath, extraFunction);
+                functionDetails.getName(), userCodeFilePath, transformFunction);
     }
 
     private List<String> getDownloadCommand(String tenant, String namespace, String name, String userCodeFilePath,
-                                            boolean extraFunction) {
+                                            boolean transformFunction) {
         ArrayList<String> cmd = new ArrayList<>(Arrays.asList(
                 pulsarRootDir + configAdminCLI,
                 "--admin-url",
@@ -899,8 +900,8 @@ public class KubernetesRuntime implements Runtime {
             }
         }
 
-        if (extraFunction) {
-            cmd.add("--extra-function");
+        if (transformFunction) {
+            cmd.add("--transform-function");
         }
 
         return cmd;

@@ -517,9 +517,9 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         deleteComponentFromStorage(tenant, namespace, componentName,
                 functionMetaData.getPackageLocation().getPackagePath());
 
-        if (!isEmpty(functionMetaData.getExtraFunctionPackageLocation().getPackagePath())) {
+        if (!isEmpty(functionMetaData.getTransformFunctionPackageLocation().getPackagePath())) {
             deleteComponentFromStorage(tenant, namespace, componentName,
-                    functionMetaData.getExtraFunctionPackageLocation().getPackagePath());
+                    functionMetaData.getTransformFunctionPackageLocation().getPackagePath());
         }
 
         deleteStatestoreTableAsync(getStateNamespace(tenant, namespace), componentName);
@@ -1442,7 +1442,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
     @Override
     public StreamingOutput downloadFunction(String tenant, String namespace, String componentName,
                                             String clientRole, AuthenticationDataSource clientAuthenticationDataHttps,
-                                            boolean extraFunction) {
+                                            boolean transformFunction) {
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
         }
@@ -1469,8 +1469,8 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
 
         FunctionMetaData functionMetaData =
                 functionMetaDataManager.getFunctionMetaData(tenant, namespace, componentName);
-        String pkgPath = extraFunction
-                ? functionMetaData.getExtraFunctionPackageLocation().getPackagePath()
+        String pkgPath = transformFunction
+                ? functionMetaData.getTransformFunctionPackageLocation().getPackagePath()
                 : functionMetaData.getPackageLocation().getPackagePath();
 
         return getStreamingOutput(pkgPath);
