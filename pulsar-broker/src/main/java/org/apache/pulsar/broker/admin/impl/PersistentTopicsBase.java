@@ -5322,22 +5322,22 @@ public class PersistentTopicsBase extends AdminResource {
 
     private CompletableFuture<Map<String, Boolean>> getReplicatedSubscriptionStatusFromBroker(TopicName partitionName,
                                                                                               String subName) {
-    return getTopicReferenceAsync(partitionName).thenCompose(topic -> {
-      Subscription sub = topic.getSubscription(subName);
-      if (sub == null) {
-        return FutureUtil.failedFuture(new RestException(Status.NOT_FOUND,
-            getSubNotFoundErrorMessage(partitionName.toString(), subName)));
-      }
-      if (topic instanceof PersistentTopic && sub instanceof PersistentSubscription) {
-        Map<String, Boolean> res = Maps.newHashMap();
-        res.put(partitionName.toString(), sub.isReplicated());
-        return CompletableFuture.completedFuture(res);
-      } else {
-        return FutureUtil.failedFuture(new RestException(Status.METHOD_NOT_ALLOWED,
-            "Cannot get replicated subscriptions on non-persistent topics"));
-      }
-    });
-  }
+        return getTopicReferenceAsync(partitionName).thenCompose(topic -> {
+            Subscription sub = topic.getSubscription(subName);
+            if (sub == null) {
+                return FutureUtil.failedFuture(new RestException(Status.NOT_FOUND,
+                    getSubNotFoundErrorMessage(partitionName.toString(), subName)));
+            }
+            if (topic instanceof PersistentTopic && sub instanceof PersistentSubscription) {
+                Map<String, Boolean> res = Maps.newHashMap();
+                res.put(partitionName.toString(), sub.isReplicated());
+                return CompletableFuture.completedFuture(res);
+            } else {
+                return FutureUtil.failedFuture(new RestException(Status.METHOD_NOT_ALLOWED,
+                    "Cannot get replicated subscriptions on non-persistent topics"));
+            }
+        });
+    }
 
     private void internalGetReplicatedSubscriptionStatusForNonPartitionedTopic(
                                                                                AsyncResponse asyncResponse,
@@ -5346,12 +5346,15 @@ public class PersistentTopicsBase extends AdminResource {
         // Redirect the request to the appropriate broker if this broker is not the owner of the topic
         validateTopicOwnershipAsync(topicName, authoritative)
                 .thenCompose(__ -> getReplicatedSubscriptionStatusFromBroker(topicName, subName))
-                .exceptionally(e -> {
-                    Throwable cause = FutureUtil.unwrapCompletionException(e);
-                    log.error("[{}] Failed to get replicated subscription status on {} {}", clientAppId(),
+                .whenComplete((res, e) -> {
+                    if (e != null) {
+                        Throwable cause = FutureUtil.unwrapCompletionException(e);
+                        log.error("[{}] Failed to get replicated subscription status on {} {}", clientAppId(),
                             topicName, subName, cause);
-                    resumeAsyncResponseExceptionally(asyncResponse, e);
-                    return null;
+                        resumeAsyncResponseExceptionally(asyncResponse, e);
+                    } else {
+                        asyncResponse.resume(res);
+                    }
                 });
     }
 
