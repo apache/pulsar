@@ -1559,6 +1559,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 }
                 if (possibleToDeadLetter != null) {
                     possibleToDeadLetter.add(message);
+                    // when redeliveryCount > deadLetterPolicy.getMaxRedeliverCount())
+                    // the message will not be visible to users
+                    if (redeliveryCount > deadLetterPolicy.getMaxRedeliverCount()) {
+                        continue;
+                    }
+
                 }
                 executeNotifyCallback(message);
             }
