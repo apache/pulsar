@@ -127,51 +127,31 @@ public class PulsarWorkerService implements WorkerService {
             @Override
             public PulsarAdmin newPulsarAdmin(String pulsarServiceUrl, WorkerConfig workerConfig) {
                 // using isBrokerClientAuthenticationEnabled instead of isAuthenticationEnabled in function-worker
-                if (workerConfig.isBrokerClientAuthenticationEnabled()) {
-                    return WorkerUtils.getPulsarAdminClient(
+                return WorkerUtils.getPulsarAdminClient(
                         pulsarServiceUrl,
-                        workerConfig.getBrokerClientAuthenticationPlugin(),
-                        workerConfig.getBrokerClientAuthenticationParameters(),
+                        workerConfig.isBrokerClientAuthenticationEnabled()
+                                ? workerConfig.getBrokerClientAuthenticationPlugin() : null,
+                        workerConfig.isBrokerClientAuthenticationEnabled()
+                                ? workerConfig.getBrokerClientAuthenticationParameters() : null,
                         workerConfig.getBrokerClientTrustCertsFilePath(),
                         workerConfig.isTlsAllowInsecureConnection(),
                         workerConfig.isTlsEnableHostnameVerification(),
                         workerConfig);
-                } else {
-                    return WorkerUtils.getPulsarAdminClient(
-                            pulsarServiceUrl,
-                            null,
-                            null,
-                            null,
-                            workerConfig.isTlsAllowInsecureConnection(),
-                            workerConfig.isTlsEnableHostnameVerification(),
-                            workerConfig);
-                }
             }
 
             @Override
             public PulsarClient newPulsarClient(String pulsarServiceUrl, WorkerConfig workerConfig) {
                 // using isBrokerClientAuthenticationEnabled instead of isAuthenticationEnabled in function-worker
-                if (workerConfig.isBrokerClientAuthenticationEnabled()) {
-                    return WorkerUtils.getPulsarClient(
+                return WorkerUtils.getPulsarClient(
                         pulsarServiceUrl,
-                        workerConfig.getBrokerClientAuthenticationPlugin(),
-                        workerConfig.getBrokerClientAuthenticationParameters(),
-                        workerConfig.isUseTls(),
+                        workerConfig.isBrokerClientAuthenticationEnabled()
+                                ? workerConfig.getBrokerClientAuthenticationPlugin() : null,
+                        workerConfig.isBrokerClientAuthenticationEnabled()
+                                ? workerConfig.getBrokerClientAuthenticationParameters() : null,
                         workerConfig.getBrokerClientTrustCertsFilePath(),
                         workerConfig.isTlsAllowInsecureConnection(),
                         workerConfig.isTlsEnableHostnameVerification(),
                         workerConfig);
-                } else {
-                    return WorkerUtils.getPulsarClient(
-                            pulsarServiceUrl,
-                            null,
-                            null,
-                            null,
-                            null,
-                            workerConfig.isTlsAllowInsecureConnection(),
-                            workerConfig.isTlsEnableHostnameVerification(),
-                            workerConfig);
-                }
             }
         };
     }

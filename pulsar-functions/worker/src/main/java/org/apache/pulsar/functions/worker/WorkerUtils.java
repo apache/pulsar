@@ -279,19 +279,19 @@ public final class WorkerUtils {
 
     public static PulsarClient getPulsarClient(String pulsarServiceUrl) {
         return getPulsarClient(pulsarServiceUrl, null, null, null,
-                null, null, null, null);
+                null, null, null);
     }
 
     public static PulsarClient getPulsarClient(String pulsarServiceUrl, String authPlugin, String authParams,
-                                               Boolean useTls, String tlsTrustCertsFilePath,
+                                               String tlsTrustCertsFilePath,
                                                Boolean allowTlsInsecureConnection,
                                                Boolean enableTlsHostnameVerificationEnable) {
-        return getPulsarClient(pulsarServiceUrl, authPlugin, authParams, useTls, tlsTrustCertsFilePath,
+        return getPulsarClient(pulsarServiceUrl, authPlugin, authParams, tlsTrustCertsFilePath,
                 allowTlsInsecureConnection, enableTlsHostnameVerificationEnable, null);
     }
 
     public static PulsarClient getPulsarClient(String pulsarServiceUrl, String authPlugin, String authParams,
-                                               Boolean useTls, String tlsTrustCertsFilePath,
+                                               String tlsTrustCertsFilePath,
                                                Boolean allowTlsInsecureConnection,
                                                Boolean enableTlsHostnameVerificationEnable,
                                                WorkerConfig workerConfig) {
@@ -311,9 +311,6 @@ public final class WorkerUtils {
             if (isNotBlank(authPlugin)
                     && isNotBlank(authParams)) {
                 clientBuilder.authentication(authPlugin, authParams);
-            }
-            if (useTls != null) {
-                clientBuilder.enableTls(useTls);
             }
             if (allowTlsInsecureConnection != null) {
                 clientBuilder.allowTlsInsecureConnection(allowTlsInsecureConnection);
