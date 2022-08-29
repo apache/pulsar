@@ -21,7 +21,7 @@ Select one of the content blocks below to begin your Pulsar journey. If you ...
 * Want to jump to the quickstart, select **Get Started**.
 * Are an operator responsible for architecting and supporting Apache Pulsar. start with **Install, Deploy, Upgrade**.
 * Are a developer who wants to master Apache Pulsar, select **Pulsar for Developers**. 
-* If you just want to try out Pulsar, select **How To** for access to the "hello world" tutorial.
+* Want to try out Pulsar, select **How To** for access to the "hello world" tutorial.
 * If you are an experienced Pulsar coder looking for API, metrics, or configuration documentation, go to **Reference**. 
 
 <BlockLinks>
