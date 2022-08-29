@@ -22,7 +22,6 @@ import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAGE_RATE_BACKOFF_MS;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
-import io.prometheus.client.Counter;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -76,11 +75,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     protected final PersistentTopic topic;
     protected final ManagedCursor cursor;
     protected volatile Range<PositionImpl> lastIndividualDeletedRangeFromCursorRecovery;
-
-    private static final Counter unwritableWhileReadingMessages = Counter.build()
-            .name("pulsar_broker_unwritable_read_bookie_total")
-            .help("Number of times the dispatcher decreased reads due to channel not writable")
-            .register();
 
     private CompletableFuture<Void> closeFuture = null;
     protected final MessageRedeliveryController redeliveryMessages;
@@ -354,7 +348,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             // message. The intent here is to keep use the request as a notification mechanism while avoiding to
             // read and dispatch a big batch of messages which will need to wait before getting written to the
             // socket.
-            unwritableWhileReadingMessages.inc();
             messagesToRead = 1;
         }
 

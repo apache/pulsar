@@ -38,7 +38,6 @@ import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.FastThreadLocal;
 import io.netty.util.concurrent.Promise;
 import io.prometheus.client.Gauge;
-import io.prometheus.client.Summary;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.Collections;
@@ -209,8 +208,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private final long maxPendingBytesPerThread;
     private final long resumeThresholdPendingBytesPerThread;
 
-    private Summary.Timer unwritabilitySummaryTimer;
-
     // Number of bytes pending to be published from a single specific IO thread.
     private static final FastThreadLocal<MutableLong> pendingBytesPerThread = new FastThreadLocal<MutableLong>() {
         @Override
@@ -341,15 +338,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     public void channelWritabilityChanged(ChannelHandlerContext ctx) throws Exception {
         if (log.isDebugEnabled()) {
             log.debug("Channel writability has changed to: {}", ctx.channel().isWritable());
-        }
-        // This logic assumes that the state always goes writable to unwritable or unwritable to writable
-        if (ctx.channel().isWritable()) {
-            if (unwritabilitySummaryTimer != null) {
-                unwritabilitySummaryTimer.observeDuration();
-                unwritabilitySummaryTimer = null;
-            }
-        } else {
-            unwritabilitySummaryTimer = unwritabilityDuration.startTimer();
         }
     }
 
@@ -2604,13 +2592,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private static final Gauge throttledConnections = Gauge.build()
             .name("pulsar_broker_throttled_connections")
             .help("Counter of connections throttled because of per-connection limit")
-            .register();
-
-    private static final Summary unwritabilityDuration = Summary.build()
-            .name("pulsar_broker_cnx_unwritability_duration")
-            .help("Counter changes")
-            .quantile(0.5, 0.01)
-            .quantile(0.99, 0.01)
             .register();
 
     private static final Gauge throttledConnectionsGlobal = Gauge.build()
