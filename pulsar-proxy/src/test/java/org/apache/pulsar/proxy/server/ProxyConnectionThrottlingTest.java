@@ -42,7 +42,7 @@ import org.testng.annotations.Test;
 public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
 
     private final int NUM_CONCURRENT_LOOKUP = 3;
-    private final int NUM_CONCURRENT_INBOUND_CONNECTION = 2;
+    private final int NUM_CONCURRENT_INBOUND_CONNECTION = 4;
     private ProxyService proxyService;
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
 
@@ -90,30 +90,48 @@ public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
                 .operationTimeout(1000, TimeUnit.MILLISECONDS)
                 .build();
 
+        Producer<byte[]> producer2 = client2.newProducer(Schema.BYTES)
+                .topic("persistent://sample/test/local/producer-topic-1").create();
+
+        log.info("Creating producer 3");
+        @Cleanup
+        PulsarClient client3 = PulsarClient.builder()
+                .serviceUrl(proxyService.getServiceUrl())
+                .operationTimeout(1000, TimeUnit.MILLISECONDS)
+                .build();
         try {
-            Producer<byte[]> producer2 = client2.newProducer(Schema.BYTES)
+            Producer<byte[]> producer3 = client3.newProducer(Schema.BYTES)
                     .topic("persistent://sample/test/local/producer-topic-1").create();
-            producer2.send("Message 1".getBytes());
+            producer3.send("Message 1".getBytes());
             Assert.fail("Should have failed since max num of connections is 2 and the first" +
                     " producer used them all up - one for discovery and other for producing.");
         } catch (Exception ex) {
             // OK
         }
-        Assert.assertEquals(ConnectionController.DefaultConnectionController.getTotalConnectionNum(), 2);
+        Assert.assertEquals(ConnectionController.DefaultConnectionController.getTotalConnectionNum(), 4);
         Assert.assertEquals(ConnectionController.DefaultConnectionController.getConnections().size(), 1);
         Set<String> keys = ConnectionController.DefaultConnectionController.getConnections().keySet();
+        for (String key : keys) {
+            Assert.assertEquals((int)ConnectionController.DefaultConnectionController
+                    .getConnections().get(key).toInteger(), 4);
+        }
+        Assert.assertEquals(ProxyService.ACTIVE_CONNECTIONS.get(), 4.0d);
+
+        client1.close();
+
+        Assert.assertEquals(ConnectionController.DefaultConnectionController.getTotalConnectionNum(), 2);
+        Assert.assertEquals(ConnectionController.DefaultConnectionController.getConnections().size(), 1);
+        keys = ConnectionController.DefaultConnectionController.getConnections().keySet();
         for (String key : keys) {
             Assert.assertEquals((int)ConnectionController.DefaultConnectionController
                     .getConnections().get(key).toInteger(), 2);
         }
         Assert.assertEquals(ProxyService.ACTIVE_CONNECTIONS.get(), 2.0d);
 
-        client1.close();
         client2.close();
 
         Assert.assertEquals(ConnectionController.DefaultConnectionController.getTotalConnectionNum(), 0);
         Assert.assertEquals(ConnectionController.DefaultConnectionController.getConnections().size(), 0);
-
         Assert.assertEquals(ProxyService.ACTIVE_CONNECTIONS.get(), 0.0d);
     }
 }
