@@ -47,30 +47,25 @@ Also, this library works only in Node.js 10.x or later because it uses the [`nod
 :::
 
 ## Connection URLs
+
 To connect to Pulsar using client libraries, you need to specify a [Pulsar protocol](developing-binary-protocol.md) URL.
 
-Pulsar protocol URLs are assigned to specific clusters, use the `pulsar` scheme and have a default port of 6650. Here is an example for `localhost`:
+You can assign Pulsar protocol URLs to specific clusters and use the `pulsar` scheme. The following is an example of `localhost` with the default port `6650`:
 
 ```http
-
 pulsar://localhost:6650
-
 ```
 
-A URL for a production Pulsar cluster may look something like this:
+If you have multiple brokers, separate `IP:port` by commas:
 
 ```http
-
-pulsar://pulsar.us-west.example.com:6650
-
+pulsar://localhost:6550,localhost:6651,localhost:6652
 ```
 
-If you are using [TLS encryption](security-tls-transport.md) or [TLS Authentication](security-tls-authentication.md), the URL looks like this:
+If you use [TLS](security-tls-authentication.md) authentication, add `+ssl` in the scheme:
 
 ```http
-
 pulsar+ssl://pulsar.us-west.example.com:6651
-
 ```
 
 ## Create a client

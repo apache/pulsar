@@ -70,6 +70,7 @@ import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.metadata.api.MetadataCache;
@@ -300,18 +301,13 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
 
     private LoadSheddingStrategy createLoadSheddingStrategy() {
         try {
-            Class<?> loadSheddingClass = Class.forName(conf.getLoadBalancerLoadSheddingStrategy());
-            Object loadSheddingInstance = loadSheddingClass.getDeclaredConstructor().newInstance();
-            if (loadSheddingInstance instanceof LoadSheddingStrategy) {
-                return (LoadSheddingStrategy) loadSheddingInstance;
-            } else {
-                log.error("create load shedding strategy failed. using OverloadShedder instead.");
-                return new OverloadShedder();
-            }
+            return Reflections.createInstance(conf.getLoadBalancerLoadSheddingStrategy(), LoadSheddingStrategy.class,
+                    Thread.currentThread().getContextClassLoader());
         } catch (Exception e) {
-            log.error("Error when trying to create load shedding strategy: ", e);
+            log.error("Error when trying to create load shedding strategy: {}",
+                    conf.getLoadBalancerLoadPlacementStrategy(), e);
         }
-
+        log.error("create load shedding strategy failed. using OverloadShedder instead.");
         return new OverloadShedder();
     }
 

@@ -44,6 +44,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.FunctionDefinition;
 import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.functions.WorkerInfo;
@@ -785,6 +786,19 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
             throw new RestException(Response.Status.UNAUTHORIZED, "Client is not authorized to perform operation");
         }
         worker().getFunctionsManager().reloadFunctions(worker().getWorkerConfig());
+    }
+
+    @Override
+    public List<FunctionDefinition> getBuiltinFunctions(String clientRole,
+                                                        AuthenticationDataSource authenticationData) {
+        if (!isWorkerServiceAvailable()) {
+            throwUnavailableException();
+        }
+
+        if (worker().getWorkerConfig().isAuthorizationEnabled() && !isSuperUser(clientRole, authenticationData)) {
+            throw new RestException(Response.Status.UNAUTHORIZED, "Client is not authorized to perform operation");
+        }
+        return this.worker().getFunctionsManager().getFunctionDefinitions();
     }
 
     private Function.FunctionDetails validateUpdateRequestParams(final String tenant,
