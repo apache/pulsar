@@ -2378,6 +2378,15 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
+    @VisibleForTesting
+    boolean closeCursorLedger() throws BKException, InterruptedException {
+        if (cursorLedger != null) {
+            cursorLedger.close();
+            return true;
+        }
+        return false;
+    }
+
     @Override
     public void close() throws InterruptedException, ManagedLedgerException {
         class Result {
