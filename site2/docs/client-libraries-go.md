@@ -53,36 +53,22 @@ $ ./test_example
 
 To connect to Pulsar using client libraries, you need to specify a [Pulsar protocol](developing-binary-protocol.md) URL.
 
-Pulsar protocol URLs are assigned to specific clusters, use the `pulsar` scheme and have a default port of 6650. Here's an example for `localhost`:
+You can assign Pulsar protocol URLs to specific clusters and use the `pulsar` scheme. The following is an example of `localhost` with the default port `6650`:
 
 ```http
-
 pulsar://localhost:6650
-
 ```
 
-If you have multiple brokers, you can set the URL as below.
+If you have multiple brokers, separate `IP:port` by commas:
 
-```
-
+```http
 pulsar://localhost:6550,localhost:6651,localhost:6652
-
 ```
 
-A URL for a production Pulsar cluster may look something like this:
+If you use [TLS](security-tls-authentication.md) authentication, add `+ssl` in the scheme:
 
 ```http
-
-pulsar://pulsar.us-west.example.com:6650
-
-```
-
-If you're using [TLS](security-tls-authentication.md) authentication, the URL will look like something like this:
-
-```http
-
 pulsar+ssl://pulsar.us-west.example.com:6651
-
 ```
 
 ## Create a client
