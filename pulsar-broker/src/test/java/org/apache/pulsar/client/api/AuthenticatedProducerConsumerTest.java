@@ -92,6 +92,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         conf.setTlsAllowInsecureConnection(true);
+        conf.setTopicLevelPoliciesEnabled(false);
 
         Set<String> superUserRoles = new HashSet<>();
         superUserRoles.add("localhost");

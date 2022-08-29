@@ -29,6 +29,7 @@ import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.stats.Metrics;
+import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -131,9 +132,9 @@ public interface LoadManager {
     static LoadManager create(final PulsarService pulsar) {
         try {
             final ServiceConfiguration conf = pulsar.getConfiguration();
-            final Class<?> loadManagerClass = Class.forName(conf.getLoadManagerClassName());
             // Assume there is a constructor with one argument of PulsarService.
-            final Object loadManagerInstance = loadManagerClass.getDeclaredConstructor().newInstance();
+            final Object loadManagerInstance = Reflections.createInstance(conf.getLoadManagerClassName(),
+                    Thread.currentThread().getContextClassLoader());
             if (loadManagerInstance instanceof LoadManager) {
                 final LoadManager casted = (LoadManager) loadManagerInstance;
                 casted.initialize(pulsar);

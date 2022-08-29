@@ -18,7 +18,10 @@
  */
 package org.apache.pulsar.broker.loadbalance;
 
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,9 +31,18 @@ import org.slf4j.LoggerFactory;
 public class LoadSheddingTask implements Runnable {
     private static final Logger LOG = LoggerFactory.getLogger(LoadSheddingTask.class);
     private final AtomicReference<LoadManager> loadManager;
+    private final ScheduledExecutorService loadManagerExecutor;
 
-    public LoadSheddingTask(AtomicReference<LoadManager> loadManager) {
+    private final ServiceConfiguration config;
+
+    private volatile boolean isCancel = false;
+
+    public LoadSheddingTask(AtomicReference<LoadManager> loadManager,
+                            ScheduledExecutorService loadManagerExecutor,
+                            ServiceConfiguration config) {
         this.loadManager = loadManager;
+        this.loadManagerExecutor = loadManagerExecutor;
+        this.config = config;
     }
 
     @Override
@@ -39,6 +51,26 @@ public class LoadSheddingTask implements Runnable {
             loadManager.get().doLoadShedding();
         } catch (Exception e) {
             LOG.warn("Error during the load shedding", e);
+        } finally {
+            if (!isCancel && loadManagerExecutor != null && config != null) {
+                loadManagerExecutor.schedule(
+                        new LoadSheddingTask(loadManager, loadManagerExecutor, config),
+                        config.getLoadBalancerSheddingIntervalMinutes(),
+                        TimeUnit.MINUTES);
+            }
         }
+    }
+
+    public void start() {
+        if (loadManagerExecutor != null && config != null) {
+            loadManagerExecutor.schedule(
+                    new LoadSheddingTask(loadManager, loadManagerExecutor, config),
+                    config.getLoadBalancerSheddingIntervalMinutes(),
+                    TimeUnit.MINUTES);
+        }
+    }
+
+    public void cancel() {
+        isCancel = true;
     }
 }

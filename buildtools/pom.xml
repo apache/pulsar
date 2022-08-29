@@ -46,6 +46,7 @@
     <maven-shade-plugin.version>3.2.4</maven-shade-plugin.version>
     <puppycrawl.checkstyle.version>8.37</puppycrawl.checkstyle.version>
     <maven-checkstyle-plugin.version>3.1.2</maven-checkstyle-plugin.version>
+    <netty.version>4.1.77.Final</netty.version>
     <guice.version>4.2.3</guice.version>
     <guava.version>31.0.1-jre</guava.version>
     <ant.version>1.10.12</ant.version>
@@ -130,7 +131,7 @@
     <dependency>
       <groupId>io.netty</groupId>
       <artifactId>netty-common</artifactId>
-      <version>4.1.77.Final</version>
+      <version>${netty.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>

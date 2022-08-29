@@ -763,4 +763,36 @@ TEST(ConsumerTest, testPartitionsWithCloseUnblock) {
     thread.join();
 }
 
+TEST(ConsumerTest, testGetLastMessageIdBlockWhenConnectionDisconnected) {
+    int operationTimeout = 5;
+    ClientConfiguration clientConfiguration;
+    clientConfiguration.setOperationTimeoutSeconds(operationTimeout);
+
+    Client client(lookupUrl, clientConfiguration);
+    const std::string topic =
+        "testGetLastMessageIdBlockWhenConnectionDisconnected-" + std::to_string(time(nullptr));
+
+    Consumer consumer;
+    ASSERT_EQ(ResultOk, client.subscribe(topic, "test-sub", consumer));
+
+    ConsumerImpl& consumerImpl = PulsarFriend::getConsumerImpl(consumer);
+    ClientConnectionWeakPtr conn = PulsarFriend::getClientConnection(consumerImpl);
+
+    PulsarFriend::setClientConnection(consumerImpl, std::weak_ptr<ClientConnection>());
+
+    pulsar::Latch latch(1);
+    auto start = TimeUtils::now();
+
+    consumerImpl.getLastMessageIdAsync([&latch](Result r, const GetLastMessageIdResponse&) -> void {
+        ASSERT_EQ(r, ResultNotConnected);
+        latch.countdown();
+    });
+
+    ASSERT_TRUE(latch.wait(std::chrono::seconds(20)));
+    auto elapsed = TimeUtils::now() - start;
+
+    // getLastMessageIdAsync should be blocked until operationTimeout when the connection is disconnected.
+    ASSERT_GE(elapsed.seconds(), operationTimeout);
+}
+
 }  // namespace pulsar
