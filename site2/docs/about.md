@@ -20,7 +20,7 @@ If you’re an experienced coder, review this page to learn the easiest way to a
 ## Get Started Now
 <BlockLinks>
     <BlockLink title="About Pulsar" url="/docs/next/concepts-overview/" />
-    <BlockLink title="Get Started" url="/docs/next/getting-started-standalone/" />
+    <BlockLink title="Get Started" url="/docs/next/getting-started-home/" />
     <BlockLink title="Install, Deploy, Upgrade" url="/docs/next/deploy-aws/" />
     <BlockLink title="Pulsar for Developers" url="/docs/next/develop-tools/" />
     <BlockLink title="How To" url="/docs/next/functions-develop/" />

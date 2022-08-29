@@ -55,6 +55,13 @@
     <cpe>cpe:/a:netty:netty</cpe>
   </suppress>
   <suppress>
+    <notes><![CDATA[
+   file name: netty-tcnative-boringssl-static-2.0.52.Final-osx-aarch_64.jar
+   ]]></notes>
+    <packageUrl regex="true">^pkg:maven/io\.netty/netty\-tcnative\-boringssl\-static@.*$</packageUrl>
+    <cpe>cpe:/a:chromium_project:chromium</cpe>
+  </suppress>
+  <suppress>
 <!--    Zookkeeper false positive about Jetty and commons-io-->
 <!--    https://github.com/apache/zookeeper/pull/1824-->
     <notes><![CDATA[

@@ -62,7 +62,6 @@ public class PulsarShell {
     private static final String EXIT_MESSAGE = "Goodbye!";
     private static final String PROPERTY_PULSAR_SHELL_DIR = "shellHistoryDirectory";
     private static final String PROPERTY_PERSIST_HISTORY_ENABLED = "shellHistoryPersistEnabled";
-    private static final String PROPERTY_PERSIST_HISTORY_PATH = "shellHistoryPersistPath";
     private static final String CHECKMARK = new String(Character.toChars(0x2714));
     private static final String XMARK = new String(Character.toChars(0x2716));
     private static final AttributedStyle LOG_STYLE = AttributedStyle.DEFAULT
@@ -86,6 +85,8 @@ public class PulsarShell {
                 return str;
             }
     };
+
+    private static final String DEFAULT_PULSAR_SHELL_ROOT_DIRECTORY = computeDefaultPulsarShellRootDirectory();
 
     interface Substitutor {
         String replace(String str, Map<String, String> vars);
@@ -185,10 +186,23 @@ public class PulsarShell {
     private static File computePulsarShellFile() {
         String dir = System.getProperty(PROPERTY_PULSAR_SHELL_DIR, null);
         if (dir == null) {
-            return Paths.get(System.getProperty("user.home"), ".pulsar-shell").toFile();
+            return Paths.get(DEFAULT_PULSAR_SHELL_ROOT_DIRECTORY, ".pulsar-shell").toFile();
         } else {
             return new File(dir);
         }
+    }
+
+    /**
+     * Compute the default Pulsar shell root directory.
+     * If system property "user.home" returns invalid value, the default value will be the current directory.
+     * @return
+     */
+    private static String computeDefaultPulsarShellRootDirectory() {
+        final String userHome = System.getProperty("user.home");
+        if (!StringUtils.isBlank(userHome) && !"?".equals(userHome)) {
+            return userHome;
+        }
+        return System.getProperty("user.dir");
     }
 
     public static void main(String[] args) throws Exception {
@@ -381,7 +395,8 @@ public class PulsarShell {
                 try {
                     final String line = reader.readLine().trim();
                     return substituteVariables(reader.parseLine(line), variables);
-                } catch (org.jline.reader.UserInterruptException userInterruptException) {
+                } catch (org.jline.reader.UserInterruptException
+                        | org.jline.reader.EndOfFileException userInterruptException) {
                     throw new InterruptShellException();
                 }
             };

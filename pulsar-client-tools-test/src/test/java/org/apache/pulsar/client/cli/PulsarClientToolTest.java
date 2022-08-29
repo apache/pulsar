@@ -244,16 +244,19 @@ public class PulsarClientToolTest extends BrokerTestBase {
         properties.setProperty("useTls", "false");
 
         final String topicName = getTopicWithRandomSuffix("disable-batching");
-        final int numberOfMessages = 5;
+        // `numberOfMessages` should be an even number, because we set `batchNum` as 2, make sure batch and non batch
+        // messages in the same batch
+        final int numberOfMessages = 6;
+        final int batchNum = 2;
 
         @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("sub").subscribe();
 
-        PulsarClientTool pulsarClientTool1 = new PulsarClientTool(properties);
+        PulsarClientTool pulsarClientTool1 = new PulsarClientToolForceBatchNum(properties, topicName, batchNum);
         String[] args1 = {"produce", "-m", "batched", "-n", Integer.toString(numberOfMessages), topicName};
         Assert.assertEquals(pulsarClientTool1.run(args1), 0);
 
-        PulsarClientTool pulsarClientTool2 = new PulsarClientTool(properties);
+        PulsarClientTool pulsarClientTool2 = new PulsarClientToolForceBatchNum(properties, topicName, batchNum);
         String[] args2 = {"produce", "-m", "non-batched", "-n", Integer.toString(numberOfMessages), "-db", topicName};
         Assert.assertEquals(pulsarClientTool2.run(args2), 0);
 

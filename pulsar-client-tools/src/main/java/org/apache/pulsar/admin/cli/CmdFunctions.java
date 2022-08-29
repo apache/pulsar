@@ -44,6 +44,7 @@ import java.util.function.Supplier;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.text.WordUtils;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -228,10 +229,10 @@ public class CmdFunctions extends CmdBase {
                 + "Add SerDe class name for a pattern in --custom-serde-inputs (supported for java fun only)",
                 hidden = true)
         protected String deprecatedTopicsPattern;
-        @Parameter(names = "--topics-pattern", description = "The topic pattern to consume from list of topics "
-                + "under a namespace that match the pattern. [--input] and [--topic-pattern] are mutually exclusive. "
-                + "Add SerDe class name for a pattern in --custom-serde-inputs (supported for java fun only)"
-                + " #Java, Python")
+        @Parameter(names = "--topics-pattern", description = "The topic pattern to consume from a list of topics "
+                + "under a namespace that matches the pattern. [--input] and [--topics-pattern] are mutually "
+                + "exclusive. Add SerDe class name for a pattern in --custom-serde-inputs (supported for java "
+                + "functions only) #Java, Python")
         protected String topicsPattern;
 
         @Parameter(names = {"-o", "--output"},
@@ -1200,6 +1201,15 @@ public class CmdFunctions extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Reload the available built-in functions")
+    public class ReloadBuiltInFunctions extends CmdFunctions.BaseCommand {
+
+        @Override
+        void runCmd() throws Exception {
+            getAdmin().functions().reloadBuiltInFunctions();
+        }
+    }
+
     public CmdFunctions(Supplier<PulsarAdmin> admin) throws PulsarClientException {
         super("functions", admin);
         localRunner = new LocalRunner();
@@ -1235,6 +1245,8 @@ public class CmdFunctions extends CmdBase {
         jcommander.addCommand("trigger", getTriggerer());
         jcommander.addCommand("upload", getUploader());
         jcommander.addCommand("download", getDownloader());
+        jcommander.addCommand("reload", new ReloadBuiltInFunctions());
+        jcommander.addCommand("available-functions", new ListBuiltInFunctions());
     }
 
     @VisibleForTesting
@@ -1321,6 +1333,19 @@ public class CmdFunctions extends CmdBase {
             functionConfig.setTenant(args[0]);
             functionConfig.setNamespace(args[1]);
             functionConfig.setName(args[2]);
+        }
+    }
+
+    @Parameters(commandDescription = "Get the list of Pulsar Functions supported by Pulsar cluster")
+    public class ListBuiltInFunctions extends BaseCommand {
+        @Override
+        void runCmd() throws Exception {
+            getAdmin().functions().getBuiltInFunctions()
+                    .forEach(function -> {
+                        System.out.println(function.getName());
+                        System.out.println(WordUtils.wrap(function.getDescription(), 80));
+                        System.out.println("----------------------------------------");
+                    });
         }
     }
 
