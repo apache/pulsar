@@ -71,36 +71,22 @@ dependencies {
 
 To connect to Pulsar using client libraries, you need to specify a [Pulsar protocol](developing-binary-protocol.md) URL.
 
-You can assign Pulsar protocol URLs to specific clusters and use the `pulsar` scheme. The default port is `6650`. The following is an example of `localhost`.
+You can assign Pulsar protocol URLs to specific clusters and use the `pulsar` scheme. The following is an example of `localhost` with the default port `6650`:
 
 ```http
-
 pulsar://localhost:6650
-
 ```
 
-If you have multiple brokers, the URL is as follows.
+If you have multiple brokers, separate `IP:port` by commas:
 
 ```http
-
 pulsar://localhost:6550,localhost:6651,localhost:6652
-
 ```
 
-A URL for a production Pulsar cluster is as follows.
+If you use [TLS](security-tls-authentication.md) authentication, add `+ssl` in the scheme:
 
 ```http
-
-pulsar://pulsar.us-west.example.com:6650
-
-```
-
-If you use [TLS](security-tls-authentication.md) authentication, the URL is as follows. 
-
-```http
-
 pulsar+ssl://pulsar.us-west.example.com:6651
-
 ```
 
 ## Client 
@@ -833,7 +819,7 @@ When you create a consumer, you can use the `loadConf` configuration. The follow
 `autoAckOldestChunkedMessageOnQueueFull`|boolean|Whether to automatically acknowledge pending chunked messages when the threashold of `maxPendingChunkedMessage` is reached. If set to `false`, these messages will be redelivered by their broker. |true
 `maxPendingChunkedMessage`|int| The maximum size of a queue holding pending chunked messages. When the threshold is reached, the consumer drops pending messages to optimize memory utilization.|10
 `expireTimeOfIncompleteChunkedMessageMillis`|long|The time interval to expire incomplete chunks if a consumer fails to receive all the chunks in the specified time period. The default value is 1 minute. | 60000
-`ackReceiptEnabled`|boolean| If `ackReceiptEnabled` is enabled, ACK returns a receipt. The message is resent after getting the receipt.
+`ackReceiptEnabled`|boolean| If `ackReceiptEnabled` is enabled, ACK returns a receipt. The client got the ack receipt means the broker has processed the ack request, but if without transaction, the broker does not guarantee persistence of acknowledgments, which means the messages still have a chance to be redelivered after the broker crashes. With the transaction, the client can only get the receipt after the acknowledgments have been persistent. | false
 
 You can configure parameters if you do not want to use the default configuration. For a full list, see the Javadoc for the {@inject: javadoc:ConsumerBuilder:/client/org/apache/pulsar/client/api/ConsumerBuilder} class. 
 
