@@ -18,12 +18,10 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.ArrayList;
@@ -32,6 +30,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -272,7 +271,7 @@ public class SchedulerManager implements AutoCloseable {
                 }
 
                 // A worker must be specified at this point. This would be set up by the caller.
-                checkNotNull(workerId);
+                Objects.requireNonNull(workerId);
 
                 // [We can get stricter, and require that every drain op be followed up with a cleanup of the
                 // corresponding worker before any other drain op, so that the drainOpStatusMap should be empty
@@ -714,7 +713,7 @@ public class SchedulerManager implements AutoCloseable {
             Map<String, Map<String, Assignment>> currentAssignments, Map<String, Function.Instance> functionInstances) {
 
         List<Function.Instance> unassignedFunctionInstances = new LinkedList<>();
-        List<Assignment> heartBeatAssignments = Lists.newArrayList();
+        List<Assignment> heartBeatAssignments = new ArrayList<>();
         Map<String, Assignment> assignmentMap = new HashMap<>();
         if (currentAssignments != null) {
             for (Map<String, Assignment> entry : currentAssignments.values()) {
@@ -845,7 +844,7 @@ public class SchedulerManager implements AutoCloseable {
         public void removedAssignment(Assignment assignment) {
             String workerId = assignment.getWorkerId();
             WorkerStats stats = workerStatsMap.get(workerId);
-            checkNotNull(stats);
+            Objects.requireNonNull(stats);
 
             stats.instancesRemoved++;
             stats.finalNumAssignments--;
@@ -857,14 +856,14 @@ public class SchedulerManager implements AutoCloseable {
             String oldWorkerId = instanceToWorkerId.get(fullyQualifiedInstanceId);
             if (oldWorkerId != null) {
                 WorkerStats oldWorkerStats = workerStatsMap.get(oldWorkerId);
-                checkNotNull(oldWorkerStats);
+                Objects.requireNonNull(oldWorkerStats);
 
                 oldWorkerStats.instancesRemoved++;
                 oldWorkerStats.finalNumAssignments--;
             }
 
             WorkerStats newWorkerStats = workerStatsMap.get(newWorkerId);
-            checkNotNull(newWorkerStats);
+            Objects.requireNonNull(newWorkerStats);
 
             newWorkerStats.instancesAdded++;
             newWorkerStats.finalNumAssignments++;
@@ -873,7 +872,7 @@ public class SchedulerManager implements AutoCloseable {
         public void updatedAssignment(Assignment assignment) {
             String workerId = assignment.getWorkerId();
             WorkerStats stats = workerStatsMap.get(workerId);
-            checkNotNull(stats);
+            Objects.requireNonNull(stats);
 
             stats.instancesUpdated++;
         }

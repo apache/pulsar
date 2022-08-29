@@ -473,8 +473,8 @@ public class PersistentTopicsBase extends AdminResource {
                             })
                             .thenCompose(clusters -> tryCreatePartitionsAsync(numPartitions).thenApply(ignore ->
                                     clusters))
-                            .thenCompose(clusters -> createSubscriptions(topicName, numPartitions).thenApply(ignore ->
-                                    clusters))
+                            .thenCompose(clusters -> createSubscriptions(topicName, numPartitions, force).thenApply(
+                                    ignore -> clusters))
                             .thenCompose(clusters -> {
                                 if (!updateLocalTopicOnly) {
                                     return updatePartitionInOtherCluster(numPartitions, clusters)
@@ -4368,10 +4368,9 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
-
     private CompletableFuture<Void> updatePartitionedTopic(TopicName topicName, int numPartitions, boolean force) {
         CompletableFuture<Void> result = new CompletableFuture<>();
-        createSubscriptions(topicName, numPartitions).thenCompose(__ -> {
+        createSubscriptions(topicName, numPartitions, force).thenCompose(__ -> {
             CompletableFuture<Void> future = namespaceResources().getPartitionedTopicResources()
                     .updatePartitionedTopicAsync(topicName, p ->
                         new PartitionedTopicMetadata(numPartitions, p.properties));
@@ -4409,8 +4408,11 @@ public class PersistentTopicsBase extends AdminResource {
      *
      * @param topicName     : topic-name: persistent://prop/cluster/ns/topic
      * @param numPartitions : number partitions for the topics
+     * @param ignoreConflictException : If true, ignore ConflictException: subscription already exists for topic
+     *
      */
-    private CompletableFuture<Void> createSubscriptions(TopicName topicName, int numPartitions) {
+    private CompletableFuture<Void> createSubscriptions(TopicName topicName, int numPartitions,
+                                                       boolean ignoreConflictException) {
         CompletableFuture<Void> result = new CompletableFuture<>();
         pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName).thenAccept(partitionMetadata -> {
             if (partitionMetadata.partitions < 1) {
@@ -4445,9 +4447,21 @@ public class PersistentTopicsBase extends AdminResource {
 
                     for (int i = partitionMetadata.partitions; i < numPartitions; i++) {
                         final String topicNamePartition = topicName.getPartition(i).toString();
-
-                        subscriptionFutures.add(admin.topics().createSubscriptionAsync(topicNamePartition,
-                                subscription, MessageId.latest));
+                        CompletableFuture<Void> future = new CompletableFuture<>();
+                        admin.topics().createSubscriptionAsync(topicNamePartition,
+                                subscription, MessageId.latest).whenComplete((__, ex) -> {
+                            if (ex == null) {
+                                future.complete(null);
+                            } else {
+                                if (ignoreConflictException
+                                        && ex.getCause() instanceof PulsarAdminException.ConflictException) {
+                                    future.complete(null);
+                                } else {
+                                    future.completeExceptionally(ex);
+                                }
+                            }
+                        });
+                        subscriptionFutures.add(future);
                     }
                 });
 
