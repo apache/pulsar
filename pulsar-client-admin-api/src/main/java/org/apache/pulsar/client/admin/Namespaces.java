@@ -4467,4 +4467,18 @@ public interface Namespaces {
      * @return
      */
     CompletableFuture<Void> removeNamespaceResourceGroupAsync(String namespace);
+
+    /**
+     * Scan offloaded ledgers on a namespace.
+     * @param namespace
+     * @return
+     */
+    String scanOffloadedLedgers(String namespace) throws PulsarAdminException;
+
+    /**
+     * Scan offloaded ledgers on a namespace asynchronously.
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<String> scanOffloadedLedgersAsync(String namespace);
 }

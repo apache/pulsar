@@ -1862,6 +1862,36 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         return asyncDeleteRequest(path);
     }
 
+    @Override
+    public String scanOffloadedLedgers(String namespace) throws PulsarAdminException {
+        return sync(() -> scanOffloadedLedgersAsync(namespace));
+    }
+
+    @Override
+    public CompletableFuture<String> scanOffloadedLedgersAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        final CompletableFuture<String> future = new CompletableFuture<>();
+        if (!ns.isV2()) {
+            String msg = "`scanOffloadedLedgers` is only supported in V2";
+            future.completeExceptionally(new UnsupportedOperationException(msg));
+            return future;
+        }
+        WebTarget path = namespacePath(ns, "scanOffloadedLedgers");
+        asyncGetRequest(path, new InvocationCallback<String>() {
+
+            @Override
+            public void completed(String value) {
+                future.complete(StringUtils.isEmpty(value) ? null : value);
+            }
+
+            @Override
+            public void failed(Throwable throwable) {
+                future.completeExceptionally(getApiException(throwable.getCause()));
+            }
+        });
+        return future;
+    }
+
     private WebTarget namespacePath(NamespaceName namespace, String... parts) {
         final WebTarget base = namespace.isV2() ? adminV2Namespaces : adminNamespaces;
         WebTarget namespacePath = base.path(namespace.toString());

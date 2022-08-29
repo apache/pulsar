@@ -788,6 +788,8 @@ public class PulsarAdminToolTest {
         namespaces.run(split("remove-deduplication-snapshot-interval myprop/clust/ns1"));
         verify(mockNamespaces).removeDeduplicationSnapshotInterval("myprop/clust/ns1");
 
+        namespaces.run(split("scan-offloaded-ledgers myprop/ns1"));
+        verify(mockNamespaces).scanOffloadedLedgers("myprop/ns1");
     }
 
     @Test
