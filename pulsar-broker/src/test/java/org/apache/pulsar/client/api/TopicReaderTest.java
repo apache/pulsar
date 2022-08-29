@@ -1080,7 +1080,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
     }
 
     @Test(timeOut = 20000)
-    public void testHasMessageAvailableWithBatch() throws Exception {
+    public void testHasMessageAvailable() throws Exception {
         final String topicName = "persistent://my-property/my-ns/testHasMessageAvailableWithBatch";
         final int numOfMessage = 10;
 
@@ -1092,11 +1092,11 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
         //For batch-messages with single message, the type of client messageId should be the same as that of broker
         MessageIdImpl messageId = (MessageIdImpl) producer.send("msg".getBytes());
-        assertTrue(messageId instanceof MessageIdImpl);
+        assertFalse(messageId instanceof BatchMessageIdImpl);
         ReaderImpl<byte[]> reader = (ReaderImpl<byte[]>)pulsarClient.newReader().topic(topicName)
                 .startMessageId(messageId).startMessageIdInclusive().create();
         MessageIdImpl lastMsgId = (MessageIdImpl) reader.getConsumer().getLastMessageId();
-        assertTrue(messageId instanceof BatchMessageIdImpl);
+        assertFalse(lastMsgId instanceof BatchMessageIdImpl);
         assertEquals(lastMsgId.getLedgerId(), messageId.getLedgerId());
         assertEquals(lastMsgId.getEntryId(), messageId.getEntryId());
         reader.close();
