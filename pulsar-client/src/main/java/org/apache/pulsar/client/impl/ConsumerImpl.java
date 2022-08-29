@@ -1392,6 +1392,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                             Collections.singletonList(message));
                     if (redeliveryCount > deadLetterPolicy.getMaxRedeliverCount()) {
                         redeliverUnacknowledgedMessages(Collections.singleton(message.getMessageId()));
+                        // if send to DeadLetter we need to increase the available permits
+                        increaseAvailablePermits(cnx);
                         return;
                     }
                 }
@@ -1562,6 +1564,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     // when redeliveryCount > deadLetterPolicy.getMaxRedeliverCount())
                     // the message will not be visible to users
                     if (redeliveryCount > deadLetterPolicy.getMaxRedeliverCount()) {
+                        // if send to DeadLetter we need to increase the available permits
+                        skippedMessages++;
                         continue;
                     }
 
@@ -1582,7 +1586,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         possibleToDeadLetter);
                 if (redeliveryCount > deadLetterPolicy.getMaxRedeliverCount()) {
                     redeliverUnacknowledgedMessages(Collections.singleton(batchMessage));
-                    return;
                 }
             }
         }
