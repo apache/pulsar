@@ -76,25 +76,21 @@ public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testInboundConnection() throws Exception {
         log.info("Creating producer 1");
-        @Cleanup
         PulsarClient client1 = PulsarClient.builder()
                 .serviceUrl(proxyService.getServiceUrl())
                 .operationTimeout(1000, TimeUnit.MILLISECONDS)
                 .build();
 
-        @Cleanup
         Producer<byte[]> producer1 = client1.newProducer(Schema.BYTES)
                 .topic("persistent://sample/test/local/producer-topic-1").create();
 
         log.info("Creating producer 2");
-        @Cleanup
         PulsarClient client2 = PulsarClient.builder()
                 .serviceUrl(proxyService.getServiceUrl())
                 .operationTimeout(1000, TimeUnit.MILLISECONDS)
                 .build();
 
         try {
-            @Cleanup
             Producer<byte[]> producer2 = client2.newProducer(Schema.BYTES)
                     .topic("persistent://sample/test/local/producer-topic-1").create();
             producer2.send("Message 1".getBytes());
@@ -111,5 +107,13 @@ public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
                     .getConnections().get(key).toInteger(), 2);
         }
         Assert.assertEquals(ProxyService.ACTIVE_CONNECTIONS.get(), 2.0d);
+
+        client1.close();
+        client2.close();
+
+        Assert.assertEquals(ConnectionController.DefaultConnectionController.getTotalConnectionNum(), 0);
+        Assert.assertEquals(ConnectionController.DefaultConnectionController.getConnections().size(), 0);
+
+        Assert.assertEquals(ProxyService.ACTIVE_CONNECTIONS.get(), 0.0d);
     }
 }
