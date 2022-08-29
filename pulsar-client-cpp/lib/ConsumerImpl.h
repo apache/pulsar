@@ -56,6 +56,7 @@ class ConsumerImpl;
 class BatchAcknowledgementTracker;
 typedef std::shared_ptr<MessageCrypto> MessageCryptoPtr;
 typedef std::function<void(Result, const GetLastMessageIdResponse&)> BrokerGetLastMessageIdCallback;
+typedef std::shared_ptr<Backoff> BackoffPtr;
 
 enum ConsumerTopicType
 {
@@ -181,6 +182,9 @@ class ConsumerImpl : public ConsumerImplBase,
     void failPendingReceiveCallback();
     void setNegativeAcknowledgeEnabledForTesting(bool enabled) override;
     void trackMessage(const MessageId& messageId);
+    void internalGetLastMessageIdAsync(const BackoffPtr& backoff, TimeDuration remainTime,
+                                       const DeadlineTimerPtr& timer,
+                                       BrokerGetLastMessageIdCallback callback);
 
     Optional<MessageId> clearReceiveQueue();
 
