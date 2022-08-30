@@ -47,7 +47,7 @@ To use etcd as the metadata store, add the following parameters to the `conf/bro
 
 ```conf
 
-metadataStoreUrl=etcd:my-etcd-1:2379,my-etcd-2:2379,my-etcd-3:2379
+metadataStoreUrl=etcd:http://my-etcd-1:2379,http://my-etcd-2:2379,http://my-etcd-3:2379
 configurationMetadataStoreUrl=etcd:my-global-etcd-1:2379,my-global-etcd-2:2379,my-global-etcd-3:2379
 # metadataStoreConfigPath=/path/to/file
 

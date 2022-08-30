@@ -1537,7 +1537,7 @@ flexible messaging model and an intuitive client API.</description>
                 <exclude>**/django/stats/migrations/*.py</exclude>
                 <exclude>site2/**</exclude>
                 <exclude>generated-site/**</exclude>
-                <exclude>.github/*.md</exclude>
+                <exclude>**/*.md</exclude>
                 <exclude>**/.idea/**</exclude>
                 <exclude>**/.mvn/**</exclude>
                 <exclude>**/generated/**</exclude>
@@ -1671,7 +1671,7 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>**/_helpers.tpl</exclude>
 
             <!-- project ignored files -->
-            <exclude>*.md</exclude>
+            <exclude>**/*.md</exclude>
             <exclude>.github/**</exclude>
             <exclude>**/*.nar</exclude>
             <exclude>**/.terraform/**</exclude>
