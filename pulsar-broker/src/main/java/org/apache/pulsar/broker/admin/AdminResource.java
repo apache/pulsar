@@ -166,7 +166,11 @@ public abstract class AdminResource extends PulsarWebResource {
         if (!topicName.isPersistent()) {
             return CompletableFuture.completedFuture(null);
         }
-        List<CompletableFuture<Void>> futures = new ArrayList<>(numPartitions);
+        if (numPartitions <= oldNumPartitions) {
+            return CompletableFuture.failedFuture(new RestException(Status.NOT_ACCEPTABLE,
+                    "Number of new partitions must be greater than existing number of partitions"));
+        }
+        List<CompletableFuture<Void>> futures = new ArrayList<>(numPartitions - oldNumPartitions);
         for (int i = oldNumPartitions; i < numPartitions; i++) {
             futures.add(tryCreatePartitionAsync(i));
         }
