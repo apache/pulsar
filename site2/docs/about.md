@@ -1,7 +1,7 @@
 ---
 slug: /
 id: about
-title: Welcome to the doc portal!
+title: Welcome to the Apache Pulsar documentation portal
 sidebar_label: "About"
 ---
 
@@ -10,21 +10,27 @@ import BlockLink from "@site/src/components/BlockLink";
 import { docUrl } from "@site/src/utils/index";
 
 
-# Welcome to the doc portal!
+# Welcome to the Apache Pulsar documentation portal
 ***
 
-This portal holds a variety of support documents to help you work with Pulsar . If you’re a beginner, there are tutorials and explainers to help you understand Pulsar and how it works.
+This portal holds a variety of topics, tutorials, guides, and reference material to help you work with Pulsar. 
 
-If you’re an experienced coder, review this page to learn the easiest way to access the specific content you’re looking for.
+## Choose your path....
+Select one of the content blocks below to begin your Pulsar journey. If you ...
+* Are new to Pulsar, start with **About Pulsar** to learn about features and concepts.
+* Want to jump to the quickstart, select **Get Started**.
+* Are an operator responsible for architecting and supporting Apache Pulsar. start with **Install, Deploy, Upgrade**.
+* Are a developer who wants to master Apache Pulsar, select **Pulsar for Developers**. 
+* Want to try out Pulsar, select **How To** for access to the "hello world" tutorial.
+* An experienced Pulsar coder looking for API, metrics, or configuration documentation, go to **Reference**. 
 
-## Get Started Now
 <BlockLinks>
     <BlockLink title="About Pulsar" url="/docs/next/concepts-overview/" />
     <BlockLink title="Get Started" url="/docs/next/getting-started-home/" />
     <BlockLink title="Install, Deploy, Upgrade" url="/docs/next/deploy-aws/" />
     <BlockLink title="Pulsar for Developers" url="/docs/next/develop-tools/" />
     <BlockLink title="How To" url="/docs/next/functions-develop/" />
-    <BlockLink title="References" url="/docs/next/reference-terminology/" />
+    <BlockLink title="Reference" url="/docs/next/reference-terminology/" />
 </BlockLinks>
 
 ## Navigation
