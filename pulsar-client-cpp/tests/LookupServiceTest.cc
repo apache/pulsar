@@ -17,6 +17,7 @@
  * under the License.
  */
 #include <BinaryProtoLookupService.h>
+#include <HTTPLookupService.h>
 #include <pulsar/Client.h>
 
 #include <gtest/gtest.h>
@@ -26,17 +27,23 @@
 #include "HttpHelper.h"
 #include <pulsar/Authentication.h>
 #include <boost/exception/all.hpp>
+#include "LogUtils.h"
+
+#include <algorithm>
 
 using namespace pulsar;
 
-TEST(BinaryLookupServiceTest, basicLookup) {
+DECLARE_LOG_OBJECT()
+
+TEST(LookupServiceTest, basicLookup) {
     ExecutorServiceProviderPtr service = std::make_shared<ExecutorServiceProvider>(1);
     AuthenticationPtr authData = AuthFactory::Disabled();
     std::string url = "pulsar://localhost:6650";
     ClientConfiguration conf;
     ExecutorServiceProviderPtr ioExecutorProvider_(std::make_shared<ExecutorServiceProvider>(1));
     ConnectionPool pool_(conf, ioExecutorProvider_, authData, true);
-    BinaryProtoLookupService lookupService(pool_, url);
+    ServiceNameResolver serviceNameResolver(url);
+    BinaryProtoLookupService lookupService(serviceNameResolver, pool_, "");
 
     TopicNamePtr topicName = TopicName::get("topic");
 
@@ -46,15 +53,17 @@ TEST(BinaryLookupServiceTest, basicLookup) {
     ASSERT_TRUE(lookupData != NULL);
     ASSERT_EQ(0, lookupData->getPartitions());
 
-    Future<Result, LookupDataResultPtr> future = lookupService.lookupAsync("topic");
-    result = future.get(lookupData);
+    const auto topicNamePtr = TopicName::get("topic");
+    auto future = lookupService.getBroker(*topicNamePtr);
+    LookupService::LookupResult lookupResult;
+    result = future.get(lookupResult);
 
     ASSERT_EQ(ResultOk, result);
-    ASSERT_TRUE(lookupData != NULL);
-    ASSERT_EQ(url, lookupData->getBrokerUrl());
+    ASSERT_EQ(url, lookupResult.logicalAddress);
+    ASSERT_EQ(url, lookupResult.physicalAddress);
 }
 
-TEST(BinaryLookupServiceTest, basicGetNamespaceTopics) {
+TEST(LookupServiceTest, basicGetNamespaceTopics) {
     std::string url = "pulsar://localhost:6650";
     std::string adminUrl = "http://localhost:8080/";
     Result result;
@@ -98,7 +107,8 @@ TEST(BinaryLookupServiceTest, basicGetNamespaceTopics) {
     ClientConfiguration conf;
     ExecutorServiceProviderPtr ioExecutorProvider_(std::make_shared<ExecutorServiceProvider>(1));
     ConnectionPool pool_(conf, ioExecutorProvider_, authData, true);
-    BinaryProtoLookupService lookupService(pool_, url);
+    ServiceNameResolver serviceNameResolver(url);
+    BinaryProtoLookupService lookupService(serviceNameResolver, pool_, "");
 
     TopicNamePtr topicName = TopicName::get(topicName1);
     NamespaceNamePtr nsName = topicName->getNamespaceName();
@@ -116,4 +126,56 @@ TEST(BinaryLookupServiceTest, basicGetNamespaceTopics) {
     ASSERT_FALSE(std::find(topicsData->begin(), topicsData->end(), topicName4) != topicsData->end());
 
     client.shutdown();
+}
+
+static void testMultiAddresses(LookupService& lookupService) {
+    std::vector<Result> results;
+    constexpr int numRequests = 6;
+
+    auto verifySuccessCount = [&results] {
+        // Only half of them succeeded
+        ASSERT_EQ(std::count(results.cbegin(), results.cend(), ResultOk), numRequests / 2);
+        ASSERT_EQ(std::count(results.cbegin(), results.cend(), ResultConnectError), numRequests / 2);
+    };
+
+    for (int i = 0; i < numRequests; i++) {
+        const auto topicNamePtr = TopicName::get("topic");
+        LookupService::LookupResult lookupResult;
+        const auto result = lookupService.getBroker(*topicNamePtr).get(lookupResult);
+        LOG_INFO("getBroker [" << i << "] " << result << ", " << lookupResult);
+        results.emplace_back(result);
+    }
+    verifySuccessCount();
+
+    results.clear();
+    for (int i = 0; i < numRequests; i++) {
+        LookupDataResultPtr data;
+        const auto result = lookupService.getPartitionMetadataAsync(TopicName::get("topic")).get(data);
+        LOG_INFO("getPartitionMetadataAsync [" << i << "] " << result);
+        results.emplace_back(result);
+    }
+    verifySuccessCount();
+
+    results.clear();
+    for (int i = 0; i < numRequests; i++) {
+        NamespaceTopicsPtr data;
+        const auto result =
+            lookupService.getTopicsOfNamespaceAsync(TopicName::get("topic")->getNamespaceName()).get(data);
+        LOG_INFO("getTopicsOfNamespaceAsync [" << i << "] " << result);
+        results.emplace_back(result);
+    }
+    verifySuccessCount();
+}
+
+TEST(LookupServiceTest, testMultiAddresses) {
+    ConnectionPool pool({}, std::make_shared<ExecutorServiceProvider>(1), AuthFactory::Disabled(), true);
+    ServiceNameResolver serviceNameResolver("pulsar://localhost,localhost:9999");
+    BinaryProtoLookupService binaryLookupService(serviceNameResolver, pool, "");
+    testMultiAddresses(binaryLookupService);
+
+    // HTTPLookupService calls shared_from_this() internally, we must create a shared pointer to test
+    ServiceNameResolver serviceNameResolverForHttp("http://localhost,localhost:9999");
+    auto httpLookupServicePtr = std::make_shared<HTTPLookupService>(
+        std::ref(serviceNameResolverForHttp), ClientConfiguration{}, AuthFactory::Disabled());
+    testMultiAddresses(*httpLookupServicePtr);
 }
