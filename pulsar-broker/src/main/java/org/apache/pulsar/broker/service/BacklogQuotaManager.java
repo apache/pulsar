@@ -207,7 +207,7 @@ public class BacklogQuotaManager {
             );
         } else {
             // If disabled precise time based backlog quota check, will try to remove whole ledger from cursor's backlog
-            Long currentMillis = ((ManagedLedgerImpl) persistentTopic.getManagedLedger()).getClock().millis();
+            long currentMillis = ((ManagedLedgerImpl) persistentTopic.getManagedLedger()).getClock().millis();
             ManagedLedgerImpl mLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
             try {
                 for (;;) {
@@ -220,6 +220,8 @@ public class BacklogQuotaManager {
                     }
                     // Timestamp only > 0 if ledger has been closed
                     if (ledgerInfo.getTimestamp() > 0
+                            // less than 0 means no limitation
+                            && quota.getLimitTime() > 0
                             && currentMillis - ledgerInfo.getTimestamp() > quota.getLimitTime()) {
                         // skip whole ledger for the slowest cursor
                         PositionImpl nextPosition = mLedger.getNextValidPosition(
