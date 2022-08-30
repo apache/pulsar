@@ -894,11 +894,14 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         final String topicName = "persistent://" + namespace + "/testUpdatePartitionedTopicProperties";
         admin.namespaces().createNamespace(namespace, 20);
 
-        // create partitioned topic with properties
+        // create partitioned topic without properties
+        admin.topics().createPartitionedTopic(topicName, 2);
+        Map<String, String> properties = admin.topics().getProperties(topicName);
+        Assert.assertNull(properties);
         Map<String, String> topicProperties = new HashMap<>();
         topicProperties.put("key1", "value1");
-        admin.topics().createPartitionedTopic(topicName, 2, topicProperties);
-        Map<String, String> properties = admin.topics().getProperties(topicName);
+        admin.topics().updateProperties(topicName, topicProperties);
+        properties = admin.topics().getProperties(topicName);
         Assert.assertNotNull(properties);
         Assert.assertEquals(properties.get("key1"), "value1");
 
