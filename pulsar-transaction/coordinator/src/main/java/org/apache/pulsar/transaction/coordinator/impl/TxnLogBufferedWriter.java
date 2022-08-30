@@ -387,10 +387,6 @@ public class TxnLogBufferedWriter<T> {
         // Cancel pending tasks and release resources.
         singleThreadExecutorForWrite.execute(() -> {
             try {
-                if (state == State.CLOSED) {
-                    closeFuture.complete(null);
-                    return;
-                }
                 // If some requests are flushed, BK will trigger these callbacks, and the remaining requests in should
                 // fail.
                 failureCallbackByContextAndRecycle(flushContext,
@@ -404,7 +400,6 @@ public class TxnLogBufferedWriter<T> {
                 STATE_UPDATER.set(this, State.CLOSED);
                 closeFuture.complete(null);
             } catch (Exception e){
-                log.error("Close Txn log buffered writer fail", e);
                 closeFuture.completeExceptionally(e);
             }
         });
