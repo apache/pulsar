@@ -224,11 +224,11 @@ You also should configure organization, application, you also can refer to [casd
 
 ##### step2.1 you should create a organization
 
-![organization](/assets/Pulsar-manager_editOrganization.png)
+![organization](/assets/Pulsar-manager_editOrganization.svg)
 
 ##### step2.2 you should create a application
 
-![application](/assets/Pulsar-manager_editApplication.png)
+![application](/assets/Pulsar-manager_editApplication.svg)
 
 #### Step3. Open Pulsar-manager front-end switch.
 
@@ -236,7 +236,7 @@ Open this switch to make code and state send to back-end.
 
 This switch in the Line 80 of pulsar-manager/front-end/src/router/index.js
 
-![frontSwitch](/assets/Pulsar-manager_frontSwitch.png)
+![frontSwitch](/assets/Pulsar-manager_frontSwitch.svg)
 
 #### Step4. Configure back-end code
 
