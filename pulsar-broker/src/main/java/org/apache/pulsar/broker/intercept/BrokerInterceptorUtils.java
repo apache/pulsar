@@ -31,6 +31,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.nar.NarClassLoaderBuilder;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.common.util.Reflections;
 
 /**
  * Util class to search and load {@link BrokerInterceptor}s.
@@ -133,13 +134,8 @@ public class BrokerInterceptorUtils {
         }
 
         try {
-            Class interceptorClass = ncl.loadClass(def.getInterceptorClass());
-            Object interceptor = interceptorClass.getDeclaredConstructor().newInstance();
-            if (!(interceptor instanceof BrokerInterceptor)) {
-                throw new IOException("Class " + def.getInterceptorClass()
-                        + " does not implement broker interceptor interface");
-            }
-            BrokerInterceptor pi = (BrokerInterceptor) interceptor;
+            BrokerInterceptor pi = Reflections.createInstance(def.getInterceptorClass(), BrokerInterceptor.class,
+                    Thread.currentThread().getContextClassLoader());
             return new BrokerInterceptorWithClassLoader(pi, ncl);
         } catch (Throwable t) {
             rethrowIOException(t);

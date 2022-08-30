@@ -31,6 +31,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.nar.NarClassLoaderBuilder;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.common.util.Reflections;
 
 /**
  * Util class to search and load {@link ProtocolHandler}s.
@@ -133,13 +134,8 @@ class ProtocolHandlerUtils {
         }
 
         try {
-            Class handlerClass = ncl.loadClass(phDef.getHandlerClass());
-            Object handler = handlerClass.getDeclaredConstructor().newInstance();
-            if (!(handler instanceof ProtocolHandler)) {
-                throw new IOException("Class " + phDef.getHandlerClass()
-                    + " does not implement protocol handler interface");
-            }
-            ProtocolHandler ph = (ProtocolHandler) handler;
+            ProtocolHandler ph = Reflections.createInstance(phDef.getHandlerClass(), ProtocolHandler.class,
+                    Thread.currentThread().getContextClassLoader());
             return new ProtocolHandlerWithClassLoader(ph, ncl);
         } catch (Throwable t) {
             rethrowIOException(t);

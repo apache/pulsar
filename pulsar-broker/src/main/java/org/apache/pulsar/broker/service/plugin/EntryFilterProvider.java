@@ -35,6 +35,7 @@ import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.nar.NarClassLoaderBuilder;
 import org.apache.pulsar.common.policies.data.EntryFilters;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.common.util.Reflections;
 
 @Slf4j
 public class EntryFilterProvider {
@@ -169,13 +170,8 @@ public class EntryFilterProvider {
         }
 
         try {
-            Class entryFilterClass = ncl.loadClass(def.getEntryFilterClass());
-            Object filter = entryFilterClass.getDeclaredConstructor().newInstance();
-            if (!(filter instanceof EntryFilter)) {
-                throw new IOException("Class " + def.getEntryFilterClass()
-                        + " does not implement entry filter interface");
-            }
-            EntryFilter pi = (EntryFilter) filter;
+            EntryFilter pi = Reflections.createInstance(def.getEntryFilterClass(), EntryFilter.class,
+                    Thread.currentThread().getContextClassLoader());
             return new EntryFilterWithClassLoader(pi, ncl);
         } catch (Exception e) {
             if (e instanceof IOException) {
