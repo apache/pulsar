@@ -51,6 +51,11 @@ public interface DelayedDeliveryTracker extends AutoCloseable {
     long getNumberOfDelayedMessages();
 
     /**
+     * The amount of memory used to back the delayed message index.
+     */
+    long getBufferMemoryUsage();
+
+    /**
      * Get a set of position of messages that have already reached the delivery time.
      */
     Set<PositionImpl> getScheduledMessages(int maxMessages);
@@ -60,6 +65,11 @@ public interface DelayedDeliveryTracker extends AutoCloseable {
      * more messages available.
      */
     boolean shouldPauseAllDeliveries();
+
+    /**
+     * Tells whether message index already exist the DelayedDeliveryTracker.
+     */
+    boolean existDelayedMessage(long ledgerId, long entryId);
 
     /**
      *  Reset tick time use zk policies cache.

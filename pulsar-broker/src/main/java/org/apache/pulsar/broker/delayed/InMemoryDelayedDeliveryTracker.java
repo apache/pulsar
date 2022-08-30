@@ -192,6 +192,7 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
         return priorityQueue.size();
     }
 
+    @Override
     public long getBufferMemoryUsage() {
         return priorityQueue.bytesCapacity();
     }
@@ -273,10 +274,10 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
 
     @Override
     public void close() {
-        priorityQueue.close();
         if (timeout != null) {
             timeout.cancel();
         }
+        priorityQueue.close();
     }
 
     @Override
@@ -285,5 +286,10 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
         return messagesHaveFixedDelay
                 && priorityQueue.size() >= DETECT_FIXED_DELAY_LOOKAHEAD_MESSAGES
                 && !hasMessageAvailable();
+    }
+
+    @Override
+    public boolean existDelayedMessage(long ledgerId, long entryId) {
+        throw new UnsupportedOperationException();
     }
 }

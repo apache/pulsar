@@ -350,6 +350,22 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + "delayedDeliveryTickTimeMillis.")
     private boolean isDelayedDeliveryDeliverAtTimeStrict = false;
 
+    @FieldContext(category = CATEGORY_SERVER, doc = """
+            The delayed message index bucket min index count. When the index count of the current bucket is more than \
+            this value and all message indexes of current ledger have already been added to the tracker \
+            we will seal the bucket.""")
+    private int delayedDeliveryMinIndexCountPerBucket = 50000;
+
+    @FieldContext(category = CATEGORY_SERVER, doc = """
+            The delayed message index bucket time step(in seconds) in per bucket snapshot segment, \
+            after reaching the max time step limitation, the snapshot segment will be cut off.""")
+    private int delayedDeliveryMaxTimeStepPerBucketSnapshotSegmentSeconds = 300;
+
+    @FieldContext(category = CATEGORY_SERVER, doc = """
+            The max number of delayed message index bucket, \
+            after reaching the max buckets limitation, the adjacent buckets will be merged.""")
+    private int delayedDeliveryMaxNumBuckets = 50;
+
     @FieldContext(category = CATEGORY_SERVER, doc = "Whether to enable the acknowledge of batch local index")
     private boolean acknowledgmentAtBatchIndexLevelEnabled = false;
 
