@@ -24,6 +24,7 @@
   <id>shell</id>
   <formats>
     <format>tar.gz</format>
+    <format>zip</format>
   </formats>
   <includeBaseDirectory>true</includeBaseDirectory>
   <files>

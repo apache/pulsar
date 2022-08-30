@@ -216,7 +216,6 @@ public class PulsarShell {
     }
 
     public void run() throws Exception {
-        System.setProperty("org.jline.terminal.dumb", "true");
         final Terminal terminal = TerminalBuilder.builder().build();
         run((providersMap) -> {
             List<Completer> completers = new ArrayList<>();
