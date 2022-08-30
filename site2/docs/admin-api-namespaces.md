@@ -1270,3 +1270,112 @@ admin.namespaces().unload(namespace)
 
 </Tabs>
 ````
+### Configure entry filters policy
+
+#### Set entry filters policy
+
+Entry filter helps with filtering message on server side.
+
+````mdx-code-block
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
+```
+
+$ pulsar-admin namespaces set-entry-filters --desc "The description of the entry filter to be used for user help."  
+--entry-filters-name "The class name for the entry filter." --entry-filters-dir "The directory for all the entry filter implementations." test-tenant/ns1
+```
+
+</TabItem>
+<TabItem value="REST API">
+
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/entryFilters|operation/setEntryFilters?
+version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
+```java
+
+admin.namespaces().setEntryFilters(namespace, new EntryFilters("desc", "classes name", "class files localtion"))
+
+```
+
+</TabItem>
+
+</Tabs>
+````
+
+#### Get entry filters policies
+
+You can get a configured entry filter for a given namespace.
+
+````mdx-code-block
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
+```
+
+$ pulsar-admin namespaces get-entry-filters test-tenant/ns1
+
+```
+
+</TabItem>
+<TabItem value="REST API">
+
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/entryFilters|operation/getEntryFilters?
+version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
+```java
+
+admin.namespaces().getEntryFilters(namespace);
+
+```
+
+</TabItem>
+
+</Tabs>
+````
+
+#### Remove entry filters policies
+
+You can remove entry filters policies for a given namespace.
+
+````mdx-code-block
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
+```
+
+$ pulsar-admin namespaces remove-entry-filters test-tenant/ns1
+
+```
+
+</TabItem>
+<TabItem value="REST API">
+
+{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/entryFilters|operation/removeEntryFilters?
+version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
+```java
+
+admin.namespaces().removeEntryFilters(namespace)
+
+```
+
+</TabItem>
+
+</Tabs>
+````
