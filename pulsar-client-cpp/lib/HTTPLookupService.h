@@ -23,6 +23,7 @@
 #include <lib/ClientImpl.h>
 #include <lib/Url.h>
 #include <lib/VersionInternal.h>
+#include <lib/ServiceNameResolver.h>
 
 namespace pulsar {
 class HTTPLookupService : public LookupService, public std::enable_shared_from_this<HTTPLookupService> {
@@ -42,7 +43,7 @@ class HTTPLookupService : public LookupService, public std::enable_shared_from_t
     typedef Promise<Result, LookupDataResultPtr> LookupPromise;
 
     ExecutorServiceProviderPtr executorProvider_;
-    std::string adminUrl_;
+    ServiceNameResolver& serviceNameResolver_;
     AuthenticationPtr authenticationPtr_;
     int lookupTimeoutInSeconds_;
     std::string tlsTrustCertsFilePath_;
@@ -60,13 +61,13 @@ class HTTPLookupService : public LookupService, public std::enable_shared_from_t
     Result sendHTTPRequest(std::string completeUrl, std::string& responseData);
 
    public:
-    HTTPLookupService(const std::string&, const ClientConfiguration&, const AuthenticationPtr&);
+    HTTPLookupService(ServiceNameResolver&, const ClientConfiguration&, const AuthenticationPtr&);
 
-    Future<Result, LookupDataResultPtr> lookupAsync(const std::string&);
+    LookupResultFuture getBroker(const TopicName& topicName) override;
 
-    Future<Result, LookupDataResultPtr> getPartitionMetadataAsync(const TopicNamePtr&);
+    Future<Result, LookupDataResultPtr> getPartitionMetadataAsync(const TopicNamePtr&) override;
 
-    Future<Result, NamespaceTopicsPtr> getTopicsOfNamespaceAsync(const NamespaceNamePtr& nsName);
+    Future<Result, NamespaceTopicsPtr> getTopicsOfNamespaceAsync(const NamespaceNamePtr& nsName) override;
 };
 }  // namespace pulsar
 

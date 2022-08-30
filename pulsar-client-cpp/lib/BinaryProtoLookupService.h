@@ -26,40 +26,33 @@
 #include "Backoff.h"
 #include <lib/LookupService.h>
 #include <mutex>
+#include "ServiceNameResolver.h"
 
 namespace pulsar {
 class LookupDataResult;
 
 class PULSAR_PUBLIC BinaryProtoLookupService : public LookupService {
    public:
-    /*
-     * constructor
-     */
-    BinaryProtoLookupService(ConnectionPool& cnxPool, const std::string& serviceUrl);
+    BinaryProtoLookupService(ServiceNameResolver& serviceNameResolver, ConnectionPool& pool,
+                             const std::string& listenerName)
+        : serviceNameResolver_(serviceNameResolver), cnxPool_(pool), listenerName_(listenerName) {}
 
-    BinaryProtoLookupService(ConnectionPool& cnxPool, const std::string& serviceUrl,
-                             const std::string& listenerName);
+    LookupResultFuture getBroker(const TopicName& topicName) override;
 
-    Future<Result, LookupDataResultPtr> lookupAsync(const std::string& topicName);
+    Future<Result, LookupDataResultPtr> getPartitionMetadataAsync(const TopicNamePtr& topicName) override;
 
-    Future<Result, LookupDataResultPtr> getPartitionMetadataAsync(const TopicNamePtr& topicName);
-
-    Future<Result, NamespaceTopicsPtr> getTopicsOfNamespaceAsync(const NamespaceNamePtr& nsName);
+    Future<Result, NamespaceTopicsPtr> getTopicsOfNamespaceAsync(const NamespaceNamePtr& nsName) override;
 
    private:
     std::mutex mutex_;
     uint64_t requestIdGenerator_ = 0;
 
-    std::string serviceUrl_;
-    std::string listenerName_;
+    ServiceNameResolver& serviceNameResolver_;
     ConnectionPool& cnxPool_;
+    std::string listenerName_;
 
-    void sendTopicLookupRequest(const std::string& topicName, bool authoritative,
-                                const std::string& listenerName, Result result,
-                                const ClientConnectionWeakPtr& clientCnx, LookupDataResultPromisePtr promise);
-
-    void handleLookup(const std::string& topicName, Result result, LookupDataResultPtr data,
-                      const ClientConnectionWeakPtr& clientCnx, LookupDataResultPromisePtr promise);
+    // TODO: limit the redirect count, see https://github.com/apache/pulsar/pull/7096
+    LookupResultFuture findBroker(const std::string& address, bool authoritative, const std::string& topic);
 
     void sendPartitionMetadataLookupRequest(const std::string& topicName, Result result,
                                             const ClientConnectionWeakPtr& clientCnx,
