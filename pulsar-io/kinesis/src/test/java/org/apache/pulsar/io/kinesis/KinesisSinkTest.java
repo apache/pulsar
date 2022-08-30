@@ -58,7 +58,7 @@ import static org.testng.Assert.assertTrue;
 public class KinesisSinkTest {
 
     public static final String STREAM_NAME = "my-stream-1";
-    public static LocalStackContainer LOCALSTACK_CONTAINER = new LocalStackContainer(DockerImageName.parse("localstack/localstack:latest"))
+    public static LocalStackContainer LOCALSTACK_CONTAINER = new LocalStackContainer(DockerImageName.parse("localstack/localstack:1.0.4"))
             .withServices(LocalStackContainer.Service.KINESIS);
 
     @BeforeClass(alwaysRun = true)
