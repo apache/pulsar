@@ -285,16 +285,17 @@ PULSAR_PUBLIC int pulsar_consumer_configuration_get_priority_level(
     pulsar_consumer_configuration_t *consumer_configuration);
 
 PULSAR_PUBLIC void pulsar_consumer_configuration_set_max_pending_chunked_message(
-        pulsar_consumer_configuration_t *consumer_configuration, int max_pending_chunked_message);
+    pulsar_consumer_configuration_t *consumer_configuration, int max_pending_chunked_message);
 
 PULSAR_PUBLIC int pulsar_consumer_configuration_get_max_pending_chunked_message(
-        pulsar_consumer_configuration_t *consumer_configuration);
+    pulsar_consumer_configuration_t *consumer_configuration);
 
 PULSAR_PUBLIC void pulsar_consumer_configuration_set_auto_ack_oldest_chunked_message_on_queue_full(
-        pulsar_consumer_configuration_t *consumer_configuration, int auto_ack_oldest_chunked_message_on_queue_full);
+    pulsar_consumer_configuration_t *consumer_configuration,
+    int auto_ack_oldest_chunked_message_on_queue_full);
 
 PULSAR_PUBLIC int pulsar_consumer_configuration_get_auto_ack_oldest_chunked_message_on_queue_full(
-        pulsar_consumer_configuration_t *consumer_configuration);
+    pulsar_consumer_configuration_t *consumer_configuration);
 
 // const CryptoKeyReaderPtr getCryptoKeyReader()
 //

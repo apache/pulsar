@@ -143,4 +143,3 @@ TEST(ProducerConfigurationTest, testCApiConfig) {
     pulsar_producer_configuration_set_chunking_enabled(producer_conf, true);
     ASSERT_EQ(pulsar_producer_configuration_get_chunking_enabled(producer_conf), true);
 }
-
