@@ -43,6 +43,7 @@ import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
+import org.apache.pulsar.common.policies.data.EntryFilters;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
@@ -2513,5 +2514,54 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         WebTarget namespacePath = base.path(namespace.toString());
         namespacePath = WebTargets.addParts(namespacePath, parts);
         return namespacePath;
+    }
+
+    @Override
+    public EntryFilters getNamespaceEntryFilters(String namespace) throws PulsarAdminException {
+        return sync(() -> getNamespaceEntryFiltersAsync(namespace));
+    }
+
+    @Override
+    public CompletableFuture<EntryFilters> getNamespaceEntryFiltersAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "entryFilters");
+        final CompletableFuture<EntryFilters> future = new CompletableFuture<>();
+        asyncGetRequest(path, new InvocationCallback<EntryFilters>() {
+            @Override
+            public void completed(EntryFilters value) {
+                future.complete(value);
+            }
+
+            @Override
+            public void failed(Throwable throwable) {
+                future.completeExceptionally(getApiException(throwable.getCause()));
+            }
+        });
+        return future;
+    }
+
+    @Override
+    public void setNamespaceEntryFilters(String namespace, EntryFilters entryFilters)
+            throws PulsarAdminException {
+        sync(() -> setNamespaceEntryFiltersAsync(namespace, entryFilters));
+    }
+
+    @Override
+    public CompletableFuture<Void> setNamespaceEntryFiltersAsync(String namespace, EntryFilters entryFilters) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "entryFilters");
+        return asyncPostRequest(path, Entity.entity(entryFilters, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public void removeNamespaceEntryFilters(String namespace) throws PulsarAdminException {
+        sync(() -> removeNamespaceEntryFiltersAsync(namespace));
+    }
+
+    @Override
+    public CompletableFuture<Void> removeNamespaceEntryFiltersAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "entryFilters");
+        return asyncDeleteRequest(path);
     }
 }

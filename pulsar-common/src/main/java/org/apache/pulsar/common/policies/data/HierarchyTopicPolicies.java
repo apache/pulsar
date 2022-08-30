@@ -57,6 +57,7 @@ public class HierarchyTopicPolicies {
     final PolicyHierarchyValue<DispatchRateImpl> subscriptionDispatchRate;
     final PolicyHierarchyValue<SchemaCompatibilityStrategy> schemaCompatibilityStrategy;
     final PolicyHierarchyValue<DispatchRateImpl> dispatchRate;
+    final PolicyHierarchyValue<EntryFilters> entryFilters;
 
     public HierarchyTopicPolicies() {
         replicationClusters = new PolicyHierarchyValue<>();
@@ -86,5 +87,6 @@ public class HierarchyTopicPolicies {
         subscriptionDispatchRate = new PolicyHierarchyValue<>();
         schemaCompatibilityStrategy = new PolicyHierarchyValue<>();
         dispatchRate = new PolicyHierarchyValue<>();
+        entryFilters = new PolicyHierarchyValue<>();
     }
 }
