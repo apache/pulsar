@@ -26,29 +26,29 @@ public class TransactionBatchedWriteValidator {
         if (configuration.isTransactionPendingAckBatchedWriteEnabled()){
             if (configuration.getTransactionPendingAckBatchedWriteMaxRecords() < 10){
                 throw new IllegalArgumentException("Configuration field "
-                        + "'transactionPendingAckBatchedWriteMaxRecords' value must be greater than 10");
+                        + "'transactionPendingAckBatchedWriteMaxRecords' value at least 10");
             }
             if (configuration.getTransactionPendingAckBatchedWriteMaxSize() < 1024 * 128){
                 throw new IllegalArgumentException("Configuration field "
-                        + "'transactionPendingAckBatchedWriteMaxSize' value must be greater than 128k");
+                        + "'transactionPendingAckBatchedWriteMaxSize' value at least 128k");
             }
             if (configuration.getTransactionPendingAckBatchedWriteMaxDelayInMillis() < 1){
                 throw new IllegalArgumentException("Configuration field "
-                        + "'transactionPendingAckBatchedWriteMaxDelayInMillis' value must be greater 1");
+                        + "'transactionPendingAckBatchedWriteMaxDelayInMillis' value at least 1");
             }
         }
         if (configuration.isTransactionLogBatchedWriteEnabled()){
             if (configuration.getTransactionLogBatchedWriteMaxRecords() < 10){
                 throw new IllegalArgumentException("Configuration field "
-                        + "'transactionLogBatchedWriteMaxRecords' value must be greater 10");
+                        + "'transactionLogBatchedWriteMaxRecords' value at least 10");
             }
             if (configuration.getTransactionLogBatchedWriteMaxSize() < 1024 * 128){
                 throw new IllegalArgumentException("Configuration field "
-                        + "'transactionLogBatchedWriteMaxSize' value must be greater 128k");
+                        + "'transactionLogBatchedWriteMaxSize' value at least 128k");
             }
             if (configuration.getTransactionLogBatchedWriteMaxDelayInMillis() < 1){
                 throw new IllegalArgumentException("Configuration field "
-                        + "'transactionLogBatchedWriteMaxDelayInMillis' value must be greater 1");
+                        + "'transactionLogBatchedWriteMaxDelayInMillis' value at least 1");
             }
         }
     }
