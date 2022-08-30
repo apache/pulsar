@@ -37,7 +37,7 @@ import org.apache.bookkeeper.mledger.impl.EntryImpl;
 /**
  * PendingReadsManager tries to prevent sending duplicate reads to BK.
  */
-class PendingReadsManager {
+public class PendingReadsManager {
 
     private static final Counter COUNT_ENTRIES_READ_FROM_BK = Counter
             .build()
