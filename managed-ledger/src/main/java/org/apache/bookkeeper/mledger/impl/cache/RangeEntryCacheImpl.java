@@ -24,7 +24,6 @@ import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.createManaged
 import com.google.common.collect.Lists;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
