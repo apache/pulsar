@@ -26,6 +26,10 @@ on:
     branches:
       - branch-*
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   VCPKG_FEATURE_FLAGS: manifests
 
