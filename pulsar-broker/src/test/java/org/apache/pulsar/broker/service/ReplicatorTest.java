@@ -34,13 +34,7 @@ import io.netty.buffer.ByteBuf;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-import java.util.SortedSet;
-import java.util.TreeSet;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -49,6 +43,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
 
@@ -1492,5 +1487,100 @@ public class ReplicatorTest extends ReplicatorTestBase {
             assertTrue(replicationClusters != null && replicationClusters.size() == 1);
             assertTrue(topic.getReplicators().isEmpty());
         });
+    }
+
+    @Test
+    public void testGeoReplicationOriginMsgId() throws Exception {
+        config1.setBrokerDeduplicationEnabled(true);
+        config2.setBrokerDeduplicationEnabled(true);
+        config3.setBrokerDeduplicationEnabled(true);
+        PulsarClient client1 = pulsar1.getClient();
+        PulsarClient client2 = pulsar2.getClient();
+        PulsarClient client3 = pulsar3.getClient();
+        final TopicName topic = TopicName
+                .get(BrokerTestUtil.newUniqueName("persistent://pulsar/ns/testGeoReplicationOriginMsgId"));
+
+        final String subName = "my-sub";
+
+        @Cleanup
+        Producer<String> producer1 = client1.newProducer(Schema.STRING)
+                .topic(topic.toString())
+                .enableBatching(false)
+                .create();
+
+        admin1.topics().createSubscription(topic.toString(), subName, MessageId.earliest);
+        admin2.topics().createSubscription(topic.toString(), subName, MessageId.earliest);
+        admin3.topics().createSubscription(topic.toString(), subName, MessageId.earliest);
+
+        final int totalMessages = 100;
+
+        Map<String, String> data2MsgId = new ConcurrentHashMap<>();
+        AtomicInteger counter = new AtomicInteger(222369);
+        for (int i = 0; i < totalMessages; i++) {
+            String data = String.valueOf(counter.getAndIncrement());
+            producer1.sendAsync(data)
+                    .thenAccept(id -> {
+                        MessageIdImpl _id = (MessageIdImpl) id;
+                        data2MsgId.put(data, _id.getLedgerId() + ":" + _id.getEntryId());
+                    });
+        }
+
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(admin1.topics().getInternalStats(topic.toString()).schemaLedgers.size() > 0);
+            assertTrue(admin2.topics().getInternalStats(topic.toString()).schemaLedgers.size() > 0);
+            assertTrue(admin3.topics().getInternalStats(topic.toString()).schemaLedgers.size() > 0);
+        });
+
+        @Cleanup
+        Consumer<String> consumer1 = client1.newConsumer(Schema.STRING)
+                .topic(topic.toString())
+                .subscriptionName(subName)
+                .subscribe();
+
+        @Cleanup
+        Consumer<String> consumer2 = client2.newConsumer(Schema.STRING)
+                .topic(topic.toString())
+                .subscriptionName(subName)
+                .subscribe();
+
+        @Cleanup
+        Consumer<String> consumer3 = client3.newConsumer(Schema.STRING)
+                .topic(topic.toString())
+                .subscriptionName(subName)
+                .subscribe();
+
+        for (int i = 0; i < totalMessages; i++) {
+            Message<String> msg1 = consumer1.receive();
+            Message<String> msg2 = consumer2.receive();
+            Message<String> msg3 = consumer3.receive();
+            assertTrue(msg1 != null && msg2 != null && msg3 != null);
+            String data1 = msg1.getValue();
+            String data2 = msg2.getValue();
+            String data3 = msg3.getValue();
+            Assert.assertTrue(data1 != null && data2 != null && data3 != null);
+            Assert.assertTrue(data1.equals(data2) && data2.equals(data3));
+
+            Map<String, String> props1 = msg1.getProperties();
+            String originMsgId1 = props1.get("originMsgId");
+            assertNull(originMsgId1);
+            Map<String, String> props2 = msg2.getProperties();
+            String originMsgId2 = props2.get("originMsgId");
+            assertNotNull(originMsgId2);
+            Map<String, String> props3 = msg3.getProperties();
+            String originMsgId3 = props3.get("originMsgId");
+            assertNotNull(originMsgId3);
+
+            String originMsgId = data2MsgId.get(data1);
+            MessageIdImpl _id = (MessageIdImpl) msg1.getMessageId();
+            String _originMsgId = _id.getLedgerId() + ":" + _id.getEntryId();
+
+            Assert.assertEquals(originMsgId, _originMsgId);
+            Assert.assertEquals(originMsgId2, originMsgId);
+            Assert.assertEquals(originMsgId3, originMsgId);
+
+            consumer1.acknowledge(msg1);
+            consumer2.acknowledge(msg2);
+            consumer3.acknowledge(msg3);
+        }
     }
 }

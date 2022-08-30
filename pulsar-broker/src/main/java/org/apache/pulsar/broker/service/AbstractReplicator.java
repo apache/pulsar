@@ -18,9 +18,12 @@
  */
 package org.apache.pulsar.broker.service;
 
+import com.google.common.base.Strings;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+
+import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -30,6 +33,7 @@ import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.Backoff;
+import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.TopicName;
@@ -50,6 +54,7 @@ public abstract class AbstractReplicator {
 
     protected volatile ProducerImpl producer;
     public static final String REPL_PRODUCER_NAME_DELIMITER = "-->";
+    protected static final String ORIGIN_MSG_ID_KEY = "originMsgId";
 
     protected final int producerQueueSize;
     protected final ProducerBuilder<byte[]> producerBuilder;
@@ -220,6 +225,21 @@ public abstract class AbstractReplicator {
     protected boolean isWritable() {
         ProducerImpl producer = this.producer;
         return producer != null && producer.isWritable();
+    }
+
+    /**
+     * Pass origin message id to remote cluster.
+     *
+     * @param msg Message to replicate.
+     */
+    protected void processOriginMsgId(MessageImpl msg, Entry entry) {
+        if (Strings.isNullOrEmpty(msg.getProperty(ORIGIN_MSG_ID_KEY))) {
+            String originMsgId = entry.getLedgerId() + ":" + entry.getEntryId();
+            msg.getMessageBuilder()
+                    .addProperty()
+                    .setKey(ORIGIN_MSG_ID_KEY)
+                    .setValue(originMsgId);
+        }
     }
 
     public static String getRemoteCluster(String remoteCursor) {

@@ -92,6 +92,7 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
             MessageImpl msg;
             try {
                 msg = MessageImpl.deserializeSkipBrokerEntryMetaData(headersAndPayload);
+                this.processOriginMsgId(msg, entry);
             } catch (Throwable t) {
                 log.error("[{}] Failed to deserialize message at {} (buffer size: {}): {}", replicatorId,
                         entry.getPosition(), length, t.getMessage(), t);
