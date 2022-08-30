@@ -22,7 +22,7 @@ You can choose one of the following installation methods based on your needs: Co
 
 :::
 
-### Compilation 
+### Compilation
 
 #### System requirements
 
@@ -134,7 +134,7 @@ The `libpulsarwithdeps.a` does not include library openssl related libraries `li
 
 ### Install RPM
 
-1. Download a RPM package from the links in the table. 
+1. Download a RPM package from the links in the table.
 
 | Link | Crypto files |
 |------|--------------|
@@ -176,7 +176,7 @@ $ sudo yum -y install gcc-c++
 
 ### Install Debian
 
-1. Download a Debian package from the links in the table. 
+1. Download a Debian package from the links in the table.
 
 | Link | Crypto files |
 |------|--------------|
@@ -264,7 +264,7 @@ $ export OPENSSL_ROOT_DIR=/usr/local/opt/openssl/
 
 # Protocol Buffers installation
 $ brew install protobuf boost boost-python log4cxx
-# If you are using python3, you need to install boost-python3 
+# If you are using python3, you need to install boost-python3
 
 # Google Test installation
 $ git clone https://github.com/google/googletest.git
@@ -371,7 +371,7 @@ To use Pulsar as a producer, you need to create a producer on the C++ client. Th
 
 This example sends 100 messages using the blocking style. While simple, it does not produce high throughput as it waits for each ack to come back before sending the next message.
 
-```c++
+```cpp
 
 #include <pulsar/Client.h>
 #include <thread>
@@ -380,7 +380,7 @@ using namespace pulsar;
 
 int main() {
     Client client("pulsar://localhost:6650");
-    
+
     Producer producer;
 
     Result result = client.createProducer("persistent://public/default/my-topic", producer);
@@ -421,7 +421,7 @@ The producer configuration `blockIfQueueFull` is useful here to avoid `ResultPro
 
 Without this configuration, the result code `ResultProducerQueueIsFull` is passed to the callback. You must decide how to deal with that (retry, discard etc).
 
-```c++
+```cpp
 
 #include <pulsar/Client.h>
 #include <thread>
@@ -489,7 +489,7 @@ With our example above, that reduces the number of internal producers spread out
 
 Note that there can be extra latency for the first message sent. If you set a low send timeout, this timeout could be reached if the initial connection handshake is slow to complete.
 
-```c++
+```cpp
 
 ProducerConfiguration producerConf;
 producerConf.setPartitionsRoutingMode(ProducerConfiguration::UseSinglePartition);
@@ -499,11 +499,11 @@ producerConf.setLazyStartPartitionedProducers(true);
 
 ### Enable chunking
 
-Message [chunking](concepts-messaging.md#chunking) enables Pulsar to process large payload messages by splitting the message into chunks at the producer side and aggregating chunked messages at the consumer side. 
+Message [chunking](concepts-messaging.md#chunking) enables Pulsar to process large payload messages by splitting the message into chunks at the producer side and aggregating chunked messages at the consumer side.
 
 The message chunking feature is OFF by default. The following is an example about how to enable message chunking when creating a producer.
 
-```c++
+```cpp
 
 ProducerConfiguration conf;
 conf.setBatchingEnabled(false);
@@ -527,7 +527,7 @@ The benefit of this approach is that it is the simplest code. Simply keeps calli
 
 This example starts a subscription at the earliest offset and consumes 100 messages.
 
-```c++
+```cpp
 
 #include <pulsar/Client.h>
 
@@ -571,7 +571,7 @@ You can avoid running a loop with blocking calls with an event based style by us
 
 This example starts a subscription at the earliest offset and consumes 100 messages.
 
-```c++
+```cpp
 
 #include <pulsar/Client.h>
 #include <atomic>
@@ -619,11 +619,11 @@ int main() {
 
 ### Configure chunking
 
-You can limit the maximum number of chunked messages a consumer maintains concurrently by configuring the `setMaxPendingChunkedMessage` and `setAutoAckOldestChunkedMessageOnQueueFull` parameters. When the threshold is reached, the consumer drops pending messages by silently acknowledging them or asking the broker to redeliver them later. 
+You can limit the maximum number of chunked messages a consumer maintains concurrently by configuring the `setMaxPendingChunkedMessage` and `setAutoAckOldestChunkedMessageOnQueueFull` parameters. When the threshold is reached, the consumer drops pending messages by silently acknowledging them or asking the broker to redeliver them later.
 
 The following is an example of how to configure message chunking.
 
-```c++
+```cpp
 
 ConsumerConfiguration conf;
 conf.setAutoAckOldestChunkedMessageOnQueueFull(true);
@@ -661,7 +661,7 @@ schema, see [Pulsar schema](schema-get-started.md).
 - The following example shows how to create a producer with an Avro schema.
 
   ```cpp
-  
+
   static const std::string exampleSchema =
       "{\"type\":\"record\",\"name\":\"Example\",\"namespace\":\"test\","
       "\"fields\":[{\"name\":\"a\",\"type\":\"int\"},{\"name\":\"b\",\"type\":\"int\"}]}";
@@ -669,13 +669,13 @@ schema, see [Pulsar schema](schema-get-started.md).
   ProducerConfiguration producerConf;
   producerConf.setSchema(SchemaInfo(AVRO, "Avro", exampleSchema));
   client.createProducer("topic-avro", producerConf, producer);
-  
+
   ```
 
 - The following example shows how to create a consumer with an Avro schema.
 
   ```cpp
-  
+
   static const std::string exampleSchema =
       "{\"type\":\"record\",\"name\":\"Example\",\"namespace\":\"test\","
       "\"fields\":[{\"name\":\"a\",\"type\":\"int\"},{\"name\":\"b\",\"type\":\"int\"}]}";
@@ -683,14 +683,14 @@ schema, see [Pulsar schema](schema-get-started.md).
   Consumer consumer;
   consumerConf.setSchema(SchemaInfo(AVRO, "Avro", exampleSchema));
   client.subscribe("topic-avro", "sub-2", consumerConf, consumer)
-  
+
   ```
 
 ### ProtobufNative schema
 
 The following example shows how to create a producer and a consumer with a ProtobufNative schema.
 ​
-1. Generate the `User` class using Protobuf3. 
+1. Generate the `User` class using Protobuf3.
 
    :::note
 
@@ -701,32 +701,32 @@ The following example shows how to create a producer and a consumer with a Proto
 ​
 
    ```protobuf
-   
+
    syntax = "proto3";
-   
+
    message User {
        string name = 1;
        int32 age = 2;
    }
-   
+
    ```
 
 ​
 2. Include the `ProtobufNativeSchema.h` in your source code. Ensure the Protobuf dependency has been added to your project.
 ​
 
-   ```c++
-   
+   ```cpp
+
    #include <pulsar/ProtobufNativeSchema.h>
-   
+
    ```
 
 ​
 3. Create a producer to send a `User` instance.
 ​
 
-   ```c++
-   
+   ```cpp
+
    ProducerConfiguration producerConf;
    producerConf.setSchema(createProtobufNativeSchema(User::GetDescriptor()));
    Producer producer;
@@ -737,15 +737,15 @@ The following example shows how to create a producer and a consumer with a Proto
    std::string content;
    user.SerializeToString(&content);
    producer.send(MessageBuilder().setContent(content).build());
-   
+
    ```
 
 ​
 4. Create a consumer to receive a `User` instance.
 ​
 
-   ```c++
-   
+   ```cpp
+
    ConsumerConfiguration consumerConf;
    consumerConf.setSchema(createProtobufNativeSchema(User::GetDescriptor()));
    consumerConf.setSubscriptionInitialPosition(InitialPositionEarliest);
@@ -755,6 +755,6 @@ The following example shows how to create a producer and a consumer with a Proto
    consumer.receive(msg);
    User user2;
    user2.ParseFromArray(msg.getData(), msg.getLength());
-   
+
    ```
 
