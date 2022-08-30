@@ -69,6 +69,9 @@ public class ThreadRuntime implements Runtime {
     private final PulsarAdmin pulsarAdmin;
     private final String stateStorageImplClass;
     private final String stateStorageServiceUrl;
+    private long stateStorageBackoffPolicyStartMs;
+    private long stateStorageBackoffPolicyMaxMs;
+    private long stateStorageBackoffPolicyLimit;
     private final SecretsProvider secretsProvider;
     private final FunctionCollectorRegistry collectorRegistry;
     private final String narExtractionDirectory;
@@ -84,6 +87,9 @@ public class ThreadRuntime implements Runtime {
                   PulsarAdmin pulsarAdmin,
                   String stateStorageImplClass,
                   String stateStorageServiceUrl,
+                  long stateStorageBackoffPolicyStartMs,
+                  long stateStorageBackoffPolicyMaxMs,
+                  long stateStorageBackoffPolicyLimit,
                   SecretsProvider secretsProvider,
                   FunctionCollectorRegistry collectorRegistry,
                   String narExtractionDirectory,
@@ -102,6 +108,9 @@ public class ThreadRuntime implements Runtime {
         this.pulsarAdmin = pulsarAdmin;
         this.stateStorageImplClass = stateStorageImplClass;
         this.stateStorageServiceUrl = stateStorageServiceUrl;
+        this.stateStorageBackoffPolicyStartMs = stateStorageBackoffPolicyStartMs;
+        this.stateStorageBackoffPolicyMaxMs = stateStorageBackoffPolicyMaxMs;
+        this.stateStorageBackoffPolicyLimit = stateStorageBackoffPolicyLimit;
         this.secretsProvider = secretsProvider;
         this.collectorRegistry = collectorRegistry;
         this.narExtractionDirectory = narExtractionDirectory;
@@ -201,6 +210,9 @@ public class ThreadRuntime implements Runtime {
                 pulsarAdmin,
                 stateStorageImplClass,
                 stateStorageServiceUrl,
+                stateStorageBackoffPolicyStartMs,
+                stateStorageBackoffPolicyMaxMs,
+                stateStorageBackoffPolicyLimit,
                 secretsProvider,
                 collectorRegistry,
                 functionClassLoader);

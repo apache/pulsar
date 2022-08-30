@@ -28,6 +28,9 @@ import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 public interface StateStoreProvider extends AutoCloseable {
 
     String STATE_STORAGE_SERVICE_URL = "stateStorageServiceUrl";
+    String STATE_STORAGE_BACKOFF_POLICY_STARTMS = "stateStorageBackoffPolicyStartMs";
+    String STATE_STORAGE_BACKOFF_POLICY_MAXMS = "stateStorageBackoffPolicyMaxMs";
+    String STATE_STORAGE_BACKOFF_POLICY_LIMIT = "stateStorageBackoffPolicyLimit";
 
     /**
      * The state store provider returns `null` state stores.

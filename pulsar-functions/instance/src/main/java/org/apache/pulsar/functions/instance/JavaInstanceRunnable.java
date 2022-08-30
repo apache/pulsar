@@ -99,6 +99,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     // provide tables for storing states
     private final String stateStorageImplClass;
     private final String stateStorageServiceUrl;
+    private long stateStorageBackoffPolicyStartMs;
+    private long stateStorageBackoffPolicyMaxMs;
+    private long stateStorageBackoffPolicyLimit;
     private StateStoreProvider stateStoreProvider;
     private StateManager stateManager;
 
@@ -141,6 +144,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                                 PulsarAdmin pulsarAdmin,
                                 String stateStorageImplClass,
                                 String stateStorageServiceUrl,
+                                long stateStorageBackoffPolicyStartMs,
+                                long stateStorageBackoffPolicyMaxMs,
+                                long stateStorageBackoffPolicyLimit,
                                 SecretsProvider secretsProvider,
                                 FunctionCollectorRegistry collectorRegistry,
                                 ClassLoader functionClassLoader) throws PulsarClientException {
@@ -150,6 +156,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         this.pulsarAdmin = pulsarAdmin;
         this.stateStorageImplClass = stateStorageImplClass;
         this.stateStorageServiceUrl = stateStorageServiceUrl;
+        this.stateStorageBackoffPolicyStartMs = stateStorageBackoffPolicyStartMs;
+        this.stateStorageBackoffPolicyMaxMs = stateStorageBackoffPolicyMaxMs;
+        this.stateStorageBackoffPolicyLimit = stateStorageBackoffPolicyLimit;
         this.secretsProvider = secretsProvider;
         this.functionClassLoader = functionClassLoader;
         this.metricsLabels = new String[]{
@@ -329,6 +338,18 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             stateStoreProvider = getStateStoreProvider();
             Map<String, Object> stateStoreProviderConfig = new HashMap<>();
             stateStoreProviderConfig.put(BKStateStoreProviderImpl.STATE_STORAGE_SERVICE_URL, stateStorageServiceUrl);
+            if (stateStorageBackoffPolicyStartMs > 0) {
+                stateStoreProviderConfig.put(BKStateStoreProviderImpl.STATE_STORAGE_BACKOFF_POLICY_STARTMS,
+                        stateStorageBackoffPolicyStartMs);
+            }
+            if (stateStorageBackoffPolicyMaxMs > 0) {
+                stateStoreProviderConfig.put(BKStateStoreProviderImpl.STATE_STORAGE_BACKOFF_POLICY_MAXMS,
+                        stateStorageBackoffPolicyMaxMs);
+            }
+            if (stateStorageBackoffPolicyLimit > 0) {
+                stateStoreProviderConfig.put(BKStateStoreProviderImpl.STATE_STORAGE_BACKOFF_POLICY_LIMIT,
+                        stateStorageBackoffPolicyLimit);
+            }
             stateStoreProvider.init(stateStoreProviderConfig, instanceConfig.getFunctionDetails());
 
             StateStore store = stateStoreProvider.getStateStore(
