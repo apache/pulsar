@@ -34,7 +34,11 @@ public class ResourceQuotasImpl extends BaseResource implements ResourceQuotas {
     private final WebTarget adminV2Quotas;
 
     public ResourceQuotasImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
+        this(web, auth, readTimeoutMs, null);
+    }
+
+    public ResourceQuotasImpl(WebTarget web, Authentication auth, long readTimeoutMs, String advertisedListener) {
+        super(auth, readTimeoutMs, advertisedListener);
         adminQuotas = web.path("/admin/resource-quotas");
         adminV2Quotas = web.path("/admin/v2/resource-quotas");
     }

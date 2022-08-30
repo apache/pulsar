@@ -38,7 +38,11 @@ public class BrokersImpl extends BaseResource implements Brokers {
     private final WebTarget adminBrokers;
 
     public BrokersImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
+        this(web, auth, readTimeoutMs, null);
+    }
+
+    public BrokersImpl(WebTarget web, Authentication auth, long readTimeoutMs, String advertisedListener) {
+        super(auth, readTimeoutMs, advertisedListener);
         adminBrokers = web.path("admin/v2/brokers");
     }
 

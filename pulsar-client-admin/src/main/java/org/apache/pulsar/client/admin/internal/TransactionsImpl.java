@@ -44,7 +44,11 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     private final WebTarget adminV3Transactions;
 
     public TransactionsImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
+        this(web, auth, readTimeoutMs, null);
+    }
+
+    public TransactionsImpl(WebTarget web, Authentication auth, long readTimeoutMs, String advertisedListener) {
+        super(auth, readTimeoutMs, advertisedListener);
         adminV3Transactions = web.path("/admin/v3/transactions");
     }
 

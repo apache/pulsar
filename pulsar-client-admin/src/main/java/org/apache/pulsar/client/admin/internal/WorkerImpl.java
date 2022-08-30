@@ -44,7 +44,11 @@ public class WorkerImpl extends BaseResource implements Worker {
     private final WebTarget worker;
 
     public WorkerImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
+        this(web, auth, readTimeoutMs, null);
+    }
+
+    public WorkerImpl(WebTarget web, Authentication auth, long readTimeoutMs, String advertisedListener) {
+        super(auth, readTimeoutMs, advertisedListener);
         this.worker = web.path("/admin/v2/worker");
         this.workerStats = web.path("/admin/v2/worker-stats");
     }

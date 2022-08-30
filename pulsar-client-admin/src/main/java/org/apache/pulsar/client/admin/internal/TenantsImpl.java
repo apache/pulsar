@@ -35,7 +35,11 @@ public class TenantsImpl extends BaseResource implements Tenants, Properties {
     private final WebTarget adminTenants;
 
     public TenantsImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
+        this(web, auth, readTimeoutMs, null);
+    }
+
+    public TenantsImpl(WebTarget web, Authentication auth, long readTimeoutMs, String advertisedListener) {
+        super(auth, readTimeoutMs, advertisedListener);
         adminTenants = web.path("/admin/v2/tenants");
     }
 

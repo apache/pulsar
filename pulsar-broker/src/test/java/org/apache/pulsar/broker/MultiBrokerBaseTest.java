@@ -146,6 +146,23 @@ public abstract class MultiBrokerBaseTest extends MockedPulsarServiceBaseTest {
         return Collections.unmodifiableList(admins);
     }
 
+    public final List<PulsarAdmin> getAllAdmins(String listener) throws Exception {
+        List<PulsarAdmin> admins = new ArrayList<>(numberOfAdditionalBrokers() + 1);
+
+        PulsarAdminBuilder pulsarAdminBuilder = PulsarAdmin.builder().serviceHttpUrl(
+            getPulsar().getWebServiceAddress() != null ? getPulsar().getWebServiceAddress()
+                    : getPulsar().getWebServiceAddressTls()).listenerName(listener);
+        admins.add(pulsarAdminBuilder.build());
+
+        for (PulsarService broker : additionalBrokers) {
+            pulsarAdminBuilder = PulsarAdmin.builder().serviceHttpUrl(broker.getWebServiceAddress() != null
+                    ? broker.getWebServiceAddress() : broker.getWebServiceAddressTls()).listenerName(listener);
+            admins.add(pulsarAdminBuilder.build());
+        }
+
+        return Collections.unmodifiableList(admins);
+    }
+
     public final List<PulsarClient> getAllClients() {
         List<PulsarClient> clients = new ArrayList<>(numberOfAdditionalBrokers() + 1);
         clients.add(pulsarClient);

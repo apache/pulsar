@@ -58,7 +58,12 @@ public class PackagesImpl extends ComponentResource implements Packages {
     private final AsyncHttpClient httpClient;
 
     public PackagesImpl(WebTarget webTarget, Authentication auth, AsyncHttpClient client, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
+        this(webTarget, auth, client, readTimeoutMs, null);
+    }
+
+    public PackagesImpl(WebTarget webTarget, Authentication auth, AsyncHttpClient client, long readTimeoutMs,
+                        String advertisedListener) {
+        super(auth, readTimeoutMs, advertisedListener);
         this.httpClient = client;
         this.packages = webTarget.path("/admin/v3/packages");
     }

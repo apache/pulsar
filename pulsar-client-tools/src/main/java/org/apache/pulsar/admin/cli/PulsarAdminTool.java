@@ -76,6 +76,9 @@ public class PulsarAdminTool {
         @Parameter(names = { "--tls-trust-cert-path" }, description = "Allow TLS trust cert file path")
         String tlsTrustCertsFilePath;
 
+        @Parameter(names = { "--listener" }, description = "Listener name for lookup")
+        String listenerName = null;
+
         @Parameter(names = { "--tls-enable-hostname-verification" },
                 description = "Enable TLS common name verification")
         Boolean tlsEnableHostnameVerification;
@@ -172,6 +175,7 @@ public class PulsarAdminTool {
             adminBuilder.serviceHttpUrl(rootParams.serviceUrl);
             adminBuilder.authentication(rootParams.authPluginClassName, rootParams.authParams);
             adminBuilder.requestTimeout(rootParams.requestTimeout, TimeUnit.SECONDS);
+            adminBuilder.listenerName(rootParams.listenerName);
             if (isBlank(rootParams.tlsProvider)) {
                 rootParams.tlsProvider = properties.getProperty("webserviceTlsProvider");
             }

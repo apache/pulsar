@@ -132,7 +132,11 @@ public class TopicsImpl extends BaseResource implements Topics {
     // CHECKSTYLE.ON: MemberName
 
     public TopicsImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
+        this(web, auth, readTimeoutMs, null);
+    }
+
+    public TopicsImpl(WebTarget web, Authentication auth, long readTimeoutMs, String advertisedListener) {
+        super(auth, readTimeoutMs, advertisedListener);
         adminTopics = web.path("/admin");
         adminV2Topics = web.path("/admin/v2");
     }

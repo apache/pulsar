@@ -51,7 +51,12 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
     private final boolean isGlobal;
 
     protected TopicPoliciesImpl(WebTarget web, Authentication auth, long readTimeoutMs, boolean isGlobal) {
-        super(auth, readTimeoutMs);
+        this(web, auth, readTimeoutMs, null, isGlobal);
+    }
+
+    protected TopicPoliciesImpl(WebTarget web, Authentication auth, long readTimeoutMs,
+                                String advertisedListener, boolean isGlobal) {
+        super(auth, readTimeoutMs, advertisedListener);
         this.adminTopics = web.path("/admin");
         this.adminV2Topics = web.path("/admin/v2");
         this.isGlobal = isGlobal;
