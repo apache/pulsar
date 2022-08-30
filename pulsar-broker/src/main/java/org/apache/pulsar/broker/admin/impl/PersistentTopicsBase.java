@@ -5263,7 +5263,7 @@ public class PersistentTopicsBase extends AdminResource {
                                     pulsar().getNamespaceService().isServiceUnitOwnedAsync(partition)
                                     .thenCompose(owned -> {
                                         if (owned) {
-                                            return getReplicatedSubscriptionStatusFromBroker(partition, subName);
+                                            return getReplicatedSubscriptionStatusFromLocalBroker(partition, subName);
                                         } else {
                                             try {
                                                 return pulsar().getAdminClient().topics()
@@ -5320,17 +5320,18 @@ public class PersistentTopicsBase extends AdminResource {
         });
     }
 
-    private CompletableFuture<Map<String, Boolean>> getReplicatedSubscriptionStatusFromBroker(TopicName partitionName,
-                                                                                              String subName) {
-        return getTopicReferenceAsync(partitionName).thenCompose(topic -> {
+    private CompletableFuture<Map<String, Boolean>> getReplicatedSubscriptionStatusFromLocalBroker(
+            TopicName localTopicName,
+            String subName) {
+        return getTopicReferenceAsync(localTopicName).thenCompose(topic -> {
             Subscription sub = topic.getSubscription(subName);
             if (sub == null) {
                 return FutureUtil.failedFuture(new RestException(Status.NOT_FOUND,
-                    getSubNotFoundErrorMessage(partitionName.toString(), subName)));
+                    getSubNotFoundErrorMessage(localTopicName.toString(), subName)));
             }
             if (topic instanceof PersistentTopic && sub instanceof PersistentSubscription) {
                 Map<String, Boolean> res = Maps.newHashMap();
-                res.put(partitionName.toString(), sub.isReplicated());
+                res.put(localTopicName.toString(), sub.isReplicated());
                 return CompletableFuture.completedFuture(res);
             } else {
                 return FutureUtil.failedFuture(new RestException(Status.METHOD_NOT_ALLOWED,
@@ -5345,7 +5346,7 @@ public class PersistentTopicsBase extends AdminResource {
                                                                                boolean authoritative) {
         // Redirect the request to the appropriate broker if this broker is not the owner of the topic
         validateTopicOwnershipAsync(topicName, authoritative)
-                .thenCompose(__ -> getReplicatedSubscriptionStatusFromBroker(topicName, subName))
+                .thenCompose(__ -> getReplicatedSubscriptionStatusFromLocalBroker(topicName, subName))
                 .whenComplete((res, e) -> {
                     if (e != null) {
                         Throwable cause = FutureUtil.unwrapCompletionException(e);
