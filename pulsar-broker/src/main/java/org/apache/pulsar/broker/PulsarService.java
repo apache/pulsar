@@ -116,6 +116,7 @@ import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientImpl;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
 import org.apache.pulsar.broker.validator.MultipleListenerValidator;
+import org.apache.pulsar.broker.validator.TransactionBatchedWriteValidator;
 import org.apache.pulsar.broker.web.WebService;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlet;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServletWithClassLoader;
@@ -303,7 +304,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
         // Validate correctness of configuration
         PulsarConfigurationLoader.isComplete(config);
-        ensureConfigIsAppropriate(config);
+        TransactionBatchedWriteValidator.validate(config);
 
         // validate `advertisedAddress`, `advertisedListeners`, `internalListenerName`
         this.advertisedListeners = MultipleListenerValidator.validateAndAnalysisAdvertisedListener(config);
@@ -366,31 +367,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         .batchingMaxSizeKb(config.getMetadataStoreBatchingMaxSizeKb())
                         .synchronizer(synchronizer)
                         .build());
-    }
-
-    private static void ensureConfigIsAppropriate(ServiceConfiguration configuration){
-        if (configuration.isTransactionPendingAckBatchedWriteEnabled()){
-            if (configuration.getTransactionPendingAckBatchedWriteMaxRecords() < 10){
-                throw new IllegalArgumentException("Txn pending ack batched write max records suggestion at least 10");
-            }
-            if (configuration.getTransactionPendingAckBatchedWriteMaxSize() < 1024 * 128){
-                throw new IllegalArgumentException("Txn pending ack batched write max size suggestion at least 128k");
-            }
-            if (configuration.getTransactionPendingAckBatchedWriteMaxDelayInMillis() < 1){
-                throw new IllegalArgumentException("Txn pending ack batched write max delay at least 1 milli seconds");
-            }
-        }
-        if (configuration.isTransactionLogBatchedWriteEnabled()){
-            if (configuration.getTransactionLogBatchedWriteMaxRecords() < 10){
-                throw new IllegalArgumentException("Txn TC batched write max records suggestion at least 10");
-            }
-            if (configuration.getTransactionLogBatchedWriteMaxSize() < 1024 * 128){
-                throw new IllegalArgumentException("Txn TC batched write max size suggestion at least 128k");
-            }
-            if (configuration.getTransactionLogBatchedWriteMaxDelayInMillis() < 1){
-                throw new IllegalArgumentException("Txn TC batched write max delay at least 1 milli seconds");
-            }
-        }
     }
 
     /**
