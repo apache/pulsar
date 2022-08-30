@@ -36,6 +36,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.function.Predicate;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -311,8 +312,16 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 if (minReplayedPosition != null) {
                     redeliveryMessages.add(minReplayedPosition.getLedgerId(), minReplayedPosition.getEntryId());
                 }
-                cursor.asyncReadEntriesOrWait(messagesToRead, bytesToRead, this,
-                        ReadType.Normal, topic.getMaxReadPosition());
+
+                Predicate<PositionImpl> skipFilter = null;
+                // Filter out and skip read delayed messages exist in DelayedDeliveryTracker
+                if (delayedDeliveryTracker.isPresent()) {
+                    final DelayedDeliveryTracker deliveryTracker = delayedDeliveryTracker.get();
+                    skipFilter = position -> deliveryTracker
+                            .containsMessage(position.getLedgerId(), position.getEntryId());
+                }
+                cursor.asyncReadEntriesOrWait(messagesToRead, bytesToRead, this, ReadType.Normal,
+                        topic.getMaxReadPosition(), skipFilter);
             } else {
                 log.debug("[{}] Cannot schedule next read until previous one is done", name);
             }
@@ -1014,7 +1023,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         }
     }
 
-    protected synchronized Set<PositionImpl> getMessagesToReplayNow(int maxMessagesToRead) {
+    protected synchronized Set<PositionImpl>  getMessagesToReplayNow(int maxMessagesToRead) {
         if (!redeliveryMessages.isEmpty()) {
             return redeliveryMessages.getMessagesToReplayNow(maxMessagesToRead);
         } else if (delayedDeliveryTracker.isPresent() && delayedDeliveryTracker.get().hasMessageAvailable()) {

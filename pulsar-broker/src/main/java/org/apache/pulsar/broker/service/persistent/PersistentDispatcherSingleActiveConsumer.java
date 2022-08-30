@@ -357,7 +357,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                     ReadEntriesCtx readEntriesCtx =
                             ReadEntriesCtx.create(consumer, consumer.getConsumerEpoch());
                     cursor.asyncReadEntriesOrWait(messagesToRead,
-                            bytesToRead, this, readEntriesCtx, topic.getMaxReadPosition());
+                            bytesToRead, this, readEntriesCtx, topic.getMaxReadPosition(), null);
                 }
             }
         } else {

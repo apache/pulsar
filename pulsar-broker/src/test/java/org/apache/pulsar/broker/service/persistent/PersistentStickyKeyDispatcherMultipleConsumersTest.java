@@ -39,6 +39,7 @@ import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelPromise;
+import io.netty.channel.EventLoopGroup;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -49,7 +50,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
-import io.netty.channel.EventLoopGroup;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
@@ -252,7 +252,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
                 return null;
             }).when(cursorMock).asyncReadEntriesOrWait(
                     anyInt(), anyLong(), any(PersistentStickyKeyDispatcherMultipleConsumers.class),
-                    eq(PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal), any());
+                    eq(PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal), any(), null);
         } catch (Exception e) {
             fail("Failed to set to field", e);
         }
@@ -418,7 +418,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
             return null;
         }).when(cursorMock).asyncReadEntriesOrWait(anyInt(), anyLong(),
                 any(PersistentStickyKeyDispatcherMultipleConsumers.class),
-                eq(PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal), any());
+                eq(PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal), any(), null);
 
         // (1) Run sendMessagesToConsumers
         // (2) Attempts to send message1 to consumer1 but skipped because availablePermits is 0

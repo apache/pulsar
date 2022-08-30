@@ -22,7 +22,9 @@ import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.function.Predicate;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -45,8 +47,10 @@ class OpReadEntry implements ReadEntriesCallback {
     private PositionImpl nextReadPosition;
     PositionImpl maxPosition;
 
+    Predicate<PositionImpl> skipFilter;
+
     public static OpReadEntry create(ManagedCursorImpl cursor, PositionImpl readPositionRef, int count,
-            ReadEntriesCallback callback, Object ctx, PositionImpl maxPosition) {
+            ReadEntriesCallback callback, Object ctx, PositionImpl maxPosition, Predicate<PositionImpl> skipFilter) {
         OpReadEntry op = RECYCLER.get();
         op.readPosition = cursor.ledger.startReadOperationOnLedger(readPositionRef);
         op.cursor = cursor;
@@ -57,34 +61,45 @@ class OpReadEntry implements ReadEntriesCallback {
             maxPosition = PositionImpl.LATEST;
         }
         op.maxPosition = maxPosition;
+        op.skipFilter = skipFilter;
         op.ctx = ctx;
         op.nextReadPosition = PositionImpl.get(op.readPosition);
         return op;
     }
 
-    @Override
-    public void readEntriesComplete(List<Entry> returnedEntries, Object ctx) {
+    void internalReadEntriesComplete(List<Entry> returnedEntries, Object ctx, PositionImpl lastPosition) {
         // Filter the returned entries for individual deleted messages
         int entriesCount = returnedEntries.size();
         long entriesSize = 0;
-        for (int i = 0; i < entriesCount; i++) {
-            entriesSize += returnedEntries.get(i).getLength();
+        for (Entry returnedEntry : returnedEntries) {
+            entriesSize += returnedEntry.getLength();
         }
         cursor.updateReadStats(entriesCount, entriesSize);
 
-        final PositionImpl lastPosition = (PositionImpl) returnedEntries.get(entriesCount - 1).getPosition();
+        if (lastPosition == null || entriesCount != 0) {
+            lastPosition = (PositionImpl) returnedEntries.get(entriesCount - 1).getPosition();
+        }
         if (log.isDebugEnabled()) {
             log.debug("[{}][{}] Read entries succeeded batch_size={} cumulative_size={} requested_count={}",
                     cursor.ledger.getName(), cursor.getName(), returnedEntries.size(), entries.size(), count);
         }
-        List<Entry> filteredEntries = cursor.filterReadEntries(returnedEntries);
-        entries.addAll(filteredEntries);
+
+        List<Entry> filteredEntries = Collections.emptyList();
+        if (entriesCount != 0) {
+            filteredEntries = cursor.filterReadEntries(returnedEntries);
+            entries.addAll(filteredEntries);
+        }
 
         // if entries have been filtered out then try to skip reading of already deletedMessages in that range
         final Position nexReadPosition = entriesCount != filteredEntries.size()
                 ? cursor.getNextAvailablePosition(lastPosition) : lastPosition.getNext();
         updateReadPosition(nexReadPosition);
         checkReadCompletion();
+    }
+
+    @Override
+    public void readEntriesComplete(List<Entry> returnedEntries, Object ctx) {
+        internalReadEntriesComplete(returnedEntries, ctx, null);
     }
 
     @Override
