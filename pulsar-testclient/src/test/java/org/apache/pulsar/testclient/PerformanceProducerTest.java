@@ -161,7 +161,7 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
         newConsumer2.close();
     }
 
-    @Test
+    @Test(timeOut = 20000)
     public void testMsgKeyBatchingDisabled() throws Exception {
         String argString = "%s -r 10 -u %s -m 500 -mk autoIncrement -db";
         String topic = testTopic + UUID.randomUUID();
