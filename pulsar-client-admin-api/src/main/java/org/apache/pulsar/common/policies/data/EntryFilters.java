@@ -16,18 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#ifndef _CHECKSUM_PROVIDER_H_
-#define _CHECKSUM_PROVIDER_H_
+package org.apache.pulsar.common.policies.data;
 
-#include <stdint.h>
-#include <pulsar/defines.h>
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-namespace pulsar {
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+public class EntryFilters {
 
-PULSAR_PUBLIC bool crc32cSupported();
-PULSAR_PUBLIC uint32_t computeChecksum(uint32_t previousChecksum, const void *data, int length);
-PULSAR_PUBLIC uint32_t crc32cHw(uint32_t previousChecksum, const void *data, int length);
-PULSAR_PUBLIC uint32_t crc32cSw(uint32_t previousChecksum, const void *data, int length);
-}  // namespace pulsar
+    /**
+     * The class name for the entry filter.
+     */
+    private String entryFilterNames;
 
-#endif  // _CHECKSUM_PROVIDER_H_
+}
