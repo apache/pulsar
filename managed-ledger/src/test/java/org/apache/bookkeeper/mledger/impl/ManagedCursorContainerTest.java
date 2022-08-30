@@ -33,8 +33,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Predicate;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Predicate;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
@@ -111,13 +111,13 @@ public class ManagedCursorContainerTest {
 
         @Override
         public void asyncReadEntries(int numberOfEntriesToRead, ReadEntriesCallback callback, Object ctx,
-                                     PositionImpl maxPosition) {
+                                     PositionImpl maxPosition, Predicate<PositionImpl> skipCondition) {
             callback.readEntriesComplete(null, ctx);
         }
 
         @Override
         public void asyncReadEntries(int numberOfEntriesToRead, long maxSizeBytes, ReadEntriesCallback callback,
-                                     Object ctx, PositionImpl maxPosition) {
+                                     Object ctx, PositionImpl maxPosition, Predicate<PositionImpl> skipCondition) {
             callback.readEntriesComplete(null, ctx);
         }
 
@@ -302,12 +302,12 @@ public class ManagedCursorContainerTest {
 
         @Override
         public void asyncReadEntriesOrWait(int numberOfEntriesToRead, ReadEntriesCallback callback, Object ctx,
-                                           PositionImpl maxPosition) {
+                                           PositionImpl maxPosition, Predicate<PositionImpl> skipCondition) {
         }
 
         @Override
         public void asyncReadEntriesOrWait(int maxEntries, long maxSizeBytes, ReadEntriesCallback callback,
-                                           Object ctx, PositionImpl maxPosition) {
+                                           Object ctx, PositionImpl maxPosition, Predicate<PositionImpl> skipCondition) {
 
         }
 

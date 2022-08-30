@@ -252,7 +252,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
                 return null;
             }).when(cursorMock).asyncReadEntriesOrWait(
                     anyInt(), anyLong(), any(PersistentStickyKeyDispatcherMultipleConsumers.class),
-                    eq(PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal), any());
+                    eq(PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal), any(), any());
         } catch (Exception e) {
             fail("Failed to set to field", e);
         }
@@ -421,7 +421,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
             return null;
         }).when(cursorMock).asyncReadEntriesOrWait(anyInt(), anyLong(),
                 any(PersistentStickyKeyDispatcherMultipleConsumers.class),
-                eq(PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal), any());
+                eq(PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal), any(), any());
 
         // (1) Run sendMessagesToConsumers
         // (2) Attempts to send message1 to consumer1 but skipped because availablePermits is 0

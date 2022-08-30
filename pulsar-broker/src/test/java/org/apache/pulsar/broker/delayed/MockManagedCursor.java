@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Predicate;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -102,13 +103,14 @@ public class MockManagedCursor implements ManagedCursor {
 
     @Override
     public void asyncReadEntries(int numberOfEntriesToRead, AsyncCallbacks.ReadEntriesCallback callback, Object ctx,
-                                 PositionImpl maxPosition) {
+                                 PositionImpl maxPosition, Predicate<PositionImpl> skipCondition) {
 
     }
 
     @Override
     public void asyncReadEntries(int numberOfEntriesToRead, long maxSizeBytes,
-                                 AsyncCallbacks.ReadEntriesCallback callback, Object ctx, PositionImpl maxPosition) {
+                                 AsyncCallbacks.ReadEntriesCallback callback, Object ctx, PositionImpl maxPosition,
+                                 Predicate<PositionImpl> skipCondition) {
 
     }
 
@@ -138,13 +140,13 @@ public class MockManagedCursor implements ManagedCursor {
 
     @Override
     public void asyncReadEntriesOrWait(int numberOfEntriesToRead, AsyncCallbacks.ReadEntriesCallback callback,
-                                       Object ctx, PositionImpl maxPosition) {
+                                       Object ctx, PositionImpl maxPosition, Predicate<PositionImpl> skipCondition) {
 
     }
 
     @Override
     public void asyncReadEntriesOrWait(int maxEntries, long maxSizeBytes, AsyncCallbacks.ReadEntriesCallback callback,
-                                       Object ctx, PositionImpl maxPosition) {
+                                       Object ctx, PositionImpl maxPosition, Predicate<PositionImpl> skipCondition) {
 
     }
 

@@ -650,7 +650,7 @@ public abstract class TestPulsarConnector {
 
                         return null;
                     }
-                }).when(readOnlyCursor).asyncReadEntries(anyInt(), anyLong(), any(), any(), any());
+                }).when(readOnlyCursor).asyncReadEntries(anyInt(), anyLong(), any(), any(), any(), any());
 
                 when(readOnlyCursor.hasMoreEntries()).thenAnswer(new Answer<Boolean>() {
                     @Override
