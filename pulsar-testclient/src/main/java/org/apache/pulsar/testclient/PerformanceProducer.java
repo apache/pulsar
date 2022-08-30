@@ -178,6 +178,10 @@ public class PerformanceProducer {
                 "--batch-time-window" }, description = "Batch messages in 'x' ms window (Default: 1ms)")
         public double batchTimeMillis = 1.0;
 
+        @Parameter(names = { "-db",
+                "--disable-batching" }, description = "Disable batching if true")
+        public boolean disableBatching = false;
+
         @Parameter(names = {
             "-bm", "--batch-max-messages"
         }, description = "Maximum number of messages per batch")
@@ -522,7 +526,7 @@ public class PerformanceProducer {
                 producerBuilder.producerName(producerName);
             }
 
-            if (arguments.batchTimeMillis <= 0.0 && arguments.batchMaxMessages <= 0) {
+            if (arguments.disableBatching || (arguments.batchTimeMillis <= 0.0 && arguments.batchMaxMessages <= 0)) {
                 producerBuilder.enableBatching(false);
             } else {
                 long batchTimeUsec = (long) (arguments.batchTimeMillis * 1000);

@@ -161,6 +161,49 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
         newConsumer2.close();
     }
 
+    @Test
+    public void testMsgKeyBatchingDisabled() throws Exception {
+        String argString = "%s -r 10 -u %s -m 500 -mk autoIncrement -db";
+        String topic = testTopic + UUID.randomUUID();
+        String args = String.format(argString, topic, pulsar.getBrokerServiceUrl());
+        Thread thread = new Thread(() -> {
+            try {
+                PerformanceProducer.main(args.split(" "));
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
+
+        Consumer<byte[]> newConsumer1 = pulsarClient.newConsumer().topic(topic).subscriptionName("sub-2")
+                .subscriptionType(SubscriptionType.Key_Shared).subscribe();
+        Consumer<byte[]> newConsumer2 = pulsarClient.newConsumer().topic(topic).subscriptionName("sub-2")
+                .subscriptionType(SubscriptionType.Key_Shared).subscribe();
+
+        thread.start();
+
+        Awaitility.await()
+                .untilAsserted(() -> {
+                    Message<byte[]> message = newConsumer1.receive(1, TimeUnit.SECONDS);
+                    if (message != null) {
+                        newConsumer1.acknowledge(message);
+                    }
+                    assertNotNull(message);
+                });
+
+        Awaitility.await()
+                .untilAsserted(() -> {
+                    Message<byte[]> message = newConsumer2.receive(1, TimeUnit.SECONDS);
+                    if (message != null) {
+                        newConsumer2.acknowledge(message);
+                    }
+                    assertNotNull(message);
+                });
+
+        thread.interrupt();
+        newConsumer1.close();
+        newConsumer2.close();
+    }
+
     @Test(timeOut = 20000)
     public void testCreatePartitions() throws Exception {
         String argString = "%s -r 10 -u %s -au %s -m 5 -np 10";
