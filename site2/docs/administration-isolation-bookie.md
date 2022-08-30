@@ -36,7 +36,7 @@ BookKeeper provides three kinds of data isolation policies for disaster toleranc
 :::tip
 
 * Both [rack-aware placement policy](#rack-aware-placement-policy) and [region-aware placement policy](#region-aware-placement-policy) can be used in all kinds of deployments where racks are a subset of a region. The major difference between the two policies is:
-  * With `RackawareEnsemblePlacementPolicy` configured, the BookKeeper client chooses bookies from different **racks** to reduce the single-point-of-failure. If there is only one rack available, the policy falls back on choosing a random bookie across available ones.
+  * With `RackawareEnsemblePlacementPolicy` configured, the BookKeeper client chooses bookies from different **racks** to reduce the single point of failure. If there is only one rack available, the policy falls back on choosing a random bookie across available ones.
   * With `RegionAwareEnsemblePlacementPolicy` configured, the BookKeeper client chooses bookies from different **regions**; for the selected region, it chooses bookies from different racks if more than one ensemble falls into the same region.
 
 * Zone-aware placement policy (`ZoneAwareEnsemblePlacementPolicy`) can be used in a public cloud infrastructure where Availability Zones (AZs) are isolated locations within the data center regions that public cloud services originate from and operate in.
@@ -70,13 +70,13 @@ For example, you have the same BookKeeper cluster with the same topic requiremen
 
 ![Rack-aware placement policy with an enforced minimum rack size of bookies](/assets/rack-aware-placement-policy-2.svg)
 
-* If you have configured `EnforceMinNumRacksPerWriteQuorum=false`, the BookKeeper client tries its best-effort to apply the placement policy depending on the available number of racks and bookies. It may still work as the above diagram or the following diagram. 
+* If you have configured `EnforceMinNumRacksPerWriteQuorum=false`, the BookKeeper client tries its best effort to apply the placement policy depending on the available number of racks and bookies. It may still work as the above diagram or the following diagram. 
 
 ![Rack-aware placement policy without an enforced minimum rack size of bookies](/assets/rack-aware-placement-policy-3.svg)
 
 ### Region-aware placement policy
 
-Region-aware placement policy enforces different data replicas to be placed in different regions and racks to guarantee the region-level disaster tolerance. To achieve datacenter level disaster tolerance, you need to write data replicas into different data centers. You can use `RegionAwareEnsemblePlacementPolicy` to configure region and rack information for each bookie node to ensure region-level disaster tolerance.
+Region-aware placement policy enforces different data replicas to be placed in different regions and racks to guarantee region-level disaster tolerance. To achieve datacenter level disaster tolerance, you need to write data replicas into different data centers. You can use `RegionAwareEnsemblePlacementPolicy` to configure region and rack information for each bookie node to ensure region-level disaster tolerance.
 
 For example, the BookKeeper cluster has 4 regions, and each region has several racks with their bookie instances, as shown in the following diagram. If a topic is configured with `EnsembleSize=3, WriteQuorum=3, and AckQuorum=2`, the BookKeeper client chooses three different regions, such as Region A, Region C and Region D. For each region, it chooses one bookie on a single rack, such as Bookie5 on Rack2, Bookie17 on Rack6, and Bookie21 on Rack8. 
 
@@ -88,7 +88,7 @@ When two regions fail, such as Region B and Region C, as shown in the following 
 
 ## Enable bookie data placement policy
 
-By default, the rack-aware placement policy is enabled on both broker and bookie sides. If you want to switch to the region-aware placement policy, you need to enable the region-aware placement policy on both broker and bookie sides. 
+By default, the rack-aware placement policy is enabled on both broker and bookie sides. If you want to switch to the region-aware placement policy, you need to enable the region-aware placement policy on both the broker and bookie sides. 
 
 ### Enable region-aware placement policy on broker
 
@@ -143,7 +143,6 @@ To configure a data placement policy on bookie instances, you can use one of the
 
 <TabItem value="Pulsar-admin CLI">
 
-
 Specify the rack name to represent which region or rack this bookie belongs to. 
 
 ```bash
@@ -163,7 +162,6 @@ Usage: set-bookie-rack [options]
   * -r, --rack
       Bookie rack name
 ```
-
 
 :::tip
 
@@ -226,10 +224,8 @@ To configure bookie affinity groups, you can use one of the following methods.
 
 <TabItem value="Pulsar-admin CLI">
 
-```
-
+```shell
 pulsar-admin namespaces set-bookie-affinity-group options
-
 ```
 
 For more information about the command `pulsar-admin namespaces set-bookie-affinity-group options`, see [Pulsar admin docs](/tools/pulsar-admin/).
@@ -237,7 +233,6 @@ For more information about the command `pulsar-admin namespaces set-bookie-affin
 **Example**
 
 ```shell
-
 bin/pulsar-admin bookies set-bookie-rack \
 --bookie 127.0.0.1:3181 \
 --hostname 127.0.0.1:3181 \
@@ -246,7 +241,6 @@ bin/pulsar-admin bookies set-bookie-rack \
 
 bin/pulsar-admin namespaces set-bookie-affinity-group public/default \
 --primary-group group-bookie1
-
 ```
 
 :::note

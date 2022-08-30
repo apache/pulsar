@@ -147,7 +147,7 @@ client, err := NewClient(ClientOptions{
 </TabItem>
 <TabItem value="C++">
 
-```c++
+```cpp
 
 #include <pulsar/Client.h>
 

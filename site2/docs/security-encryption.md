@@ -95,7 +95,7 @@ Reader<byte[]> reader = pulsarClient.newReader()
 </TabItem>
 <TabItem value="C++">
 
-```c++
+```cpp
 
 Client client("pulsar://localhost:6650");
 std::string topic = "persistent://my-tenant/my-ns/my-topic";
@@ -265,7 +265,7 @@ class RawFileKeyReader implements CryptoKeyReader {
 </TabItem>
 <TabItem value="C++">
 
-```c++
+```cpp
 
 class CustomCryptoKeyReader : public CryptoKeyReader {
     public:

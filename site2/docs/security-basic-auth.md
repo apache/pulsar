@@ -142,7 +142,7 @@ The following example shows how to configure basic authentication when using Pul
   </TabItem>
   <TabItem value="C++" label="C++" default>
 
-   ```c++
+   ```cpp
    #include <pulsar/Client.h>
     
    int main() {

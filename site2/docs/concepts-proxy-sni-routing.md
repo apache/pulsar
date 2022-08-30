@@ -113,7 +113,7 @@ PulsarClient pulsarClient = clientBuilder.build();
 </TabItem>
 <TabItem value="C++">
 
-```c++
+```cpp
 
 ClientConfiguration config = ClientConfiguration();
 config.setUseTls(true);

@@ -21,7 +21,7 @@ To set a namespace isolation policy for a broker cluster, you can use one of the
 
 <TabItem value="Pulsar-admin CLI">
 
-```
+```shell
 pulsar-admin ns-isolation-policy set options
 ```
 
@@ -40,7 +40,7 @@ bin/pulsar-admin ns-isolation-policy set \
 </TabItem>
 <TabItem value="REST API">
 
-[PUT /admin/v2/namespaces/{tenant}/{namespace}](https://pulsar.apache.org/admin-rest-api/?version=master&apiversion=v2#operation/createNamespace)
+{@inject: endpoint|PUT|/admin/v2/:namespace/:tenant/:namespace|operation/createNamespace?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java admin API">
