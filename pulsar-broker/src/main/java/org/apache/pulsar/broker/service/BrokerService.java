@@ -1979,7 +1979,7 @@ public class BrokerService implements Closeable {
     }
 
     public CompletableFuture<Void> removeTopicFromCache(String topic){
-        return removeTopicFromCache(topic, (CompletableFuture) null);
+        return removeTopicFromCache(topic, (CompletableFuture<Optional<Topic>>) null);
     }
 
     public CompletableFuture<Void> removeTopicFromCache(String topic,
