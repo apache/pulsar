@@ -239,33 +239,35 @@ public class TxnLogBufferedWriter<T> {
      */
     private void internalAsyncAddData(T data, AddDataCallback callback, Object ctx){
         // Avoid missing callback, do failed callback when error occur before add data to the array.
-        boolean shouldCompensateCallBackWhenWriteFail = true;
-        try {
-            if (state == State.CLOSING || state == State.CLOSED){
-                callback.addFailed(BUFFERED_WRITER_CLOSED_EXCEPTION, ctx);
-                return;
-            }
-            int dataLength = dataSerializer.getSerializedSize(data);
-            if (dataLength >= batchedWriteMaxSize){
-                trigFlushByLargeSingleData();
-                ByteBuf byteBuf = dataSerializer.serialize(data);
-                shouldCompensateCallBackWhenWriteFail = false;
-                managedLedger.asyncAddEntry(byteBuf, DisabledBatchCallback.INSTANCE,
-                        AsyncAddArgs.newInstance(callback, ctx, System.currentTimeMillis(), byteBuf));
-                return;
-            }
-            dataArray.add(data);
-            flushContext.addCallback(callback, ctx);
-            bytesSize += dataLength;
-            shouldCompensateCallBackWhenWriteFail = false;
-            trigFlushIfReachMaxRecordsOrMaxSize();
-        } catch (Exception e){
-            if (shouldCompensateCallBackWhenWriteFail){
-                callback.addFailed(new ManagedLedgerInterceptException(e), ctx);
-            } else {
-                log.error("Failed to add data asynchronously", e);
-            }
+        if (state == State.CLOSING || state == State.CLOSED){
+            callback.addFailed(BUFFERED_WRITER_CLOSED_EXCEPTION, ctx);
+            return;
         }
+        int dataLength;
+        try {
+            dataLength = dataSerializer.getSerializedSize(data);
+        } catch (Exception e){
+            callback.addFailed(new ManagedLedgerInterceptException(e), ctx);
+            return;
+        }
+        if (dataLength >= batchedWriteMaxSize){
+            trigFlushByLargeSingleData();
+            ByteBuf byteBuf = dataSerializer.serialize(data);
+            managedLedger.asyncAddEntry(byteBuf, DisabledBatchCallback.INSTANCE,
+                    AsyncAddArgs.newInstance(callback, ctx, System.currentTimeMillis(), byteBuf));
+            return;
+        }
+        try {
+            // Why should try-catch here?
+            // If the recycle mechanism is not executed as expected, exception occurs.
+            flushContext.addCallback(callback, ctx);
+        } catch (Exception e){
+            callback.addFailed(new ManagedLedgerInterceptException(e), ctx);
+            return;
+        }
+        dataArray.add(data);
+        bytesSize += dataLength;
+        trigFlushIfReachMaxRecordsOrMaxSize();
     }
 
     private void trigFlushByTimingTask(){
