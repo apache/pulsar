@@ -225,7 +225,11 @@ public class TxnLogBufferedWriter<T> {
             return;
         }
         singleThreadExecutorForWrite.execute(() -> {
-            internalAsyncAddData(data, callback, ctx);
+            try {
+                internalAsyncAddData(data, callback, ctx);
+            } catch (Exception e){
+                log.warn("Execute 'internalAsyncAddData' fail", e);
+            }
         });
     }
 
