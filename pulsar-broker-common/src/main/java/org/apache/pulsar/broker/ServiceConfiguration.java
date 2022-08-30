@@ -1104,6 +1104,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String entryFiltersDirectory = "";
 
     @FieldContext(
+            category = CATEGORY_SERVER,
+            dynamic = true,
+            doc = "Whether allow topic level entry filters policies overrides broker configuration."
+    )
+    private boolean allowOverrideEntryFilters = false;
+
+    @FieldContext(
         category = CATEGORY_SERVER,
         doc = "Whether to use streaming read dispatcher. Currently is in preview and can be changed "
                 + "in subsequent release."

@@ -1223,6 +1223,8 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         // the message will be sent to DLQ, can't receive
         assertNull(consumer.receive(3, TimeUnit.SECONDS));
 
+        assertEquals(((ConsumerImpl<?>) consumer).getAvailablePermits(), 3);
+
         assertEquals(value, new String(deadLetterConsumer.receive(3, TimeUnit.SECONDS).getValue()));
     }
 
@@ -1286,6 +1288,8 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         // consumer receive the batch message the third time, redeliverCount = 2,
         // the message will be sent to DLQ, can't receive
         assertNull(consumer.receive(3, TimeUnit.SECONDS));
+
+        assertEquals(((ConsumerImpl<?>) consumer).getAvailablePermits(), 6);
 
         assertEquals(value1, new String(deadLetterConsumer.receive(3, TimeUnit.SECONDS).getValue()));
         assertEquals(value2, new String(deadLetterConsumer.receive(3, TimeUnit.SECONDS).getValue()));

@@ -3196,21 +3196,10 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             ledger.pendingAddEntries.add(op);
         }
 
-        ledger.updateLedgersIdsComplete(mock(Stat.class));
+        ledger.createNewOpAddEntryForNewLedger();
         for (int i = 0; i < 10; i++) {
             OpAddEntry oldOp = oldOps.get(i);
-            if (i > 4) {
-                Assert.assertEquals(oldOp.getState(), OpAddEntry.State.CLOSED);
-            } else {
-                // When call `OpAddEntry#initiate`, which happens in `ledger.updateLedgersIdsComplete` above, the
-                // `OpAddEntry` state will be `INITIATED` if `ledger.asyncAddEntry` doesn't complete, otherwise, the
-                // state will be `COMPLETED`
-                Assert.assertTrue(oldOp.getState() == OpAddEntry.State.INITIATED
-                    || oldOp.getState() == OpAddEntry.State.COMPLETED);
-            }
             OpAddEntry newOp = ledger.pendingAddEntries.poll();
-            Assert.assertTrue(newOp.getState() == OpAddEntry.State.INITIATED
-                || newOp.getState() == OpAddEntry.State.COMPLETED);
             if (i > 4) {
                 Assert.assertNotSame(oldOp, newOp);
             } else {
