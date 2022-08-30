@@ -82,6 +82,8 @@ public class AbstractBaseDispatcherTest {
         Topic mockTopic = mock(Topic.class);
         when(this.subscriptionMock.getTopic()).thenReturn(mockTopic);
 
+        BrokerService mockBrokerService = mock(BrokerService.class);
+        when(mockTopic.getBrokerService()).thenReturn(mockBrokerService);
         EntryFilterWithClassLoader mockFilter = mock(EntryFilterWithClassLoader.class);
         when(mockFilter.filterEntry(any(Entry.class), any(FilterContext.class))).thenReturn(
                 EntryFilter.FilterResult.REJECT);
