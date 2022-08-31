@@ -74,7 +74,7 @@ The instructions for Java, Python, and C++ clients are different.
 <!--DOCUSAURUS_CODE_TABS-->
 <!--Java clients-->
 
-Not to break the guarantee order on a [Java producer](client-libraries-java.md#producers) sending to a topic with message deduplication active, set the producer name using the `producerName` setter, and set the timeout to `0` using the `sendTimeout` setter. 
+To ensure the guarantee order on a [Java producer](client-libraries-java.md#producers) sending to a topic with message deduplication enabled, set the producer name using the `producerName` setter, and set the timeout to `0` using the `sendTimeout` setter. 
 
 ```java
 import org.apache.pulsar.client.api.Producer;
