@@ -505,34 +505,82 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
-    private void recoverCursorByLedgerEntry(long entryId, VoidCallback callback, ManagedCursorInfo info,
-                                            LedgerHandle recoveredFromCursorLedger){
-        recoveredFromCursorLedger.asyncReadEntries(entryId, entryId, (rc1, lh1, seq, ctx1) -> {
+    private void binarySearchLastExitsEntryAndRecover(long tryPosition, long maxPosition, VoidCallback callback,
+                                                      ManagedCursorInfo info, LedgerHandle recoveredFromCursorLedger){
+        recoveredFromCursorLedger.asyncReadEntries(tryPosition, tryPosition, (rc1, lh1, seq, ctx1) -> {
             if (log.isDebugEnabled()) {
                 log.debug("[{}} readComplete rc={} entryId={}", ledger.getName(), rc1, lh1.getLastAddConfirmed());
             }
-            boolean tryPreviousEntry = Code.NoSuchEntryException == rc1 && entryId > 0;
-            if (tryPreviousEntry) {
-                recoverCursorByLedgerEntry(entryId - 1, callback, info, recoveredFromCursorLedger);
+            if (rc1 == BKException.Code.OK){
+                if (tryPosition >= maxPosition){
+                    LedgerEntry entry = seq.nextElement();
+                    recoverCursorByLedgerEntry(entry, callback, recoveredFromCursorLedger);
+                    return;
+                }
+                long nextTryPosition = tryPosition + 1 == maxPosition ? maxPosition : (tryPosition + maxPosition) / 2;
+                binarySearchLastExitsEntryAndRecover(nextTryPosition, maxPosition, callback, info,
+                        recoveredFromCursorLedger);
                 return;
-            } else if (isBkErrorNotRecoverable(rc1)) {
-                log.error("[{}] Error reading from metadata ledger {} for consumer {}: {}", ledger.getName(),
-                        recoveredFromCursorLedger.getId(), name, BKException.getMessage(rc1));
-                // Rewind to oldest entry available
-                initialize(getRollbackPosition(info), Collections.emptyMap(), cursorProperties, callback);
+            }
+            if (Code.NoSuchEntryException == rc1){
+                if (tryPosition == 0){
+                    // Rewind to oldest entry available.
+                    log.error("[{}] Error(All entries lost) reading from metadata ledger {} for consumer {}: {}",
+                            ledger.getName(), recoveredFromCursorLedger.getId(), name, BKException.getMessage(rc1));
+                    initialize(getRollbackPosition(info), Collections.emptyMap(), cursorProperties, callback);
+                    return;
+                }
+                binarySearchLastExitsEntryAndRecover(tryPosition / 2, tryPosition - 1, callback, info,
+                        recoveredFromCursorLedger);
                 return;
-            } else if (rc1 != BKException.Code.OK) {
+            }
+            if (!isBkErrorNotRecoverable(rc1)){
                 log.warn("[{}] Error reading from metadata ledger {} for consumer {}: {}", ledger.getName(),
                         recoveredFromCursorLedger.getId(), name, BKException.getMessage(rc1));
                 callback.operationFailed(createManagedLedgerException(rc1));
                 return;
             }
-            LedgerEntry entry = seq.nextElement();
-            recoverCursorByLedgerEntry(entry, callback, recoveredFromCursorLedger);
+            // Ledger lost.
+            log.error("[{}] Error(Ledger lost) reading from metadata ledger {} for consumer {}: {}", ledger.getName(),
+                    recoveredFromCursorLedger.getId(), name, BKException.getMessage(rc1));
+            // Rewind to oldest entry available
+            initialize(getRollbackPosition(info), Collections.emptyMap(), cursorProperties, callback);
         }, null);
     }
 
-    private void recoverCursorByLedgerEntry(LedgerEntry entry, VoidCallback callback,
+    @VisibleForTesting
+    void recoverCursorByLedgerEntry(long lastEntryInLedger, VoidCallback callback, ManagedCursorInfo info,
+                                            LedgerHandle recoveredFromCursorLedger){
+        recoveredFromCursorLedger.asyncReadEntries(lastEntryInLedger, lastEntryInLedger, (rc1, lh1, seq, ctx1) -> {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}} readComplete rc={} entryId={}", ledger.getName(), rc1, lh1.getLastAddConfirmed());
+            }
+            if (rc1 == BKException.Code.OK){
+                LedgerEntry entry = seq.nextElement();
+                recoverCursorByLedgerEntry(entry, callback, recoveredFromCursorLedger);
+                return;
+            }
+            if (Code.NoSuchEntryException == rc1 && lastEntryInLedger > 0){
+                binarySearchLastExitsEntryAndRecover(lastEntryInLedger / 2, lastEntryInLedger, callback, info,
+                        recoveredFromCursorLedger);
+                return;
+            }
+            if (!isBkErrorNotRecoverable(rc1)){
+                log.warn("[{}] Error reading from metadata ledger {} for consumer {}: {}", ledger.getName(),
+                        recoveredFromCursorLedger.getId(), name, BKException.getMessage(rc1));
+                callback.operationFailed(createManagedLedgerException(rc1));
+                return;
+            }
+            // Ledger lost.
+            log.error("[{}] Error(Ledger lost) reading from metadata ledger {} for consumer {}: {}", ledger.getName(),
+                    recoveredFromCursorLedger.getId(), name, BKException.getMessage(rc1));
+            // Rewind to oldest entry available
+            initialize(getRollbackPosition(info), Collections.emptyMap(), cursorProperties, callback);
+        }, null);
+    }
+
+    @VisibleForTesting
+    void recoverCursorByLedgerEntry(LedgerEntry entry, VoidCallback callback,
                                             LedgerHandle recoveredFromCursorLedger){
         mbean.addReadCursorLedgerSize(entry.getLength());
         PositionInfo positionInfo;

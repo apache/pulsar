@@ -18,7 +18,10 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import static org.apache.bookkeeper.client.api.BKException.Code.NoSuchEntryException;
+import static org.apache.bookkeeper.client.api.BKException.Code.OK;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.eq;
@@ -41,6 +44,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collections;
+import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -65,11 +69,14 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
+import lombok.AllArgsConstructor;
 import lombok.Cleanup;
+import org.apache.bookkeeper.client.AsyncCallback;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.client.LedgerEntry;
+import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
@@ -4011,6 +4018,105 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ManagedCursorImpl cursor1 = (ManagedCursorImpl) ledger.openCursor("test");
         assertEquals(cursor1.getMarkDeletedPosition(), p1);
         factory2.shutdown();
+    }
+
+    @DataProvider(name = "ledgerEntryParams")
+    public Object[][] ledgerEntryParams(){
+        return new Object[][]{
+                {mockLedgerEntryParams(5, 0)},
+                {mockLedgerEntryParams(5, 1)},
+                {mockLedgerEntryParams(5, 2)},
+                {mockLedgerEntryParams(5, 3)},
+                {mockLedgerEntryParams(5, 4)},
+                {mockLedgerEntryParams(6, 0)},
+                {mockLedgerEntryParams(6, 1)},
+                {mockLedgerEntryParams(6, 2)},
+                {mockLedgerEntryParams(6, 3)},
+                {mockLedgerEntryParams(6, 4)},
+                {mockLedgerEntryParams(6, 5)},
+        };
+    }
+
+    @Test(dataProvider = "ledgerEntryParams")
+    public void testRecoverCursorByLedgerEntry(LedgerEntryParams ledgerEntryParams) throws Exception {
+        BookKeeper bookkeeper = mock(BookKeeper.class);
+                ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerImpl managedLedger = mock(ManagedLedgerImpl.class);
+        String cursorName = "cursor_name_testRecoverCursorByLedgerEntry";
+        LedgerHandle ledgerHandle = mockLedgerHandleForTestRecover(ledgerEntryParams);
+        AtomicReference<LedgerEntry> ledgerEntryRef = new AtomicReference<>();
+        ManagedCursorImpl managedCursor = new ManagedCursorImpl(bookkeeper, config, managedLedger, cursorName){
+
+            @Override
+            void recoverCursorByLedgerEntry(LedgerEntry entry, VoidCallback callback,
+                                            LedgerHandle recoveredFromCursorLedger){
+                ledgerEntryRef.set(entry);
+            }
+        };
+        managedCursor.recoverCursorByLedgerEntry(ledgerEntryParams.lastEntryId(), mock(VoidCallback.class),
+                mock(ManagedCursorInfo.class), ledgerHandle);
+        Awaitility.await().until(() -> ledgerEntryRef.get() != null);
+        Assert.assertEquals(ledgerEntryRef.get(), ledgerEntryParams.getLastExistsEntry());
+    }
+
+    private LedgerHandle mockLedgerHandleForTestRecover(LedgerEntryParams ledgerEntryParams){
+        LedgerHandle ledgerHandle = mock(LedgerHandle.class);
+        doAnswer(new Answer() {
+            @Override
+            public Object answer(InvocationOnMock invocation) throws Throwable {
+                long entryId = (long) invocation.getArguments()[0];
+                AsyncCallback.ReadCallback callback = (AsyncCallback.ReadCallback) invocation.getArguments()[2];
+                Object ctx = invocation.getArguments()[3];
+                if (ledgerEntryParams.ledgerEntries[(int)entryId] == null){
+                    callback.readComplete(NoSuchEntryException, ledgerHandle, null, ctx);
+                } else {
+                    Enumeration<LedgerEntry> seq = mock(Enumeration.class);
+                    when(seq.nextElement()).thenReturn(ledgerEntryParams.ledgerEntries[(int)entryId]);
+                    callback.readComplete(OK, ledgerHandle, seq, ctx);
+                }
+                return null;
+            }
+        }).when(ledgerHandle).asyncReadEntries(anyLong(), anyLong(), any(AsyncCallback.ReadCallback.class), any());
+        return ledgerHandle;
+    }
+
+    private static LedgerEntryParams mockLedgerEntryParams(int size, int lastExistsIndex){
+        LedgerEntry[] ledgerEntries = new LedgerEntry[size];
+        for (int i = 0; i <= lastExistsIndex; i++){
+            ledgerEntries[i] = mock(LedgerEntry.class);
+        }
+        return new LedgerEntryParams(ledgerEntries);
+    }
+
+    @AllArgsConstructor
+    private static class LedgerEntryParams {
+
+        private final LedgerEntry[] ledgerEntries;
+
+        private long lastEntryId(){
+            return ledgerEntries.length - 1;
+        }
+
+        private LedgerEntry getLastExistsEntry(){
+            Integer lastExistsEntryIndex = getLastExistsEntryIndex();
+            if (lastExistsEntryIndex == null){
+                return null;
+            }
+            return ledgerEntries[lastExistsEntryIndex];
+        }
+
+        private Integer getLastExistsEntryIndex(){
+            for (int i = ledgerEntries.length - 1; i >=0; i--){
+                if (ledgerEntries[i] != null){
+                    return i;
+                }
+            }
+            return null;
+        }
+
+        public String toString(){
+            return getLastExistsEntryIndex() + "/" + ledgerEntries.length;
+        }
     }
 
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorTest.class);
