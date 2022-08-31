@@ -4,7 +4,7 @@ title: Configure metadata store
 sidebar_label: "Configure metadata store"
 ---
 
-Pulsar metadata store maintains all the metadata, configuration, and coordination of a Pulsar cluster, such as topic metadata, schema, broker load data, and so on. 
+Pulsar metadata store maintains all the metadata, configuration, and coordination of a Pulsar cluster, such as topic metadata, schema, broker load data, and so on.
 
 The metadata store of each Pulsar instance should contain the following two components:
 * A local metadata store ensemble (`metadataStoreUrl`) that stores cluster-specific configuration and coordination, such as which brokers are responsible for which topics as well as ownership metadata, broker load reports, and BookKeeper ledger metadata.
@@ -34,7 +34,7 @@ Pulsar metadata store can be deployed on a separate ZooKeeper cluster or deploye
 
 To use ZooKeeper as the metadata store, add the following parameters to the `conf/broker.conf` or `conf/standalone.conf` file.
 
-```conf
+```properties
 
 metadataStoreUrl=zk:my-zk-1:2181,my-zk-2:2181,my-zk-3:2181
 configurationMetadataStoreUrl=zk:my-global-zk-1:2181,my-global-zk-2:2181,my-global-zk-3:2181
@@ -45,7 +45,7 @@ configurationMetadataStoreUrl=zk:my-global-zk-1:2181,my-global-zk-2:2181,my-glob
 
 To use etcd as the metadata store, add the following parameters to the `conf/broker.conf` or `conf/standalone.conf` file.
 
-```conf
+```properties
 
 metadataStoreUrl=etcd:http://my-etcd-1:2379,http://my-etcd-2:2379,http://my-etcd-3:2379
 configurationMetadataStoreUrl=etcd:my-global-etcd-1:2379,my-global-etcd-2:2379,my-global-etcd-3:2379
@@ -72,7 +72,7 @@ authority=
 
 To use RocksDB as the metadata store, add the following parameters to the `conf/broker.conf` or `conf/standalone.conf` file.
 
-```conf
+```properties
 
 metadataStoreUrl=rocksdb://data/metadata
 # metadataStoreConfigPath=/path/to/file
@@ -89,7 +89,7 @@ The `metadataStoreConfigPath` parameter is required when you want to use advance
 
 To use local memory as the metadata store, add the following parameters to the `conf/broker.conf` or `conf/standalone.conf` file.
 
-```conf
+```properties
 
 metadataStoreUrl=memory://local
 
@@ -98,11 +98,11 @@ metadataStoreUrl=memory://local
 
 ## Enable batch operations on metadata store
 
-Pulsar metadata store supports batch operations and caching to meet low latency and high throughput and improve performance. 
+Pulsar metadata store supports batch operations and caching to meet low latency and high throughput and improve performance.
 
 To enable batch operations on the metadata store, you can configure the following parameters in the `conf/broker.conf` or `conf/standalone.conf` file.
 
-```conf
+```properties
 
 # Whether we should enable metadata operations batching
 metadataStoreBatchingEnabled=true
