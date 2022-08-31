@@ -4023,17 +4023,22 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     @DataProvider(name = "ledgerEntryParams")
     public Object[][] ledgerEntryParams(){
         return new Object[][]{
-                {mockLedgerEntryParams(5, 0)},
-                {mockLedgerEntryParams(5, 1)},
-                {mockLedgerEntryParams(5, 2)},
-                {mockLedgerEntryParams(5, 3)},
-                {mockLedgerEntryParams(5, 4)},
-                {mockLedgerEntryParams(6, 0)},
-                {mockLedgerEntryParams(6, 1)},
-                {mockLedgerEntryParams(6, 2)},
-                {mockLedgerEntryParams(6, 3)},
-                {mockLedgerEntryParams(6, 4)},
-                {mockLedgerEntryParams(6, 5)},
+                // odd number.
+                {new LedgerEntryParams(5, 0)},
+                {new LedgerEntryParams(5, 1)},
+                {new LedgerEntryParams(5, 2)},
+                {new LedgerEntryParams(5, 3)},
+                {new LedgerEntryParams(5, 4)},
+                // even number.
+                {new LedgerEntryParams(6, 0)},
+                {new LedgerEntryParams(6, 1)},
+                {new LedgerEntryParams(6, 2)},
+                {new LedgerEntryParams(6, 3)},
+                {new LedgerEntryParams(6, 4)},
+                {new LedgerEntryParams(6, 5)},
+                // Test stack over flow.
+                {new LedgerEntryParams(Long.MAX_VALUE, 0)},
+                {new LedgerEntryParams(Long.MAX_VALUE, Integer.MAX_VALUE - 1)}
         };
     }
 
@@ -4059,7 +4064,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         Assert.assertEquals(ledgerEntryRef.get(), ledgerEntryParams.getLastExistsEntry());
     }
 
-    private LedgerHandle mockLedgerHandleForTestRecover(LedgerEntryParams ledgerEntryParams){
+    private LedgerHandle mockLedgerHandleForTestRecover(final LedgerEntryParams ledgerEntryParams){
         LedgerHandle ledgerHandle = mock(LedgerHandle.class);
         doAnswer(new Answer() {
             @Override
@@ -4067,11 +4072,11 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                 long entryId = (long) invocation.getArguments()[0];
                 AsyncCallback.ReadCallback callback = (AsyncCallback.ReadCallback) invocation.getArguments()[2];
                 Object ctx = invocation.getArguments()[3];
-                if (ledgerEntryParams.ledgerEntries[(int)entryId] == null){
+                if (ledgerEntryParams.get(entryId) == null){
                     callback.readComplete(NoSuchEntryException, ledgerHandle, null, ctx);
                 } else {
                     Enumeration<LedgerEntry> seq = mock(Enumeration.class);
-                    when(seq.nextElement()).thenReturn(ledgerEntryParams.ledgerEntries[(int)entryId]);
+                    when(seq.nextElement()).thenReturn(ledgerEntryParams.get(entryId));
                     callback.readComplete(OK, ledgerHandle, seq, ctx);
                 }
                 return null;
@@ -4080,42 +4085,77 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         return ledgerHandle;
     }
 
-    private static LedgerEntryParams mockLedgerEntryParams(int size, int lastExistsIndex){
-        LedgerEntry[] ledgerEntries = new LedgerEntry[size];
-        for (int i = 0; i <= lastExistsIndex; i++){
-            ledgerEntries[i] = mock(LedgerEntry.class);
-        }
-        return new LedgerEntryParams(ledgerEntries);
-    }
-
     @AllArgsConstructor
     private static class LedgerEntryParams {
 
-        private final LedgerEntry[] ledgerEntries;
+        private long size;
 
-        private long lastEntryId(){
-            return ledgerEntries.length - 1;
+        private long lastExistsIndex;
+
+        private LedgerEntry lastExistsEntry = mock(LedgerEntry.class);
+
+        private LedgerEntry others = mock(LedgerEntry.class);
+
+        public LedgerEntryParams(long size, long lastExistsIndex){
+            this.size = size;
+            this.lastExistsIndex = lastExistsIndex;
         }
 
-        private LedgerEntry getLastExistsEntry(){
-            Integer lastExistsEntryIndex = getLastExistsEntryIndex();
-            if (lastExistsEntryIndex == null){
-                return null;
+        private LedgerEntry get(long index){
+            if (lastExistsIndex == index){
+                return lastExistsEntry;
             }
-            return ledgerEntries[lastExistsEntryIndex];
-        }
-
-        private Integer getLastExistsEntryIndex(){
-            for (int i = ledgerEntries.length - 1; i >=0; i--){
-                if (ledgerEntries[i] != null){
-                    return i;
-                }
+            if (index < lastExistsIndex){
+                return others;
             }
             return null;
         }
 
+        private long lastEntryId(){
+            return size - 1;
+        }
+
+        private LedgerEntry getLastExistsEntry(){
+            return lastExistsEntry;
+        }
+
         public String toString(){
-            return getLastExistsEntryIndex() + "/" + ledgerEntries.length;
+            return lastExistsIndex + "/" + size;
+        }
+    }
+
+    @Test
+    public void testLedgerEntryParams(){
+        int size = 500;
+        LedgerEntryParams ledgerEntryParams = new LedgerEntryParams(size, 0);
+        for (long l = 0; l < size; l++){
+            if (l == 0){
+                assertEquals(ledgerEntryParams.get(l), ledgerEntryParams.getLastExistsEntry());
+                continue;
+            }
+            assertNull(ledgerEntryParams.get(l), null);
+        }
+        LedgerEntryParams ledgerEntryParams2 = new LedgerEntryParams(size, size - 1);
+        for (long l = 0; l < size; l++){
+            if (l == size - 1){
+                assertEquals(ledgerEntryParams2.get(l), ledgerEntryParams2.getLastExistsEntry());
+                continue;
+            }
+            assertNotNull(ledgerEntryParams2.get(l));
+            assertNotEquals(ledgerEntryParams2.get(l), ledgerEntryParams2.getLastExistsEntry());
+        }
+        LedgerEntryParams ledgerEntryParams3 = new LedgerEntryParams(size, 123);
+        for (long l = 0; l < size; l++){
+            if (l == 123){
+                assertEquals(ledgerEntryParams3.get(l), ledgerEntryParams3.getLastExistsEntry());
+                continue;
+            }
+            if (l < 123) {
+                assertNotNull(ledgerEntryParams3.get(l));
+                assertNotEquals(ledgerEntryParams3.get(l), ledgerEntryParams3.getLastExistsEntry());
+                continue;
+            }
+            assertNull(ledgerEntryParams3.get(l));
         }
     }
 
