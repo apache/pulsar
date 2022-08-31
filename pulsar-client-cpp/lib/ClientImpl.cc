@@ -23,7 +23,6 @@
 #include "ProducerImpl.h"
 #include "ReaderImpl.h"
 #include "PartitionedProducerImpl.h"
-#include "PartitionedConsumerImpl.h"
 #include "MultiTopicsConsumerImpl.h"
 #include "PatternMultiTopicsConsumerImpl.h"
 #include "TimeUtils.h"
@@ -381,8 +380,9 @@ void ClientImpl::handleSubscribe(const Result result, const LookupDataResultPtr 
                 callback(ResultInvalidConfiguration, Consumer());
                 return;
             }
-            consumer = std::make_shared<PartitionedConsumerImpl>(
-                shared_from_this(), subscriptionName, topicName, partitionMetadata->getPartitions(), conf);
+            consumer = std::make_shared<MultiTopicsConsumerImpl>(shared_from_this(), topicName,
+                                                                 partitionMetadata->getPartitions(),
+                                                                 subscriptionName, conf, lookupServicePtr_);
         } else {
             auto consumerImpl = std::make_shared<ConsumerImpl>(shared_from_this(), topicName->toString(),
                                                                subscriptionName, conf);
