@@ -595,6 +595,25 @@ public class NamespaceServiceTest extends BrokerTestBase {
         }
     }
 
+    public void testSplitBUndleWithNoBundle() throws  Exception {
+        conf.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
+        restartBroker();
+        String namespace = "prop/test/ns-abc2";
+
+        BundlesData bundleData = BundlesData.builder().numBundles(10).build();
+        admin.namespaces().createNamespace(namespace, bundleData);
+
+        NamespaceService namespaceService = pulsar.getNamespaceService();
+        NamespaceName nsname = NamespaceName.get(namespace);
+        NamespaceBundles bundles = namespaceService.getNamespaceBundleFactory().getBundles(nsname);
+
+        try {
+            admin.namespaces().splitNamespaceBundle(namespace, Policies.BundleType.HOT.toString(), false, null);
+            fail("should have failed.");
+        } catch (Exception ex) {
+            Assert.assertEquals("Failed to find a bundleRange", ex.getMessage());
+        }
+    }
     /**
      * Test bundle split with hot bundle which is serving highest load.
      *
