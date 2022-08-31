@@ -88,7 +88,7 @@ public class WebServiceTest {
     private PulsarService pulsar;
     private String BROKER_LOOKUP_URL;
     private String BROKER_LOOKUP_URL_TLS;
-    private Boolean compressOutputMetricsInPrometheus;
+    private boolean compressOutputMetricsInPrometheus;
     private static final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/certificate/server.crt";
     private static final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/certificate/server.key";
     private static final String TLS_CLIENT_CERT_FILE_PATH = "./src/test/resources/certificate/client.crt";
