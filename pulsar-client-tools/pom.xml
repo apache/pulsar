@@ -45,6 +45,11 @@
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-client-tools-api</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-client-admin-original</artifactId>
       <version>${project.version}</version>
     </dependency>
@@ -73,6 +78,11 @@
     <dependency>
       <groupId>org.conscrypt</groupId>
       <artifactId>conscrypt-openjdk-uber</artifactId>
+    </dependency>
+    <dependency>
+      <!-- custom commands -->
+      <groupId>org.javassist</groupId>
+      <artifactId>javassist</artifactId>
     </dependency>
     <dependency>
       <groupId>org.apache.commons</groupId>

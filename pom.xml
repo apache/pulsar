@@ -2089,7 +2089,9 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-client-admin-api</module>
         <module>pulsar-client-admin</module>
         <module>pulsar-client-admin-shaded</module>
+        <module>pulsar-client-tools-api</module>
         <module>pulsar-client-tools</module>
+        <module>pulsar-client-tools-customcommand-example</module>
         <module>pulsar-client-tools-test</module>
         <module>pulsar-client-all</module>
         <module>pulsar-websocket</module>
@@ -2152,7 +2154,9 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-client</module>
         <module>pulsar-client-admin-api</module>
         <module>pulsar-client-admin</module>
+        <module>pulsar-client-tools-api</module>
         <module>pulsar-client-tools</module>
+        <module>pulsar-client-tools-customcommand-example</module>
         <module>pulsar-client-tools-test</module>
         <module>pulsar-websocket</module>
         <module>pulsar-proxy</module>
