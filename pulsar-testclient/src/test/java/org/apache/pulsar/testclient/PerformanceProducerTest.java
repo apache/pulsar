@@ -184,7 +184,7 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
                 .enableTransaction(arguments.isEnableTransaction);
         PulsarClient client = clientBuilder.build();
         
-        ProducerBuilderImpl builder = (ProducerBuilderImpl) PerformanceProducer.createProducerBuilder(client, arguments, producerId);
+        ProducerBuilderImpl<byte[]> builder = (ProducerBuilderImpl<byte[]>) PerformanceProducer.createProducerBuilder(client, arguments, producerId);
         Assert.assertFalse(builder.getConf().isBatchingEnabled());
     }
 
