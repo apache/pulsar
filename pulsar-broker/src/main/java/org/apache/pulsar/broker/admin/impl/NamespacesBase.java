@@ -75,7 +75,6 @@ import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
 import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
-import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
@@ -276,8 +275,8 @@ public abstract class NamespacesBase extends AdminResource {
                                                     clientAppId(), ex);
                                             return FutureUtil.failedFuture(ex);
                                         }
-                                        return admin.namespaces()
-                                                .deleteNamespaceBundleAsync(namespaceName.toString(), bundle.getBundleRange());
+                                        return admin.namespaces().deleteNamespaceBundleAsync(namespaceName.toString(),
+                                                bundle.getBundleRange());
                                     }
                                     return CompletableFuture.completedFuture(null);
                                 })
@@ -336,8 +335,9 @@ public abstract class NamespacesBase extends AdminResource {
                             Set<String> replicationClusters = policies.replication_clusters;
                             if (replicationClusters.size() > 1) {
                                 // There are still more than one clusters configured for the global namespace
-                                throw new RestException(Status.PRECONDITION_FAILED, "Cannot delete the global namespace "
-                                        + nsName + ". There are still more than one replication clusters configured.");
+                                throw new RestException(Status.PRECONDITION_FAILED,
+                                        "Cannot delete the global namespace " + nsName + ". There are still more than "
+                                        + "one replication clusters configured.");
                             }
                             if (replicationClusters.size() == 1
                                     && !policies.replication_clusters.contains(config().getClusterName())) {
@@ -356,7 +356,7 @@ public abstract class NamespacesBase extends AdminResource {
                                                     replClusterUrl = new URL(replClusterData.getServiceUrlTls());
                                                 } else {
                                                     throw new RestException(Status.PRECONDITION_FAILED,
-                                                            "The replication cluster does not provide TLS encrypted service");
+                                                    "The replication cluster does not provide TLS encrypted service");
                                                 }
                                             } catch (MalformedURLException checkedEx) {
                                                 throw new RestException(checkedEx);
@@ -369,7 +369,8 @@ public abstract class NamespacesBase extends AdminResource {
                                                 log.debug("[{}] Redirecting the rest call to {}: cluster={}",
                                                         clientAppId(), redirect, replCluster);
                                             }
-                                            throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
+                                            throw new WebApplicationException(
+                                                    Response.temporaryRedirect(redirect).build());
                                         });
                             }
                             return CompletableFuture.completedFuture(null);
