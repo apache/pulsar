@@ -221,7 +221,7 @@ public class BacklogQuotaManager {
                     // Timestamp only > 0 if ledger has been closed
                     if (ledgerInfo.getTimestamp() > 0
                             // less than 0 means no limitation
-                            && quota.getLimitTime() > 0
+                            && quota.getLimitTime() >= 0
                             && currentMillis - ledgerInfo.getTimestamp() > quota.getLimitTime()) {
                         // skip whole ledger for the slowest cursor
                         PositionImpl nextPosition = mLedger.getNextValidPosition(
