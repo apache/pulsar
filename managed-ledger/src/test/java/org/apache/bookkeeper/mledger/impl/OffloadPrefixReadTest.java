@@ -231,6 +231,11 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
             return promise;
         }
 
+        @Override
+        public CompletableFuture<Void> offload(ByteBuf buf, long ledgerId, String topicName, UUID uid) {
+            return null;
+        }
+
         @SneakyThrows
         @Override
         public CompletableFuture<ReadHandle> readOffloaded(long ledgerId, UUID uuid,

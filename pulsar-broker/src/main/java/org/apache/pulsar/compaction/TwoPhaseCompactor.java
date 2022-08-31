@@ -24,13 +24,14 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
+import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.impl.LedgerMetadataUtils;
 import org.apache.commons.lang3.tuple.ImmutableTriple;
 import org.apache.commons.lang3.tuple.Pair;
@@ -44,6 +45,7 @@ import org.apache.pulsar.client.impl.RawBatchConverter;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.utils.FileSystemManagedLedgerOffloaderUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,6 +63,7 @@ public class TwoPhaseCompactor extends Compactor {
     private static final int MAX_OUTSTANDING = 500;
     private static final String COMPACTED_TOPIC_LEDGER_PROPERTY = "CompactedTopicLedger";
     private final Duration phaseOneLoopReadTimeout;
+    private final LedgerOffloader ledgerOffloader = FileSystemManagedLedgerOffloaderUtil.getLedgerOffloader();
 
     public TwoPhaseCompactor(ServiceConfiguration conf,
                              PulsarClient pulsar,
@@ -371,15 +374,17 @@ public class TwoPhaseCompactor extends Compactor {
         try {
             mxBean.addCompactionWriteOp(topic, m.getHeadersAndPayload().readableBytes());
             long start = System.nanoTime();
-            lh.asyncAddEntry(serialized,
-                    (rc, ledger, eid, ctx) -> {
-                        mxBean.addCompactionLatencyOp(topic, System.nanoTime() - start, TimeUnit.NANOSECONDS);
-                        if (rc != BKException.Code.OK) {
-                            bkf.completeExceptionally(BKException.create(rc));
-                        } else {
-                            bkf.complete(null);
-                        }
-                    }, null);
+            // 在这儿卸载到外部存储
+            ledgerOffloader.offload(serialized, lh.getId(), topic, UUID.randomUUID());
+//            lh.asyncAddEntry(serialized,
+//                    (rc, ledger, eid, ctx) -> {
+//                        mxBean.addCompactionLatencyOp(topic, System.nanoTime() - start, TimeUnit.NANOSECONDS);
+//                        if (rc != BKException.Code.OK) {
+//                            bkf.completeExceptionally(BKException.create(rc));
+//                        } else {
+//                            bkf.complete(null);
+//                        }
+//                    }, null);
         } catch (Throwable t) {
             return FutureUtil.failedFuture(t);
         }

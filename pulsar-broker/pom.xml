@@ -421,6 +421,18 @@
       <artifactId>pulsar-package-filesystem-storage</artifactId>
       <version>${project.version}</version>
     </dependency>
+
+<!--    <dependency>-->
+<!--      <groupId>${project.groupId}</groupId>-->
+<!--      <artifactId>tiered-storage-parent</artifactId>-->
+<!--      <version>${project.version}</version>-->
+<!--    </dependency>-->
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>tiered-storage-file-system</artifactId>
+      <version>${project.version}</version>
+    </dependency>
   </dependencies>
 
   <build>

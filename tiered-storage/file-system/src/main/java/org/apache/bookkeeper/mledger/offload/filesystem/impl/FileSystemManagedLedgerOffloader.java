@@ -21,6 +21,7 @@ package org.apache.bookkeeper.mledger.offload.filesystem.impl;
 import static org.apache.bookkeeper.mledger.offload.OffloadUtils.buildLedgerMetadataFormat;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
+import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
 import java.io.IOException;
 import java.util.Iterator;
@@ -156,6 +157,32 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
         return promise;
     }
 
+    // 外部存储卸载
+    @Override
+    public CompletableFuture<Void> offload(ByteBuf buf, long ledgerId, String topicName, UUID uid) {
+        CompletableFuture<Void> promise = new CompletableFuture<>();
+        String storagePath = getStoragePath(storageBasePath, topicName);
+        String dataFilePath = getDataFilePath(storagePath, ledgerId, uid);
+        try {
+            MapFile.Writer dataWriter = new MapFile.Writer(configuration,
+                    new Path(dataFilePath),
+                    MapFile.Writer.keyClass(LongWritable.class),
+                    MapFile.Writer.valueClass(BytesWritable.class));
+            scheduler.chooseThread().execute(
+                    FileSystemWriter.create(buf, dataWriter, promise)
+            );
+        } catch (Exception e) {
+            log.error("Exception when get CompletableFuture<LedgerEntries> : ManagerLedgerName: {}, "
+                    + "LedgerId: {}, UUID: {} ", topicName, ledgerId, uid, e);
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
+            this.offloaderStats.recordOffloadError(topicName);
+            promise.completeExceptionally(e);
+        }
+        return null;
+    }
+
     private static class LedgerReader implements Runnable {
 
         private final ReadHandle readHandle;
@@ -264,6 +291,9 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
         private LedgerReader ledgerReader;
         private Semaphore semaphore;
         private Recycler.Handle<FileSystemWriter> recyclerHandle;
+        private ByteBuf buf;
+        private CompletableFuture<Void> promise;
+        private boolean isReadForBK;
 
         private FileSystemWriter(Recycler.Handle<FileSystemWriter> recyclerHandle) {
             this.recyclerHandle = recyclerHandle;
@@ -300,34 +330,56 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
             writer.haveOffloadEntryNumber = haveOffloadEntryNumber;
             writer.ledgerEntriesOnce = ledgerEntriesOnce;
             writer.semaphore = semaphore;
+            writer.isReadForBK = true;
+            return writer;
+        }
+
+        public static FileSystemWriter create(ByteBuf buf, MapFile.Writer dataWriter, CompletableFuture<Void> promise) {
+            FileSystemWriter writer = RECYCLER.get();
+            writer.buf = buf;
+            writer.dataWriter = dataWriter;
+            writer.promise = promise;
+            writer.isReadForBK = false;
             return writer;
         }
 
         @Override
         public void run() {
-            String managedLedgerName = ledgerReader.extraMetadata.get(MANAGED_LEDGER_NAME);
-            if (ledgerReader.fileSystemWriteException == null) {
-                Iterator<LedgerEntry> iterator = ledgerEntriesOnce.iterator();
-                while (iterator.hasNext()) {
-                    LedgerEntry entry = iterator.next();
-                    long entryId = entry.getEntryId();
-                    key.set(entryId);
-                    try {
-                        value.set(entry.getEntryBytes(), 0, entry.getEntryBytes().length);
-                        dataWriter.append(key, value);
-                    } catch (IOException e) {
-                        ledgerReader.fileSystemWriteException = e;
-                        ledgerReader.offloaderStats.recordWriteToStorageError(managedLedgerName);
-                        break;
+            if (isReadForBK) {
+                String managedLedgerName = ledgerReader.extraMetadata.get(MANAGED_LEDGER_NAME);
+                if (ledgerReader.fileSystemWriteException == null) {
+                    Iterator<LedgerEntry> iterator = ledgerEntriesOnce.iterator();
+                    while (iterator.hasNext()) {
+                        LedgerEntry entry = iterator.next();
+                        long entryId = entry.getEntryId();
+                        key.set(entryId);
+                        try {
+                            value.set(entry.getEntryBytes(), 0, entry.getEntryBytes().length);
+                            dataWriter.append(key, value);
+                        } catch (IOException e) {
+                            ledgerReader.fileSystemWriteException = e;
+                            ledgerReader.offloaderStats.recordWriteToStorageError(managedLedgerName);
+                            break;
+                        }
+                        haveOffloadEntryNumber.incrementAndGet();
+                        ledgerReader.offloaderStats.recordOffloadBytes(managedLedgerName, entry.getLength());
                     }
-                    haveOffloadEntryNumber.incrementAndGet();
-                    ledgerReader.offloaderStats.recordOffloadBytes(managedLedgerName, entry.getLength());
                 }
+                countDownLatch.countDown();
+                ledgerEntriesOnce.close();
+                semaphore.release();
+                this.recycle();
+            } else {
+                // todo 保存entryId
+                try {
+                    value.set(buf.array(), 0, buf.capacity());
+                    dataWriter.append(key, value);
+                } catch (IOException e) {
+                    return;
+                }
+                this.recycle();
+                promise.complete(null);
             }
-            countDownLatch.countDown();
-            ledgerEntriesOnce.close();
-            semaphore.release();
-            this.recycle();
         }
     }
 

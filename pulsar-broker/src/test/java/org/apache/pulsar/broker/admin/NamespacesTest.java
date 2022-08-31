@@ -34,6 +34,7 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
+import io.netty.buffer.ByteBuf;
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URL;
@@ -1301,6 +1302,11 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 promise.completeExceptionally(new Exception("Already exists exception"));
             }
             return promise;
+        }
+
+        @Override
+        public CompletableFuture<Void> offload(ByteBuf buf, long ledgerId, String topicName, UUID uid) {
+            return null;
         }
 
         @Override
