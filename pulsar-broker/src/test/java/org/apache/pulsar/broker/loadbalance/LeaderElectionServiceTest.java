@@ -74,7 +74,7 @@ public class LeaderElectionServiceTest {
         config.setWebServicePort(Optional.of(0));
         config.setClusterName(clusterName);
         config.setAdvertisedAddress("localhost");
-        config.setMetadataStoreUrl("zk:127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
         @Cleanup
         PulsarService pulsar = spyWithClassAndConstructorArgs(MockPulsarService.class, config);
         pulsar.start();

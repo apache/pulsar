@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -37,6 +36,7 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.common.component.ComponentStarter;
@@ -62,13 +62,10 @@ import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.service.WorkerServiceLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.bridge.SLF4JBridgeHandler;
 
 public class PulsarBrokerStarter {
 
     private static ServiceConfiguration loadConfig(String configFile) throws Exception {
-        SLF4JBridgeHandler.removeHandlersForRootLogger();
-        SLF4JBridgeHandler.install();
         try (InputStream inputStream = new FileInputStream(configFile)) {
             ServiceConfiguration config = create(inputStream, ServiceConfiguration.class);
             // it validates provided configuration is completed
@@ -243,8 +240,8 @@ public class PulsarBrokerStarter {
 
             // init bookie server
             if (starterArguments.runBookie) {
-                checkNotNull(bookieConfig, "No ServerConfiguration for Bookie");
-                checkNotNull(bookieStatsProvider, "No Stats Provider for Bookie");
+                Objects.requireNonNull(bookieConfig, "No ServerConfiguration for Bookie");
+                Objects.requireNonNull(bookieStatsProvider, "No Stats Provider for Bookie");
                 bookieServer = org.apache.bookkeeper.server.Main
                         .buildBookieServer(new BookieConfiguration(bookieConfig));
             } else {
@@ -253,7 +250,7 @@ public class PulsarBrokerStarter {
 
             // init bookie AutorecoveryMain
             if (starterArguments.runBookieAutoRecovery) {
-                checkNotNull(bookieConfig, "No ServerConfiguration for Bookie Autorecovery");
+                Objects.requireNonNull(bookieConfig, "No ServerConfiguration for Bookie Autorecovery");
                 autoRecoveryMain = new AutoRecoveryMain(bookieConfig);
             } else {
                 autoRecoveryMain = null;

@@ -68,7 +68,7 @@ If you want to use broker entry metadata for **consumers**:
 
 1. Use the client protocol version [18 or later](https://github.com/apache/pulsar/blob/ca37e67211feda4f7e0984e6414e707f1c1dfd07/pulsar-common/src/main/proto/PulsarApi.proto#L259).
    
-2. Configure the [`brokerEntryMetadataInterceptors`](reference-configuration.md#broker) parameter and set the [`enableExposingBrokerEntryMetadataToClient`](reference-configuration.md#broker) parameter to `true` in the `broker.conf` file.
+2. Configure the [`brokerEntryMetadataInterceptors`](reference-configuration.md#broker) parameter and set the [`exposingBrokerEntryMetadataToClientEnabled`](reference-configuration-broker.md#exposingbrokerentrymetadatatoclientenabled) parameter to `true` in the `broker.conf` file.
 
 ## Message metadata
 
@@ -333,6 +333,10 @@ Before creating or connecting a consumer, you need to perform [topic lookup](#to
 
 :::
 
+If the client does not receive a response indicating consumer creation success or failure,
+the client should first send a command to close the original consumer before sending a
+command to re-attempt consumer creation.
+
 #### Flow control
 
 After the consumer is ready, the client needs to *give permission* to the
@@ -479,6 +483,11 @@ This command can be sent by either producer or broker.
 
 This command behaves the same as [`CloseProducer`](#command-closeproducer)
 
+If the client does not receive a response to a `Subscribe` command within a timeout,
+the client must first send a `CloseConsumer` command before sending another
+`Subscribe` command. The client does not need to await a response to the `CloseConsumer`
+command before sending the next `Subscribe` command.
+
 ##### Command RedeliverUnacknowledgedMessages
 
 A consumer can ask the broker to redeliver some or all of the pending messages
@@ -534,7 +543,7 @@ Topic lookup needs to be performed each time a client needs to create or
 reconnect a producer or a consumer. Lookup is used to discover which particular
 broker is serving the topic we are about to use.
 
-Lookup can be done with a REST call as described in the [admin API](admin-api-topics.md#lookup-of-topic) docs.
+Lookup can be done with a REST call as described in the [admin API](admin-api-topics.md#look-up-topics-owner-broker) docs.
 
 Since Pulsar-1.16 it is also possible to perform the lookup within the binary protocol.
 

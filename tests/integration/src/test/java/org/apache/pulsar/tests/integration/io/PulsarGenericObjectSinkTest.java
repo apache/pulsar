@@ -28,6 +28,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.policies.data.SinkStatus;
 import org.apache.pulsar.common.schema.KeyValue;
@@ -99,15 +100,15 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
 
         // we are not using a parametrized test in order to save resources
         // we create one sink that listens on multiple topics, send the records and verify the sink
-        List<SinkSpec> specs = Arrays.asList(
-                new SinkSpec("test-kv-sink-input-string-" + randomName(8), Schema.STRING, "foo"),
-                new SinkSpec("test-kv-sink-input-avro-" + randomName(8), Schema.AVRO(Pojo.class), Pojo.builder().field1("a").field2(2).build()),
-                new SinkSpec("test-kv-sink-input-json-" + randomName(8), Schema.JSON(Pojo.class), Pojo.builder().field1("a").field2(2).build()),
-                new SinkSpec("test-kv-sink-input-kv-string-int-" + randomName(8),
+        List<SinkSpec<?>> specs = Arrays.asList(
+                new SinkSpec<>("test-kv-sink-input-string-" + randomName(8), Schema.STRING, "foo"),
+                new SinkSpec<>("test-kv-sink-input-avro-" + randomName(8), Schema.AVRO(Pojo.class), Pojo.builder().field1("a").field2(2).build()),
+                new SinkSpec<>("test-kv-sink-input-json-" + randomName(8), Schema.JSON(Pojo.class), Pojo.builder().field1("a").field2(2).build()),
+                new SinkSpec<>("test-kv-sink-input-kv-string-int-" + randomName(8),
                         Schema.KeyValue(Schema.STRING, Schema.INT32), new KeyValue<>("foo", 123)),
-                new SinkSpec("test-kv-sink-input-kv-avro-json-inl-" + randomName(8),
+                new SinkSpec<>("test-kv-sink-input-kv-avro-json-inl-" + randomName(8),
                         Schema.KeyValue(Schema.AVRO(PojoKey.class), Schema.JSON(Pojo.class), KeyValueEncodingType.INLINE), new KeyValue<>(PojoKey.builder().field1("a").build(), Pojo.builder().field1("a").field2(2).build())),
-                new SinkSpec("test-kv-sink-input-kv-avro-json-sep-" + randomName(8),
+                new SinkSpec<>("test-kv-sink-input-kv-avro-json-sep-" + randomName(8),
                         Schema.KeyValue(Schema.AVRO(PojoKey.class), Schema.JSON(Pojo.class), KeyValueEncodingType.SEPARATED), new KeyValue<>(PojoKey.builder().field1("a").build(), Pojo.builder().field1("a").field2(2).build()))
         );
 
@@ -124,19 +125,8 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
         getSinkStatus(sinkName);
 
 
-        for (SinkSpec spec : specs) {
-
-            @Cleanup Producer<Object> producer = client.newProducer(spec.schema)
-                    .topic(spec.outputTopicName)
-                    .create();
-            for (int i = 0; i < numRecordsPerTopic; i++) {
-                MessageId messageId = producer.newMessage()
-                        .value(spec.testValue)
-                        .property("expectedType", spec.schema.getSchemaInfo().getType().toString())
-                        .property("recordNumber", i + "")
-                        .send();
-                log.info("sent message {} {}  with ID {}", spec.testValue, spec.schema.getSchemaInfo().getType().toString(), messageId);
-            }
+        for (SinkSpec<?> spec : specs) {
+            sendMessages(client, numRecordsPerTopic, spec);
         }
 
         // wait that sink processed all records without errors
@@ -171,6 +161,21 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
 
         deleteSink(sinkName);
         getSinkInfoNotFound(sinkName);
+    }
+
+    private <T> void sendMessages(PulsarClient client, int numRecordsPerTopic, SinkSpec<T> spec)
+            throws PulsarClientException {
+        @Cleanup Producer<T> producer = client.newProducer(spec.schema)
+                .topic(spec.outputTopicName)
+                .create();
+        for (int i = 0; i < numRecordsPerTopic; i++) {
+            MessageId messageId = producer.newMessage()
+                    .value(spec.testValue)
+                    .property("expectedType", spec.schema.getSchemaInfo().getType().toString())
+                    .property("recordNumber", i + "")
+                    .send();
+            log.info("sent message {} {}  with ID {}", spec.testValue, spec.schema.getSchemaInfo().getType().toString(), messageId);
+        }
     }
 
     @Test(groups = {"sink"})

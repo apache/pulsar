@@ -301,9 +301,9 @@ public class CmdSinks extends CmdBase {
                 + "Add SerDe class name for a pattern in --customSerdeInputs  (supported for java fun only)",
                 hidden = true)
         protected String deprecatedTopicsPattern;
-        @Parameter(names = "--topics-pattern", description = "TopicsPattern to consume from list of topics "
-                + "under a namespace that match the pattern. [--input] and [--topicsPattern] are mutually exclusive. "
-                + "Add SerDe class name for a pattern in --customSerdeInputs  (supported for java fun only)")
+        @Parameter(names = "--topics-pattern", description = "The topic pattern to consume from a list of topics "
+                + "under a namespace that matches the pattern. [--input] and [--topics-pattern] are mutually "
+                + "exclusive. Add SerDe class name for a pattern in --custom-serde-inputs")
         protected String topicsPattern;
 
         @Parameter(names = "--subsName", description = "Pulsar source subscription name "
@@ -398,6 +398,13 @@ public class CmdSinks extends CmdBase {
         @Parameter(names = "--secrets", description = "The map of secretName to an object that encapsulates "
                 + "how the secret is fetched by the underlying secrets provider")
         protected String secretsString;
+        @Parameter(names = "--transform-function", description = "Transform function applied before the Sink")
+        protected String transformFunction;
+        @Parameter(names = "--transform-function-classname", description = "The transform function class name")
+        protected String transformFunctionClassName;
+        @Parameter(names = "--transform-function-config", description = "Configuration of the transform function "
+                + "applied before the Sink")
+        protected String transformFunctionConfig;
 
         protected SinkConfig sinkConfig;
 
@@ -576,6 +583,18 @@ public class CmdSinks extends CmdBase {
                     secretsMap = Collections.emptyMap();
                 }
                 sinkConfig.setSecrets(secretsMap);
+            }
+
+            if (transformFunction != null) {
+                sinkConfig.setTransformFunction(transformFunction);
+            }
+
+            if (transformFunctionClassName != null) {
+                sinkConfig.setTransformFunctionClassName(transformFunctionClassName);
+            }
+
+            if (transformFunctionConfig != null) {
+                sinkConfig.setTransformFunctionConfig(transformFunctionConfig);
             }
 
             // check if configs are valid

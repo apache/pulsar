@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.tests.integration.topologies;
 
-import java.util.Collections;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -110,7 +109,7 @@ public class PulsarClusterSpec {
      * @return the list of external services to start with the cluster.
      */
     @Singular
-    Map<String, GenericContainer<?>> externalServices = Collections.EMPTY_MAP;
+    Map<String, GenericContainer<?>> externalServices;
 
     /**
      * Returns the flag whether to enable/disable container log.

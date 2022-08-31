@@ -216,7 +216,7 @@ public class FunctionRuntimeManager implements AutoCloseable {
         }
         // initialize runtime
         this.runtimeFactory.initialize(workerConfig, authConfig,
-                secretsProviderConfigurator, connectorsManager,
+                secretsProviderConfigurator, connectorsManager, functionsManager,
                 functionAuthProvider, runtimeCustomizer);
 
         this.functionActioner = new FunctionActioner(this.workerConfig, runtimeFactory,
@@ -447,9 +447,8 @@ public class FunctionRuntimeManager implements AutoCloseable {
                         }
                     }
                     if (workerInfo == null) {
-                        if (log.isDebugEnabled()) {
-                            log.debug("[{}] has not been assigned yet", fullyQualifiedInstanceId);
-                        }
+                        log.warn("[{}] has not been assigned yet, assignment: [{}], workerList: [{}]",
+                                fullyQualifiedInstanceId, assignment, workerInfoList);
                         continue;
                     }
                     restartFunctionUsingPulsarAdmin(assignment, tenant, namespace, functionName, false);
@@ -759,7 +758,12 @@ public class FunctionRuntimeManager implements AutoCloseable {
                         newFunctionRuntimeInfo.setFunctionInstance(assignment.getInstance());
                         RuntimeSpawner runtimeSpawner = functionActioner.getRuntimeSpawner(
                                 assignment.getInstance(),
-                                assignment.getInstance().getFunctionMetaData().getPackageLocation().getPackagePath());
+                                assignment.getInstance().getFunctionMetaData().getPackageLocation().getPackagePath(),
+                                assignment
+                                        .getInstance()
+                                        .getFunctionMetaData()
+                                        .getTransformFunctionPackageLocation()
+                                        .getPackagePath());
                         // re-initialize if necessary
                         runtimeSpawner.getRuntime().reinitialize();
                         newFunctionRuntimeInfo.setRuntimeSpawner(runtimeSpawner);

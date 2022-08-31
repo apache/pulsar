@@ -13,15 +13,15 @@ import TabItem from '@theme/TabItem';
 This guide describes how to develop Pulsar connectors to move data
 between Pulsar and other systems. 
 
-Pulsar connectors are special [Pulsar Functions](functions-overview), so creating
+Pulsar connectors are special [Pulsar Functions](functions-overview.md), so creating
 a Pulsar connector is similar to creating a Pulsar function. 
 
 Pulsar connectors come in two types: 
 
 | Type | Description | Example
 |---|---|---
-{@inject: github:Source:/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java}|Import data from another system to Pulsar.|[RabbitMQ source connector](io-rabbitmq) imports the messages of a RabbitMQ queue to a Pulsar topic.
-{@inject: github:Sink:/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java}|Export data from Pulsar to another system.|[Kinesis sink connector](io-kinesis) exports the messages of a Pulsar topic to a Kinesis stream.
+{@inject: github:Source:/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java}|Import data from another system to Pulsar.|[RabbitMQ source connector](io-rabbitmq.md) imports the messages of a RabbitMQ queue to a Pulsar topic.
+{@inject: github:Sink:/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java}|Export data from Pulsar to another system.|[Kinesis sink connector](io-kinesis.md) exports the messages of a Pulsar topic to a Kinesis stream.
 
 ## Develop
 
@@ -70,7 +70,7 @@ interface, which means you need to implement the {@inject: github:open:/pulsar-i
    
    ```
 
-   If nothing to return, the implementation should be blocking rather than returning `null`. 
+   If there is nothing to return, the implementation should be blocking rather than returning `null`.
 
    The returned {@inject: github:Record:/pulsar-functions/api-java/src/main/java/org/apache/pulsar/functions/api/Record.java} should encapsulate the following information, which is needed by Pulsar IO runtime. 
 
@@ -95,10 +95,10 @@ interface, which means you need to implement the {@inject: github:open:/pulsar-i
        `ack` |Acknowledge that the record is fully processed.
        `fail`|Indicate that the record fails to be processed.
 
-## Handle schema information
+#### Handle schema information
 
 Pulsar IO automatically handles the schema and provides a strongly typed API based on Java generics.
-If you know the schema type that you are producing, you can declare the Java class relative to that type in your sink declaration.
+If you know the schema type that you are producing, you can declare the Java class relative to that type in your source declaration.
 
 ```
 
@@ -136,8 +136,8 @@ To handle the `KeyValue` type properly, follow the guidelines for your record im
 - It must return a `KeyValue` object as `Record.getValue()`
 - It may return null in `Record.getSchema()`
 
-When Pulsar IO runtime encounters a `KVRecord`, it brings the following changes automatically:
-- Set properly the `KeyValueSchema`
+When Pulsar IO runtime encounters a `KVRecord`, it does the following changes automatically:
+- Set the proper `KeyValueSchema`
 - Encode the Message Key and the Message Value according to the `KeyValueEncoding` (SEPARATED or INLINE)
 
 :::tip
@@ -179,14 +179,14 @@ Developing a sink connector **is similar to** developing a source connector, tha
    ```
 
    During the implementation, you can decide how to write the `Value` and
-   the `Key` to the actual source, and leverage all the provided information such as
+   the `Key` to the actual sink, and leverage all the provided information such as
    `PartitionId` and `RecordSequence` to achieve different processing guarantees. 
 
    You also need to ack records (if messages are sent successfully) or fail records (if messages fail to send). 
 
-## Handling Schema information
+#### Handle schema information
 
-Pulsar IO handles automatically the Schema and provides a strongly typed API based on Java generics.
+Pulsar IO automatically handles the Schema and provides a strongly typed API based on Java generics.
 If you know the Schema type that you are consuming from you can declare the Java class relative to that type in your Sink declaration.
 
 ```
@@ -274,7 +274,7 @@ For more information about **how to create integration tests for Pulsar connecto
 ## Package
 
 Once you've developed and tested your connector, you need to package it so that it can be submitted
-to a [Pulsar Functions](functions-overview) cluster. 
+to a [Pulsar Functions](functions-overview.md) cluster. 
 
 There are two methods to
 work with Pulsar Functions' runtime, that is, [NAR](#nar) and [uber JAR](#uber-jar).
@@ -282,11 +282,11 @@ work with Pulsar Functions' runtime, that is, [NAR](#nar) and [uber JAR](#uber-j
 :::note
 
 If you plan to package and distribute your connector for others to use, you are obligated to
+license and copyright your own code properly. Remember to add the license and copyright to
+all libraries your code uses and to your distribution.
 
 :::
 
-license and copyright your own code properly. Remember to add the license and copyright to
-all libraries your code uses and to your distribution. 
 >
 > If you use the [NAR](#nar) method, the NAR plugin 
 automatically creates a `DEPENDENCIES` file in the generated NAR package, including the proper
@@ -305,7 +305,7 @@ For more information about **how NAR works**, see [here](https://medium.com/hash
 
 :::
 
-Pulsar uses the same mechanism for packaging **all** [built-in connectors](io-connectors). 
+Pulsar uses the same mechanism for packaging **all** [built-in connectors](io-connectors.md). 
 
 The easiest approach to package a Pulsar connector is to create a NAR package using [nifi-nar-maven-plugin](https://mvnrepository.com/artifact/org.apache.nifi/nifi-nar-maven-plugin).
 
@@ -380,7 +380,7 @@ Pulsar connectors enable you to move data in and out of Pulsar easily. It is imp
 
 - Check the metrics provided by Pulsar.
 
-  Pulsar connectors expose the metrics that can be collected and used for monitoring the health of **Java** connectors. You can check the metrics by following the [monitoring](deploy-monitoring) guide.
+  Pulsar connectors expose the metrics that can be collected and used for monitoring the health of **Java** connectors. You can check the metrics by following the [monitoring](deploy-monitoring.md) guide.
 
 - Set and check your customized metrics.
 

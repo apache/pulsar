@@ -21,16 +21,19 @@ package org.apache.pulsar.broker.transaction.pendingack;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
+import java.io.ByteArrayOutputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import com.google.common.collect.Multimap;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -38,6 +41,8 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.collections4.map.LinkedMap;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.stats.PrometheusMetricsTest;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
@@ -54,6 +59,7 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicStats;
@@ -197,6 +203,77 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         Awaitility.await()
                 .until(() -> ((PositionImpl) managedCursor.getMarkDeletedPosition())
                         .compareTo((PositionImpl) managedCursor.getManagedLedger().getLastConfirmedEntry()) == -1);
+    }
+
+    @Test
+    public void testPendingAckMetrics() throws Exception {
+        final int messageCount = 100;
+        String subName = "testMetric" + UUID.randomUUID();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(PENDING_ACK_REPLAY_TOPIC)
+                .create();
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(PENDING_ACK_REPLAY_TOPIC)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Exclusive)
+                .enableBatchIndexAcknowledgment(true)
+                .subscribe();
+
+        for (int a = 0; a < messageCount; a++) {
+            producer.send(UUID.randomUUID().toString());
+        }
+
+        for (int a = 0; a < messageCount; a++) {
+            Message<String> message = consumer.receive(10, TimeUnit.SECONDS);
+            if (null == message) {
+                break;
+            }
+
+            Transaction txn = pulsarClient.newTransaction()
+                    .withTransactionTimeout(10, TimeUnit.SECONDS).build().get();
+            consumer.acknowledgeCumulativeAsync(message.getMessageId(), txn).get();
+            if (a % 2 == 0) {
+                txn.abort().get();
+            } else {
+                txn.commit().get();
+            }
+        }
+
+        @Cleanup
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsarServiceList.get(0), true, false, false, statsOut);
+        String metricsStr = statsOut.toString();
+        Multimap<String, PrometheusMetricsTest.Metric> metricsMap = PrometheusMetricsTest.parseMetrics(metricsStr);
+
+        Collection<PrometheusMetricsTest.Metric> abortedCount = metricsMap.get("pulsar_txn_tp_aborted_count_total");
+        Collection<PrometheusMetricsTest.Metric> committedCount = metricsMap.get("pulsar_txn_tp_committed_count_total");
+        Collection<PrometheusMetricsTest.Metric> commitLatency = metricsMap.get("pulsar_txn_tp_commit_latency");
+        Assert.assertTrue(commitLatency.size() > 0);
+
+        int count = 0;
+        for (PrometheusMetricsTest.Metric metric : commitLatency) {
+            if (metric.tags.get("topic").endsWith(PENDING_ACK_REPLAY_TOPIC) && metric.value > 0) {
+                count++;
+            }
+        }
+        Assert.assertTrue(count > 0);
+
+        for (PrometheusMetricsTest.Metric metric : abortedCount) {
+            if (metric.tags.get("subscription").equals(subName) && metric.tags.get("status").equals("succeed")) {
+                assertTrue(metric.tags.get("topic").endsWith(PENDING_ACK_REPLAY_TOPIC));
+                assertTrue(metric.value > 0);
+            }
+        }
+        for (PrometheusMetricsTest.Metric metric : committedCount) {
+            if (metric.tags.get("subscription").equals(subName) && metric.tags.get("status").equals("succeed")) {
+                assertTrue(metric.tags.get("topic").endsWith(PENDING_ACK_REPLAY_TOPIC));
+                assertTrue(metric.value > 0);
+            }
+        }
     }
 
     @Test
@@ -645,4 +722,61 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         }
     }
 
+    @Test
+    public void testGetSubPatternTopicFilterTxnInternalTopic() throws Exception {
+        String topic = TopicName.get(TopicDomain.persistent.toString(),
+                NamespaceName.get(NAMESPACE1), "testGetSubPatternTopicFilterTxnInternalTopic").toString();
+
+        int partition = 3;
+        admin.topics().createPartitionedTopic(topic, partition);
+
+        String subscriptionName = "sub";
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .enableBatching(false)
+                .topic(topic).create();
+
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .subscriptionName(subscriptionName)
+                .subscriptionType(SubscriptionType.Shared)
+                .topic(topic)
+                .subscribe();
+
+        for (int i = 0; i < partition; i++) {
+            producer.send("test");
+        }
+
+        // creat pending ack managedLedger
+        for (int i = 0; i < partition; i++) {
+            Transaction transaction = pulsarClient.newTransaction()
+                    .withTransactionTimeout(5, TimeUnit.SECONDS)
+                    .build()
+                    .get();
+            consumer.acknowledgeAsync(consumer.receive().getMessageId(), transaction);
+            transaction.commit().get();
+        }
+
+        consumer.close();
+        admin.namespaces().getTopics(NAMESPACE1).forEach(name ->
+                assertFalse(SystemTopicNames.isTransactionInternalName(TopicName.get(name))));
+
+        @Cleanup
+        Consumer<String> patternConsumer = pulsarClient.newConsumer(Schema.STRING)
+                .subscriptionName("patternSub")
+                .subscriptionType(SubscriptionType.Shared)
+                .topicsPattern("persistent://" + NAMESPACE1 + "/.*")
+                .subscribe();
+
+        for (int i = 0; i < partition; i++) {
+            producer.send("test" + i);
+        }
+
+        // can use pattern sub consume
+        for (int i = 0; i < partition; i++) {
+            patternConsumer.acknowledgeAsync(patternConsumer.receive().getMessageId());
+        }
+        patternConsumer.close();
+        producer.close();
+    }
 }

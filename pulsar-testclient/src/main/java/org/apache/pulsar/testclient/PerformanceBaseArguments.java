@@ -55,7 +55,7 @@ public abstract class PerformanceBaseArguments {
     public Boolean tlsAllowInsecureConnection = null;
 
     @Parameter(names = {
-            "--tls-hostname-verification" }, description = "Enable TLS hostname verification")
+            "--tls-enable-hostname-verification" }, description = "Enable TLS hostname verification")
     public Boolean tlsHostnameVerificationEnable = null;
 
     @Parameter(names = { "-c",
@@ -80,6 +80,10 @@ public abstract class PerformanceBaseArguments {
     @Parameter(names = {"-lt", "--num-listener-threads"}, description = "Set the number of threads"
             + " to be used for message listeners")
     public int listenerThreads = 1;
+
+    @Parameter(names = {"-mlr", "--max-lookup-request"}, description = "Maximum number of lookup requests allowed "
+            + "on each broker connection to prevent overloading a broker")
+    public int maxLookupRequest = 50000;
 
     public abstract void fillArgumentsFromProperties(Properties prop);
 

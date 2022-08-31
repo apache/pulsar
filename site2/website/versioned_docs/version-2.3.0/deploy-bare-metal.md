@@ -99,7 +99,7 @@ The untarred directory contains the following subdirectories:
 
 Directory | Contains
 :---------|:--------
-`bin` | Pulsar's [command-line tools](reference-cli-tools.md), such as [`pulsar`](reference-cli-tools.md#pulsar) and [`pulsar-admin`](reference-pulsar-admin)
+`bin` | Pulsar's [command-line tools](reference-cli-tools.md), such as [`pulsar`](reference-cli-tools.md#pulsar) and [`pulsar-admin`](reference-pulsar-admin.md)
 `conf` | Configuration files for Pulsar, including for [broker configuration](reference-configuration.md#broker), [ZooKeeper configuration](reference-configuration.md#zookeeper), and more
 `data` | The data storage directory used by ZooKeeper and BookKeeper.
 `lib` | The [JAR](https://en.wikipedia.org/wiki/JAR_(file_format)) files used by Pulsar.
@@ -182,7 +182,7 @@ tiered-storage-jcloud-@pulsar:version@.nar
 
 ```
 
-For more details of how to configure tiered storage feature, you could reference this [Tiered storage cookbook](cookbooks-tiered-storage)
+For more details of how to configure tiered storage feature, you could reference this [Tiered storage cookbook](cookbooks-tiered-storage.md)
 
 
 ## Deploying a ZooKeeper cluster

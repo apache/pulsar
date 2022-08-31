@@ -36,13 +36,12 @@ public class CmdGenerateDocumentation extends BaseGenerateDocumentation {
         StringBuilder sb = new StringBuilder();
         if (ServiceConfiguration.class.getName().equals(className)) {
             return generateDocByFieldContext(className, "Broker", sb);
-        }
-        if (WebSocketProxyConfiguration.class.getName().equals(className)) {
+        } else if (ClientConfigurationData.class.getName().equals(className)) {
+            return generateDocByApiModelProperty(className, "Client", sb);
+        } else if (WebSocketProxyConfiguration.class.getName().equals(className)) {
             return generateDocByFieldContext(className, "WebSocket", sb);
         }
-        if (ClientConfigurationData.class.getName().equals(className)) {
-            return generateDocByApiModelProperty(className, "Client", sb);
-        }
+
         return "Class [" + className + "] not found";
     }
 

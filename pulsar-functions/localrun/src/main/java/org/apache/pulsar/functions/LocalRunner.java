@@ -345,23 +345,38 @@ public class LocalRunner implements AutoCloseable {
                         functionDetails = FunctionConfigUtils.convert(
                                 functionConfig,
                                 FunctionConfigUtils.validateJavaFunction(functionConfig, builtInFunctionClassLoader));
-                    } else if (Utils.isFunctionPackageUrlSupported(userCodeFile)) {
+                    } else if (userCodeFile != null && Utils.isFunctionPackageUrlSupported(userCodeFile)) {
                         File file = FunctionCommon.extractFileFromPkgURL(userCodeFile);
-                        userCodeClassLoader = FunctionConfigUtils.validate(functionConfig, file);
+                        ClassLoader functionClassLoader = FunctionCommon.getClassLoaderFromPackage(
+                                Function.FunctionDetails.ComponentType.FUNCTION,
+                                functionConfig.getClassName(), file, narExtractionDirectory);
+                        functionDetails = FunctionConfigUtils.convert(
+                                functionConfig,
+                                FunctionConfigUtils.validateJavaFunction(functionConfig, functionClassLoader));
+                        userCodeClassLoader = functionClassLoader;
                         userCodeClassLoaderCreated = true;
                     } else if (userCodeFile != null) {
                         File file = new File(userCodeFile);
                         if (!file.exists()) {
                             throw new RuntimeException("User jar does not exist");
                         }
-                        userCodeClassLoader = FunctionConfigUtils.validate(functionConfig, file);
+                        ClassLoader functionClassLoader = FunctionCommon.getClassLoaderFromPackage(
+                                Function.FunctionDetails.ComponentType.FUNCTION,
+                                functionConfig.getClassName(), file, narExtractionDirectory);
+                        functionDetails = FunctionConfigUtils.convert(
+                                functionConfig,
+                                FunctionConfigUtils.validateJavaFunction(functionConfig, functionClassLoader));
+                        userCodeClassLoader = functionClassLoader;
                         userCodeClassLoaderCreated = true;
                     } else {
                         if (!(runtimeEnv == null || runtimeEnv == RuntimeEnv.THREAD)) {
                             throw new IllegalStateException("The jar property must be specified in FunctionConfig.");
                         }
-                        FunctionConfigUtils.validateJavaFunction(functionConfig, Thread.currentThread()
-                                .getContextClassLoader());
+                        functionDetails = FunctionConfigUtils.convert(
+                                functionConfig,
+                                FunctionConfigUtils.validateJavaFunction(
+                                        functionConfig,
+                                        Thread.currentThread().getContextClassLoader()));
                     }
                 } else if (functionConfig.getRuntime() == FunctionConfig.Runtime.GO) {
                     userCodeFile = functionConfig.getGo();
@@ -426,7 +441,7 @@ public class LocalRunner implements AutoCloseable {
                 if (builtInSinkClassLoader != null) {
                     functionDetails = SinkConfigUtils.convert(
                             sinkConfig, SinkConfigUtils.validateAndExtractDetails(
-                                    sinkConfig, builtInSinkClassLoader, true));
+                                    sinkConfig, builtInSinkClassLoader, null, true));
                     userCodeClassLoader = builtInSinkClassLoader;
                 } else if (Utils.isFunctionPackageUrlSupported(userCodeFile)) {
                     File file = FunctionCommon.extractFileFromPkgURL(userCodeFile);
@@ -434,7 +449,8 @@ public class LocalRunner implements AutoCloseable {
                             Function.FunctionDetails.ComponentType.SINK,
                             sinkConfig.getClassName(), file, narExtractionDirectory);
                     functionDetails = SinkConfigUtils.convert(
-                            sinkConfig, SinkConfigUtils.validateAndExtractDetails(sinkConfig, sinkClassLoader, true));
+                            sinkConfig,
+                            SinkConfigUtils.validateAndExtractDetails(sinkConfig, sinkClassLoader, null, true));
                     userCodeClassLoader = sinkClassLoader;
                     userCodeClassLoaderCreated = true;
                 } else if (userCodeFile != null) {
@@ -446,7 +462,8 @@ public class LocalRunner implements AutoCloseable {
                             Function.FunctionDetails.ComponentType.SINK,
                             sinkConfig.getClassName(), file, narExtractionDirectory);
                     functionDetails = SinkConfigUtils.convert(
-                            sinkConfig, SinkConfigUtils.validateAndExtractDetails(sinkConfig, sinkClassLoader, true));
+                            sinkConfig,
+                            SinkConfigUtils.validateAndExtractDetails(sinkConfig, sinkClassLoader, null, true));
                     userCodeClassLoader = sinkClassLoader;
                     userCodeClassLoaderCreated = true;
                 } else {
@@ -455,7 +472,7 @@ public class LocalRunner implements AutoCloseable {
                     }
                     functionDetails = SinkConfigUtils.convert(
                             sinkConfig, SinkConfigUtils.validateAndExtractDetails(
-                                    sinkConfig, Thread.currentThread().getContextClassLoader(), true));
+                                    sinkConfig, Thread.currentThread().getContextClassLoader(), null, true));
                 }
             } else {
                 throw new IllegalArgumentException("Must specify Function, Source or Sink config");
@@ -561,6 +578,8 @@ public class LocalRunner implements AutoCloseable {
                     instanceConfig,
                     userCodeFile,
                     null,
+                    null,
+                    null,
                     runtimeFactory,
                     instanceLivenessCheck);
             spawners.add(runtimeSpawner);
@@ -664,6 +683,8 @@ public class LocalRunner implements AutoCloseable {
             RuntimeSpawner runtimeSpawner = new RuntimeSpawner(
                     instanceConfig,
                     userCodeFile,
+                    null,
+                    null,
                     null,
                     runtimeFactory,
                     instanceLivenessCheck);

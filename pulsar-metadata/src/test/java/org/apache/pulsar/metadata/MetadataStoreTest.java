@@ -38,6 +38,7 @@ import java.util.function.Supplier;
 import lombok.Cleanup;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
@@ -82,6 +83,26 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
             assertTrue(NotFoundException.class.isInstance(e.getCause()) || BadVersionException.class.isInstance(
                     e.getCause()));
         }
+    }
+
+    @Test(dataProvider = "impl")
+    public void concurrentPutTest(String provider, Supplier<String> urlSupplier) throws Exception {
+        @Cleanup
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+
+        String data = "data";
+        String path = "/non-existing-key";
+        int concurrent = 50;
+        List<CompletableFuture<Stat>> futureList = new ArrayList<>();
+        for (int i = 0; i < concurrent; i++) {
+            futureList.add(store.put(path, data.getBytes(), Optional.empty()).exceptionally(ex -> {
+                fail("fail to execute concurrent put", ex);
+                return null;
+            }));
+        }
+        FutureUtil.waitForAll(futureList).join();
+
+        assertEquals(store.get(path).join().get().getValue(), data.getBytes());
     }
 
     @Test(dataProvider = "impl")

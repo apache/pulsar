@@ -6,18 +6,18 @@ sidebar_label: "Bare metal"
 
 :::tip
 
-1. You can use single-cluster Pulsar installation in most use cases, such as experimenting with Pulsar or using Pulsar in a startup or in a single team. If you need to run a multi-cluster Pulsar instance, see the [guide](deploy-bare-metal-multi-cluster).
-2. If you want to use all built-in [Pulsar IO](io-overview.md) connectors, you need to download `apache-pulsar-io-connectors`package and install `apache-pulsar-io-connectors` under `connectors` directory in the pulsar directory on every broker node or on every function-worker node if you have run a separate cluster of function workers for [Pulsar Functions](functions-overview).
-3. If you want to use [Tiered Storage](concepts-tiered-storage.md) feature in your Pulsar deployment, you need to download `apache-pulsar-offloaders`package and install `apache-pulsar-offloaders` under `offloaders` directory in the Pulsar directory on every broker node. For more details of how to configure this feature, you can refer to the [Tiered storage cookbook](cookbooks-tiered-storage).
+1. You can use single-cluster Pulsar installation in most use cases, such as experimenting with Pulsar or using Pulsar in a startup or in a single team. If you need to run a multi-cluster Pulsar instance, see the [guide](deploy-bare-metal-multi-cluster.md).
+2. If you want to use all built-in [Pulsar IO](io-overview.md) connectors, you need to download `apache-pulsar-io-connectors`package and install `apache-pulsar-io-connectors` under `connectors` directory in the pulsar directory on every broker node or on every function-worker node if you have run a separate cluster of function workers for [Pulsar Functions](functions-overview.md).
+3. If you want to use [Tiered Storage](concepts-tiered-storage.md) feature in your Pulsar deployment, you need to download `apache-pulsar-offloaders`package and install `apache-pulsar-offloaders` under `offloaders` directory in the Pulsar directory on every broker node. For more details of how to configure this feature, you can refer to the [Tiered storage cookbook](cookbooks-tiered-storage.md).
 
 :::
 
 Deploying a Pulsar cluster consists of the following steps:
 
-1. Deploy a [ZooKeeper](#deploy-a-zookeeper-cluster) cluster (optional)  
-2. Initialize [cluster metadata](#initialize-cluster-metadata)  
-3. Deploy a [BookKeeper](#deploy-a-bookkeeper-cluster) cluster  
-4. Deploy one or more Pulsar [brokers](#deploy-pulsar-brokers)  
+1. Deploy a [ZooKeeper](#deploy-a-zookeeper-cluster) cluster (optional)
+2. Initialize [cluster metadata](#initialize-cluster-metadata)
+3. Deploy a [BookKeeper](#deploy-a-bookkeeper-cluster) cluster
+4. Deploy one or more Pulsar [brokers](#deploy-pulsar-brokers)
 
 ## Preparation
 
@@ -76,7 +76,7 @@ To start a Pulsar instance, below are the minimum and the recommended hardware s
 A cluster consists of 3 broker nodes, 3 bookie nodes, and 3 ZooKeeper nodes. The following recommendation is suitable for one node.
 
 - The minimum hardware settings (**250 Pulsar topics**)
-   
+
    Component | CPU|Memory|Storage|Throughput |Rate
    |---|---|---|---|---|---
    Broker|0.2|256 MB|/|Write throughput: 3 MB/s<br /><br />Read throughput: 6 MB/s<br /><br />|Write rate: 350 entries/s<br /><br />Read rate: 650 entries/s
@@ -122,7 +122,7 @@ The extracted directory contains the following subdirectories:
 
 Directory | Contains
 :---------|:--------
-`bin` |[command-line tools](reference-cli-tools) of Pulsar, such as [`pulsar`](reference-cli-tools.md#pulsar) and [`pulsar-admin`](/tools/pulsar-admin/)
+`bin` |[command-line tools](reference-cli-tools.md) of Pulsar, such as [`pulsar`](reference-cli-tools.md#pulsar) and [`pulsar-admin`](/tools/pulsar-admin/)
 `conf` | Configuration files for Pulsar, including for [broker configuration](reference-configuration.md#broker), [ZooKeeper configuration](reference-configuration.md#zookeeper), and more
 `data` | The data storage directory that ZooKeeper and BookKeeper use
 `lib` | The [JAR](https://en.wikipedia.org/wiki/JAR_(file_format)) files that Pulsar uses
@@ -144,12 +144,12 @@ To use `builtin` connectors, you need to download the connectors tarball release
 * using [wget](https://www.gnu.org/software/wget):
 
   ```shell
-  
+
   $ wget pulsar:connector_release_url/{connector}-@pulsar:version@.nar
-  
+
   ```
 
-Once you download the .nar file, copy the file to directory `connectors` in the pulsar directory. 
+Once you download the .nar file, copy the file to directory `connectors` in the pulsar directory.
 For example, if you download the connector file `pulsar-io-aerospike-@pulsar:version@.nar`:
 
 ```bash
@@ -180,9 +180,9 @@ To use tiered storage offloaders, you need to download the offloaders tarball re
 * using [wget](https://www.gnu.org/software/wget):
 
   ```shell
-  
+
   $ wget pulsar:offloader_release_url
-  
+
   ```
 
 Once you download the tarball, in the Pulsar directory, untar the offloaders package and copy the offloaders as `offloaders` in the Pulsar directory:
@@ -201,7 +201,7 @@ tiered-storage-jcloud-@pulsar:version@.nar
 
 ```
 
-For more details of how to configure tiered storage feature, you can refer to the [Tiered storage cookbook](cookbooks-tiered-storage)
+For more details of how to configure tiered storage feature, you can refer to the [Tiered storage cookbook](cookbooks-tiered-storage.md)
 
 
 ## Deploy a ZooKeeper cluster
@@ -287,22 +287,22 @@ Flag | Description
 `--metadata-store` | A "local" metadata store connection string for the cluster. This connection string only needs to include *one* machine in the ZooKeeper cluster.
 `--configuration-metadata-store` | The configuration metadata store connection string for the entire instance. As with the `--metadata-store` flag, this connection string only needs to include *one* machine in the ZooKeeper cluster.
 `--web-service-url` | The web service URL for the cluster, plus a port. This URL should be a standard DNS name. The default port is 8080 (you had better not use a different port).
-`--web-service-url-tls` | If you use [TLS](security-tls-transport), you also need to specify a TLS web service URL for the cluster. The default port is 8443 (you had better not use a different port).
+`--web-service-url-tls` | If you use [TLS](security-tls-transport.md), you also need to specify a TLS web service URL for the cluster. The default port is 8443 (you had better not use a different port).
 `--broker-service-url` | A broker service URL enabling interaction with the brokers in the cluster. This URL should not use the same DNS name as the web service URL but should use the `pulsar` scheme instead. The default port is 6650 (you had better not use a different port).
-`--broker-service-url-tls` | If you use [TLS](security-tls-transport), you also need to specify a TLS web service URL for the cluster as well as a TLS broker service URL for the brokers in the cluster. The default port is 6651 (you had better not use a different port).
+`--broker-service-url-tls` | If you use [TLS](security-tls-transport.md), you also need to specify a TLS web service URL for the cluster as well as a TLS broker service URL for the brokers in the cluster. The default port is 6651 (you had better not use a different port).
 
 
 > If you do not have a DNS server, you can use multi-host format in the service URL with the following settings:
 >
 
 > ```shell
-> 
+>
 > --web-service-url http://host1:8080,host2:8080,host3:8080 \
 > --web-service-url-tls https://host1:8443,host2:8443,host3:8443 \
 > --broker-service-url pulsar://host1:6650,host2:6650,host3:6650 \
 > --broker-service-url-tls pulsar+ssl://host1:6651,host2:6651,host3:6651
 >
-> 
+>
 > ```
 
 >
@@ -310,14 +310,14 @@ Flag | Description
 >
 
 > ```shell
-> 
+>
 > --existing-bk-metadata-service-uri "zk+null://zk1:2181;zk2:2181/ledgers" \
 > --web-service-url http://host1:8080,host2:8080,host3:8080 \
 > --web-service-url-tls https://host1:8443,host2:8443,host3:8443 \
 > --broker-service-url pulsar://host1:6650,host2:6650,host3:6650 \
 > --broker-service-url-tls pulsar+ssl://host1:6651,host2:6651,host3:6651
 >
-> 
+>
 > ```
 
 > You can obtain the metadata service URI of the existing BookKeeper cluster by using the `bin/bookkeeper shell whatisinstanceid` command. You must enclose the value in double quotes since the multiple metadata service URIs are separated with semicolons.
@@ -413,41 +413,41 @@ webServicePortTls=8443
 >
 
 > ```properties
-> 
+>
 > # Number of bookies to use when creating a ledger
 > managedLedgerDefaultEnsembleSize=1
 >
 > # Number of copies to store for each message
 > managedLedgerDefaultWriteQuorum=1
-> 
+>
 > # Number of guaranteed copies (acks to wait before write is complete)
 > managedLedgerDefaultAckQuorum=1
 >
-> 
+>
 > ```
 
 
 ### Enable Pulsar Functions (optional)
 
-If you want to enable [Pulsar Functions](functions-overview), you can follow the instructions as below:
+If you want to enable [Pulsar Functions](functions-overview.md), you can follow the instructions as below:
 
 1. Edit `conf/broker.conf` to enable functions worker, by setting `functionsWorkerEnabled` to `true`.
 
-   ```conf
-   
+   ```properties
+
    functionsWorkerEnabled=true
-   
+
    ```
 
-2. Edit `conf/functions_worker.yml` and set `pulsarFunctionsCluster` to the cluster name that you provide when you [initialize the metadata of the cluster](#initialize-cluster-metadata). 
+2. Edit `conf/functions_worker.yml` and set `pulsarFunctionsCluster` to the cluster name that you provide when you [initialize the metadata of the cluster](#initialize-cluster-metadata).
 
-   ```conf
-   
+   ```properties
+
    pulsarFunctionsCluster: pulsar-cluster-1
-   
+
    ```
 
-If you want to learn more options about deploying the functions worker, check out [Deploy and manage functions worker](functions-worker).
+If you want to learn more options about deploying the functions worker, check out [Deploy and manage functions worker](functions-worker.md).
 
 ### Start Brokers
 
@@ -488,11 +488,11 @@ brokerServiceurl=pulsar://us-west.example.com:6650
 >
 
 > ```properties
-> 
+>
 > webServiceUrl=http://host1:8080,host2:8080,host3:8080
 > brokerServiceurl=pulsar://host1:6650,host2:6650,host3:6650
 >
-> 
+>
 > ```
 
 

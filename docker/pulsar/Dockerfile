@@ -58,10 +58,20 @@ RUN sed -i "s|http://archive\.ubuntu\.com/ubuntu/|${UBUNTU_MIRROR:-mirror://mirr
      && echo 'Acquire::http::Timeout "30";\nAcquire::ftp::Timeout "30";\nAcquire::Retries "3";' > /etc/apt/apt.conf.d/99timeout_and_retries \
      && apt-get update \
      && apt-get -y dist-upgrade \
-     && apt-get -y install --no-install-recommends openjdk-17-jdk-headless netcat dnsutils less procps iputils-ping \
+     && apt-get -y install --no-install-recommends netcat dnsutils less procps iputils-ping \
                  python3 python3-kazoo python3-pip \
-                 curl ca-certificates \
-     && apt-get -y --purge autoremove \
+                 curl ca-certificates wget apt-transport-https
+
+# Install Eclipse Temurin Package
+RUN mkdir -p /etc/apt/keyrings \
+     && wget -O - https://packages.adoptium.net/artifactory/api/gpg/key/public | tee /etc/apt/keyrings/adoptium.asc \
+     && echo "deb [signed-by=/etc/apt/keyrings/adoptium.asc] https://packages.adoptium.net/artifactory/deb $(awk -F= '/^VERSION_CODENAME/{print$2}' /etc/os-release) main" | tee /etc/apt/sources.list.d/adoptium.list \
+     && apt-get update \
+     && apt-get -y dist-upgrade \
+     && apt-get -y install temurin-17-jdk
+
+# Cleanup apt
+RUN apt-get -y --purge autoremove \
      && apt-get autoclean \
      && apt-get clean \
      && rm -rf /var/lib/apt/lists/*
@@ -76,8 +86,8 @@ RUN pip3 install pyyaml==5.4.1
 # 4. /pulsar - hadoop writes to this directory
 RUN mkdir /pulsar && chmod g+w /pulsar
 
-ENV JAVA_HOME /usr/lib/jvm/java-17-openjdk-amd64
-RUN echo networkaddress.cache.ttl=1 >> /usr/lib/jvm/java-17-openjdk-amd64/conf/security/java.security
+ENV JAVA_HOME /usr/lib/jvm/temurin-17-jdk-amd64
+RUN echo networkaddress.cache.ttl=1 >> /usr/lib/jvm/temurin-17-jdk-amd64/conf/security/java.security
 ADD target/python-client/ /pulsar/pulsar-client
 
 ENV PULSAR_ROOT_LOGGER=INFO,CONSOLE

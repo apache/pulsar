@@ -23,11 +23,15 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -731,6 +735,33 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
                 assertNull(admin3.topicPolicies(true).getOffloadPolicies(persistentTopicName)));
     }
 
+    @Test
+    public void testRemoveReplicationClusters() throws Exception {
+        final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
+        final String persistentTopicName = "persistent://" + namespace + "/topic" + UUID.randomUUID();
+
+        init(namespace, persistentTopicName);
+
+        // set topic replica cluster policy as `r1 r2`
+        admin1.topics().setReplicationClusters(persistentTopicName, Arrays.asList("r1", "r2"));
+        PersistentTopic topicRef =
+            (PersistentTopic) pulsar1.getBrokerService().getTopicReference(persistentTopicName + "-partition-0").get();
+        assertNotNull(topicRef);
+
+        Awaitility.await().untilAsserted(() -> {
+            List<String> replicaClusters = topicRef.getReplicators().keys().stream().sorted().collect(Collectors.toList());
+            assertEquals(replicaClusters.size(), 1);
+            assertEquals(replicaClusters.toString(), "[r2]");
+        });
+
+        // removing topic replica cluster policy, so namespace policy should take effect
+        admin1.topics().removeReplicationClusters(persistentTopicName);
+        Awaitility.await().untilAsserted(() -> {
+            List<String> replicaClusters = topicRef.getReplicators().keys().stream().sorted().collect(Collectors.toList());
+            assertEquals(replicaClusters.size(), 2);
+            assertEquals(replicaClusters.toString(), "[r2, r3]");
+        });
+    }
 
     private void init(String namespace, String topic)
             throws PulsarAdminException, PulsarClientException, PulsarServerException {

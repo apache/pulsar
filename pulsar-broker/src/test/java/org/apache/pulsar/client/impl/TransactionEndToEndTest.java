@@ -19,6 +19,10 @@
 package org.apache.pulsar.client.impl;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyObject;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
@@ -31,12 +35,13 @@ import java.util.concurrent.CompletableFuture;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.util.concurrent.EventExecutor;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -46,6 +51,7 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.DeadLetterPolicy;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -62,6 +68,7 @@ import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientExce
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.internal.DefaultImplementation;
+import org.apache.pulsar.client.util.RetryMessageUtil;
 import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
@@ -601,6 +608,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             Assert.assertNull(message);
 
             abortTxn.abort().get();
+            consumer.redeliverUnacknowledgedMessages();
             Transaction commitTxn = getTxn();
             for (int i = 0; i < messageCnt; i++) {
                 message = consumer.receive(1, TimeUnit.SECONDS);
@@ -1060,5 +1068,230 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             Assert.assertTrue(e.getCause() instanceof TransactionCoordinatorClientException
                     .InvalidTxnStatusException);
         }
+    }
+
+    @Test
+    public void testCumulativeAckRedeliverMessages() throws Exception {
+        String topic = NAMESPACE1 + "/testCumulativeAckRedeliverMessages";
+
+        int count = 5;
+        int transactionCumulativeAck = 3;
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName("test")
+                .subscribe();
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .create();
+
+        // send 5 messages
+        for (int i = 0; i < count; i++) {
+            producer.send((i + "").getBytes(UTF_8));
+        }
+
+        Transaction transaction = getTxn();
+        Transaction invalidTransaction = getTxn();
+
+        Message<byte[]> message = null;
+        for (int i = 0; i < transactionCumulativeAck; i++) {
+            message = consumer.receive();
+        }
+
+        // receive transaction in order
+        assertEquals(message.getValue(), (transactionCumulativeAck - 1 + "").getBytes(UTF_8));
+
+        // ack the last message
+        consumer.acknowledgeCumulativeAsync(message.getMessageId(), transaction).get();
+
+        // another ack will throw TransactionConflictException
+        try {
+            consumer.acknowledgeCumulativeAsync(message.getMessageId(), invalidTransaction).get();
+            fail();
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof PulsarClientException.TransactionConflictException);
+            // abort transaction then redeliver messages
+            transaction.abort().get();
+            // consumer redeliver messages
+            consumer.redeliverUnacknowledgedMessages();
+        }
+
+        // receive the rest of the message
+        for (int i = 0; i < count; i++) {
+            message = consumer.receive();
+        }
+
+        Transaction commitTransaction = getTxn();
+
+        // receive the first message
+        assertEquals(message.getValue(), (count - 1 + "").getBytes(UTF_8));
+        // ack the end of the message
+        consumer.acknowledgeCumulativeAsync(message.getMessageId(), commitTransaction).get();
+
+        commitTransaction.commit().get();
+
+        // then redeliver will not receive any message
+        message = consumer.receive(3, TimeUnit.SECONDS);
+        assertNull(message);
+    }
+
+    @Test
+    public void testSendTxnMessageTimeout() throws Exception {
+        String topic = NAMESPACE1 + "/testSendTxnMessageTimeout";
+        @Cleanup
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
+                .topic(topic)
+                .sendTimeout(1, TimeUnit.SECONDS)
+                .create();
+
+        Transaction transaction = pulsarClient.newTransaction().withTransactionTimeout(5, TimeUnit.SECONDS)
+                .build().get();
+
+        // mock cnx, send message can't receive response
+        ClientCnx cnx = mock(ClientCnx.class);
+        ChannelHandlerContext channelHandlerContext = mock(ChannelHandlerContext.class);
+        doReturn(channelHandlerContext).when(cnx).ctx();
+        EventExecutor eventExecutor = mock(EventExecutor.class);
+        doReturn(eventExecutor).when(channelHandlerContext).executor();
+        CompletableFuture<ProducerResponse> completableFuture = new CompletableFuture<>();
+        completableFuture.complete(new ProducerResponse("test", 1,
+                "1".getBytes(), Optional.of(30L)));
+        doReturn(completableFuture).when(cnx).sendRequestWithId(anyObject(), anyLong());
+        producer.getConnectionHandler().setClientCnx(cnx);
+
+
+        try {
+            // send message with txn use mock cnx, will not receive send response
+            producer.newMessage(transaction).value("Hello Pulsar!".getBytes()).send();
+            fail();
+        } catch (PulsarClientException ex) {
+            assertTrue(ex instanceof PulsarClientException.TimeoutException);
+        }
+    }
+
+    @Test
+    public void testSendTxnAckMessageToDLQ() throws Exception {
+        String topic = NAMESPACE1 + "/testSendTxnAckMessageToDLQ";
+        String subName = "test";
+        String value = "test";
+        @Cleanup
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
+                .topic(topic)
+                .enableBatching(false)
+                .sendTimeout(1, TimeUnit.SECONDS)
+                .create();
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Shared)
+                // consumer can't receive the same message three times
+                .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(1).build())
+                .subscriptionName(subName)
+                .subscribe();
+
+        @Cleanup
+        Consumer<byte[]> deadLetterConsumer = pulsarClient.newConsumer()
+                .topic(String.format("%s-%s" + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX,
+                        topic, subName))
+                .subscriptionType(SubscriptionType.Shared)
+                .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(1).build())
+                .subscriptionName("test")
+                .subscribe();
+
+        producer.send(value.getBytes());
+        Transaction transaction = pulsarClient.newTransaction().withTransactionTimeout(1, TimeUnit.MINUTES)
+                .build().get();
+
+        // consumer receive the message the first time, redeliverCount = 0
+        consumer.acknowledgeAsync(consumer.receive().getMessageId(), transaction).get();
+
+        transaction.abort().get();
+
+        transaction = pulsarClient.newTransaction().withTransactionTimeout(5, TimeUnit.MINUTES)
+                .build().get();
+
+        // consumer receive the message the second time, redeliverCount = 1, also can be received
+        consumer.acknowledgeAsync(consumer.receive().getMessageId(), transaction).get();
+
+        transaction.abort().get();
+
+        // consumer receive the message the third time, redeliverCount = 2,
+        // the message will be sent to DLQ, can't receive
+        assertNull(consumer.receive(3, TimeUnit.SECONDS));
+
+        assertEquals(((ConsumerImpl<?>) consumer).getAvailablePermits(), 3);
+
+        assertEquals(value, new String(deadLetterConsumer.receive(3, TimeUnit.SECONDS).getValue()));
+    }
+
+    @Test
+    public void testSendTxnAckBatchMessageToDLQ() throws Exception {
+        String topic = NAMESPACE1 + "/testSendTxnAckBatchMessageToDLQ";
+        String subName = "test";
+        String value1 = "test1";
+        String value2 = "test2";
+        @Cleanup
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
+                .topic(topic)
+                .sendTimeout(1, TimeUnit.SECONDS)
+                .create();
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Shared)
+                // consumer can't receive the same message three times
+                .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(1).build())
+                .subscriptionName(subName)
+                .subscribe();
+
+        @Cleanup
+        Consumer<byte[]> deadLetterConsumer = pulsarClient.newConsumer()
+                .topic(String.format("%s-%s" + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX,
+                        topic, subName))
+                .subscriptionType(SubscriptionType.Shared)
+                .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(1).build())
+                .subscriptionName("test")
+                .subscribe();
+
+        producer.sendAsync(value1.getBytes());
+        producer.sendAsync(value2.getBytes());
+        Transaction transaction = pulsarClient.newTransaction().withTransactionTimeout(1, TimeUnit.MINUTES)
+                .build().get();
+
+        Message<byte[]> message = consumer.receive();
+        assertEquals(value1, new String(message.getValue()));
+        // consumer receive the batch message one the first time, redeliverCount = 0
+        consumer.acknowledgeAsync(message.getMessageId(), transaction).get();
+
+        transaction.abort().get();
+
+        // consumer will receive the batch message two and then receive
+        // the message one and message two again, redeliverCount = 1
+        for (int i = 0; i < 3; i ++) {
+            message = consumer.receive();
+        }
+
+        transaction = pulsarClient.newTransaction().withTransactionTimeout(5, TimeUnit.MINUTES)
+                .build().get();
+
+        assertEquals(value2, new String(message.getValue()));
+        // consumer receive the batch message two the second time, redeliverCount = 1, also can be received
+        consumer.acknowledgeAsync(message.getMessageId(), transaction).get();
+
+        transaction.abort().get();
+
+        // consumer receive the batch message the third time, redeliverCount = 2,
+        // the message will be sent to DLQ, can't receive
+        assertNull(consumer.receive(3, TimeUnit.SECONDS));
+
+        assertEquals(((ConsumerImpl<?>) consumer).getAvailablePermits(), 6);
+
+        assertEquals(value1, new String(deadLetterConsumer.receive(3, TimeUnit.SECONDS).getValue()));
+        assertEquals(value2, new String(deadLetterConsumer.receive(3, TimeUnit.SECONDS).getValue()));
     }
 }
