@@ -129,7 +129,7 @@ public class KinesisSinkTester extends SinkTester<LocalStackContainer> {
 
     @Override
     protected LocalStackContainer createSinkService(PulsarCluster cluster) {
-        return new LocalStackContainer(DockerImageName.parse("localstack/localstack:latest"))
+        return new LocalStackContainer(DockerImageName.parse("localstack/localstack:1.0.4"))
                 .withServices(LocalStackContainer.Service.KINESIS);
     }
 

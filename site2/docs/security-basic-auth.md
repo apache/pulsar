@@ -16,11 +16,11 @@ import TabItem from '@theme/TabItem';
 Install [`htpasswd`](https://httpd.apache.org/docs/2.4/programs/htpasswd.html) in your environment to create a password file for storing username-password pairs.
 
 * For Ubuntu/Debian, run the following command to install `htpasswd`.
-   
+
    ```
    apt install apache2-utils
    ```
- 
+
 * For CentOS/RHEL, run the following command to install `htpasswd`.
 
    ```
@@ -142,15 +142,15 @@ The following example shows how to configure basic authentication when using Pul
   </TabItem>
   <TabItem value="C++" label="C++" default>
 
-   ```c++
+   ```cpp
    #include <pulsar/Client.h>
-    
+
    int main() {
        pulsar::ClientConfiguration config;
        AuthenticationPtr auth = pulsar::AuthBasic::create("admin", "123456")
        config.setAuth(auth);
        pulsar::Client client("pulsar://broker.example.com:6650/", config);
-       
+
        return 0;
    }
    ```

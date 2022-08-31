@@ -21,7 +21,7 @@ To support [layer-4 SNI routing](https://docs.trafficserver.apache.org/en/latest
 
 Pulsar supports SNI routing for geo-replication, so brokers can connect to brokers in other clusters through the ATS proxy.
 
-This section explains how to set up and use ATS as a reverse proxy, so Pulsar clients can connect to brokers through the ATS proxy using the SNI routing protocol on TLS connection. 
+This section explains how to set up and use ATS as a reverse proxy, so Pulsar clients can connect to brokers through the ATS proxy using the SNI routing protocol on TLS connection.
 
 ### Set up ATS Proxy for layer-4 SNI routing
 To support layer 4 SNI routing, you need to configure the `records.conf` and `ssl_server_name.conf` files.
@@ -31,7 +31,7 @@ To support layer 4 SNI routing, you need to configure the `records.conf` and `ss
 The [records.config](https://docs.trafficserver.apache.org/en/latest/admin-guide/files/records.config.en.html) file is located in the `/usr/local/etc/trafficserver/` directory by default. The file lists configurable variables used by the ATS.
 
 To configure the `records.config` files, complete the following steps.
-1. Update TLS port (`http.server_ports`) on which proxy listens, and update proxy certs (`ssl.client.cert.path` and `ssl.client.cert.filename`) to secure TLS tunneling. 
+1. Update TLS port (`http.server_ports`) on which proxy listens, and update proxy certs (`ssl.client.cert.path` and `ssl.client.cert.filename`) to secure TLS tunneling.
 2. Configure server ports (`http.connect_ports`) used for tunneling to the broker. If Pulsar brokers are listening on `4443` and `6651` ports, add the brokers service port in the `http.connect_ports` configuration.
 
 The following is an example.
@@ -51,7 +51,7 @@ CONFIG proxy.config.http.connect_ports STRING 4443 6651
 
 ```
 
-The `ssl_server_name` file is used to configure TLS connection handling for inbound and outbound connections. The configuration is determined by the SNI values provided by the inbound connection. The file consists of a set of configuration items, and each is identified by an SNI value (`fqdn`). When an inbound TLS connection is made, the SNI value from the TLS negotiation is matched with the items specified in this file. If the values match, the values specified in that item override the default values. 
+The `ssl_server_name` file is used to configure TLS connection handling for inbound and outbound connections. The configuration is determined by the SNI values provided by the inbound connection. The file consists of a set of configuration items, and each is identified by an SNI value (`fqdn`). When an inbound TLS connection is made, the SNI value from the TLS negotiation is matched with the items specified in this file. If the values match, the values specified in that item override the default values.
 
 The following example shows mapping of the inbound SNI hostname coming from the client, and the actual broker service URL where request should be redirected. For example, if the client sends the SNI header `pulsar-broker1`, the proxy creates a TLS tunnel by redirecting request to the `pulsar-broker1:6651` service URL.
 
@@ -113,7 +113,7 @@ PulsarClient pulsarClient = clientBuilder.build();
 </TabItem>
 <TabItem value="C++">
 
-```c++
+```cpp
 
 ClientConfiguration config = ClientConfiguration();
 config.setUseTls(true);
