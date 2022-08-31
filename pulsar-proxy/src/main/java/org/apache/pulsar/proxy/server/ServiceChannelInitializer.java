@@ -43,6 +43,7 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
     private final boolean enableTls;
     private final boolean tlsEnabledWithKeyStore;
     private final int brokerProxyReadTimeoutMs;
+    private final int maxMessageSize;
 
     private SslContextAutoRefreshBuilder<SslContext> serverSslCtxRefresher;
     private NettySSLContextAutoRefreshBuilder serverSSLContextAutoRefreshBuilder;
@@ -54,6 +55,7 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
         this.enableTls = enableTls;
         this.tlsEnabledWithKeyStore = serviceConfig.isTlsEnabledWithKeyStore();
         this.brokerProxyReadTimeoutMs = serviceConfig.getBrokerProxyReadTimeoutMs();
+        this.maxMessageSize = serviceConfig.getMaxMessageSize();
 
         if (enableTls) {
             if (tlsEnabledWithKeyStore) {
@@ -110,7 +112,7 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
             ch.pipeline().addLast(OptionalProxyProtocolDecoder.NAME, new OptionalProxyProtocolDecoder());
         }
         ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(
-                Commands.DEFAULT_MAX_MESSAGE_SIZE + Commands.MESSAGE_SIZE_FRAME_PADDING, 0, 4, 0, 4));
+                this.maxMessageSize + Commands.MESSAGE_SIZE_FRAME_PADDING, 0, 4, 0, 4));
 
         ch.pipeline().addLast("handler", new ProxyConnection(proxyService, proxyService.getDnsAddressResolverGroup()));
     }
