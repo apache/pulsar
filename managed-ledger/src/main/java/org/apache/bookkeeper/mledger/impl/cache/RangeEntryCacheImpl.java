@@ -315,7 +315,8 @@ public class RangeEntryCacheImpl implements EntryCache {
      * @param shouldCacheEntry if we should put the entry into the cache
      * @return a handle to the operation
      */
-    CompletableFuture<List<EntryImpl>> readFromStorage(ReadHandle lh, long firstEntry, long lastEntry, boolean shouldCacheEntry) {
+    CompletableFuture<List<EntryImpl>> readFromStorage(ReadHandle lh,
+                                                       long firstEntry, long lastEntry, boolean shouldCacheEntry) {
         final int entriesToRead = (int) (lastEntry - firstEntry) + 1;
         CompletableFuture<List<EntryImpl>> readResult = lh.readAsync(firstEntry, lastEntry)
                 .thenApply(
