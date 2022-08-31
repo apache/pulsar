@@ -146,6 +146,7 @@ import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.EntryFilters;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
@@ -1139,6 +1140,20 @@ public class BrokerService implements Closeable {
         CompletableFuture<Void> isOwner = checkTopicNsOwnership(topic);
         isOwner.thenRun(() -> {
             nonPersistentTopic.initialize()
+                    .thenAccept(__ -> {
+                        EntryFilters entryFiltersPolicy = nonPersistentTopic.getEntryFiltersPolicy();
+                        if (!entryFiltersPolicy.getEntryFilterNames().isEmpty()) {
+                            try {
+                                nonPersistentTopic.entryFilters =
+                                        EntryFilterProvider.createEntryFilters(pulsar.getConfig(),
+                                                entryFiltersPolicy);
+                            } catch (IOException e) {
+                                log.warn("Failed to set entry filters on topic {}-{}", topic, e.getMessage());
+                                pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
+                                topicFuture.completeExceptionally(e);
+                            }
+                        }
+                    })
                     .thenCompose(__ -> nonPersistentTopic.checkReplication())
                     .thenRun(() -> {
                         log.info("Created topic {}", nonPersistentTopic);
@@ -1431,6 +1446,22 @@ public class BrokerService implements Closeable {
                                         : newTopic(topic, ledger, BrokerService.this, PersistentTopic.class);
                                 persistentTopic
                                         .initialize()
+                                        .thenAccept(__ -> {
+                                            EntryFilters entryFiltersPolicy = persistentTopic.getEntryFiltersPolicy();
+                                            if (!entryFiltersPolicy.getEntryFilterNames().isEmpty()) {
+                                                try {
+                                                    persistentTopic.entryFilters =
+                                                            EntryFilterProvider.createEntryFilters(pulsar.getConfig(),
+                                                                    entryFiltersPolicy);
+                                                } catch (IOException e) {
+                                                    log.warn("Failed to set entry filters on topic {}-{}", topic,
+                                                            e.getMessage());
+                                                    pulsar.getExecutor().execute(() ->
+                                                            topics.remove(topic, topicFuture));
+                                                    topicFuture.completeExceptionally(e);
+                                                }
+                                            }
+                                        })
                                         .thenCompose(__ -> persistentTopic.preCreateSubscriptionForCompactionIfNeeded())
                                         .thenCompose(__ -> persistentTopic.checkReplication())
                                         .thenCompose(v -> {

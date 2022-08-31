@@ -16,4 +16,5 @@ Pulsar provides a variety of REST APIs that enable you to interact with Pulsar t
 | [Sinks](/sink-rest-api/?version=master) | REST APIs for sink-specific operations.|
 | [Packages](/packages-rest-api/?version=master) | REST APIs for package-specific operations. A package can be a group of functions, sources, and sinks.|
 | [Transactions](/transactions-rest-api/?version=master) | REST APIs for transaction-specific operations.|
+| [Lookup](/lookup-rest-api/?version=master) | REST APIs for lookup-specific operations, such as getting the owner broker of a topic, getting the namespace bundle that a topic belongs to, and so on.|
 

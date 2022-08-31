@@ -62,6 +62,13 @@
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
+    <!-- add the dependency in order to let maven build the module before this module -->
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-client-tools-customcommand-example</artifactId>
+      <version>${project.version}</version>
+      <scope>provided</scope>
+    </dependency>
   </dependencies>
   <build>
     <plugins>
@@ -104,6 +111,25 @@
             <goals>
               <goal>check</goal>
             </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <executions>
+          <execution>
+            <phase>process-test-resources</phase>
+            <goals>
+              <goal>run</goal>
+            </goals>
+            <configuration>
+              <target>
+                <echo>copy filters</echo>
+                <mkdir dir="${project.build.outputDirectory}/cliExtensions" />
+                <copy verbose="true" file="${basedir}/../pulsar-client-tools-customcommand-example/target/customCommands-nar.nar" tofile="${project.build.outputDirectory}/cliExtensions/customCommands-nar.nar" />
+              </target>
+            </configuration>
           </execution>
         </executions>
       </plugin>
