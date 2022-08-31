@@ -22,16 +22,21 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 
+import java.lang.reflect.Method;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.pulsar.broker.service.persistent.PersistentMessageExpiryMonitor;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -178,5 +183,66 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
         LOG.info("lastmessageid " + messageIdAfterTrim);
         assertEquals(messageIdAfterTrim, MessageId.earliest);
 
+    }
+
+    @Test
+    public void testExpiredLedgerDeletionAfterExpiredMessageChecked() throws Exception {
+        super.baseSetup();
+        final String ledgerAndCursorName = "testExpiredLedgerDeletionAfterExpiredMessageChecked";
+        final int totalEntries = 10;
+        final int ttlSeconds = 1;
+
+        final String topicName = "persistent://prop/ns-abc/testExpiredLedgerDeletionAfterExpiredMessageChecked";
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .producerName("producer-name")
+                .create();
+
+        //set retention parameters, the ledgers are to be deleted as soon as possible
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+        ManagedLedgerConfig managedLedgerConfig = persistentTopic.getManagedLedger().getConfig();
+        managedLedgerConfig.setRetentionSizeInMB(10);
+        managedLedgerConfig.setRetentionTime(1, TimeUnit.SECONDS);
+        managedLedgerConfig.setMaxEntriesPerLedger(1000);
+        managedLedgerConfig.setMinimumRolloverTime(1, TimeUnit.MILLISECONDS);
+        managedLedgerConfig.setMaximumRolloverTime(50, TimeUnit.MILLISECONDS);
+
+        //create managedLedger and managedCursor
+        ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
+        ManagedCursorImpl managedCursor = (ManagedCursorImpl) managedLedger.openCursor(ledgerAndCursorName);
+
+        // write some messages
+        for (int i = 0; i < totalEntries; i++) {
+            producer.send(("msg" + i).getBytes());
+        }
+
+        //make sure that all entries should be deleted
+        Thread.sleep(TimeUnit.SECONDS.toMillis(ttlSeconds));
+        managedLedger.rollCurrentLedgerIfFull();
+
+        PersistentMessageExpiryMonitor monitor = new PersistentMessageExpiryMonitor(topicName, managedCursor.getName(), managedCursor, null);
+        Position previousMarkDelete = null;
+        for (int i = 0; i < totalEntries; i++) {
+            monitor.expireMessages(1);
+            Position previousPos = previousMarkDelete;
+            retryStrategically(
+                    (test) -> managedCursor.getMarkDeletedPosition() != null && !managedCursor.getMarkDeletedPosition().equals(previousPos),
+                    5, 100);
+            previousMarkDelete = managedCursor.getMarkDeletedPosition();
+        }
+
+        //invoke checkConsumedLedgers() to clean the expired ledgers
+        Method checkConsumedLedgers = BrokerService.class.getDeclaredMethod("checkConsumedLedgers");
+        checkConsumedLedgers.setAccessible(true);
+        checkConsumedLedgers.invoke(pulsar.getBrokerService());
+
+        Awaitility.await().untilAsserted(()
+                -> assertEquals(managedLedger.getLedgersInfo().size(), 1));
+        assertEquals(managedLedger.getLedgersInfo().firstEntry().getValue().getEntries(), 0);
+
+        managedCursor.close();
+        managedLedger.close();
     }
 }

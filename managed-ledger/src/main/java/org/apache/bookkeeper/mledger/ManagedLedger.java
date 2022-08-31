@@ -621,6 +621,11 @@ public interface ManagedLedger {
         Object ctx);
 
     /**
+     * Reset cursor if ledger consumed completely, before trim consumed ledgers in background.
+     */
+    boolean maybeUpdateCursorBeforeTrimmingConsumedLedger();
+
+    /**
      * Trim consumed ledgers in background.
      * @param promise
      */
