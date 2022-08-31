@@ -472,6 +472,7 @@ class Client:
                         batching_max_messages=1000,
                         batching_max_allowed_size_in_bytes=128*1024,
                         batching_max_publish_delay_ms=10,
+                        chunking_enabled=False,
                         message_routing_mode=PartitionsRoutingMode.RoundRobinDistribution,
                         lazy_start_partitioned_producers=False,
                         properties=None,
@@ -556,6 +557,10 @@ class Client:
             (k1, v1), (k2, v1), (k3, v1), (k1, v2), (k2, v2), (k3, v2), (k1, v3), (k2, v3), (k3, v3)
             batched into single batch message:
             [(k1, v1), (k1, v2), (k1, v3)], [(k2, v1), (k2, v2), (k2, v3)], [(k3, v1), (k3, v2), (k3, v3)]
+        * `chunking_enabled`:
+          If message size is higher than allowed max publish-payload size by broker then chunking_enabled
+          helps producer to split message into multiple chunks and publish them to broker separately and in
+          order. So, it allows client to successfully publish large size of messages in pulsar.
         * encryption_key:
            The key used for symmetric encryption, configured on the producer side
         * crypto_key_reader:
@@ -575,6 +580,7 @@ class Client:
         _check_type(int, batching_max_messages, 'batching_max_messages')
         _check_type(int, batching_max_allowed_size_in_bytes, 'batching_max_allowed_size_in_bytes')
         _check_type(int, batching_max_publish_delay_ms, 'batching_max_publish_delay_ms')
+        _check_type(bool, chunking_enabled, 'chunking_enabled')
         _check_type_or_none(dict, properties, 'properties')
         _check_type(BatchingType, batching_type, 'batching_type')
         _check_type_or_none(str, encryption_key, 'encryption_key')
@@ -593,6 +599,7 @@ class Client:
         conf.batching_max_publish_delay_ms(batching_max_publish_delay_ms)
         conf.partitions_routing_mode(message_routing_mode)
         conf.batching_type(batching_type)
+        conf.chunking_enabled(chunking_enabled)
         conf.lazy_start_partitioned_producers(lazy_start_partitioned_producers)
         if producer_name:
             conf.producer_name(producer_name)
@@ -607,6 +614,9 @@ class Client:
             conf.encryption_key(encryption_key)
         if crypto_key_reader:
             conf.crypto_key_reader(crypto_key_reader.cryptoKeyReader)
+
+        if batching_enabled and chunking_enabled:
+            raise ValueError("Batching and chunking of messages can't be enabled together.")
 
         p = Producer()
         p._producer = self._client.create_producer(topic, conf)
@@ -629,7 +639,9 @@ class Client:
                   pattern_auto_discovery_period=60,
                   initial_position=InitialPosition.Latest,
                   crypto_key_reader=None,
-                  replicate_subscription_state_enabled=False
+                  replicate_subscription_state_enabled=False,
+                  max_pending_chunked_message=10,
+                  auto_ack_oldest_chunked_message_on_queue_full=False
                   ):
         """
         Subscribe to the given topic and subscription combination.
@@ -708,6 +720,22 @@ class Client:
         * replicate_subscription_state_enabled:
           Set whether the subscription status should be replicated.
           Default: `False`.
+        * max_pending_chunked_message:
+          Consumer buffers chunk messages into memory until it receives all the chunks of the original message.
+          While consuming chunk-messages, chunks from same message might not be contiguous in the stream and they
+          might be mixed with other messages' chunks. so, consumer has to maintain multiple buffers to manage
+          chunks coming from different messages. This mainly happens when multiple publishers are publishing
+          messages on the topic concurrently or publisher failed to publish all chunks of the messages.
+
+          If it's zero, the pending chunked messages will not be limited.
+
+          Default: `10`.
+        * auto_ack_oldest_chunked_message_on_queue_full:
+          Buffering large number of outstanding uncompleted chunked messages can create memory pressure and it
+          can be guarded by providing the maxPendingChunkedMessage threshold. See setMaxPendingChunkedMessage.
+          Once, consumer reaches this threshold, it drops the outstanding unchunked-messages by silently acking
+          if autoAckOldestChunkedMessageOnQueueFull is true else it marks them for redelivery.
+          Default: `False`.
         """
         _check_type(str, subscription_name, 'subscription_name')
         _check_type(ConsumerType, consumer_type, 'consumer_type')
@@ -724,6 +752,8 @@ class Client:
         _check_type_or_none(dict, properties, 'properties')
         _check_type(InitialPosition, initial_position, 'initial_position')
         _check_type_or_none(CryptoKeyReader, crypto_key_reader, 'crypto_key_reader')
+        _check_type(int, max_pending_chunked_message, 'max_pending_chunked_message')
+        _check_type(bool, auto_ack_oldest_chunked_message_on_queue_full, 'auto_ack_oldest_chunked_message_on_queue_full')
 
         conf = _pulsar.ConsumerConfiguration()
         conf.consumer_type(consumer_type)
@@ -750,6 +780,8 @@ class Client:
             conf.crypto_key_reader(crypto_key_reader.cryptoKeyReader)
 
         conf.replicate_subscription_state_enabled(replicate_subscription_state_enabled)
+        conf.max_pending_chunked_message(max_pending_chunked_message)
+        conf.auto_ack_oldest_chunked_message_on_queue_full(auto_ack_oldest_chunked_message_on_queue_full)
 
         c = Consumer()
         if isinstance(topic, str):
@@ -1253,7 +1285,7 @@ class Consumer:
         Check if the consumer is connected or not.
         """
         return self._consumer.is_connected()
-    
+
     def get_last_message_id(self):
         """
         Get the last message id.

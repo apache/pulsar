@@ -50,5 +50,6 @@ public enum PolicyName {
     ENCRYPTION,
     TTL,
     MAX_TOPICS,
-    RESOURCEGROUP
+    RESOURCEGROUP,
+    ENTRY_FILTERS
 }
