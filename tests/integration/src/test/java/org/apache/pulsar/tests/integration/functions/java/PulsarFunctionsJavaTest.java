@@ -203,4 +203,14 @@ public class PulsarFunctionsJavaTest extends PulsarFunctionsTest {
         testRecordFunction();
     }
 
+    @Test(groups = {"java_function", "function"})
+    public void testAutoSchemaFunctionTest() throws Exception {
+        testAutoSchemaFunction();
+    }
+
+    @Test(groups = {"java_function", "function"})
+    public void testAvroSchemaFunctionTest() throws Exception {
+        testAvroSchemaFunction();
+    }
+
 }
