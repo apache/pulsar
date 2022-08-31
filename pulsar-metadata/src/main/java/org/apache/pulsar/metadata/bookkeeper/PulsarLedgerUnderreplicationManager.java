@@ -974,4 +974,15 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
             throw new ReplicationException.UnavailableException("Error while parsing ZK protobuf binary data", ipbe);
         }
     }
+
+    @Override
+    public void notifyUnderReplicationLedgerChanged(BookkeeperInternalCallbacks.GenericCallback<Void> cb)
+            throws ReplicationException.UnavailableException {
+        log.debug("notifyUnderReplicationLedgerChanged()");
+        store.registerListener(e -> {
+            if (e.getType() == NotificationType.Deleted && ID_EXTRACTION_PATTERN.matcher(e.getPath()).find()) {
+                cb.operationComplete(0, null);
+            }
+        });
+    }
 }

@@ -19,27 +19,27 @@
 
 package org.apache.pulsar.broker.service;
 
-import com.google.common.collect.ImmutableList;
 import io.netty.buffer.ByteBuf;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.LongAdder;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
+import org.apache.pulsar.broker.service.persistent.CompactorSubscription;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.plugin.EntryFilter;
-import org.apache.pulsar.broker.service.plugin.EntryFilterWithClassLoader;
-import org.apache.pulsar.broker.service.plugin.FilterContext;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
@@ -48,56 +48,21 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
 
 @Slf4j
-public abstract class AbstractBaseDispatcher implements Dispatcher {
-
-    protected final Subscription subscription;
+public abstract class AbstractBaseDispatcher extends EntryFilterSupport implements Dispatcher {
 
     protected final ServiceConfiguration serviceConfig;
     protected final boolean dispatchThrottlingOnBatchMessageEnabled;
-    /**
-     * Entry filters in Broker.
-     * Not set to final, for the convenience of testing mock.
-     */
-    protected ImmutableList<EntryFilterWithClassLoader> entryFilters;
-    protected final FilterContext filterContext;
+    private final LongAdder filterProcessedMsgs = new LongAdder();
+    private final LongAdder filterAcceptedMsgs = new LongAdder();
+    private final LongAdder filterRejectedMsgs = new LongAdder();
+    private final LongAdder filterRescheduledMsgs = new LongAdder();
 
     protected AbstractBaseDispatcher(Subscription subscription, ServiceConfiguration serviceConfig) {
-        this.subscription = subscription;
+        super(subscription);
         this.serviceConfig = serviceConfig;
         this.dispatchThrottlingOnBatchMessageEnabled = serviceConfig.isDispatchThrottlingOnBatchMessageEnabled();
-        if (subscription != null && subscription.getTopic() != null && MapUtils.isNotEmpty(subscription.getTopic()
-                .getBrokerService().getEntryFilters())) {
-            this.entryFilters = subscription.getTopic().getBrokerService().getEntryFilters().values().asList();
-            this.filterContext = new FilterContext();
-        } else {
-            this.entryFilters = ImmutableList.of();
-            this.filterContext = FilterContext.FILTER_CONTEXT_DISABLED;
-        }
     }
 
-    /**
-     * Update Entries with the metadata of each entry.
-     *
-     * @param entries
-     * @return
-     */
-    protected int updateEntryWrapperWithMetadata(EntryWrapper[] entryWrappers, List<Entry> entries) {
-        int totalMessages = 0;
-        for (int i = 0, entriesSize = entries.size(); i < entriesSize; i++) {
-            Entry entry = entries.get(i);
-            if (entry == null) {
-                continue;
-            }
-
-            ByteBuf metadataAndPayload = entry.getDataBuffer();
-            MessageMetadata msgMetadata = Commands.peekMessageMetadata(metadataAndPayload, subscription.toString(), -1);
-            EntryWrapper entryWrapper = EntryWrapper.get(entry, msgMetadata);
-            entryWrappers[i] = entryWrapper;
-            int batchSize = msgMetadata.getNumMessagesInBatch();
-            totalMessages += batchSize;
-        }
-        return totalMessages;
-    }
 
     /**
      * Filter messages that are being sent to a consumers.
@@ -119,58 +84,73 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
      * @param sendMessageInfo
      *            an object where the total size in messages and bytes will be returned back to the caller
      */
-    public int filterEntriesForConsumer(List<Entry> entries, EntryBatchSizes batchSizes,
+    public int filterEntriesForConsumer(List<? extends Entry> entries, EntryBatchSizes batchSizes,
             SendMessageInfo sendMessageInfo, EntryBatchIndexesAcks indexesAcks,
-            ManagedCursor cursor, boolean isReplayRead) {
+            ManagedCursor cursor, boolean isReplayRead, Consumer consumer) {
         return filterEntriesForConsumer(Optional.empty(), 0, entries, batchSizes, sendMessageInfo, indexesAcks, cursor,
-                isReplayRead);
+                isReplayRead, consumer);
     }
 
-    public int filterEntriesForConsumer(Optional<EntryWrapper[]> entryWrapper, int entryWrapperOffset,
-             List<Entry> entries, EntryBatchSizes batchSizes, SendMessageInfo sendMessageInfo,
-             EntryBatchIndexesAcks indexesAcks, ManagedCursor cursor, boolean isReplayRead) {
+    /**
+     * Filter entries with prefetched message metadata range so that there is no need to peek metadata from Entry.
+     *
+     * @param optMetadataArray the optional message metadata array
+     * @param startOffset the index in `optMetadataArray` of the first Entry's message metadata
+     *
+     * @see AbstractBaseDispatcher#filterEntriesForConsumer(List, EntryBatchSizes, SendMessageInfo,
+     *   EntryBatchIndexesAcks, ManagedCursor, boolean, Consumer)
+     */
+    public int filterEntriesForConsumer(Optional<MessageMetadata[]> optMetadataArray, int startOffset,
+             List<? extends Entry> entries, EntryBatchSizes batchSizes, SendMessageInfo sendMessageInfo,
+             EntryBatchIndexesAcks indexesAcks, ManagedCursor cursor, boolean isReplayRead, Consumer consumer) {
         int totalMessages = 0;
         long totalBytes = 0;
         int totalChunkedMessages = 0;
         int totalEntries = 0;
         List<Position> entriesToFiltered = CollectionUtils.isNotEmpty(entryFilters) ? new ArrayList<>() : null;
+        List<PositionImpl> entriesToRedeliver = CollectionUtils.isNotEmpty(entryFilters) ? new ArrayList<>() : null;
         for (int i = 0, entriesSize = entries.size(); i < entriesSize; i++) {
-            Entry entry = entries.get(i);
+            final Entry entry = entries.get(i);
             if (entry == null) {
                 continue;
             }
-            totalEntries++;
             ByteBuf metadataAndPayload = entry.getDataBuffer();
-            int entryWrapperIndex = i + entryWrapperOffset;
-            MessageMetadata msgMetadata = entryWrapper.isPresent() && entryWrapper.get()[entryWrapperIndex] != null
-                    ? entryWrapper.get()[entryWrapperIndex].getMetadata()
-                    : null;
-            msgMetadata = msgMetadata == null
-                    ? Commands.peekMessageMetadata(metadataAndPayload, subscription.toString(), -1)
-                    : msgMetadata;
-            if (CollectionUtils.isNotEmpty(entryFilters)) {
-                fillContext(filterContext, msgMetadata, subscription);
-                if (EntryFilter.FilterResult.REJECT == getFilterResult(filterContext, entry, entryFilters)) {
-                    entriesToFiltered.add(entry.getPosition());
-                    entries.set(i, null);
-                    entry.release();
-                    continue;
-                }
+            final int metadataIndex = i + startOffset;
+            final MessageMetadata msgMetadata = optMetadataArray.map(metadataArray -> metadataArray[metadataIndex])
+                    .orElseGet(() -> (entry instanceof EntryAndMetadata)
+                            ? ((EntryAndMetadata) entry).getMetadata()
+                            : Commands.peekAndCopyMessageMetadata(metadataAndPayload, subscription.toString(), -1)
+                    );
+
+            int entryMsgCnt = msgMetadata == null ? 1 : msgMetadata.getNumMessagesInBatch();
+            this.filterProcessedMsgs.add(entryMsgCnt);
+
+            EntryFilter.FilterResult filterResult = runFiltersForEntry(entry, msgMetadata, consumer);
+            if (filterResult == EntryFilter.FilterResult.REJECT) {
+                entriesToFiltered.add(entry.getPosition());
+                entries.set(i, null);
+                this.filterRejectedMsgs.add(entryMsgCnt);
+                entry.release();
+                continue;
+            } else if (filterResult == EntryFilter.FilterResult.RESCHEDULE) {
+                entriesToRedeliver.add((PositionImpl) entry.getPosition());
+                entries.set(i, null);
+                this.filterRescheduledMsgs.add(entryMsgCnt);
+                entry.release();
+                continue;
             }
             if (!isReplayRead && msgMetadata != null && msgMetadata.hasTxnidMostBits()
                     && msgMetadata.hasTxnidLeastBits()) {
                 if (Markers.isTxnMarker(msgMetadata)) {
                     // because consumer can receive message is smaller than maxReadPosition,
                     // so this marker is useless for this subscription
-                    subscription.acknowledgeMessage(Collections.singletonList(entry.getPosition()), AckType.Individual,
-                            Collections.emptyMap());
+                    individualAcknowledgeMessageIfNeeded(entry.getPosition(), Collections.emptyMap());
                     entries.set(i, null);
                     entry.release();
                     continue;
                 } else if (((PersistentTopic) subscription.getTopic())
                         .isTxnAborted(new TxnID(msgMetadata.getTxnidMostBits(), msgMetadata.getTxnidLeastBits()))) {
-                    subscription.acknowledgeMessage(Collections.singletonList(entry.getPosition()), AckType.Individual,
-                            Collections.emptyMap());
+                    individualAcknowledgeMessageIfNeeded(entry.getPosition(), Collections.emptyMap());
                     entries.set(i, null);
                     entry.release();
                     continue;
@@ -185,17 +165,18 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
 
                 entries.set(i, null);
                 entry.release();
-                subscription.acknowledgeMessage(Collections.singletonList(pos), AckType.Individual,
-                        Collections.emptyMap());
+                individualAcknowledgeMessageIfNeeded(pos, Collections.emptyMap());
                 continue;
-            } else if (msgMetadata.hasDeliverAtTime()
-                    && trackDelayedDelivery(entry.getLedgerId(), entry.getEntryId(), msgMetadata)) {
+            } else if (trackDelayedDelivery(entry.getLedgerId(), entry.getEntryId(), msgMetadata)) {
                 // The message is marked for delayed delivery. Ignore for now.
                 entries.set(i, null);
                 entry.release();
                 continue;
             }
 
+            this.filterAcceptedMsgs.add(entryMsgCnt);
+
+            totalEntries++;
             int batchSize = msgMetadata.getNumMessagesInBatch();
             totalMessages += batchSize;
             totalBytes += metadataAndPayload.readableBytes();
@@ -227,6 +208,15 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
                 ((AbstractTopic) topic).addFilteredEntriesCount(filtered);
             }
         }
+        if (CollectionUtils.isNotEmpty(entriesToRedeliver)) {
+            this.subscription.getTopic().getBrokerService().getPulsar().getExecutor()
+                    .schedule(() -> {
+                        // simulate the Consumer rejected the message
+                        subscription
+                                .redeliverUnacknowledgedMessages(consumer, entriesToRedeliver);
+                    }, serviceConfig.getDispatcherEntryFilterRescheduledMessageDelay(), TimeUnit.MILLISECONDS);
+
+        }
 
         sendMessageInfo.setTotalMessages(totalMessages);
         sendMessageInfo.setTotalBytes(totalBytes);
@@ -234,23 +224,10 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
         return totalEntries;
     }
 
-    private static EntryFilter.FilterResult getFilterResult(FilterContext filterContext, Entry entry,
-                                                            ImmutableList<EntryFilterWithClassLoader> entryFilters) {
-        EntryFilter.FilterResult result = EntryFilter.FilterResult.ACCEPT;
-        for (EntryFilter entryFilter : entryFilters) {
-            if (entryFilter.filterEntry(entry, filterContext) == EntryFilter.FilterResult.REJECT) {
-                result = EntryFilter.FilterResult.REJECT;
-                break;
-            }
+    private void individualAcknowledgeMessageIfNeeded(Position position, Map<String, Long> properties) {
+        if (!(subscription instanceof CompactorSubscription)) {
+            subscription.acknowledgeMessage(Collections.singletonList(position), AckType.Individual, properties);
         }
-        return result;
-    }
-
-    private void fillContext(FilterContext context, MessageMetadata msgMetadata,
-                             Subscription subscription) {
-        context.reset();
-        context.setMsgMetadata(msgMetadata);
-        context.setSubscription(subscription);
     }
 
     /**
@@ -316,5 +293,29 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
 
     protected byte[] peekStickyKey(ByteBuf metadataAndPayload) {
         return Commands.peekStickyKey(metadataAndPayload, subscription.getTopicName(), subscription.getName());
+    }
+
+    protected String getSubscriptionName() {
+        return subscription == null ? null : subscription.getName();
+    }
+
+    @Override
+    public long getFilterProcessedMsgCount() {
+        return this.filterProcessedMsgs.longValue();
+    }
+
+    @Override
+    public long getFilterAcceptedMsgCount() {
+        return this.filterAcceptedMsgs.longValue();
+    }
+
+    @Override
+    public long getFilterRejectedMsgCount() {
+        return this.filterRejectedMsgs.longValue();
+    }
+
+    @Override
+    public long getFilterRescheduledMsgCount() {
+        return this.filterRescheduledMsgs.longValue();
     }
 }

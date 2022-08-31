@@ -26,13 +26,15 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelException;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
-import io.netty.resolver.dns.DnsNameResolver;
+import io.netty.resolver.AddressResolver;
+import io.netty.resolver.dns.DnsAddressResolverGroup;
 import io.netty.resolver.dns.DnsNameResolverBuilder;
 import io.netty.util.concurrent.Future;
-import java.net.InetAddress;
+import io.netty.util.concurrent.ScheduledFuture;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -41,6 +43,7 @@ import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -54,6 +57,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ConnectionPool implements AutoCloseable {
+
+    public static final int IDLE_DETECTION_INTERVAL_SECONDS_MIN = 60;
+
     protected final ConcurrentHashMap<InetSocketAddress, ConcurrentMap<Integer, CompletableFuture<ClientCnx>>> pool;
 
     private final Bootstrap bootstrap;
@@ -63,8 +69,19 @@ public class ConnectionPool implements AutoCloseable {
     private final int maxConnectionsPerHosts;
     private final boolean isSniProxy;
 
-    protected final DnsNameResolver dnsResolver;
+    protected final AddressResolver<InetSocketAddress> addressResolver;
     private final boolean shouldCloseDnsResolver;
+
+
+    /** Maximum idle time, released if exceeded. **/
+    @VisibleForTesting
+    int connectionMaxIdleSeconds;
+    /** How often to check for idle connections. **/
+    private int idleDetectionIntervalSeconds;
+    /** Do you want to automatically clean up unused connections. **/
+    private boolean autoReleaseIdleConnectionsEnabled;
+    /** Async release useless connections task. **/
+    private ScheduledFuture asyncReleaseUselessConnectionsTask;
 
     public ConnectionPool(ClientConfigurationData conf, EventLoopGroup eventLoopGroup) throws PulsarClientException {
         this(conf, eventLoopGroup, () -> new ClientCnx(conf, eventLoopGroup));
@@ -76,7 +93,8 @@ public class ConnectionPool implements AutoCloseable {
     }
 
     public ConnectionPool(ClientConfigurationData conf, EventLoopGroup eventLoopGroup,
-                             Supplier<ClientCnx> clientCnxSupplier, Optional<DnsNameResolver> dnsNameResolver)
+                          Supplier<ClientCnx> clientCnxSupplier,
+                          Optional<AddressResolver<InetSocketAddress>> addressResolver)
             throws PulsarClientException {
         this.eventLoopGroup = eventLoopGroup;
         this.clientConfig = conf;
@@ -101,12 +119,34 @@ public class ConnectionPool implements AutoCloseable {
             throw new PulsarClientException(e);
         }
 
-        this.shouldCloseDnsResolver = !dnsNameResolver.isPresent();
-        this.dnsResolver = dnsNameResolver.orElseGet(() -> createDnsNameResolver(conf, eventLoopGroup));
+        this.shouldCloseDnsResolver = !addressResolver.isPresent();
+        this.addressResolver = addressResolver.orElseGet(() -> createAddressResolver(conf, eventLoopGroup));
+        // Auto release useless connections. see: https://github.com/apache/pulsar/issues/15516.
+        this.connectionMaxIdleSeconds = conf.getConnectionMaxIdleSeconds();
+        this.autoReleaseIdleConnectionsEnabled = connectionMaxIdleSeconds > 0;
+        if (autoReleaseIdleConnectionsEnabled) {
+            // Start async task for release useless connections.
+            this.idleDetectionIntervalSeconds = connectionMaxIdleSeconds;
+            if (this.idleDetectionIntervalSeconds < IDLE_DETECTION_INTERVAL_SECONDS_MIN){
+                log.warn("Connection idle detect interval seconds default same as max idle seconds, but max idle"
+                                + " seconds less than " + IDLE_DETECTION_INTERVAL_SECONDS_MIN + ", to avoid checking"
+                                + " connection status too much, use default value : "
+                                + IDLE_DETECTION_INTERVAL_SECONDS_MIN);
+                this.idleDetectionIntervalSeconds = IDLE_DETECTION_INTERVAL_SECONDS_MIN;
+            }
+            asyncReleaseUselessConnectionsTask = eventLoopGroup.scheduleWithFixedDelay(() -> {
+                try {
+                    doMarkAndReleaseUselessConnections();
+                } catch (Exception e) {
+                    log.error("Auto release useless connections failure.", e);
+                }
+            }, idleDetectionIntervalSeconds, idleDetectionIntervalSeconds, TimeUnit.SECONDS);
+        }
     }
 
-    private static DnsNameResolver createDnsNameResolver(ClientConfigurationData conf, EventLoopGroup eventLoopGroup) {
-        DnsNameResolverBuilder dnsNameResolverBuilder = new DnsNameResolverBuilder(eventLoopGroup.next())
+    private static AddressResolver<InetSocketAddress> createAddressResolver(ClientConfigurationData conf,
+                                                                            EventLoopGroup eventLoopGroup) {
+        DnsNameResolverBuilder dnsNameResolverBuilder = new DnsNameResolverBuilder()
                 .traceEnabled(true).channelType(EventLoopUtil.getDatagramChannelClass(eventLoopGroup));
         if (conf.getDnsLookupBindAddress() != null) {
             InetSocketAddress addr = new InetSocketAddress(conf.getDnsLookupBindAddress(),
@@ -114,7 +154,10 @@ public class ConnectionPool implements AutoCloseable {
             dnsNameResolverBuilder.localAddress(addr);
         }
         DnsResolverUtil.applyJdkDnsCacheSettings(dnsNameResolverBuilder);
-        return dnsNameResolverBuilder.build();
+        // use DnsAddressResolverGroup to create the AddressResolver since it contains a solution
+        // to prevent cache stampede / thundering herds problem when a DNS entry expires while the system
+        // is under high load
+        return new DnsAddressResolverGroup(dnsNameResolverBuilder).getResolver(eventLoopGroup.next());
     }
 
     private static final Random random = new Random();
@@ -166,8 +209,27 @@ public class ConnectionPool implements AutoCloseable {
 
         final int randomKey = signSafeMod(random.nextInt(), maxConnectionsPerHosts);
 
-        return pool.computeIfAbsent(logicalAddress, a -> new ConcurrentHashMap<>()) //
+        final ConcurrentMap<Integer, CompletableFuture<ClientCnx>> innerPool =
+                pool.computeIfAbsent(logicalAddress, a -> new ConcurrentHashMap<>());
+        CompletableFuture<ClientCnx> completableFuture = innerPool
                 .computeIfAbsent(randomKey, k -> createConnection(logicalAddress, physicalAddress, randomKey));
+        return completableFuture.thenCompose(clientCnx -> {
+            // If connection already release, create a new one.
+            if (clientCnx.getIdleState().isReleased()) {
+                cleanupConnection(logicalAddress, randomKey, completableFuture);
+                return innerPool
+                        .computeIfAbsent(randomKey, k -> createConnection(logicalAddress, physicalAddress, randomKey));
+            }
+            // Try use exists connection.
+            if (clientCnx.getIdleState().tryMarkUsingAndClearIdleTime()) {
+                return CompletableFuture.completedFuture(clientCnx);
+            } else {
+                // If connection already release, create a new one.
+                cleanupConnection(logicalAddress, randomKey, completableFuture);
+                return innerPool
+                        .computeIfAbsent(randomKey, k -> createConnection(logicalAddress, physicalAddress, randomKey));
+            }
+        });
     }
 
     private CompletableFuture<ClientCnx> createConnection(InetSocketAddress logicalAddress,
@@ -239,19 +301,17 @@ public class ConnectionPool implements AutoCloseable {
      * Resolve DNS asynchronously and attempt to connect to any IP address returned by DNS server.
      */
     private CompletableFuture<Channel> createConnection(InetSocketAddress unresolvedAddress) {
-        int port;
-        CompletableFuture<List<InetAddress>> resolvedAddress;
+        CompletableFuture<List<InetSocketAddress>> resolvedAddress;
         try {
             if (isSniProxy) {
                 URI proxyURI = new URI(clientConfig.getProxyServiceUrl());
-                port = proxyURI.getPort();
-                resolvedAddress = resolveName(proxyURI.getHost());
+                resolvedAddress =
+                        resolveName(InetSocketAddress.createUnresolved(proxyURI.getHost(), proxyURI.getPort()));
             } else {
-                port = unresolvedAddress.getPort();
-                resolvedAddress = resolveName(unresolvedAddress.getHostString());
+                resolvedAddress = resolveName(unresolvedAddress);
             }
             return resolvedAddress.thenCompose(
-                    inetAddresses -> connectToResolvedAddresses(inetAddresses.iterator(), port,
+                    inetAddresses -> connectToResolvedAddresses(inetAddresses.iterator(),
                             isSniProxy ? unresolvedAddress : null));
         } catch (URISyntaxException e) {
             log.error("Invalid Proxy url {}", clientConfig.getProxyServiceUrl(), e);
@@ -264,18 +324,17 @@ public class ConnectionPool implements AutoCloseable {
      * Try to connect to a sequence of IP addresses until a successful connection can be made, or fail if no
      * address is working.
      */
-    private CompletableFuture<Channel> connectToResolvedAddresses(Iterator<InetAddress> unresolvedAddresses,
-                                                                  int port,
+    private CompletableFuture<Channel> connectToResolvedAddresses(Iterator<InetSocketAddress> unresolvedAddresses,
                                                                   InetSocketAddress sniHost) {
         CompletableFuture<Channel> future = new CompletableFuture<>();
 
         // Successfully connected to server
-        connectToAddress(unresolvedAddresses.next(), port, sniHost)
+        connectToAddress(unresolvedAddresses.next(), sniHost)
                 .thenAccept(future::complete)
                 .exceptionally(exception -> {
                     if (unresolvedAddresses.hasNext()) {
                         // Try next IP address
-                        connectToResolvedAddresses(unresolvedAddresses, port, sniHost).thenAccept(future::complete)
+                        connectToResolvedAddresses(unresolvedAddresses, sniHost).thenAccept(future::complete)
                                 .exceptionally(ex -> {
                                     // This is already unwinding the recursive call
                                     future.completeExceptionally(ex);
@@ -291,9 +350,9 @@ public class ConnectionPool implements AutoCloseable {
         return future;
     }
 
-    CompletableFuture<List<InetAddress>> resolveName(String hostname) {
-        CompletableFuture<List<InetAddress>> future = new CompletableFuture<>();
-        dnsResolver.resolveAll(hostname).addListener((Future<List<InetAddress>> resolveFuture) -> {
+    CompletableFuture<List<InetSocketAddress>> resolveName(InetSocketAddress unresolvedAddress) {
+        CompletableFuture<List<InetSocketAddress>> future = new CompletableFuture<>();
+        addressResolver.resolveAll(unresolvedAddress).addListener((Future<List<InetSocketAddress>> resolveFuture) -> {
             if (resolveFuture.isSuccess()) {
                 future.complete(resolveFuture.get());
             } else {
@@ -306,8 +365,7 @@ public class ConnectionPool implements AutoCloseable {
     /**
      * Attempt to establish a TCP connection to an already resolved single IP address.
      */
-    private CompletableFuture<Channel> connectToAddress(InetAddress ipAddress, int port, InetSocketAddress sniHost) {
-        InetSocketAddress remoteAddress = new InetSocketAddress(ipAddress, port);
+    private CompletableFuture<Channel> connectToAddress(InetSocketAddress remoteAddress, InetSocketAddress sniHost) {
         if (clientConfig.isUseTls()) {
             return toCompletableFuture(bootstrap.register())
                     .thenCompose(channel -> channelInitializerHandler
@@ -337,7 +395,10 @@ public class ConnectionPool implements AutoCloseable {
     public void close() throws Exception {
         closeAllConnections();
         if (shouldCloseDnsResolver) {
-            dnsResolver.close();
+            addressResolver.close();
+        }
+        if (asyncReleaseUselessConnectionsTask != null && !asyncReleaseUselessConnectionsTask.isCancelled()) {
+            asyncReleaseUselessConnectionsTask.cancel(false);
         }
     }
 
@@ -356,5 +417,41 @@ public class ConnectionPool implements AutoCloseable {
 
     private static final Logger log = LoggerFactory.getLogger(ConnectionPool.class);
 
+    public void doMarkAndReleaseUselessConnections(){
+        if (!autoReleaseIdleConnectionsEnabled){
+            return;
+        }
+        List<Runnable> releaseIdleConnectionTaskList = new ArrayList<>();
+        for (Map.Entry<InetSocketAddress, ConcurrentMap<Integer, CompletableFuture<ClientCnx>>> entry :
+                pool.entrySet()){
+            ConcurrentMap<Integer, CompletableFuture<ClientCnx>> innerPool = entry.getValue();
+            for (Map.Entry<Integer, CompletableFuture<ClientCnx>> entry0 : innerPool.entrySet()) {
+                CompletableFuture<ClientCnx> future = entry0.getValue();
+                // Ensure connection has been connected.
+                if (!future.isDone()) {
+                    continue;
+                }
+                if (future.isCompletedExceptionally()) {
+                    continue;
+                }
+                final ClientCnx clientCnx = future.join();
+                if (clientCnx == null) {
+                    continue;
+                }
+                // Detect connection idle-stat.
+                clientCnx.getIdleState().doIdleDetect(connectionMaxIdleSeconds);
+                // Try release useless connection.
+                if (clientCnx.getIdleState().isReleasing()) {
+                    releaseIdleConnectionTaskList.add(() -> {
+                        if (clientCnx.getIdleState().tryMarkReleasedAndCloseConnection()) {
+                            cleanupConnection(entry.getKey(), entry0.getKey(), future);
+                        }
+                    });
+                }
+            }
+        }
+        // Do release idle connections.
+        releaseIdleConnectionTaskList.forEach(Runnable::run);
+    }
 }
 

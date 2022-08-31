@@ -28,11 +28,6 @@
     <cpe>cpe:/a:apache:http_server</cpe>
   </suppress>
   <suppress>
-    <notes>pulsar-zookeeper-utils gets mixed with zookeeper.</notes>
-    <gav regex="true">org\.apache\.pulsar:.*</gav>
-    <cpe>cpe:/a:apache:zookeeper</cpe>
-  </suppress>
-  <suppress>
     <notes>pulsar-package-bookkeeper-storage gets mixed with bookkeeper.</notes>
     <gav regex="true">org\.apache\.pulsar:.*</gav>
     <cpe>cpe:/a:apache:bookkeeper</cpe>
@@ -58,6 +53,13 @@
         ]]></notes>
     <packageUrl regex="true">^pkg:maven/io\.netty/netty\-tcnative\-classes@.*$</packageUrl>
     <cpe>cpe:/a:netty:netty</cpe>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+   file name: netty-tcnative-boringssl-static-2.0.52.Final-osx-aarch_64.jar
+   ]]></notes>
+    <packageUrl regex="true">^pkg:maven/io\.netty/netty\-tcnative\-boringssl\-static@.*$</packageUrl>
+    <cpe>cpe:/a:chromium_project:chromium</cpe>
   </suppress>
   <suppress>
 <!--    Zookkeeper false positive about Jetty and commons-io-->
@@ -153,5 +155,14 @@
     <cve>CVE-2022-27385</cve>
     <cve>CVE-2022-27386</cve>
     <cve>CVE-2022-27387</cve>
+  </suppress>
+
+  <!-- google-http-client-gson getting confused with gson-->
+  <suppress>
+    <notes><![CDATA[
+   file name: google-http-client-gson-1.41.0.jar
+   ]]></notes>
+    <sha1>1a754a5dd672218a2ac667d7ff2b28df7a5a240e</sha1>
+    <cve>CVE-2022-25647</cve>
   </suppress>
 </suppressions>

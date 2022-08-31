@@ -63,6 +63,7 @@ import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
+import org.apache.zookeeper.client.ConnectStringParser;
 
 @Slf4j
 public class ZKMetadataStore extends AbstractBatchedMetadataStore
@@ -71,6 +72,7 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
     public static final String ZK_SCHEME_IDENTIFIER = "zk:";
 
     private final String zkConnectString;
+    private final String rootPath;
     private final MetadataStoreConfig metadataStoreConfig;
     private final boolean isZkManaged;
     private final ZooKeeper zkc;
@@ -87,6 +89,8 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                 this.zkConnectString = metadataURL;
             }
             this.metadataStoreConfig = metadataStoreConfig;
+            this.rootPath = new ConnectStringParser(zkConnectString).getChrootPath();
+
             isZkManaged = true;
             zkc = PulsarZooKeeperClient.newBuilder().connectString(zkConnectString)
                     .connectRetryPolicy(new BoundExponentialBackoffRetryPolicy(100, 60_000, Integer.MAX_VALUE))
@@ -112,9 +116,16 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
     @VisibleForTesting
     @SneakyThrows
     public ZKMetadataStore(ZooKeeper zkc) {
-        super(MetadataStoreConfig.builder().build());
+        this(zkc, MetadataStoreConfig.builder().build());
+    }
+
+    @VisibleForTesting
+    @SneakyThrows
+    public ZKMetadataStore(ZooKeeper zkc, MetadataStoreConfig config) {
+        super(config);
 
         this.zkConnectString = null;
+        this.rootPath = null;
         this.metadataStoreConfig = null;
         this.isZkManaged = false;
         this.zkc = zkc;
@@ -386,7 +397,13 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                                 put(opPut.getPath(), opPut.getData(), Optional.of(-1L)).thenAccept(
                                                 s -> future.complete(s))
                                         .exceptionally(ex -> {
-                                            future.completeExceptionally(MetadataStoreException.wrap(ex.getCause()));
+                                            if (ex.getCause() instanceof BadVersionException) {
+                                                // The z-node exist now, let's overwrite it
+                                                internalStorePut(opPut);
+                                            } else {
+                                                future.completeExceptionally(
+                                                        MetadataStoreException.wrap(ex.getCause()));
+                                            }
                                             return null;
                                         });
                             }
@@ -567,5 +584,9 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
         if (rc.get() != Code.OK.intValue()) {
             throw KeeperException.create(Code.get(rc.get()));
         }
+    }
+
+    public String getRootPath() {
+        return rootPath;
     }
 }

@@ -18,9 +18,16 @@
  */
 package org.apache.pulsar.proxy.server;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import java.net.URI;
+import java.nio.ByteBuffer;
+import java.util.Base64;
+import java.util.Optional;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.Future;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
-
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -36,22 +43,12 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import java.net.URI;
-import java.nio.ByteBuffer;
-import java.util.Base64;
-import java.util.Optional;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.Future;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-
 public class ProxyServiceStarterTest extends MockedPulsarServiceBaseTest {
 
     static final String[] ARGS = new String[]{"-c", "./src/test/resources/proxy.conf"};
 
-    private ProxyServiceStarter serviceStarter;
-    private String serviceUrl;
+    protected ProxyServiceStarter serviceStarter;
+    protected String serviceUrl;
 
     @Override
     @BeforeClass

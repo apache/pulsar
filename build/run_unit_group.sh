@@ -28,11 +28,10 @@ MVN_TEST_OPTIONS='mvn -B -ntp -DskipSourceReleaseAssembly=true -DskipBuildDistri
 
 function mvn_test() {
   (
-    RETRY="${SCRIPT_DIR}/retry.sh"
-    # skip wrapping with retry.sh script if next parameter is "--no-retry"
-    if [[ "$1" == "--no-retry" ]]; then
-      RETRY=""
-      shift
+    local clean_arg=""
+    if [[ "$1" == "--clean" ]]; then
+        clean_arg="clean"
+        shift
     fi
     TARGET=verify
     if [[ "$1" == "--install" ]]; then
@@ -42,7 +41,7 @@ function mvn_test() {
     echo "::group::Run tests for " "$@"
     # use "verify" instead of "test" to workaround MDEP-187 issue in pulsar-functions-worker and pulsar-broker projects with the maven-dependency-plugin's copy goal
     # Error message was "Artifact has not been packaged yet. When used on reactor artifact, copy should be executed after packaging: see MDEP-187"
-    $RETRY $MVN_TEST_OPTIONS $TARGET "$@" "${COMMANDLINE_ARGS[@]}"
+    $MVN_TEST_OPTIONS $clean_arg $TARGET "$@" "${COMMANDLINE_ARGS[@]}"
     echo "::endgroup::"
     set +x
     "$SCRIPT_DIR/pulsar_ci_tool.sh" move_test_reports
@@ -59,7 +58,7 @@ alias echo='{ [[ $- =~ .*x.* ]] && trace_enabled=1 || trace_enabled=0; set +x; }
 
 # Test Groups  -- start --
 function test_group_broker_group_1() {
-  mvn_test -pl pulsar-broker -Dgroups='broker'
+  mvn_test -pl pulsar-broker -Dgroups='broker' -DtestReuseFork=true -DskipAfterFailureCount=1
 }
 
 function test_group_broker_group_2() {
@@ -76,10 +75,6 @@ function test_group_broker_client_api() {
 
 function test_group_broker_client_impl() {
   mvn_test -pl pulsar-broker -Dgroups='broker-impl'
-}
-
-function test_group_broker_jdk8() {
-  mvn_test -pl pulsar-broker -Dgroups='broker-jdk8' -Dpulsar.allocator.pooled=true
 }
 
 # prints summaries of failed tests to console
@@ -114,7 +109,7 @@ function print_testng_failures() {
 function test_group_broker_flaky() {
   echo "::endgroup::"
   echo "::group::Running quarantined tests"
-  mvn_test --no-retry -pl pulsar-broker -Dgroups='quarantine' -DexcludedGroups='' -DfailIfNoTests=false \
+  mvn_test -pl pulsar-broker -Dgroups='quarantine' -DexcludedGroups='' -DfailIfNoTests=false \
     -DtestForkCount=2 ||
     print_testng_failures pulsar-broker/target/surefire-reports/testng-failed.xml "Quarantined test failure in" "Quarantined test failures"
   echo "::endgroup::"
@@ -133,17 +128,16 @@ function test_group_proxy() {
 }
 
 function test_group_other() {
-  mvn_test --install -PbrokerSkipTest \
-           -Dexclude='org/apache/pulsar/proxy/**/*.java,
-                  **/ManagedLedgerTest.java,
-                  **/TestPulsarKeyValueSchemaHandler.java,
+  mvn_test --clean --install \
+           -pl '!org.apache.pulsar:distribution,!org.apache.pulsar:pulsar-offloader-distribution,!org.apache.pulsar:pulsar-server-distribution,!org.apache.pulsar:pulsar-io-distribution' \
+           -PskipTestsForUnitGroupOther -DdisableIoMainProfile=true -DdisableSqlMainProfile=true -DskipIntegrationTests \
+           -Dexclude='**/ManagedLedgerTest.java,
+                   **/OffloadersCacheTest.java
                   **/PrimitiveSchemaTest.java,
-                  BlobStoreManagedLedgerOffloaderTest.java'
+                  BlobStoreManagedLedgerOffloaderTest.java' -DtestReuseFork=false
 
   mvn_test -pl managed-ledger -Dinclude='**/ManagedLedgerTest.java,
                                                   **/OffloadersCacheTest.java'
-
-  mvn_test -pl pulsar-sql/presto-pulsar-plugin -Dinclude='**/TestPulsarKeyValueSchemaHandler.java'
 
   mvn_test -pl pulsar-client -Dinclude='**/PrimitiveSchemaTest.java'
 
@@ -151,15 +145,26 @@ function test_group_other() {
 
   echo "::endgroup::"
   local modules_with_quarantined_tests=$(git grep -l '@Test.*"quarantine"' | grep '/src/test/java/' | \
-    awk -F '/src/test/java/' '{ print $1 }' | grep -v -E 'pulsar-broker|pulsar-proxy' | sort | uniq | \
+    awk -F '/src/test/java/' '{ print $1 }' | grep -v -E 'pulsar-broker|pulsar-proxy|pulsar-io|pulsar-sql' | sort | uniq | \
     perl -0777 -p -e 's/\n(\S)/,$1/g')
   if [ -n "${modules_with_quarantined_tests}" ]; then
     echo "::group::Running quarantined tests outside of pulsar-broker & pulsar-proxy (if any)"
-    mvn_test --no-retry -pl "${modules_with_quarantined_tests}" test -Dgroups='quarantine' -DexcludedGroups='' \
+    mvn_test -pl "${modules_with_quarantined_tests}" test -Dgroups='quarantine' -DexcludedGroups='' \
       -DfailIfNoTests=false || \
         echo "::warning::There were test failures in the 'quarantine' test group."
     echo "::endgroup::"
   fi
+}
+
+function test_group_pulsar_io() {
+    $MVN_TEST_OPTIONS -pl kafka-connect-avro-converter-shaded clean install
+    echo "::group::Running pulsar-io tests"
+    mvn_test --install -Ppulsar-io-tests,-main
+    echo "::endgroup::"
+
+    echo "::group::Running pulsar-sql tests"
+    mvn_test --install -Ppulsar-sql-tests,-main -DtestForkCount=1
+    echo "::endgroup::"
 }
 
 function list_test_groups() {

@@ -69,24 +69,6 @@ function fail() {
   exit 1
 }
 
-# function to retry a given commend 3 times with a backoff of 10 seconds in between
-function ci_retry() {
-  local n=1
-  local max=3
-  local delay=10
-  while true; do
-    "$@" && break || {
-      if [[ $n -lt $max ]]; then
-        ((n++))
-        echo "::warning::Command failed. Attempt $n/$max:"
-        sleep $delay
-      else
-        fail "::error::The command has failed after $n attempts."
-      fi
-    }
-  done
-}
-
 # saves a given image (1st parameter) to the GitHub Actions Artifacts with the given name (2nd parameter)
 function ci_docker_save_image_to_github_actions_artifacts() {
   local image=$1

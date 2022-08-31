@@ -57,13 +57,17 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
     }
 
     @Override
+    public int minReceiverQueueSize() {
+        return 0;
+    }
+
+    @Override
     public void initReceiverQueueSize() {
         if (conf.isAutoScaledReceiverQueueSizeEnabled()) {
             throw new NotImplementedException("AutoScaledReceiverQueueSize is not supported in ZeroQueueConsumerImpl");
         } else {
             CURRENT_RECEIVER_QUEUE_SIZE_UPDATER.set(this, 0);
         }
-
     }
 
     @Override

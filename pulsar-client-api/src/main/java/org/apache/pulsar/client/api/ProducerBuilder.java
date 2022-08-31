@@ -133,6 +133,8 @@ public interface ProducerBuilder<T> extends Cloneable {
      * <li>{@link ProducerAccessMode#Shared}: By default multiple producers can publish on a topic
      * <li>{@link ProducerAccessMode#Exclusive}: Require exclusive access for producer. Fail immediately if there's
      * already a producer connected.
+     * <li>{@link ProducerAccessMode#ExclusiveWithFencing}: Require exclusive access for the producer.
+     * Any existing producer will be removed and invalidated immediately.
      * <li>{@link ProducerAccessMode#WaitForExclusive}: Producer creation is pending until it can acquire exclusive
      * access
      * </ul>

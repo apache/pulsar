@@ -71,4 +71,9 @@ public interface PublishRateLimiter extends AutoCloseable {
      * @param bytes
      */
     boolean tryAcquire(int numbers, long bytes);
+
+    /**
+     * Close the limiter.
+     */
+    void close();
 }

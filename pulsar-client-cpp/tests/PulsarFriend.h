@@ -23,7 +23,6 @@
 #include "lib/ProducerImpl.h"
 #include "lib/PartitionedProducerImpl.h"
 #include "lib/ConsumerImpl.h"
-#include "lib/PartitionedConsumerImpl.h"
 #include "lib/MultiTopicsConsumerImpl.h"
 #include "lib/ReaderImpl.h"
 
@@ -86,14 +85,10 @@ class PulsarFriend {
 
     static ReaderImplWeakPtr getReaderImplWeakPtr(Reader reader) { return reader.impl_; }
 
-    static decltype(ConsumerImpl::chunkedMessageCache_) & getChunkedMessageCache(Consumer consumer) {
+    static decltype(ConsumerImpl::chunkedMessageCache_)& getChunkedMessageCache(Consumer consumer) {
         auto consumerImpl = getConsumerImplPtr(consumer);
         ConsumerImpl::Lock lock(consumerImpl->chunkProcessMutex_);
         return consumerImpl->chunkedMessageCache_;
-    }
-
-    static std::shared_ptr<PartitionedConsumerImpl> getPartitionedConsumerImplPtr(Consumer consumer) {
-        return std::static_pointer_cast<PartitionedConsumerImpl>(consumer.impl_);
     }
 
     static std::shared_ptr<MultiTopicsConsumerImpl> getMultiTopicsConsumerImplPtr(Consumer consumer) {
@@ -115,6 +110,10 @@ class PulsarFriend {
     }
 
     static ClientConnectionWeakPtr getClientConnection(HandlerBase& handler) { return handler.connection_; }
+
+    static void setClientConnection(HandlerBase& handler, ClientConnectionWeakPtr conn) {
+        handler.connection_ = conn;
+    }
 
     static boost::posix_time::ptime& getFirstBackoffTime(Backoff& backoff) {
         return backoff.firstBackoffTime_;

@@ -61,7 +61,9 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     @Deprecated
     @FieldContext(
             deprecated = true,
-            doc = "Connection string of configuration store servers")
+            doc = "Configuration store connection string (as a comma-separated list). Deprecated in favor of "
+                    + "`configurationMetadataStoreUrl`"
+    )
     private String configurationStoreServers;
 
     @FieldContext(doc = "Connection string of configuration metadata store servers")
@@ -195,11 +197,9 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     private boolean tlsEnabledWithKeyStore = false;
 
     @FieldContext(
-            doc = "Specify the TLS provider for the WebSocket service: \n"
-                    + "When using TLS authentication with CACert, the valid value is either OPENSSL or JDK.\n"
-                    + "When using TLS authentication with KeyStore, available values can be SunJSSE, Conscrypt and etc."
+            doc = "Specify the TLS provider for the WebSocket service: SunJSSE, Conscrypt and etc."
     )
-    private String tlsProvider = null;
+    private String tlsProvider = "Conscrypt";
 
     @FieldContext(
             doc = "TLS KeyStore type configuration in WebSocket: JKS, PKCS12"
@@ -244,6 +244,11 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
                     + "Example:- [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256]"
     )
     private Set<String> webServiceTlsCiphers = new TreeSet<>();
+
+    @FieldContext(
+            doc = "CryptoKeyReader factory classname to support encryption at websocket."
+    )
+    private String cryptoKeyReaderFactoryClassName;
 
     @FieldContext(doc = "Key-value properties. Types are all String")
     private Properties properties = new Properties();

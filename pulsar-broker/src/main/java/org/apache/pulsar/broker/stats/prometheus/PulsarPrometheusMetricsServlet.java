@@ -46,7 +46,6 @@ public class PulsarPrometheusMetricsServlet extends PrometheusMetricsServlet {
     @Override
     protected void generateMetrics(String cluster, ServletOutputStream outputStream) throws IOException {
         PrometheusMetricsGenerator.generate(pulsar, shouldExportTopicMetrics, shouldExportConsumerMetrics,
-                shouldExportProducerMetrics, splitTopicAndPartitionLabel, outputStream,
-                metricsProviders);
+                shouldExportProducerMetrics, splitTopicAndPartitionLabel, outputStream, metricsProviders);
     }
 }

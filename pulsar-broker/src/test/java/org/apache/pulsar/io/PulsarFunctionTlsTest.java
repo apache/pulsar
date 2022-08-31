@@ -23,6 +23,7 @@ import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
@@ -36,6 +37,7 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
@@ -107,10 +109,11 @@ public class PulsarFunctionTlsTest {
 
         config = spy(ServiceConfiguration.class);
         config.setBrokerShutdownTimeoutMs(0L);
+        config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         config.setClusterName("use");
         Set<String> superUsers = Sets.newHashSet("superUser", "admin");
         config.setSuperUserRoles(superUsers);
-        config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
         Set<String> providers = new HashSet<>();
         providers.add(AuthenticationProviderTls.class.getName());
         config.setAuthenticationEnabled(true);
@@ -171,9 +174,9 @@ public class PulsarFunctionTlsTest {
         log.info("--- Shutting down ---");
         try {
             functionAdmin.close();
-            bkEnsemble.stop();
-            workerServer.stop();
             functionsWorkerService.stop();
+            workerServer.stop();
+            bkEnsemble.stop();
         } finally {
             if (tempDirectory != null) {
                 tempDirectory.delete();
@@ -201,7 +204,7 @@ public class PulsarFunctionTlsTest {
         workerConfig.setFunctionAssignmentTopicName("assignment");
         workerConfig.setFunctionMetadataTopicName("metadata");
         workerConfig.setInstanceLivenessCheckFreqMs(100);
-        workerConfig.setWorkerPort(0);
+        workerConfig.setWorkerPort(null);
         workerConfig.setPulsarFunctionsCluster(config.getClusterName());
         String hostname = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(config.getAdvertisedAddress());
         this.workerId = "c-" + config.getClusterName() + "-fw-" + hostname + "-" + workerConfig.getWorkerPort();
@@ -236,6 +239,11 @@ public class PulsarFunctionTlsTest {
         });
 
         return workerService;
+    }
+
+    @Test
+    public void testWorkerServerNonTlsNotStarted() {
+        assertFalse(workerServer.getListenPortHTTP().isPresent(), "Non-TLS worker service should not be set.");
     }
 
     @Test

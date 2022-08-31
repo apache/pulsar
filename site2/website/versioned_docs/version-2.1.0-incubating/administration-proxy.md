@@ -1,7 +1,7 @@
 ---
-id: version-2.1.0-incubating-administration-proxy
+id: administration-proxy
 title: The Pulsar proxy
-sidebar_label: Pulsar proxy
+sidebar_label: "Pulsar proxy"
 original_id: administration-proxy
 ---
 
@@ -9,15 +9,17 @@ The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) is an optiona
 
 ## Running the proxy
 
-In order to run the Pulsar proxy, you need to have both a local [ZooKeeper](https://zookeeper.apache.org) and configuration store quorum set up for use by your Pulsar cluster. For instructions, see [this document](deploy-bare-metal.md). Once you have ZooKeeper set up and have connection strings for both ZooKeeper quorums, you can use the [`proxy`](reference-cli-tools.md#pulsar-proxy) command of the [`pulsar`](reference-cli-tools.md#pulsar) CLI tool to start up the proxy (preferably on its own machine or in its own VM):
+In order to run the Pulsar proxy, you need to have both a local [ZooKeeper](https://zookeeper.apache.org) and configuration store quorum set up for use by your Pulsar cluster. For instructions, see [this document](deploy-bare-metal). Once you have ZooKeeper set up and have connection strings for both ZooKeeper quorums, you can use the [`proxy`](reference-cli-tools.md#pulsar-proxy) command of the [`pulsar`](reference-cli-tools.md#pulsar) CLI tool to start up the proxy (preferably on its own machine or in its own VM):
 
 To start the proxy:
 
 ```bash
+
 $ cd /path/to/pulsar/directory
 $ bin/pulsar proxy \
   --zookeeper-servers zk-0,zk-1,zk-2 \
   --configuration-store-servers zk-0,zk-1,zk-2
+
 ```
 
 > You can run as many instances of the Pulsar proxy in a cluster as you would like.

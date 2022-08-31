@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.admin;
 
-import com.google.common.collect.Sets;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -48,7 +47,7 @@ public class AdminApiDelayedDelivery extends MockedPulsarServiceBaseTest {
         super.internalSetup();
 
         admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-        TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
         admin.tenants().createTenant("delayed-delivery-messages", tenantInfo);
     }
 
@@ -138,8 +137,6 @@ public class AdminApiDelayedDelivery extends MockedPulsarServiceBaseTest {
     @Test(timeOut = 30000)
     public void testDelayedDeliveryApplied() throws Exception {
         cleanup();
-        conf.setSystemTopicEnabled(true);
-        conf.setTopicLevelPoliciesEnabled(true);
         setup();
         final String namespace = "delayed-delivery-messages/my-ns";
         final String topic = "persistent://" + namespace + "/test" + UUID.randomUUID();

@@ -54,12 +54,12 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
     private final Summary readLedgerLatency;
     private final Counter writeStorageError;
     private final Counter readOffloadError;
+    private final Counter readOffloadBytes;
     private final Gauge readOffloadRate;
     private final Summary readOffloadIndexLatency;
     private final Summary readOffloadDataLatency;
 
     private final Map<String, Long> topicAccess;
-    private final Map<String, String> topic2Namespace;
     private final Map<String, Pair<LongAdder, LongAdder>> offloadAndReadOffloadBytesMap;
 
     final AtomicBoolean closed = new AtomicBoolean(false);
@@ -73,7 +73,6 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
         }
 
         this.topicAccess = new ConcurrentHashMap<>();
-        this.topic2Namespace = new ConcurrentHashMap<>();
         this.offloadAndReadOffloadBytesMap = new ConcurrentHashMap<>();
 
         String[] labels = exposeTopicLevelMetrics
@@ -88,15 +87,30 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
                 .labelNames(labels).create().register();
         this.readOffloadRate = Gauge.build("brk_ledgeroffloader_read_offload_rate", "-")
                 .labelNames(labels).create().register();
+         this.readOffloadBytes = Counter.build("brk_ledgeroffloader_read_bytes", "-")
+                 .labelNames(labels).create().register();
         this.writeStorageError = Counter.build("brk_ledgeroffloader_write_storage_error", "-")
                 .labelNames(labels).create().register();
 
         this.readOffloadIndexLatency = Summary.build("brk_ledgeroffloader_read_offload_index_latency", "-")
-                .labelNames(labels).create().register();
+                .labelNames(labels).quantile(0.50, 0.01)
+                .quantile(0.95, 0.01)
+                .quantile(0.99, 0.01)
+                .quantile(1, 0.01)
+                .create().register();
         this.readOffloadDataLatency = Summary.build("brk_ledgeroffloader_read_offload_data_latency", "-")
-                .labelNames(labels).create().register();
+                .labelNames(labels)
+                .quantile(0.50, 0.01)
+                .quantile(0.95, 0.01)
+                .quantile(0.99, 0.01)
+                .quantile(1, 0.01)
+                .create().register();
         this.readLedgerLatency = Summary.build("brk_ledgeroffloader_read_ledger_latency", "-")
-                .labelNames(labels).create().register();
+                .labelNames(labels).quantile(0.50, 0.01)
+                .quantile(0.95, 0.01)
+                .quantile(0.99, 0.01)
+                .quantile(1, 0.01)
+                .create().register();
 
         String[] deleteOpsLabels = exposeTopicLevelMetrics
                 ? new String[]{NAMESPACE_LABEL, TOPIC_LABEL, STATUS} : new String[]{NAMESPACE_LABEL, STATUS};
@@ -158,6 +172,8 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
         Pair<LongAdder, LongAdder> pair = this.offloadAndReadOffloadBytesMap
                 .computeIfAbsent(topic, __ -> new ImmutablePair<>(new LongAdder(), new LongAdder()));
         pair.getRight().add(size);
+        String[] labelValues = this.labelValues(topic);
+        this.readOffloadBytes.labels(labelValues).inc(size);
         this.addOrUpdateTopicAccess(topic);
     }
 
@@ -205,13 +221,11 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
     }
 
     private String getNamespace(String topic) {
-        return this.topic2Namespace.computeIfAbsent(topic, t -> {
-            try {
-                return TopicName.get(t).getNamespace();
-            } catch (IllegalArgumentException ex) {
-                return UNKNOWN;
-            }
-        });
+        try {
+            return TopicName.get(topic).getNamespace();
+        } catch (IllegalArgumentException ex) {
+            return UNKNOWN;
+        }
     }
 
     private void cleanExpiredTopicMetrics() {
@@ -223,7 +237,6 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
             long access = entry.getValue();
 
             if (now - access >= timeout) {
-                this.topic2Namespace.remove(topic);
                 this.offloadAndReadOffloadBytesMap.remove(topic);
                 String[] labelValues = this.labelValues(topic);
                 this.offloadError.remove(labelValues);
@@ -273,7 +286,6 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
             CollectorRegistry.defaultRegistry.unregister(this.readOffloadRate);
             CollectorRegistry.defaultRegistry.unregister(this.readOffloadIndexLatency);
             CollectorRegistry.defaultRegistry.unregister(this.readOffloadDataLatency);
-            this.topic2Namespace.clear();
             this.offloadAndReadOffloadBytesMap.clear();
         }
     }
@@ -285,7 +297,7 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
             return pair.getLeft().sum();
         }
 
-        String namespace = this.topic2Namespace.get(topic);
+        String namespace = this.getNamespace(topic);
         List<String> topics = this.offloadAndReadOffloadBytesMap.keySet().stream()
                 .filter(topicName -> topicName.contains(namespace)).collect(Collectors.toList());
 
@@ -321,7 +333,7 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
             return pair.getRight().sum();
         }
 
-        String namespace = this.topic2Namespace.get(topic);
+        String namespace = this.getNamespace(topic);
         List<String> topics = this.offloadAndReadOffloadBytesMap.keySet().stream()
                 .filter(topicName -> topicName.contains(namespace)).collect(Collectors.toList());
 

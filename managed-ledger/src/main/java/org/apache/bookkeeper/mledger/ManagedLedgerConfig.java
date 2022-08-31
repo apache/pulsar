@@ -19,7 +19,7 @@
 package org.apache.bookkeeper.mledger;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import com.google.common.base.Charsets;
+import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.util.Arrays;
 import java.util.Map;
@@ -44,6 +44,7 @@ public class ManagedLedgerConfig {
     private boolean createIfMissing = true;
     private int maxUnackedRangesToPersist = 10000;
     private int maxBatchDeletedIndexToPersist = 10000;
+    private boolean persistentUnackedRangesWithMultipleEntriesEnabled = false;
     private boolean deletionAtBatchIndexLevelEnabled = true;
     private int maxUnackedRangesToPersistInMetadataStore = 1000;
     private int maxEntriesPerLedger = 50000;
@@ -67,7 +68,7 @@ public class ManagedLedgerConfig {
     private long readEntryTimeoutSeconds = 120;
     private long addEntryTimeoutSeconds = 120;
     private DigestType digestType = DigestType.CRC32C;
-    private byte[] password = "".getBytes(Charsets.UTF_8);
+    private byte[] password = "".getBytes(StandardCharsets.UTF_8);
     private boolean unackedRangesOpenCacheSetEnabled = true;
     private Class<? extends EnsemblePlacementPolicy>  bookKeeperEnsemblePlacementPolicyClassName;
     private Map<String, Object> bookKeeperEnsemblePlacementPolicyProperties;
@@ -80,6 +81,9 @@ public class ManagedLedgerConfig {
     @Getter
     @Setter
     private boolean cacheEvictionByMarkDeletedPosition = false;
+    private int minimumBacklogCursorsForCaching = 0;
+    private int minimumBacklogEntriesForCaching = 1000;
+    private int maxBacklogBetweenCursorsForCaching = 1000;
 
     public boolean isCreateIfMissing() {
         return createIfMissing;
@@ -267,7 +271,7 @@ public class ManagedLedgerConfig {
      *            the password to set
      */
     public ManagedLedgerConfig setPassword(String password) {
-        this.password = password.getBytes(Charsets.UTF_8);
+        this.password = password.getBytes(StandardCharsets.UTF_8);
         return this;
     }
 
@@ -468,6 +472,14 @@ public class ManagedLedgerConfig {
      */
     public int getMaxBatchDeletedIndexToPersist() {
         return maxBatchDeletedIndexToPersist;
+    }
+
+    public boolean isPersistentUnackedRangesWithMultipleEntriesEnabled() {
+        return persistentUnackedRangesWithMultipleEntriesEnabled;
+    }
+
+    public void setPersistentUnackedRangesWithMultipleEntriesEnabled(boolean multipleEntriesEnabled) {
+        this.persistentUnackedRangesWithMultipleEntriesEnabled = multipleEntriesEnabled;
     }
 
     /**
@@ -674,4 +686,60 @@ public class ManagedLedgerConfig {
         this.inactiveLedgerRollOverTimeMs = (int) unit.toMillis(inactiveLedgerRollOverTimeMs);
     }
 
+    /**
+     * Minimum cursors with backlog after which broker is allowed to cache read entries to reuse them for other cursors'
+     * backlog reads. (Default = 0, broker will not cache backlog reads)
+     *
+     * @return
+     */
+    public int getMinimumBacklogCursorsForCaching() {
+        return minimumBacklogCursorsForCaching;
+    }
+
+    /**
+     * Set Minimum cursors with backlog after which broker is allowed to cache read entries to reuse them for other
+     * cursors' backlog reads.
+     *
+     * @param minimumBacklogCursorsForCaching
+     */
+    public void setMinimumBacklogCursorsForCaching(int minimumBacklogCursorsForCaching) {
+        this.minimumBacklogCursorsForCaching = minimumBacklogCursorsForCaching;
+    }
+
+    /**
+     * Minimum backlog should exist to leverage caching for backlog reads.
+     *
+     * @return
+     */
+    public int getMinimumBacklogEntriesForCaching() {
+        return minimumBacklogEntriesForCaching;
+    }
+
+    /**
+     * Set Minimum backlog after that broker will start caching backlog reads.
+     *
+     * @param minimumBacklogEntriesForCaching
+     */
+    public void setMinimumBacklogEntriesForCaching(int minimumBacklogEntriesForCaching) {
+        this.minimumBacklogEntriesForCaching = minimumBacklogEntriesForCaching;
+    }
+
+    /**
+     * Max backlog gap between backlogged cursors while caching to avoid caching entry which can be
+     * invalidated before other backlog cursor can reuse it from cache.
+     *
+     * @return
+     */
+    public int getMaxBacklogBetweenCursorsForCaching() {
+        return maxBacklogBetweenCursorsForCaching;
+    }
+
+    /**
+     * Set maximum backlog distance between backlogged curosr to avoid caching unused entry.
+     *
+     * @param maxBacklogBetweenCursorsForCaching
+     */
+    public void setMaxBacklogBetweenCursorsForCaching(int maxBacklogBetweenCursorsForCaching) {
+        this.maxBacklogBetweenCursorsForCaching = maxBacklogBetweenCursorsForCaching;
+    }
 }

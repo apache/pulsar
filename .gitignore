@@ -5,6 +5,7 @@ test-results
 dependency-reduced-pom.xml
 logs
 /data
+packages-storage
 pulsar-broker/data/
 pulsar-broker/tmp.*
 pulsar-broker/src/test/resources/log4j2.yaml
@@ -25,7 +26,7 @@ pulsar-functions/worker/src/test/resources/
 .recommenders/
 .factorypath
 
-# Intellij
+# IntelliJ
 .idea/
 *.iml
 *.iws
@@ -43,6 +44,7 @@ nb-configuration.xml
 # Maven
 log/
 target/
+.mvn/wrapper/maven-wrapper.jar
 
 # Python
 *.pyc

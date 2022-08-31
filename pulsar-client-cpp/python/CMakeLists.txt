@@ -30,7 +30,9 @@ ADD_LIBRARY(_pulsar SHARED src/pulsar.cc
                            src/reader.cc
                            src/schema.cc
                            src/cryptoKeyReader.cc
-                           src/exceptions.cc)
+                           src/exceptions.cc
+                           src/utils.cc
+        )
 
 SET(CMAKE_SHARED_LIBRARY_PREFIX )
 SET(CMAKE_SHARED_LIBRARY_SUFFIX .so)
@@ -44,10 +46,6 @@ if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
 endif()
 
 # Newer boost versions don't use the -mt suffix
-if (NOT DEFINED ${Boost_PYTHON27-MT_LIBRARY})
-  set(Boost_PYTHON27-MT_LIBRARY ${Boost_PYTHON27_LIBRARY})
-endif()
-
 if (NOT DEFINED ${Boost_PYTHON37-MT_LIBRARY})
   set(Boost_PYTHON37-MT_LIBRARY ${Boost_PYTHON37_LIBRARY})
 endif()
@@ -67,20 +65,13 @@ endif()
 # Try all possible boost-python variable namings
 set(PYTHON_WRAPPER_LIBS ${Boost_PYTHON_LIBRARY}
                         ${Boost_PYTHON3_LIBRARY}
-                        ${Boost_PYTHON27-MT_LIBRARY}
                         ${Boost_PYTHON37-MT_LIBRARY}
-                        ${Boost_PYTHON34_LIBRARY}
-                        ${Boost_PYTHON35_LIBRARY}
-                        ${Boost_PYTHON36_LIBRARY}
                         ${Boost_PYTHON38_LIBRARY}
                         ${Boost_PYTHON39_LIBRARY}
                         ${Boost_PYTHON310_LIBRARY}
     )
 
 if (APPLE)
-    if (Boost_PYTHON27-MT_LIBRARY_RELEASE)
-        set(PYTHON_WRAPPER_LIBS ${PYTHON_WRAPPER_LIBS} ${Boost_PYTHON27-MT_LIBRARY_RELEASE})
-    endif ()
     if (Boost_PYTHON37-MT_LIBRARY_RELEASE)
         set(PYTHON_WRAPPER_LIBS ${PYTHON_WRAPPER_LIBS} ${Boost_PYTHON37-MT_LIBRARY_RELEASE})
     endif ()

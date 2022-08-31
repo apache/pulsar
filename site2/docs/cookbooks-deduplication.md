@@ -1,10 +1,17 @@
 ---
 id: cookbooks-deduplication
 title: Message deduplication
-sidebar_label: Message deduplication 
+sidebar_label: "Message deduplication "
 ---
 
-When **Message deduplication** is enabled, it ensures that each message produced on Pulsar topics is persisted to disk *only once*, even if the message is produced more than once. Message deduplication is handled automatically on the broker side. 
+
+````mdx-code-block
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+````
+
+
+When **Message deduplication** is enabled, it ensures that each message produced on Pulsar topics is persisted to disk *only once*, even if the message is produced more than once. Message deduplication is handled automatically on the server side. 
 
 Message deduplication could affect the performance of the brokers during informational snapshots.
 
@@ -38,26 +45,30 @@ Even if you set the value for `brokerDeduplicationEnabled`, enabling or disablin
 
 ### Enable message deduplication at namespace or topic level
 
-Though message deduplication is disabled by default at the broker level, you can enable message deduplication for a specific namespace or topic using the [`pulsar-admin namespaces set-deduplication`](reference-pulsar-admin.md#namespace-set-deduplication) or the [`pulsar-admin topics set-deduplication`](reference-pulsar-admin.md#topic-set-deduplication) command. You can use the `--enable`/`-e` flag and specify the namespace/topic. 
+Though message deduplication is disabled by default at the broker level, you can enable message deduplication for a specific namespace or topic using the [`pulsar-admin namespaces set-deduplication`](/tools/pulsar-admin/) or the [`pulsar-admin topics set-deduplication`](/tools/pulsar-admin/) command. You can use the `--enable`/`-e` flag and specify the namespace/topic. 
 
 The following example shows how to enable message deduplication at the namespace level.
 
 ```bash
+
 $ bin/pulsar-admin namespaces set-deduplication \
   public/default \
   --enable # or just -e
+
 ```
 
 ### Disable message deduplication at namespace or topic level
 
-Even if you enable message deduplication at the broker level, you can disable message deduplication for a specific namespace or topic using the [`pulsar-admin namespace set-deduplication`](reference-pulsar-admin.md#namespace-set-deduplication) or the [`pulsar-admin topics set-deduplication`](reference-pulsar-admin.md#topic-set-deduplication) command. Use the `--disable`/`-d` flag and specify the namespace/topic.
+Even if you enable message deduplication at the broker level, you can disable message deduplication for a specific namespace or topic using the [`pulsar-admin namespace set-deduplication`](/tools/pulsar-admin/) or the [`pulsar-admin topics set-deduplication`](/tools/pulsar-admin/) command. Use the `--disable`/`-d` flag and specify the namespace/topic.
 
 The following example shows how to disable message deduplication at the namespace level.
 
 ```bash
+
 $ bin/pulsar-admin namespaces set-deduplication \
   public/default \
   --disable # or just -d
+
 ```
 
 ## Pulsar clients
@@ -71,12 +82,16 @@ So you need to complete the following tasks for your client producers:
 
 The instructions for Java, Python, and C++ clients are different.
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--Java clients-->
+````mdx-code-block
+<Tabs 
+  defaultValue="Java clients"
+  values={[{"label":"Java clients","value":"Java clients"},{"label":"Python clients","value":"Python clients"},{"label":"C++ clients","value":"C++ clients"}]}>
+<TabItem value="Java clients">
 
 To ensure the guarantee order on a [Java producer](client-libraries-java.md#producers) sending to a topic with message deduplication enabled, set the producer name using the `producerName` setter, and set the timeout to `0` using the `sendTimeout` setter. 
 
 ```java
+
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import java.util.concurrent.TimeUnit;
@@ -89,13 +104,16 @@ Producer producer = pulsarClient.newProducer()
         .topic("persistent://public/default/topic-1")
         .sendTimeout(0, TimeUnit.SECONDS)
         .create();
+
 ```
 
-<!--Python clients-->
+</TabItem>
+<TabItem value="Python clients">
 
 Not to break the guarantee order on a [Python producer](client-libraries-python.md#producers) sending to a topic with message deduplication active, set the producer name using `producer_name`, and set the timeout to `0` using `send_timeout_millis`. 
 
 ```python
+
 import pulsar
 
 client = pulsar.Client("pulsar://localhost:6650")
@@ -103,12 +121,15 @@ producer = client.create_producer(
     "persistent://public/default/topic-1",
     producer_name="producer-1",
     send_timeout_millis=0)
-```
-<!--C++ clients-->
 
+```
+
+</TabItem>
+<TabItem value="C++ clients">
 Not to break the guarantee order on a [C++ producer](client-libraries-cpp.md#producer) sending to a topic with message deduplication active, set the producer name using `producer_name`, and set the timeout to `0` using `send_timeout_millis`. 
 
 ```cpp
+
 #include <pulsar/Client.h>
 
 std::string serviceUrl = "pulsar://localhost:6650";
@@ -124,5 +145,11 @@ producerConfig.setProducerName(producerName);
 Producer producer;
 
 Result result = client.createProducer(topic, producerConfig, producer);
+
 ```
-<!--END_DOCUSAURUS_CODE_TABS-->
+
+</TabItem>
+
+</Tabs>
+````
+

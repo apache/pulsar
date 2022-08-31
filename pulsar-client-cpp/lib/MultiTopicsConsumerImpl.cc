@@ -17,6 +17,7 @@
  * under the License.
  */
 #include "MultiTopicsConsumerImpl.h"
+#include "MultiResultCallback.h"
 
 DECLARE_LOG_OBJECT()
 
@@ -25,7 +26,7 @@ using namespace pulsar;
 MultiTopicsConsumerImpl::MultiTopicsConsumerImpl(ClientImplPtr client, const std::vector<std::string>& topics,
                                                  const std::string& subscriptionName, TopicNamePtr topicName,
                                                  const ConsumerConfiguration& conf,
-                                                 const LookupServicePtr lookupServicePtr)
+                                                 LookupServicePtr lookupServicePtr)
     : client_(client),
       subscriptionName_(subscriptionName),
       topic_(topicName ? topicName->toString() : "EmptyTopics"),
@@ -52,11 +53,18 @@ MultiTopicsConsumerImpl::MultiTopicsConsumerImpl(ClientImplPtr client, const std
     } else {
         unAckedMessageTrackerPtr_.reset(new UnAckedMessageTrackerDisabled());
     }
+    auto partitionsUpdateInterval = static_cast<unsigned int>(client_->conf().getPartitionsUpdateInterval());
+    if (partitionsUpdateInterval > 0) {
+        partitionsUpdateTimer_ = listenerExecutor_->createDeadlineTimer();
+        partitionsUpdateInterval_ = boost::posix_time::seconds(partitionsUpdateInterval);
+        lookupServicePtr_ = client_->getLookup();
+    }
 }
 
 void MultiTopicsConsumerImpl::start() {
     if (topics_.empty()) {
-        if (compareAndSetState(Pending, Ready)) {
+        MultiTopicsConsumerState state = Pending;
+        if (state_.compare_exchange_strong(state, Ready)) {
             LOG_DEBUG("No topics passed in when create MultiTopicsConsumer.");
             multiTopicsConsumerCreatedPromise_.setValue(shared_from_this());
             return;
@@ -81,27 +89,28 @@ void MultiTopicsConsumerImpl::start() {
 void MultiTopicsConsumerImpl::handleOneTopicSubscribed(Result result, Consumer consumer,
                                                        const std::string& topic,
                                                        std::shared_ptr<std::atomic<int>> topicsNeedCreate) {
-    (*topicsNeedCreate)--;
-
     if (result != ResultOk) {
-        setState(Failed);
+        state_ = Failed;
+        // Use the first failed result
+        auto expectedResult = ResultOk;
+        failedResult.compare_exchange_strong(expectedResult, result);
         LOG_ERROR("Failed when subscribed to topic " << topic << " in TopicsConsumer. Error - " << result);
+    } else {
+        LOG_DEBUG("Subscribed to topic " << topic << " in TopicsConsumer ");
     }
 
-    LOG_DEBUG("Subscribed to topic " << topic << " in TopicsConsumer ");
-
-    if (topicsNeedCreate->load() == 0) {
-        if (compareAndSetState(Pending, Ready)) {
+    if (--(*topicsNeedCreate) == 0) {
+        MultiTopicsConsumerState state = Pending;
+        if (state_.compare_exchange_strong(state, Ready)) {
             LOG_INFO("Successfully Subscribed to Topics");
             multiTopicsConsumerCreatedPromise_.setValue(shared_from_this());
         } else {
             LOG_ERROR("Unable to create Consumer - " << consumerStr_ << " Error - " << result);
             // unsubscribed all of the successfully subscribed partitioned consumers
-            closeAsync(nullptr);
-            multiTopicsConsumerCreatedPromise_.setFailed(result);
-            return;
+            // It's safe to capture only this here, because the callback can be called only when this is valid
+            closeAsync(
+                [this](Result result) { multiTopicsConsumerCreatedPromise_.setFailed(failedResult.load()); });
         }
-        return;
     }
 }
 
@@ -115,32 +124,40 @@ Future<Result, Consumer> MultiTopicsConsumerImpl::subscribeOneTopicAsync(const s
         return topicPromise->getFuture();
     }
 
-    if (state_ == Closed || state_ == Closing) {
+    const auto state = state_.load();
+    if (state == Closed || state == Closing) {
         LOG_ERROR("MultiTopicsConsumer already closed when subscribe.");
         topicPromise->setFailed(ResultAlreadyClosed);
         return topicPromise->getFuture();
     }
 
     // subscribe for each partition, when all partitions completed, complete promise
-    lookupServicePtr_->getPartitionMetadataAsync(topicName).addListener(std::bind(
-        &MultiTopicsConsumerImpl::subscribeTopicPartitions, shared_from_this(), std::placeholders::_1,
-        std::placeholders::_2, topicName, subscriptionName_, conf_, topicPromise));
+    Lock lock(mutex_);
+    auto entry = topicsPartitions_.find(topic);
+    if (entry == topicsPartitions_.end()) {
+        lock.unlock();
+        lookupServicePtr_->getPartitionMetadataAsync(topicName).addListener(
+            [this, topicName, topicPromise](Result result, const LookupDataResultPtr& lookupDataResult) {
+                if (result != ResultOk) {
+                    LOG_ERROR("Error Checking/Getting Partition Metadata while MultiTopics Subscribing- "
+                              << consumerStr_ << " result: " << result)
+                    topicPromise->setFailed(result);
+                    return;
+                }
+                subscribeTopicPartitions(lookupDataResult->getPartitions(), topicName, subscriptionName_,
+                                         topicPromise);
+            });
+    } else {
+        auto numPartitions = entry->second;
+        lock.unlock();
+        subscribeTopicPartitions(numPartitions, topicName, subscriptionName_, topicPromise);
+    }
     return topicPromise->getFuture();
 }
 
-void MultiTopicsConsumerImpl::subscribeTopicPartitions(const Result result,
-                                                       const LookupDataResultPtr partitionMetadata,
-                                                       TopicNamePtr topicName,
+void MultiTopicsConsumerImpl::subscribeTopicPartitions(int numPartitions, TopicNamePtr topicName,
                                                        const std::string& consumerName,
-                                                       ConsumerConfiguration conf,
                                                        ConsumerSubResultPromisePtr topicSubResultPromise) {
-    if (result != ResultOk) {
-        LOG_ERROR("Error Checking/Getting Partition Metadata while MultiTopics Subscribing- "
-                  << consumerStr_ << " result: " << result)
-        topicSubResultPromise->setFailed(result);
-        return;
-    }
-
     std::shared_ptr<ConsumerImpl> consumer;
     ConsumerConfiguration config = conf_.clone();
     ExecutorServicePtr internalListenerExecutor = client_->getPartitionListenerExecutorProvider()->get();
@@ -148,7 +165,6 @@ void MultiTopicsConsumerImpl::subscribeTopicPartitions(const Result result,
     config.setMessageListener(std::bind(&MultiTopicsConsumerImpl::messageReceived, shared_from_this(),
                                         std::placeholders::_1, std::placeholders::_2));
 
-    int numPartitions = partitionMetadata->getPartitions();
     int partitions = numPartitions == 0 ? 1 : numPartitions;
 
     // Apply total limit of receiver queue size across partitions
@@ -157,7 +173,7 @@ void MultiTopicsConsumerImpl::subscribeTopicPartitions(const Result result,
                  (int)(conf_.getMaxTotalReceiverQueueSizeAcrossPartitions() / partitions)));
 
     Lock lock(mutex_);
-    topicsPartitions_.insert(std::make_pair(topicName->toString(), partitions));
+    topicsPartitions_[topicName->toString()] = partitions;
     lock.unlock();
     numberTopicPartitions_->fetch_add(partitions);
 
@@ -211,10 +227,13 @@ void MultiTopicsConsumerImpl::handleSingleConsumerCreated(
         return;
     }
 
-    LOG_DEBUG("Successfully Subscribed to a single partition of topic in TopicsConsumer. "
-              << "Partitions need to create - " << previous - 1);
+    LOG_INFO("Successfully Subscribed to a single partition of topic in TopicsConsumer. "
+             << "Partitions need to create : " << previous - 1);
 
     if (partitionsNeedCreate->load() == 0) {
+        if (partitionsUpdateTimer_) {
+            runPartitionUpdateTask();
+        }
         topicSubResultPromise->setValue(Consumer(shared_from_this()));
     }
 }
@@ -222,15 +241,13 @@ void MultiTopicsConsumerImpl::handleSingleConsumerCreated(
 void MultiTopicsConsumerImpl::unsubscribeAsync(ResultCallback callback) {
     LOG_INFO("[ Topics Consumer " << topic_ << "," << subscriptionName_ << "] Unsubscribing");
 
-    Lock lock(mutex_);
-    if (state_ == Closing || state_ == Closed) {
+    const auto state = state_.load();
+    if (state == Closing || state == Closed) {
         LOG_INFO(consumerStr_ << " already closed");
-        lock.unlock();
         callback(ResultAlreadyClosed);
         return;
     }
     state_ = Closing;
-    lock.unlock();
 
     std::shared_ptr<std::atomic<int>> consumerUnsubed = std::make_shared<std::atomic<int>>(0);
     auto self = shared_from_this();
@@ -254,7 +271,7 @@ void MultiTopicsConsumerImpl::handleUnsubscribedAsync(Result result,
     (*consumerUnsubed)++;
 
     if (result != ResultOk) {
-        setState(Failed);
+        state_ = Failed;
         LOG_ERROR("Error Closing one of the consumers in TopicsConsumer, result: "
                   << result << " subscription - " << subscriptionName_);
     }
@@ -266,22 +283,27 @@ void MultiTopicsConsumerImpl::handleUnsubscribedAsync(Result result,
         unAckedMessageTrackerPtr_->clear();
 
         Result result1 = (state_ != Failed) ? ResultOk : ResultUnknownError;
-        setState(Closed);
+        state_ = Closed;
         callback(result1);
         return;
     }
 }
 
 void MultiTopicsConsumerImpl::unsubscribeOneTopicAsync(const std::string& topic, ResultCallback callback) {
+    Lock lock(mutex_);
     std::map<std::string, int>::iterator it = topicsPartitions_.find(topic);
     if (it == topicsPartitions_.end()) {
+        lock.unlock();
         LOG_ERROR("TopicsConsumer does not subscribe topic : " << topic << " subscription - "
                                                                << subscriptionName_);
         callback(ResultTopicNotFound);
         return;
     }
+    int numberPartitions = it->second;
+    lock.unlock();
 
-    if (state_ == Closing || state_ == Closed) {
+    const auto state = state_.load();
+    if (state == Closing || state == Closed) {
         LOG_ERROR("TopicsConsumer already closed when unsubscribe topic: " << topic << " subscription - "
                                                                            << subscriptionName_);
         callback(ResultAlreadyClosed);
@@ -293,7 +315,6 @@ void MultiTopicsConsumerImpl::unsubscribeOneTopicAsync(const std::string& topic,
         LOG_ERROR("TopicName invalid: " << topic);
         callback(ResultUnknownError);
     }
-    int numberPartitions = it->second;
     std::shared_ptr<std::atomic<int>> consumerUnsubed = std::make_shared<std::atomic<int>>(0);
 
     for (int i = 0; i < numberPartitions; i++) {
@@ -318,7 +339,7 @@ void MultiTopicsConsumerImpl::handleOneTopicUnsubscribedAsync(
     (*consumerUnsubed)++;
 
     if (result != ResultOk) {
-        setState(Failed);
+        state_ = Failed;
         LOG_ERROR("Error Closing one of the consumers in TopicsConsumer, result: "
                   << result << " topicPartitionName - " << topicPartitionName);
     }
@@ -350,7 +371,8 @@ void MultiTopicsConsumerImpl::handleOneTopicUnsubscribedAsync(
 }
 
 void MultiTopicsConsumerImpl::closeAsync(ResultCallback callback) {
-    if (state_ == Closing || state_ == Closed) {
+    const auto state = state_.load();
+    if (state == Closing || state == Closed) {
         LOG_ERROR("TopicsConsumer already closed "
                   << " topic" << topic_ << " consumer - " << consumerStr_);
         if (callback) {
@@ -359,64 +381,63 @@ void MultiTopicsConsumerImpl::closeAsync(ResultCallback callback) {
         return;
     }
 
-    setState(Closing);
+    state_ = Closing;
 
-    auto self = shared_from_this();
+    std::weak_ptr<MultiTopicsConsumerImpl> weakSelf{shared_from_this()};
     int numConsumers = 0;
-    consumers_.forEach(
-        [&numConsumers, &self, callback](const std::string& name, const ConsumerImplPtr& consumer) {
+    consumers_.clear(
+        [this, weakSelf, &numConsumers, callback](const std::string& name, const ConsumerImplPtr& consumer) {
+            auto self = weakSelf.lock();
+            if (!self) {
+                return;
+            }
             numConsumers++;
-            consumer->closeAsync([self, name, callback](Result result) {
-                self->handleSingleConsumerClose(result, name, callback);
+            consumer->closeAsync([this, weakSelf, name, callback](Result result) {
+                auto self = weakSelf.lock();
+                if (!self) {
+                    return;
+                }
+                LOG_DEBUG("Closing the consumer for partition - " << name << " numberTopicPartitions_ - "
+                                                                  << numberTopicPartitions_->load());
+                const int numConsumersLeft = --*numberTopicPartitions_;
+                if (numConsumersLeft < 0) {
+                    LOG_ERROR("[" << name << "] Unexpected number of left consumers: " << numConsumersLeft
+                                  << " during close");
+                    return;
+                }
+                if (result != ResultOk) {
+                    state_ = Failed;
+                    LOG_ERROR("Closing the consumer failed for partition - " << name << " with error - "
+                                                                             << result);
+                }
+                // closed all consumers
+                if (numConsumersLeft == 0) {
+                    messages_.clear();
+                    topicsPartitions_.clear();
+                    unAckedMessageTrackerPtr_->clear();
+
+                    if (state_ != Failed) {
+                        state_ = Closed;
+                    }
+
+                    if (callback) {
+                        callback(result);
+                    }
+                }
             });
         });
     if (numConsumers == 0) {
         LOG_DEBUG("TopicsConsumer have no consumers to close "
                   << " topic" << topic_ << " subscription - " << subscriptionName_);
-        setState(Closed);
+        state_ = Closed;
         if (callback) {
             callback(ResultAlreadyClosed);
         }
         return;
     }
 
-    // fail pending recieve
+    // fail pending receive
     failPendingReceiveCallback();
-}
-
-void MultiTopicsConsumerImpl::handleSingleConsumerClose(Result result, std::string topicPartitionName,
-                                                        CloseCallback callback) {
-    consumers_.remove(topicPartitionName);
-
-    LOG_DEBUG("Closing the consumer for partition - " << topicPartitionName << " numberTopicPartitions_ - "
-                                                      << numberTopicPartitions_->load());
-
-    assert(numberTopicPartitions_->load() > 0);
-    numberTopicPartitions_->fetch_sub(1);
-
-    if (result != ResultOk) {
-        setState(Failed);
-        LOG_ERROR("Closing the consumer failed for partition - " << topicPartitionName << " with error - "
-                                                                 << result);
-    }
-
-    // closed all consumers
-    if (numberTopicPartitions_->load() == 0) {
-        messages_.clear();
-        consumers_.clear();
-        topicsPartitions_.clear();
-        unAckedMessageTrackerPtr_->clear();
-
-        if (state_ != Failed) {
-            state_ = Closed;
-        }
-
-        multiTopicsConsumerCreatedPromise_.setFailed(ResultUnknownError);
-        if (callback) {
-            callback(result);
-        }
-        return;
-    }
 }
 
 void MultiTopicsConsumerImpl::messageReceived(Consumer consumer, const Message& msg) {
@@ -436,8 +457,8 @@ void MultiTopicsConsumerImpl::messageReceived(Consumer consumer, const Message& 
         if (messages_.full()) {
             lock.unlock();
         }
-        messages_.push(msg);
-        if (messageListener_) {
+
+        if (messages_.push(msg) && messageListener_) {
             unAckedMessageTrackerPtr_->add(msg.getMessageId());
             listenerExecutor_->postWork(
                 std::bind(&MultiTopicsConsumerImpl::internalListener, shared_from_this(), consumer));
@@ -457,18 +478,14 @@ void MultiTopicsConsumerImpl::internalListener(Consumer consumer) {
 }
 
 Result MultiTopicsConsumerImpl::receive(Message& msg) {
-    Lock lock(mutex_);
     if (state_ != Ready) {
-        lock.unlock();
         return ResultAlreadyClosed;
     }
 
     if (messageListener_) {
-        lock.unlock();
         LOG_ERROR("Can not receive when a listener has been set");
         return ResultInvalidConfiguration;
     }
-    lock.unlock();
     messages_.pop(msg);
 
     unAckedMessageTrackerPtr_->add(msg.getMessageId());
@@ -476,23 +493,22 @@ Result MultiTopicsConsumerImpl::receive(Message& msg) {
 }
 
 Result MultiTopicsConsumerImpl::receive(Message& msg, int timeout) {
-    Lock lock(mutex_);
     if (state_ != Ready) {
-        lock.unlock();
         return ResultAlreadyClosed;
     }
 
     if (messageListener_) {
-        lock.unlock();
         LOG_ERROR("Can not receive when a listener has been set");
         return ResultInvalidConfiguration;
     }
 
-    lock.unlock();
     if (messages_.pop(msg, std::chrono::milliseconds(timeout))) {
         unAckedMessageTrackerPtr_->add(msg.getMessageId());
         return ResultOk;
     } else {
+        if (state_ != Ready) {
+            return ResultAlreadyClosed;
+        }
         return ResultTimeout;
     }
 }
@@ -501,12 +517,10 @@ void MultiTopicsConsumerImpl::receiveAsync(ReceiveCallback& callback) {
     Message msg;
 
     // fail the callback if consumer is closing or closed
-    Lock stateLock(mutex_);
     if (state_ != Ready) {
         callback(ResultAlreadyClosed, msg);
         return;
     }
-    stateLock.unlock();
 
     Lock lock(pendingReceiveMutex_);
     if (messages_.pop(msg, std::chrono::milliseconds(0))) {
@@ -520,6 +534,9 @@ void MultiTopicsConsumerImpl::receiveAsync(ReceiveCallback& callback) {
 
 void MultiTopicsConsumerImpl::failPendingReceiveCallback() {
     Message msg;
+
+    messages_.close();
+
     Lock lock(pendingReceiveMutex_);
     while (!pendingReceives_.empty()) {
         ReceiveCallback callback = pendingReceives_.front();
@@ -571,30 +588,11 @@ const std::string& MultiTopicsConsumerImpl::getTopic() const { return topic_; }
 
 const std::string& MultiTopicsConsumerImpl::getName() const { return consumerStr_; }
 
-void MultiTopicsConsumerImpl::setState(const MultiTopicsConsumerState state) {
-    Lock lock(mutex_);
-    state_ = state;
-}
-
-bool MultiTopicsConsumerImpl::compareAndSetState(MultiTopicsConsumerState expect,
-                                                 MultiTopicsConsumerState update) {
-    Lock lock(mutex_);
-    if (state_ == expect) {
-        state_ = update;
-        return true;
-    } else {
-        return false;
-    }
-}
-
 void MultiTopicsConsumerImpl::shutdown() {}
 
 bool MultiTopicsConsumerImpl::isClosed() { return state_ == Closed; }
 
-bool MultiTopicsConsumerImpl::isOpen() {
-    Lock lock(mutex_);
-    return state_ == Ready;
-}
+bool MultiTopicsConsumerImpl::isOpen() { return state_ == Ready; }
 
 void MultiTopicsConsumerImpl::receiveMessages() {
     const auto receiverQueueSize = conf_.getReceiverQueueSize();
@@ -644,12 +642,11 @@ void MultiTopicsConsumerImpl::redeliverUnacknowledgedMessages(const std::set<Mes
 int MultiTopicsConsumerImpl::getNumOfPrefetchedMessages() const { return messages_.size(); }
 
 void MultiTopicsConsumerImpl::getBrokerConsumerStatsAsync(BrokerConsumerStatsCallback callback) {
-    Lock lock(mutex_);
     if (state_ != Ready) {
-        lock.unlock();
         callback(ResultConsumerNotInitialized, BrokerConsumerStats());
         return;
     }
+    Lock lock(mutex_);
     MultiTopicsBrokerConsumerStatsPtr statsPtr =
         std::make_shared<MultiTopicsBrokerConsumerStatsImpl>(numberTopicPartitions_->load());
     LatchPtr latchPtr = std::make_shared<Latch>(numberTopicPartitions_->load());
@@ -705,7 +702,15 @@ void MultiTopicsConsumerImpl::seekAsync(const MessageId& msgId, ResultCallback c
 }
 
 void MultiTopicsConsumerImpl::seekAsync(uint64_t timestamp, ResultCallback callback) {
-    callback(ResultOperationNotSupported);
+    if (state_ != Ready) {
+        callback(ResultAlreadyClosed);
+        return;
+    }
+
+    MultiResultCallback multiResultCallback(callback, consumers_.size());
+    consumers_.forEachValue([&timestamp, &multiResultCallback](ConsumerImplPtr consumer) {
+        consumer->seekAsync(timestamp, multiResultCallback);
+    });
 }
 
 void MultiTopicsConsumerImpl::setNegativeAcknowledgeEnabledForTesting(bool enabled) {
@@ -715,11 +720,9 @@ void MultiTopicsConsumerImpl::setNegativeAcknowledgeEnabledForTesting(bool enabl
 }
 
 bool MultiTopicsConsumerImpl::isConnected() const {
-    Lock lock(mutex_);
     if (state_ != Ready) {
         return false;
     }
-    lock.unlock();
 
     return consumers_
         .findFirstValueIf([](const ConsumerImplPtr& consumer) { return !consumer->isConnected(); })
@@ -734,4 +737,86 @@ uint64_t MultiTopicsConsumerImpl::getNumberOfConnectedConsumer() {
         }
     });
     return numberOfConnectedConsumer;
+}
+void MultiTopicsConsumerImpl::runPartitionUpdateTask() {
+    partitionsUpdateTimer_->expires_from_now(partitionsUpdateInterval_);
+    auto self = shared_from_this();
+    partitionsUpdateTimer_->async_wait([self](const boost::system::error_code& ec) {
+        // If two requests call runPartitionUpdateTask at the same time, the timer will fail, and it
+        // cannot continue at this time, and the request needs to be ignored.
+        if (!ec) {
+            self->topicPartitionUpdate();
+        }
+    });
+}
+void MultiTopicsConsumerImpl::topicPartitionUpdate() {
+    using namespace std::placeholders;
+    Lock lock(mutex_);
+    auto topicsPartitions = topicsPartitions_;
+    lock.unlock();
+    for (const auto& item : topicsPartitions) {
+        auto topicName = TopicName::get(item.first);
+        auto currentNumPartitions = item.second;
+        lookupServicePtr_->getPartitionMetadataAsync(topicName).addListener(
+            std::bind(&MultiTopicsConsumerImpl::handleGetPartitions, shared_from_this(), topicName,
+                      std::placeholders::_1, std::placeholders::_2, currentNumPartitions));
+    }
+}
+void MultiTopicsConsumerImpl::handleGetPartitions(TopicNamePtr topicName, Result result,
+                                                  const LookupDataResultPtr& lookupDataResult,
+                                                  int currentNumPartitions) {
+    if (state_ != Ready) {
+        return;
+    }
+    if (!result) {
+        const auto newNumPartitions = static_cast<unsigned int>(lookupDataResult->getPartitions());
+        if (newNumPartitions > currentNumPartitions) {
+            LOG_INFO("new partition count: " << newNumPartitions
+                                             << " current partition count: " << currentNumPartitions);
+            auto partitionsNeedCreate =
+                std::make_shared<std::atomic<int>>(newNumPartitions - currentNumPartitions);
+            ConsumerSubResultPromisePtr topicPromise = std::make_shared<Promise<Result, Consumer>>();
+            Lock lock(mutex_);
+            topicsPartitions_[topicName->toString()] = newNumPartitions;
+            lock.unlock();
+            numberTopicPartitions_->fetch_add(newNumPartitions - currentNumPartitions);
+            for (unsigned int i = currentNumPartitions; i < newNumPartitions; i++) {
+                subscribeSingleNewConsumer(newNumPartitions, topicName, i, topicPromise,
+                                           partitionsNeedCreate);
+            }
+            // `runPartitionUpdateTask()` will be called in `handleSingleConsumerCreated()`
+            return;
+        }
+    } else {
+        LOG_WARN("Failed to getPartitionMetadata: " << strResult(result));
+    }
+    runPartitionUpdateTask();
+}
+
+void MultiTopicsConsumerImpl::subscribeSingleNewConsumer(
+    int numPartitions, TopicNamePtr topicName, int partitionIndex,
+    ConsumerSubResultPromisePtr topicSubResultPromise,
+    std::shared_ptr<std::atomic<int>> partitionsNeedCreate) {
+    ConsumerConfiguration config = conf_.clone();
+    ExecutorServicePtr internalListenerExecutor = client_->getPartitionListenerExecutorProvider()->get();
+    config.setMessageListener(std::bind(&MultiTopicsConsumerImpl::messageReceived, shared_from_this(),
+                                        std::placeholders::_1, std::placeholders::_2));
+
+    // Apply total limit of receiver queue size across partitions
+    config.setReceiverQueueSize(
+        std::min(conf_.getReceiverQueueSize(),
+                 (int)(conf_.getMaxTotalReceiverQueueSizeAcrossPartitions() / numPartitions)));
+
+    std::string topicPartitionName = topicName->getTopicPartitionName(partitionIndex);
+
+    auto consumer = std::make_shared<ConsumerImpl>(client_, topicPartitionName, subscriptionName_, config,
+                                                   internalListenerExecutor, true, Partitioned);
+    consumer->getConsumerCreatedFuture().addListener(
+        std::bind(&MultiTopicsConsumerImpl::handleSingleConsumerCreated, shared_from_this(),
+                  std::placeholders::_1, std::placeholders::_2, partitionsNeedCreate, topicSubResultPromise));
+    consumer->setPartitionIndex(partitionIndex);
+    consumer->start();
+    consumers_.emplace(topicPartitionName, consumer);
+    LOG_INFO("Add Creating Consumer for - " << topicPartitionName << " - " << consumerStr_
+                                            << " consumerSize: " << consumers_.size());
 }

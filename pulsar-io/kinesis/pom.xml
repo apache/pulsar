@@ -30,6 +30,14 @@
   <artifactId>pulsar-io-kinesis</artifactId>
   <name>Pulsar IO :: Kinesis</name>
 
+  <properties>
+    <amazon-kinesis-client.version>2.2.8</amazon-kinesis-client.version>
+    <amazon-kinesis-producer.version>0.14.0</amazon-kinesis-producer.version>
+    <json-flattener.version>0.13.0</json-flattener.version>
+    <flatbuffers-java.version>1.9.0</flatbuffers-java.version>
+    <jaxb-api.version>2.3.0</jaxb-api.version>
+  </properties>
+
   <dependencies>
     <dependency>
       <groupId>${project.groupId}</groupId>
@@ -85,6 +93,12 @@
     </dependency>
 
     <dependency>
+      <groupId>com.github.wnameless.json</groupId>
+      <artifactId>json-flattener</artifactId>
+      <version>${json-flattener.version}</version>
+    </dependency>
+
+    <dependency>
       <groupId>com.google.code.gson</groupId>
       <artifactId>gson</artifactId>
     </dependency>
@@ -98,26 +112,26 @@
     <dependency>
       <groupId>software.amazon.kinesis</groupId>
       <artifactId>amazon-kinesis-client</artifactId>
-      <version>2.2.8</version>
+      <version>${amazon-kinesis-client.version}</version>
     </dependency>
 
     <dependency>
       <groupId>com.amazonaws</groupId>
       <artifactId>amazon-kinesis-producer</artifactId>
-      <version>0.14.0</version>
+      <version>${amazon-kinesis-producer.version}</version>
     </dependency>
 	<!-- /kinesis dependencies -->
 
     <dependency>
       <groupId>com.google.flatbuffers</groupId>
       <artifactId>flatbuffers-java</artifactId>
-      <version>1.9.0</version>
+      <version>${flatbuffers-java.version}</version>
     </dependency>
 
     <dependency>
       <groupId>javax.xml.bind</groupId>
       <artifactId>jaxb-api</artifactId>
-      <version>2.3.0</version>
+      <version>${jaxb-api.version}</version>
     </dependency>
 
     <dependency>

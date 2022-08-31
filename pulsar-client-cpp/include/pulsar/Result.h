@@ -88,6 +88,8 @@ enum Result
     ResultProducerFenced,                            /// Producer was fenced by broker
 
     ResultMemoryBufferIsFull,  /// Client-wide memory limit has been reached
+
+    ResultInterrupted,  /// Interrupted while waiting to dequeue
 };
 
 // Return string representation of result code

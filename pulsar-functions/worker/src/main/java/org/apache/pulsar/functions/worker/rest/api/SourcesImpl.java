@@ -377,12 +377,16 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
                                 ComponentTypeUtils.toString(componentType) + " Package is not provided");
                     }
                 } else {
-
                     componentPackageFile = FunctionCommon.createPkgTempFile();
                     componentPackageFile.deleteOnExit();
-                    WorkerUtils.downloadFromBookkeeper(worker().getDlogNamespace(), componentPackageFile,
-                            existingComponent.getPackageLocation().getPackagePath());
-
+                    if (worker().getWorkerConfig().isFunctionsWorkerEnablePackageManagement()) {
+                        worker().getBrokerAdmin().packages().download(
+                                existingComponent.getPackageLocation().getPackagePath(),
+                                componentPackageFile.getAbsolutePath());
+                    } else {
+                        WorkerUtils.downloadFromBookkeeper(worker().getDlogNamespace(), componentPackageFile,
+                                existingComponent.getPackageLocation().getPackagePath());
+                    }
                     functionDetails = validateUpdateRequestParams(tenant, namespace, sourceName,
                             mergedConfig, componentPackageFile);
                 }

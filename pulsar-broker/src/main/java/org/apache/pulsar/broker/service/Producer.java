@@ -128,7 +128,7 @@ public class Producer {
         stats.setClientVersion(cnx.getClientVersion());
         stats.setProducerName(producerName);
         stats.producerId = producerId;
-        if (serviceConf.isAggregatePublisherStatsByProducerName()) {
+        if (serviceConf.isAggregatePublisherStatsByProducerName() && stats.getProducerName() != null) {
             // If true and the client supports partial producer,
             // aggregate publisher stats of PartitionedTopicStats by producerName.
             // Otherwise, aggregate it by list index.

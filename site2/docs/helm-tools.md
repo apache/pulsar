@@ -1,7 +1,7 @@
 ---
 id: helm-tools
 title: Required tools for deploying Pulsar Helm Chart
-sidebar_label: Required Tools
+sidebar_label: "Required Tools"
 ---
 
 Before deploying Pulsar to your Kubernetes cluster, there are some tools you must have installed locally.

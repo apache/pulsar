@@ -22,8 +22,8 @@ import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
 
 public class PulsarFunctionsGoProcessTest extends PulsarFunctionsGoTest {
 
-	PulsarFunctionsGoProcessTest() {
-		super(FunctionRuntimeType.PROCESS);
-	}
+    PulsarFunctionsGoProcessTest() {
+        super(FunctionRuntimeType.PROCESS);
+    }
 
 }

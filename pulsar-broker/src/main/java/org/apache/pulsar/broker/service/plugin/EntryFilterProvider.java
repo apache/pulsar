@@ -19,11 +19,13 @@
 package org.apache.pulsar.broker.service.plugin;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import lombok.extern.slf4j.Slf4j;
@@ -31,16 +33,40 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.nar.NarClassLoaderBuilder;
+import org.apache.pulsar.common.policies.data.EntryFilters;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 @Slf4j
 public class EntryFilterProvider {
 
-    static final String ENTRY_FILTER_DEFINITION_FILE = "entry_filter.yml";
+    @VisibleForTesting
+    static final String ENTRY_FILTER_DEFINITION_FILE = "entry_filter";
 
     /**
      * create entry filter instance.
      */
+    public static ImmutableMap<String, EntryFilterWithClassLoader> createEntryFilters(ServiceConfiguration conf,
+                                                                                      EntryFilters entryFilters)
+            throws IOException {
+        EntryFilterDefinitions definitions = searchForEntryFilters(conf.getEntryFiltersDirectory(),
+                conf.getNarExtractionDirectory());
+        ImmutableMap.Builder<String, EntryFilterWithClassLoader> builder = ImmutableMap.builder();
+        for (String filterName : entryFilters.getEntryFilterNames().split(",")) {
+            EntryFilterMetaData metaData = definitions.getFilters().get(filterName);
+            if (null == metaData) {
+                throw new RuntimeException("No entry filter is found for name `" + filterName
+                        + "`. Available entry filters are : " + definitions.getFilters());
+            }
+            EntryFilterWithClassLoader filter;
+            filter = load(metaData, conf.getNarExtractionDirectory());
+            if (filter != null) {
+                builder.put(filterName, filter);
+            }
+            log.info("Successfully loaded entry filter for name `{}` from topic policy", filterName);
+        }
+        return builder.build();
+    }
+
     public static ImmutableMap<String, EntryFilterWithClassLoader> createEntryFilters(
             ServiceConfiguration conf) throws IOException {
         EntryFilterDefinitions definitions = searchForEntryFilters(conf.getEntryFiltersDirectory(),
@@ -112,8 +138,15 @@ public class EntryFilterProvider {
         }
     }
 
-    private static EntryFilterDefinition getEntryFilterDefinition(NarClassLoader ncl) throws IOException {
-        String configStr = ncl.getServiceDefinition(ENTRY_FILTER_DEFINITION_FILE);
+    @VisibleForTesting
+    static EntryFilterDefinition getEntryFilterDefinition(NarClassLoader ncl) throws IOException {
+        String configStr;
+
+        try {
+            configStr = ncl.getServiceDefinition(ENTRY_FILTER_DEFINITION_FILE + ".yaml");
+        } catch (NoSuchFileException e) {
+            configStr = ncl.getServiceDefinition(ENTRY_FILTER_DEFINITION_FILE + ".yml");
+        }
 
         return ObjectMapperFactory.getThreadLocalYaml().readValue(
                 configStr, EntryFilterDefinition.class

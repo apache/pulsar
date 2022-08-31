@@ -30,8 +30,12 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 import java.nio.ByteBuffer;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -50,6 +54,8 @@ import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
+import org.apache.pulsar.common.io.SinkConfig;
+import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.instance.state.BKStateStoreImpl;
@@ -57,7 +63,9 @@ import org.apache.pulsar.functions.instance.state.InstanceStateManager;
 import org.apache.pulsar.functions.instance.stats.FunctionCollectorRegistry;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.secretsprovider.EnvironmentBasedSecretsProvider;
+import org.apache.pulsar.functions.source.PulsarFunctionRecord;
 import org.apache.pulsar.io.core.SinkContext;
+import org.apache.pulsar.io.core.SourceContext;
 import org.assertj.core.util.Lists;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
@@ -76,9 +84,9 @@ public class ContextImplTest {
     private PulsarClientImpl client;
     private PulsarAdmin pulsarAdmin;
     private ContextImpl context;
-    private Producer producer = mock(Producer.class);
+    private Producer producer;
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     public void setup() throws PulsarClientException {
         config = new InstanceConfig();
         config.setExposePulsarAdminClientEnabled(true);
@@ -89,6 +97,7 @@ public class ContextImplTest {
         logger = mock(Logger.class);
         pulsarAdmin = mock(PulsarAdmin.class);
 
+        producer = mock(Producer.class);
         client = mock(PulsarClientImpl.class);
         when(client.newProducer()).thenReturn(new ProducerBuilderImpl(client, Schema.BYTES));
         when(client.createProducerAsync(any(ProducerConfigurationData.class), any(), any()))
@@ -135,6 +144,26 @@ public class ContextImplTest {
     @Test(expectedExceptions = IllegalStateException.class)
     public void testGetStateStateDisabled() {
         context.getState("test-key");
+    }
+
+    @Test
+    public void testGetSinkConfig() {
+        SinkContext sinkContext = context;
+        SinkConfig sinkConfig = sinkContext.getSinkConfig();
+        Assert.assertNotNull(sinkConfig);
+    }
+
+    @Test
+    public void testGetSourceConfig() {
+        SourceContext sourceContext = context;
+        SourceConfig sinkConfig = sourceContext.getSourceConfig();
+        Assert.assertNotNull(sinkConfig);
+    }
+
+    @Test
+    public void testGetCurrentRecord() {
+        Record<?> currentRecord = context.getCurrentRecord();
+        assertTrue(currentRecord instanceof PulsarFunctionRecord<?>);
     }
 
     @Test
@@ -341,5 +370,69 @@ public class ContextImplTest {
             // pass
         }
 
+    }
+
+    @Test
+    public void testNewOutputRecordBuilder() {
+        Map<String, String> properties = new HashMap<>();
+        properties.put("prop-key", "prop-value");
+        long now = System.currentTimeMillis();
+        context.setCurrentMessageContext(new Record<String>() {
+            @Override
+            public Optional<String> getTopicName() {
+                return Optional.of("input-topic");
+            }
+
+            @Override
+            public Optional<String> getKey() {
+                return Optional.of("input-key");
+            }
+
+            @Override
+            public Schema<String> getSchema() {
+                return Schema.STRING;
+            }
+
+            @Override
+            public String getValue() {
+                return "input-value";
+            }
+
+            @Override
+            public Optional<Long> getEventTime() {
+                return Optional.of(now);
+            }
+
+            @Override
+            public Optional<String> getPartitionId() {
+                return Optional.of("input-partition-id");
+            }
+
+            @Override
+            public Optional<Integer> getPartitionIndex() {
+                return Optional.of(42);
+            }
+
+            @Override
+            public Optional<Long> getRecordSequence() {
+                return Optional.of(43L);
+            }
+
+            @Override
+            public Map<String, String> getProperties() {
+                return properties;
+            }
+        });
+        Record<Integer> record = context.newOutputRecordBuilder(Schema.INT32).build();
+        assertEquals(record.getSchema(), Schema.INT32);
+        assertEquals(record.getTopicName().get(), "input-topic");
+        assertEquals(record.getKey().get(), "input-key");
+        assertEquals(record.getEventTime(), Optional.of(now));
+        assertEquals(record.getPartitionId().get(), "input-partition-id");
+        assertEquals(record.getPartitionIndex(), Optional.of(42));
+        assertEquals(record.getRecordSequence(), Optional.of(43L));
+        assertTrue(record.getProperties().containsKey("prop-key"));
+        assertEquals(record.getProperties().get("prop-key"), "prop-value");
+        assertNull(record.getValue());
     }
 }

@@ -39,18 +39,24 @@
     <maven.compiler.source>1.8</maven.compiler.source>
     <maven.compiler.target>1.8</maven.compiler.target>
     <surefire.version>3.0.0-M3</surefire.version>
-    <log4j2.version>2.17.1</log4j2.version>
+    <log4j2.version>2.18.0</log4j2.version>
     <slf4j.version>1.7.32</slf4j.version>
     <testng.version>7.3.0</testng.version>
     <commons-lang3.version>3.11</commons-lang3.version>
     <maven-shade-plugin.version>3.2.4</maven-shade-plugin.version>
     <puppycrawl.checkstyle.version>8.37</puppycrawl.checkstyle.version>
     <maven-checkstyle-plugin.version>3.1.2</maven-checkstyle-plugin.version>
+    <netty.version>4.1.77.Final</netty.version>
     <guice.version>4.2.3</guice.version>
     <guava.version>31.0.1-jre</guava.version>
     <ant.version>1.10.12</ant.version>
     <snakeyaml.version>1.30</snakeyaml.version>
-    <test.additional.args></test.additional.args>
+    <mockito.version>3.12.4</mockito.version>
+    <!-- required for running tests on JDK11+ -->
+    <test.additional.args>
+      --add-opens java.base/jdk.internal.loader=ALL-UNNAMED
+      --add-opens java.base/java.lang=ALL-UNNAMED <!--Mockito-->
+    </test.additional.args>
   </properties>
 
   <dependencyManagement>
@@ -94,11 +100,6 @@
       <version>${testng.version}</version>
     </dependency>
     <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
-      <version>4.13.1</version>
-    </dependency>
-    <dependency>
       <groupId>org.apache.logging.log4j</groupId>
       <artifactId>log4j-api</artifactId>
     </dependency>
@@ -109,10 +110,6 @@
     <dependency>
       <groupId>org.apache.logging.log4j</groupId>
       <artifactId>log4j-slf4j-impl</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.logging.log4j</groupId>
-      <artifactId>log4j-1.2-api</artifactId>
     </dependency>
     <dependency>
       <groupId>org.slf4j</groupId>
@@ -134,8 +131,18 @@
     <dependency>
       <groupId>io.netty</groupId>
       <artifactId>netty-common</artifactId>
-      <version>4.1.76.Final</version>
+      <version>${netty.version}</version>
       <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
+      <version>${mockito.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-inline</artifactId>
+      <version>${mockito.version}</version>
     </dependency>
   </dependencies>
 
@@ -194,6 +201,14 @@
               <shadedPattern>org.apache.pulsar.buildtools.shaded.org.apache.commons.lang3</shadedPattern>
             </relocation>
           </relocations>
+          <filters>
+            <filter>
+              <artifact>org.apache.commons:commons-lang3</artifact>
+              <excludes>
+                <exclude>META-INF/MANIFEST.MF</exclude>
+              </excludes>
+            </filter>
+          </filters>
         </configuration>
         <executions>
           <execution>
@@ -242,19 +257,4 @@
       </extension>
     </extensions>
   </build>
-  <profiles>
-    <profile>
-      <id>jdk11</id>
-      <activation>
-        <jdk>[11,)</jdk>
-      </activation>
-      <properties>
-        <!-- required for running tests on JDK11+ -->
-        <test.additional.args>
-          --add-opens java.base/jdk.internal.loader=ALL-UNNAMED
-          --add-opens java.base/java.lang=ALL-UNNAMED <!--Mockito-->
-        </test.additional.args>
-      </properties>
-    </profile>
-  </profiles>
 </project>

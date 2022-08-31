@@ -28,7 +28,7 @@ import java.util.Map.Entry;
 import java.util.NavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
+import org.apache.commons.lang.mutable.MutableInt;
 
 /**
  * A Concurrent set comprising zero or more ranges of type {@link LongPair}. This can be alternative of
@@ -245,12 +245,12 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
     @Override
     public int size() {
         if (updatedAfterCachedForSize) {
-            AtomicInteger size = new AtomicInteger(0);
+            MutableInt size = new MutableInt(0);
             forEach((range) -> {
-                size.getAndIncrement();
+                size.increment();
                 return true;
             });
-            cachedSize = size.get();
+            cachedSize = size.intValue();
             updatedAfterCachedForSize = false;
         }
         return cachedSize;

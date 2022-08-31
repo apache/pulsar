@@ -93,7 +93,7 @@ jobs:
         run: mvn -q -B -ntp clean verify -PskipDocker,owasp-dependency-check -DskipTests -pl '!pulsar-sql,!distribution/io,!distribution/offloaders,!tiered-storage/file-system,!pulsar-io/flume,!pulsar-io/hbase,!pulsar-io/hdfs2,!pulsar-io/hdfs3,!pulsar-io/docs,!pulsar-io/jdbc/openmldb'
 
       - name: Upload report
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: ${{ cancelled() || failure() }}
         continue-on-error: true
         with:

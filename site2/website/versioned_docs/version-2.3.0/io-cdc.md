@@ -1,7 +1,7 @@
 ---
-id: version-2.3.0-io-cdc
+id: io-cdc
 title: CDC Connector
-sidebar_label: CDC Connector
+sidebar_label: "CDC Connector"
 original_id: io-cdc
 ---
 

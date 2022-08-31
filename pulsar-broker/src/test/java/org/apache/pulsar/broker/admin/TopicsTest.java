@@ -18,8 +18,28 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.verify;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.google.common.collect.Sets;
+import java.io.ByteArrayOutputStream;
+import java.net.URI;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import javax.ws.rs.container.AsyncResponse;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.UriInfo;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -73,26 +93,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-import javax.ws.rs.container.AsyncResponse;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.UriInfo;
-import java.io.ByteArrayOutputStream;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.timeout;
-import static org.mockito.Mockito.verify;
 
 public class TopicsTest extends MockedPulsarServiceBaseTest {
 
@@ -112,9 +112,9 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         doReturn("test-app").when(topics).clientAppId();
         doReturn(mock(AuthenticationDataHttps.class)).when(topics).clientAuthData();
         admin.clusters().createCluster(testLocalCluster, new ClusterDataImpl());
-        admin.tenants().createTenant(testTenant, new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet(testLocalCluster)));
+        admin.tenants().createTenant(testTenant, new TenantInfoImpl(Set.of("role1", "role2"), Set.of(testLocalCluster)));
         admin.namespaces().createNamespace(testTenant + "/" + testNamespace,
-                Sets.newHashSet(testLocalCluster));
+                                           Set.of(testLocalCluster));
     }
 
     @Override
@@ -313,13 +313,13 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testLookUpWithRedirect() throws Exception {
         String topicName = "persistent://" + testTenant + "/" + testNamespace + "/" + testTopicName;
-        String requestPath = "/admin/v3/topics/my-tenant/my-namespace/my-topic";
+        URI requestPath = URI.create(pulsar.getWebServiceAddress() + "/topics/my-tenant/my-namespace/my-topic");
         //create topic on one broker
         admin.topics().createNonPartitionedTopic(topicName);
         PulsarService pulsar2 = startBroker(getDefaultConf());
         doReturn(false).when(topics).isRequestHttps();
         UriInfo uriInfo = mock(UriInfo.class);
-        doReturn(requestPath).when(uriInfo).getPath(anyBoolean());
+        doReturn(requestPath).when(uriInfo).getRequestUri();
         Whitebox.setInternalState(topics, "uri", uriInfo);
         //do produce on another broker
         topics.setPulsar(pulsar2);
@@ -336,8 +336,7 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         // Verify got redirect response
         Assert.assertEquals(responseCaptor.getValue().getStatusInfo(), Response.Status.TEMPORARY_REDIRECT);
         // Verify URI point to address of broker the topic was created on
-        Assert.assertEquals(responseCaptor.getValue().getLocation().toString(),
-                pulsar.getWebServiceAddress() + requestPath);
+        Assert.assertEquals(responseCaptor.getValue().getLocation().toString(), requestPath.toString());
     }
     
     @Test
@@ -383,7 +382,9 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         topics.produceOnPersistentTopic(asyncResponse, testTenant, testNamespace, testTopicName, false, producerMessages);
         ArgumentCaptor<RestException> responseCaptor = ArgumentCaptor.forClass(RestException.class);
         verify(asyncResponse, timeout(5000).times(1)).resume(responseCaptor.capture());
-        Assert.assertEquals(responseCaptor.getValue().getMessage(), "Fail to publish message: Topic not exist");
+        System.out.println(responseCaptor.getValue().getMessage());
+        Assert.assertTrue(responseCaptor.getValue().getMessage()
+                .contains(String.format("Topic %s not found", topicName)));
     }
 
     @Test

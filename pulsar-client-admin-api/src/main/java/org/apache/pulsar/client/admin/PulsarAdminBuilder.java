@@ -37,6 +37,29 @@ public interface PulsarAdminBuilder {
     PulsarAdmin build() throws PulsarClientException;
 
     /**
+     * Load the configuration from provided <tt>config</tt> map.
+     *
+     * <p>Example:
+     *
+     * <pre>
+     * {@code
+     * Map<String, Object> config = new HashMap<>();
+     * config.put("serviceHttpUrl", "http://localhost:6650");
+     *
+     * PulsarAdminBuilder builder = ...;
+     * builder = builder.loadConf(config);
+     *
+     * PulsarAdmin client = builder.build();
+     * }
+     * </pre>
+     *
+     * @param config
+     *            configuration to load
+     * @return the client builder instance
+     */
+    PulsarAdminBuilder loadConf(Map<String, Object> config);
+
+    /**
      * Create a copy of the current client builder.
      * <p/>
      * Cloning the builder can be used to share an incomplete configuration and specialize it multiple times. For
@@ -146,6 +169,22 @@ public interface PulsarAdminBuilder {
     PulsarAdminBuilder authentication(Authentication authentication);
 
     /**
+     * Set the path to the TLS key file.
+     *
+     * @param tlsKeyFilePath
+     * @return the admin builder instance
+     */
+    PulsarAdminBuilder tlsKeyFilePath(String tlsKeyFilePath);
+
+    /**
+     * Set the path to the TLS certificate file.
+     *
+     * @param tlsCertificateFilePath
+     * @return the admin builder instance
+     */
+    PulsarAdminBuilder tlsCertificateFilePath(String tlsCertificateFilePath);
+
+    /**
      * Set the path to the trusted TLS certificate file.
      *
      * @param tlsTrustCertsFilePath
@@ -185,6 +224,30 @@ public interface PulsarAdminBuilder {
      * @param sslProvider
      */
     PulsarAdminBuilder sslProvider(String sslProvider);
+
+    /**
+     * The file format of the key store file.
+     *
+     * @param tlsKeyStoreType
+     * @return the admin builder instance
+     */
+    PulsarAdminBuilder tlsKeyStoreType(String tlsKeyStoreType);
+
+    /**
+     * The location of the key store file.
+     *
+     * @param tlsTrustStorePath
+     * @return the admin builder instance
+     */
+    PulsarAdminBuilder tlsKeyStorePath(String tlsTrustStorePath);
+
+    /**
+     * The store password for the key store file.
+     *
+     * @param tlsKeyStorePassword
+     * @return the admin builder instance
+     */
+    PulsarAdminBuilder tlsKeyStorePassword(String tlsKeyStorePassword);
 
     /**
      * The file format of the trust store file.

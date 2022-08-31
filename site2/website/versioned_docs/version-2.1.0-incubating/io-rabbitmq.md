@@ -1,7 +1,7 @@
 ---
-id: version-2.1.0-incubating-io-rabbitmq
+id: io-rabbitmq
 title: RabbitMQ Connector
-sidebar_label: RabbitMQ Connector
+sidebar_label: "RabbitMQ Connector"
 original_id: io-rabbitmq
 ---
 

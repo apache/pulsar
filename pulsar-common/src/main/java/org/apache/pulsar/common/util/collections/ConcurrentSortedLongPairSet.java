@@ -24,8 +24,8 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
+import org.apache.commons.lang.mutable.MutableInt;
+import org.apache.commons.lang.mutable.MutableLong;
 import org.apache.pulsar.common.util.collections.ConcurrentLongPairSet.LongPair;
 import org.apache.pulsar.common.util.collections.ConcurrentLongPairSet.LongPairConsumer;
 
@@ -113,14 +113,14 @@ public class ConcurrentSortedLongPairSet implements LongPairSet {
 
     @Override
     public int removeIf(LongPairPredicate filter) {
-        AtomicInteger removedValues = new AtomicInteger(0);
+        MutableInt removedValues = new MutableInt(0);
         longPairSets.forEach((item1, longPairSet) -> {
-            removedValues.addAndGet(longPairSet.removeIf(filter));
+            removedValues.add(longPairSet.removeIf(filter));
             if (longPairSet.isEmpty() && longPairSets.size() > maxAllowedSetOnRemove) {
                 longPairSets.remove(item1, longPairSet);
             }
         });
-        return removedValues.get();
+        return removedValues.intValue();
     }
 
     @Override
@@ -130,12 +130,7 @@ public class ConcurrentSortedLongPairSet implements LongPairSet {
 
     @Override
     public void forEach(LongPairConsumer processor) {
-        for (Long item1 : longPairSets.navigableKeySet()) {
-            ConcurrentLongPairSet messagesToReplay = longPairSets.get(item1);
-            messagesToReplay.forEach((i1, i2) -> {
-                processor.accept(i1, i2);
-            });
-        }
+        longPairSets.forEach((__, longPairSet) -> longPairSet.forEach(processor));
     }
 
     @Override
@@ -146,15 +141,12 @@ public class ConcurrentSortedLongPairSet implements LongPairSet {
     @Override
     public <T> Set<T> items(int numberOfItems, LongPairFunction<T> longPairConverter) {
         NavigableSet<T> items = new TreeSet<>();
-        for (Long item1 : longPairSets.navigableKeySet()) {
-            ConcurrentLongPairSet messagesToReplay = longPairSets.get(item1);
-            messagesToReplay.forEach((i1, i2) -> {
-                items.add(longPairConverter.apply(i1, i2));
-                if (items.size() > numberOfItems) {
-                    items.pollLast();
-                }
-            });
-        }
+        forEach((i1, i2) -> {
+            items.add(longPairConverter.apply(i1, i2));
+            if (items.size() > numberOfItems) {
+                items.pollLast();
+            }
+        });
         return items;
     }
 
@@ -199,20 +191,16 @@ public class ConcurrentSortedLongPairSet implements LongPairSet {
 
     @Override
     public long size() {
-        AtomicLong size = new AtomicLong(0);
-        longPairSets.forEach((item1, longPairSet) -> {
-            size.getAndAdd(longPairSet.size());
-        });
-        return size.get();
+        MutableLong size = new MutableLong(0);
+        longPairSets.forEach((__, longPairSet) -> size.add(longPairSet.size()));
+        return size.longValue();
     }
 
     @Override
     public long capacity() {
-        AtomicLong capacity = new AtomicLong(0);
-        longPairSets.forEach((item1, longPairSet) -> {
-            capacity.getAndAdd(longPairSet.capacity());
-        });
-        return capacity.get();
+        MutableLong capacity = new MutableLong(0);
+        longPairSets.forEach((__, longPairSet) -> capacity.add(longPairSet.capacity()));
+        return capacity.longValue();
     }
 
     @Override

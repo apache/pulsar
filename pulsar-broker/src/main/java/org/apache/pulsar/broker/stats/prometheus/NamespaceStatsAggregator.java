@@ -25,7 +25,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl;
-import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -103,12 +102,7 @@ public class NamespaceStatsAggregator {
     }
 
     private static Optional<CompactorMXBean> getCompactorMXBean(PulsarService pulsar) {
-        Compactor compactor = null;
-        try {
-            compactor = pulsar.getCompactor(false);
-        } catch (PulsarServerException e) {
-            log.error("get compactor error", e);
-        }
+        Compactor compactor = pulsar.getNullableCompactor();
         return Optional.ofNullable(compactor).map(c -> c.getStats());
     }
 
@@ -132,6 +126,7 @@ public class NamespaceStatsAggregator {
             subsStats.unackedMessages += cStats.unackedMessages;
             subsStats.msgRateRedeliver += cStats.msgRateRedeliver;
             subsStats.msgRateOut += cStats.msgRateOut;
+            subsStats.messageAckRate += cStats.messageAckRate;
             subsStats.msgThroughputOut += cStats.msgThroughputOut;
             subsStats.bytesOutCounter += cStats.bytesOutCounter;
             subsStats.msgOutCounter += cStats.msgOutCounter;
@@ -141,7 +136,10 @@ public class NamespaceStatsAggregator {
         });
         stats.rateOut += subsStats.msgRateOut;
         stats.throughputOut += subsStats.msgThroughputOut;
-
+        subsStats.filterProcessedMsgCount = subscriptionStats.filterProcessedMsgCount;
+        subsStats.filterAcceptedMsgCount = subscriptionStats.filterAcceptedMsgCount;
+        subsStats.filterRejectedMsgCount = subscriptionStats.filterRejectedMsgCount;
+        subsStats.filterRescheduledMsgCount = subscriptionStats.filterRescheduledMsgCount;
     }
 
     private static void getTopicStats(Topic topic, TopicStats stats, boolean includeConsumerMetrics,
@@ -183,6 +181,10 @@ public class NamespaceStatsAggregator {
         stats.bytesOutCounter = tStatus.bytesOutCounter;
         stats.averageMsgSize = tStatus.averageMsgSize;
         stats.publishRateLimitedTimes = tStatus.publishRateLimitedTimes;
+        stats.delayedTrackerMemoryUsage = tStatus.delayedMessageIndexSizeInBytes;
+        stats.abortedTxnCount = tStatus.abortedTxnCount;
+        stats.ongoingTxnCount = tStatus.ongoingTxnCount;
+        stats.committedTxnCount = tStatus.committedTxnCount;
 
         stats.producersCount = 0;
         topic.getProducers().values().forEach(producer -> {
@@ -241,6 +243,7 @@ public class NamespaceStatsAggregator {
                     consumerStats.unackedMessages = conStats.unackedMessages;
                     consumerStats.msgRateRedeliver = conStats.msgRateRedeliver;
                     consumerStats.msgRateOut = conStats.msgRateOut;
+                    consumerStats.msgAckRate = conStats.messageAckRate;
                     consumerStats.msgThroughputOut = conStats.msgThroughputOut;
                     consumerStats.bytesOutCounter = conStats.bytesOutCounter;
                     consumerStats.msgOutCounter = conStats.msgOutCounter;
@@ -328,6 +331,10 @@ public class NamespaceStatsAggregator {
         metric(stream, cluster, namespace, "pulsar_rate_out", stats.rateOut);
         metric(stream, cluster, namespace, "pulsar_throughput_in", stats.throughputIn);
         metric(stream, cluster, namespace, "pulsar_throughput_out", stats.throughputOut);
+        metric(stream, cluster, namespace, "pulsar_txn_tb_active_total", stats.ongoingTxnCount);
+        metric(stream, cluster, namespace, "pulsar_txn_tb_aborted_total", stats.abortedTxnCount);
+        metric(stream, cluster, namespace, "pulsar_txn_tb_committed_total", stats.committedTxnCount);
+        metric(stream, cluster, namespace, "pulsar_consumer_msg_ack_rate", stats.messageAckRate);
 
         metric(stream, cluster, namespace, "pulsar_in_bytes_total", stats.bytesInCounter);
         metric(stream, cluster, namespace, "pulsar_in_messages_total", stats.msgInCounter);
@@ -344,6 +351,9 @@ public class NamespaceStatsAggregator {
         metric(stream, cluster, namespace, "pulsar_storage_read_rate", stats.managedLedgerStats.storageReadRate);
 
         metric(stream, cluster, namespace, "pulsar_subscription_delayed", stats.msgDelayed);
+
+        metric(stream, cluster, namespace, "pulsar_delayed_message_index_size_bytes",
+                stats.delayedTrackerMemoryUsage);
 
         metricWithRemoteCluster(stream, cluster, namespace, "pulsar_msg_backlog", "local", stats.msgBacklog);
 

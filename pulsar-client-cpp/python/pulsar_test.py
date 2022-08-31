@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -118,10 +118,8 @@ class PulsarTest(TestCase):
         self.assertEqual(conf.replicate_subscription_state_enabled(), True)
 
     def test_connect_error(self):
-        with self.assertRaises(pulsar.ConnectError):
-            client = Client("fakeServiceUrl")
-            client.create_producer("connect-error-topic")
-            client.close()
+        with self.assertRaises(ValueError):
+            Client("fakeServiceUrl")
 
     def test_exception_inheritance(self):
         assert issubclass(pulsar.ConnectError, pulsar.PulsarException)
@@ -753,6 +751,18 @@ class PulsarTest(TestCase):
         self._check_value_error(lambda: client.create_reader(topic, MessageId.earliest, reader_name=5))
         client.close()
 
+    def test_get_last_message_id(self):
+        client = Client(self.serviceUrl)
+        consumer = client.subscribe(
+            "persistent://public/default/topic_name_test", "topic_name_test_sub", consumer_type=ConsumerType.Shared
+        )
+        producer = client.create_producer("persistent://public/default/topic_name_test")
+        msg_id = producer.send(b"hello")
+
+        msg = consumer.receive(TM)
+        self.assertEqual(msg.message_id(), msg_id)
+        client.close()
+
     def test_publish_compact_and_consume(self):
         client = Client(self.serviceUrl)
         topic = "compaction_%s" % (uuid.uuid4())
@@ -1179,6 +1189,16 @@ class PulsarTest(TestCase):
             # Expected
             pass
 
+    def test_listener_name_client(self):
+        client = Client(self.serviceUrl, listener_name='test')
+        try:
+            producer = client.create_producer("persistent://public/default/partitioned_topic_name_test")
+            self.fail()
+        except pulsar.PulsarException:
+            # Expected
+            pass
+        client.close()
+
     def test_negative_acks(self):
         client = Client(self.serviceUrl)
         consumer = client.subscribe(
@@ -1227,6 +1247,32 @@ class PulsarTest(TestCase):
         first_encode = schema.encode(record)
         second_encode = schema.encode(record)
         self.assertEqual(first_encode, second_encode)
+
+    def test_chunking(self):
+        client = Client(self.serviceUrl)
+        data_size = 10 * 1024 * 1024
+        producer = client.create_producer(
+            'test_chunking',
+            chunking_enabled=True
+        )
+
+        consumer = client.subscribe('test_chunking', "my-subscription",
+                                    max_pending_chunked_message=10,
+                                    auto_ack_oldest_chunked_message_on_queue_full=False
+                                    )
+
+        producer.send(bytes(bytearray(os.urandom(data_size))), None)
+        msg = consumer.receive(TM)
+        self.assertEqual(len(msg.data()), data_size)
+
+    def test_invalid_chunking_config(self):
+        client = Client(self.serviceUrl)
+
+        self._check_value_error(lambda: client.create_producer(
+            'test_invalid_chunking_config',
+            chunking_enabled=True,
+            batching_enabled=True
+        ))
 
     def _check_value_error(self, fun):
         with self.assertRaises(ValueError):

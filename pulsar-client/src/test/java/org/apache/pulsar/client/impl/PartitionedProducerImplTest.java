@@ -52,7 +52,7 @@ import org.apache.pulsar.client.impl.customroute.PartialRoundRobinMessageRouterI
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.assertj.core.util.Sets;
-import org.testng.annotations.BeforeTest;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**
@@ -67,7 +67,7 @@ public class PartitionedProducerImplTest {
     private ProducerInterceptors producerInterceptors;
     private CompletableFuture<Producer> producerCreatedFuture;
 
-    @BeforeTest
+    @BeforeMethod(alwaysRun = true)
     public void setup() {
         client = mock(PulsarClientImpl.class);
         schema = mock(Schema.class);

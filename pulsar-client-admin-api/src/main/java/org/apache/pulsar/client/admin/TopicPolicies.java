@@ -25,6 +25,7 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
+import org.apache.pulsar.common.policies.data.EntryFilters;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
@@ -911,6 +912,51 @@ public interface TopicPolicies {
     CompletableFuture<Void> removeSubscriptionDispatchRateAsync(String topic);
 
     /**
+     * Set dispatch rate limiter for a specific subscription.
+     */
+    void setSubscriptionDispatchRate(String topic, String subscriptionName, DispatchRate dispatchRate)
+            throws PulsarAdminException;
+
+    /**
+     * Async version of {@link #setSubscriptionDispatchRate(String, String, DispatchRate)}.
+     */
+    CompletableFuture<Void> setSubscriptionDispatchRateAsync(String topic, String subscriptionName,
+                                                             DispatchRate dispatchRate);
+
+    /**
+     * If applied is true, get dispatch rate limiter for a specific subscription.
+     * Or else, return subscription level setting.
+     */
+    DispatchRate getSubscriptionDispatchRate(String topic, String subscriptionName, boolean applied)
+            throws PulsarAdminException;
+
+    /**
+     * Async version of {@link #getSubscriptionDispatchRate(String, String, boolean)}.
+     */
+    CompletableFuture<DispatchRate> getSubscriptionDispatchRateAsync(String topic, String subscriptionName,
+                                                                     boolean applied);
+
+    /**
+     * Get subscription level dispatch rate limiter setting for a specific subscription.
+     */
+    DispatchRate getSubscriptionDispatchRate(String topic, String subscriptionName) throws PulsarAdminException;
+
+    /**
+     * Async version of {@link #getSubscriptionDispatchRate(String, String)}.
+     */
+    CompletableFuture<DispatchRate> getSubscriptionDispatchRateAsync(String topic, String subscriptionName);
+
+    /**
+     * Remove subscription level dispatch rate limiter setting for a specific subscription.
+     */
+    void removeSubscriptionDispatchRate(String topic, String subscriptionName) throws PulsarAdminException;
+
+    /**
+     * Async version of {@link #removeSubscriptionDispatchRate(String, String)}.
+     */
+    CompletableFuture<Void> removeSubscriptionDispatchRateAsync(String topic, String subscriptionName);
+
+    /**
      * Set replicatorDispatchRate for the topic.
      * <p/>
      * Replicator dispatch rate under this topic can dispatch this many messages per second
@@ -1718,4 +1764,54 @@ public interface TopicPolicies {
      * @param topic The topic in whose policy should be removed
      */
     CompletableFuture<Void> removeSchemaCompatibilityStrategyAsync(String topic);
+
+    /**
+     * Get applied entry filters for a topic.
+     * @param topic
+     * @param applied
+     * @return entry filters classes info.
+     * @throws PulsarAdminException
+     */
+    EntryFilters getEntryFiltersPerTopic(String topic, boolean applied) throws PulsarAdminException;
+
+    /**
+     * Get applied entry filters for a topic asynchronously.
+     *
+     * @param topic
+     * @param applied
+     * @return
+     */
+    CompletableFuture<EntryFilters> getEntryFiltersPerTopicAsync(String topic, boolean applied);
+
+    /**
+     * Set entry filters on a topic.
+     *
+     * @param topic    The topic in whose policy should be set
+     * @param entryFilters The entry filters
+     */
+    void setEntryFiltersPerTopic(String topic, EntryFilters entryFilters) throws PulsarAdminException;
+
+    /**
+     * Set entry filters on a topic asynchronously.
+     *
+     * @param topic    The topic in whose policy should be set
+     * @param entryFilters The entry filters
+     */
+    CompletableFuture<Void> setEntryFiltersPerTopicAsync(String topic, EntryFilters entryFilters);
+
+    /**
+     * remove entry filters of a topic.
+     * @param topic
+     * @throws PulsarAdminException
+     */
+    void removeEntryFiltersPerTopic(String topic) throws PulsarAdminException;
+
+    /**
+     * remove entry filters of a topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<Void> removeEntryFiltersPerTopicAsync(String topic);
+
+
 }

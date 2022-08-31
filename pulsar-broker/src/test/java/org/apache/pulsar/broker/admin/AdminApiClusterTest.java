@@ -18,10 +18,9 @@
  */
 package org.apache.pulsar.broker.admin;
 
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThrows;
-
-import com.google.common.collect.Sets;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertThrows;
+import java.util.Set;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -88,7 +87,7 @@ public class AdminApiClusterTest extends MockedPulsarServiceBaseTest {
     public void testDeleteExistFailureDomain() throws PulsarAdminException {
         String domainName = CLUSTER + "-failure-domain";
         FailureDomain domain = FailureDomain.builder()
-                .brokers(Sets.newHashSet("b1", "b2", "b3"))
+                .brokers(Set.of("b1", "b2", "b3"))
                 .build();
         admin.clusters().createFailureDomain(CLUSTER, domainName, domain);
         Awaitility.await().untilAsserted(() -> admin.clusters().getFailureDomain(CLUSTER, domainName));

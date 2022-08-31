@@ -107,7 +107,7 @@ public class ProxyPrometheusMetricsTest extends MockedPulsarServiceBaseTest {
         Multimap<String, Metric> metrics = parseMetrics(response);
 
         // Check that ProxyService metrics are present
-        List<Metric> cm = (List<Metric>) metrics.get("pulsar_proxy_binary_bytes");
+        List<Metric> cm = (List<Metric>) metrics.get("pulsar_proxy_binary_bytes_total");
         assertEquals(cm.size(), 1);
         assertEquals(cm.get(0).tags.get("cluster"), TEST_CLUSTER);
 
@@ -117,7 +117,7 @@ public class ProxyPrometheusMetricsTest extends MockedPulsarServiceBaseTest {
         assertEquals(cm2.get(0).tags.get("label1"), "xyz");
 
         // Check that PrometheusRawMetricsProvider metrics are present
-        List<Metric> cm3 = (List<Metric>) metrics.get("test_counter");
+        List<Metric> cm3 = (List<Metric>) metrics.get("test_counter_total");
         assertEquals(cm3.size(), 1);
         assertEquals(cm3.get(0).tags.get("cluster"), TEST_CLUSTER);
     }
@@ -131,8 +131,8 @@ public class ProxyPrometheusMetricsTest extends MockedPulsarServiceBaseTest {
         // Example of lines are
         // jvm_threads_current{cluster="standalone",} 203.0
         // or
-        // pulsar_subscriptions_count{cluster="standalone", namespace="sample/standalone/ns1",
-        // topic="persistent://sample/standalone/ns1/test-2"} 0.0 1517945780897
+        // pulsar_subscriptions_count{cluster="standalone", namespace="public/default",
+        // topic="persistent://public/default/test-2"} 0.0 1517945780897
         Pattern pattern = Pattern.compile("^(\\w+)\\{([^\\}]+)\\}\\s([+-]?[\\d\\w\\.-]+)(\\s(\\d+))?$");
         Pattern tagsPattern = Pattern.compile("(\\w+)=\"([^\"]+)\"(,\\s?)?");
 

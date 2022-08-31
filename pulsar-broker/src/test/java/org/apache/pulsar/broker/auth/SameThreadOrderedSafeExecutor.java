@@ -36,7 +36,8 @@ public class SameThreadOrderedSafeExecutor extends OrderedExecutor {
             false,
             100000,
             -1,
-            false);
+            false,
+            false /* thread scoped metrics*/);
     }
 
     @Override

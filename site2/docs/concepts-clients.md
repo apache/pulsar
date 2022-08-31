@@ -1,7 +1,7 @@
 ---
 id: concepts-clients
 title: Pulsar Clients
-sidebar_label: Clients
+sidebar_label: "Clients"
 ---
 
 Pulsar exposes a client API with language bindings for [Java](client-libraries-java.md), [Go](client-libraries-go.md), [Python](client-libraries-python.md), [C++](client-libraries-cpp.md) and [C#](client-libraries-dotnet.md). The client API optimizes and encapsulates Pulsar's client-broker communication protocol and exposes a simple and intuitive API for use by applications.
@@ -41,11 +41,12 @@ Unlike subscription/consumer, readers are non-durable in nature and does not pre
 
 Please also note that a reader can have a "backlog", but the metric is only used for users to know how behind the reader is. The metric is not considered for any backlog quota calculations. 
 
-![The Pulsar consumer and reader interfaces](assets/pulsar-reader-consumer-interfaces.png)
+![The Pulsar consumer and reader interfaces](/assets/pulsar-reader-consumer-interfaces.png)
 
 Here's a Java example that begins reading from the earliest available message on a topic:
 
 ```java
+
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Reader;
@@ -61,24 +62,30 @@ while (true) {
 
     // Process the message
 }
+
 ```
 
 To create a reader that reads from the latest available message:
 
 ```java
+
 Reader<byte[]> reader = pulsarClient.newReader()
     .topic(topic)
     .startMessageId(MessageId.latest)
     .create();
+
 ```
 
 To create a reader that reads from some message between the earliest and the latest:
 
 ```java
+
 byte[] msgIdBytes = // Some byte array
 MessageId id = MessageId.fromByteArray(msgIdBytes);
 Reader<byte[]> reader = pulsarClient.newReader()
     .topic(topic)
     .startMessageId(id)
     .create();
+
 ```
+

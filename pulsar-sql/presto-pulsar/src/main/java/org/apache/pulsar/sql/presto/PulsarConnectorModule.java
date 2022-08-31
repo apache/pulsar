@@ -26,10 +26,10 @@ import com.fasterxml.jackson.databind.deser.std.FromStringDeserializer;
 import com.google.inject.Binder;
 import com.google.inject.Module;
 import com.google.inject.Scopes;
-import io.prestosql.decoder.DecoderModule;
-import io.prestosql.spi.type.Type;
-import io.prestosql.spi.type.TypeId;
-import io.prestosql.spi.type.TypeManager;
+import io.trino.decoder.DecoderModule;
+import io.trino.spi.type.Type;
+import io.trino.spi.type.TypeId;
+import io.trino.spi.type.TypeManager;
 import javax.inject.Inject;
 
 /**
@@ -55,6 +55,7 @@ public class PulsarConnectorModule implements Module {
         binder.bind(PulsarMetadata.class).in(Scopes.SINGLETON);
         binder.bind(PulsarSplitManager.class).in(Scopes.SINGLETON);
         binder.bind(PulsarRecordSetProvider.class).in(Scopes.SINGLETON);
+        binder.bind(PulsarAuth.class).in(Scopes.SINGLETON);
 
         binder.bind(PulsarDispatchingRowDecoderFactory.class).in(Scopes.SINGLETON);
 

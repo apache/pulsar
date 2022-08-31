@@ -28,6 +28,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.TopicPolicies;
@@ -35,6 +36,7 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
+import org.apache.pulsar.common.policies.data.EntryFilters;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
@@ -145,6 +147,66 @@ public class CmdTopicPolicies extends CmdBase {
         jcommander.addCommand("remove-schema-compatibility-strategy", new RemoveSchemaCompatibilityStrategy());
         jcommander.addCommand("set-schema-compatibility-strategy", new SetSchemaCompatibilityStrategy());
         jcommander.addCommand("get-schema-compatibility-strategy", new GetSchemaCompatibilityStrategy());
+
+        jcommander.addCommand("get-entry-filters-per-topic", new GetEntryFiltersPerTopic());
+        jcommander.addCommand("set-entry-filters-per-topic", new SetEntryFiltersPerTopic());
+        jcommander.addCommand("remove-entry-filters-per-topic", new RemoveEntryFiltersPerTopic());
+    }
+
+    @Parameters(commandDescription = "Get entry filters for a topic")
+    private class GetEntryFiltersPerTopic extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--global", "-g" }, description = "Whether to get this policy globally. "
+                + "If set to true, broker returned global topic policies")
+        private boolean isGlobal = false;
+
+        @Parameter(names = { "-ap", "--applied" }, description = "Get the applied policy of the topic")
+        private boolean applied = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            print(getTopicPolicies(isGlobal).getEntryFiltersPerTopic(persistentTopic, applied));
+        }
+    }
+
+    @Parameters(commandDescription = "Set entry filters for a topic")
+    private class SetEntryFiltersPerTopic extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+
+        @Parameter(names = { "--entry-filters-name", "-efn" },
+                description = "The class name for the entry filter.", required = true)
+        private String  entryFiltersName = "";
+
+        @Parameter(names = { "--global", "-g" }, description = "Whether to set this policy globally. "
+                + "If set to true, broker returned global topic policies")
+        private boolean isGlobal = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            getTopicPolicies(isGlobal).setEntryFiltersPerTopic(persistentTopic, new EntryFilters(entryFiltersName));
+        }
+    }
+
+    @Parameters(commandDescription = "Remove entry filters for a topic")
+    private class RemoveEntryFiltersPerTopic extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--global", "-g" }, description = "Whether to remove this policy globally. "
+                + "If set to true, broker returned global topic policies")
+        private boolean isGlobal = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            getTopicPolicies(isGlobal).removeEntryFiltersPerTopic(persistentTopic);
+        }
     }
 
     @Parameters(commandDescription = "Get max consumers per subscription for a topic")
@@ -277,9 +339,10 @@ public class CmdTopicPolicies extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "-t", "--ttl" }, description = "Message TTL for topic in second, "
-                + "allowed range from 1 to Integer.MAX_VALUE", required = true)
-        private int messageTTLInSecond;
+        @Parameter(names = { "-t", "--ttl" },
+                description = "Message TTL for topic in seconds (or minutes, hours, days, weeks eg: 100m, 3h, 2d, 5w), "
+                        + "allowed range from 1 to Integer.MAX_VALUE", required = true)
+        private String messageTTLStr;
 
         @Parameter(names = { "--global", "-g" }, description = "Whether to set this policy globally. "
                 + "If set to true, broker returned global topic policies")
@@ -287,12 +350,20 @@ public class CmdTopicPolicies extends CmdBase {
 
         @Override
         void run() throws PulsarAdminException {
-            if (messageTTLInSecond < 0) {
-                throw new ParameterException(String.format("Invalid retention policy type '%d'. ", messageTTLInSecond));
+            long messageTTLInSecond;
+            try {
+                messageTTLInSecond = RelativeTimeUtil.parseRelativeTimeInSeconds(messageTTLStr);
+            } catch (IllegalArgumentException e) {
+                throw new ParameterException(e.getMessage());
+            }
+
+            if (messageTTLInSecond < 0 || messageTTLInSecond > Integer.MAX_VALUE) {
+                throw new ParameterException(
+                        String.format("Message TTL cannot be negative or greater than %d seconds", Integer.MAX_VALUE));
             }
 
             String persistentTopic = validatePersistentTopic(params);
-            getTopicPolicies(isGlobal).setMessageTTL(persistentTopic, messageTTLInSecond);
+            getTopicPolicies(isGlobal).setMessageTTL(persistentTopic, (int) messageTTLInSecond);
         }
     }
 
@@ -439,7 +510,8 @@ public class CmdTopicPolicies extends CmdBase {
         private boolean applied = false;
 
         @Parameter(names = { "--global", "-g" }, description = "Whether to get this policy globally. "
-                + "If set to true, broker returned global topic policies")
+                + "If set to true, the broker returns global topic policies"
+                + "If set to false or not set, the broker returns local topic policies")
         private boolean isGlobal = false;
 
         @Override
@@ -464,7 +536,8 @@ public class CmdTopicPolicies extends CmdBase {
         private String limitStr;
 
         @Parameter(names = { "--global", "-g" }, description = "Whether to set this policy globally. "
-                + "If set to true, the policy will be replicate to other clusters asynchronously")
+                + "If set to true, the policy is replicated to other clusters asynchronously, "
+                + "If set to false or not set, the topic retention policy is replicated to local clusters.")
         private boolean isGlobal = false;
 
         @Override
@@ -497,7 +570,8 @@ public class CmdTopicPolicies extends CmdBase {
         private List<String> params;
 
         @Parameter(names = { "--global", "-g" }, description = "Whether to remove this policy globally. "
-                + "If set to true, the removing operation will be replicate to other clusters asynchronously")
+                + "If set to true, the removing operation is replicated to other clusters asynchronously"
+                + "If set to false or not set, the topic retention policy is replicated to local clusters.")
         private boolean isGlobal = false;
 
         @Override
@@ -883,8 +957,9 @@ public class CmdTopicPolicies extends CmdBase {
         private String limitStr = "-1";
 
         @Parameter(names = { "-lt", "--limitTime" },
-                description = "Time limit in second, non-positive number for disabling time limit.")
-        private int limitTime = -1;
+                description = "Time limit in second (or minutes, hours, days, weeks eg: 100m, 3h, 2d, 5w), "
+                        + "non-positive number for disabling time limit.")
+        private String limitTimeStr = null;
 
         @Parameter(names = { "-p", "--policy" }, description = "Retention policy to enforce when the limit is reached. "
                 + "Valid options are: [producer_request_hold, producer_exception, consumer_backlog_eviction]",
@@ -924,10 +999,23 @@ public class CmdTopicPolicies extends CmdBase {
                         backlogQuotaTypeStr, Arrays.toString(BacklogQuota.BacklogQuotaType.values())));
             }
 
+            long limitTimeInSec = -1;
+            if (limitTimeStr != null) {
+                try {
+                    limitTimeInSec = RelativeTimeUtil.parseRelativeTimeInSeconds(limitTimeStr);
+                } catch (IllegalArgumentException e) {
+                    throw new ParameterException(e.getMessage());
+                }
+            }
+            if (limitTimeInSec > Integer.MAX_VALUE) {
+                throw new ParameterException(
+                        String.format("Time limit cannot be greater than %d seconds", Integer.MAX_VALUE));
+            }
+
             String persistentTopic = validatePersistentTopic(params);
             getTopicPolicies(isGlobal).setBacklogQuota(persistentTopic,
                     BacklogQuota.builder().limitSize(limit)
-                            .limitTime(limitTime)
+                            .limitTime((int) limitTimeInSec)
                             .retentionPolicy(policy)
                             .build(),
                     backlogQuotaType);
@@ -1438,10 +1526,18 @@ public class CmdTopicPolicies extends CmdBase {
                 + "If set to true, broker returned global topic policies")
         private boolean isGlobal = false;
 
+        @Parameter(names = {"--subscription", "-s"},
+                description = "Get message-dispatch-rate of a specific subscription")
+        private String subName;
+
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            print(getTopicPolicies(isGlobal).getSubscriptionDispatchRate(persistentTopic, applied));
+            if (StringUtils.isBlank(subName)) {
+                print(getTopicPolicies(isGlobal).getSubscriptionDispatchRate(persistentTopic, applied));
+            } else {
+                print(getTopicPolicies(isGlobal).getSubscriptionDispatchRate(persistentTopic, subName, applied));
+            }
         }
     }
 
@@ -1472,16 +1568,24 @@ public class CmdTopicPolicies extends CmdBase {
                 + "If set to true, the policy will be replicate to other clusters asynchronously")
         private boolean isGlobal = false;
 
+        @Parameter(names = {"--subscription", "-s"},
+                description = "Set message-dispatch-rate for a specific subscription")
+        private String subName;
+
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            getTopicPolicies(isGlobal).setSubscriptionDispatchRate(persistentTopic,
-                    DispatchRate.builder()
-                            .dispatchThrottlingRateInMsg(msgDispatchRate)
-                            .dispatchThrottlingRateInByte(byteDispatchRate)
-                            .ratePeriodInSecond(dispatchRatePeriodSec)
-                            .relativeToPublishRate(relativeToPublishRate)
-                            .build());
+            DispatchRate rate = DispatchRate.builder()
+                    .dispatchThrottlingRateInMsg(msgDispatchRate)
+                    .dispatchThrottlingRateInByte(byteDispatchRate)
+                    .ratePeriodInSecond(dispatchRatePeriodSec)
+                    .relativeToPublishRate(relativeToPublishRate)
+                    .build();
+            if (StringUtils.isBlank(subName)) {
+                getTopicPolicies(isGlobal).setSubscriptionDispatchRate(persistentTopic, rate);
+            } else {
+                getTopicPolicies(isGlobal).setSubscriptionDispatchRate(persistentTopic, subName, rate);
+            }
         }
     }
 
@@ -1494,10 +1598,18 @@ public class CmdTopicPolicies extends CmdBase {
                 + "If set to true, the policy will be replicate to other clusters asynchronously")
         private boolean isGlobal = false;
 
+        @Parameter(names = {"--subscription", "-s"},
+                description = "Remove message-dispatch-rate for a specific subscription")
+        private String subName;
+
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            getTopicPolicies(isGlobal).removeSubscriptionDispatchRate(persistentTopic);
+            if (StringUtils.isBlank(subName)) {
+                getTopicPolicies(isGlobal).removeSubscriptionDispatchRate(persistentTopic);
+            } else {
+                getTopicPolicies(isGlobal).removeSubscriptionDispatchRate(persistentTopic, subName);
+            }
         }
 
     }

@@ -1,7 +1,7 @@
 ---
-id: version-2.2.1-io-cdc
+id: io-cdc
 title: CDC Connector
-sidebar_label: CDC Connector
+sidebar_label: "CDC Connector"
 original_id: io-cdc
 ---
 
@@ -40,6 +40,7 @@ The Configuration is mostly related to Debezium task config, besides this we sho
 Here is a configuration Json example:
 
 ```$json
+
 {
     "tenant": "public",
     "namespace": "default",
@@ -66,11 +67,13 @@ Here is a configuration Json example:
     },
     "archive": "connectors/pulsar-io-kafka-connect-adaptor-2.3.0-SNAPSHOT.nar"
 }
+
 ```
 
 You could also find the yaml example in this [file](https://github.com/apache/pulsar/blob/master/pulsar-io/kafka-connect-adaptor/src/main/resources/debezium-mysql-source-config.yaml), which has similar content below:
 
 ```$yaml
+
 tenant: "public"
 namespace: "default"
 name: "debezium-kafka-source"
@@ -103,6 +106,7 @@ configs:
   pulsar.service.url: "pulsar://127.0.0.1:6650"
   ## OFFSET_STORAGE_TOPIC_CONFIG
   offset.storage.topic: "offset-topic"
+
 ```
 
 ### Usage example
@@ -110,38 +114,55 @@ configs:
 Here is a simple example to store MySQL change data using above example config.
 
 - Start a MySQL server with an example database, from which Debezium can capture changes.
+
 ```$bash
+
  docker run -it --rm --name mysql -p 3306:3306 -e MYSQL_ROOT_PASSWORD=debezium -e MYSQL_USER=mysqluser -e MYSQL_PASSWORD=mysqlpw debezium/example-mysql:0.8
+
 ```
 
 - Start a Pulsar service locally in standalone mode.
+
 ```$bash
+
  bin/pulsar standalone
+
 ```
 
 - Start pulsar debezium connector, with local run mode, and using above yaml config file. Please make sure that the nar file is available as configured in path `connectors/pulsar-io-kafka-connect-adaptor-2.3.0-SNAPSHOT.nar`.
+
 ```$bash
+
  bin/pulsar-admin source localrun  --sourceConfigFile debezium-mysql-source-config.yaml
+
 ```
 
 - Subscribe the topic for table `inventory.products`.
+
 ```
+
  bin/pulsar-client consume -s "sub-products" public/default/dbserver1.inventory.products -n 0
+
 ```
 
 - start a MySQL cli docker connector, and use it we could change to the table `products` in MySQL server.
+
 ```$bash
+
 $docker run -it --rm --name mysqlterm --link mysql --rm mysql:5.7 sh -c 'exec mysql -h"$MYSQL_PORT_3306_TCP_ADDR" -P"$MYSQL_PORT_3306_TCP_PORT" -uroot -p"$MYSQL_ENV_MYSQL_ROOT_PASSWORD"'
+
 ```
 
 This command will pop out MySQL cli, in this cli, we could do a change in table products, use commands below to change the name of 2 items in table products:
 
 ```
+
 mysql> use inventory;
 mysql> show tables;
 mysql> SELECT * FROM  products ;
 mysql> UPDATE products SET name='1111111111' WHERE id=101;
 mysql> UPDATE products SET name='1111111111' WHERE id=107;
+
 ```
 
 - In above subscribe topic terminal tab, we could find that 2 changes has been kept into products topic.

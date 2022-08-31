@@ -27,8 +27,10 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.epoll.EpollServerSocketChannel;
+import io.netty.channel.socket.ServerSocketChannel;
 import io.netty.channel.socket.SocketChannel;
-import io.netty.resolver.dns.DnsNameResolver;
+import io.netty.resolver.dns.DnsAddressResolverGroup;
 import io.netty.resolver.dns.DnsNameResolverBuilder;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.prometheus.client.Counter;
@@ -54,6 +56,7 @@ import lombok.Setter;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
+import org.apache.pulsar.broker.limiter.ConnectionController;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
@@ -80,7 +83,7 @@ public class ProxyService implements Closeable {
     private final ProxyConfiguration proxyConfig;
     private final Authentication proxyClientAuthentication;
     @Getter
-    private final DnsNameResolver dnsNameResolver;
+    private final DnsAddressResolverGroup dnsAddressResolverGroup;
     @Getter
     private final BrokerProxyValidator brokerProxyValidator;
     private String serviceUrl;
@@ -110,6 +113,9 @@ public class ProxyService implements Closeable {
     @Getter
     @Setter
     protected int proxyLogLevel;
+
+    @Getter
+    protected boolean proxyZeroCopyModeEnabled;
 
     private final ScheduledExecutorService statsExecutor;
 
@@ -141,6 +147,9 @@ public class ProxyService implements Closeable {
     private PrometheusMetricsServlet metricsServlet;
     private List<PrometheusRawMetricsProvider> pendingMetricsProviders;
 
+    @Getter
+    private final ConnectionController connectionController;
+
     public ProxyService(ProxyConfiguration proxyConfig,
                         AuthenticationService authenticationService) throws Exception {
         requireNonNull(proxyConfig);
@@ -162,13 +171,13 @@ public class ProxyService implements Closeable {
                 false, workersThreadFactory);
         this.authenticationService = authenticationService;
 
-        DnsNameResolverBuilder dnsNameResolverBuilder = new DnsNameResolverBuilder(workerGroup.next())
+        DnsNameResolverBuilder dnsNameResolverBuilder = new DnsNameResolverBuilder()
                 .channelType(EventLoopUtil.getDatagramChannelClass(workerGroup));
         DnsResolverUtil.applyJdkDnsCacheSettings(dnsNameResolverBuilder);
 
-        dnsNameResolver = dnsNameResolverBuilder.build();
+        dnsAddressResolverGroup = new DnsAddressResolverGroup(dnsNameResolverBuilder);
 
-        brokerProxyValidator = new BrokerProxyValidator(dnsNameResolver.asAddressResolver(),
+        brokerProxyValidator = new BrokerProxyValidator(dnsAddressResolverGroup.getResolver(workerGroup.next()),
                 proxyConfig.getBrokerProxyAllowedHostNames(),
                 proxyConfig.getBrokerProxyAllowedIPAddresses(),
                 proxyConfig.getBrokerProxyAllowedTargetPorts());
@@ -197,6 +206,9 @@ public class ProxyService implements Closeable {
         } else {
             proxyClientAuthentication = AuthenticationDisabled.INSTANCE;
         }
+        this.connectionController = new ConnectionController.DefaultConnectionController(
+                proxyConfig.getMaxConcurrentInboundConnections(),
+                proxyConfig.getMaxConcurrentInboundConnectionsPerIp());
     }
 
     public void start() throws Exception {
@@ -215,14 +227,22 @@ public class ProxyService implements Closeable {
         }
 
         ServerBootstrap bootstrap = new ServerBootstrap();
+        bootstrap.option(ChannelOption.SO_REUSEADDR, true);
         bootstrap.childOption(ChannelOption.ALLOCATOR, PulsarByteBufAllocator.DEFAULT);
         bootstrap.group(acceptorGroup, workerGroup);
         bootstrap.childOption(ChannelOption.TCP_NODELAY, true);
         bootstrap.childOption(ChannelOption.RCVBUF_ALLOCATOR,
                 new AdaptiveRecvByteBufAllocator(1024, 16 * 1024, 1 * 1024 * 1024));
 
-        bootstrap.channel(EventLoopUtil.getServerSocketChannelClass(workerGroup));
+        Class<? extends ServerSocketChannel> serverSocketChannelClass =
+                EventLoopUtil.getServerSocketChannelClass(workerGroup);
+        bootstrap.channel(serverSocketChannelClass);
         EventLoopUtil.enableTriggeredMode(bootstrap);
+
+        if (proxyConfig.isProxyZeroCopyModeEnabled()
+                && EpollServerSocketChannel.class.isAssignableFrom(serverSocketChannelClass)) {
+            proxyZeroCopyModeEnabled = true;
+        }
 
         bootstrap.childHandler(new ServiceChannelInitializer(this, proxyConfig, false));
         // Bind and start to accept incoming connections.
@@ -302,6 +322,7 @@ public class ProxyService implements Closeable {
         boolean useSeparateThreadPool = proxyConfig.isUseSeparateThreadPoolForProxyExtensions();
         if (useSeparateThreadPool) {
             bootstrap = new ServerBootstrap();
+            bootstrap.option(ChannelOption.SO_REUSEADDR, true);
             bootstrap.childOption(ChannelOption.ALLOCATOR, PulsarByteBufAllocator.DEFAULT);
             bootstrap.childOption(ChannelOption.TCP_NODELAY, true);
             bootstrap.childOption(ChannelOption.RCVBUF_ALLOCATOR,
@@ -331,7 +352,7 @@ public class ProxyService implements Closeable {
     }
 
     public void close() throws IOException {
-        dnsNameResolver.close();
+        dnsAddressResolverGroup.close();
 
         if (discoveryProvider != null) {
             discoveryProvider.close();

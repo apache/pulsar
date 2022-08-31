@@ -18,9 +18,17 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
@@ -39,16 +47,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-import java.util.Collections;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-
-import static org.junit.Assert.assertFalse;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
 
 @Slf4j
 public class TransactionClientConnectTest extends TransactionTestBase {
@@ -97,7 +95,7 @@ public class TransactionClientConnectTest extends TransactionTestBase {
             completableFuture.get(3, TimeUnit.SECONDS);
         } catch (TimeoutException ignore) {
         } catch (ExecutionException e) {
-            Assert.assertFalse(e.getCause()
+            assertFalse(e.getCause()
                     instanceof TransactionCoordinatorClientException.CoordinatorNotFoundException);
         }
 
@@ -160,6 +158,19 @@ public class TransactionClientConnectTest extends TransactionTestBase {
                         instanceof TransactionCoordinatorClientException.MetaStoreHandlerNotReadyException);
             }
         }
+    }
+
+    @Test
+    public void testHandlerStateChangeToReady() throws Exception {
+        TransactionCoordinatorClientImpl transactionCoordinatorClient =
+                ((PulsarClientImpl) pulsarClient).getTcClient();
+        Field field = TransactionCoordinatorClientImpl.class.getDeclaredField("handlers");
+        field.setAccessible(true);
+        TransactionMetaStoreHandler[] handlers =
+                (TransactionMetaStoreHandler[]) field.get(transactionCoordinatorClient);
+        TransactionMetaStoreHandler transactionMetaStoreHandler = handlers[0];
+        Assert.assertEquals(transactionMetaStoreHandler.getConnectHandleState(), HandlerState.State.Ready);
+        Assert.assertTrue(transactionMetaStoreHandler.changeToReadyState());
     }
 
     public void start() throws Exception {

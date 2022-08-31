@@ -54,7 +54,8 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
     private static final Logger log = LoggerFactory.getLogger(PulsarAuthorizationProvider.class);
 
     public ServiceConfiguration conf;
-    private PulsarResources pulsarResources;
+
+    protected PulsarResources pulsarResources;
 
 
     public PulsarAuthorizationProvider() {
@@ -480,6 +481,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                                         namespaceName, role, authData, AuthAction.packages);
                             case GET_TOPIC:
                             case GET_TOPICS:
+                            case GET_BUNDLE:
                                 return allowConsumeOrProduceOpsAsync(namespaceName, role, authData);
                             case UNSUBSCRIBE:
                             case CLEAR_BACKLOG:
@@ -488,7 +490,6 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                             case CREATE_TOPIC:
                             case DELETE_TOPIC:
                             case ADD_BUNDLE:
-                            case GET_BUNDLE:
                             case DELETE_BUNDLE:
                             case GRANT_PERMISSION:
                             case GET_PERMISSION:

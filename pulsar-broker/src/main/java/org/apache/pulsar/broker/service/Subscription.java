@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
@@ -101,11 +102,17 @@ public interface Subscription {
 
     void addUnAckedMessages(int unAckMessages);
 
+    Map<String, String> getSubscriptionProperties();
+
+    CompletableFuture<Void> updateSubscriptionProperties(Map<String, String> subscriptionProperties);
+
     default void processReplicatedSubscriptionSnapshot(ReplicatedSubscriptionsSnapshot snapshot) {
         // Default is no-op
     }
 
     CompletableFuture<Void> endTxn(long txnidMostBits, long txnidLeastBits, int txnAction, long lowWaterMark);
+
+    CompletableFuture<AnalyzeBacklogResult> analyzeBacklog(Optional<Position> position);
 
     default int getNumberOfSameAddressConsumers(final String clientAddress) {
         int count = 0;

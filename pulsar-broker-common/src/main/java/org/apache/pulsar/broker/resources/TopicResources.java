@@ -19,22 +19,35 @@
 package org.apache.pulsar.broker.resources;
 
 import static org.apache.pulsar.common.util.Codec.decode;
+import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiConsumer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.metadata.api.MetadataStore;
+import org.apache.pulsar.metadata.api.Notification;
+import org.apache.pulsar.metadata.api.NotificationType;
 
 public class TopicResources {
     private static final String MANAGED_LEDGER_PATH = "/managed-ledgers";
 
     private final MetadataStore store;
 
+    private final Map<BiConsumer<String, NotificationType>, Pattern> topicListeners;
+
     public TopicResources(MetadataStore store) {
         this.store = store;
+        topicListeners = new ConcurrentHashMap<>();
+        store.registerListener(this::handleNotification);
     }
 
     public CompletableFuture<List<String>> listPersistentTopicsAsync(NamespaceName ns) {
@@ -110,4 +123,34 @@ public class TopicResources {
                     }
                 });
     }
+
+    void handleNotification(Notification notification) {
+        if (notification.getPath().startsWith(MANAGED_LEDGER_PATH)
+                && EnumSet.of(NotificationType.Created, NotificationType.Deleted).contains(notification.getType())) {
+            for (Map.Entry<BiConsumer<String, NotificationType>, Pattern> entry :
+                    new HashMap<>(topicListeners).entrySet()) {
+                Matcher matcher = entry.getValue().matcher(notification.getPath());
+                if (matcher.matches()) {
+                    TopicName topicName = TopicName.get(
+                            matcher.group(2), NamespaceName.get(matcher.group(1)), matcher.group(3));
+                    entry.getKey().accept(topicName.toString(), notification.getType());
+                }
+            }
+        }
+    }
+
+    Pattern namespaceNameToTopicNamePattern(NamespaceName namespaceName) {
+        return Pattern.compile(
+                MANAGED_LEDGER_PATH + "/(" + namespaceName + ")/(" + TopicDomain.persistent + ")/(" + "[^/]+)");
+    }
+
+    public void registerPersistentTopicListener(
+            NamespaceName namespaceName, BiConsumer<String, NotificationType> listener) {
+        topicListeners.put(listener, namespaceNameToTopicNamePattern(namespaceName));
+    }
+
+    public void deregisterPersistentTopicListener(BiConsumer<String, NotificationType> listener) {
+        topicListeners.remove(listener);
+    }
+
 }

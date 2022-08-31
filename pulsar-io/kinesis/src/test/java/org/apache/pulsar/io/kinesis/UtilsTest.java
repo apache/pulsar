@@ -333,7 +333,7 @@ public class UtilsTest {
         };
 
         ObjectMapper objectMapper = new ObjectMapper().setSerializationInclusion(JsonInclude.Include.NON_NULL);
-        String json = Utils.serializeRecordToJsonExpandingValue(objectMapper, genericObjectRecord);
+        String json = Utils.serializeRecordToJsonExpandingValue(objectMapper, genericObjectRecord, false);
 
         assertEquals(json, "{\"topicName\":\"data-ks1.table1\",\"key\":\"message-key\",\"payload\":{\"c\":\"1\","
                 + "\"d\":1,\"e\":{\"a\":\"a\",\"b\":true,\"d\":1.0,\"f\":1.0,\"i\":1,\"l\":10}},"
@@ -430,12 +430,19 @@ public class UtilsTest {
         };
 
         ObjectMapper objectMapper = new ObjectMapper().setSerializationInclusion(JsonInclude.Include.NON_NULL);
-        String json = Utils.serializeRecordToJsonExpandingValue(objectMapper, genericObjectRecord);
+        String json = Utils.serializeRecordToJsonExpandingValue(objectMapper, genericObjectRecord, false);
 
         assertEquals(json, "{\"topicName\":\"data-ks1.table1\",\"key\":\"message-key\","
                 + "\"payload\":{\"value\":{\"c\":\"1\",\"d\":1,\"e\":{\"a\":\"a\",\"b\":true,\"d\":1.0,\"f\":1.0,"
                 + "\"i\":1,\"l\":10}},\"key\":{\"a\":\"1\",\"b\":1}},\"properties\":{\"prop-key\":\"prop-value\"},"
                 + "\"eventTime\":1648502845803}");
+
+        json = Utils.serializeRecordToJsonExpandingValue(objectMapper, genericObjectRecord, true);
+
+        assertEquals(json, "{\"topicName\":\"data-ks1.table1\",\"key\":\"message-key\",\"payload.value.c\":\"1\","
+                + "\"payload.value.d\":1,\"payload.value.e.a\":\"a\",\"payload.value.e.b\":true,\"payload.value.e"
+                + ".d\":1.0,\"payload.value.e.f\":1.0,\"payload.value.e.i\":1,\"payload.value.e.l\":10,\"payload.key"
+                + ".a\":\"1\",\"payload.key.b\":1,\"properties.prop-key\":\"prop-value\",\"eventTime\":1648502845803}");
     }
 
     @Test
@@ -488,7 +495,7 @@ public class UtilsTest {
         };
 
         ObjectMapper objectMapper = new ObjectMapper().setSerializationInclusion(JsonInclude.Include.NON_NULL);
-        String json = Utils.serializeRecordToJsonExpandingValue(objectMapper, genericObjectRecord);
+        String json = Utils.serializeRecordToJsonExpandingValue(objectMapper, genericObjectRecord, false);
 
         assertEquals(json, "{\"topicName\":\"data-ks1.table1\",\"key\":\"message-key\",\"payload\":\"message-value\","
                 + "\"properties\":{\"prop-key\":\"prop-value\"},\"eventTime\":1648502845803}");

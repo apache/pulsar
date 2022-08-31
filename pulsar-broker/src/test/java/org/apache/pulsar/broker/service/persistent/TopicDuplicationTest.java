@@ -55,8 +55,6 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
     @Override
     protected void setup() throws Exception {
         resetConfig();
-        this.conf.setSystemTopicEnabled(true);
-        this.conf.setTopicLevelPoliciesEnabled(true);
         this.conf.setBrokerDeduplicationEnabled(true);
         super.internalSetup();
         super.producerBaseSetup();
@@ -225,8 +223,6 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
     public void testTopicPolicyTakeSnapshot() throws Exception {
         super.internalCleanup();
         resetConfig();
-        conf.setSystemTopicEnabled(true);
-        conf.setTopicLevelPoliciesEnabled(true);
         conf.setBrokerDeduplicationEnabled(true);
         conf.setBrokerDeduplicationSnapshotFrequencyInSeconds(1);
         conf.setBrokerDeduplicationSnapshotIntervalSeconds(7);

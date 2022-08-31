@@ -19,11 +19,21 @@
 
 package org.apache.pulsar.io.jdbc;
 
-import com.google.common.collect.Lists;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.google.common.annotations.VisibleForTesting;
 import java.sql.PreparedStatement;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.avro.Schema;
+import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.KeyValueSchema;
+import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.jdbc.JdbcUtils.ColumnId;
 
@@ -31,21 +41,31 @@ import org.apache.pulsar.io.jdbc.JdbcUtils.ColumnId;
  * An abstract Jdbc sink, which interprets input Record in generic record.
  */
 @Slf4j
-public abstract class BaseJdbcAutoSchemaSink extends JdbcAbstractSink<GenericRecord> {
+public abstract class BaseJdbcAutoSchemaSink extends JdbcAbstractSink<GenericObject> {
 
     @Override
-    public void bindValue(PreparedStatement statement,
-                          Record<GenericRecord> message, String action) throws Exception {
+    public String generateUpsertQueryStatement() {
+        throw new IllegalStateException("UPSERT not supported");
+    }
 
-        GenericRecord record = message.getValue();
-        List<ColumnId> columns = Lists.newArrayList();
-        if (action == null || action.equals(INSERT)) {
-            columns = tableDefinition.getColumns();
-        } else if (action.equals(DELETE)){
-            columns.addAll(tableDefinition.getKeyColumns());
-        } else if (action.equals(UPDATE)){
-            columns.addAll(tableDefinition.getNonKeyColumns());
-            columns.addAll(tableDefinition.getKeyColumns());
+    @Override
+    public void bindValue(PreparedStatement statement, Mutation mutation) throws Exception {
+        final List<ColumnId> columns = new ArrayList<>();
+        switch (mutation.getType()) {
+            case INSERT:
+                columns.addAll(tableDefinition.getColumns());
+                break;
+            case UPSERT:
+                columns.addAll(tableDefinition.getColumns());
+                columns.addAll(tableDefinition.getNonKeyColumns());
+                break;
+            case UPDATE:
+                columns.addAll(tableDefinition.getNonKeyColumns());
+                columns.addAll(tableDefinition.getKeyColumns());
+                break;
+            case DELETE:
+                columns.addAll(tableDefinition.getKeyColumns());
+                break;
         }
 
         int index = 1;
@@ -53,10 +73,10 @@ public abstract class BaseJdbcAutoSchemaSink extends JdbcAbstractSink<GenericRec
             String colName = columnId.getName();
             int colType = columnId.getType();
             if (log.isDebugEnabled()) {
-                log.debug("colName: {} colType: {}", colName, colType);
+                log.debug("getting value for column: {} type: {}", colName, colType);
             }
             try {
-                Object obj = record.getField(colName);
+                Object obj = mutation.getValues().apply(colName);
                 if (obj != null) {
                     setColumnValue(statement, index++, obj);
                 } else {
@@ -73,8 +93,67 @@ public abstract class BaseJdbcAutoSchemaSink extends JdbcAbstractSink<GenericRec
                 }
                 setColumnNull(statement, index++, colType);
             }
-
         }
+    }
+
+    @Override
+    public Mutation createMutation(Record<GenericObject> message) {
+        final GenericObject record = message.getValue();
+        Function<String, Object> recordValueGetter;
+        MutationType mutationType = null;
+        if (message.getSchema() != null && message.getSchema() instanceof KeyValueSchema) {
+            KeyValueSchema<GenericObject, GenericObject> keyValueSchema = (KeyValueSchema) message.getSchema();
+
+            final org.apache.pulsar.client.api.Schema<GenericObject> keySchema = keyValueSchema.getKeySchema();
+            final org.apache.pulsar.client.api.Schema<GenericObject> valueSchema = keyValueSchema.getValueSchema();
+            KeyValue<GenericObject, GenericObject> keyValue =
+                    (KeyValue<GenericObject, GenericObject>) record.getNativeObject();
+
+            final GenericObject key = keyValue.getKey();
+            final GenericObject value = keyValue.getValue();
+
+            boolean isDelete = false;
+            if (value == null) {
+                switch (jdbcSinkConfig.getNullValueAction()) {
+                    case DELETE:
+                        isDelete = true;
+                        break;
+                    case FAIL:
+                        throw new IllegalArgumentException("Got record with value NULL with nullValueAction=FAIL");
+                    default:
+                        break;
+                }
+            }
+            Map<String, Object> data = new HashMap<>();
+            fillKeyValueSchemaData(keySchema, key, data);
+            if (isDelete) {
+                mutationType = MutationType.DELETE;
+            } else {
+                fillKeyValueSchemaData(valueSchema, value, data);
+            }
+            recordValueGetter = (k) -> data.get(k);
+        } else {
+            recordValueGetter = (key) -> ((GenericRecord) record).getField(key);
+        }
+        String action = message.getProperties().get(ACTION_PROPERTY);
+        if (action != null) {
+            mutationType = MutationType.valueOf(action);
+        } else if (mutationType == null) {
+            switch (jdbcSinkConfig.getInsertMode()) {
+                case INSERT:
+                    mutationType = MutationType.INSERT;
+                    break;
+                case UPSERT:
+                    mutationType = MutationType.UPSERT;
+                    break;
+                case UPDATE:
+                    mutationType = MutationType.UPDATE;
+                    break;
+                default:
+                    throw new IllegalArgumentException("Unknown insert mode: " + jdbcSinkConfig.getInsertMode());
+            }
+        }
+        return new Mutation(mutationType, recordValueGetter);
     }
 
     private static void setColumnNull(PreparedStatement statement, int index, int type) throws Exception {
@@ -105,6 +184,96 @@ public abstract class BaseJdbcAutoSchemaSink extends JdbcAbstractSink<GenericRec
             statement.setShort(index, (Short) value);
         } else {
             throw new Exception("Not support value type, need to add it. " + value.getClass());
+        }
+    }
+
+    private static Object getValueFromJsonNode(final JsonNode fn) {
+        if (fn == null || fn.isNull()) {
+            return null;
+        }
+        if (fn.isContainerNode()) {
+            throw new IllegalArgumentException("Container nodes are not supported, the JSON must contains only "
+                    + "first level fields.");
+        } else if (fn.isBoolean()) {
+            return fn.asBoolean();
+        } else if (fn.isFloatingPointNumber()) {
+            return fn.asDouble();
+        } else if (fn.isBigInteger()) {
+            if (fn.canConvertToLong()) {
+                return fn.asLong();
+            } else {
+                return fn.asText();
+            }
+        } else if (fn.isNumber()) {
+            return fn.numberValue();
+        } else {
+            return fn.asText();
+        }
+    }
+
+    private static void fillKeyValueSchemaData(org.apache.pulsar.client.api.Schema<GenericObject> schema,
+                                        GenericObject record,
+                                        Map<String, Object> data) {
+        if (record == null) {
+            return;
+        }
+        switch (schema.getSchemaInfo().getType()) {
+            case JSON:
+                final JsonNode jsonNode = (JsonNode) record.getNativeObject();
+                final Iterator<String> fieldNames = jsonNode.fieldNames();
+                while (fieldNames.hasNext()) {
+                    String fieldName = fieldNames.next();
+                    final JsonNode nodeValue = jsonNode.get(fieldName);
+                    data.put(fieldName, getValueFromJsonNode(nodeValue));
+                }
+                break;
+            case AVRO:
+                org.apache.avro.generic.GenericRecord avroNode =
+                        (org.apache.avro.generic.GenericRecord) record.getNativeObject();
+                for (Schema.Field field : avroNode.getSchema().getFields()) {
+                    final String fieldName = field.name();
+                    data.put(fieldName, convertAvroField(avroNode.get(fieldName), field.schema()));
+                }
+                break;
+            default:
+                throw new IllegalArgumentException("unexpected schema type: "
+                        + schema.getSchemaInfo().getType()
+                        + " with KeyValueSchema");
+        }
+    }
+
+    @VisibleForTesting
+    static Object convertAvroField(Object avroValue, Schema schema) {
+        if (avroValue == null) {
+            return null;
+        }
+        switch (schema.getType()) {
+            case NULL:
+            case INT:
+            case LONG:
+            case DOUBLE:
+            case FLOAT:
+            case BOOLEAN:
+                return avroValue;
+            case ENUM:
+            case STRING:
+                return avroValue.toString(); // can be a String or org.apache.avro.util.Utf8
+            case UNION:
+                for (Schema s : schema.getTypes()) {
+                    if (s.getType() == Schema.Type.NULL) {
+                        continue;
+                    }
+                    return convertAvroField(avroValue, s);
+                }
+                throw new IllegalArgumentException("Found UNION schema but it doesn't contain any type");
+            case ARRAY:
+            case BYTES:
+            case FIXED:
+            case RECORD:
+            case MAP:
+            default:
+                throw new UnsupportedOperationException("Unsupported avro schema type=" + schema.getType()
+                        + " for value field schema " + schema.getName());
         }
     }
 }

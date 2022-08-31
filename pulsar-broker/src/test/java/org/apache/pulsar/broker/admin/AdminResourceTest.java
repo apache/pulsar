@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.admin;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import javax.ws.rs.core.Response.Status;
@@ -135,14 +136,15 @@ public class AdminResourceTest extends BrokerTestBase {
         resource.setPulsar(pulsar);
         // validate should pass when topic is partitioned topic
         resource.validatePartitionedTopicName(tenant, namespace, Codec.encode(partitionedTopic));
-        resource.validatePartitionedTopicMetadata(tenant, namespace, Codec.encode(partitionedTopic));
+        resource.validatePartitionedTopicMetadataAsync().get();
         // validate should failed when topic is non-partitioned topic
         resource.validatePartitionedTopicName(tenant, namespace, Codec.encode(nonPartitionedTopic));
         try {
-            resource.validatePartitionedTopicMetadata(tenant, namespace, Codec.encode(nonPartitionedTopic));
+            resource.validatePartitionedTopicMetadataAsync().get();
             fail("Should fail validation on non-partitioned topic");
-        } catch (RestException re) {
-            assertEquals(Status.CONFLICT.getStatusCode(), re.getResponse().getStatus());
+        } catch (Exception re) {
+            assertTrue(re.getCause() instanceof RestException);
+            assertEquals(Status.CONFLICT.getStatusCode(), ((RestException) re.getCause()).getResponse().getStatus());
         }
     }
 }

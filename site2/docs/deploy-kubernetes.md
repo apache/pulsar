@@ -1,7 +1,7 @@
 ---
 id: deploy-kubernetes
 title: Deploy Pulsar on Kubernetes
-sidebar_label: Kubernetes
+sidebar_label: "Kubernetes"
 ---
 
 To get up and running with these charts as fast as possible, in a **non-production** use case, we provide

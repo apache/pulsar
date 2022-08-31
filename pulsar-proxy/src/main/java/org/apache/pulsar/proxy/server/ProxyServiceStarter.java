@@ -23,12 +23,9 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.common.stats.JvmMetrics.getJvmDirectMemoryUsed;
-import static org.slf4j.bridge.SLF4JBridgeHandler.install;
-import static org.slf4j.bridge.SLF4JBridgeHandler.removeHandlersForRootLogger;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.google.common.annotations.VisibleForTesting;
-import io.netty.util.internal.PlatformDependent;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Gauge;
 import io.prometheus.client.Gauge.Child;
@@ -49,6 +46,7 @@ import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.configuration.VipStatus;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.util.CmdGenerateDocs;
+import org.apache.pulsar.common.util.DirectMemoryUtils;
 import org.apache.pulsar.proxy.stats.ProxyStats;
 import org.apache.pulsar.websocket.WebSocketConsumerServlet;
 import org.apache.pulsar.websocket.WebSocketPingPongServlet;
@@ -107,11 +105,6 @@ public class ProxyServiceStarter {
 
     public ProxyServiceStarter(String[] args) throws Exception {
         try {
-
-            // setup handlers
-            removeHandlersForRootLogger();
-            install();
-
             DateFormat dateFormat = new SimpleDateFormat(
                 FixedDateFormat.FixedFormat.ISO8601_OFFSET_DATE_TIME_HHMM.getPattern());
             Thread.setDefaultUncaughtExceptionHandler((thread, exception) -> {
@@ -143,12 +136,14 @@ public class ProxyServiceStarter {
             // load config file
             config = PulsarConfigurationLoader.create(configFile, ProxyConfiguration.class);
 
-            if (isBlank(metadataStoreUrl)) {
+            if (!isBlank(metadataStoreUrl)) {
+                // Use metadataStoreUrl from command line
+                config.setMetadataStoreUrl(metadataStoreUrl);
+            } else if (!isBlank(zookeeperServers)){
                 // Use zookeeperServers from command line if metadataStoreUrl is empty;
                 config.setMetadataStoreUrl(zookeeperServers);
             } else {
-                // Use metadataStoreUrl from command line
-                config.setMetadataStoreUrl(metadataStoreUrl);
+                // use "metadataStoreUrl" property in "proxy.conf".
             }
 
             if (!isBlank(globalZookeeperServers)) {
@@ -226,7 +221,7 @@ public class ProxyServiceStarter {
         Gauge.build("jvm_memory_direct_bytes_max", "-").create().setChild(new Child() {
             @Override
             public double get() {
-                return PlatformDependent.maxDirectMemory();
+                return DirectMemoryUtils.jvmMaxDirectMemory();
             }
         }).register(CollectorRegistry.defaultRegistry);
 
@@ -260,14 +255,11 @@ public class ProxyServiceStarter {
                         Collections.emptyList(), config.isAuthenticateMetricsEndpoint());
             }
         }
-        server.addRestResources("/", VipStatus.class.getPackage().getName(),
-                VipStatus.ATTRIBUTE_STATUS_FILE_PATH, config.getStatusFilePath());
-        server.addRestResources("/proxy-stats", ProxyStats.class.getPackage().getName(),
-                ProxyStats.ATTRIBUTE_PULSAR_PROXY_NAME, service);
+        server.addRestResource("/", VipStatus.ATTRIBUTE_STATUS_FILE_PATH, config.getStatusFilePath(), VipStatus.class);
+        server.addRestResource("/proxy-stats", ProxyStats.ATTRIBUTE_PULSAR_PROXY_NAME, service, ProxyStats.class);
 
         AdminProxyHandler adminProxyHandler = new AdminProxyHandler(config, discoveryProvider);
         ServletHolder servletHolder = new ServletHolder(adminProxyHandler);
-        servletHolder.setInitParameter("preserveHost", "true");
         server.addServlet("/admin", servletHolder);
         server.addServlet("/lookup", servletHolder);
 

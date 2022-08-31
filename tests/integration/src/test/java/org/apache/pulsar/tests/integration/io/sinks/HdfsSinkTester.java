@@ -56,4 +56,8 @@ public class HdfsSinkTester extends SinkTester<HdfsContainer> {
 
 	}
 
+	@Override
+	public void close() throws Exception {
+
+	}
 }

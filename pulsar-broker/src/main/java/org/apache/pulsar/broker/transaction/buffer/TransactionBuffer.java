@@ -167,7 +167,7 @@ public interface TransactionBuffer {
      * Get transaction stats in buffer.
      * @return the transaction stats in buffer.
      */
-    TransactionBufferStats getStats();
+    TransactionBufferStats getStats(boolean lowWaterMarks);
 
     /**
      * Wait TransactionBuffer Recovers completely.
@@ -176,4 +176,12 @@ public interface TransactionBuffer {
      * @return a future which has completely if isTxn = false. Or a future return by takeSnapshot.
      */
     CompletableFuture<Void> checkIfTBRecoverCompletely(boolean isTxn);
+
+
+
+    long getOngoingTxnCount();
+
+    long getAbortedTxnCount();
+
+    long getCommittedTxnCount();
 }

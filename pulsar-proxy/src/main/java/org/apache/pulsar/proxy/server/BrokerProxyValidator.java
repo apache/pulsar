@@ -126,7 +126,7 @@ public class BrokerProxyValidator {
             return NettyFutureUtil.toCompletableFuture(
                             inetSocketAddressResolver.resolve(InetSocketAddress.createUnresolved(host, port)))
                     .thenCompose(resolvedAddress -> {
-                        CompletableFuture<InetSocketAddress> result = new CompletableFuture();
+                        CompletableFuture<InetSocketAddress> result = new CompletableFuture<>();
                         if (isIPAddressAllowed(resolvedAddress)) {
                             result.complete(resolvedAddress);
                         } else {
