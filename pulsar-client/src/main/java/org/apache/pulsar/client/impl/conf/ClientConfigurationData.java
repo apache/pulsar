@@ -220,6 +220,12 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private int requestTimeoutMs = 60000;
 
     @ApiModelProperty(
+            name = "autoCertRefreshSeconds",
+            value = "Seconds of auto refreshing certificate."
+    )
+    private int autoCertRefreshSeconds = 300;
+
+    @ApiModelProperty(
             name = "initialBackoffIntervalNanos",
             value = "Initial backoff interval (in nanosecond)."
     )
@@ -366,6 +372,13 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     )
     @Secret
     private String socks5ProxyPassword;
+
+    @ApiModelProperty(
+            name = "contextClassLoader",
+            value = "Context ClassLoader."
+    )
+    @JsonIgnore
+    private transient ClassLoader contextClassLoader;
 
     public Authentication getAuthentication() {
         if (authentication == null) {
