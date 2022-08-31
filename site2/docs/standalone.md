@@ -232,7 +232,7 @@ If the message has been successfully consumed, you will see a confirmation like 
 
 :::tip
 
-As you have noticed that we do not explicitly create the `my-topic` topic, to which we consume the message. When you consume a message to a topic that does not yet exist, Pulsar creates that topic for you automatically. Producing a message to a topic that does not exist will automatically create that topic for you as well.
+As you have noticed that we do not explicitly create the `my-topic` topic, from which we consume the message. When you consume a message from a topic that does not yet exist, Pulsar creates that topic for you automatically. Producing a message to a topic that does not exist will automatically create that topic for you as well.
 
 :::
 
