@@ -505,6 +505,8 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
+    // Will there be intermittent entry loss like this: [x, null, x, null...]?
+    // If this scenario exists, the binary search is not appropriate.
     private void binarySearchLastExitsEntryAndRecover(long tryPosition, long maxPosition, VoidCallback callback,
                                                       ManagedCursorInfo info, LedgerHandle recoveredFromCursorLedger){
         recoveredFromCursorLedger.asyncReadEntries(tryPosition, tryPosition, (rc1, lh1, seq, ctx1) -> {
