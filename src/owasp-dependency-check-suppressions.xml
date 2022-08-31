@@ -368,9 +368,9 @@
     <!-- debezium-related misdetections -->
     <suppress>
         <notes><![CDATA[
-       file name: debezium-connector-mysql-1.7.2.Final.jar
+       file name: debezium-connector-mysql-1.9.5.Final.jar
        ]]></notes>
-        <sha1>a501bd758344d60fd400f5ce58694d52b2dbc6d8</sha1>
+        <sha1>b725e5577ba687fab8345b3a08f028bcca4ce17e</sha1>
         <cve>CVE-2010-1626</cve>
         <cve>CVE-2009-4028</cve>
         <cve>CVE-2007-1420</cve>
@@ -386,9 +386,9 @@
     </suppress>
     <suppress>
         <notes><![CDATA[
-       file name: mysql-binlog-connector-java-0.25.3.jar
+       file name: mysql-binlog-connector-java-0.25.6.jar
        ]]></notes>
-        <sha1>45b3fdd0b953d744a8570f74eb5e1016f8ed5ca9</sha1>
+        <sha1>af20d92757ee9de6c289c46189bd9350e50e7ad3</sha1>
         <cve>CVE-2007-1420</cve>
         <cve>CVE-2007-2691</cve>
         <cve>CVE-2007-5925</cve>
@@ -404,9 +404,9 @@
     </suppress>
     <suppress>
         <notes><![CDATA[
-       file name: debezium-connector-postgres-1.7.2.Final.jar
+       file name: debezium-connector-postgres-1.9.5.Final.jar
        ]]></notes>
-        <sha1>69c1edfa7d89531af511fcd07e8516fa450f746a</sha1>
+        <sha1>c21d9db465caa2da9780fba0d07d3023b0e2fe46</sha1>
         <cve>CVE-2007-2138</cve>
         <cve>CVE-2010-0733</cve>
         <cve>CVE-2014-0060</cve>
@@ -443,6 +443,7 @@
         <cve>CVE-2020-25694</cve>
         <cve>CVE-2020-25695</cve>
         <cve>CVE-2021-3393</cve>
+        <cve>CVE-2021-23214</cve>
     </suppress>
     <suppress>
         <notes><![CDATA[

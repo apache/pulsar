@@ -102,7 +102,7 @@ The following commands ask you a few questions and then create the certificates.
 
 Sometimes matching the hostname is not possible or makes no sense,
 such as when you create the brokers with random hostnames, or you
-plan to connect to the hosts via their IP. In these cases, you 
+plan to connect to the hosts via their IP. In these cases, you
 should configure the client to disable TLS hostname verification. For more
 details, you can see [the host verification section in client configuration](#hostname-verification).
 
@@ -208,8 +208,8 @@ brokerClientKeyFilePath=/path/to/client.key-pk8.pem
 ```
 
 > You can find a full list of parameters available in the `conf/broker.conf` file,
-> as well as the default values for those parameters, in [Broker Configuration](reference-configuration.md#broker) 
-> 
+> as well as the default values for those parameters, in [Broker Configuration](reference-configuration.md#broker)
+>
 ### TLS Protocol Version and Cipher
 
 You can configure the broker (and proxy) to require specific TLS protocol versions and ciphers for TLS negiotation. You can use the TLS protocol versions and ciphers to stop clients from requesting downgraded TLS protocol versions or ciphers that may have weaknesses.
@@ -265,7 +265,7 @@ Moreover, as the administrator has full control of the certificate authority, a 
 
 One scenario where you may want to enable hostname verification is where you have multiple proxy nodes behind a VIP, and the VIP has a DNS record, for example, pulsar.mycompany.com. In this case, you can generate a TLS cert with pulsar.mycompany.com as the "CommonName," and then enable hostname verification on the client.
 
-The examples below show that hostname verification is disabled for the CLI tools/Java/Python/C++/Node.js/C# clients by default. 
+The examples below show that hostname verification is disabled for the CLI tools/Java/Python/C++/Node.js/C# clients by default.
 
 ### CLI tools
 
@@ -317,7 +317,7 @@ client = Client("pulsar+ssl://broker.example.com:6651/",
 
 #### C++ client
 
-```c++
+```cpp
 
 #include <pulsar/Client.h>
 
@@ -350,7 +350,7 @@ const Pulsar = require('pulsar-client');
 
 #### C# client
 
-```c#
+```csharp
 
 var certificate = new X509Certificate2("ca.cert.pem");
 var client = PulsarClient.Builder()

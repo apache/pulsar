@@ -652,6 +652,47 @@ Producer<byte[]> producer = client.newProducer()
 By default, producer chunks the large message based on max message size (`maxMessageSize`) configured at broker (eg: 5MB). However, client can also configure max chunked size using producer configuration `chunkMaxMessageSize`.
 > **Note:** To enable chunking, you need to disable batching (`enableBatching`=`false`) concurrently.
 
+### Intercept messages
+
+`ProducerInterceptor`s intercept and possibly mutate messages received by the producer before they are published to the brokers.
+
+The interface has three main events:
+* `eligible` checks if the interceptor can be applied to the message.
+* `beforeSend` is triggered before the producer sends the message to the broker. You can modify messages within this event.
+* `onSendAcknowledgement` is triggered when the message is acknowledged by the broker or the sending failed.
+
+To intercept messages, you can add one or multiple `ProducerInterceptor`s when creating a `Producer` as follows.
+
+```java
+
+Producer<byte[]> producer = client.newProducer()
+        .topic(topic)
+        .intercept(new ProducerInterceptor {
+			@Override
+			boolean eligible(Message message) {
+			    return true;  // process all messages
+			}
+
+			@Override
+			Message beforeSend(Producer producer, Message message) {
+			    // user-defined processing logic
+			}
+
+			@Override
+			void onSendAcknowledgement(Producer producer, Message message, MessageId msgId, Throwable exception) {
+			    // user-defined processing logic
+			}
+        })
+        .create();
+
+```
+
+:::note
+
+If you are using multiple interceptors, they apply in the order they are passed to the `intercept` method.
+
+:::
+
 ## Consumer
 
 In Pulsar, consumers subscribe to topics and handle messages that producers publish to those topics. You can instantiate a new [consumer](reference-terminology.md#consumer) by first instantiating a {@inject: javadoc:PulsarClient:/client/org/apache/pulsar/client/api/PulsarClient} object and passing it a URL for a Pulsar broker (as [above](#client-configuration)).
@@ -1219,6 +1260,66 @@ Producer producer = client.newProducer()
 :::note
 
 If the message key is not specified, messages without key are dispatched to one consumer in order by default.
+
+:::
+
+### Intercept messages
+
+`ConsumerInterceptor`s intercept and possibly mutate messages received by the consumer.
+
+The interface has six main events:
+* `beforeConsume` is triggered before the message is returned by `receive()` or `receiveAsync()`. You can modify messages within this event.
+* `onAcknowledge` is triggered before the consumer sends the acknowledgement to the broker.
+* `onAcknowledgeCumulative` is triggered before the consumer sends the cumulative acknowledgement to the broker.
+* `onNegativeAcksSend` is triggered when a redelivery from a negative acknowledgement occurs.
+* `onAckTimeoutSend` is triggered when a redelivery from an acknowledgement timeout occurs.
+* `onPartitionsChange` is triggered when the partitions of the (partitioned) topic change.
+
+To intercept messages, you can add one or multiple `ConsumerInterceptor`s when creating a `Consumer` as follows.
+
+```java
+
+Consumer<String> consumer = client.newConsumer()
+        .topic("my-topic")
+        .subscriptionName("my-subscription")
+        .intercept(new ConsumerInterceptor<String> {
+              @Override
+              public Message<String> beforeConsume(Consumer<String> consumer, Message<String> message) {
+                  // user-defined processing logic
+              }
+
+              @Override
+              public void onAcknowledge(Consumer<String> consumer, MessageId messageId, Throwable cause) {
+                  // user-defined processing logic
+              }
+
+              @Override
+              public void onAcknowledgeCumulative(Consumer<String> consumer, MessageId messageId, Throwable cause) {
+                  // user-defined processing logic
+              }
+
+              @Override
+              public void onNegativeAcksSend(Consumer<String> consumer, Set<MessageId> messageIds) {
+                  // user-defined processing logic
+              }
+
+              @Override
+              public void onAckTimeoutSend(Consumer<String> consumer, Set<MessageId> messageIds) {
+                  // user-defined processing logic
+              }
+
+              @Override
+              public void onPartitionsChange(String topicName, int partitions) {
+                  // user-defined processing logic
+              }
+        })
+        .subscribe();
+
+```
+
+:::note
+
+If you are using multiple interceptors, they apply in the order they are passed to the `intercept` method.
 
 :::
 
