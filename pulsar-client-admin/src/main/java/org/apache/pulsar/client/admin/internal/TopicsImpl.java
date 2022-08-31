@@ -2714,5 +2714,41 @@ public class TopicsImpl extends BaseResource implements Topics {
         return asyncDeleteRequest(path);
     }
 
+    @Override
+    public void setShadowTopics(String sourceTopic, List<String> shadowTopics) throws PulsarAdminException {
+        sync(() -> setShadowTopicsAsync(sourceTopic, shadowTopics));
+    }
+
+    @Override
+    public void removeShadowTopics(String sourceTopic) throws PulsarAdminException {
+        sync(() -> removeShadowTopicsAsync(sourceTopic));
+    }
+
+    @Override
+    public List<String> getShadowTopics(String sourceTopic) throws PulsarAdminException {
+        return sync(() -> getShadowTopicsAsync(sourceTopic));
+    }
+
+    @Override
+    public CompletableFuture<Void> setShadowTopicsAsync(String sourceTopic, List<String> shadowTopics) {
+        TopicName tn = validateTopic(sourceTopic);
+        WebTarget path = topicPath(tn, "shadowTopics");
+        return asyncPutRequest(path, Entity.entity(shadowTopics, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public CompletableFuture<Void> removeShadowTopicsAsync(String sourceTopic) {
+        TopicName tn = validateTopic(sourceTopic);
+        WebTarget path = topicPath(tn, "shadowTopics");
+        return asyncDeleteRequest(path);
+    }
+
+    @Override
+    public CompletableFuture<List<String>> getShadowTopicsAsync(String sourceTopic) {
+        TopicName tn = validateTopic(sourceTopic);
+        WebTarget path = topicPath(tn, "shadowTopics");
+        return asyncGetRequest(path, new FutureCallback<List<String>>(){});
+    }
+
     private static final Logger log = LoggerFactory.getLogger(TopicsImpl.class);
 }
