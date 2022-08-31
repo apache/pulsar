@@ -150,19 +150,19 @@ std::string TopicName::getEncodedName(const std::string& nameBeforeEncoding) {
     return nameAfterEncoding;
 }
 
-bool TopicName::isV2Topic() { return isV2Topic_; }
+bool TopicName::isV2Topic() const { return isV2Topic_; }
 
-std::string TopicName::getDomain() { return domain_; }
+std::string TopicName::getDomain() const { return domain_; }
 
-std::string TopicName::getProperty() { return property_; }
+std::string TopicName::getProperty() const { return property_; }
 
-std::string TopicName::getCluster() { return cluster_; }
+std::string TopicName::getCluster() const { return cluster_; }
 
-std::string TopicName::getNamespacePortion() { return namespacePortion_; }
+std::string TopicName::getNamespacePortion() const { return namespacePortion_; }
 
 std::string TopicName::getLocalName() { return localName_; }
 
-std::string TopicName::getEncodedLocalName() { return getEncodedName(localName_); }
+std::string TopicName::getEncodedLocalName() const { return getEncodedName(localName_); }
 
 bool TopicName::operator==(const TopicName& other) {
     return (this->topicName_.compare(other.topicName_) == 0);
