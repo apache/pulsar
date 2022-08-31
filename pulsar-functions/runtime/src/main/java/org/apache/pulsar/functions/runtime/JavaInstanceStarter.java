@@ -73,14 +73,14 @@ public class JavaInstanceStarter implements AutoCloseable {
     @Parameter(names = "--function_id", description = "Function Id\n", required = true)
     public String functionId;
 
-    @Parameter(names = "--transform_function_id", description = "Transform Function Id\n", required = true)
-    public String transformFunctionId;
-
     @Parameter(names = "--function_version", description = "Function Version\n", required = true)
     public String functionVersion;
 
     @Parameter(names = "--pulsar_serviceurl", description = "Pulsar Service Url\n", required = true)
     public String pulsarServiceUrl;
+
+    @Parameter(names = "--transform_function_id", description = "Transform Function Id\n")
+    public String transformFunctionId;
 
     @Parameter(names = "--client_auth_plugin", description = "Client auth plugin name\n")
     public String clientAuthenticationPlugin;
