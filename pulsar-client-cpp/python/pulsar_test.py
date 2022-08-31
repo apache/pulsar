@@ -1248,6 +1248,32 @@ class PulsarTest(TestCase):
         second_encode = schema.encode(record)
         self.assertEqual(first_encode, second_encode)
 
+    def test_chunking(self):
+        client = Client(self.serviceUrl)
+        data_size = 10 * 1024 * 1024
+        producer = client.create_producer(
+            'test_chunking',
+            chunking_enabled=True
+        )
+
+        consumer = client.subscribe('test_chunking', "my-subscription",
+                                    max_pending_chunked_message=10,
+                                    auto_ack_oldest_chunked_message_on_queue_full=False
+                                    )
+
+        producer.send(bytes(bytearray(os.urandom(data_size))), None)
+        msg = consumer.receive(TM)
+        self.assertEqual(len(msg.data()), data_size)
+
+    def test_invalid_chunking_config(self):
+        client = Client(self.serviceUrl)
+
+        self._check_value_error(lambda: client.create_producer(
+            'test_invalid_chunking_config',
+            chunking_enabled=True,
+            batching_enabled=True
+        ))
+
     def _check_value_error(self, fun):
         with self.assertRaises(ValueError):
             fun()
