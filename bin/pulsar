@@ -264,10 +264,17 @@ if [ -z "$PULSAR_LOG_CONF" ]; then
 fi
 
 if [ -z "$PULSAR_TRINO_CONF" ]; then
-    PULSAR_TRINO_CONF=$DEFAULT_PULSAR_TRINO_CONF
     # TODO: As PIP-200 accepted, this compatibility is not promised. Refactor when we drop this b/w compatibility.
+    if [ -z "$PULSAR_PRESTO_CONF" ]; then
+      PULSAR_TRINO_CONF=$DEFAULT_PULSAR_TRINO_CONF
+    else
+      PULSAR_TRINO_CONF=$PULSAR_PRESTO_CONF
+    fi
     if [ ! -d "${PULSAR_TRINO_CONF}" ]; then
       FALLBACK_PULSAR_PRESTO_CONF=${PULSAR_HOME}/conf/presto
+      if [ -d "${FALLBACK_PULSAR_PRESTO_CONF}" ]; then
+        PULSAR_TRINO_CONF=$FALLBACK_PULSAR_PRESTO_CONF
+      fi
     fi
 fi
 
