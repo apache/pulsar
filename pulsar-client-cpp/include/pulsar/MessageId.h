@@ -94,7 +94,6 @@ class PULSAR_PUBLIC MessageId {
     friend class MessageImpl;
     friend class Commands;
     friend class PartitionedProducerImpl;
-    friend class PartitionedConsumerImpl;
     friend class MultiTopicsConsumerImpl;
     friend class UnAckedMessageTrackerEnabled;
     friend class BatchAcknowledgementTracker;

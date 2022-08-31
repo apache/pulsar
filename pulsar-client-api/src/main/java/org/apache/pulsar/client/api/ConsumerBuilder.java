@@ -181,9 +181,11 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * Set the timeout for unacked messages, truncated to the nearest millisecond. The timeout needs to be greater than
      * 1 second.
      *
-     * <p>By default, the acknowledge timeout is disabled and that means that messages delivered to a
-     * consumer is not re-delivered unless the consumer crashes. Since 2.3.0, when a dead letter policy
-     * is specified, and no ackTimeoutMillis is specified, the ack timeout is set to 30 seconds.
+     * <p>By default, the acknowledge timeout is disabled (set to `0`, which means infinite).
+     * When a consumer with an infinite acknowledgment timeout terminates, any unacknowledged
+     * messages that it receives are re-delivered to another consumer.
+     * Since 2.3.0, when a dead letter policy is specified and no ackTimeoutMillis is specified,
+     * the ack timeout is set to 30 seconds.
      *
      * <p>When enabling ack timeout, if a message is not acknowledged within the specified timeout
      * it is re-delivered to the consumer (possibly to a different consumer in case of

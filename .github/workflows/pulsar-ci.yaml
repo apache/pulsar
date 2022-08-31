@@ -227,19 +227,12 @@ jobs:
         if: ${{ always() && needs.changed_files_job.outputs.docs_only != 'true' && needs.changed_files_job.outputs.cpp_only != 'true' }}
         uses: ./.github/actions/copy-test-reports
 
-      - name: Report test summary as warning
-        if: ${{ always() && needs.changed_files_job.outputs.docs_only != 'true' && needs.changed_files_job.outputs.cpp_only != 'true' }}
-        uses: ./.github/actions/merge-test-reports
-        with:
-          summary_title: 'Test Summary for Unit - ${{ matrix.name }}:'
-
-      - name: Publish the Test reports in Junit xml format
-        uses: actions/upload-artifact@v3
+      - name: Publish Test Report
+        uses: apache/pulsar-test-infra/action-junit-report@master
         if: ${{ always() && needs.changed_files_job.outputs.docs_only != 'true' && needs.changed_files_job.outputs.cpp_only != 'true' }}
         with:
-          name: Unit-${{ matrix.group }}-test-report
-          path: test-reports
-          retention-days: 7
+          report_paths: 'test-reports/TEST-*.xml'
+          annotate_only: 'true'
 
       - name: Upload Surefire reports
         uses: actions/upload-artifact@v3
@@ -452,19 +445,12 @@ jobs:
         if: ${{ always() && needs.changed_files_job.outputs.docs_only != 'true' && needs.changed_files_job.outputs.cpp_only != 'true' }}
         uses: ./.github/actions/copy-test-reports
 
-      - name: Report test summary as warning
-        if: ${{ always() && needs.changed_files_job.outputs.docs_only != 'true' && needs.changed_files_job.outputs.cpp_only != 'true' }}
-        uses: ./.github/actions/merge-test-reports
-        with:
-          summary_title: 'Test Summary for Integration - ${{ matrix.name }}:'
-
-      - name: Publish the Test reports in Junit xml format
-        uses: actions/upload-artifact@v3
+      - name: Publish Test Report
+        uses: apache/pulsar-test-infra/action-junit-report@master
         if: ${{ always() && needs.changed_files_job.outputs.docs_only != 'true' && needs.changed_files_job.outputs.cpp_only != 'true' }}
         with:
-          name: Integration-${{ matrix.group }}-test-report
-          path: test-reports
-          retention-days: 7
+          report_paths: 'test-reports/TEST-*.xml'
+          annotate_only: 'true'
 
       - name: Upload Surefire reports
         uses: actions/upload-artifact@v3
@@ -695,26 +681,19 @@ jobs:
         run: $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh print_thread_dumps
 
       - name: Aggregates all test reports to ./test-reports and ./surefire-reports directories
-        if: ${{ always() && needs.changed_files_job.outputs.docs_only != 'true' }}
+        if: ${{ always() && needs.changed_files_job.outputs.docs_only != 'true' && needs.changed_files_job.outputs.cpp_only != 'true' }}
         uses: ./.github/actions/copy-test-reports
 
-      - name: Report test summary as warning
-        if: ${{ always() && needs.changed_files_job.outputs.docs_only != 'true' }}
-        uses: ./.github/actions/merge-test-reports
+      - name: Publish Test Report
+        uses: apache/pulsar-test-infra/action-junit-report@master
+        if: ${{ always() && needs.changed_files_job.outputs.docs_only != 'true' && needs.changed_files_job.outputs.cpp_only != 'true' }}
         with:
-          summary_title: 'Test Summary for System - ${{ matrix.name }}:'
-
-      - name: Publish the Test reports in Junit xml format
-        uses: actions/upload-artifact@v3
-        if: ${{ always() && needs.changed_files_job.outputs.docs_only != 'true' }}
-        with:
-          name: System-${{ matrix.group }}-test-report
-          path: test-reports
-          retention-days: 7
+          report_paths: 'test-reports/TEST-*.xml'
+          annotate_only: 'true'
 
       - name: Upload container logs
         uses: actions/upload-artifact@v3
-        if: ${{ !success() && needs.changed_files_job.outputs.docs_only != 'true' }}
+        if: ${{ !success() && needs.changed_files_job.outputs.docs_only != 'true'  && needs.changed_files_job.outputs.cpp_only != 'true' }}
         continue-on-error: true
         with:
           name: System-${{ matrix.group }}-container-logs
