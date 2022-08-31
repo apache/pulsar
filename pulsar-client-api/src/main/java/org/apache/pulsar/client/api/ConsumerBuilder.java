@@ -105,7 +105,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
      *
      * @return a future that yields a {@link Consumer} instance
      * @throws PulsarClientException
-     *             if the the subscribe operation fails
+     *             if the subscribe operation fails
      */
     CompletableFuture<Consumer<T>> subscribeAsync();
 
