@@ -21,9 +21,13 @@ package org.apache.pulsar.testclient;
 import com.google.common.collect.Sets;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.ProducerBuilder;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
@@ -31,6 +35,8 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -162,46 +168,24 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test(timeOut = 20000)
-    public void testMsgKeyBatchingDisabled() throws Exception {
-        String argString = "%s -r 10 -u %s -m 500 -mk autoIncrement -db";
+    public void testBatchingDisabled() throws Exception {
+        PerformanceProducer.Arguments arguments = new PerformanceProducer.Arguments();
+        
+        int producerId = 0;
+        
         String topic = testTopic + UUID.randomUUID();
-        String args = String.format(argString, topic, pulsar.getBrokerServiceUrl());
-        Thread thread = new Thread(() -> {
-            try {
-                PerformanceProducer.main(args.split(" "));
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        });
+        arguments.topics = List.of(topic);
+        arguments.msgRate = 10;
+        arguments.serviceURL = pulsar.getBrokerServiceUrl();
+        arguments.numMessages = 500;
+        arguments.disableBatching = true;
 
-        Consumer<byte[]> newConsumer1 = pulsarClient.newConsumer().topic(topic).subscriptionName("sub-2")
-                .subscriptionType(SubscriptionType.Key_Shared).subscribe();
-        Consumer<byte[]> newConsumer2 = pulsarClient.newConsumer().topic(topic).subscriptionName("sub-2")
-                .subscriptionType(SubscriptionType.Key_Shared).subscribe();
-
-        thread.start();
-
-        Awaitility.await()
-                .untilAsserted(() -> {
-                    Message<byte[]> message = newConsumer1.receive(1, TimeUnit.SECONDS);
-                    if (message != null) {
-                        newConsumer1.acknowledge(message);
-                    }
-                    assertNotNull(message);
-                });
-
-        Awaitility.await()
-                .untilAsserted(() -> {
-                    Message<byte[]> message = newConsumer2.receive(1, TimeUnit.SECONDS);
-                    if (message != null) {
-                        newConsumer2.acknowledge(message);
-                    }
-                    assertNotNull(message);
-                });
-
-        thread.interrupt();
-        newConsumer1.close();
-        newConsumer2.close();
+        ClientBuilder clientBuilder = PerfClientUtils.createClientBuilderFromArguments(arguments)
+                .enableTransaction(arguments.isEnableTransaction);
+        PulsarClient client = clientBuilder.build();
+        
+        ProducerBuilderImpl builder = (ProducerBuilderImpl) PerformanceProducer.createProducerBuilder(client, arguments, producerId);
+        Assert.assertFalse(builder.getConf().isBatchingEnabled());
     }
 
     @Test(timeOut = 20000)
