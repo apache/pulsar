@@ -31,6 +31,7 @@
 #include "ConsumerImplBase.h"
 #include <atomic>
 #include <vector>
+#include "ServiceNameResolver.h"
 
 namespace pulsar {
 
@@ -69,10 +70,6 @@ class ClientImpl : public std::enable_shared_from_this<ClientImpl> {
     void getPartitionsForTopicAsync(const std::string& topic, GetPartitionsCallback callback);
 
     Future<Result, ClientConnectionWeakPtr> getConnection(const std::string& topic);
-    void handleLookup(Result result, LookupDataResultPtr data,
-                      Promise<Result, ClientConnectionWeakPtr> promise);
-    void handleNewConnection(Result result, const ClientConnectionWeakPtr& conn,
-                             Promise<Result, ClientConnectionWeakPtr> promise);
 
     void closeAsync(CloseCallback callback);
     void shutdown();
@@ -134,7 +131,7 @@ class ClientImpl : public std::enable_shared_from_this<ClientImpl> {
     std::mutex mutex_;
 
     State state_;
-    std::string serviceUrl_;
+    ServiceNameResolver serviceNameResolver_;
     ClientConfiguration clientConfiguration_;
     MemoryLimitController memoryLimitController_;
 

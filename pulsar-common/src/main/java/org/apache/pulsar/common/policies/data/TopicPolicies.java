@@ -71,6 +71,7 @@ public class TopicPolicies {
     private Integer maxSubscriptionsPerTopic;
     private DispatchRateImpl replicatorDispatchRate;
     private SchemaCompatibilityStrategy schemaCompatibilityStrategy;
+    private EntryFilters entryFilters;
 
     /**
      * Subscription level policies for specific subscription.
