@@ -96,7 +96,7 @@ public abstract class MessagingBase extends PulsarTestSuite {
                         "Received duplicate message " + currentReceived.getValue());
             }
         }
-        assertEquals(messagesReceived.size(), messagesToReceive);
+        assertEquals(messagesToReceive, messagesReceived.size());
     }
 
     protected <T> void receiveMessagesCheckDuplicate
