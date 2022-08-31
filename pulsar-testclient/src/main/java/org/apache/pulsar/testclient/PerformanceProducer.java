@@ -180,7 +180,7 @@ public class PerformanceProducer {
 
         @Parameter(names = { "-db",
                 "--disable-batching" }, description = "Disable batching if true")
-        public boolean disableBatching = false;
+        public boolean disableBatching;
 
         @Parameter(names = {
             "-bm", "--batch-max-messages"
