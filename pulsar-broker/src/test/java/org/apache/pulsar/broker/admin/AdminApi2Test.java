@@ -932,16 +932,18 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         Assert.assertNull(properties);
         // remove key of properties on this topic
         admin.topics().removeProperties(topicNameTwo, "key1");
+        properties = admin.topics().getProperties(topicNameTwo);
         Assert.assertNull(properties);
-        properties = new HashMap<>();
-        properties.put("key1", "value1");
-        properties.put("key2", "value2");
-        admin.topics().updateProperties(topicNameTwo, properties);
+        Map<String, String> topicProp = new HashMap<>();
+        topicProp.put("key1", "value1");
+        topicProp.put("key2", "value2");
+        admin.topics().updateProperties(topicNameTwo, topicProp);
         properties = admin.topics().getProperties(topicNameTwo);
-        Assert.assertEquals(properties.size(), 2);
+        Assert.assertEquals(properties, topicProp);
         admin.topics().removeProperties(topicNameTwo, "key1");
+        topicProp.remove("key1");
         properties = admin.topics().getProperties(topicNameTwo);
-        Assert.assertEquals(properties.size(), 1);
+        Assert.assertEquals(properties, topicProp);
     }
 
     @Test
