@@ -2633,7 +2633,7 @@ public abstract class NamespacesBase extends AdminResource {
        return result;
    }
 
-   protected void updatePolicies(NamespaceName ns, Function<Policies, Policies> updateFunction) {
+   private void updatePolicies(NamespaceName ns, Function<Policies, Policies> updateFunction) {
        // Force to read the data s.t. the watch to the cache content is setup.
        try {
            updatePoliciesAsync(ns, updateFunction).get(namespaceResources().getOperationTimeoutSec(),
