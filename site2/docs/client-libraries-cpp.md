@@ -341,30 +341,24 @@ ${PULSAR_HOME}/pulsar-client-cpp/build/lib/Release/pulsar.dll
 
 ## Connection URLs
 
-To connect Pulsar using client libraries, you need to specify a Pulsar protocol URL.
+To connect to Pulsar using client libraries, you need to specify a [Pulsar protocol](developing-binary-protocol.md) URL.
 
-Pulsar protocol URLs are assigned to specific clusters, you can use the Pulsar URI scheme. The default port is `6650`. The following is an example for localhost.
+You can assign Pulsar protocol URLs to specific clusters and use the `pulsar` scheme. The following is an example of `localhost` with the default port `6650`:
 
 ```http
-
 pulsar://localhost:6650
-
 ```
 
-In a Pulsar cluster in production, the URL looks as follows. 
+If you have multiple brokers, separate `IP:port` by commas:
 
 ```http
-
-pulsar://pulsar.us-west.example.com:6650
-
+pulsar://localhost:6550,localhost:6651,localhost:6652
 ```
 
-If you use TLS authentication, you need to add `ssl`, and the default port is `6651`. The following is an example.
+If you use [TLS](security-tls-authentication.md) authentication, add `+ssl` in the scheme:
 
 ```http
-
 pulsar+ssl://pulsar.us-west.example.com:6651
-
 ```
 
 ## Create a producer

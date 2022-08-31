@@ -440,7 +440,7 @@ Release a new version of libpulsar for MacOS, You can follow the example [here](
 
 ## 14. Update Python Client docs
 
-After publishing the python client docs, run the following script:
+After publishing the python client docs, run the following script from the apache/pulsar-site `main` branch:
 
 ```shell
 PULSAR_VERSION=2.X.Y ./site2/tools/api/python/build-docs-in-docker.sh
