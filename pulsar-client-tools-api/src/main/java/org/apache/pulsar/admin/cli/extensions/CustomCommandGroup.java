@@ -16,41 +16,32 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+package org.apache.pulsar.admin.cli.extensions;
 
-package org.apache.pulsar.common.policies.data;
+import java.util.List;
 
 /**
- * PolicyName authorization operations.
+ * A group of commands.
  */
-public enum PolicyName {
-    ALL,
-    ANTI_AFFINITY,
-    AUTO_SUBSCRIPTION_CREATION,
-    AUTO_TOPIC_CREATION,
-    BACKLOG,
-    COMPACTION,
-    DELAYED_DELIVERY,
-    INACTIVE_TOPIC,
-    DEDUPLICATION,
-    MAX_CONSUMERS,
-    MAX_PRODUCERS,
-    DEDUPLICATION_SNAPSHOT,
-    MAX_UNACKED,
-    MAX_SUBSCRIPTIONS,
-    OFFLOAD,
-    PARTITION,
-    PERSISTENCE,
-    RATE,
-    RETENTION,
-    REPLICATION,
-    REPLICATION_RATE,
-    SCHEMA_COMPATIBILITY_STRATEGY,
-    SUBSCRIPTION_AUTH_MODE,
-    SUBSCRIPTION_EXPIRATION_TIME,
-    ENCRYPTION,
-    TTL,
-    MAX_TOPICS,
-    RESOURCEGROUP,
-    ENTRY_FILTERS,
-    SHADOW_TOPIC
+public interface CustomCommandGroup {
+
+    /**
+     * The name of the group.
+     * @return the name
+     */
+    String name();
+
+    /**
+     * The description of the group.
+     * @return the description
+     */
+    String description();
+
+    /**
+     * Generate the available commands.
+     *
+     * @param context
+     * @return the list of new commands.
+     */
+    List<CustomCommand> commands(CommandExecutionContext context);
 }

@@ -16,41 +16,41 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+package org.apache.pulsar.admin.cli.extensions;
 
-package org.apache.pulsar.common.policies.data;
+import java.util.List;
+import java.util.Map;
 
 /**
- * PolicyName authorization operations.
+ * Custom command.
  */
-public enum PolicyName {
-    ALL,
-    ANTI_AFFINITY,
-    AUTO_SUBSCRIPTION_CREATION,
-    AUTO_TOPIC_CREATION,
-    BACKLOG,
-    COMPACTION,
-    DELAYED_DELIVERY,
-    INACTIVE_TOPIC,
-    DEDUPLICATION,
-    MAX_CONSUMERS,
-    MAX_PRODUCERS,
-    DEDUPLICATION_SNAPSHOT,
-    MAX_UNACKED,
-    MAX_SUBSCRIPTIONS,
-    OFFLOAD,
-    PARTITION,
-    PERSISTENCE,
-    RATE,
-    RETENTION,
-    REPLICATION,
-    REPLICATION_RATE,
-    SCHEMA_COMPATIBILITY_STRATEGY,
-    SUBSCRIPTION_AUTH_MODE,
-    SUBSCRIPTION_EXPIRATION_TIME,
-    ENCRYPTION,
-    TTL,
-    MAX_TOPICS,
-    RESOURCEGROUP,
-    ENTRY_FILTERS,
-    SHADOW_TOPIC
+public interface CustomCommand {
+
+    /**
+     * Name of the command.
+     * @return the name
+     */
+    String name();
+
+    /**
+     * Descritption of the command.
+     * @return the description
+     */
+    String description();
+
+    /**
+     * The parameters for the command.
+     * @return the parameters
+     */
+    List<ParameterDescriptor> parameters();
+
+    /**
+     * Execute the command.
+     * @param parameters the parameters, one entry per each parameter name
+     * @param context access the environment
+     * @return false in case of failure
+     * @throws Exception
+     */
+    boolean execute(Map<String, Object> parameters, CommandExecutionContext context) throws Exception;
+
 }
