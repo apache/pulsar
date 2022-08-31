@@ -73,25 +73,12 @@ typedef std::unique_lock<std::mutex> Lock;
 
 typedef std::vector<std::string> StringList;
 
-static const std::string https("https");
-static const std::string pulsarSsl("pulsar+ssl");
-
-static const ClientConfiguration detectTls(const std::string& serviceUrl,
-                                           const ClientConfiguration& clientConfiguration) {
-    ClientConfiguration conf(clientConfiguration);
-    if (serviceUrl.compare(0, https.size(), https) == 0 ||
-        serviceUrl.compare(0, pulsarSsl.size(), pulsarSsl) == 0) {
-        conf.setUseTls(true);
-    }
-    return conf;
-}
-
 ClientImpl::ClientImpl(const std::string& serviceUrl, const ClientConfiguration& clientConfiguration,
                        bool poolConnections)
     : mutex_(),
       state_(Open),
-      serviceUrl_(serviceUrl),
-      clientConfiguration_(detectTls(serviceUrl, clientConfiguration)),
+      serviceNameResolver_(serviceUrl),
+      clientConfiguration_(ClientConfiguration(clientConfiguration).setUseTls(serviceNameResolver_.useTls())),
       memoryLimitController_(clientConfiguration.getMemoryLimit()),
       ioExecutorProvider_(std::make_shared<ExecutorServiceProvider>(clientConfiguration_.getIOThreads())),
       listenerExecutorProvider_(
@@ -120,15 +107,16 @@ ClientImpl::ClientImpl(const std::string& serviceUrl, const ClientConfiguration&
     }
     LogUtils::setLoggerFactory(std::move(loggerFactory));
 
-    if (serviceUrl_.compare(0, 4, "http") == 0) {
+    if (serviceNameResolver_.useHttp()) {
         LOG_DEBUG("Using HTTP Lookup");
-        lookupServicePtr_ =
-            std::make_shared<HTTPLookupService>(std::cref(serviceUrl_), std::cref(clientConfiguration_),
-                                                std::cref(clientConfiguration_.getAuthPtr()));
+        lookupServicePtr_ = std::make_shared<HTTPLookupService>(std::ref(serviceNameResolver_),
+                                                                std::cref(clientConfiguration_),
+                                                                std::cref(clientConfiguration_.getAuthPtr()));
     } else {
         LOG_DEBUG("Using Binary Lookup");
-        lookupServicePtr_ = std::make_shared<BinaryProtoLookupService>(
-            std::ref(pool_), std::ref(serviceUrl), std::cref(clientConfiguration_.getListenerName()));
+        lookupServicePtr_ =
+            std::make_shared<BinaryProtoLookupService>(std::ref(serviceNameResolver_), std::ref(pool_),
+                                                       std::cref(clientConfiguration_.getListenerName()));
     }
 }
 
@@ -414,36 +402,32 @@ void ClientImpl::handleConsumerCreated(Result result, ConsumerImplBaseWeakPtr co
 
 Future<Result, ClientConnectionWeakPtr> ClientImpl::getConnection(const std::string& topic) {
     Promise<Result, ClientConnectionWeakPtr> promise;
-    lookupServicePtr_->lookupAsync(topic).addListener(std::bind(&ClientImpl::handleLookup, shared_from_this(),
-                                                                std::placeholders::_1, std::placeholders::_2,
-                                                                promise));
+
+    const auto topicNamePtr = TopicName::get(topic);
+    if (!topicNamePtr) {
+        LOG_ERROR("Unable to parse topic - " << topic);
+        promise.setFailed(ResultInvalidTopicName);
+        return promise.getFuture();
+    }
+
+    auto self = shared_from_this();
+    lookupServicePtr_->getBroker(*topicNamePtr)
+        .addListener([this, self, promise](Result result, const LookupService::LookupResult& data) {
+            if (result != ResultOk) {
+                promise.setFailed(result);
+                return;
+            }
+            pool_.getConnectionAsync(data.logicalAddress, data.physicalAddress)
+                .addListener([promise](Result result, const ClientConnectionWeakPtr& weakCnx) {
+                    if (result == ResultOk) {
+                        promise.setValue(weakCnx);
+                    } else {
+                        promise.setFailed(result);
+                    }
+                });
+        });
+
     return promise.getFuture();
-}
-
-void ClientImpl::handleLookup(Result result, LookupDataResultPtr data,
-                              Promise<Result, ClientConnectionWeakPtr> promise) {
-    if (data) {
-        const std::string& logicalAddress =
-            clientConfiguration_.isUseTls() ? data->getBrokerUrlTls() : data->getBrokerUrl();
-        LOG_DEBUG("Getting connection to broker: " << logicalAddress);
-        const std::string& physicalAddress =
-            data->shouldProxyThroughServiceUrl() ? serviceUrl_ : logicalAddress;
-        Future<Result, ClientConnectionWeakPtr> future =
-            pool_.getConnectionAsync(logicalAddress, physicalAddress);
-        future.addListener(std::bind(&ClientImpl::handleNewConnection, shared_from_this(),
-                                     std::placeholders::_1, std::placeholders::_2, promise));
-    } else {
-        promise.setFailed(result);
-    }
-}
-
-void ClientImpl::handleNewConnection(Result result, const ClientConnectionWeakPtr& conn,
-                                     Promise<Result, ClientConnectionWeakPtr> promise) {
-    if (result == ResultOk) {
-        promise.setValue(conn);
-    } else {
-        promise.setFailed(ResultConnectError);
-    }
 }
 
 void ClientImpl::handleGetPartitions(const Result result, const LookupDataResultPtr partitionMetadata,

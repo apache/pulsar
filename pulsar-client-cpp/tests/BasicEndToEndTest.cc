@@ -23,6 +23,7 @@
 #include <vector>
 #include <cstring>
 #include <sstream>
+#include <stdexcept>
 #include <algorithm>
 #include <functional>
 
@@ -496,28 +497,11 @@ TEST(BasicEndToEndTest, testSubscribeCloseUnsubscribeSherpaScenario) {
 }
 
 TEST(BasicEndToEndTest, testInvalidUrlPassed) {
-    Client client("localhost:4080");
-    std::string topicName = "testInvalidUrlPassed";
-    std::string subName = "test-sub";
-    Producer producer;
-    Result result = client.createProducer(topicName, producer);
-    ASSERT_EQ(ResultConnectError, result);
-
-    Client client1("test://localhost");
-    result = client1.createProducer(topicName, producer);
-    ASSERT_EQ(ResultConnectError, result);
-
-    Client client2("test://:4080");
-    result = client2.createProducer(topicName, producer);
-    ASSERT_EQ(ResultConnectError, result);
-
-    Client client3("");
-    result = client3.createProducer(topicName, producer);
-    ASSERT_EQ(ResultConnectError, result);
-
-    Client client4("Dream of the day when this will be a valid URL");
-    result = client4.createProducer(topicName, producer);
-    ASSERT_EQ(ResultConnectError, result);
+    EXPECT_THROW({ Client{"localhost:4080"}; }, std::invalid_argument);
+    EXPECT_THROW({ Client{"test://localhost"}; }, std::invalid_argument);
+    EXPECT_THROW({ Client{"test://:4080"}; }, std::invalid_argument);
+    EXPECT_THROW({ Client{""}; }, std::invalid_argument);
+    EXPECT_THROW({ Client{"Dream of the day when this will be a valid URL"}; }, std::invalid_argument);
 }
 
 void testPartitionedProducerConsumer(bool lazyStartPartitionedProducers, std::string topicName) {
