@@ -620,13 +620,15 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         return replicatorPrefix;
     }
 
+    protected String getSchemaId() {
+        String base = TopicName.get(getName()).getPartitionedTopicName();
+        return TopicName.get(base).getSchemaName();
+    }
     @Override
     public CompletableFuture<Boolean> hasSchema() {
-        String base = TopicName.get(getName()).getPartitionedTopicName();
-        String id = TopicName.get(base).getSchemaName();
         return brokerService.pulsar()
                 .getSchemaRegistryService()
-                .getSchema(id).thenApply(Objects::nonNull);
+                .getSchema(getSchemaId()).thenApply(Objects::nonNull);
     }
 
     @Override
@@ -635,8 +637,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
             return CompletableFuture.completedFuture(SchemaVersion.Empty);
         }
 
-        String base = TopicName.get(getName()).getPartitionedTopicName();
-        String id = TopicName.get(base).getSchemaName();
+        String id = getSchemaId();
         SchemaRegistryService schemaRegistryService = brokerService.pulsar().getSchemaRegistryService();
 
         if (allowAutoUpdateSchema()) {
@@ -667,8 +668,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
 
     @Override
     public CompletableFuture<SchemaVersion> deleteSchema() {
-        String base = TopicName.get(getName()).getPartitionedTopicName();
-        String id = TopicName.get(base).getSchemaName();
+        String id = getSchemaId();
         SchemaRegistryService schemaRegistryService = brokerService.pulsar().getSchemaRegistryService();
         return BookkeeperSchemaStorage.ignoreUnrecoverableBKException(schemaRegistryService.getSchema(id))
                 .thenCompose(schema -> {
@@ -687,8 +687,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
 
     @Override
     public CompletableFuture<Void> checkSchemaCompatibleForConsumer(SchemaData schema) {
-        String base = TopicName.get(getName()).getPartitionedTopicName();
-        String id = TopicName.get(base).getSchemaName();
+        String id = getSchemaId();
         return brokerService.pulsar()
                 .getSchemaRegistryService()
                 .checkConsumerCompatibility(id, schema, getSchemaCompatibilityStrategy());

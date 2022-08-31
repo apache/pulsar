@@ -89,6 +89,21 @@ public class ManagedLedgerException extends Exception {
         }
     }
 
+    public static class ManagedLedgerSourceNotReadyException extends ManagedLedgerException {
+
+        public ManagedLedgerSourceNotReadyException(String msg) {
+            super(msg);
+        }
+
+        public ManagedLedgerSourceNotReadyException(Throwable e) {
+            super(e);
+        }
+
+        public ManagedLedgerSourceNotReadyException(String msg, Throwable e) {
+            super(msg, e);
+        }
+    }
+
     public static class ManagedLedgerNotFoundException extends ManagedLedgerException {
         public ManagedLedgerNotFoundException(Exception e) {
             super(e);

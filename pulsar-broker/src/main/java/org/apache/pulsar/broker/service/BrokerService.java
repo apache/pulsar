@@ -1779,7 +1779,7 @@ public class BrokerService implements Closeable {
                             serviceConfig.isAcknowledgmentAtBatchIndexLevelEnabled());
                     managedLedgerConfig.setNewEntriesCheckDelayInMillis(
                             serviceConfig.getManagedLedgerNewEntriesCheckDelayInMillis());
-
+                    managedLedgerConfig.setTopicName(topicName);
                     return managedLedgerConfig;
                 });
     }

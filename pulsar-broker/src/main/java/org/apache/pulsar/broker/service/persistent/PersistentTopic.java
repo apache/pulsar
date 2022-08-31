@@ -1768,6 +1768,17 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     @Override
+    protected String getSchemaId() {
+        if (shadowSourceTopic == null) {
+            return super.getSchemaId();
+        } else {
+            //reuse schema from shadow source.
+            String base = shadowSourceTopic.getPartitionedTopicName();
+            return TopicName.get(base).getSchemaName();
+        }
+    }
+
+    @Override
     public ConcurrentOpenHashMap<String, PersistentSubscription> getSubscriptions() {
         return subscriptions;
     }

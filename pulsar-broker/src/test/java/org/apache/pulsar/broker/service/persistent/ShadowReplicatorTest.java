@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
@@ -30,7 +31,6 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
-import org.assertj.core.util.Lists;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
@@ -62,10 +62,14 @@ public class ShadowReplicatorTest extends BrokerTestBase {
         String shadowTopicName = "persistent://prop1/ns-shadow/shadow-topic";
         String shadowTopicName2 = "persistent://prop1/ns-shadow/shadow-topic-2";
 
+        admin.topics().createNonPartitionedTopic(sourceTopicName);
+        admin.topics().createShadowTopic(shadowTopicName, sourceTopicName);
+        admin.topics().createShadowTopic(shadowTopicName2, sourceTopicName);
+        admin.topics().setShadowTopics(sourceTopicName, Lists.newArrayList(shadowTopicName, shadowTopicName2));
+
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(sourceTopicName).create();
-        // NOTE: shadow topic is not ready yet. So use normal topic instead.
-        // The only difference for consumer should be that the message id is changed.
+
         @Cleanup
         Consumer<byte[]> shadowConsumer =
                 pulsarClient.newConsumer().topic(shadowTopicName).subscriptionName("shadow-sub")
@@ -77,8 +81,6 @@ public class ShadowReplicatorTest extends BrokerTestBase {
 
         PersistentTopic sourceTopic =
                 (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(sourceTopicName).get().get();
-
-        admin.topics().setShadowTopics(sourceTopicName, Lists.newArrayList(shadowTopicName, shadowTopicName2));
 
         Awaitility.await().untilAsserted(()->Assert.assertEquals(sourceTopic.getShadowReplicators().size(), 2));
 
@@ -129,7 +131,6 @@ public class ShadowReplicatorTest extends BrokerTestBase {
 
         //`replicatedFrom` is set as localClusterName in shadow topic.
         Assert.assertNotEquals(shadowMessage.getReplicatedFrom(), sourceMessage.getReplicatedFrom());
-        //Currently, msg is copied in BK. So the message id is not the same.
-        Assert.assertNotEquals(shadowMessage.getMessageId(), sourceMessage.getMessageId());
+        Assert.assertEquals(shadowMessage.getMessageId(), sourceMessage.getMessageId());
     }
 }
