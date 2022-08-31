@@ -23,7 +23,6 @@
 #include "lib/ProducerImpl.h"
 #include "lib/PartitionedProducerImpl.h"
 #include "lib/ConsumerImpl.h"
-#include "lib/PartitionedConsumerImpl.h"
 #include "lib/MultiTopicsConsumerImpl.h"
 #include "lib/ReaderImpl.h"
 
@@ -85,10 +84,6 @@ class PulsarFriend {
     }
 
     static ReaderImplWeakPtr getReaderImplWeakPtr(Reader reader) { return reader.impl_; }
-
-    static std::shared_ptr<PartitionedConsumerImpl> getPartitionedConsumerImplPtr(Consumer consumer) {
-        return std::static_pointer_cast<PartitionedConsumerImpl>(consumer.impl_);
-    }
 
     static std::shared_ptr<MultiTopicsConsumerImpl> getMultiTopicsConsumerImplPtr(Consumer consumer) {
         return std::static_pointer_cast<MultiTopicsConsumerImpl>(consumer.impl_);
