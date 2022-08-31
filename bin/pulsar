@@ -180,20 +180,14 @@ fi
 # find pulsar sql trino distribution location
 check_trino_libraries() {
     if [ ! -d "${TRINO_HOME}" ]; then
-        # TODO: As PIP-200 accepted, this compatibility is not promised. Refactor when we drop this b/w compatibility.
-        FALLBACK_PRESTO_HOME="${PULSAR_HOME}/lib/presto"
-        if [ ! -d "${FALLBACK_PRESTO_HOME}" ]; then
-          BUILT_TRINO_HOME="${SQL_HOME}/presto-distribution/target/pulsar-presto-distribution"
-          if [ ! -d "${BUILT_TRINO_HOME}" ]; then
-              echo "\nCouldn't find trino distribution.";
-              echo "Make sure you've run 'mvn package'\n";
-              exit 1;
-          fi
-          TRINO_HOME=${BUILT_TRINO_HOME}
-          PULSAR_TRINO_CONF=${BUILT_TRINO_HOME}/conf
-        else
-          TRINO_HOME=${FALLBACK_PRESTO_HOME}
+        BUILT_TRINO_HOME="${SQL_HOME}/presto-distribution/target/pulsar-presto-distribution"
+        if [ ! -d "${BUILT_TRINO_HOME}" ]; then
+            echo "\nCouldn't find trino distribution.";
+            echo "Make sure you've run 'mvn package'\n";
+            exit 1;
         fi
+        TRINO_HOME=${BUILT_TRINO_HOME}
+        PULSAR_TRINO_CONF=${BUILT_TRINO_HOME}/conf
     fi
 }
 
