@@ -43,12 +43,9 @@ HandlerBase::HandlerBase(const ClientImplPtr& client, const std::string& topic, 
 HandlerBase::~HandlerBase() { timer_->cancel(); }
 
 void HandlerBase::start() {
-    Lock lock(mutex_);
     // guard against concurrent state changes such as closing
-    if (state_ == NotStarted) {
-        state_ = Pending;
-        lock.unlock();
-
+    State state = NotStarted;
+    if (state_.compare_exchange_strong(state, Pending)) {
         grabCnx();
     }
 }
@@ -97,7 +94,6 @@ void HandlerBase::handleDisconnection(Result result, ClientConnectionWeakPtr con
         return;
     }
 
-    Lock lock(handler->mutex_);
     State state = handler->state_;
 
     ClientConnectionPtr currentConnection = handler->connection_.lock();
@@ -135,7 +131,8 @@ bool HandlerBase::isRetriableError(Result result) {
 }
 
 void HandlerBase::scheduleReconnection(HandlerBasePtr handler) {
-    if (handler->state_ == Pending || handler->state_ == Ready) {
+    const auto state = handler->state_.load();
+    if (state == Pending || state == Ready) {
         TimeDuration delay = handler->backoff_.next();
 
         LOG_INFO(handler->getName() << "Schedule reconnection in " << (delay.total_milliseconds() / 1000.0)

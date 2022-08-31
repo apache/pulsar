@@ -81,6 +81,10 @@ public abstract class PerformanceBaseArguments {
             + " to be used for message listeners")
     public int listenerThreads = 1;
 
+    @Parameter(names = {"-mlr", "--max-lookup-request"}, description = "Maximum number of lookup requests allowed "
+            + "on each broker connection to prevent overloading a broker")
+    public int maxLookupRequest = 50000;
+
     public abstract void fillArgumentsFromProperties(Properties prop);
 
     @SneakyThrows

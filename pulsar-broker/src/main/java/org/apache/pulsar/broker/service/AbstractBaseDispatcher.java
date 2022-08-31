@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.LongAdder;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -51,6 +52,10 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
 
     protected final ServiceConfiguration serviceConfig;
     protected final boolean dispatchThrottlingOnBatchMessageEnabled;
+    private final LongAdder filterProcessedMsgs = new LongAdder();
+    private final LongAdder filterAcceptedMsgs = new LongAdder();
+    private final LongAdder filterRejectedMsgs = new LongAdder();
+    private final LongAdder filterRescheduledMsgs = new LongAdder();
 
     protected AbstractBaseDispatcher(Subscription subscription, ServiceConfiguration serviceConfig) {
         super(subscription);
@@ -79,7 +84,7 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
      * @param sendMessageInfo
      *            an object where the total size in messages and bytes will be returned back to the caller
      */
-    public int filterEntriesForConsumer(List<Entry> entries, EntryBatchSizes batchSizes,
+    public int filterEntriesForConsumer(List<? extends Entry> entries, EntryBatchSizes batchSizes,
             SendMessageInfo sendMessageInfo, EntryBatchIndexesAcks indexesAcks,
             ManagedCursor cursor, boolean isReplayRead, Consumer consumer) {
         return filterEntriesForConsumer(Optional.empty(), 0, entries, batchSizes, sendMessageInfo, indexesAcks, cursor,
@@ -96,7 +101,7 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
      *   EntryBatchIndexesAcks, ManagedCursor, boolean, Consumer)
      */
     public int filterEntriesForConsumer(Optional<MessageMetadata[]> optMetadataArray, int startOffset,
-             List<Entry> entries, EntryBatchSizes batchSizes, SendMessageInfo sendMessageInfo,
+             List<? extends Entry> entries, EntryBatchSizes batchSizes, SendMessageInfo sendMessageInfo,
              EntryBatchIndexesAcks indexesAcks, ManagedCursor cursor, boolean isReplayRead, Consumer consumer) {
         int totalMessages = 0;
         long totalBytes = 0;
@@ -105,23 +110,32 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
         List<Position> entriesToFiltered = CollectionUtils.isNotEmpty(entryFilters) ? new ArrayList<>() : null;
         List<PositionImpl> entriesToRedeliver = CollectionUtils.isNotEmpty(entryFilters) ? new ArrayList<>() : null;
         for (int i = 0, entriesSize = entries.size(); i < entriesSize; i++) {
-            Entry entry = entries.get(i);
+            final Entry entry = entries.get(i);
             if (entry == null) {
                 continue;
             }
             ByteBuf metadataAndPayload = entry.getDataBuffer();
             final int metadataIndex = i + startOffset;
             final MessageMetadata msgMetadata = optMetadataArray.map(metadataArray -> metadataArray[metadataIndex])
-                    .orElseGet(() -> Commands.peekMessageMetadata(metadataAndPayload, subscription.toString(), -1));
+                    .orElseGet(() -> (entry instanceof EntryAndMetadata)
+                            ? ((EntryAndMetadata) entry).getMetadata()
+                            : Commands.peekAndCopyMessageMetadata(metadataAndPayload, subscription.toString(), -1)
+                    );
+
+            int entryMsgCnt = msgMetadata == null ? 1 : msgMetadata.getNumMessagesInBatch();
+            this.filterProcessedMsgs.add(entryMsgCnt);
+
             EntryFilter.FilterResult filterResult = runFiltersForEntry(entry, msgMetadata, consumer);
             if (filterResult == EntryFilter.FilterResult.REJECT) {
                 entriesToFiltered.add(entry.getPosition());
                 entries.set(i, null);
+                this.filterRejectedMsgs.add(entryMsgCnt);
                 entry.release();
                 continue;
             } else if (filterResult == EntryFilter.FilterResult.RESCHEDULE) {
                 entriesToRedeliver.add((PositionImpl) entry.getPosition());
                 entries.set(i, null);
+                this.filterRescheduledMsgs.add(entryMsgCnt);
                 entry.release();
                 continue;
             }
@@ -159,6 +173,8 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                 entry.release();
                 continue;
             }
+
+            this.filterAcceptedMsgs.add(entryMsgCnt);
 
             totalEntries++;
             int batchSize = msgMetadata.getNumMessagesInBatch();
@@ -281,5 +297,25 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
 
     protected String getSubscriptionName() {
         return subscription == null ? null : subscription.getName();
+    }
+
+    @Override
+    public long getFilterProcessedMsgCount() {
+        return this.filterProcessedMsgs.longValue();
+    }
+
+    @Override
+    public long getFilterAcceptedMsgCount() {
+        return this.filterAcceptedMsgs.longValue();
+    }
+
+    @Override
+    public long getFilterRejectedMsgCount() {
+        return this.filterRejectedMsgs.longValue();
+    }
+
+    @Override
+    public long getFilterRescheduledMsgCount() {
+        return this.filterRescheduledMsgs.longValue();
     }
 }

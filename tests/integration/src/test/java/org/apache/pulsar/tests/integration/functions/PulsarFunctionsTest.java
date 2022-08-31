@@ -1598,11 +1598,12 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                         Json.pretty(pulsarAdmin.topics().getInternalStats(inputTopic, true)));
                 log.info("Output topic internal-stats: {}",
                         Json.pretty(pulsarAdmin.topics().getInternalStats(outputTopic, true)));
+            } else {
+                String logMsg = new String(msg.getValue(), UTF_8);
+                log.info("Received message: '{}'", logMsg);
+                assertTrue(expectedMessages.contains(logMsg), "Message '" + logMsg + "' not expected");
+                expectedMessages.remove(logMsg);
             }
-            String logMsg = new String(msg.getValue(), UTF_8);
-            log.info("Received message: '{}'", logMsg);
-            assertTrue(expectedMessages.contains(logMsg), "Message '" + logMsg + "' not expected");
-            expectedMessages.remove(logMsg);
         }
 
         consumer.close();

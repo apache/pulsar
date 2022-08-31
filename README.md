@@ -83,6 +83,10 @@ components in the Pulsar ecosystem, including connectors, adapters, and other la
 
 - [Pulsar Manager](https://github.com/apache/pulsar-manager)
 
+### Website
+
+- [Pulsar Site](https://github.com/apache/pulsar-site)
+
 ### Documentation
 
 - [Pulsar Translation](https://github.com/apache/pulsar-translation)
@@ -344,6 +348,8 @@ You can self-register at https://apache-pulsar.herokuapp.com/
 ##### Report a security vulnerability
 
 To report a vulnerability for Pulsar, contact the [Apache Security Team](https://www.apache.org/security/). When reporting a vulnerability to [security@apache.org](mailto:security@apache.org), you can copy your email to [private@pulsar.apache.org](mailto:private@pulsar.apache.org) to send your report to the Apache Pulsar Project Management Committee. This is a private mailing list.
+
+https://github.com/apache/pulsar/security/policy contains more details.
 
 ## License
 

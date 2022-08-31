@@ -83,6 +83,7 @@ import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
+import org.apache.pulsar.common.policies.data.EntryFilters;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
@@ -478,16 +479,12 @@ public abstract class NamespacesBase extends AdminResource {
                         if (topicName.isPartitioned()) {
                             String partitionedTopic = topicName.getPartitionedTopicName();
                             if (!partitionedTopics.contains(partitionedTopic)) {
-                                // Distinguish partitioned topic to avoid duplicate deletion of the same schema
-                                topicFutures.add(pulsar().getAdminClient().topics().deletePartitionedTopicAsync(
-                                        partitionedTopic, true, true));
                                 partitionedTopics.add(partitionedTopic);
                             }
                         } else {
-                            topicFutures.add(pulsar().getAdminClient().topics().deleteAsync(
-                                    topic, true, true));
                             nonPartitionedTopics.add(topic);
                         }
+                        topicFutures.add(pulsar().getAdminClient().topics().deleteAsync(topic, true));
                     } catch (Exception e) {
                         String errorMessage = String.format("Failed to force delete topic %s, "
                                         + "but the previous deletion command of partitioned-topics:%s "
@@ -498,6 +495,11 @@ public abstract class NamespacesBase extends AdminResource {
                         asyncResponse.resume(new RestException(Status.INTERNAL_SERVER_ERROR, errorMessage));
                         return;
                     }
+                }
+
+                for (String partitionedTopic : partitionedTopics) {
+                    topicFutures.add(namespaceResources().getPartitionedTopicResources()
+                            .deletePartitionedTopicAsync(TopicName.get(partitionedTopic)));
                 }
 
                 if (log.isDebugEnabled()) {
@@ -648,7 +650,9 @@ public abstract class NamespacesBase extends AdminResource {
                                         deleteTopicsFuture = FutureUtil.waitForAll(futures);
                                     }
                                     return deleteTopicsFuture.thenCompose(
-                                            ___ -> pulsar().getNamespaceService().removeOwnedServiceUnitAsync(bundle));
+                                            ___ -> pulsar().getNamespaceService().removeOwnedServiceUnitAsync(bundle))
+                                            .thenRun(() -> pulsar().getBrokerService().getBundleStats()
+                                                    .remove(bundle.toString()));
                                 });
                     });
                 });
@@ -705,7 +709,7 @@ public abstract class NamespacesBase extends AdminResource {
                     .thenCompose(__ -> authService.grantSubscriptionPermissionAsync(namespaceName, subscription,
                             roles, null))
                     .thenAccept(unused -> {
-                        log.info("[{}] Successfully granted permssion on subscription for role {}:{} - "
+                        log.info("[{}] Successfully granted permission on subscription for role {}:{} - "
                                 + "namespaceName {}", clientAppId(), roles, subscription, namespaceName);
                     })
                     .exceptionally(ex -> {
@@ -1136,7 +1140,7 @@ public abstract class NamespacesBase extends AdminResource {
                                 && (splitBoundaries == null || splitBoundaries.size() == 0)) {
                             throw new RestException(Status.PRECONDITION_FAILED,
                                     "With specified_positions_divide split algorithm, splitBoundaries must not be "
-                                            + "emtpy");
+                                            + "empty");
                         }
                     }
                 })
@@ -1540,10 +1544,10 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected void internalDeletePersistence() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.PERSISTENCE, PolicyOperation.WRITE);
-        validatePoliciesReadOnlyAccess();
-        doUpdatePersistence(null);
+    protected CompletableFuture<Void> internalDeletePersistenceAsync() {
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.PERSISTENCE, PolicyOperation.WRITE)
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenCompose(__ -> doUpdatePersistenceAsync(null));
     }
 
     protected void internalSetPersistence(PersistencePolicies persistence) {
@@ -1567,6 +1571,15 @@ public abstract class NamespacesBase extends AdminResource {
                     e);
             throw new RestException(e);
         }
+    }
+
+    private CompletableFuture<Void> doUpdatePersistenceAsync(PersistencePolicies persistence) {
+        return updatePoliciesAsync(namespaceName, policies -> {
+            policies.persistence = persistence;
+            return policies;
+        }).thenAccept(__ -> log.info("[{}] Successfully updated persistence configuration: namespace={}, map={}",
+                clientAppId(), namespaceName, persistence)
+        );
     }
 
     protected void internalClearNamespaceBacklog(AsyncResponse asyncResponse, boolean authoritative) {
@@ -2116,16 +2129,6 @@ public abstract class NamespacesBase extends AdminResource {
                         + "specific limit. To disable retention both limits must be set to 0.");
     }
 
-    protected Integer internalGetMaxProducersPerTopic() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_PRODUCERS, PolicyOperation.READ);
-        return getNamespacePolicies(namespaceName).max_producers_per_topic;
-    }
-
-    protected Integer internalGetDeduplicationSnapshotInterval() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.DEDUPLICATION_SNAPSHOT, PolicyOperation.READ);
-        return getNamespacePolicies(namespaceName).deduplicationSnapshotIntervalSeconds;
-    }
-
     protected void internalSetDeduplicationSnapshotInterval(Integer interval) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.DEDUPLICATION_SNAPSHOT, PolicyOperation.WRITE);
         if (interval != null && interval < 0) {
@@ -2162,11 +2165,6 @@ public abstract class NamespacesBase extends AdminResource {
         return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.DEDUPLICATION, PolicyOperation.READ)
                 .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
                 .thenApply(policies -> policies.deduplicationEnabled);
-    }
-
-    protected Integer internalGetMaxConsumersPerTopic() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_CONSUMERS, PolicyOperation.READ);
-        return getNamespacePolicies(namespaceName).max_consumers_per_topic;
     }
 
     protected void internalSetMaxConsumersPerTopic(Integer maxConsumersPerTopic) {
@@ -2382,17 +2380,6 @@ public abstract class NamespacesBase extends AdminResource {
                 "schemaCompatibilityStrategy");
     }
 
-    protected boolean internalGetSchemaValidationEnforced(boolean applied) {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY,
-                PolicyOperation.READ);
-        boolean schemaValidationEnforced = getNamespacePolicies(namespaceName).schema_validation_enforced;
-        if (!schemaValidationEnforced && applied) {
-            return pulsar().getConfiguration().isSchemaValidationEnforced();
-        } else {
-            return schemaValidationEnforced;
-        }
-    }
-
     protected void internalSetSchemaValidationEnforced(boolean schemaValidationEnforced) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY,
                 PolicyOperation.WRITE);
@@ -2405,15 +2392,6 @@ public abstract class NamespacesBase extends AdminResource {
                 "schemaValidationEnforced");
     }
 
-    protected boolean internalGetIsAllowAutoUpdateSchema() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY,
-                PolicyOperation.READ);
-        if (getNamespacePolicies(namespaceName).is_allow_auto_update_schema == null) {
-            return pulsar().getConfig().isAllowAutoUpdateSchemaEnabled();
-        }
-        return getNamespacePolicies(namespaceName).is_allow_auto_update_schema;
-    }
-
     protected void internalSetIsAllowAutoUpdateSchema(boolean isAllowAutoUpdateSchema) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY,
                 PolicyOperation.WRITE);
@@ -2424,15 +2402,6 @@ public abstract class NamespacesBase extends AdminResource {
                     return policies;
                 }, (policies) -> policies.is_allow_auto_update_schema,
                 "isAllowAutoUpdateSchema");
-    }
-
-    protected Set<SubscriptionType> internalGetSubscriptionTypesEnabled() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.SUBSCRIPTION_AUTH_MODE,
-                PolicyOperation.READ);
-        Set<SubscriptionType> subscriptionTypes = new HashSet<>();
-        getNamespacePolicies(namespaceName).subscription_types_enabled.forEach(subType ->
-                subscriptionTypes.add(SubscriptionType.valueOf(subType)));
-        return subscriptionTypes;
     }
 
     protected void internalSetSubscriptionTypesEnabled(Set<SubscriptionType> subscriptionTypesEnabled) {
@@ -2752,6 +2721,15 @@ public abstract class NamespacesBase extends AdminResource {
         OffloaderObjectsScannerUtils.scanOffloadedLedgers(managedLedgerOffloader,
                 localClusterName, pulsar().getManagedLedgerFactory(), sink);
 
+    }
+
+    protected CompletableFuture<Void> internalSetEntryFiltersPerTopicAsync(EntryFilters entryFilters) {
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.ENTRY_FILTERS, PolicyOperation.WRITE)
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
+                    policies.entryFilters = entryFilters;
+                    return policies;
+                }));
     }
 
     private static final Logger log = LoggerFactory.getLogger(NamespacesBase.class);

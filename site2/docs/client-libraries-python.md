@@ -14,7 +14,7 @@ Pulsar Python client library is a wrapper over the existing [C++ client library]
 
 All the methods in producer, consumer, and reader of a Python client are thread-safe.
 
-[pdoc](https://github.com/BurntSushi/pdoc)-generated API docs for the Python client are available [here](/api/python).
+pdoc-generated API docs for the Python client are available [here](/api/python).
 
 ## Install
 
@@ -25,9 +25,7 @@ You can install the [`pulsar-client`](https://pypi.python.org/pypi/pulsar-client
 To install the `pulsar-client` library as a pre-built package using the [pip](https://pip.pypa.io/en/stable/) package manager:
 
 ```shell
-
 $ pip install pulsar-client==@pulsar:version_number@
-
 ```
 
 ### Optional dependencies
@@ -62,6 +60,28 @@ To install the built Python bindings:
 $ git clone https://github.com/apache/pulsar
 $ cd pulsar/pulsar-client-cpp/python
 $ sudo python setup.py install
+```
+
+## Connection URLs
+
+To connect to Pulsar using client libraries, you need to specify a [Pulsar protocol](developing-binary-protocol.md) URL.
+
+You can assign Pulsar protocol URLs to specific clusters and use the `pulsar` scheme. The following is an example of `localhost` with the default port `6650`:
+
+```http
+pulsar://localhost:6650
+```
+
+If you have multiple brokers, separate `IP:port` by commas:
+
+```http
+pulsar://localhost:6550,localhost:6651,localhost:6652
+```
+
+If you use [TLS](security-tls-authentication.md) authentication, add `+ssl` in the scheme:
+
+```http
+pulsar+ssl://pulsar.us-west.example.com:6651
 ```
 
 ## API Reference
