@@ -1850,6 +1850,16 @@ public class PulsarAdminToolTest {
 
         cmdTopics.run(split("remove-replication-clusters persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).removeReplicationClusters("persistent://myprop/clust/ns1/ds1");
+
+        cmdTopics.run(split("get-shadow-topics persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).getShadowTopics("persistent://myprop/clust/ns1/ds1");
+
+        cmdTopics.run(split("set-shadow-topics persistent://myprop/clust/ns1/ds1 -t test"));
+        verify(mockTopics).setShadowTopics("persistent://myprop/clust/ns1/ds1", Lists.newArrayList("test"));
+
+        cmdTopics.run(split("remove-shadow-topics persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).removeShadowTopics("persistent://myprop/clust/ns1/ds1");
+
     }
 
     private static LedgerInfo newLedger(long id, long entries, long size) {

@@ -251,6 +251,10 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("set-replication-clusters", new SetReplicationClusters());
         jcommander.addCommand("remove-replication-clusters", new RemoveReplicationClusters());
 
+        jcommander.addCommand("get-shadow-topics", new GetShadowTopics());
+        jcommander.addCommand("set-shadow-topics", new SetShadowTopics());
+        jcommander.addCommand("remove-shadow-topics", new RemoveShadowTopics());
+
         jcommander.addCommand("get-schema-validation-enforce", new GetSchemaValidationEnforced());
         jcommander.addCommand("set-schema-validation-enforce", new SetSchemaValidationEnforced());
 
@@ -1650,6 +1654,47 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             getTopics().removeReplicationClusters(persistentTopic);
+        }
+    }
+
+    @Parameters(commandDescription = "Get the shadow topics for a topic")
+    private class GetShadowTopics extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            print(getTopics().getShadowTopics(persistentTopic));
+        }
+    }
+
+    @Parameters(commandDescription = "Set the shadow topics for a topic")
+    private class SetShadowTopics extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--topics",
+                "-t" }, description = "Shadow topic list (comma separated values)", required = true)
+        private String shadowTopics;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            List<String> topics = Lists.newArrayList(shadowTopics.split(","));
+            getTopics().setShadowTopics(persistentTopic, topics);
+        }
+    }
+
+    @Parameters(commandDescription = "Remove the shadow topics for a topic")
+    private class RemoveShadowTopics extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            getTopics().removeShadowTopics(persistentTopic);
         }
     }
 
