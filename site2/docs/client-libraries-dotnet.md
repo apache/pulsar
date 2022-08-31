@@ -257,7 +257,7 @@ await foreach (var message in consumer.Messages())
 
 ### Acknowledge messages
 
-Messages can be acknowledged individually or cumulatively. For details about message acknowledgment, see [acknowledgment](concepts-messaging.md#acknowledgement).
+Messages can be acknowledged individually or cumulatively. For details about message acknowledgment, see [acknowledgment](concepts-messaging.md#acknowledgment).
 
 - Acknowledge messages individually.
 

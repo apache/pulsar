@@ -369,7 +369,7 @@ You can check the following statistics of a given non-partitioned topic.
 
           -   **msgDelayed**: Number of delayed messages currently being tracked.
 
-          -   **unackedMessages**: Number of unacknowledged messages for the subscription, where an unacknowledged message is one that has been sent to a consumer but not yet acknowledged. This field is only meaningful when using a subscription that tracks individual message acknowledgement.
+          -   **unackedMessages**: Number of unacknowledged messages for the subscription, where an unacknowledged message is one that has been sent to a consumer but not yet acknowledged. This field is only meaningful when using a subscription that tracks individual message acknowledgment.
 
           -   **activeConsumerName**: The name of the consumer that is active for single active consumer subscriptions. For example, failover or exclusive. 
 

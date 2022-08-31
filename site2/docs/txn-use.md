@@ -99,7 +99,7 @@ Consumer<byte[]> consumer = pulsarClient
     .subscriptionName("transaction-sub")
     .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
     .subscriptionType(SubscriptionType.Shared)
-    .enableBatchIndexAcknowledgment(true) // enable batch index acknowledgement
+    .enableBatchIndexAcknowledgment(true) // enable batch index acknowledgment
     .subscribe();
 
 ```

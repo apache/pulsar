@@ -4,12 +4,11 @@ title: Debezium source connector
 sidebar_label: "Debezium source connector"
 ---
 
-The Debezium source connector pulls messages from MySQL or PostgreSQL 
-and persists the messages to Pulsar topics.
+The Debezium source connector pulls messages from MySQL or PostgreSQL and persists the messages to Pulsar topics.
 
 ## Configuration 
 
-The configuration of Debezium source connector has the following properties.
+The configuration of the Debezium source connector has the following properties.
 
 | Name | Required | Default | Description |
 |------|----------|---------|-------------|
@@ -33,12 +32,9 @@ The configuration of Debezium source connector has the following properties.
 
 1. org.apache.kafka.connect.json.JsonConverter
 
-This config `json-with-envelope` is valid only for the JsonConverter. It's default value is false, the consumer use the schema `
-Schema.KeyValue(Schema.AUTO_CONSUME(), Schema.AUTO_CONSUME(), KeyValueEncodingType.SEPARATED)`,
-and the message only consist of payload.
+This config `json-with-envelope` is valid only for the JsonConverter. The default value is false, and the consumer uses the schema `Schema.KeyValue(Schema.AUTO_CONSUME(), Schema.AUTO_CONSUME(), KeyValueEncodingType.SEPARATED)`, and the message only consist of payload.
 
-If the config `json-with-envelope` value is true, the consumer use the schema 
-`Schema.KeyValue(Schema.BYTES, Schema.BYTES`, the message consist of schema and payload.
+If the config `json-with-envelope` value is true, the consumer uses the schema `Schema.KeyValue(Schema.BYTES, Schema.BYTES`, the message consists of schema and payload.
 
 2. org.apache.pulsar.kafka.shade.io.confluent.connect.avro.AvroConverter
 
@@ -67,7 +63,6 @@ You can use one of the following methods to create a configuration file.
 * JSON 
 
   ```json
-  
   {
      "configs": {
         "database.hostname": "localhost",
@@ -85,7 +80,6 @@ You can use one of the following methods to create a configuration file.
         "offset.storage.topic": "offset-topic"
      }
   }
-  
   ```
 
 * YAML 
@@ -93,7 +87,6 @@ You can use one of the following methods to create a configuration file.
   You can create a `debezium-mysql-source-config.yaml` file and copy the [contents](https://github.com/apache/pulsar/blob/master/pulsar-io/debezium/mysql/src/main/resources/debezium-mysql-source-config.yaml) below to the `debezium-mysql-source-config.yaml` file.
 
   ```yaml
-  
   tenant: "public"
   namespace: "default"
   name: "debezium-mysql-source"
@@ -121,7 +114,6 @@ You can use one of the following methods to create a configuration file.
 
       ## OFFSET_STORAGE_TOPIC_CONFIG
       offset.storage.topic: "offset-topic"
-  
   ```
 
 ### Usage
@@ -131,46 +123,40 @@ This example shows how to change the data of a MySQL table using the Pulsar Debe
 1. Start a MySQL server with a database from which Debezium can capture changes.
 
    ```bash
-   
-   $ docker run -it --rm \
+   docker run -it --rm \
    --name mysql \
    -p 3306:3306 \
    -e MYSQL_ROOT_PASSWORD=debezium \
    -e MYSQL_USER=mysqluser \
    -e MYSQL_PASSWORD=mysqlpw debezium/example-mysql:0.8
-   
    ```
 
 2. Start a Pulsar service locally in standalone mode.
 
    ```bash
-   
-   $ bin/pulsar standalone
-   
+   bin/pulsar standalone
    ```
 
 3. Start the Pulsar Debezium connector in local run mode using one of the following methods.
 
     * Use the **JSON** configuration file as shown previously. 
    
-       Make sure the nar file is available at `connectors/pulsar-io-debezium-mysql-@pulsar:version@.nar`.
+       Make sure the NAR file is available at `connectors/pulsar-io-debezium-mysql-@pulsar:version@.nar`.
 
        ```bash
-       
-       $ bin/pulsar-admin source localrun \
+       bin/pulsar-admin source localrun \
        --archive connectors/pulsar-io-debezium-mysql-@pulsar:version@.nar \
        --name debezium-mysql-source --destination-topic-name debezium-mysql-topic \
        --tenant public \
        --namespace default \
        --source-config '{"database.hostname": "localhost","database.port": "3306","database.user": "debezium","database.password": "dbz","database.server.id": "184054","database.server.name": "dbserver1","database.whitelist": "inventory","database.history": "org.apache.pulsar.io.debezium.PulsarDatabaseHistory","database.history.pulsar.topic": "history-topic","database.history.pulsar.service.url": "pulsar://127.0.0.1:6650","key.converter": "org.apache.kafka.connect.json.JsonConverter","value.converter": "org.apache.kafka.connect.json.JsonConverter","pulsar.service.url": "pulsar://127.0.0.1:6650","offset.storage.topic": "offset-topic"}'
-       
        ```
 
      :::note
       
      Currently, the destination topic (specified by the `destination-topic-name` option ) is a required configuration but it is not used for the Debezium connector to save data. The Debezium connector saves data in the following 4 types of topics:
       
-       - One topic named with the database server name ( `database.server.name`) for storing the database metadata messages, such as `public/default/database.server.name`.
+       - One topic named with the database server name (`database.server.name`) for storing the database metadata messages, such as `public/default/database.server.name`.
        - One topic (`database.history.pulsar.topic`) for storing the database history information. The connector writes and recovers DDL statements on this topic.
        - One topic (`offset.storage.topic`) for storing the offset metadata messages. The connector saves the last successfully-committed offsets on this topic.
        - One per-table topic. The connector writes change events for all operations that occur in a table to a single Pulsar topic that is specific to that table.
@@ -182,44 +168,36 @@ This example shows how to change the data of a MySQL table using the Pulsar Debe
    * Use the **YAML** configuration file as shown previously.
 
        ```bash
-       
-       $ bin/pulsar-admin source localrun \
+       bin/pulsar-admin source localrun \
        --source-config-file debezium-mysql-source-config.yaml
-       
        ```
 
-4. Subscribe the topic _sub-products_ for the table _inventory.products_.
+4. Subscribe to the topic _sub-products_ for the table _inventory.products_.
 
    ```bash
-   
-   $ bin/pulsar-client consume -s "sub-products" public/default/dbserver1.inventory.products -n 0
-   
+   bin/pulsar-client consume -s "sub-products" public/default/dbserver1.inventory.products -n 0
    ```
 
 5. Start a MySQL client in docker.
 
    ```bash
-   
-   $ docker run -it --rm \
+   docker run -it --rm \
    --name mysqlterm \
    --link mysql \
    --rm mysql:5.7 sh \
    -c 'exec mysql -h"$MYSQL_PORT_3306_TCP_ADDR" -P"$MYSQL_PORT_3306_TCP_PORT" -uroot -p"$MYSQL_ENV_MYSQL_ROOT_PASSWORD"'
-   
    ```
 
 6. A MySQL client pops out. 
    
    Use the following commands to change the data of the table _products_.
 
-   ```
-   
+   ```bash
    mysql> use inventory;
    mysql> show tables;
    mysql> SELECT * FROM  products;
    mysql> UPDATE products SET name='1111111111' WHERE id=101;
    mysql> UPDATE products SET name='1111111111' WHERE id=107;
-   
    ```
 
    In the terminal window of subscribing topic, you can find the data changes have been kept in the _sub-products_ topic.
@@ -235,7 +213,6 @@ You can use one of the following methods to create a configuration file.
 * JSON 
 
   ```json
-  
   {
       "database.hostname": "localhost",
       "database.port": "5432",
@@ -248,7 +225,6 @@ You can use one of the following methods to create a configuration file.
       "table.whitelist": "public.users",
       "database.history.pulsar.service.url": "pulsar://127.0.0.1:6650"
   }
-  
   ```
 
 * YAML 
@@ -256,7 +232,6 @@ You can use one of the following methods to create a configuration file.
   You can create a `debezium-postgres-source-config.yaml` file and copy the [contents](https://github.com/apache/pulsar/blob/master/pulsar-io/debezium/postgres/src/main/resources/debezium-postgres-source-config.yaml) below to the `debezium-postgres-source-config.yaml` file.
 
   ```yaml
-  
   tenant: "public"
   namespace: "default"
   name: "debezium-postgres-source"
@@ -279,10 +254,9 @@ You can use one of the following methods to create a configuration file.
 
       ## PULSAR_SERVICE_URL_CONFIG
       database.history.pulsar.service.url: "pulsar://127.0.0.1:6650"
-  
   ```
 
-Notice that `pgoutput` is a standard plugin of Postgres introduced in version 10 - [see Postgres architecture docu](https://www.postgresql.org/docs/10/logical-replication-architecture.html). You don't need to install anything, just make sure the WAL level is set to `logical` (see docker command below and [Postgres docu](https://www.postgresql.org/docs/current/runtime-config-wal.html)).
+Notice that `pgoutput` is a standard plugin of Postgres introduced in version 10 - see [Postgres architecture docu](https://www.postgresql.org/docs/10/logical-replication-architecture.html). You don't need to install anything, just make sure the WAL level is set to `logical` (see docker command below and [Postgres docu](https://www.postgresql.org/docs/current/runtime-config-wal.html)).
 
 ### Usage
 
@@ -292,39 +266,33 @@ This example shows how to change the data of a PostgreSQL table using the Pulsar
 1. Start a PostgreSQL server with a database from which Debezium can capture changes.
 
    ```bash
-   
-   $ docker run -d -it --rm \
+   docker run -d -it --rm \
    --name pulsar-postgres \
    -p 5432:5432 \
    -e POSTGRES_PASSWORD=changeme \
    postgres:13.3 -c wal_level=logical
-   
    ```
 
 2. Start a Pulsar service locally in standalone mode.
 
    ```bash
-   
-   $ bin/pulsar standalone
-   
+   bin/pulsar standalone
    ```
 
 3. Start the Pulsar Debezium connector in local run mode using one of the following methods.
 
    * Use the **JSON** configuration file as shown previously. 
     
-     Make sure the nar file is available at `connectors/pulsar-io-debezium-postgres-@pulsar:version@.nar`.
+     Make sure the NAR file is available at `connectors/pulsar-io-debezium-postgres-@pulsar:version@.nar`.
 
        ```bash
-       
-       $ bin/pulsar-admin source localrun \
+       bin/pulsar-admin source localrun \
        --archive connectors/pulsar-io-debezium-postgres-@pulsar:version@.nar \
        --name debezium-postgres-source \
        --destination-topic-name debezium-postgres-topic \
        --tenant public \
        --namespace default \
        --source-config '{"database.hostname": "localhost","database.port": "5432","database.user": "postgres","database.password": "changeme","database.dbname": "postgres","database.server.name": "dbserver1","schema.whitelist": "public","table.whitelist": "public.users","pulsar.service.url": "pulsar://127.0.0.1:6650"}'
-       
        ```
 
      :::note
@@ -343,34 +311,27 @@ This example shows how to change the data of a PostgreSQL table using the Pulsar
    * Use the **YAML** configuration file as shown previously.
 
        ```bash
-       
-       $ bin/pulsar-admin source localrun  \
+       bin/pulsar-admin source localrun  \
        --source-config-file debezium-postgres-source-config.yaml
-       
        ```
 
-4. Subscribe the topic _sub-users_ for the _public.users_ table.
+4. Subscribe to the topic _sub-users_ for the _public.users_ table.
 
-   ```
-   
-   $ bin/pulsar-client consume -s "sub-users" public/default/dbserver1.public.users -n 0
-   
+   ```bash
+   bin/pulsar-client consume -s "sub-users" public/default/dbserver1.public.users -n 0
    ```
 
 5. Start a PostgreSQL client in docker.
 
    ```bash
-   
-   $ docker exec -it pulsar-postgresql /bin/bash
-   
+   docker exec -it pulsar-postgresql /bin/bash
    ```
 
 6. A PostgreSQL client pops out. 
    
    Use the following commands to create sample data in the table _users_.
 
-   ```
-   
+   ```bash
    psql -U postgres -h localhost -p 5432
    Password for user postgres:
    
@@ -572,22 +533,21 @@ This example shows how to change the data of a MongoDB table using the Pulsar De
 
 Oracle connector does not include Oracle JDBC driver and you need to package it with the connector.
 Major reasons for not including the drivers are the variety of versions and Oracle licensing. It is recommended to use the driver provided with your Oracle DB installation, or you can [download](https://www.oracle.com/database/technologies/appdev/jdbc.html) one.
-Integration test have an [example](https://github.com/apache/pulsar/blob/e2bc52d40450fa00af258c4432a5b71d50a5c6e0/tests/docker-images/latest-version-image/Dockerfile#L110-L122) of packaging the driver into the connector nar file. 
+Integration tests have an [example](https://github.com/apache/pulsar/blob/e2bc52d40450fa00af258c4432a5b71d50a5c6e0/tests/docker-images/latest-version-image/Dockerfile#L110-L122) of packaging the driver into the connector NAR file. 
 
 ### Configuration
 
 Debezium [requires](https://debezium.io/documentation/reference/1.5/connectors/oracle.html#oracle-overview) Oracle DB with LogMiner or XStream API enabled. 
 Supported options and steps for enabling them vary from version to version of Oracle DB.
-Steps outlined in the [documentation](https://debezium.io/documentation/reference/1.5/connectors/oracle.html#oracle-overview) and used in the [integration test](https://github.com/apache/pulsar/blob/master/tests/integration/src/test/java/org/apache/pulsar/tests/integration/io/sources/debezium/DebeziumOracleDbSourceTester.java) may or may not work for the version and edition of Oracle DB you are using.
+The steps outlined in the [documentation](https://debezium.io/documentation/reference/1.5/connectors/oracle.html#oracle-overview) and used in the [integration test](https://github.com/apache/pulsar/blob/master/tests/integration/src/test/java/org/apache/pulsar/tests/integration/io/sources/debezium/DebeziumOracleDbSourceTester.java) may or may not work for the version and edition of Oracle DB you are using.
 Please refer to the [documentation for Oracle DB](https://docs.oracle.com/en/database/oracle/oracle-database/) as needed.
 
-Similarly to other connectors, you can use JSON or YAMl to configure the connector.
-Using yaml as an example, you can create a debezium-oracle-source-config.yaml file like:
+Similarly to other connectors, you can use JSON or YAML to configure the connector.
+Using YAML as an example, you can create a `debezium-oracle-source-config.yaml` file like:
 
 * JSON
 
 ```json
-
 {
   "database.hostname": "localhost",
   "database.port": "1521",
@@ -608,13 +568,11 @@ Using yaml as an example, you can create a debezium-oracle-source-config.yaml fi
   "database.history.pulsar.topic": "debezium-oracle-source-history-topic",
   "database.history.pulsar.service.url": "pulsar://127.0.0.1:6650"
 }
-
 ```
 
 * YAML
 
 ```yaml
-
 tenant: "public"
 namespace: "default"
 name: "debezium-oracle-source"
@@ -643,7 +601,6 @@ configs:
     decimal.handling.mode: "double"
     database.history.pulsar.topic: "debezium-oracle-source-history-topic"
     database.history.pulsar.service.url: "pulsar://127.0.0.1:6650"
-
 ```
 
 For the full list of configuration properties supported by Debezium, see [Debezium Connector for Oracle](https://debezium.io/documentation/reference/1.5/connectors/oracle.html#oracle-connector-properties).
@@ -656,12 +613,11 @@ Debezium [requires](https://debezium.io/documentation/reference/1.5/connectors/s
 Steps outlined in the [documentation](https://debezium.io/documentation/reference/1.5/connectors/sqlserver.html#setting-up-sqlserver) and used in the [integration test](https://github.com/apache/pulsar/blob/master/tests/integration/src/test/java/org/apache/pulsar/tests/integration/src/test/java/org/apache/pulsar/tests/integration/io/sources/debezium/DebeziumMsSqlSourceTester.java).
 For more information, see [Enable and disable change data capture in Microsoft SQL Server](https://docs.microsoft.com/en-us/sql/relational-databases/track-changes/enable-and-disable-change-data-capture-sql-server).
 
-Similarly to other connectors, you can use JSON or YAMl to configure the connector.
+Similarly to other connectors, you can use JSON or YAML to configure the connector.
 
 * JSON
 
 ```json
-
 {
   "database.hostname": "localhost",
   "database.port": "1433",
@@ -681,13 +637,11 @@ Similarly to other connectors, you can use JSON or YAMl to configure the connect
   "database.history.pulsar.topic": "debezium-mssql-source-history-topic",
   "database.history.pulsar.service.url": "pulsar://127.0.0.1:6650"
 }
-
 ```
 
 * YAML
 
 ```yaml
-
 tenant: "public"
 namespace: "default"
 name: "debezium-mssql-source"
@@ -715,17 +669,15 @@ configs:
     decimal.handling.mode: "double"
     database.history.pulsar.topic: "debezium-mssql-source-history-topic"
     database.history.pulsar.service.url: "pulsar://127.0.0.1:6650"
-
 ```
 
 For the full list of configuration properties supported by Debezium, see [Debezium Connector for MS SQL](https://debezium.io/documentation/reference/1.5/connectors/sqlserver.html#sqlserver-connector-properties).
 
 ## FAQ
  
-### Debezium postgres connector will hang when create snap
+### Debezium postgres connector will hang when creating snap
 
 ```$xslt
-
 #18 prio=5 os_prio=31 tid=0x00007fd83096f800 nid=0xa403 waiting on condition [0x000070000f534000]
     java.lang.Thread.State: WAITING (parking)
      at sun.misc.Unsafe.park(Native Method)
@@ -756,14 +708,11 @@ For the full list of configuration properties supported by Debezium, see [Debezi
      at org.apache.pulsar.functions.instance.JavaInstanceRunnable.setupJavaInstance(JavaInstanceRunnable.java:200)
      at org.apache.pulsar.functions.instance.JavaInstanceRunnable.run(JavaInstanceRunnable.java:230)
      at java.lang.Thread.run(Thread.java:748)
-
 ```
 
 If you encounter the above problems in synchronizing data, please refer to [this](https://github.com/apache/pulsar/issues/4075) and add the following configuration to the configuration file:
 
 ```$xslt
-
 max.queue.size=
-
 ```
 

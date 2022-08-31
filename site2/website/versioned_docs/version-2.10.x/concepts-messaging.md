@@ -857,11 +857,11 @@ Producer<byte[]> producer = client.newProducer()
 
 ## System topic
 
-System topic is a predefined topic for internal use within Pulsar. It can be either persistent or non-persistent topic.
+System topic is a predefined topic for internal use within Pulsar. It can be either a persistent or non-persistent topic.
 
-System topics serve to implement certain features and eliminate dependencies on third-party components, such as transactions, heartbeat detections, topic-level policies, and resource group services. System topics empower the implementation of these features to be simplified, dependent, and flexible. Take heartbeat detections for example, you can leverage the system topic for healthcheck to internally enable producer/reader to procude/consume messages under the heartbeat namespace, which can detect whether the current service is still alive.
+System topics serve to implement certain features and eliminate dependencies on third-party components, such as transactions, heartbeat detections, topic-level policies, and resource group services. System topics empower the implementation of these features to be simplified, dependent, and flexible. Take heartbeat detections for example, you can leverage the system topic for healthcheck to internally enable producer/reader to produce/consume messages under the heartbeat namespace, which can detect whether the current service is still alive.
 
-There are diverse system topics depending on namespaces. The following table outlines the available system topics for each specific namespace.
+The following table outlines the available system topics for each specific namespace.
 
 | Namespace | TopicName | Domain | Count | Usage |
 |-----------|-----------|--------|-------|-------|

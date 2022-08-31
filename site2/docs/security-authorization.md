@@ -17,10 +17,8 @@ When a superuser creates a [tenant](reference-terminology.md#tenant), that tenan
 You can enable the authorization and assign the superusers in the broker ([`conf/broker.conf`](reference-configuration.md#broker) or `conf/standalone.conf`) configuration files.
 
 ```properties
-
 authorizationEnabled=true
 superUserRoles=my-super-user-1,my-super-user-2
-
 ```
 
 > A full list of parameters is available in the `conf/broker.conf` or `conf/standalone.conf` file.
@@ -46,12 +44,10 @@ Another approach is to make the proxy role a superuser. This allows the proxy to
 You can specify the roles as proxy roles in [`conf/broker.conf`](reference-configuration.md#broker).
 
 ```properties
-
 proxyRoles=my-proxy-role
 
 # if you want to allow superusers to use the proxy (see above)
 superUserRoles=my-super-user-1,my-super-user-2,my-proxy-role
-
 ```
 
 ## Administer tenants
@@ -65,11 +61,9 @@ You can manage tenants using the [`pulsar-admin`](/tools/pulsar-admin/) tool.
 The following is an example tenant creation command:
 
 ```shell
-
-$ bin/pulsar-admin tenants create my-tenant \
-  --admin-roles my-admin-role \
-  --allowed-clusters us-west,us-east
-
+bin/pulsar-admin tenants create my-tenant \
+--admin-roles my-admin-role \
+--allowed-clusters us-west,us-east
 ```
 
 This command creates a new tenant `my-tenant` that is allowed to use the clusters `us-west` and `us-east`.
@@ -79,9 +73,7 @@ A client that successfully identifies itself as having the role `my-admin-role` 
 The structure of topic names in Pulsar reflects the hierarchy between tenants, clusters, and namespaces:
 
 ```shell
-
 persistent://tenant/namespace/topic
-
 ```
 
 ### Manage permissions
@@ -91,39 +83,36 @@ You can use [Pulsar Admin Tools](admin-api-permissions.md) for managing permissi
 ### Pulsar admin authentication
 
 ```java
-
 PulsarAdmin admin = PulsarAdmin.builder()
                     .serviceHttpUrl("http://broker:8080")
                     .authentication("com.org.MyAuthPluginClass", "param1:value1")
                     .build();
-
 ```
 
 To use TLS:
 
 ```java
-
 PulsarAdmin admin = PulsarAdmin.builder()
                     .serviceHttpUrl("https://broker:8080")
                     .authentication("com.org.MyAuthPluginClass", "param1:value1")
                     .tlsTrustCertsFilePath("/path/to/trust/cert")
                     .build();
-
 ```
 
 ## Authorize an authenticated client with multiple roles
 
 When a client is identified with multiple roles in a token (the type of role claim in the token is an array) during the authentication process, Pulsar supports to check the permissions of all the roles and further authorize the client as long as one of its roles has the required permissions.
 
-> **Note**<br />
-> This authorization method is only compatible with [JWT authentication](security-jwt.md).
+:::note
+
+This authorization method is only compatible with [JWT authentication](security-jwt.md).
+
+:::
 
 To enable this authorization method, configure the authorization provider as `MultiRolesTokenAuthorizationProvider` in the `conf/broker.conf` file.
 
- ```properties
- 
+ ```conf
  # Authorization provider fully qualified class-name
  authorizationProvider=org.apache.pulsar.broker.authorization.MultiRolesTokenAuthorizationProvider
- 
  ```
 

@@ -4,8 +4,7 @@ title: JDBC sink connector
 sidebar_label: "JDBC sink connector"
 ---
 
-The JDBC sink connectors allow pulling messages from Pulsar topics 
-and persists the messages to ClickHouse, MariaDB, PostgreSQL, and SQLite.
+The JDBC sink connectors allow pulling messages from Pulsar topics and persist the messages to ClickHouse, MariaDB, PostgreSQL, and SQLite.
 
 > Currently, INSERT, DELETE and UPDATE operations are supported.
 > SQLite, MariaDB and PostgreSQL also support UPSERT operations and idempotent writes.
@@ -35,7 +34,6 @@ The configuration of all JDBC sink connectors has the following properties.
 * JSON 
 
   ```json
-  
   {
      "configs": {
         "userName": "clickhouse",
@@ -45,13 +43,11 @@ The configuration of all JDBC sink connectors has the following properties.
         "useTransactions": "false"
      }
   }
-  
   ```
 
 * YAML
 
   ```yaml
-  
   tenant: "public"
   namespace: "default"
   name: "jdbc-clickhouse-sink"
@@ -63,7 +59,6 @@ The configuration of all JDBC sink connectors has the following properties.
       jdbcUrl: "jdbc:clickhouse://localhost:8123/pulsar_clickhouse_jdbc_sink"
       tableName: "pulsar_clickhouse_jdbc_sink"
       useTransactions: "false"
-  
   ```
 
 ### Example for MariaDB
@@ -71,7 +66,6 @@ The configuration of all JDBC sink connectors has the following properties.
 * JSON 
 
   ```json
-  
   {
      "configs": {
         "userName": "mariadb",
@@ -80,13 +74,11 @@ The configuration of all JDBC sink connectors has the following properties.
         "tableName": "pulsar_mariadb_jdbc_sink"
      }
   }
-  
   ```
 
 * YAML
 
   ```yaml
-  
   tenant: "public"
   namespace: "default"
   name: "jdbc-mariadb-sink"
@@ -97,7 +89,6 @@ The configuration of all JDBC sink connectors has the following properties.
       password: "password"
       jdbcUrl: "jdbc:mariadb://localhost:3306/pulsar_mariadb_jdbc_sink"
       tableName: "pulsar_mariadb_jdbc_sink"
-  
   ```
 
 ### Example for OpenMLDB
@@ -105,20 +96,17 @@ The configuration of all JDBC sink connectors has the following properties.
 * JSON
 
   ```json
-  
   {
      "configs": {
         "jdbcUrl": "jdbc:openmldb:///pulsar_openmldb_db?zk=localhost:6181&zkPath=/openmldb",
         "tableName": "pulsar_openmldb_jdbc_sink"
      }
   }
-  
   ```
 
 * YAML
 
   ```yaml
-  
   tenant: "public"
   namespace: "default"
   name: "jdbc-openmldb-sink"
@@ -127,7 +115,6 @@ The configuration of all JDBC sink connectors has the following properties.
   configs:
       jdbcUrl: "jdbc:openmldb:///pulsar_openmldb_db?zk=localhost:6181&zkPath=/openmldb"
       tableName: "pulsar_openmldb_jdbc_sink"
-  
   ```
 
 ### Example for PostgreSQL
@@ -137,7 +124,6 @@ Before using the JDBC PostgreSQL sink connector, you need to create a configurat
 * JSON 
 
   ```json
-  
   {
      "configs": {
         "userName": "postgres",
@@ -146,13 +132,11 @@ Before using the JDBC PostgreSQL sink connector, you need to create a configurat
         "tableName": "pulsar_postgres_jdbc_sink"
      }
   }
-  
   ```
 
 * YAML
 
   ```yaml
-  
   tenant: "public"
   namespace: "default"
   name: "jdbc-postgres-sink"
@@ -163,7 +147,6 @@ Before using the JDBC PostgreSQL sink connector, you need to create a configurat
       password: "password"
       jdbcUrl: "jdbc:postgresql://localhost:5432/pulsar_postgres_jdbc_sink"
       tableName: "pulsar_postgres_jdbc_sink"
-  
   ```
 
 For more information on **how to use this JDBC sink connector**, see [connect Pulsar to PostgreSQL](io-quickstart.md#connect-pulsar-to-postgresql).
@@ -173,20 +156,17 @@ For more information on **how to use this JDBC sink connector**, see [connect Pu
 * JSON 
 
   ```json
-  
   {
      "configs": {
         "jdbcUrl": "jdbc:sqlite:db.sqlite",
         "tableName": "pulsar_sqlite_jdbc_sink"
      }
   }
-  
   ```
 
 * YAML
 
   ```yaml
-  
   tenant: "public"
   namespace: "default"
   name: "jdbc-sqlite-sink"
@@ -195,6 +175,5 @@ For more information on **how to use this JDBC sink connector**, see [connect Pu
   configs:
       jdbcUrl: "jdbc:sqlite:db.sqlite"
       tableName: "pulsar_sqlite_jdbc_sink"
-  
   ```
 

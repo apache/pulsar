@@ -63,7 +63,7 @@ producer.newMessage(txn).value("Hello Pulsar Transaction".getBytes()).sendAsync(
 
 ## Acknowledge the messages with the transaction
 
-The transaction acknowledgement requires a transaction parameter. The transaction acknowledgement marks the messages state to pending-ack state. When the transaction is committed, the pending-ack state becomes ack state. If the transaction is aborted, the pending-ack state becomes unack state.
+The transaction acknowledgment requires a transaction parameter. The transaction acknowledgment marks the messages state to pending-ack state. When the transaction is committed, the pending-ack state becomes ack state. If the transaction is aborted, the pending-ack state becomes unack state.
 
 ```
 
@@ -84,7 +84,7 @@ txn.commit().get();
 
 ## Abort transaction
 
-When the transaction is aborted, the transaction acknowledgement is canceled and the pending-ack messages are redelivered.
+When the transaction is aborted, the transaction acknowledgment is canceled and the pending-ack messages are redelivered.
 
 ```
 
@@ -132,7 +132,7 @@ Transaction txn = pulsarClient
         .build()
         .get();
 
-// source message acknowledgement and sink message produce belong to one transaction,
+// source message acknowledgment and sink message produce belong to one transaction,
 // they are combined into an atomic operation.
 Message<String> message = sourceConsumer.receive();
 sourceConsumer.acknowledgeAsync(message.getMessageId(), txn);
@@ -144,9 +144,9 @@ txn.commit().get();
 
 ## Enable batch messages in transactions
 
-To enable batch messages in transactions, you need to enable the batch index acknowledgement feature. The transaction acks check whether the batch index acknowledgement conflicts.
+To enable batch messages in transactions, you need to enable the batch index acknowledgment feature. The transaction acks check whether the batch index acknowledgment conflicts.
 
-To enable batch index acknowledgement, you need to set `acknowledgmentAtBatchIndexLevelEnabled` to `true` in the `broker.conf` or `standalone.conf` file.
+To enable batch index acknowledgment, you need to set `acknowledgmentAtBatchIndexLevelEnabled` to `true` in the `broker.conf` or `standalone.conf` file.
 
 ```
 
@@ -164,7 +164,7 @@ Consumer<byte[]> sinkConsumer = pulsarClient
         .subscriptionName("sink-topic")
         .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
         .subscriptionType(SubscriptionType.Shared)
-        .enableBatchIndexAcknowledgment(true) // enable batch index acknowledgement
+        .enableBatchIndexAcknowledgment(true) // enable batch index acknowledgment
         .subscribe();
 
 ```
