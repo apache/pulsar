@@ -4457,7 +4457,7 @@ public class PersistentTopicsBase extends AdminResource {
                                 future.complete(null);
                             } else {
                                 if (ignoreConflictException
-                                        && ex.getCause() instanceof PulsarAdminException.ConflictException) {
+                                        && ex instanceof PulsarAdminException.ConflictException) {
                                     future.complete(null);
                                 } else {
                                     future.completeExceptionally(ex);
