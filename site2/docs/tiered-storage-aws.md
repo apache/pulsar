@@ -13,7 +13,7 @@ Follow the steps below to install the AWS S3 offloader.
 ### Prerequisite
 
 - Pulsar: 2.4.2 or later versions
-  
+
 ### Step
 
 This example uses Pulsar 2.5.1.
@@ -27,37 +27,37 @@ This example uses Pulsar 2.5.1.
    * Use [wget](https://www.gnu.org/software/wget):
 
     ```shell
-    
+
     wget https://archive.apache.org/dist/pulsar/pulsar-2.5.1/apache-pulsar-2.5.1-bin.tar.gz
-    
+
     ```
 
-2. Download and untar the Pulsar offloaders package. 
+2. Download and untar the Pulsar offloaders package.
 
    ```bash
-   
+
    wget https://downloads.apache.org/pulsar/pulsar-2.5.1/apache-pulsar-offloaders-2.5.1-bin.tar.gz
    tar xvfz apache-pulsar-offloaders-2.5.1-bin.tar.gz
-   
+
    ```
 
 3. Copy the Pulsar offloaders as `offloaders` in the Pulsar directory.
 
    ```
-   
+
    mv apache-pulsar-offloaders-2.5.1/offloaders apache-pulsar-2.5.1/offloaders
 
    ls offloaders
-   
+
    ```
 
    **Output**
 
    ```
-   
+
    tiered-storage-file-system-2.5.1.nar
    tiered-storage-jcloud-2.5.1.nar
-   
+
    ```
 
    :::note
@@ -82,7 +82,7 @@ Besides, you can also configure the AWS S3 offloader to run it automatically or 
 You can configure the AWS S3 offloader driver in the configuration file `broker.conf` or `standalone.conf`.
 
 - **Required** configurations are as below.
-  
+
   Required configuration | Description | Example value
   |---|---|---
   `managedLedgerOffloadDriver` | Offloader driver name, which is case-insensitive. <br /><br />**Note**: there is a third driver type, S3, which is identical to AWS S3, though S3 requires that you specify an endpoint URL using `s3ManagedLedgerOffloadServiceEndpoint`. This is useful if using an S3 compatible data store other than AWS S3. | aws-s3
@@ -107,13 +107,13 @@ A bucket is a basic container that holds your data. Everything you store in AWS 
 
 This example names the bucket as _pulsar-topic-offload_.
 
-```conf
+```properties
 
 s3ManagedLedgerOffloadBucket=pulsar-topic-offload
 
 ```
 
-#### Bucket region 
+#### Bucket region
 
 A bucket region is a region where a bucket is located. If a bucket region is not specified, the **default** region (`US East (N. Virginia)`) is used.
 
@@ -123,7 +123,7 @@ For more information about AWS regions and endpoints, see [here](https://docs.aw
 
 :::
 
- 
+
 ##### Example
 
 This example sets the bucket region as _europe-west-3_.
@@ -152,28 +152,28 @@ Once you have created a set of credentials in the AWS IAM console, you can confi
   "export" is important so that the variables are made available in the environment of spawned processes.
 
   ```bash
-  
+
   export AWS_ACCESS_KEY_ID=ABC123456789
   export AWS_SECRET_ACCESS_KEY=ded7db27a4558e2ea8bbf0bf37ae0e8521618f366c
-  
+
   ```
 
 * Add the Java system properties `aws.accessKeyId` and `aws.secretKey` to `PULSAR_EXTRA_OPTS` in `conf/pulsar_env.sh`.
 
   ```bash
-  
+
   PULSAR_EXTRA_OPTS="${PULSAR_EXTRA_OPTS} ${PULSAR_MEM} ${PULSAR_GC} -Daws.accessKeyId=ABC123456789 -Daws.secretKey=ded7db27a4558e2ea8bbf0bf37ae0e8521618f366c -Dio.netty.leakDetectionLevel=disabled -Dio.netty.recycler.maxCapacityPerThread=4096"
-  
+
   ```
 
 * Set the access credentials in `~/.aws/credentials`.
 
-  ```conf
-  
+  ```ini
+
   [default]
   aws_access_key_id=ABC123456789
   aws_secret_access_key=ded7db27a4558e2ea8bbf0bf37ae0e8521618f366c
-  
+
   ```
 
 * Assume an IAM role.
@@ -182,16 +182,16 @@ Once you have created a set of credentials in the AWS IAM console, you can confi
 
   The broker must be rebooted for credentials specified in `pulsar_env` to take effect.
 
-  ```conf
-  
+  ```properties
+
   s3ManagedLedgerOffloadRole=<aws role arn>
   s3ManagedLedgerOffloadRoleSessionName=pulsar-s3-offload
-  
+
   ```
 
 #### Size of block read/write
 
-You can configure the size of a request sent to or read from AWS S3 in the configuration file `broker.conf` or `standalone.conf`. 
+You can configure the size of a request sent to or read from AWS S3 in the configuration file `broker.conf` or `standalone.conf`.
 
 Configuration|Description|Default value
 |---|---|---
@@ -200,7 +200,7 @@ Configuration|Description|Default value
 
 ### Configure AWS S3 offloader to run automatically
 
-Namespace policy can be configured to offload data automatically once a threshold is reached. The threshold is based on the size of data that a topic has stored on a Pulsar cluster. Once the topic reaches the threshold, an offloading operation is triggered automatically. 
+Namespace policy can be configured to offload data automatically once a threshold is reached. The threshold is based on the size of data that a topic has stored on a Pulsar cluster. Once the topic reaches the threshold, an offloading operation is triggered automatically.
 
 Threshold value|Action
 |---|---
@@ -213,7 +213,7 @@ Automatic offloading runs when a new segment is added to a topic log. If you set
 You can configure the threshold size using CLI tools, such as pulsar-admin.
 
 The offload configurations in `broker.conf` and `standalone.conf` are used for the namespaces that do not have namespace level offload policies. Each namespace can have its own offload policy. If you want to set offload policy for each namespace, use the command [`pulsar-admin namespaces set-offload-policies options`](/tools/pulsar-admin/) command.
- 
+
 #### Example
 
 This example sets the AWS S3 offloader threshold size to 10 MB using pulsar-admin.
@@ -226,7 +226,7 @@ bin/pulsar-admin namespaces set-offload-threshold --size 10M my-tenant/my-namesp
 
 :::tip
 
-For more information about the `pulsar-admin namespaces set-offload-threshold options` command, including flags, descriptions, and default values, see [Pulsar admin docs](/tools/pulsar-admin/). 
+For more information about the `pulsar-admin namespaces set-offload-threshold options` command, including flags, descriptions, and default values, see [Pulsar admin docs](/tools/pulsar-admin/).
 
 :::
 
@@ -236,7 +236,7 @@ For individual topics, you can trigger AWS S3 offloader manually using one of th
 
 - Use REST endpoint.
 
-- Use CLI tools (such as pulsar-admin). 
+- Use CLI tools (such as pulsar-admin).
 
   To trigger it via CLI tools, you need to specify the maximum amount of data (threshold) that should be retained on a Pulsar cluster for a topic. If the size of the topic data on the Pulsar cluster exceeds this threshold, segments from the topic are moved to AWS S3 until the threshold is no longer exceeded. Older segments are moved first.
 
@@ -245,79 +245,79 @@ For individual topics, you can trigger AWS S3 offloader manually using one of th
 - This example triggers the AWS S3 offloader to run manually using pulsar-admin.
 
   ```bash
-  
+
   bin/pulsar-admin topics offload --size-threshold 10M my-tenant/my-namespace/topic1
-  
+
   ```
 
   **Output**
 
   ```bash
-  
+
   Offload triggered for persistent://my-tenant/my-namespace/topic1 for messages before 2:0:-1
-  
+
   ```
 
   :::tip
 
-  For more information about the `pulsar-admin topics offload options` command, including flags, descriptions, and default values, see [Pulsar admin docs](/tools/pulsar-admin/). 
+  For more information about the `pulsar-admin topics offload options` command, including flags, descriptions, and default values, see [Pulsar admin docs](/tools/pulsar-admin/).
 
   :::
 
 - This example checks the AWS S3 offloader status using pulsar-admin.
 
   ```bash
-  
+
   bin/pulsar-admin topics offload-status persistent://my-tenant/my-namespace/topic1
-  
+
   ```
 
   **Output**
 
   ```bash
-  
+
   Offload is currently running
-  
+
   ```
 
   To wait for the AWS S3 offloader to complete the job, add the `-w` flag.
 
   ```bash
-  
+
   bin/pulsar-admin topics offload-status -w persistent://my-tenant/my-namespace/topic1
-  
+
   ```
 
   **Output**
 
   ```
-  
+
   Offload was a success
-  
+
   ```
 
   If there is an error in offloading, the error is propagated to the `pulsar-admin topics offload-status` command.
 
   ```bash
-  
+
   bin/pulsar-admin topics offload-status persistent://my-tenant/my-namespace/topic1
-  
+
   ```
 
   **Output**
 
   ```
-  
+
   Error in offload
   null
 
   Reason: Error offloading: org.apache.bookkeeper.mledger.ManagedLedgerException: java.util.concurrent.CompletionException: com.amazonaws.services.s3.model.AmazonS3Exception: Anonymous users cannot initiate multipart uploads.  Please authenticate. (Service: Amazon S3; Status Code: 403; Error Code: AccessDenied; Request ID: 798758DE3F1776DF; S3 Extended Request ID: dhBFz/lZm1oiG/oBEepeNlhrtsDlzoOhocuYMpKihQGXe6EG8puRGOkK6UwqzVrMXTWBxxHcS+g=), S3 Extended Request ID: dhBFz/lZm1oiG/oBEepeNlhrtsDlzoOhocuYMpKihQGXe6EG8puRGOkK6UwqzVrMXTWBxxHcS+g=
-  
+
   ```
 
   :::tip
 
-  For more information about the `pulsar-admin topics offload-status options` command, including flags, descriptions, and default values, see [Pulsar admin docs](/tools/pulsar-admin/). 
+  For more information about the `pulsar-admin topics offload-status options` command, including flags, descriptions, and default values, see [Pulsar admin docs](/tools/pulsar-admin/).
 
   :::
 

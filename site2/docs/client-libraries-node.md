@@ -47,30 +47,25 @@ Also, this library works only in Node.js 10.x or later because it uses the [`nod
 :::
 
 ## Connection URLs
+
 To connect to Pulsar using client libraries, you need to specify a [Pulsar protocol](developing-binary-protocol.md) URL.
 
-Pulsar protocol URLs are assigned to specific clusters, use the `pulsar` scheme and have a default port of 6650. Here is an example for `localhost`:
+You can assign Pulsar protocol URLs to specific clusters and use the `pulsar` scheme. The following is an example of `localhost` with the default port `6650`:
 
 ```http
-
 pulsar://localhost:6650
-
 ```
 
-A URL for a production Pulsar cluster may look something like this:
+If you have multiple brokers, separate `IP:port` by commas:
 
 ```http
-
-pulsar://pulsar.us-west.example.com:6650
-
+pulsar://localhost:6550,localhost:6651,localhost:6652
 ```
 
-If you are using [TLS encryption](security-tls-transport.md) or [TLS Authentication](security-tls-authentication.md), the URL looks like this:
+If you use [TLS](security-tls-authentication.md) authentication, add `+ssl` in the scheme:
 
 ```http
-
 pulsar+ssl://pulsar.us-west.example.com:6651
-
 ```
 
 ## Create a client
@@ -87,7 +82,7 @@ const Pulsar = require('pulsar-client');
   const client = new Pulsar.Client({
     serviceUrl: 'pulsar://localhost:6650',
   });
-  
+
   await client.close();
 })();
 
@@ -120,7 +115,7 @@ Here is an example:
 ```javascript
 
 const producer = await client.createProducer({
-  topic: 'my-topic', // or 'my-tenant/my-namespace/my-topic' to specify topic's tenant and namespace 
+  topic: 'my-topic', // or 'my-tenant/my-namespace/my-topic' to specify topic's tenant and namespace
 });
 
 await producer.send({
@@ -132,7 +127,7 @@ await producer.close();
 ```
 
 > #### Promise operation
-> When you create a new Pulsar producer, the operation returns `Promise` object and get producer instance or an error through executor function.  
+> When you create a new Pulsar producer, the operation returns `Promise` object and get producer instance or an error through executor function.
 > In this example, using await operator instead of executor function.
 
 ### Producer operations
@@ -223,7 +218,7 @@ await consumer.close();
 ```
 
 > #### Promise operation
-> When you create a new Pulsar consumer, the operation returns `Promise` object and get consumer instance or an error through executor function.  
+> When you create a new Pulsar consumer, the operation returns `Promise` object and get consumer instance or an error through executor function.
 > In this example, using await operator instead of executor function.
 
 ### Consumer operations
@@ -495,7 +490,7 @@ This section provides step-by-step instructions on how to use the end-to-end enc
 
 **Prerequisite**
 
-- Pulsar C++ client 2.7.1 or later 
+- Pulsar C++ client 2.7.1 or later
 
 **Step**
 
@@ -504,18 +499,18 @@ This section provides step-by-step instructions on how to use the end-to-end enc
    **Input**
 
    ```shell
-   
+
    openssl genrsa -out private.pem 2048
    openssl rsa -in private.pem -pubout -out public.pem
-   
+
    ```
 
 2. Create a producer to send encrypted messages.
 
    **Input**
 
-   ```nodejs
-   
+   ```javascript
+
    const Pulsar = require('pulsar-client');
 
    (async () => {
@@ -548,15 +543,15 @@ This section provides step-by-step instructions on how to use the end-to-end enc
      await producer.close();
      await client.close();
    })();
-   
+
    ```
 
 3. Create a consumer to receive encrypted messages.
 
    **Input**
 
-   ```nodejs
-   
+   ```javascript
+
    const Pulsar = require('pulsar-client');
 
    (async () => {
@@ -586,7 +581,7 @@ This section provides step-by-step instructions on how to use the end-to-end enc
      await consumer.close();
      await client.close();
    })();
-   
+
    ```
 
 4. Run the consumer to receive encrypted messages.
@@ -594,9 +589,9 @@ This section provides step-by-step instructions on how to use the end-to-end enc
    **Input**
 
    ```shell
-   
+
    node consumer.js
-   
+
    ```
 
 5. In a new terminal tab, run the producer to produce encrypted messages.
@@ -604,9 +599,9 @@ This section provides step-by-step instructions on how to use the end-to-end enc
    **Input**
 
    ```shell
-   
+
    node producer.js
-   
+
    ```
 
    Now you can see the producer sends messages and the consumer receives messages successfully.
@@ -616,7 +611,7 @@ This section provides step-by-step instructions on how to use the end-to-end enc
    This is from the producer side.
 
    ```
-   
+
    Sent message: my-message-0
    Sent message: my-message-1
    Sent message: my-message-2
@@ -627,13 +622,13 @@ This section provides step-by-step instructions on how to use the end-to-end enc
    Sent message: my-message-7
    Sent message: my-message-8
    Sent message: my-message-9
-   
+
    ```
 
    This is from the consumer side.
 
    ```
-   
+
    my-message-0
    my-message-1
    my-message-2
@@ -644,6 +639,6 @@ This section provides step-by-step instructions on how to use the end-to-end enc
    my-message-7
    my-message-8
    my-message-9
-   
+
    ```
 

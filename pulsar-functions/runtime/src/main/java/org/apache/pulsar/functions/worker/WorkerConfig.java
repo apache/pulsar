@@ -22,7 +22,6 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import com.google.common.collect.Sets;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
@@ -533,7 +532,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         category = CATEGORY_WORKER_SECURITY,
         doc = "Authentication provider name list, which is a list of class names"
     )
-    private Set<String> authenticationProviders = Sets.newTreeSet();
+    private Set<String> authenticationProviders = new TreeSet<>();
     @FieldContext(
         category = CATEGORY_WORKER_SECURITY,
         doc = "Enforce authorization on accessing functions admin-api"
@@ -548,7 +547,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         category = CATEGORY_WORKER_SECURITY,
         doc = "Role names that are treated as `super-user`, meaning they will be able to access any admin-api"
     )
-    private Set<String> superUserRoles = Sets.newTreeSet();
+    private Set<String> superUserRoles = new TreeSet<>();
 
     @FieldContext(
             category = CATEGORY_WORKER_SECURITY,

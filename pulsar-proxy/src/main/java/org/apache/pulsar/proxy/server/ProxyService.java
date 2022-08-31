@@ -56,6 +56,7 @@ import lombok.Setter;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
+import org.apache.pulsar.broker.limiter.ConnectionController;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
@@ -146,6 +147,9 @@ public class ProxyService implements Closeable {
     private PrometheusMetricsServlet metricsServlet;
     private List<PrometheusRawMetricsProvider> pendingMetricsProviders;
 
+    @Getter
+    private final ConnectionController connectionController;
+
     public ProxyService(ProxyConfiguration proxyConfig,
                         AuthenticationService authenticationService) throws Exception {
         requireNonNull(proxyConfig);
@@ -202,6 +206,9 @@ public class ProxyService implements Closeable {
         } else {
             proxyClientAuthentication = AuthenticationDisabled.INSTANCE;
         }
+        this.connectionController = new ConnectionController.DefaultConnectionController(
+                proxyConfig.getMaxConcurrentInboundConnections(),
+                proxyConfig.getMaxConcurrentInboundConnectionsPerIp());
     }
 
     public void start() throws Exception {
