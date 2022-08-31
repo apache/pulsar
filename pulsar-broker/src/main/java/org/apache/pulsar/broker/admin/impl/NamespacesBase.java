@@ -1422,46 +1422,6 @@ public abstract class NamespacesBase extends AdminResource {
                 .thenApply(policies -> policies.clusterSubscribeRate.get(pulsar().getConfiguration().getClusterName()));
     }
 
-    protected void internalRemoveReplicatorDispatchRate() {
-        validateSuperUserAccess();
-        try {
-            updatePolicies(namespaceName, policies -> {
-                policies.replicatorDispatchRate.remove(pulsar().getConfiguration().getClusterName());
-                return policies;
-            });
-            log.info("[{}] Successfully delete the replicatorDispatchRate for cluster on namespace {}", clientAppId(),
-                    namespaceName);
-        } catch (Exception e) {
-            log.error("[{}] Failed to delete the replicatorDispatchRate for cluster on namespace {}", clientAppId(),
-                    namespaceName, e);
-            throw new RestException(e);
-        }
-    }
-
-    protected void internalSetReplicatorDispatchRate(DispatchRateImpl dispatchRate) {
-        validateSuperUserAccess();
-        log.info("[{}] Set namespace replicator dispatch-rate {}/{}", clientAppId(), namespaceName, dispatchRate);
-        try {
-            updatePolicies(namespaceName, policies -> {
-                policies.replicatorDispatchRate.put(pulsar().getConfiguration().getClusterName(), dispatchRate);
-                return policies;
-            });
-            log.info("[{}] Successfully updated the replicatorDispatchRate for cluster on namespace {}", clientAppId(),
-                    namespaceName);
-        } catch (Exception e) {
-            log.error("[{}] Failed to update the replicatorDispatchRate for cluster on namespace {}", clientAppId(),
-                    namespaceName, e);
-            throw new RestException(e);
-        }
-    }
-
-    protected CompletableFuture<DispatchRate> internalGetReplicatorDispatchRateAsync() {
-        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.REPLICATION_RATE, PolicyOperation.READ)
-                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
-                .thenApply(
-                        policies -> policies.replicatorDispatchRate.get(pulsar().getConfiguration().getClusterName()));
-    }
-
     protected void internalSetBacklogQuota(BacklogQuotaType backlogQuotaType, BacklogQuota backlogQuota) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.BACKLOG, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
@@ -2673,7 +2633,7 @@ public abstract class NamespacesBase extends AdminResource {
        return result;
    }
 
-   private void updatePolicies(NamespaceName ns, Function<Policies, Policies> updateFunction) {
+   protected void updatePolicies(NamespaceName ns, Function<Policies, Policies> updateFunction) {
        // Force to read the data s.t. the watch to the cache content is setup.
        try {
            updatePoliciesAsync(ns, updateFunction).get(namespaceResources().getOperationTimeoutSec(),

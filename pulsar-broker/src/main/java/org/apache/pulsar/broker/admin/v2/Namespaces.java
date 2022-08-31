@@ -1103,23 +1103,55 @@ public class Namespaces extends NamespacesBase {
     @Path("/{tenant}/{namespace}/replicatorDispatchRate")
     @ApiOperation(value = "Remove replicator dispatch-rate throttling for all topics of the namespace")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission")})
-    public void removeReplicatorDispatchRate(
-            @PathParam("tenant") String tenant,
-            @PathParam("namespace") String namespace) {
+    public void removeReplicatorDispatchRate(@Suspended AsyncResponse asyncResponse,
+                                             @PathParam("tenant") String tenant,
+                                             @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        internalRemoveReplicatorDispatchRate();
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> namespaceResources().setPoliciesAsync(namespaceName, policies -> {
+                    String clusterName = pulsar().getConfiguration().getClusterName();
+                    policies.replicatorDispatchRate.remove(clusterName);
+                    return policies;
+                })).thenAccept(__ -> {
+                    log.info("[{}] Successfully delete the replicatorDispatchRate for cluster on namespace {}",
+                            clientAppId(), namespaceName);
+                    asyncResponse.resume(Response.noContent().build());
+                }).exceptionally(ex -> {
+                    log.error("[{}] Failed to delete the replicatorDispatchRate for cluster on namespace {}",
+                            clientAppId(), namespaceName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @POST
     @Path("/{tenant}/{namespace}/replicatorDispatchRate")
     @ApiOperation(value = "Set replicator dispatch-rate throttling for all topics of the namespace")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission")})
-    public void setReplicatorDispatchRate(@PathParam("tenant") String tenant,
-                                          @PathParam("namespace") String namespace, @ApiParam(value =
-            "Replicator dispatch rate for all topics of the specified namespace")
-                                                      DispatchRateImpl dispatchRate) {
+    public void setReplicatorDispatchRate(@Suspended AsyncResponse asyncResponse,
+                                          @PathParam("tenant") String tenant,
+                                          @PathParam("namespace") String namespace,
+                                          @ApiParam(value =
+            "Replicator dispatch rate for all topics of the specified namespace") DispatchRateImpl dispatchRate) {
         validateNamespaceName(tenant, namespace);
-        internalSetReplicatorDispatchRate(dispatchRate);
+        validateSuperUserAccessAsync()
+                .thenAccept(__ -> {
+                    log.info("[{}] Set namespace replicator dispatch-rate {}/{}",
+                            clientAppId(), namespaceName, dispatchRate);
+                }).thenCompose(__ -> namespaceResources().setPoliciesAsync(namespaceName, policies -> {
+                    String clusterName = pulsar().getConfiguration().getClusterName();
+                    policies.replicatorDispatchRate.put(clusterName, dispatchRate);
+                    return policies;
+                })).thenAccept(__ -> {
+                    log.info("[{}] Successfully updated the replicatorDispatchRate for cluster on namespace {}",
+                            clientAppId(), namespaceName);
+                    asyncResponse.resume(Response.noContent().build());
+                }).exceptionally(ex -> {
+                    log.error("[{}] Failed to update the replicatorDispatchRate for cluster on namespace {}",
+                            clientAppId(), namespaceName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET
@@ -1128,13 +1160,17 @@ public class Namespaces extends NamespacesBase {
             + "dispatch-rate not configured, -1 means msg-dispatch-rate or byte-dispatch-rate not configured "
             + "in dispatch-rate yet")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-        @ApiResponse(code = 404, message = "Namespace does not exist") })
-    public void getReplicatorDispatchRate(
-            @Suspended final AsyncResponse asyncResponse,
-            @PathParam("tenant") String tenant,
-            @PathParam("namespace") String namespace) {
+    @ApiResponse(code = 404, message = "Namespace does not exist") })
+    public void getReplicatorDispatchRate(@Suspended final AsyncResponse asyncResponse,
+                                          @PathParam("tenant") String tenant,
+                                          @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        internalGetReplicatorDispatchRateAsync().thenAccept(asyncResponse::resume)
+        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.REPLICATION_RATE, PolicyOperation.READ)
+                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+                .thenApply(policies -> {
+                    String clusterName = pulsar().getConfiguration().getClusterName();
+                    return policies.replicatorDispatchRate.get(clusterName);
+                }).thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
                     log.error("[{}] Failed to get replicator dispatch-rate configured for the namespace {}",
                             clientAppId(), namespaceName, ex);
