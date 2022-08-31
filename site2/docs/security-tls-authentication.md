@@ -157,7 +157,7 @@ client = Client("pulsar+ssl://broker.example.com:6651/",
 
 ### C++ client
 
-```c++
+```cpp
 
 #include <pulsar/Client.h>
 
@@ -197,7 +197,7 @@ const Pulsar = require('pulsar-client');
 
 ### C# client
 
-```c#
+```csharp
 
 var clientCertificate = new X509Certificate2("admin.pfx");
 var client = PulsarClient.Builder()

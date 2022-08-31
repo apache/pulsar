@@ -98,6 +98,7 @@ import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
+import org.apache.pulsar.common.policies.data.EntryFilters;
 import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
@@ -893,11 +894,14 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         final String topicName = "persistent://" + namespace + "/testUpdatePartitionedTopicProperties";
         admin.namespaces().createNamespace(namespace, 20);
 
-        // create partitioned topic with properties
+        // create partitioned topic without properties
+        admin.topics().createPartitionedTopic(topicName, 2);
+        Map<String, String> properties = admin.topics().getProperties(topicName);
+        Assert.assertNull(properties);
         Map<String, String> topicProperties = new HashMap<>();
         topicProperties.put("key1", "value1");
-        admin.topics().createPartitionedTopic(topicName, 2, topicProperties);
-        Map<String, String> properties = admin.topics().getProperties(topicName);
+        admin.topics().updateProperties(topicName, topicProperties);
+        properties = admin.topics().getProperties(topicName);
         Assert.assertNotNull(properties);
         Assert.assertEquals(properties.get("key1"), "value1");
 
@@ -2130,6 +2134,39 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
             fail("should fail");
         } catch (PulsarAdminException ignore) {
         }
+    }
+
+    @Test(timeOut = 30000)
+    public void testSetNamespaceEntryFilters() throws Exception {
+        EntryFilters entryFilters = new EntryFilters(
+                "org.apache.pulsar.broker.service.plugin.EntryFilterTest");
+
+        final String myNamespace = "prop-xyz/ns" + UUID.randomUUID();
+        admin.namespaces().createNamespace(myNamespace, Sets.newHashSet("test"));
+
+        assertNull(admin.namespaces().getNamespaceEntryFilters(myNamespace));
+
+        admin.namespaces().setNamespaceEntryFilters(myNamespace, entryFilters);
+        assertEquals(admin.namespaces().getNamespaceEntryFilters(myNamespace), entryFilters);
+        admin.namespaces().removeNamespaceEntryFilters(myNamespace);
+        assertNull(admin.namespaces().getNamespaceEntryFilters(myNamespace));
+    }
+
+    @Test(dataProvider = "topicType")
+    public void testSetTopicLevelEntryFilters(String topicType) throws Exception {
+        EntryFilters entryFilters = new EntryFilters("org.apache.pulsar.broker.service.plugin.EntryFilterTest");
+        final String topic = topicType + "://prop-xyz/ns1/test-schema-validation-enforced";
+        admin.topics().createPartitionedTopic(topic, 1);
+        @Cleanup
+        Producer<byte[]> producer1 = pulsarClient.newProducer()
+                .topic(topic + TopicName.PARTITIONED_TOPIC_SUFFIX + 0)
+                .create();
+        assertNull(admin.topicPolicies().getEntryFiltersPerTopic(topic, false));
+        admin.topicPolicies().setEntryFiltersPerTopic(topic, entryFilters);
+        Awaitility.await().untilAsserted(() -> assertEquals(admin.topicPolicies().getEntryFiltersPerTopic(topic,
+                false), entryFilters));
+        admin.topicPolicies().removeEntryFiltersPerTopic(topic);
+        assertNull(admin.topicPolicies().getEntryFiltersPerTopic(topic, false));
     }
 
     @Test(timeOut = 30000)

@@ -15,20 +15,20 @@ import TabItem from '@theme/TabItem';
  This page only shows **some frequently used operations**.
 
  - For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more, see [Pulsar admin doc](/tools/pulsar-admin/).
- 
+
  - For the latest and complete information about `REST API`, including parameters, responses, samples, and more, see {@inject: rest:REST:/} API doc.
- 
+
  - For the latest and complete information about `Java admin API`, including classes, methods, descriptions, and more, see [Java admin API doc](/api/admin/).
- 
+
 :::
 
 Package managers or package-management systems automatically manage packages in a consistent manner. These tools simplify the installation tasks, upgrade process, and deletion operations for users. A package is a minimal unit that a package manager deals with. In Pulsar, packages are organized at the tenant- and namespace-level to manage Pulsar Functions and Pulsar IO connectors (i.e., source and sink).
 
 ## What is a package?
 
-A package is a set of elements that the user would like to reuse in later operations. In Pulsar, a package can be a group of functions, sources, and sinks. You can define a package according to your needs. 
+A package is a set of elements that the user would like to reuse in later operations. In Pulsar, a package can be a group of functions, sources, and sinks. You can define a package according to your needs.
 
-The package management system in Pulsar stores the data and metadata of each package (as shown in the table below) and tracks the package versions. 
+The package management system in Pulsar stores the data and metadata of each package (as shown in the table below) and tracks the package versions.
 
 |Metadata|Description|
 |--|--|
@@ -76,7 +76,7 @@ To use package management service, ensure that the package management service ha
 
 > Note: Package management service is not enabled by default.
 
-```yaml
+```properties
 
 enablePackagesManagement=true
 packagesManagementStorageProvider=org.apache.pulsar.packages.management.storage.bookkeeper.BookKeeperPackagesStorageProvider

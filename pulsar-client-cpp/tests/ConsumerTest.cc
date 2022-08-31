@@ -30,7 +30,6 @@
 #include "lib/Future.h"
 #include "lib/Utils.h"
 #include "lib/LogUtils.h"
-#include "lib/PartitionedConsumerImpl.h"
 #include "lib/MultiTopicsConsumerImpl.h"
 #include "HttpHelper.h"
 
@@ -406,8 +405,9 @@ TEST(ConsumerTest, testPartitionedConsumerUnAckedMessageRedelivery) {
     consumerConfig.setUnAckedMessagesTimeoutMs(unAckedMessagesTimeoutMs);
     consumerConfig.setTickDurationInMs(tickDurationInMs);
     ASSERT_EQ(ResultOk, client.subscribe(partitionedTopic, subName, consumerConfig, consumer));
-    PartitionedConsumerImplPtr partitionedConsumerImplPtr =
-        PulsarFriend::getPartitionedConsumerImplPtr(consumer);
+
+    MultiTopicsConsumerImplPtr partitionedConsumerImplPtr =
+        PulsarFriend::getMultiTopicsConsumerImplPtr(consumer);
     ASSERT_EQ(numPartitions, partitionedConsumerImplPtr->consumers_.size());
 
     // send messages
@@ -442,8 +442,10 @@ TEST(ConsumerTest, testPartitionedConsumerUnAckedMessageRedelivery) {
     ASSERT_EQ(numOfMessages, partitionedTracker->size());
     ASSERT_FALSE(partitionedTracker->isEmpty());
     for (auto i = 0; i < numPartitions; i++) {
+        auto topicName =
+            "persistent://public/default/" + partitionedTopic + "-partition-" + std::to_string(i);
         ASSERT_EQ(numOfMessages / numPartitions, messageIds[i].size());
-        auto subConsumerPtr = partitionedConsumerImplPtr->consumers_[i];
+        auto subConsumerPtr = partitionedConsumerImplPtr->consumers_.find(topicName).value();
         auto tracker =
             static_cast<UnAckedMessageTrackerEnabled*>(subConsumerPtr->unAckedMessageTrackerPtr_.get());
         ASSERT_EQ(0, tracker->size());
