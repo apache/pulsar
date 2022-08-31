@@ -1708,7 +1708,7 @@ TEST(BasicEndToEndTest, testSeekOnPartitionedTopic) {
     ASSERT_EQ(expected.str(), msgReceived.getDataAsString());
     ASSERT_EQ(ResultOk, consumer.acknowledge(msgReceived));
     ASSERT_EQ(ResultOk, consumer.unsubscribe());
-    ASSERT_EQ(ResultOk, consumer.close());
+    ASSERT_EQ(ResultAlreadyClosed, consumer.close());
     ASSERT_EQ(ResultOk, producer.close());
     ASSERT_EQ(ResultOk, client.close());
 }

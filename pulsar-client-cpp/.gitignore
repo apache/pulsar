@@ -70,6 +70,7 @@ apidocs/
 generated/
 
 # CMAKE
+.cmake
 Makefile
 cmake_install.cmake
 CMakeFiles
