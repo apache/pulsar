@@ -660,8 +660,7 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected CompletableFuture<Void> internalRemovePropertiesAsync(boolean authoritative, String key) {
         return validateTopicOwnershipAsync(topicName, authoritative)
-                .thenCompose(__ -> validateNamespaceOperationAsync(topicName.getNamespaceObject(),
-                        NamespaceOperation.CREATE_TOPIC))
+                .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.DELETE_METADATA))
                 .thenCompose(__ -> {
                     if (topicName.isPartitioned()) {
                         return internalRemoveNonPartitionedTopicProperties(key);
@@ -674,7 +673,9 @@ public class PersistentTopicsBase extends AdminResource {
                                     return namespaceResources()
                                             .getPartitionedTopicResources().updatePartitionedTopicAsync(topicName,
                                                     p -> {
-                                                        p.properties.remove(key);
+                                                        if (p.properties != null) {
+                                                            p.properties.remove(key);
+                                                        }
                                                         return new PartitionedTopicMetadata(p.partitions, p.properties);
                                                     });
                                 });
