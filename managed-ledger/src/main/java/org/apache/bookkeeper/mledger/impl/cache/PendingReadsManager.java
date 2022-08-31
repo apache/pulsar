@@ -177,28 +177,31 @@ public class PendingReadsManager {
                     if (reminderOnLeft != null && reminderOnRight != null) {
                         foundButMissingSomethingOnBoth = new FindPendingReadOutcome(entry.getValue(),
                                 reminderOnLeft, reminderOnRight);
-                    } else if (reminderOnLeft != null && reminderOnRight == null) {
-                        foundButMissingSomethingOnLeft = new FindPendingReadOutcome(entry.getValue(),
-                                reminderOnLeft, null);
                     } else if (reminderOnRight != null && reminderOnLeft == null) {
                         foundButMissingSomethingOnRight = new FindPendingReadOutcome(entry.getValue(),
                                 null, reminderOnRight);
+                        // we can exit the loop in this case, as below we are not going to
+                        // consider the other options
+                        break;
+                    } else if (reminderOnLeft != null && reminderOnRight == null) {
+                        foundButMissingSomethingOnLeft = new FindPendingReadOutcome(entry.getValue(),
+                                reminderOnLeft, null);
                     }
                 }
             }
 
-            if (foundButMissingSomethingOnLeft != null) {
-                long delta = key.size()
-                        - foundButMissingSomethingOnLeft.missingOnLeft.size();
-                COUNT_PENDING_READS_MATCHED_OVERLAPPING_MISS_LEFT.inc(delta);
-                COUNT_ENTRIES_NOTREAD_FROM_BK.inc(delta);
-                return foundButMissingSomethingOnLeft;
-            } else if (foundButMissingSomethingOnRight != null) {
+            if (foundButMissingSomethingOnRight != null) {
                 long delta = key.size()
                         - foundButMissingSomethingOnRight.missingOnRight.size();
                 COUNT_PENDING_READS_MATCHED_BUT_OVERLAPPING_MISS_RIGHT.inc(delta);
                 COUNT_ENTRIES_NOTREAD_FROM_BK.inc(delta);
                 return foundButMissingSomethingOnRight;
+            } else if (foundButMissingSomethingOnLeft != null) {
+                long delta = key.size()
+                        - foundButMissingSomethingOnLeft.missingOnLeft.size();
+                COUNT_PENDING_READS_MATCHED_OVERLAPPING_MISS_LEFT.inc(delta);
+                COUNT_ENTRIES_NOTREAD_FROM_BK.inc(delta);
+                return foundButMissingSomethingOnLeft;
             } else if (foundButMissingSomethingOnBoth != null) {
                 long delta = key.size()
                         - foundButMissingSomethingOnBoth.missingOnRight.size()
@@ -275,7 +278,7 @@ public class PendingReadsManager {
                         for (ReadEntriesCallbackWithContext callback : callbacks) {
                             long callbackStartEntry = callback.startEntry;
                             long callbackEndEntry = callback.endEntry;
-                            List<EntryImpl> copy = new ArrayList<>((int) (callbackEndEntry - callbackEndEntry + 1));
+                            List<EntryImpl> copy = new ArrayList<>((int) (callbackEndEntry - callbackStartEntry + 1));
                             for (EntryImpl entry : entriesToReturn) {
                                 long entryId = entry.getEntryId();
                                 if (callbackStartEntry <= entryId && entryId <= callbackEndEntry) {
@@ -439,5 +442,9 @@ public class PendingReadsManager {
 
     void clear() {
         cachedPendingReads.clear();
+    }
+
+    void invalidateLedger(long id) {
+        cachedPendingReads.remove(id);
     }
 }

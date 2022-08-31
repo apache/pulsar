@@ -191,6 +191,7 @@ public class RangeEntryCacheImpl implements EntryCache {
         }
 
         manager.entriesRemoved(sizeRemoved, entriesRemoved);
+        pendingReadsManager.invalidateLedger(ledgerId);
     }
 
     @Override
@@ -241,6 +242,7 @@ public class RangeEntryCacheImpl implements EntryCache {
                         }
                     }, ml.getExecutor().chooseThread(ml.getName())).exceptionally(exception -> {
                         ml.invalidateLedgerHandle(lh);
+                        pendingReadsManager.invalidateLedger(lh.getId());
                         callback.readEntryFailed(createManagedLedgerException(exception), ctx);
                         return null;
             });
@@ -307,7 +309,16 @@ public class RangeEntryCacheImpl implements EntryCache {
         }
     }
 
-    CompletableFuture readFromStorage(ReadHandle lh, long firstEntry, long lastEntry, boolean shouldCacheEntry) {
+    /**
+     * Reads the entries from Storage.
+     * @param lh the handle
+     * @param firstEntry the first entry
+     * @param lastEntry the last entry
+     * @param shouldCacheEntry if we should put the entry into the cache
+     * @return a handle to the operation
+     */
+    CompletableFuture<List<EntryImpl>> readFromStorage(ReadHandle lh,
+                                                       long firstEntry, long lastEntry, boolean shouldCacheEntry) {
         final int entriesToRead = (int) (lastEntry - firstEntry) + 1;
         CompletableFuture<List<EntryImpl>> readResult = lh.readAsync(firstEntry, lastEntry)
                 .thenApply(
@@ -345,6 +356,7 @@ public class RangeEntryCacheImpl implements EntryCache {
                     && ((BKException) exception).getCode() == BKException.Code.TooManyRequestsException) {
             } else {
                 ml.invalidateLedgerHandle(lh);
+                pendingReadsManager.invalidateLedger(lh.getId());
             }
             return null;
         });
