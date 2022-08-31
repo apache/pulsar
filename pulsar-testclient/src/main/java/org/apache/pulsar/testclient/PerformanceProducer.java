@@ -481,8 +481,8 @@ public class PerformanceProducer {
             return null;
         }
     }
-    
-     static ProducerBuilder<byte[]> createProducerBuilder(PulsarClient client, Arguments arguments, int producerId) {
+
+    static ProducerBuilder<byte[]> createProducerBuilder(PulsarClient client, Arguments arguments, int producerId) {
         ProducerBuilder<byte[]> producerBuilder = client.newProducer() //
                 .sendTimeout(arguments.sendTimeout, TimeUnit.SECONDS) //
                 .compressionType(arguments.compression) //
@@ -493,7 +493,7 @@ public class PerformanceProducer {
         if (arguments.maxPendingMessagesAcrossPartitions > 0) {
             producerBuilder.maxPendingMessagesAcrossPartitions(arguments.maxPendingMessagesAcrossPartitions);
         }
-        
+
         if (arguments.producerName != null) {
             String producerName = String.format("%s%s%d", arguments.producerName, arguments.separator, producerId);
             producerBuilder.producerName(producerName);
@@ -519,7 +519,7 @@ public class PerformanceProducer {
             producerBuilder.addEncryptionKey(arguments.encKeyName);
             producerBuilder.defaultCryptoKeyReader(arguments.encKeyFile);
         }
-        
+
         return producerBuilder;
     }
 
