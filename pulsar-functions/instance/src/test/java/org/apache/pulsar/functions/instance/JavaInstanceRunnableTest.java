@@ -71,7 +71,7 @@ public class JavaInstanceRunnableTest {
         ClientBuilder clientBuilder = mock(ClientBuilder.class);
         when(clientBuilder.build()).thenReturn(null);
         JavaInstanceRunnable javaInstanceRunnable = new JavaInstanceRunnable(
-                config, clientBuilder, null, null, null,null, null, null, null);
+                config, clientBuilder, null, null, null, null, null, null, null, null);
         return javaInstanceRunnable;
     }
 

@@ -174,6 +174,8 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
     @Override
     public ThreadRuntime createContainer(InstanceConfig instanceConfig, String jarFile,
                                          String originalCodeFileName,
+                                         String transformFunctionFile,
+                                         String originalTransformFunctionFileName,
                                          Long expectedHealthCheckInterval) {
         SecretsProvider secretsProvider = defaultSecretsProvider;
         if (secretsProvider == null) {
@@ -189,6 +191,7 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
             fnCache,
             threadGroup,
             jarFile,
+            transformFunctionFile,
             pulsarClient,
             clientBuilder,
             pulsarAdmin,

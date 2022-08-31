@@ -265,6 +265,8 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     @Override
     public KubernetesRuntime createContainer(InstanceConfig instanceConfig, String codePkgUrl,
                                              String originalCodeFileName,
+                                             String transformFunctionPkgUrl,
+                                             String originalTransformFunctionFileName,
                                              Long expectedHealthCheckInterval) throws Exception {
         String instanceFile = null;
         switch (instanceConfig.getFunctionDetails().getRuntime()) {
@@ -318,6 +320,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             configAdminCLI,
             codePkgUrl,
             originalCodeFileName,
+            originalTransformFunctionFileName,
             pulsarServiceUrl,
             pulsarAdminUrl,
             stateStorageServiceUri,

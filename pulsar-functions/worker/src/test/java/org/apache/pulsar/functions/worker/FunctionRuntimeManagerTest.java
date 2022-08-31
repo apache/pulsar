@@ -705,7 +705,7 @@ public class FunctionRuntimeManagerTest {
         doReturn(true).when(kubernetesRuntimeFactory).externallyManaged();
 
         KubernetesRuntime kubernetesRuntime = mock(KubernetesRuntime.class);
-        doReturn(kubernetesRuntime).when(kubernetesRuntimeFactory).createContainer(any(), any(), any(), any());
+        doReturn(kubernetesRuntime).when(kubernetesRuntimeFactory).createContainer(any(), any(), any(), any(), any(), any());
 
         FunctionActioner functionActioner = spy(new FunctionActioner(
                 workerConfig,
@@ -730,7 +730,9 @@ public class FunctionRuntimeManagerTest {
             functionRuntimeManager.setFunctionActioner(functionActioner);
 
             Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
-                    .setPackageLocation(Function.PackageLocationMetaData.newBuilder().setPackagePath("path").build())
+                    .setPackageLocation(Function.PackageLocationMetaData.newBuilder().setPackagePath("path"))
+                    .setTransformFunctionPackageLocation(Function.PackageLocationMetaData.newBuilder()
+                            .setPackagePath("function-path"))
                     .setFunctionDetails(
                             Function.FunctionDetails.newBuilder()
                                     .setTenant("test-tenant").setNamespace("test-namespace").setName("func-1")).build();
@@ -758,7 +760,9 @@ public class FunctionRuntimeManagerTest {
                     .setFunctionMetaData(function1).setInstanceId(0).build();
             FunctionRuntimeInfo functionRuntimeInfo = new FunctionRuntimeInfo()
                     .setFunctionInstance(instance)
-                    .setRuntimeSpawner(functionActioner.getRuntimeSpawner(instance, function1.getPackageLocation().getPackagePath()));
+                    .setRuntimeSpawner(functionActioner
+                            .getRuntimeSpawner(instance, function1.getPackageLocation().getPackagePath(),
+                                    function1.getTransformFunctionPackageLocation().getPackagePath()));
             functionRuntimeManager.functionRuntimeInfos.put(
                     "test-tenant/test-namespace/func-1:0", functionRuntimeInfo);
 

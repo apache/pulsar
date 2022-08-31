@@ -29,9 +29,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
@@ -58,7 +55,6 @@ import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.utils.ComponentTypeUtils;
-import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.utils.functions.FunctionArchive;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
@@ -148,26 +144,13 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
         }
 
         Function.FunctionDetails functionDetails;
-        boolean isPkgUrlProvided = isNotBlank(functionPkgUrl);
         File componentPackageFile = null;
         try {
 
             // validate parameters
             try {
-                if (isPkgUrlProvided) {
-                    if (Utils.hasPackageTypePrefix(functionPkgUrl)) {
-                        componentPackageFile = downloadPackageFile(functionPkgUrl);
-                    } else {
-                        if (!Utils.isFunctionPackageUrlSupported(functionPkgUrl)) {
-                            throw new IllegalArgumentException("Function Package url is not valid. supported url (http/https/file)");
-                        }
-                        try {
-
-                            componentPackageFile = FunctionCommon.extractFileFromPkgURL(functionPkgUrl);
-                        } catch (Exception e) {
-                            throw new IllegalArgumentException(String.format("Encountered error \"%s\" when getting %s package from %s", e.getMessage(), ComponentTypeUtils.toString(componentType), functionPkgUrl), e);
-                        }
-                    }
+                if (isNotBlank(functionPkgUrl)) {
+                    componentPackageFile = getPackageFile(functionPkgUrl);
                     functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
                             functionConfig, componentPackageFile);
                 } else {
@@ -323,48 +306,17 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
 
             // validate parameters
             try {
-                if (isNotBlank(functionPkgUrl)) {
-                    if (Utils.hasPackageTypePrefix(functionPkgUrl)) {
-                        componentPackageFile = downloadPackageFile(functionName);
-                    } else {
-                        try {
-                            componentPackageFile = FunctionCommon.extractFileFromPkgURL(functionPkgUrl);
-                        } catch (Exception e) {
-                            throw new IllegalArgumentException(String.format("Encountered error \"%s\" when getting %s package from %s", e.getMessage(), ComponentTypeUtils.toString(componentType), functionPkgUrl));
-                        }
-                    }
-                    functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
-                            mergedConfig, componentPackageFile);
-
-                } else if (existingComponent.getPackageLocation().getPackagePath().startsWith(Utils.FILE)
-                        || existingComponent.getPackageLocation().getPackagePath().startsWith(Utils.HTTP)) {
-                    try {
-                        componentPackageFile = FunctionCommon.extractFileFromPkgURL(existingComponent.getPackageLocation().getPackagePath());
-                    } catch (Exception e) {
-                        throw new IllegalArgumentException(String.format("Encountered error \"%s\" when getting %s package from %s", e.getMessage(), ComponentTypeUtils.toString(componentType), functionPkgUrl));
-                    }
-                    functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
-                            mergedConfig, componentPackageFile);
-                } else if (uploadedInputStream != null) {
-
-                    componentPackageFile = WorkerUtils.dumpToTmpFile(uploadedInputStream);
-                    functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
-                            mergedConfig, componentPackageFile);
-
-                } else if (existingComponent.getPackageLocation().getPackagePath().startsWith(Utils.BUILTIN)) {
-                    functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
-                            mergedConfig, componentPackageFile);
-                    if (!isFunctionCodeBuiltin(functionDetails) && (componentPackageFile == null || fileDetail == null)) {
-                        throw new IllegalArgumentException(ComponentTypeUtils.toString(componentType) + " Package is not provided");
-                    }
-                } else {
-
-                    componentPackageFile = FunctionCommon.createPkgTempFile();
-                    componentPackageFile.deleteOnExit();
-                    WorkerUtils.downloadFromBookkeeper(worker().getDlogNamespace(), componentPackageFile, existingComponent.getPackageLocation().getPackagePath());
-
-                    functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
-                            mergedConfig, componentPackageFile);
+                componentPackageFile = getPackageFile(
+                        functionPkgUrl,
+                        existingComponent.getPackageLocation().getPackagePath(),
+                        uploadedInputStream);
+                functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
+                        mergedConfig, componentPackageFile);
+                if (existingComponent.getPackageLocation().getPackagePath().startsWith(Utils.BUILTIN)
+                        && !isFunctionCodeBuiltin(functionDetails)
+                        && (componentPackageFile == null || fileDetail == null)) {
+                    throw new IllegalArgumentException(ComponentTypeUtils.toString(componentType)
+                            + " Package is not provided");
                 }
             } catch (Exception e) {
                 log.error("Invalid update {} request @ /{}/{}/{}", ComponentTypeUtils.toString(componentType), tenant, namespace, functionName, e);
@@ -744,7 +696,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
             if (archive.startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN)) {
                 archive = archive.replaceFirst("^builtin://", "");
 
-                FunctionsManager functionsManager = this.worker().getFunctionsManager();
+                FunctionsManager functionsManager = worker().getFunctionsManager();
                 FunctionArchive function = functionsManager.getFunction(archive);
 
                 // check if builtin function exists
@@ -784,21 +736,4 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
         }
     }
 
-    private File downloadPackageFile(String packageName) throws IOException, PulsarAdminException {
-        return downloadPackageFile(worker(), packageName);
-    }
-
-    static File downloadPackageFile(PulsarWorkerService worker, String packageName) throws IOException, PulsarAdminException {
-        Path tempDirectory;
-        if (worker.getWorkerConfig().getDownloadDirectory() != null) {
-            tempDirectory = Paths.get(worker.getWorkerConfig().getDownloadDirectory());
-        } else {
-            // use the Nar extraction directory as a temporary directory for downloaded files
-            tempDirectory = Paths.get(worker.getWorkerConfig().getNarExtractionDirectory());
-        }
-        Files.createDirectories(tempDirectory);
-        File file = Files.createTempFile(tempDirectory, "function", ".tmp").toFile();
-        worker.getBrokerAdmin().packages().download(packageName, file.toString());
-        return file;
-    }
 }

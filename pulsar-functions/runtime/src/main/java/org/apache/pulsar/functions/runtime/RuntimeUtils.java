@@ -28,6 +28,7 @@ import java.io.BufferedReader;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.URL;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -56,6 +57,7 @@ import javax.management.MalformedObjectNameException;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.commons.lang3.StringUtils.isNotEmpty;
 
 /**
  * Util class for common runtime functionality.
@@ -71,6 +73,7 @@ public class RuntimeUtils {
                                           String extraDependenciesDir, /* extra dependencies for running instances */
                                           String logDirectory,
                                           String originalCodeFileName,
+                                          String originalTransformFunctionFileName,
                                           String pulsarServiceUrl,
                                           String stateStorageServiceUrl,
                                           AuthenticationConfig authConfig,
@@ -90,7 +93,7 @@ public class RuntimeUtils {
         final List<String> cmd = getArgsBeforeCmd(instanceConfig, extraDependenciesDir);
 
         cmd.addAll(getCmd(instanceConfig, instanceFile, extraDependenciesDir, logDirectory,
-                originalCodeFileName, pulsarServiceUrl, stateStorageServiceUrl,
+                originalCodeFileName, originalTransformFunctionFileName, pulsarServiceUrl, stateStorageServiceUrl,
                 authConfig, shardId, grpcPort, expectedHealthCheckInterval,
                 logConfigFile, secretsProviderClassName, secretsProviderConfig,
                 installUserCodeDependencies, pythonDependencyRepository,
@@ -263,6 +266,7 @@ public class RuntimeUtils {
                                       String extraDependenciesDir, /* extra dependencies for running instances */
                                       String logDirectory,
                                       String originalCodeFileName,
+                                      String originalTransformFunctionFileName,
                                       String pulsarServiceUrl,
                                       String stateStorageServiceUrl,
                                       AuthenticationConfig authConfig,
@@ -332,9 +336,7 @@ public class RuntimeUtils {
             }
 
             if (!isEmpty(instanceConfig.getFunctionDetails().getRuntimeFlags())) {
-                for (String runtimeFlagArg : splitRuntimeArgs(instanceConfig.getFunctionDetails().getRuntimeFlags())) {
-                    args.add(runtimeFlagArg);
-                }
+                Collections.addAll(args, splitRuntimeArgs(instanceConfig.getFunctionDetails().getRuntimeFlags()));
             }
             if (instanceConfig.getFunctionDetails().getResources() != null) {
                 Function.Resources resources = instanceConfig.getFunctionDetails().getResources();
@@ -346,12 +348,16 @@ public class RuntimeUtils {
 
             args.add("--jar");
             args.add(originalCodeFileName);
+            if (isNotEmpty(originalTransformFunctionFileName)) {
+                args.add("--transform_function_jar");
+                args.add(originalTransformFunctionFileName);
+                args.add("--transform_function_id");
+                args.add(instanceConfig.getTransformFunctionId());
+            }
         } else if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.PYTHON) {
             args.add("python");
             if (!isEmpty(instanceConfig.getFunctionDetails().getRuntimeFlags())) {
-                for (String runtimeFlagArg : splitRuntimeArgs(instanceConfig.getFunctionDetails().getRuntimeFlags())) {
-                    args.add(runtimeFlagArg);
-                }
+                Collections.addAll(args, splitRuntimeArgs(instanceConfig.getFunctionDetails().getRuntimeFlags()));
             }
             args.add(instanceFile);
             args.add("--py");

@@ -150,7 +150,32 @@ public interface Component<W extends WorkerService> {
                                      String namespace,
                                      String componentName,
                                      String clientRole,
-                                     AuthenticationDataHttps clientAuthenticationDataHttps);
+                                     AuthenticationDataSource clientAuthenticationDataHttps,
+                                     boolean transformFunction);
+
+    @Deprecated
+    default StreamingOutput downloadFunction(String tenant,
+                                     String namespace,
+                                     String componentName,
+                                     String clientRole,
+                                     AuthenticationDataSource clientAuthenticationDataHttps) {
+        return downloadFunction(tenant, namespace, componentName, clientRole, clientAuthenticationDataHttps, false);
+    }
+
+    @Deprecated
+    default StreamingOutput downloadFunction(String tenant,
+                                     String namespace,
+                                     String componentName,
+                                     String clientRole,
+                                     AuthenticationDataHttps clientAuthenticationDataHttps) {
+        return downloadFunction(
+                tenant,
+                namespace,
+                componentName,
+                clientRole,
+                (AuthenticationDataSource) clientAuthenticationDataHttps,
+                false);
+    }
 
     List<ConnectorDefinition> getListOfConnectors();
 

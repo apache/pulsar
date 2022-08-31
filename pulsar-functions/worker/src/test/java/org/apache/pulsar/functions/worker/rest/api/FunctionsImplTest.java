@@ -153,8 +153,9 @@ public class FunctionsImplTest {
         instanceConfig.setMaxBufferedTuples(1024);
 
         JavaInstanceRunnable javaInstanceRunnable = new JavaInstanceRunnable(
-                instanceConfig, null, null, null, null, null, null, null, null);
-        CompletableFuture<InstanceCommunication.MetricsData> metricsDataCompletableFuture = new CompletableFuture<InstanceCommunication.MetricsData>();
+                instanceConfig, null, null, null, null, null, null, null, null, null);
+        CompletableFuture<InstanceCommunication.MetricsData> metricsDataCompletableFuture =
+                new CompletableFuture<InstanceCommunication.MetricsData>();
         metricsDataCompletableFuture.complete(javaInstanceRunnable.getMetrics());
         Runtime runtime = mock(Runtime.class);
         doReturn(metricsDataCompletableFuture).when(runtime).getMetrics(anyInt());
@@ -206,8 +207,9 @@ public class FunctionsImplTest {
         instanceConfig.setMaxBufferedTuples(1024);
 
         JavaInstanceRunnable javaInstanceRunnable = new JavaInstanceRunnable(
-                instanceConfig, null, null, null, null, null, null, null, null);
-        CompletableFuture<InstanceCommunication.MetricsData> completableFuture = new CompletableFuture<InstanceCommunication.MetricsData>();
+                instanceConfig, null, null, null, null, null, null, null, null, null);
+        CompletableFuture<InstanceCommunication.MetricsData> completableFuture =
+                new CompletableFuture<InstanceCommunication.MetricsData>();
         completableFuture.complete(javaInstanceRunnable.getMetrics());
         Runtime runtime = mock(Runtime.class);
         doReturn(completableFuture).when(runtime).getMetrics(anyInt());
