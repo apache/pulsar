@@ -175,9 +175,9 @@ flexible messaging model and an intuitive client API.</description>
     <trino.version>363</trino.version>
     <scala.binary.version>2.13</scala.binary.version>
     <scala-library.version>2.13.6</scala-library.version>
-    <debezium.version>1.7.2.Final</debezium.version>
-    <debezium.postgresql.version>42.4.1</debezium.postgresql.version>
-    <debezium.mysql.version>8.0.28</debezium.mysql.version>
+    <debezium.version>1.9.5.Final</debezium.version>
+    <debezium.postgresql.version>42.5.0</debezium.postgresql.version>
+    <debezium.mysql.version>8.0.30</debezium.mysql.version>
     <jsonwebtoken.version>0.11.1</jsonwebtoken.version>
     <opencensus.version>0.28.0</opencensus.version>
     <hbase.version>2.4.9</hbase.version>

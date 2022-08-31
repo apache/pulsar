@@ -83,6 +83,7 @@ import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
+import org.apache.pulsar.common.policies.data.EntryFilters;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
@@ -2720,6 +2721,15 @@ public abstract class NamespacesBase extends AdminResource {
         OffloaderObjectsScannerUtils.scanOffloadedLedgers(managedLedgerOffloader,
                 localClusterName, pulsar().getManagedLedgerFactory(), sink);
 
+    }
+
+    protected CompletableFuture<Void> internalSetEntryFiltersPerTopicAsync(EntryFilters entryFilters) {
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.ENTRY_FILTERS, PolicyOperation.WRITE)
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
+                    policies.entryFilters = entryFilters;
+                    return policies;
+                }));
     }
 
     private static final Logger log = LoggerFactory.getLogger(NamespacesBase.class);
