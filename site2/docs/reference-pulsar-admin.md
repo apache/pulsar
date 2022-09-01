@@ -501,7 +501,7 @@ Options
 |`--processing-guarantees`|The processing guarantees (aka delivery semantics) applied to the function. Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]|ATLEAST_ONCE|
 |`--py`|Path to the main Python file/Python Wheel file for the function (if the function is written in Python). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.||
 |`--go`|Path to the main Go executable binary for the function (if the function is written in Go). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.||
-|`--schema-type`|The builtin schema type or custom schema class name to be used for messages output by the function||
+|`--schema-type`|The built-in schema type or custom schema class name to be used for messages output by the function||
 |`--sliding-interval-count`|The number of messages after which the window slides||
 |`--sliding-interval-duration-ms`|The time duration after which the window slides||
 |`--state-storage-service-url`|The URL for the state storage service. By default, it it set to the service URL of the Apache BookKeeper. This service URL must be added manually when the Pulsar Function runs locally. ||
@@ -555,7 +555,7 @@ Options
 |`--processing-guarantees`|The processing guarantees (aka delivery semantics) applied to the function. Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]|ATLEAST_ONCE|
 |`--py`|Path to the main Python file/Python Wheel file for the function (if the function is written in Python). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.||
 |`--go`|Path to the main Go executable binary for the function (if the function is written in Go). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.||
-|`--schema-type`|The builtin schema type or custom schema class name to be used for messages output by the function||
+|`--schema-type`|The built-in schema type or custom schema class name to be used for messages output by the function||
 |`--sliding-interval-count`|The number of messages after which the window slides||
 |`--sliding-interval-duration-ms`|The time duration after which the window slides||
 |`--tenant`|The function’s tenant||
@@ -624,7 +624,7 @@ Options
 |`--processing-guarantees`|The processing guarantees (aka delivery semantics) applied to the function. Possible Values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]|ATLEAST_ONCE|
 |`--py`|Path to the main Python file/Python Wheel file for the function (if the function is written in Python). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.||
 |`--go`|Path to the main Go executable binary for the function (if the function is written in Go). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package.||
-|`--schema-type`|The builtin schema type or custom schema class name to be used for messages output by the function||
+|`--schema-type`|The built-in schema type or custom schema class name to be used for messages output by the function||
 |`--sliding-interval-count`|The number of messages after which the window slides||
 |`--sliding-interval-duration-ms`|The time duration after which the window slides||
 |`--tenant`|The function’s tenant||

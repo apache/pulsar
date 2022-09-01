@@ -49,7 +49,7 @@ If the `key` does not exist, a new key is created.
 
 ```java
     /**
-     * Increment the builtin distributed counter referred by key
+     * Increment the built-in distributed counter referred by key
      * @param key The name of the key
      * @param amount The amount to be incremented
      */
@@ -78,7 +78,7 @@ To asynchronously increment the counter, you can use `incrCounterAsync`.
 
 ```java
      /**
-     * Increment the builtin distributed counter referred by key
+     * Increment the built-in distributed counter referred by key
      * but dont wait for the completion of the increment operation
      *
      * @param key The name of the key

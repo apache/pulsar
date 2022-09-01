@@ -29,11 +29,9 @@ non-persistent://tenant/namespace/topic
 To use non-persistent topics, you need to [enable](#enable) them in your Pulsar broker configuration and differentiate them by name when interacting with them. This [`pulsar-client produce`](reference-cli-tools.md#pulsar-client-produce) command, for example, would produce one message on a non-persistent topic in a standalone cluster:
 
 ```bash
-
-$ bin/pulsar-client produce non-persistent://public/default/example-np-topic \
+bin/pulsar-client produce non-persistent://public/default/example-np-topic \
   --num-produce 1 \
   --messages "This message will be stored only in memory"
-
 ```
 
 > For a more thorough guide to non-persistent topics from an administrative perspective, see the [Non-persistent topics](admin-api-topics.md) guide.

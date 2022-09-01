@@ -112,16 +112,16 @@ Directory | Contains
 :::tip
 
 If you want to use built-in connectors and tiered storage offloaders, you can install them according to the following instructions：
-* [Install built-in connectors (optional)](#install-builtin-connectors-optional)
+* [Install built-in connectors (optional)](#install-built-in-connectors-optional)
 * [Install tiered storage offloaders (optional)](#install-tiered-storage-offloaders-optional)
-Otherwise, skip this step and perform the next step [Start Pulsar standalone](#start-pulsar-standalone). Pulsar can be successfully installed without installing bulitin connectors and tiered storage offloaders.
+Otherwise, skip this step and perform the next step [Start Pulsar standalone](#start-pulsar-standalone). Pulsar can be successfully installed without installing built-in connectors and tiered storage offloaders.
 
 :::
 
 ### Install built-in connectors (optional)
 
-Since `2.1.0-incubating` release, Pulsar releases a separate binary distribution, containing all the `builtin` connectors.
-To enable those `builtin` connectors, you can download the connectors tarball release in one of the following ways:
+Since `2.1.0-incubating` release, Pulsar releases a separate binary distribution, containing all the `built-in` connectors.
+To enable those `built-in` connectors, you can download the connectors tarball release in one of the following ways:
 
 * download from the Apache mirror <a href="pulsar:connector_release_url" download>Pulsar IO Connectors @pulsar:version@ release</a>
 

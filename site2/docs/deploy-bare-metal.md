@@ -124,12 +124,12 @@ Directory | Contains
 `lib` | The [JAR](https://en.wikipedia.org/wiki/JAR_(file_format)) files that Pulsar uses
 `logs` | Logs that the installation creates
 
-## [Install Builtin Connectors (optional)](/standalone.md#install-builtin-connectors-optional)
+## [Install Built-in Connectors (optional)](/standalone.md#install-built-in-connectors-optional)
 
-> Since Pulsar release `2.1.0-incubating`, Pulsar provides a separate binary distribution, containing all the `builtin` connectors.
-> To enable the `builtin` connectors (optional), you can follow the instructions below.
+> Since Pulsar release `2.1.0-incubating`, Pulsar provides a separate binary distribution, containing all the `built-in` connectors.
+> To enable the `built-in` connectors (optional), you can follow the instructions below.
 
-To use `builtin` connectors, you need to download the connectors tarball release on every broker node in one of the following ways :
+To use `built-in` connectors, you need to download the connectors tarball release on every broker node in one of the following ways :
 
 * by clicking the link below and downloading the release from an Apache mirror:
 

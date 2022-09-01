@@ -38,7 +38,7 @@ Transaction ID (TxnID) identifies a unique transaction in Pulsar. The transactio
 
 Pending acknowledge state maintains message acknowledgments within a transaction before a transaction completes. If a message is in the pending acknowledge state, the message cannot be acknowledged by other transactions until the message is removed from the pending acknowledge state.
 
-The pending acknowledge state is persisted to the pending acknowledge log (cursor ledger). A new broker can restore the state from the pending acknowledge log to ensure the acknowledgment is not lost.    
+The pending acknowledge state is persisted in the pending acknowledge log (cursor ledger). A new broker can restore the state from the pending acknowledge log to ensure the acknowledgment is not lost.    
 
 ## Data flow
 

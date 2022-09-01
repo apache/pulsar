@@ -82,7 +82,7 @@ For more information about **how to install a standalone Pulsar and built-in con
    [{"name":"aerospike","description":"Aerospike database sink","sinkClass":"org.apache.pulsar.io.aerospike.AerospikeStringSink"},{"name":"cassandra","description":"Writes data into Cassandra","sinkClass":"org.apache.pulsar.io.cassandra.CassandraStringSink"},{"name":"kafka","description":"Kafka source and sink connector","sourceClass":"org.apache.pulsar.io.kafka.KafkaStringSource","sinkClass":"org.apache.pulsar.io.kafka.KafkaBytesSink"},{"name":"kinesis","description":"Kinesis sink connector","sinkClass":"org.apache.pulsar.io.kinesis.KinesisSink"},{"name":"rabbitmq","description":"RabbitMQ source connector","sourceClass":"org.apache.pulsar.io.rabbitmq.RabbitMQSource"},{"name":"twitter","description":"Ingest data from Twitter firehose","sourceClass":"org.apache.pulsar.io.twitter.TwitterFireHose"}]
    ```
 
-   If an error occurs when starting Pulsar service, you may see an exception at the terminal running `pulsar/standalone`,
+   If an error occurs when starting the Pulsar service, you may see an exception at the terminal running `pulsar/standalone`,
    or you can navigate to the `logs` directory under the Pulsar directory to view the logs.
 
 ## Connect Pulsar to Cassandra

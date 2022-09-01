@@ -103,15 +103,13 @@ This example shows how to write records to a Redis database using the Pulsar Red
    * Use the **YAML** configuration file as shown previously.
 
        ```bash
-       
-       $ bin/pulsar-admin sinks localrun \
+       bin/pulsar-admin sinks localrun \
        --archive connectors/pulsar-io-redis-@pulsar:version@.nar \
        --tenant public \
        --namespace default \
        --name my-redis-sink \
        --sink-config-file redis-sink-config.yaml \
        --inputs my-redis-topic
-       
        ```
 
 4. Publish records to the topic.

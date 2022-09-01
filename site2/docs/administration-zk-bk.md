@@ -234,19 +234,19 @@ Before you decommission a bookie, you need to check your environment and meet th
 And then you can decommission bookies safely. To decommission bookies, complete the following steps.
 
 1. Log in to the bookie node, and check if there are under-replicated ledgers. The decommission command force to replicate the underreplicated ledgers.
-`$ bin/bookkeeper shell listunderreplicated`
+`bin/bookkeeper shell listunderreplicated`
 
 2. Stop the bookie by killing the bookie process. Make sure that no liveness/readiness probes setup for the bookies to spin them back up if you deploy it in a Kubernetes environment.
 
 3. Run the decommission command.
    - If you have logged in to the node to be decommissioned, you do not need to provide `-bookieid`.
    - If you are running the decommission command for the target bookie node from another bookie node, you should mention the target bookie ID in the arguments for `-bookieid`
-   `$ bin/bookkeeper shell decommissionbookie`
+   `bin/bookkeeper shell decommissionbookie`
    or
-   `$ bin/bookkeeper shell decommissionbookie -bookieid <target bookieid>`
+   `bin/bookkeeper shell decommissionbookie -bookieid <target bookieid>`
 
 4. Validate that no ledgers are on the decommissioned bookie.   
-`$ bin/bookkeeper shell listledgers -bookieid <target bookieid>`
+`bin/bookkeeper shell listledgers -bookieid <target bookieid>`
 
 You can run the following command to check if the bookie you have decommissioned is listed:
 

@@ -31,7 +31,7 @@ instance), and then you write to Elasticsearch.<br /><br /> You configure the
 mapping of the primary key using the `primaryFields` configuration
 entry.<br /><br />The `DELETE` operation can be performed when the primary key is
 not empty and the remaining value is empty. Use the `nullValueAction` to
-configure this behaviour. The default configuration simply ignores such empty
+configure this behavior. The default configuration simply ignores such empty
 values.
 		
 ### Map multiple indexes

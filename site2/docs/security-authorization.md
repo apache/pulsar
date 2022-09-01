@@ -5,7 +5,7 @@ sidebar_label: "Authorization and ACLs"
 ---
 
 
-In Pulsar, the [authentication provider](security-overview.md#authentication-providers) is responsible for properly identifying clients and associating the clients with [role tokens](security-overview.md#role-tokens). If you only enable authentication, an authenticated role token has the ability to access all resources in the cluster. *Authorization* is the process that determines *what* clients are able to do.
+In Pulsar, the [authentication provider](security-overview.md#authentication-providers) is responsible for properly identifying clients and associating the clients with [role tokens](security-overview.md#role-tokens). If you only enable authentication, an authenticated role token can access all resources in the cluster. *Authorization* is the process that determines _what_ clients can do.
 
 The role tokens with the most privileges are the *superusers*. The *superusers* can create and destroy tenants, along with having full access to all tenant resources.
 
@@ -16,7 +16,7 @@ When a superuser creates a [tenant](reference-terminology.md#tenant), that tenan
 ### Enable authorization and assign superusers
 You can enable the authorization and assign the superusers in the broker ([`conf/broker.conf`](reference-configuration.md#broker) or `conf/standalone.conf`) configuration files.
 
-```properties
+```conf
 authorizationEnabled=true
 superUserRoles=my-super-user-1,my-super-user-2
 ```
@@ -31,13 +31,13 @@ If you enable authorization on the broker, the broker checks the authorization o
 
 ### Proxy Roles
 
-By default, the broker treats the connection between a proxy and the broker as a normal user connection. The broker authenticates the user as the role configured in `proxy.conf`(see ["Enable TLS Authentication on Proxies"](security-tls-authentication.md#enable-tls-authentication-on-proxies)). However, when the user connects to the cluster through a proxy, the user rarely requires the authentication. The user expects to be able to interact with the cluster as the role for which they have authenticated with the proxy.
+By default, the broker treats the connection between a proxy and the broker as a normal user connection. The broker authenticates the user as the role configured in `proxy.conf`(see ["Enable TLS Authentication on Proxies"](security-tls-authentication.md#enable-tls-authentication-on-proxies)). However, when the user connects to the cluster through a proxy, the user rarely requires authentication. The user expects to be able to interact with the cluster as the role for which they have authenticated with the proxy.
 
-Pulsar uses *Proxy roles* to enable the authentication. Proxy roles are specified in the broker configuration file, [`conf/broker.conf`](reference-configuration.md#broker). If a client that is authenticated with a broker is one of its ```proxyRoles```, all requests from that client must also carry information about the role of the client that is authenticated with the proxy. This information is called the *original principal*. If the *original principal* is absent, the client is not able to access anything.
+Pulsar uses *Proxy roles* to enable the authentication. Proxy roles are specified in the broker configuration file, [`conf/broker.conf`](reference-configuration.md#broker). If a client that is authenticated with a broker is one of its `proxyRoles`, all requests from that client must also carry information about the role of the client that is authenticated with the proxy. This information is called the *original principal*. If the *original principal* is absent, the client is not able to access anything.
 
 You must authorize both the *proxy role* and the *original principal* to access a resource to ensure that the resource is accessible via the proxy. Administrators can take two approaches to authorize the *proxy role* and the *original principal*.
 
-The more secure approach is to grant access to the proxy roles each time you grant access to a resource. For example, if you have a proxy role named `proxy1`, when the superuser creates a tenant, you should specify `proxy1` as one of the admin roles. When a role is granted permissions to produce or consume from a namespace, if that client wants to produce or consume through a proxy, you should also grant `proxy1` the same permissions.
+The more secure approach is to grant access to the proxy roles each time you grant access to a resource. For example, if you have a proxy role named `proxy1`, when the superuser creates a tenant, you should specify `proxy1` as one of the admin roles. When a role is granted permission to produce or consume from a namespace, if that client wants to produce or consume through a proxy, you should also grant `proxy1` the same permissions.
 
 Another approach is to make the proxy role a superuser. This allows the proxy to access all resources. The client still needs to authenticate with the proxy, and all requests made through the proxy have their role downgraded to the *original principal* of the authenticated client. However, if the proxy is compromised, a bad actor could get full access to your cluster.
 
@@ -101,7 +101,7 @@ PulsarAdmin admin = PulsarAdmin.builder()
 
 ## Authorize an authenticated client with multiple roles
 
-When a client is identified with multiple roles in a token (the type of role claim in the token is an array) during the authentication process, Pulsar supports to check the permissions of all the roles and further authorize the client as long as one of its roles has the required permissions.
+When a client is identified with multiple roles in a token (the type of role claim in the token is an array) during the authentication process, Pulsar supports checking the permissions of all the roles and further authorizing the client as long as one of its roles has the required permissions.
 
 :::note
 

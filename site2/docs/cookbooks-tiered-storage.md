@@ -269,8 +269,8 @@ messages exists in both bookkeeper and long term storage, if they are preferred 
 
 ```bash
 # default value for -orp is tiered-storage-first
-$ bin/pulsar-admin namespaces set-offload-policies my-tenant/my-namespace -orp bookkeeper-first
-$ bin/pulsar-admin topics set-offload-policies my-tenant/my-namespace/topic1 -orp bookkeeper-first
+bin/pulsar-admin namespaces set-offload-policies my-tenant/my-namespace -orp bookkeeper-first
+bin/pulsar-admin topics set-offload-policies my-tenant/my-namespace/topic1 -orp bookkeeper-first
 ```
 
 ## Triggering offload manually
