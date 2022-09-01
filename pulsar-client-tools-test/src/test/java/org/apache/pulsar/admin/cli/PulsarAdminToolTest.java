@@ -72,6 +72,7 @@ import org.apache.pulsar.client.admin.TopicPolicies;
 import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.admin.Transactions;
 import org.apache.pulsar.client.admin.internal.OffloadProcessStatusImpl;
+import org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl;
 import org.apache.pulsar.client.admin.internal.PulsarAdminImpl;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -2162,19 +2163,15 @@ public class PulsarAdminToolTest {
             //Ok
         }
 
+        Field adminBuilderField = PulsarAdminTool.class.getDeclaredField("adminBuilder");
+        adminBuilderField.setAccessible(true);
+        PulsarAdminBuilderImpl builder = (PulsarAdminBuilderImpl) adminBuilderField.get(tool);
+        Field confField =
+                PulsarAdminBuilderImpl.class.getDeclaredField("conf");
+        confField.setAccessible(true);
+        ClientConfigurationData conf = (ClientConfigurationData) confField.get(builder);
 
-        final PulsarAdmin admin = tool.getPulsarAdminSupplier().get();
-        Field requestTimeoutField =
-                PulsarAdminImpl.class.getDeclaredField("requestTimeout");
-        requestTimeoutField.setAccessible(true);
-        int requestTimeout = (int) requestTimeoutField.get(admin);
-
-        Field requestTimeoutUnitField =
-                PulsarAdminImpl.class.getDeclaredField("requestTimeoutUnit");
-        requestTimeoutUnitField.setAccessible(true);
-        TimeUnit requestTimeoutUnit = (TimeUnit) requestTimeoutUnitField.get(admin);
-        assertEquals(1, requestTimeout);
-        assertEquals(TimeUnit.SECONDS, requestTimeoutUnit);
+        assertEquals(1000, conf.getRequestTimeoutMs());
     }
 
     @Test
