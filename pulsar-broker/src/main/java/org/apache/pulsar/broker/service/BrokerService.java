@@ -999,6 +999,12 @@ public class BrokerService implements Closeable {
         return getTopic(topic, false /* createIfMissing */);
     }
 
+    public CompletableFuture<Topic> getOrCreateTopic(final String topic, final boolean isAuthorizedToCreateTopic) {
+        return isAllowAutoTopicCreationAsync(topic)
+                .thenCompose(isAllowed -> getTopic(topic, isAllowed && isAuthorizedToCreateTopic))
+                .thenApply(Optional::get);
+    }
+
     public CompletableFuture<Topic> getOrCreateTopic(final String topic) {
         return isAllowAutoTopicCreationAsync(topic)
                 .thenCompose(isAllowed -> getTopic(topic, isAllowed))
