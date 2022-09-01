@@ -31,10 +31,21 @@ import org.apache.pulsar.functions.api.Record;
 public class OutputRecordSinkRecord<T> extends AbstractSinkRecord<T> {
 
     private final Record<T> sinkRecord;
+    private final T value;
+    private final Schema<T> schema;
 
     OutputRecordSinkRecord(Record<T> sourceRecord, Record<T> sinkRecord) {
         super(sourceRecord);
         this.sinkRecord = sinkRecord;
+        this.value = sinkRecord.getValue();
+        this.schema = getRecordSchema(sinkRecord);
+    }
+
+    OutputRecordSinkRecord(Record<T> sourceRecord, Record<T> sinkRecord, T value, Schema<T> schema) {
+        super(sourceRecord);
+        this.sinkRecord = sinkRecord;
+        this.value = value;
+        this.schema = schema;
     }
 
     @Override

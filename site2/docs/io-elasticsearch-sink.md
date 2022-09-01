@@ -89,6 +89,7 @@ The configuration of the Elasticsearch sink connector has the following properti
 | `canonicalKeyFields` | Boolean | false | false | Whether to sort the key fields for JSON and Avro or not. If it is set to `true` and the record key schema is `JSON` or `AVRO`, the serialized object does not consider the order of properties. |
 | `stripNonPrintableCharacters` | Boolean| false | true| Whether to remove all non-printable characters from the document or not. If it is set to true, all non-printable characters are removed from the document. |
 | `idHashingAlgorithm` | enum(NONE,SHA256,SHA512)| false | NONE|Hashing algorithm to use for the document id. This is useful in order to be compliant with the ElasticSearch _id hard limit of 512 bytes. |
+| `copyKeyFields` | Boolean | false | false |If the message key schema is AVRO or JSON, the message key fields are copied into the ElasticSearch document. |
 
 ### Definition of ElasticSearchSslConfig structure:
 
