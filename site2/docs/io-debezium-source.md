@@ -6,7 +6,7 @@ sidebar_label: "Debezium source connector"
 
 The Debezium source connector pulls messages from MySQL or PostgreSQL and persists the messages to Pulsar topics.
 
-## Configuration 
+## Configuration
 
 The configuration of the Debezium source connector has the following properties.
 
@@ -38,7 +38,7 @@ If the config `json-with-envelope` value is true, the consumer uses the schema `
 
 2. org.apache.pulsar.kafka.shade.io.confluent.connect.avro.AvroConverter
 
-If users select the AvroConverter, then the pulsar consumer should use the schema `Schema.KeyValue(Schema.AUTO_CONSUME(), 
+If users select the AvroConverter, then the pulsar consumer should use the schema `Schema.KeyValue(Schema.AUTO_CONSUME(),
 Schema.AUTO_CONSUME(), KeyValueEncodingType.SEPARATED)`, and the message consist of payload.
 
 ### MongoDB Configuration
@@ -56,11 +56,11 @@ Schema.AUTO_CONSUME(), KeyValueEncodingType.SEPARATED)`, and the message consist
 
 You need to create a configuration file before using the Pulsar Debezium connector.
 
-### Configuration 
+### Configuration
 
 You can use one of the following methods to create a configuration file.
 
-* JSON 
+* JSON
 
   ```json
   {
@@ -82,7 +82,7 @@ You can use one of the following methods to create a configuration file.
   }
   ```
 
-* YAML 
+* YAML
 
   You can create a `debezium-mysql-source-config.yaml` file and copy the [contents](https://github.com/apache/pulsar/blob/master/pulsar-io/debezium/mysql/src/main/resources/debezium-mysql-source-config.yaml) below to the `debezium-mysql-source-config.yaml` file.
 
@@ -153,14 +153,14 @@ This example shows how to change the data of a MySQL table using the Pulsar Debe
        ```
 
      :::note
-      
+
      Currently, the destination topic (specified by the `destination-topic-name` option ) is a required configuration but it is not used for the Debezium connector to save data. The Debezium connector saves data in the following 4 types of topics:
       
        - One topic named with the database server name (`database.server.name`) for storing the database metadata messages, such as `public/default/database.server.name`.
        - One topic (`database.history.pulsar.topic`) for storing the database history information. The connector writes and recovers DDL statements on this topic.
        - One topic (`offset.storage.topic`) for storing the offset metadata messages. The connector saves the last successfully-committed offsets on this topic.
        - One per-table topic. The connector writes change events for all operations that occur in a table to a single Pulsar topic that is specific to that table.
-      
+
      If the automatic topic creation is disabled on your broker, you need to manually create the above 4 types of topics and the destination topic.
 
      :::
@@ -188,8 +188,8 @@ This example shows how to change the data of a MySQL table using the Pulsar Debe
    -c 'exec mysql -h"$MYSQL_PORT_3306_TCP_ADDR" -P"$MYSQL_PORT_3306_TCP_PORT" -uroot -p"$MYSQL_ENV_MYSQL_ROOT_PASSWORD"'
    ```
 
-6. A MySQL client pops out. 
-   
+6. A MySQL client pops out.
+
    Use the following commands to change the data of the table _products_.
 
    ```bash
@@ -210,7 +210,7 @@ You need to create a configuration file before using the Pulsar Debezium connect
 
 You can use one of the following methods to create a configuration file.
 
-* JSON 
+* JSON
 
   ```json
   {
@@ -227,7 +227,7 @@ You can use one of the following methods to create a configuration file.
   }
   ```
 
-* YAML 
+* YAML
 
   You can create a `debezium-postgres-source-config.yaml` file and copy the [contents](https://github.com/apache/pulsar/blob/master/pulsar-io/debezium/postgres/src/main/resources/debezium-postgres-source-config.yaml) below to the `debezium-postgres-source-config.yaml` file.
 
@@ -305,7 +305,7 @@ This example shows how to change the data of a PostgreSQL table using the Pulsar
        - One per-table topic. The connector writes change events for all operations that occur in a table to a single Pulsar topic that is specific to that table.
 
      If the automatic topic creation is disabled on your broker, you need to manually create the above 4 types of topics and the destination topic.
-     
+
      :::
 
    * Use the **YAML** configuration file as shown previously.
@@ -327,34 +327,34 @@ This example shows how to change the data of a PostgreSQL table using the Pulsar
    docker exec -it pulsar-postgresql /bin/bash
    ```
 
-6. A PostgreSQL client pops out. 
-   
+6. A PostgreSQL client pops out.
+
    Use the following commands to create sample data in the table _users_.
 
    ```bash
    psql -U postgres -h localhost -p 5432
    Password for user postgres:
-   
+
    CREATE TABLE users(
      id BIGINT GENERATED ALWAYS AS IDENTITY, PRIMARY KEY(id),
      hash_firstname TEXT NOT NULL,
      hash_lastname TEXT NOT NULL,
      gender VARCHAR(6) NOT NULL CHECK (gender IN ('male', 'female'))
    );
-   
+
    INSERT INTO users(hash_firstname, hash_lastname, gender)
      SELECT md5(RANDOM()::TEXT), md5(RANDOM()::TEXT), CASE WHEN RANDOM() < 0.5 THEN 'male' ELSE 'female' END FROM generate_series(1, 100);
-   
+
    postgres=# select * from users;
-   
-     id   |          hash_firstname          |          hash_lastname           | gender 
+
+     id   |          hash_firstname          |          hash_lastname           | gender
    -------+----------------------------------+----------------------------------+--------
         1 | 02bf7880eb489edc624ba637f5ab42bd | 3e742c2cc4217d8e3382cc251415b2fb | female
         2 | dd07064326bb9119189032316158f064 | 9c0e938f9eddbd5200ba348965afbc61 | male
         3 | 2c5316fdd9d6595c1cceb70eed12e80c | 8a93d7d8f9d76acfaaa625c82a03ea8b | female
         4 | 3dfa3b4f70d8cd2155567210e5043d2b | 32c156bc28f7f03ab5d28e2588a3dc19 | female
 
-   
+
    postgres=# UPDATE users SET hash_firstname='maxim' WHERE id=1;
    UPDATE 1
    ```
@@ -375,7 +375,7 @@ You need to create a configuration file before using the Pulsar Debezium connect
 
 You can use one of the following methods to create a configuration file.
 
-* JSON 
+* JSON
 
   ```json
   {
@@ -389,7 +389,7 @@ You can use one of the following methods to create a configuration file.
   }
   ```
 
-* YAML 
+* YAML
 
   You can create a `debezium-mongodb-source-config.yaml` file and copy the [contents](https://github.com/apache/pulsar/blob/master/pulsar-io/debezium/mongodb/src/main/resources/debezium-mongodb-source-config.yaml) below to the `debezium-mongodb-source-config.yaml` file.
 
@@ -425,13 +425,13 @@ This example shows how to change the data of a MongoDB table using the Pulsar De
    docker run -d -it --rm --name pulsar-mongodb -e MONGODB_USER=mongodb -e MONGODB_PASSWORD=mongodb -p 27017:27017  debezium/example-mongodb:0.10
    ```
 
-    Use the following commands to initialize the data.
+   Use the following commands to initialize the data.
 
-    ```bash
-    ./usr/local/bin/init-inventory.sh
-    ```
+   ```bash
+   ./usr/local/bin/init-inventory.sh
+   ```
 
-    If the local host cannot access the container network, you can update the file `/etc/hosts` and add a rule `127.0.0.1 6 f114527a95f`. f114527a95f is container id, you can try to get by using`docker ps -a`.
+   If the local host cannot access the container network, you can update the file `/etc/hosts` and add a rule `127.0.0.1 6 f114527a95f`. f114527a95f is container id, you can try to get by using`docker ps -a`.
 
 
 2. Start a Pulsar service locally in standalone mode.
@@ -457,18 +457,18 @@ This example shows how to change the data of a MongoDB table using the Pulsar De
        ```
 
      :::note
-      
+
      Currently, the destination topic (specified by the `destination-topic-name` option ) is a required configuration but it is not used for the Debezium connector to save data. The Debezium connector saves data in the following 4 types of topics:
-      
+
        - One topic named with the database server name ( `database.server.name`) for storing the database metadata messages, such as `public/default/database.server.name`.
        - One topic (`database.history.pulsar.topic`) for storing the database history information. The connector writes and recovers DDL statements on this topic.
        - One topic (`offset.storage.topic`) for storing the offset metadata messages. The connector saves the last successfully-committed offsets on this topic.
        - One per-table topic. The connector writes change events for all operations that occur in a table to a single Pulsar topic that is specific to that table.
-      
+
      If the automatic topic creation is disabled on your broker, you need to manually create the above 4 types of topics and the destination topic.
 
      :::
-      
+
    * Use the **YAML** configuration file as shown previously.
 
        ```bash
@@ -478,7 +478,7 @@ This example shows how to change the data of a MongoDB table using the Pulsar De
 
 4. Subscribe to the topic _sub-products_ for the _inventory.products_ table.
 
-   ```
+   ```bash
    bin/pulsar-client consume -s "sub-products" public/default/dbserver1.inventory.products -n 0
    ```
 
@@ -488,7 +488,7 @@ This example shows how to change the data of a MongoDB table using the Pulsar De
    docker exec -it pulsar-mongodb /bin/bash
    ```
 
-6. A MongoDB client pops out. 
+6. A MongoDB client pops out.
 
    ```bash
    mongo -u debezium -p dbz --authenticationDatabase admin localhost:27017/inventory
@@ -512,7 +512,7 @@ Integration tests have an [example](https://github.com/apache/pulsar/blob/e2bc52
 
 ### Configuration
 
-Debezium [requires](https://debezium.io/documentation/reference/1.5/connectors/oracle.html#oracle-overview) Oracle DB with LogMiner or XStream API enabled. 
+Debezium [requires](https://debezium.io/documentation/reference/1.5/connectors/oracle.html#oracle-overview) Oracle DB with LogMiner or XStream API enabled.
 Supported options and steps for enabling them vary from version to version of Oracle DB.
 The steps outlined in the [documentation](https://debezium.io/documentation/reference/1.5/connectors/oracle.html#oracle-overview) and used in the [integration test](https://github.com/apache/pulsar/blob/master/tests/integration/src/test/java/org/apache/pulsar/tests/integration/io/sources/debezium/DebeziumOracleDbSourceTester.java) may or may not work for the version and edition of Oracle DB you are using.
 Please refer to the [documentation for Oracle DB](https://docs.oracle.com/en/database/oracle/oracle-database/) as needed.
@@ -652,7 +652,7 @@ For the full list of configuration properties supported by Debezium, see [Debezi
  
 ### Debezium postgres connector will hang when creating snap
 
-```$xslt
+```
 #18 prio=5 os_prio=31 tid=0x00007fd83096f800 nid=0xa403 waiting on condition [0x000070000f534000]
     java.lang.Thread.State: WAITING (parking)
      at sun.misc.Unsafe.park(Native Method)
@@ -687,7 +687,6 @@ For the full list of configuration properties supported by Debezium, see [Debezi
 
 If you encounter the above problems in synchronizing data, please refer to [this](https://github.com/apache/pulsar/issues/4075) and add the following configuration to the configuration file:
 
-```$xslt
+```
 max.queue.size=
 ```
-

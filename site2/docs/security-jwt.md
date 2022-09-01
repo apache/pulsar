@@ -141,7 +141,7 @@ pulsar::Client client("pulsar://broker.example.com:6650/", config);
 </TabItem>
 <TabItem value="C#">
 
-```c#
+```csharp
 var client = PulsarClient.Builder()
                          .AuthenticateUsingToken("eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL62SY")
                          .Build();
@@ -152,7 +152,7 @@ var client = PulsarClient.Builder()
 </Tabs>
 ````
 
-## Enable token authentication 
+## Enable token authentication
 
 JWT supports two different kinds of keys to generate and validate the tokens:
 
@@ -238,7 +238,7 @@ authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationPr
 brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.AuthenticationToken
 brokerClientAuthenticationParameters={"token":"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0LXVzZXIifQ.9OHgE9ZUDeBTZs7nSMEFIuGNEX18FLR3qvy8mqxSxXw"}
 # Either configure the token string or specify to read it from a file. The following three available formats are all valid:
-# brokerClientAuthenticationParameters={"token":"your-token-string"}    
+# brokerClientAuthenticationParameters={"token":"your-token-string"}
 # brokerClientAuthenticationParameters=token:your-token-string
 # brokerClientAuthenticationParameters=file:///path/to/token
 brokerClientTrustCertsFilePath=/path/my-ca/certs/ca.cert.pem
@@ -258,7 +258,7 @@ tokenSecretKey=file:///path/to/secret.key
 
 :::note
 
-Equivalent to `brokerClientAuthenticationParameters`, you need to configure `authParams` in the `conf/client.conf` file. 
+Equivalent to `brokerClientAuthenticationParameters`, you need to configure `authParams` in the `conf/client.conf` file.
 
 :::
 

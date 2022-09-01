@@ -14,10 +14,10 @@ sidebar_label: "Bare metal"
 
 Deploying a Pulsar cluster consists of the following steps:
 
-1. Deploy a [ZooKeeper](#deploy-a-zookeeper-cluster) cluster (optional)  
-2. Initialize [cluster metadata](#initialize-cluster-metadata)  
-3. Deploy a [BookKeeper](#deploy-a-bookkeeper-cluster) cluster  
-4. Deploy one or more Pulsar [brokers](#deploy-pulsar-brokers)  
+1. Deploy a [ZooKeeper](#deploy-a-zookeeper-cluster) cluster (optional)
+2. Initialize [cluster metadata](#initialize-cluster-metadata)
+3. Deploy a [BookKeeper](#deploy-a-bookkeeper-cluster) cluster
+4. Deploy one or more Pulsar [brokers](#deploy-pulsar-brokers)
 
 ## Preparation
 
@@ -76,7 +76,7 @@ To start a Pulsar instance, below are the minimum and the recommended hardware s
 A cluster consists of 3 broker nodes, 3 bookie nodes, and 3 ZooKeeper nodes. The following recommendation is suitable for one node.
 
 - The minimum hardware settings (**250 Pulsar topics**)
-   
+
    Component | CPU|Memory|Storage|Throughput |Rate
    |---|---|---|---|---|---
    Broker|0.2|256 MB|/|Write throughput: 3 MB/s<br /><br />Read throughput: 6 MB/s<br /><br />|Write rate: 350 entries/s<br /><br />Read rate: 650 entries/s
@@ -143,7 +143,7 @@ To use `built-in` connectors, you need to download the connectors tarball releas
   wget pulsar:connector_release_url/{connector}-@pulsar:version@.nar
   ```
 
-Once you download the .nar file, copy the file to directory `connectors` in the pulsar directory. 
+Once you download the .nar file, copy the file to directory `connectors` in the pulsar directory.
 For example, if you download the connector file `pulsar-io-aerospike-@pulsar:version@.nar`:
 
 ```bash
@@ -370,7 +370,7 @@ webServicePortTls=8443
 >
 > # Number of copies to store for each message
 > managedLedgerDefaultWriteQuorum=1
-> 
+>
 > # Number of guaranteed copies (acks to wait before write is complete)
 > managedLedgerDefaultAckQuorum=1
 > ```
@@ -386,7 +386,7 @@ If you want to enable [Pulsar Functions](functions-overview.md), you can follow 
    functionsWorkerEnabled=true
    ```
 
-2. Edit `conf/functions_worker.yml` and set `pulsarFunctionsCluster` to the cluster name that you provide when you [initialize the metadata of the cluster](#initialize-cluster-metadata). 
+2. Edit `conf/functions_worker.yml` and set `pulsarFunctionsCluster` to the cluster name that you provide when you [initialize the metadata of the cluster](#initialize-cluster-metadata).
 
    ```conf
    pulsarFunctionsCluster: pulsar-cluster-1

@@ -12,18 +12,18 @@ This chapter describes what the entry filter is and shows how to use the entry f
 
 ### What is an entry filter?
 
-The entry filter is an extension point for implementing a custom message entry strategy. With an entry filter, you can decide **whether to send messages to consumers** (brokers can use the return values of entry filters to determine whether the messages need to be sent or discarded) or **send messages to specific consumers.** 
+The entry filter is an extension point for implementing a custom message entry strategy. With an entry filter, you can decide **whether to send messages to consumers** (brokers can use the return values of entry filters to determine whether the messages need to be sent or discarded) or **send messages to specific consumers.**
 
-To implement features such as tagged messages or custom delayed messages, use [`subscriptionProperties`](https://github.com/apache/pulsar/blob/ec0a44058d249a7510bb3d05685b2ee5e0874eb6/pulsar-client-api/src/main/java/org/apache/pulsar/client/api/ConsumerBuilder.java?_pjax=%23js-repo-pjax-container%2C%20div%5Bitemtype%3D%22http%3A%2F%2Fschema.org%2FSoftwareSourceCode%22%5D%20main%2C%20%5Bdata-pjax-container%5D#L174), [`​​properties`](https://github.com/apache/pulsar/blob/ec0a44058d249a7510bb3d05685b2ee5e0874eb6/pulsar-client-api/src/main/java/org/apache/pulsar/client/api/ConsumerBuilder.java?_pjax=%23js-repo-pjax-container%2C%20div%5Bitemtype%3D%22http%3A%2F%2Fschema.org%2FSoftwareSourceCode%22%5D%20main%2C%20%5Bdata-pjax-container%5D#L533), and entry filters.
+To implement features such as tagged messages or custom delayed messages, use [`subscriptionProperties`](https://github.com/apache/pulsar/blob/ec0a44058d249a7510bb3d05685b2ee5e0874eb6/pulsar-client-api/src/main/java/org/apache/pulsar/client/api/ConsumerBuilder.java?_pjax=%23js-repo-pjax-container%2C%20div%5Bitemtype%3D%22http%3A%2F%2Fschema.org%2FSoftwareSourceCode%22%5D%20main%2C%20%5Bdata-pjax-container%5D#L174), [`properties`](https://github.com/apache/pulsar/blob/ec0a44058d249a7510bb3d05685b2ee5e0874eb6/pulsar-client-api/src/main/java/org/apache/pulsar/client/api/ConsumerBuilder.java?_pjax=%23js-repo-pjax-container%2C%20div%5Bitemtype%3D%22http%3A%2F%2Fschema.org%2FSoftwareSourceCode%22%5D%20main%2C%20%5Bdata-pjax-container%5D#L533), and entry filters.
 
 ### How to use an entry filter?
 
 Follow the steps below:
 
 1. Create a Maven project.
-   
+
 2. Implement the `EntryFilter` interface.
-   
+
 3. Package the implementation class into a NAR file.
 
 4. Configure the `broker.conf` file (or the `standalone.conf` file) and restart your broker.
@@ -49,7 +49,7 @@ For how to create a Maven project, see [here](https://maven.apache.org/guides/ge
 
    - If the method returns `ACCEPT` or NULL, this message is sent to consumers.
 
-   - If the method returns `REJECT`, this message is filtered out and it does not consume message permits. 
+   - If the method returns `REJECT`, this message is filtered out and it does not consume message permits.
 
    - If there are multiple entry filters, this message passes through all filters in the pipeline in a round-robin manner. If any entry filter returns `REJECT`, this message is discarded.
 
@@ -64,7 +64,7 @@ For how to create a Maven project, see [here](https://maven.apache.org/guides/ge
    name: entryFilter
    # Entry filter description
    description: entry filter
-   # Implementation class name of entry filter 
+   # Implementation class name of entry filter
    entryFilterClass: com.xxxx.xxxx.xxxx.DefaultEntryFilterImpl
    ```
 
@@ -116,8 +116,8 @@ For how to create a Maven project, see [here](https://maven.apache.org/guides/ge
    entryFiltersDirectory=tempDir
    ```
 
-2. Restart your broker. 
-   
+2. Restart your broker.
+
    You can see the following broker log if the plug-in is successfully loaded.
 
    ```text

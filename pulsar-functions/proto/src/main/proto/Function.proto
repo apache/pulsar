@@ -211,6 +211,7 @@ message FunctionMetaData {
     uint64 createTime = 4;
     map<int32, FunctionState> instanceStates = 5;
     FunctionAuthenticationSpec functionAuthSpec = 6;
+    PackageLocationMetaData transformFunctionPackageLocation = 7;
 }
 
 message FunctionAuthenticationSpec {

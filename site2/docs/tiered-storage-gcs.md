@@ -13,7 +13,7 @@ Follow the steps below to install the GCS offloader.
 ### Prerequisite
 
 - Pulsar: 2.4.2 or later versions
-  
+
 ### Step
 
 This example uses Pulsar 2.5.1.
@@ -30,7 +30,7 @@ This example uses Pulsar 2.5.1.
     wget https://archive.apache.org/dist/pulsar/pulsar-2.5.1/apache-pulsar-2.5.1-bin.tar.gz
     ```
 
-2. Download and untar the Pulsar offloaders package. 
+2. Download and untar the Pulsar offloaders package.
 
    ```bash
    wget https://downloads.apache.org/pulsar/pulsar-2.5.1/apache-pulsar-offloaders-2.5.1-bin.tar.gz
@@ -64,7 +64,7 @@ This example uses Pulsar 2.5.1.
 
 :::note
 
-Before offloading data from BookKeeper to GCS, you need to configure some properties of the GCS offloader driver. 
+Before offloading data from BookKeeper to GCS, you need to configure some properties of the GCS offloader driver.
 
 :::
 
@@ -139,7 +139,7 @@ To generate service account credentials or view the public credentials that you'
 
 3. Click **Create service account**.
 
-4. In the **Create service account** window, type a name for the service account and select **Furnish a new private key**. 
+4. In the **Create service account** window, type a name for the service account and select **Furnish a new private key**.
 
    If you want to [grant G Suite domain-wide authority](https://developers.google.com/identity/protocols/OAuth2ServiceAccount#delegatingauthority) to the service account, select **Enable G Suite Domain-wide Delegation**.
 
@@ -166,7 +166,7 @@ To generate service account credentials or view the public credentials that you'
 
 #### Size of block read/write
 
-You can configure the size of a request sent to or read from GCS in the configuration file `broker.conf`. 
+You can configure the size of a request sent to or read from GCS in the configuration file `broker.conf`.
 
 Configuration|Description
 |---|---
@@ -175,7 +175,7 @@ Configuration|Description
 
 ### Configure GCS offloader to run automatically
 
-Namespace policy can be configured to offload data automatically once a threshold is reached. The threshold is based on the size of data that a topic has stored on a Pulsar cluster. Once the topic reaches the threshold, an offload operation is triggered automatically. 
+Namespace policy can be configured to offload data automatically once a threshold is reached. The threshold is based on the size of data that a topic has stored on a Pulsar cluster. Once the topic reaches the threshold, an offload operation is triggered automatically.
 
 Threshold value|Action
 |---|---
@@ -199,7 +199,7 @@ pulsar-admin namespaces set-offload-threshold --size 10M my-tenant/my-namespace
 
 :::tip
 
-For more information about the `pulsar-admin namespaces set-offload-threshold options` command, including flags, descriptions, default values, and shorthands, see [here](/tools/pulsar-admin/). 
+For more information about the `pulsar-admin namespaces set-offload-threshold options` command, including flags, descriptions, default values, and shorthands, see [here](/tools/pulsar-admin/).
 
 :::
 
@@ -209,7 +209,7 @@ For individual topics, you can trigger GCS offloader manually using one of the f
 
 - Use REST endpoint.
 
-- Use CLI tools (such as pulsar-admin). 
+- Use CLI tools (such as pulsar-admin).
 
   To trigger the GCS via CLI tools, you need to specify the maximum amount of data (threshold) that should be retained on a Pulsar cluster for a topic. If the size of the topic data on the Pulsar cluster exceeds this threshold, segments from the topic are moved to GCS until the threshold is no longer exceeded. Older segments are moved first.
 
@@ -229,7 +229,7 @@ For individual topics, you can trigger GCS offloader manually using one of the f
 
   :::tip
 
-  For more information about the `pulsar-admin topics offload options` command, including flags, descriptions, default values, and shorthands, see [here](/tools/pulsar-admin/). 
+  For more information about the `pulsar-admin topics offload options` command, including flags, descriptions, default values, and shorthands, see [here](/tools/pulsar-admin/).
 
   :::
 
@@ -274,7 +274,7 @@ For individual topics, you can trigger GCS offloader manually using one of the f
 
   :::tip
 
-  For more information about the `pulsar-admin topics offload-status options` command, including flags, descriptions, default values, and shorthands, see [here](/tools/pulsar-admin/). 
+  For more information about the `pulsar-admin topics offload-status options` command, including flags, descriptions, default values, and shorthands, see [here](/tools/pulsar-admin/).
 
   :::
 

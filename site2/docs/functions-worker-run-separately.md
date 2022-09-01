@@ -8,7 +8,7 @@ The following diagram illustrates how function workers run as a separate process
 
 ![assets/functions-worker-separated.svg](/assets/function-workers-separated.svg)
 
-:::note  
+:::note
 
 The `Service URLs` in the illustration represent Pulsar service URLs that Pulsar client and Pulsar admin use to connect to a Pulsar cluster.
 
@@ -43,11 +43,11 @@ When accessing function workers to manage functions, the `pulsar-admin` CLI or a
 
 ### Configure function package parameters
 
-Configure the `numFunctionPackageReplicas` parameter in the `conf/functions_worker.yml` file. It indicates the number of replicas to store function packages. 
+Configure the `numFunctionPackageReplicas` parameter in the `conf/functions_worker.yml` file. It indicates the number of replicas to store function packages.
 
 :::note
 
-To ensure high availability in a production deployment, set `numFunctionPackageReplicas` to equal the number of bookies. The default value `1` is only for one-node cluster deployment. 
+To ensure high availability in a production deployment, set `numFunctionPackageReplicas` to equal the number of bookies. The default value `1` is only for one-node cluster deployment.
 
 :::
 
@@ -138,7 +138,7 @@ authenticationEnabled: true
 authenticationProviders: ['org.apache.pulsar.broker.authentication.AuthenticationProviderTls']
 ```
 
-For SASL authentication provider, add `saslJaasClientAllowedIds` and `saslJaasServerSectionName` under `properties`. 
+For SASL authentication provider, add `saslJaasClientAllowedIds` and `saslJaasServerSectionName` under `properties`.
 
 ```properties
 properties:
@@ -150,7 +150,7 @@ For [token authentication](security-jwt.md) provider, add the required settings 
 
 ```properties
 properties:
-  tokenSecretKey:       file://my/secret.key 
+  tokenSecretKey:       file://my/secret.key
   # If using public/private
   # tokenPublicKey:     file://path/to/public.key 
 ```

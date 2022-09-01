@@ -4,10 +4,9 @@ title: Debezium source connector
 sidebar_label: "Debezium source connector"
 ---
 
-The Debezium source connector pulls messages from MySQL or PostgreSQL 
-and persists the messages to Pulsar topics.
+The Debezium source connector pulls messages from MySQL or PostgreSQL and persists the messages to Pulsar topics.
 
-## Configuration 
+## Configuration
 
 The configuration of the Debezium source connector has the following properties.
 
@@ -40,11 +39,11 @@ The configuration of the Debezium source connector has the following properties.
 
 You need to create a configuration file before using the Pulsar Debezium connector.
 
-### Configuration 
+### Configuration
 
 You can use one of the following methods to create a configuration file.
 
-* JSON 
+* JSON
 
   ```json
   {
@@ -67,7 +66,7 @@ You can use one of the following methods to create a configuration file.
   }
   ```
 
-* YAML 
+* YAML
 
   You can create a `debezium-mysql-source-config.yaml` file and copy the [contents](https://github.com/apache/pulsar/blob/master/pulsar-io/debezium/mysql/src/main/resources/debezium-mysql-source-config.yaml) below to the `debezium-mysql-source-config.yaml` file.
 
@@ -163,8 +162,8 @@ This example shows how to change the data of a MySQL table using the Pulsar Debe
    -c 'exec mysql -h"$MYSQL_PORT_3306_TCP_ADDR" -P"$MYSQL_PORT_3306_TCP_PORT" -uroot -p"$MYSQL_ENV_MYSQL_ROOT_PASSWORD"'
    ```
 
-6. A MySQL client pops out. 
-   
+6. A MySQL client pops out.
+
    Use the following commands to change the data of the table _products_.
 
    ```
@@ -185,7 +184,7 @@ You need to create a configuration file before using the Pulsar Debezium connect
 
 You can use one of the following methods to create a configuration file.
 
-* JSON 
+* JSON
 
   ```json
   {
@@ -202,7 +201,7 @@ You can use one of the following methods to create a configuration file.
   }
   ```
 
-* YAML 
+* YAML
 
   You can create a `debezium-postgres-source-config.yaml` file and copy the [contents](https://github.com/apache/pulsar/blob/master/pulsar-io/debezium/postgres/src/main/resources/debezium-postgres-source-config.yaml) below to the `debezium-postgres-source-config.yaml` file.
 
@@ -262,7 +261,7 @@ This example shows how to change the data of a PostgreSQL table using the Pulsar
        --namespace default \
        --source-config '{"database.hostname": "localhost","database.port": "5432","database.user": "postgres","database.password": "postgres","database.dbname": "postgres","database.server.name": "dbserver1","schema.whitelist": "inventory","pulsar.service.url": "pulsar://127.0.0.1:6650"}'
        ```
-       
+
    * Use the **YAML** configuration file as shown previously.
 
        ```bash
@@ -282,8 +281,8 @@ This example shows how to change the data of a PostgreSQL table using the Pulsar
    docker exec -it pulsar-postgresql /bin/bash
    ```
 
-6. A PostgreSQL client pops out. 
-   
+6. A PostgreSQL client pops out.
+
    Use the following commands to change the data of the table _products_.
 
    ```bash
@@ -305,7 +304,7 @@ This example shows how to change the data of a PostgreSQL table using the Pulsar
     109 | spare tire         | 24 inch spare tire                                      |   22.2
     101 | 1111111111         | Small 2-wheel scooter                                   |   3.14
    (9 rows)
-   
+
    postgres=# UPDATE products SET name='1111111111' WHERE id=107;
    UPDATE 1
    ```
@@ -321,7 +320,7 @@ This example shows how to change the data of a PostgreSQL table using the Pulsar
 
 You need to create a configuration file before using the Pulsar Debezium connector.
 
-* JSON 
+* JSON
 
   ```json
   {
@@ -337,7 +336,7 @@ You need to create a configuration file before using the Pulsar Debezium connect
   }
   ```
 
-* YAML 
+* YAML
 
   You can create a `debezium-mongodb-source-config.yaml` file and copy the [contents](https://github.com/apache/pulsar/blob/master/pulsar-io/debezium/mongodb/src/main/resources/debezium-mongodb-source-config.yaml) below to the `debezium-mongodb-source-config.yaml` file.
 
@@ -375,7 +374,7 @@ This example shows how to change the data of a MongoDB table using the Pulsar De
    docker run -d -it --rm --name pulsar-mongodb -e MONGODB_USER=mongodb -e MONGODB_PASSWORD=mongodb -p 27017:27017  debezium/example-mongodb:0.10
    ```
 
-    Use the following commands to initialize the data.
+   Use the following commands to initialize the data.
 
    ``` bash
    ./usr/local/bin/init-inventory.sh
@@ -415,7 +414,7 @@ This example shows how to change the data of a MongoDB table using the Pulsar De
 
 4. Subscribe to the topic _sub-products_ for the _inventory.products_ table.
 
-   ```
+   ```bash
    bin/pulsar-client consume -s "sub-products" public/default/dbserver1.inventory.products -n 0
    ```
 
@@ -425,7 +424,7 @@ This example shows how to change the data of a MongoDB table using the Pulsar De
    docker exec -it pulsar-mongodb /bin/bash
    ```
 
-6. A MongoDB client pops out. 
+6. A MongoDB client pops out.
 
    ```bash
    mongo -u debezium -p dbz --authenticationDatabase admin localhost:27017/inventory

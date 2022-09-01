@@ -711,9 +711,12 @@ public class FunctionsBase extends AdminResource {
             @ApiParam(value = "The namespace of a Pulsar Function")
             final @PathParam("namespace") String namespace,
             @ApiParam(value = "The name of a Pulsar Function")
-            final @PathParam("functionName") String functionName) {
+            final @PathParam("functionName") String functionName,
+            @ApiParam(value = "Whether to download the transform-function")
+            final @QueryParam("transform-function") boolean transformFunction) {
 
-        return functions().downloadFunction(tenant, namespace, functionName, clientAppId(), clientAuthData());
+        return functions()
+                .downloadFunction(tenant, namespace, functionName, clientAppId(), clientAuthData(), transformFunction);
     }
 
     @GET

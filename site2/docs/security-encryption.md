@@ -53,7 +53,7 @@ Pulsar does not store the encryption key anywhere in the Pulsar service. If you 
 
 4. Add the encryption key name to the producer builder: PulsarClient.newProducer().addEncryptionKey("myapp.key").
 
-5. Configure a `CryptoKeyReader` to a producer, consumer or reader. 
+5. Configure a `CryptoKeyReader` to a producer, consumer or reader.
 
 ````mdx-code-block
 <Tabs groupId="lang-choice"
@@ -147,7 +147,7 @@ client.close()
 </TabItem>
 <TabItem value="Node.js">
 
-```nodejs
+```javascript
 const Pulsar = require('pulsar-client');
 
 (async () => {
@@ -312,5 +312,5 @@ Consumers require to access one of the private keys to decrypt messages that the
   * Producer action fails to indicate the cause of the failure. Application has the option to proceed with sending unencrypted messages in such cases. Call `PulsarClient.newProducer().cryptoFailureAction(ProducerCryptoFailureAction)` to control the producer behavior. The default behavior is to fail the request.
   * If consumption fails due to decryption failure or missing keys in the consumer, the application has the option to consume the encrypted message or discard it. Call `PulsarClient.newConsumer().cryptoFailureAction(ConsumerCryptoFailureAction)` to control the consumer behavior. The default behavior is to fail the request. Application is never able to decrypt the messages if the private key is permanently lost.
 * Batch messaging
-  * If decryption fails and the message contains batch messages, the client is not able to retrieve individual messages in the batch, hence message consumption fails even if `cryptoFailureAction()` is set to `ConsumerCryptoFailureAction.CONSUME`.
-* If decryption fails, the message consumption stops and the application notices backlog growth in addition to decryption failure messages in the client log. If the application does not have access to the private key to decrypt the message, the only option is to skip or discard backlogged messages. 
+  * If decryption fails and the message contains batch messages, client is not able to retrieve individual messages in the batch, hence message consumption fails even if cryptoFailureAction() is set to `ConsumerCryptoFailureAction.CONSUME`.
+* If decryption fails, the message consumption stops and the application notices backlog growth in addition to decryption failure messages in the client log. If the application does not have access to the private key to decrypt the message, the only option is to skip or discard backlogged messages.

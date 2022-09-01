@@ -171,7 +171,7 @@ const Pulsar = require('pulsar-client');
 
 ### C# client
 
-```c#
+```csharp
 var clientCertificate = new X509Certificate2("admin.pfx");
 var client = PulsarClient.Builder()
                          .AuthenticateUsingClientCertificate(clientCertificate)

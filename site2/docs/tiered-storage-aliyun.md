@@ -13,7 +13,7 @@ Follow the steps below to install the Aliyun OSS offloader.
 ### Prerequisite
 
 - Pulsar: 2.8.0 or later versions
-  
+
 ### Step
 
 This example uses Pulsar 2.8.0.
@@ -49,7 +49,7 @@ Before offloading data from BookKeeper to Aliyun OSS, you need to configure some
 You can configure the Aliyun OSS offloader driver in the configuration file `broker.conf` or `standalone.conf`.
 
 - **Required** configurations are as below.
-  
+
   | Required configuration | Description | Example value |
   | --- | --- |--- |
   | `managedLedgerOffloadDriver` | Offloader driver name, which is case-insensitive. | aliyun-oss |
@@ -78,7 +78,7 @@ This example names the bucket `pulsar-topic-offload`.
 managedLedgerOffloadBucket=pulsar-topic-offload
 ```
 
-#### Endpoint (required) 
+#### Endpoint (required)
 
 The endpoint is the region where a bucket is located.
 
@@ -88,7 +88,7 @@ For more information about Aliyun OSS regions and endpoints,  see [International
 
 :::
 
- 
+
 ##### Example
 
 This example sets the endpoint as `oss-us-west-1-internal`.
@@ -116,7 +116,7 @@ Exporting these environment variables makes them available in the environment of
 
 ### Run Aliyun OSS offloader automatically
 
-Namespace policy can be configured to offload data automatically once a threshold is reached. The threshold is based on the size of data that a topic has stored in a Pulsar cluster. Once the topic reaches the threshold, an offloading operation is triggered automatically. 
+Namespace policy can be configured to offload data automatically once a threshold is reached. The threshold is based on the size of data that a topic has stored in a Pulsar cluster. Once the topic reaches the threshold, an offloading operation is triggered automatically.
 
 | Threshold value | Action |
 | --- | --- |
@@ -129,7 +129,7 @@ Automatic offloading runs when a new segment is added to a topic log. If you set
 You can configure the threshold size using CLI tools, such as [`pulsar-admin`](/tools/pulsar-admin/).
 
 The offload configurations in `broker.conf` and `standalone.conf` are used for the namespaces that do not have namespace-level offload policies. Each namespace can have its offload policy. If you want to set an offload policy for a specific namespace, use the command [`pulsar-admin namespaces set-offload-policies options`](/tools/pulsar-admin/) command.
- 
+
 #### Example
 
 This example sets the Aliyun OSS offloader threshold size to 10 MB using `pulsar-admin`.
@@ -140,7 +140,7 @@ bin/pulsar-admin namespaces set-offload-threshold --size 10M my-tenant/my-namesp
 
 :::tip
 
-For more information about the `pulsar-admin namespaces set-offload-threshold options` command, including flags, descriptions, and default values, see [Pulsar admin docs](/tools/pulsar-admin/). 
+For more information about the `pulsar-admin namespaces set-offload-threshold options` command, including flags, descriptions, and default values, see [Pulsar admin docs](/tools/pulsar-admin/).
 
 :::
 
@@ -150,7 +150,7 @@ For individual topics, you can trigger the Aliyun OSS offloader manually using o
 
 - Use REST endpoint.
 
-- Use CLI tools, such as [`pulsar-admin`](/tools/pulsar-admin/). 
+- Use CLI tools, such as [`pulsar-admin`](/tools/pulsar-admin/).
 
   To trigger it via CLI tools, you need to specify the maximum amount of data (threshold) that should be retained in a Pulsar cluster for a topic. If the size of the topic data on the Pulsar cluster exceeds this threshold, segments from the topic are moved to Aliyun OSS until the threshold is no longer exceeded. Older segments are moved first.
 
@@ -170,7 +170,7 @@ For individual topics, you can trigger the Aliyun OSS offloader manually using o
 
   :::tip
 
-  For more information about the `pulsar-admin topics offload options` command, including flags, descriptions, and default values, see [Pulsar admin docs](/tools/pulsar-admin/). 
+  For more information about the `pulsar-admin topics offload options` command, including flags, descriptions, and default values, see [Pulsar admin docs](/tools/pulsar-admin/).
 
   :::
 
@@ -215,7 +215,7 @@ For individual topics, you can trigger the Aliyun OSS offloader manually using o
 
   :::tip
 
-  For more information about the `pulsar-admin topics offload-status options` command, including flags, descriptions, and default values, see [Pulsar admin docs](/tools/pulsar-admin/). 
+  For more information about the `pulsar-admin topics offload-status options` command, including flags, descriptions, and default values, see [Pulsar admin docs](/tools/pulsar-admin/).
 
   :::
 

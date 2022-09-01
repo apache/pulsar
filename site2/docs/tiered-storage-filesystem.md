@@ -36,7 +36,7 @@ This example uses Pulsar 2.5.1.
     wget https://archive.apache.org/dist/pulsar/pulsar-2.5.1/apache-pulsar-2.5.1-bin.tar.gz
     ```
 
-2. Download and untar the Pulsar offloaders package. 
+2. Download and untar the Pulsar offloaders package.
 
    ```bash
    wget https://downloads.apache.org/pulsar/pulsar-2.5.1/apache-pulsar-offloaders-2.5.1-bin.tar.gz
@@ -77,7 +77,7 @@ This example uses Pulsar 2.5.1.
 
 :::note
 
-Before offloading data from BookKeeper to filesystem, you need to configure some properties of the filesystem offloader driver. 
+Before offloading data from BookKeeper to filesystem, you need to configure some properties of the filesystem offloader driver.
 
 :::
 
@@ -88,7 +88,7 @@ Besides, you can also configure the filesystem offloader to run it automatically
 You can configure the filesystem offloader driver in the `broker.conf` or `standalone.conf` configuration file.
 
 ````mdx-code-block
-<Tabs 
+<Tabs
   defaultValue="HDFS"
   values={[{"label":"HDFS","value":"HDFS"},{"label":"NFS","value":"NFS"}]}>
 <TabItem value="HDFS">
@@ -113,7 +113,7 @@ You can configure the filesystem offloader driver in the `broker.conf` or `stand
 </TabItem>
 <TabItem value="NFS">
 
-- **Required** configurations are as below. 
+- **Required** configurations are as below.
   Parameter | Description | Example value
   |---|---|---
   `managedLedgerOffloadDriver` | Offloader driver name, which is case-insensitive. | filesystem
@@ -134,7 +134,7 @@ You can configure the filesystem offloader driver in the `broker.conf` or `stand
 
 ### Run filesystem offloader automatically
 
-You can configure the namespace policy to offload data automatically once a threshold is reached. The threshold is based on the size of data that a topic has stored on a Pulsar cluster. Once the topic storage reaches the threshold, an offload operation is triggered automatically. 
+You can configure the namespace policy to offload data automatically once a threshold is reached. The threshold is based on the size of data that a topic has stored on a Pulsar cluster. Once the topic storage reaches the threshold, an offload operation is triggered automatically.
 
 Threshold value|Action
 |---|---
@@ -156,7 +156,7 @@ pulsar-admin namespaces set-offload-threshold --size 10M my-tenant/my-namespace
 
 :::tip
 
-For more information about the `pulsar-admin namespaces set-offload-threshold options` command, including flags, descriptions, default values, and shorthands, see [here](/tools/pulsar-admin/). 
+For more information about the `pulsar-admin namespaces set-offload-threshold options` command, including flags, descriptions, default values, and shorthands, see [here](/tools/pulsar-admin/).
 
 :::
 
@@ -166,7 +166,7 @@ For individual topics, you can trigger the filesystem offloader manually using o
 
 - Use the REST endpoint.
 
-- Use CLI tools (such as pulsar-admin). 
+- Use CLI tools (such as pulsar-admin).
 
 To manually trigger the filesystem offloader via CLI tools, you need to specify the maximum amount of data (threshold) that should be retained on a Pulsar cluster for a topic. If the size of the topic data on the Pulsar cluster exceeds this threshold, segments from the topic are offloaded to the filesystem until the threshold is no longer exceeded. Older segments are offloaded first.
 
@@ -186,7 +186,7 @@ To manually trigger the filesystem offloader via CLI tools, you need to specify 
 
   :::tip
 
-  For more information about the `pulsar-admin topics offload options` command, including flags, descriptions, default values, and shorthands, see [here](/tools/pulsar-admin/). 
+  For more information about the `pulsar-admin topics offload options` command, including flags, descriptions, default values, and shorthands, see [here](/tools/pulsar-admin/).
 
   :::
 
@@ -231,7 +231,7 @@ To manually trigger the filesystem offloader via CLI tools, you need to specify 
 
   :::tip
 
-  For more information about the `pulsar-admin topics offload-status options` command, including flags, descriptions, default values, and shorthands, see [here](/tools/pulsar-admin/). 
+  For more information about the `pulsar-admin topics offload-status options` command, including flags, descriptions, default values, and shorthands, see [here](/tools/pulsar-admin/).
 
   :::
 
@@ -249,7 +249,7 @@ This tutorial sets up a Hadoop single node cluster and uses Hadoop 3.2.1. For de
 
 #### Step 1: Prepare the HDFS environment
 
-1. Download and uncompress Hadoop 3.2.1. 
+1. Download and uncompress Hadoop 3.2.1.
 
    ```shell
    wget https://mirrors.bfsu.edu.cn/apache/hadoop/common/hadoop-3.2.1/hadoop-3.2.1.tar.gz  
@@ -357,7 +357,7 @@ Execute the following commands in the repository where you download Pulsar tarba
 
    :::tip
 
-   For more information about the `pulsarctl namespaces set-retention options` command, including flags, descriptions, default values, and shorthands, see [here](https://docs.streamnative.io/pulsarctl/v2.7.0.6/#-em-set-retention-em-). 
+   For more information about the `pulsarctl namespaces set-retention options` command, including flags, descriptions, default values, and shorthands, see [here](https://docs.streamnative.io/pulsarctl/v2.7.0.6/#-em-set-retention-em-).
 
    :::
 
@@ -600,7 +600,7 @@ To read data out as ledger entries from the filesystem, complete the following s
        long totalSize = metadataAndPayload.readableBytes();
        BrokerEntryMetadata brokerEntryMetadata = Commands.peekBrokerEntryMetadataIfExist(metadataAndPayload);
        MessageMetadata metadata = Commands.parseMessageMetadata(metadataAndPayload);
-       
+
        Map<String, String> properties = new TreeMap();
        properties.put("X-Pulsar-batch-size", String.valueOf(totalSize
                - metadata.getSerializedSize()));
@@ -615,7 +615,7 @@ To read data out as ledger entries from the filesystem, complete the following s
                uncompressedPayload.readableBytes());
        data.writeBytes(uncompressedPayload);
        uncompressedPayload.release();
-  
+
        MessageImpl message = new MessageImpl(topic, ((PositionImpl)ledgerEntry.getPosition()).toString(), properties,
                data, Schema.BYTES, metadata);
        message.setBrokerEntryMetadata(brokerEntryMetadata);

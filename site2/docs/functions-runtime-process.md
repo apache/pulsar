@@ -4,7 +4,7 @@ title: Configure process runtime
 sidebar_label: "Configure process runtime"
 ---
 
-You can use the default configurations of process runtime in the `conf/functions_worker.yml` file. 
+You can use the default configurations of process runtime in the `conf/functions_worker.yml` file.
 
 If you want to customize more parameters, refer to the following example.
 

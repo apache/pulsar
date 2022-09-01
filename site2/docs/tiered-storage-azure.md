@@ -13,7 +13,7 @@ Follow the steps below to install the Azure BlobStore offloader.
 ### Prerequisite
 
 - Pulsar: 2.6.2 or later versions
-  
+
 ### Step
 
 This example uses Pulsar 2.6.2.
@@ -30,7 +30,7 @@ This example uses Pulsar 2.6.2.
     wget https://archive.apache.org/dist/pulsar/pulsar-2.6.2/apache-pulsar-2.6.2-bin.tar.gz
     ```
 
-2. Download and untar the Pulsar offloaders package. 
+2. Download and untar the Pulsar offloaders package.
 
    ```bash
    wget https://downloads.apache.org/pulsar/pulsar-2.6.2/apache-pulsar-offloaders-2.6.2-bin.tar.gz
@@ -74,7 +74,7 @@ Besides, you can also configure the Azure BlobStore offloader to run it automati
 You can configure the Azure BlobStore offloader driver in the configuration file `broker.conf` or `standalone.conf`.
 
 - **Required** configurations are as below.
-  
+
   Required configuration | Description | Example value
   |---|---|---
   `managedLedgerOffloadDriver` | Offloader driver name | azureblob
@@ -117,7 +117,7 @@ To be able to access Azure BlobStore, you need to authenticate with Azure BlobSt
 
 #### Size of block read/write
 
-You can configure the size of a request sent to or read from Azure BlobStore in the configuration file `broker.conf` or `standalone.conf`. 
+You can configure the size of a request sent to or read from Azure BlobStore in the configuration file `broker.conf` or `standalone.conf`.
 
 Configuration|Description|Default value
 |---|---|---
@@ -126,7 +126,7 @@ Configuration|Description|Default value
 
 ### Configure Azure BlobStore offloader to run automatically
 
-Namespace policy can be configured to offload data automatically once a threshold is reached. The threshold is based on the size of data that a topic has stored on a Pulsar cluster. Once the topic reaches the threshold, an offloading operation is triggered automatically. 
+Namespace policy can be configured to offload data automatically once a threshold is reached. The threshold is based on the size of data that a topic has stored on a Pulsar cluster. Once the topic reaches the threshold, an offloading operation is triggered automatically.
 
 Threshold value|Action
 |---|---
@@ -139,7 +139,7 @@ Automatic offloading runs when a new segment is added to a topic log. If you set
 You can configure the threshold size using CLI tools, such as pulsar-admin.
 
 The offload configurations in `broker.conf` and `standalone.conf` are used for the namespaces that do not have namespace level offload policies. Each namespace can have its own offload policy. If you want to set offload policy for each namespace, use the command [`pulsar-admin namespaces set-offload-policies options`](/tools/pulsar-admin/)) command.
- 
+
 #### Example
 
 This example sets the Azure BlobStore offloader threshold size to 10 MB using pulsar-admin.
@@ -150,7 +150,7 @@ bin/pulsar-admin namespaces set-offload-threshold --size 10M my-tenant/my-namesp
 
 :::tip
 
-For more information about the `pulsar-admin namespaces set-offload-threshold options` command, including flags, descriptions, and default values, see [Pulsar admin docs](/tools/pulsar-admin/). 
+For more information about the `pulsar-admin namespaces set-offload-threshold options` command, including flags, descriptions, and default values, see [Pulsar admin docs](/tools/pulsar-admin/).
 
 :::
 
@@ -160,7 +160,7 @@ For individual topics, you can trigger Azure BlobStore offloader manually using 
 
 - Use REST endpoint.
 
-- Use CLI tools (such as pulsar-admin). 
+- Use CLI tools (such as pulsar-admin).
 
   To trigger it via CLI tools, you need to specify the maximum amount of data (threshold) that should be retained on a Pulsar cluster for a topic. If the size of the topic data on the Pulsar cluster exceeds this threshold, segments from the topic are moved to Azure BlobStore until the threshold is no longer exceeded. Older segments are moved first.
 
@@ -180,7 +180,7 @@ For individual topics, you can trigger Azure BlobStore offloader manually using 
 
   :::tip
 
-  For more information about the `pulsar-admin topics offload options` command, including flags, descriptions, and default values, see [Pulsar admin docs](/tools/pulsar-admin/). 
+  For more information about the `pulsar-admin topics offload options` command, including flags, descriptions, and default values, see [Pulsar admin docs](/tools/pulsar-admin/).
 
   :::
 
@@ -225,7 +225,7 @@ For individual topics, you can trigger Azure BlobStore offloader manually using 
 
   :::tip
 
-  For more information about the `pulsar-admin topics offload-status options` command, including flags, descriptions, and default values, see [Pulsar admin docs](/tools/pulsar-admin/). 
+  For more information about the `pulsar-admin topics offload-status options` command, including flags, descriptions, and default values, see [Pulsar admin docs](/tools/pulsar-admin/).
 
   :::
 

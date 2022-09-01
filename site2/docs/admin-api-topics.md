@@ -1041,7 +1041,7 @@ persistent://test-tenant/ns1/tp1 \
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|GET|/lookup/v2/topic/:topic_domain/:tenant/:namespace/:topic|operation/lookupTopicAsync?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/lookup/v2/topic/:topic-domain/:tenant/:namespace/:topic|operation/lookupTopicAsync?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java">

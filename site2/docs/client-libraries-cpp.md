@@ -22,7 +22,7 @@ You can choose one of the following installation methods based on your needs: Co
 
 :::
 
-### Compilation 
+### Compilation
 
 #### System requirements
 
@@ -156,7 +156,7 @@ sudo yum -y install gcc-c++
 
 ### Install Debian
 
-1. Download a Debian package from the links in the table. 
+1. Download a Debian package from the links in the table.
 
 | Link | Crypto files |
 |------|--------------|
@@ -337,7 +337,7 @@ using namespace pulsar;
 
 int main() {
     Client client("pulsar://localhost:6650");
-    
+
     Producer producer;
 
     Result result = client.createProducer("persistent://public/default/my-topic", producer);
@@ -378,7 +378,6 @@ The producer configuration `blockIfQueueFull` is useful here to avoid `ResultPro
 Without this configuration, the result code `ResultProducerQueueIsFull` is passed to the callback. You must decide how to deal with that (retry, discard etc).
 
 ```cpp
-
 #include <pulsar/Client.h>
 #include <thread>
 #include <atomic>
@@ -429,7 +428,6 @@ int main() {
     client.close();
     return 0;
 }
-
 ```
 
 ### Partitioned topics and lazy producers
@@ -453,7 +451,7 @@ producerConf.setLazyStartPartitionedProducers(true);
 
 ### Enable chunking
 
-Message [chunking](concepts-messaging.md#chunking) enables Pulsar to process large payload messages by splitting the message into chunks at the producer side and aggregating chunked messages at the consumer side. 
+Message [chunking](concepts-messaging.md#chunking) enables Pulsar to process large payload messages by splitting the message into chunks at the producer side and aggregating chunked messages at the consumer side.
 
 The message chunking feature is OFF by default. The following is an example about how to enable message chunking when creating a producer.
 
@@ -571,7 +569,7 @@ int main() {
 
 ### Configure chunking
 
-You can limit the maximum number of chunked messages a consumer maintains concurrently by configuring the `setMaxPendingChunkedMessage` and `setAutoAckOldestChunkedMessageOnQueueFull` parameters. When the threshold is reached, the consumer drops pending messages by silently acknowledging them or asking the broker to redeliver them later. 
+You can limit the maximum number of chunked messages a consumer maintains concurrently by configuring the `setMaxPendingChunkedMessage` and `setAutoAckOldestChunkedMessageOnQueueFull` parameters. When the threshold is reached, the consumer drops pending messages by silently acknowledging them or asking the broker to redeliver them later.
 
 The following is an example of how to configure message chunking.
 
@@ -638,7 +636,7 @@ The following example shows how to create a producer and a consumer with a Proto
 
    ```protobuf
    syntax = "proto3";
-   
+
    message User {
        string name = 1;
        int32 age = 2;

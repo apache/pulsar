@@ -125,7 +125,14 @@ components in the Pulsar ecosystem, including connectors, adapters, and other la
 
 Requirements:
 
-- Java [JDK 17](https://adoptium.net/?variant=openjdk17)
+- JDK
+
+  | Pulsar Version | JDK Version |
+  | ----------------- | :----------: |
+  | master and 2.11 + |   [JDK 17](https://adoptium.net/?variant=openjdk17)    |
+  | 2.8 / 2.9 / 2.10  |   [JDK 11](https://adoptium.net/?variant=openjdk11)    |
+  | 2.7 - |   [JDK 8](https://adoptium.net/?variant=openjdk8)    |
+
 - Maven 3.6.1+
 - zip
 

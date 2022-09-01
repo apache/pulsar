@@ -79,7 +79,7 @@ const Pulsar = require('pulsar-client');
   const client = new Pulsar.Client({
     serviceUrl: 'pulsar://localhost:6650',
   });
-  
+
   await client.close();
 })();
 ```
@@ -110,7 +110,7 @@ Here is an example:
 
 ```javascript
 const producer = await client.createProducer({
-  topic: 'my-topic', // or 'my-tenant/my-namespace/my-topic' to specify topic's tenant and namespace 
+  topic: 'my-topic', // or 'my-tenant/my-namespace/my-topic' to specify topic's tenant and namespace
 });
 
 await producer.send({
@@ -468,7 +468,7 @@ This section provides step-by-step instructions on how to use the end-to-end enc
 
 **Prerequisite**
 
-- Pulsar C++ client 2.7.1 or later 
+- Pulsar C++ client 2.7.1 or later
 
 **Step**
 

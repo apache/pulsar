@@ -11,7 +11,7 @@ By default, it uses PEM format file configuration. This page tries to describe h
 
 
 ## TLS encryption with KeyStore configure
- 
+
 ### Generate TLS key and certificate
 
 The first step of deploying TLS is to generate the key and the certificate for each machine in the cluster.
@@ -158,7 +158,7 @@ webServicePort=
 
 In this case, you need to set the following configurations.
 
-```conf
+```properties
 brokerClientTlsEnabled=true // Set this to true
 brokerClientTlsEnabledWithKeyStore=true  // Set this to true
 brokerClientTlsTrustStore= // Set this to your desired value
@@ -199,7 +199,7 @@ For example:
 
    ```java
    import org.apache.pulsar.client.api.PulsarClient;
-   
+
    PulsarClient client = PulsarClient.builder()
        .serviceUrl("pulsar+ssl://broker.example.com:6651/")
        .useKeyStoreTls(true)
@@ -295,7 +295,7 @@ For example:
 
    ```java
    import org.apache.pulsar.client.api.PulsarClient;
-   
+
    PulsarClient client = PulsarClient.builder()
        .serviceUrl("pulsar+ssl://broker.example.com:6651/")
        .useKeyStoreTls(true)

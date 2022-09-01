@@ -710,7 +710,7 @@ For the latest and complete information, see [Pulsar admin docs](/tools/pulsar-a
 </TabItem>
 <TabItem value="REST API">
 
-Send a `GET` request to this endpoint: {@inject: endpoint|GET|/admin/v3/sources/:tenant/:namespace/|operation/listSources?version=@pulsar:version_number@}
+Send a `GET` request to this endpoint: {@inject: endpoint|GET|/admin/v3/sources/:tenant/:namespace|operation/listSources?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java Admin API">
@@ -763,7 +763,7 @@ For the latest and complete information, see [Pulsar admin docs](/tools/pulsar-a
 </TabItem>
 <TabItem value="REST API">
 
-Send a `GET` request to this endpoint: {@inject: endpoint|GET|/admin/v3/sinks/:tenant/:namespace/|operation/listSinks?version=@pulsar:version_number@}
+Send a `GET` request to this endpoint: {@inject: endpoint|GET|/admin/v3/sinks/:tenant/:namespace|operation/listSinks?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java Admin API">

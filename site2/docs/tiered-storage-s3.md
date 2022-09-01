@@ -4,9 +4,9 @@ title: Use S3 offloader with Pulsar
 sidebar_label: "S3 offloader"
 ---
 
-S3 offloader is introduced to serve S3-compatible storage, which means that the storage employs the S3 API as its “language" and applications that speak the S3 API are able to plug and play with S3-compatible storage. 
+S3 offloader is introduced to serve S3-compatible storage, which means that the storage employs the S3 API as its “language" and applications that speak the S3 API are able to plug and play with S3-compatible storage.
 
-This chapter guides you through every step of installing and configuring the S3 offloader and using it with Pulsar. 
+This chapter guides you through every step of installing and configuring the S3 offloader and using it with Pulsar.
 
 ## Installation
 
@@ -15,7 +15,7 @@ Follow the steps below to install the S3 offloader.
 ### Prerequisite
 
 - Pulsar: 2.9.3 or later versions
-  
+
 ### Steps
 
 This example uses Pulsar 2.9.3.
@@ -25,7 +25,7 @@ This example uses Pulsar 2.9.3.
 2. Download and untar the Pulsar offloaders package, then copy the Pulsar offloaders as `offloaders` in the Pulsar directory. See [Install tiered storage offloaders](getting-started-standalone.md#install-tiered-storage-offloaders-optional).
 
    **Output**
-   
+
    As shown from the output, Pulsar uses [Apache jclouds](https://jclouds.apache.org) to support [AWS S3](https://aws.amazon.com/s3/), [GCS](https://cloud.google.com/storage/), [Azure](https://portal.azure.com/#home), and [Aliyun OSS](https://www.aliyun.com/product/oss) for long-term storage.
 
    ```
@@ -54,7 +54,7 @@ Before offloading data from BookKeeper to S3-compatible storage, you need to con
 You can configure the S3 offloader driver in the configuration file `broker.conf` or `standalone.conf`.
 
 - **Required** configurations are as below.
-  
+
   | Required configuration | Description | Example value |
   | --- | --- |--- |
   | `managedLedgerOffloadDriver` | Offloader driver name, which is case-insensitive. | S3 |
@@ -83,11 +83,11 @@ This example names the bucket `pulsar-topic-offload`.
 managedLedgerOffloadBucket=pulsar-topic-offload
 ```
 
-#### Endpoint (required) 
+#### Endpoint (required)
 
 The endpoint is the region where a bucket is located.
 
- 
+
 ##### Example
 
 This example sets the endpoint as `localhost`.
@@ -115,7 +115,7 @@ Exporting these environment variables makes them available in the environment of
 
 ### Run S3 offloader automatically
 
-Namespace policy can be configured to offload data automatically once a threshold is reached. The threshold is based on the size of data that a topic has stored in a Pulsar cluster. Once the topic reaches the threshold, an offloading operation is triggered automatically. 
+Namespace policy can be configured to offload data automatically once a threshold is reached. The threshold is based on the size of data that a topic has stored in a Pulsar cluster. Once the topic reaches the threshold, an offloading operation is triggered automatically.
 
 | Threshold value | Action |
 | --- | --- |
@@ -128,7 +128,7 @@ Automatic offloading runs when a new segment is added to a topic log. If you set
 You can configure the threshold size using CLI tools, such as [`pulsar-admin`](/tools/pulsar-admin/).
 
 The offload configurations in `broker.conf` and `standalone.conf` are used for the namespaces that do not have namespace-level offload policies. Each namespace can have its offload policy. If you want to set an offload policy for a specific namespace, use the command [`pulsar-admin namespaces set-offload-policies options`](/tools/pulsar-admin/) command.
- 
+
 #### Example
 
 This example sets the S3 offloader threshold size to 10 MB using `pulsar-admin`.
@@ -139,7 +139,7 @@ bin/pulsar-admin namespaces set-offload-threshold --size 10M my-tenant/my-namesp
 
 :::tip
 
-For more information about the `pulsar-admin namespaces set-offload-threshold options` command, including flags, descriptions, and default values, see [Pulsar admin docs](/tools/pulsar-admin/). 
+For more information about the `pulsar-admin namespaces set-offload-threshold options` command, including flags, descriptions, and default values, see [Pulsar admin docs](/tools/pulsar-admin/).
 
 :::
 
@@ -149,7 +149,7 @@ For individual topics, you can trigger the S3 offloader manually using one of th
 
 - Use REST endpoint.
 
-- Use CLI tools, such as [`pulsar-admin`](/tools/pulsar-admin/). 
+- Use CLI tools, such as [`pulsar-admin`](/tools/pulsar-admin/).
 
  To trigger it via CLI tools, you need to specify the maximum amount of data (threshold) that should be retained in a Pulsar cluster for a topic. If the size of the topic data in the Pulsar cluster exceeds this threshold, segments from the topic are moved to S3-compatible storage until the threshold is no longer exceeded. Older segments are moved first.
 
@@ -169,7 +169,7 @@ For individual topics, you can trigger the S3 offloader manually using one of th
 
   :::tip
 
-  For more information about the `pulsar-admin topics offload options` command, including flags, descriptions, and default values, see [Pulsar admin docs](/tools/pulsar-admin/). 
+  For more information about the `pulsar-admin topics offload options` command, including flags, descriptions, and default values, see [Pulsar admin docs](/tools/pulsar-admin/).
 
   :::
 
@@ -214,7 +214,7 @@ For individual topics, you can trigger the S3 offloader manually using one of th
 
   :::tip
 
-  For more information about the `pulsar-admin topics offload-status options` command, including flags, descriptions, and default values, see [Pulsar admin docs](/tools/pulsar-admin/). 
+  For more information about the `pulsar-admin topics offload-status options` command, including flags, descriptions, and default values, see [Pulsar admin docs](/tools/pulsar-admin/).
 
   :::
 

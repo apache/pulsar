@@ -9,7 +9,7 @@ Pulsar's **Tiered Storage** feature allows older backlog data to be offloaded to
 * Tiered storage uses [Apache jclouds](https://jclouds.apache.org) to support [Amazon S3](https://aws.amazon.com/s3/) and [Google Cloud Storage](https://cloud.google.com/storage/)(GCS for short)
 for long term storage. With Jclouds, it is easy to add support for more [cloud storage providers](https://jclouds.apache.org/reference/providers/#blobstore-providers) in the future.
 
-* Tiered storage uses [Apache Hadoop](http://hadoop.apache.org/) to support filesystem for long term storage. 
+* Tiered storage uses [Apache Hadoop](http://hadoop.apache.org/) to support filesystem for long term storage.
 With Hadoop, it is easy to add support for more filesystem in the future.
 
 ## When should I use Tiered Storage?
@@ -35,7 +35,7 @@ When ledgers are offloaded to long term storage, you can still query data in the
 
 ## Configuring the offload driver
 
-Offloading is configured in ```broker.conf```.
+Offloading is configured in `broker.conf`.
 
 At a minimum, the administrator must configure the driver, the bucket and the authenticating credentials.
 There is also some other knobs to configure, like the bucket region, the max block size in backed storage, etc.
@@ -218,32 +218,32 @@ The model for storing topic data uses `org.apache.hadoop.io.MapFile`. You can us
 
 **Example**
 
-```conf
+```xml
     <property>
         <name>fs.defaultFS</name>
         <value></value>
     </property>
-    
+
     <property>
         <name>hadoop.tmp.dir</name>
         <value>pulsar</value>
     </property>
-    
+
     <property>
         <name>io.file.buffer.size</name>
         <value>4096</value>
     </property>
-    
+
     <property>
         <name>io.seqfile.compress.blocksize</name>
         <value>1000000</value>
     </property>
     <property>
-    
+
         <name>io.seqfile.compression.type</name>
         <value>BLOCK</value>
     </property>
-    
+
     <property>
         <name>io.map.index.interval</name>
         <value>128</value>
@@ -264,7 +264,7 @@ bin/pulsar-admin namespaces set-offload-threshold --size 10M my-tenant/my-namesp
 
 ## Configuring read priority for offloaded messages
 
-By default, once messages were offloaded to long term storage, brokers will read them from long term storage, but messages still exists in bookkeeper for a period depends on the administrator's configuration. For 
+By default, once messages were offloaded to long term storage, brokers will read them from long term storage, but messages still exists in bookkeeper for a period depends on the administrator's configuration. For
 messages exists in both bookkeeper and long term storage, if they are preferred to read from bookkeeper, you can use command to change this configuration.
 
 ```bash
