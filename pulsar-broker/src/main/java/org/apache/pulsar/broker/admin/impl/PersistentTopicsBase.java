@@ -4396,10 +4396,6 @@ public class PersistentTopicsBase extends AdminResource {
             });
             return future;
         }).thenAccept(__ -> result.complete(null)).exceptionally(ex -> {
-            if (force && ex.getCause() instanceof PulsarAdminException.ConflictException) {
-                result.complete(null);
-                return null;
-            }
             result.completeExceptionally(ex);
             return null;
         });
