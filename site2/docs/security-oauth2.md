@@ -83,7 +83,7 @@ You can use the factory method to configure authentication for Pulsar Java clien
 
 ```java
 
-import org.apache.pulsar.client.impl.auth.oauth2.AuthenticationFactoryOAuth2; 
+import org.apache.pulsar.client.impl.auth.oauth2.AuthenticationFactoryOAuth2;
 
 URL issuerUrl = new URL("https://dev-kt-aa9ne.us.auth0.com");
 URL credentialsUrl = new URL("file:///path/to/KeyFile.json");
@@ -114,7 +114,7 @@ PulsarClient client = PulsarClient.builder()
 
 The C++ client is similar to the Java client. You need to provide the parameters of `issuerUrl`, `private_key` (the credentials file path), and `audience`.
 
-```c++
+```cpp
 
 #include <pulsar/Client.h>
 
@@ -123,7 +123,7 @@ std::string params = R"({
     "issuer_url": "https://dev-kt-aa9ne.us.auth0.com",
     "private_key": "../../pulsar-broker/src/test/resources/authentication/token/cpp_credentials_file.json",
     "audience": "https://dev-kt-aa9ne.us.auth0.com/api/v2/"})";
-    
+
 config.setAuth(pulsar::AuthOauth2::create(params));
 
 pulsar::Client client("pulsar://broker.example.com:6650/", config);
@@ -133,7 +133,7 @@ pulsar::Client client("pulsar://broker.example.com:6650/", config);
 ### Go client
 
 To enable OAuth2 authentication in Go client, you need to configure OAuth2 authentication.
-This example shows how to configure OAuth2 authentication in Go client. 
+This example shows how to configure OAuth2 authentication in Go client.
 
 ```go
 
@@ -246,7 +246,7 @@ This section describes how to use Pulsar CLI tools to connect a cluster through 
 
 This example shows how to use pulsar-admin to connect to a cluster through OAuth2 authentication plugin.
 
-```shell script
+```shell
 
 bin/pulsar-admin --admin-url https://streamnative.cloud:443 \
 --auth-plugin org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2 \
@@ -264,7 +264,7 @@ Set the `privateKey`, `issuerUrl`, and `audience` parameters to the values based
 
 This example shows how to use pulsar-client to connect to a cluster through OAuth2 authentication plugin.
 
-```shell script
+```shell
 
 bin/pulsar-client \
 --url SERVICE_URL \
@@ -283,7 +283,7 @@ Set the `privateKey`, `issuerUrl`, and `audience` parameters to the values based
 
 This example shows how to use pulsar-perf to connect to a cluster through OAuth2 authentication plugin.
 
-```shell script
+```shell
 
 bin/pulsar-perf produce --service-url pulsar+ssl://streamnative.cloud:6651 \
 --auth-plugin org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2 \

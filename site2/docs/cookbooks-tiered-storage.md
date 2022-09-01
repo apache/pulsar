@@ -9,7 +9,7 @@ Pulsar's **Tiered Storage** feature allows older backlog data to be offloaded to
 * Tiered storage uses [Apache jclouds](https://jclouds.apache.org) to support [Amazon S3](https://aws.amazon.com/s3/) and [Google Cloud Storage](https://cloud.google.com/storage/)(GCS for short)
 for long term storage. With Jclouds, it is easy to add support for more [cloud storage providers](https://jclouds.apache.org/reference/providers/#blobstore-providers) in the future.
 
-* Tiered storage uses [Apache Hadoop](http://hadoop.apache.org/) to support filesystem for long term storage. 
+* Tiered storage uses [Apache Hadoop](http://hadoop.apache.org/) to support filesystem for long term storage.
 With Hadoop, it is easy to add support for more filesystem in the future.
 
 ## When should I use Tiered Storage?
@@ -50,7 +50,7 @@ Currently we support driver of types:
 > though it requires that you specify an endpoint url using `s3ManagedLedgerOffloadServiceEndpoint`. This is useful if
 > using a S3 compatible data store, other than AWS.
 
-```conf
+```properties
 
 managedLedgerOffloadDriver=aws-s3
 
@@ -65,7 +65,7 @@ Everything that you store in Cloud Storage must be contained in a bucket.
 You can use buckets to organize your data and control access to your data,
 but unlike directories and folders, you cannot nest buckets.
 
-```conf
+```properties
 
 s3ManagedLedgerOffloadBucket=pulsar-topic-offload
 
@@ -76,7 +76,7 @@ but a recommended configuration. If it is not configured, It will use the defaul
 
 With AWS S3, the default region is `US East (N. Virginia)`. Page [AWS Regions and Endpoints](https://docs.aws.amazon.com/general/latest/gr/rande.html) contains more information.
 
-```conf
+```properties
 
 s3ManagedLedgerOffloadRegion=eu-west-3
 
@@ -117,7 +117,7 @@ PULSAR_EXTRA_OPTS="${PULSAR_EXTRA_OPTS} ${PULSAR_MEM} ${PULSAR_GC} -Daws.accessK
 
 4. Set the access credentials in ```~/.aws/credentials```.
 
-```conf
+```properties
 
 [default]
 aws_access_key_id=ABC123456789
@@ -129,7 +129,7 @@ aws_secret_access_key=ded7db27a4558e2ea8bbf0bf37ae0e8521618f366c
 
 If you want to assume an IAM role, this can be done via specifying the following:
 
-```conf
+```properties
 
 s3ManagedLedgerOffloadRole=<aws role arn>
 s3ManagedLedgerOffloadRoleSessionName=pulsar-s3-offload
@@ -157,7 +157,7 @@ Buckets are the basic containers that hold your data. Everything that you store 
 Cloud Storage must be contained in a bucket. You can use buckets to organize your data and
 control access to your data, but unlike directories and folders, you cannot nest buckets.
 
-```conf
+```properties
 
 gcsManagedLedgerOffloadBucket=pulsar-topic-offload
 
@@ -169,7 +169,7 @@ a recommended configuration. If it is not configured, It will use the default re
 Regarding GCS, buckets are default created in the `us multi-regional location`,
 page [Bucket Locations](https://cloud.google.com/storage/docs/bucket-locations) contains more information.
 
-```conf
+```properties
 
 gcsManagedLedgerOffloadRegion=europe-west3
 
@@ -194,7 +194,7 @@ To generate service account credentials or view the public credentials that you'
 
 > Notes: Make ensure that the service account you create has permission to operate GCS, you need to assign **Storage Admin** permission to your service account in [here](https://cloud.google.com/storage/docs/access-control/iam).
 
-```conf
+```properties
 
 gcsManagedLedgerOffloadServiceAccountKeyFile="/Users/hello/Downloads/project-804d5e6a6f33.json"
 
@@ -218,7 +218,7 @@ In both cases, these should not be touched unless you know what you are doing.
 
 You can configure the connection address in the `broker.conf` file.
 
-```conf
+```properties
 
 fileSystemURI="hdfs://127.0.0.1:9000"
 
@@ -228,7 +228,7 @@ fileSystemURI="hdfs://127.0.0.1:9000"
 
 The configuration file is stored in the Hadoop profile path. It contains various settings, such as base path, authentication, and so on.
 
-```conf
+```properties
 
 fileSystemProfilePath="../conf/filesystem_offload_core_site.xml"
 
@@ -238,33 +238,33 @@ The model for storing topic data uses `org.apache.hadoop.io.MapFile`. You can us
 
 **Example**
 
-```conf
+```properties
 
     <property>
         <name>fs.defaultFS</name>
         <value></value>
     </property>
-    
+
     <property>
         <name>hadoop.tmp.dir</name>
         <value>pulsar</value>
     </property>
-    
+
     <property>
         <name>io.file.buffer.size</name>
         <value>4096</value>
     </property>
-    
+
     <property>
         <name>io.seqfile.compress.blocksize</name>
         <value>1000000</value>
     </property>
     <property>
-    
+
         <name>io.seqfile.compression.type</name>
         <value>BLOCK</value>
     </property>
-    
+
     <property>
         <name>io.map.index.interval</name>
         <value>128</value>
@@ -287,7 +287,7 @@ $ bin/pulsar-admin namespaces set-offload-threshold --size 10M my-tenant/my-name
 
 ## Configuring read priority for offloaded messages
 
-By default, once messages were offloaded to long term storage, brokers will read them from long term storage, but messages still exists in bookkeeper for a period depends on the administrator's configuration. For 
+By default, once messages were offloaded to long term storage, brokers will read them from long term storage, but messages still exists in bookkeeper for a period depends on the administrator's configuration. For
 messages exists in both bookkeeper and long term storage, if they are preferred to read from bookkeeper, you can use command to change this configuration.
 
 ```bash

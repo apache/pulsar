@@ -50,6 +50,7 @@ import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
+import org.apache.pulsar.common.policies.data.EntryFilters;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
@@ -2588,6 +2589,46 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Get entry filters for a namespace")
+    private class GetEntryFiltersPerTopic extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            print(getAdmin().namespaces().getNamespaceEntryFilters(namespace));
+        }
+    }
+
+    @Parameters(commandDescription = "Set entry filters for a namespace")
+    private class SetEntryFiltersPerTopic extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--entry-filters-name", "-efn" },
+                description = "The class name for the entry filter.", required = true)
+        private String  entryFiltersName = "";
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            getAdmin().namespaces().setNamespaceEntryFilters(namespace, new EntryFilters(entryFiltersName));
+        }
+    }
+
+    @Parameters(commandDescription = "Remove entry filters for a namespace")
+    private class RemoveEntryFiltersPerTopic extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            getAdmin().namespaces().removeNamespaceEntryFilters(namespace);
+        }
+    }
+
     public CmdNamespaces(Supplier<PulsarAdmin> admin) {
         super("namespaces", admin);
         jcommander.addCommand("list", new GetNamespacesPerProperty());
@@ -2768,5 +2809,9 @@ public class CmdNamespaces extends CmdBase {
         jcommander.addCommand("get-resource-group", new GetResourceGroup());
         jcommander.addCommand("set-resource-group", new SetResourceGroup());
         jcommander.addCommand("remove-resource-group", new RemoveResourceGroup());
+
+        jcommander.addCommand("get-entry-filters", new GetEntryFiltersPerTopic());
+        jcommander.addCommand("set-entry-filters", new SetEntryFiltersPerTopic());
+        jcommander.addCommand("remove-entry-filters", new RemoveEntryFiltersPerTopic());
     }
 }
