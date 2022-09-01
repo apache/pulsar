@@ -1937,9 +1937,6 @@ flexible messaging model and an intuitive client API.</description>
             <version>${jacoco-maven-plugin.version}</version>
             <configuration>
               <propertyName>jacoco.agent.argument</propertyName>
-              <includes>
-                <include>**/org/apache/pulsar/**</include>
-              </includes>
             </configuration>
             <executions>
               <execution>
@@ -1954,6 +1951,11 @@ flexible messaging model and an intuitive client API.</description>
                 <goals>
                   <goal>report</goal>
                 </goals>
+                <configuration>
+                  <excludes>
+                    <exclude>**/*.jar</exclude>
+                  </excludes>
+                </configuration>
               </execution>
             </executions>
           </plugin>
