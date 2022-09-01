@@ -21,6 +21,7 @@ package org.apache.bookkeeper.mledger.impl.cache;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.createManagedLedgerException;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
@@ -69,6 +70,11 @@ public class RangeEntryCacheImpl implements EntryCache {
         if (log.isDebugEnabled()) {
             log.debug("[{}] Initialized managed-ledger entry cache", ml.getName());
         }
+    }
+
+    @VisibleForTesting
+    ManagedLedgerImpl getManagedLedger() {
+        return ml;
     }
 
     @Override
