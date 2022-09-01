@@ -28,7 +28,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.AllArgsConstructor;
 import lombok.Value;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
@@ -38,7 +37,6 @@ import org.apache.bookkeeper.mledger.impl.EntryImpl;
 /**
  * PendingReadsManager tries to prevent sending duplicate reads to BK.
  */
-@Slf4j
 public class PendingReadsManager {
 
     private static final Counter COUNT_ENTRIES_READ_FROM_BK = Counter
@@ -432,7 +430,6 @@ public class PendingReadsManager {
 
 
             if (createdByThisThread.get()) {
-                log.info("start readFromStorage {}-{} {}", firstEntry, lastEntry, shouldCacheEntry);
                 CompletableFuture<List<EntryImpl>> readResult = rangeEntryCache.readFromStorage(lh, firstEntry,
                         lastEntry, shouldCacheEntry);
                 pendingRead.attach(readResult);
