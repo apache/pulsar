@@ -213,7 +213,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                 return readSchemaEntry(schemaLocator.getInfo().getPosition())
                         .thenApply(entry -> new StoredSchema(entry.getSchemaData().toByteArray(),
                                 new LongSchemaVersion(schemaLocator.getInfo().getVersion())));
-            }).handleAsync((res, ex) -> {
+            }).handle((res, ex) -> {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Get operation completed. res={} -- ex={}", schemaId, res, ex);
                 }
