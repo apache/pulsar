@@ -25,6 +25,7 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -254,6 +255,29 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
         }
         cursor.close();
         ledger.close();
+    }
+
+    @Test
+    public void testBeforeAddEntryWithException() throws Exception {
+        final int MOCK_BATCH_SIZE = 2;
+        final String ledgerAndCursorName = "testBeforeAddEntryWithException";
+
+        ManagedLedgerInterceptor interceptor =
+                new MockManagedLedgerInterceptorImpl(getBrokerEntryMetadataInterceptors(), null);
+
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(2);
+        config.setManagedLedgerInterceptor(interceptor);
+
+        ManagedLedger ledger = factory.open(ledgerAndCursorName, config);
+        try {
+            ledger.addEntry("message".getBytes(), MOCK_BATCH_SIZE);
+        } catch (ManagedLedgerException.ManagedLedgerInterceptException ex) {
+            // expected
+        } finally {
+            ledger.close();
+            factory.shutdown();
+        }
     }
 
     public static Set<BrokerEntryMetadataInterceptor> getBrokerEntryMetadataInterceptors() {
