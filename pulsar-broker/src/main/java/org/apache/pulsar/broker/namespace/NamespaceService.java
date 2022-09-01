@@ -825,23 +825,6 @@ public class NamespaceService implements AutoCloseable {
         return unloadFuture;
     }
 
-    public Map<String, TopicStatsImpl> getTopicStats(NamespaceBundle bundle) {
-        ConcurrentOpenHashMap<String, Topic> topicMap = pulsar.getBrokerService().getMultiLayerTopicMap()
-        .computeIfAbsent(bundle.getNamespaceObject().toString(), k -> {
-            return ConcurrentOpenHashMap
-                    .<String, ConcurrentOpenHashMap<String, Topic>>newBuilder().build();
-        }).computeIfAbsent(bundle.toString(), k -> {
-            return ConcurrentOpenHashMap.<String, Topic>newBuilder().build();
-        });
-
-        Map<String, TopicStatsImpl> topicStatsMap = new HashMap<>();
-        topicMap.forEach((name, topic) -> {
-            topicStatsMap.put(name,
-                    topic.getStats(false, false, false));
-        });
-        return topicStatsMap;
-    }
-
     void splitAndOwnBundleOnceAndRetry(NamespaceBundle bundle,
                                        boolean unload,
                                        AtomicInteger counter,
@@ -851,7 +834,7 @@ public class NamespaceService implements AutoCloseable {
         BundleSplitOption bundleSplitOption;
         if (config.getDefaultNamespaceBundleSplitAlgorithm()
                   .equals(NamespaceBundleSplitAlgorithm.FLOW_OR_QPS_EQUALLY_DIVIDE)) {
-            Map<String, TopicStatsImpl> topicStatsMap = getTopicStats(bundle);
+            Map<String, TopicStatsImpl> topicStatsMap =  pulsar.getBrokerService().getTopicStats(bundle);
             bundleSplitOption = new FlowOrQpsEquallyDivideBundleSplitOption(this, bundle, boundaries,
                     topicStatsMap,
                     config.getLoadBalancerNamespaceBundleMaxMsgRate(),
