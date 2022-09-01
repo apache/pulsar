@@ -1160,7 +1160,7 @@ public abstract class NamespacesBase extends AdminResource {
                     String bundleRange = getBundleRange(bundleName);
                     if (bundleRange == null) {
                         throw new RestException(Status.NOT_FOUND,
-                                String.format("Bundle range {} not found", bundleName));
+                                String.format("Bundle range %s not found", bundleName));
                     }
                     return validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles, bundleRange,
                             authoritative, false)
