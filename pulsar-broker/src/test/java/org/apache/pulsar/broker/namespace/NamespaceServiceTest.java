@@ -59,6 +59,7 @@ import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.PulsarClient;
 
@@ -611,7 +612,8 @@ public class NamespaceServiceTest extends BrokerTestBase {
             admin.namespaces().splitNamespaceBundle(namespace, Policies.BundleType.HOT.toString(), false, null);
             fail("should have failed.");
         } catch (Exception ex) {
-            Assert.assertEquals("Failed to find a bundleRange", ex.getMessage());
+            Assert.assertEquals(404, ((PulsarAdminException) ex).getStatusCode());
+            Assert.assertEquals("Bundle range HOT not found", ex.getMessage());
         }
     }
     /**
