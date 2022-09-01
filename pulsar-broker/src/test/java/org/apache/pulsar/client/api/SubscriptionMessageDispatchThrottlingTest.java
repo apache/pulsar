@@ -475,7 +475,6 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         log.info("-- end - start: {} ", end - start);
 
         // first 10 messages, which equals receiverQueueSize, will not wait.
-        Assert.assertTrue((end - start) >= 2500);
         Assert.assertTrue((end - start) <= 8000);
 
         consumer.close();
