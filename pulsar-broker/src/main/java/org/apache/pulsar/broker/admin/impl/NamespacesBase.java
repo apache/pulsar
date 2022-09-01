@@ -1211,6 +1211,10 @@ public abstract class NamespacesBase extends AdminResource {
                 .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
                 .thenCompose(policies->{
                     String bundleRange = getBundleRange(bundleName);
+                    if (bundleRange == null) {
+                        throw new RestException(Status.NOT_FOUND,
+                                String.format("Bundle range %s not found", bundleName));
+                    }
                     return validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles, bundleRange,
                             authoritative, false)
                             .thenCompose(nsBundle -> pulsar().getNamespaceService().splitAndOwnBundle(nsBundle, unload,
@@ -1269,13 +1273,18 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     private String getBundleRange(String bundleName) {
+        NamespaceBundle nsBundle;
         if (BundleType.LARGEST.toString().equals(bundleName)) {
-            return findLargestBundleWithTopics(namespaceName).getBundleRange();
+            nsBundle = findLargestBundleWithTopics(namespaceName);
         } else if (BundleType.HOT.toString().equals(bundleName)) {
-            return findHotBundle(namespaceName).getBundleRange();
+            nsBundle = findHotBundle(namespaceName);
         } else {
             return bundleName;
         }
+        if (nsBundle == null) {
+            return null;
+        }
+        return nsBundle.getBundleRange();
     }
 
     private NamespaceBundle findLargestBundleWithTopics(NamespaceName namespaceName) {
