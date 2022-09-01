@@ -70,6 +70,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
     @BeforeClass
     @Override
     protected void setup() throws Exception {
+        this.conf.setBrokerDeduplicationEnabled(true);
         super.internalSetup();
         super.producerBaseSetup();
     }
