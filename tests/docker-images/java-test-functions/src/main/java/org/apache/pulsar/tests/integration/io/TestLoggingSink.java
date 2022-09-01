@@ -36,7 +36,7 @@ public class TestLoggingSink implements Sink<GenericObject> {
     @Override
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
         logger = sinkContext.getLogger();
-        String topic = (String) sinkContext.getSinkConfig().getConfigs().get("log-topic");
+        String topic = (String) config.getOrDefault("log-topic", "log-topic");
         producer = sinkContext.getPulsarClient().newProducer(Schema.STRING)
                 .topic(topic)
                 .create();
