@@ -50,6 +50,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class OffloadPrefixTest extends MockedBookKeeperTestCase {
@@ -739,14 +740,23 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         return entry;
     }
 
-    @Test
-    public void testAutoTriggerOffload() throws Exception {
+    @DataProvider(name = "testTriggerOffload")
+    public Object[][] testAutoTriggerOffloadProvider() {
+        return new Object[][]{
+                {null, 0L},
+                {100L, null}
+        };
+    }
+
+    @Test(dataProvider = "testTriggerOffload")
+    public void testAutoTriggerOffload(Long sizeThreshold, Long timeThreshold) throws Exception {
         MockLedgerOffloader offloader = new MockLedgerOffloader();
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setMaxEntriesPerLedger(10);
         config.setRetentionTime(10, TimeUnit.MINUTES);
         config.setRetentionSizeInMB(10);
-        offloader.getOffloadPolicies().setManagedLedgerOffloadThresholdInBytes(100L);
+        offloader.getOffloadPolicies().setManagedLedgerOffloadThresholdInBytes(sizeThreshold);
+        offloader.getOffloadPolicies().setManagedLedgerOffloadTimeThresholdInSeconds(timeThreshold);
         config.setLedgerOffloader(offloader);
 
         ManagedLedgerImpl ledger = (ManagedLedgerImpl)factory.open("my_test_ledger", config);
@@ -764,8 +774,9 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
                 Set.of(ledger.getLedgersInfoAsList().get(0).getLedgerId()));
     }
 
-    @Test
-    public void manualTriggerWhileAutoInProgress() throws Exception {
+
+    @Test(dataProvider = "testTriggerOffload")
+    public void manualTriggerWhileAutoInProgress(Long sizeThreshold, Long timeThreshold) throws Exception {
         CompletableFuture<Void> slowOffload = new CompletableFuture<>();
         CountDownLatch offloadRunning = new CountDownLatch(1);
         MockLedgerOffloader offloader = new MockLedgerOffloader() {
@@ -782,7 +793,8 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         config.setMaxEntriesPerLedger(10);
         config.setRetentionTime(10, TimeUnit.MINUTES);
         config.setRetentionSizeInMB(10);
-        offloader.getOffloadPolicies().setManagedLedgerOffloadThresholdInBytes(100L);
+        offloader.getOffloadPolicies().setManagedLedgerOffloadThresholdInBytes(sizeThreshold);
+        offloader.getOffloadPolicies().setManagedLedgerOffloadTimeThresholdInSeconds(timeThreshold);
         config.setLedgerOffloader(offloader);
 
         ManagedLedgerImpl ledger = (ManagedLedgerImpl)factory.open("my_test_ledger", config);
@@ -825,8 +837,8 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
                                             ledger.getLedgersInfoAsList().get(3).getLedgerId()));
     }
 
-    @Test
-    public void autoTriggerWhileManualInProgress() throws Exception {
+    @Test(dataProvider = "testTriggerOffload")
+    public void autoTriggerWhileManualInProgress(Long sizeThreshold, Long timeThreshold) throws Exception {
         CompletableFuture<Void> slowOffload = new CompletableFuture<>();
         CountDownLatch offloadRunning = new CountDownLatch(1);
         MockLedgerOffloader offloader = new MockLedgerOffloader() {
@@ -843,7 +855,8 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         config.setMaxEntriesPerLedger(10);
         config.setRetentionTime(10, TimeUnit.MINUTES);
         config.setRetentionSizeInMB(10);
-        offloader.getOffloadPolicies().setManagedLedgerOffloadThresholdInBytes(100L);
+        offloader.getOffloadPolicies().setManagedLedgerOffloadThresholdInBytes(sizeThreshold);
+        offloader.getOffloadPolicies().setManagedLedgerOffloadTimeThresholdInSeconds(timeThreshold);
         config.setLedgerOffloader(offloader);
 
         ManagedLedgerImpl ledger = (ManagedLedgerImpl)factory.open("my_test_ledger", config);
@@ -876,8 +889,8 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
                                             ledger.getLedgersInfoAsList().get(1).getLedgerId()));
     }
 
-    @Test
-    public void multipleAutoTriggers() throws Exception {
+    @Test(dataProvider = "testTriggerOffload")
+    public void multipleAutoTriggers(Long sizeThreshold, Long timeThreshold) throws Exception {
         CompletableFuture<Void> slowOffload = new CompletableFuture<>();
         CountDownLatch offloadRunning = new CountDownLatch(1);
         MockLedgerOffloader offloader = new MockLedgerOffloader() {
@@ -894,7 +907,8 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         config.setMaxEntriesPerLedger(10);
         config.setRetentionTime(10, TimeUnit.MINUTES);
         config.setRetentionSizeInMB(10);
-        offloader.getOffloadPolicies().setManagedLedgerOffloadThresholdInBytes(100L);
+        offloader.getOffloadPolicies().setManagedLedgerOffloadThresholdInBytes(sizeThreshold);
+        offloader.getOffloadPolicies().setManagedLedgerOffloadTimeThresholdInSeconds(timeThreshold);
         config.setLedgerOffloader(offloader);
 
         ManagedLedgerImpl ledger = (ManagedLedgerImpl)factory.open("my_test_ledger", config);
@@ -922,14 +936,23 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
                                             ledger.getLedgersInfoAsList().get(2).getLedgerId()));
     }
 
-    @Test
-    public void offloadAsSoonAsClosed() throws Exception {
+    @DataProvider(name = "offloadAsSoonAsClosed")
+    public Object[][] offloadAsSoonAsClosedProvider() {
+        return new Object[][]{
+                {null, 0L},
+                {100L, null}
+        };
+    }
+
+    @Test(dataProvider = "offloadAsSoonAsClosed")
+    public void offloadAsSoonAsClosed(Long sizeThreshold, Long timeThreshold) throws Exception {
         MockLedgerOffloader offloader = new MockLedgerOffloader();
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setMaxEntriesPerLedger(10);
         config.setRetentionTime(10, TimeUnit.MINUTES);
         config.setRetentionSizeInMB(10);
-        offloader.getOffloadPolicies().setManagedLedgerOffloadThresholdInBytes(0L);
+        offloader.getOffloadPolicies().setManagedLedgerOffloadThresholdInBytes(sizeThreshold);
+        offloader.getOffloadPolicies().setManagedLedgerOffloadTimeThresholdInSeconds(timeThreshold);
         config.setLedgerOffloader(offloader);
 
         ManagedLedgerImpl ledger = (ManagedLedgerImpl)factory.open("my_test_ledger", config);

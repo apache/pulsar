@@ -35,6 +35,7 @@ import io.netty.util.Recycler.Handle;
 import io.netty.util.ReferenceCountUtil;
 import java.io.IOException;
 import java.time.Clock;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -2358,59 +2359,81 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private void maybeOffload(CompletableFuture<PositionImpl> finalPromise) {
         if (!offloadMutex.tryLock()) {
             scheduledExecutor.schedule(safeRun(() -> maybeOffloadInBackground(finalPromise)),
-                                       100, TimeUnit.MILLISECONDS);
-        } else {
-            CompletableFuture<PositionImpl> unlockingPromise = new CompletableFuture<>();
-            unlockingPromise.whenComplete((res, ex) -> {
-                    offloadMutex.unlock();
-                    if (ex != null) {
-                        finalPromise.completeExceptionally(ex);
-                    } else {
-                        finalPromise.complete(res);
-                    }
-                });
+                    100, TimeUnit.MILLISECONDS);
+            return;
+        }
 
-            if (config.getLedgerOffloader() != null
-                    && config.getLedgerOffloader() != NullLedgerOffloader.INSTANCE
-                    && config.getLedgerOffloader().getOffloadPolicies() != null
-                    && config.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes()
-                    != null) {
-                long threshold = config.getLedgerOffloader().getOffloadPolicies()
-                        .getManagedLedgerOffloadThresholdInBytes();
+        CompletableFuture<PositionImpl> unlockingPromise = new CompletableFuture<>();
+        unlockingPromise.whenComplete((res, ex) -> {
+            offloadMutex.unlock();
+            if (ex != null) {
+                finalPromise.completeExceptionally(ex);
+            } else {
+                finalPromise.complete(res);
+            }
+        });
 
-                long sizeSummed = 0;
-                long alreadyOffloadedSize = 0;
-                long toOffloadSize = 0;
+        if (config.getLedgerOffloader() == null || config.getLedgerOffloader() == NullLedgerOffloader.INSTANCE
+                || config.getLedgerOffloader().getOffloadPolicies() == null) {
+            return;
+        }
 
-                ConcurrentLinkedDeque<LedgerInfo> toOffload = new ConcurrentLinkedDeque<>();
-
-                // go through ledger list from newest to oldest and build a list to offload in oldest to newest order
-                for (Map.Entry<Long, LedgerInfo> e : ledgers.descendingMap().entrySet()) {
-                    long size = e.getValue().getSize();
-                    sizeSummed += size;
-                    boolean alreadyOffloaded = e.getValue().hasOffloadContext()
-                            && e.getValue().getOffloadContext().getComplete();
-                    if (alreadyOffloaded) {
-                        alreadyOffloadedSize += size;
-                    } else if (sizeSummed > threshold) {
-                        toOffloadSize += size;
-                        toOffload.addFirst(e.getValue());
-                    }
-                }
-
-                if (toOffload.size() > 0) {
-                    log.info("[{}] Going to automatically offload ledgers {}"
-                                    + ", total size = {}, already offloaded = {}, to offload = {}",
-                            name, toOffload.stream().map(LedgerInfo::getLedgerId).collect(Collectors.toList()),
-                            sizeSummed, alreadyOffloadedSize, toOffloadSize);
-                    offloadLoop(unlockingPromise, toOffload, PositionImpl.LATEST, Optional.empty());
-                } else {
-                    // offloadLoop will complete immediately with an empty list to offload
-                    log.debug("[{}] Nothing to offload, total size = {}, already offloaded = {}, threshold = {}",
-                            name, sizeSummed, alreadyOffloadedSize, threshold);
-                    unlockingPromise.complete(PositionImpl.LATEST);
+        String threshold = null;
+        long sizeSummed = 0;
+        long toOffloadSize = 0;
+        long alreadyOffloadedSize = 0;
+        ConcurrentLinkedDeque<LedgerInfo> toOffload = new ConcurrentLinkedDeque<>();
+        if (config.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes() != null) {
+            long threshold0 = config.getLedgerOffloader().getOffloadPolicies()
+                    .getManagedLedgerOffloadThresholdInBytes();
+            threshold = threshold0 + "bytes";
+            // go through ledger list from newest to oldest and build a list to offload in oldest to newest order
+            for (Map.Entry<Long, LedgerInfo> e : ledgers.descendingMap().entrySet()) {
+                final LedgerInfo info = e.getValue();
+                final long size = info.getSize();
+                sizeSummed += size;
+                boolean alreadyOffloaded = info.hasOffloadContext() && info.getOffloadContext().getComplete();
+                if (alreadyOffloaded) {
+                    alreadyOffloadedSize += size;
+                } else if (sizeSummed > threshold0) {
+                    toOffloadSize += size;
+                    toOffload.addFirst(e.getValue());
                 }
             }
+        } else if (config.getLedgerOffloader().getOffloadPolicies()
+                .getManagedLedgerOffloadTimeThresholdInSeconds() != null) {
+            final long now = System.currentTimeMillis();
+            final long threshold0 = config.getLedgerOffloader().getOffloadPolicies()
+                    .getManagedLedgerOffloadTimeThresholdInSeconds();
+            threshold = threshold0 + "seconds";
+            final long thresholdInMillis = Duration.ofSeconds(threshold0).toMillis();
+            // go through ledger list from newest to oldest and build a list to offload in oldest to newest order
+            for (Map.Entry<Long, LedgerInfo> e : ledgers.descendingMap().entrySet()) {
+                final LedgerInfo info = e.getValue();
+                final long size = info.getSize();
+                final long timestamp = info.getTimestamp();
+                sizeSummed += size;
+                final boolean alreadyOffloaded = info.hasOffloadContext() && info.getOffloadContext().getComplete();
+                if (alreadyOffloaded) {
+                    alreadyOffloadedSize += size;
+                } else if (now - timestamp > thresholdInMillis) {
+                    toOffloadSize += size;
+                    toOffload.addFirst(e.getValue());
+                }
+            }
+        }
+
+        if (toOffload.size() > 0) {
+            log.info("[{}] Going to automatically offload ledgers {}"
+                            + ", total size = {}, already offloaded = {}, to offload = {}",
+                    name, toOffload.stream().map(LedgerInfo::getLedgerId).collect(Collectors.toList()),
+                    sizeSummed, alreadyOffloadedSize, toOffloadSize);
+            offloadLoop(unlockingPromise, toOffload, PositionImpl.LATEST, Optional.empty());
+        } else {
+            // offloadLoop will complete immediately with an empty list to offload
+            log.debug("[{}] Nothing to offload, total size = {}, already offloaded = {}, threshold = {}",
+                    name, sizeSummed, alreadyOffloadedSize, threshold);
+            unlockingPromise.complete(PositionImpl.LATEST);
         }
     }
 

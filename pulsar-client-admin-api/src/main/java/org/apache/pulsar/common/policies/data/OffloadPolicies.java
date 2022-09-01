@@ -31,6 +31,8 @@ public interface OffloadPolicies {
 
     Long getManagedLedgerOffloadThresholdInBytes();
 
+    Long getManagedLedgerOffloadTimeThresholdInSeconds();
+
     Long getManagedLedgerOffloadDeletionLagInMillis();
 
     OffloadedReadPriority getManagedLedgerOffloadedReadPriority();
@@ -88,6 +90,8 @@ public interface OffloadPolicies {
         Builder managedLedgerOffloadPrefetchRounds(Integer managedLedgerOffloadPrefetchRounds);
 
         Builder managedLedgerOffloadThresholdInBytes(Long managedLedgerOffloadThresholdInBytes);
+
+        Builder managedLedgerOffloadTimeThresholdInSeconds(Long managedLedgerOffloadTimeThresholdInSeconds);
 
         Builder managedLedgerOffloadDeletionLagInMillis(Long managedLedgerOffloadDeletionLagInMillis);
 
