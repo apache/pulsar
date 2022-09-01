@@ -95,6 +95,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
                 lastFuture = producer.newMessage().key(key).value(data).sendAsync();
                 keys.add(key);
             }
+            producer.flushAsync();
             lastFuture.get();
         }
         return keys;
