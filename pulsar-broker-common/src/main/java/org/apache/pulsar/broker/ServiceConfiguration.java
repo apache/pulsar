@@ -349,9 +349,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(category = CATEGORY_SERVER, doc = """
             Class name of the factory that implements the delayed deliver tracker
             """)
-    private String delayedDeliveryTrackerFactoryClassName = """
-            org.apache.pulsar.broker.delayed.InMemoryDelayedDeliveryTrackerFactory
-            """;
+    private String delayedDeliveryTrackerFactoryClassName =
+            "org.apache.pulsar.broker.delayed.InMemoryDelayedDeliveryTrackerFactory";
 
     @FieldContext(category = CATEGORY_SERVER, doc = """
             Control the tick time for when retrying on delayed delivery, \
