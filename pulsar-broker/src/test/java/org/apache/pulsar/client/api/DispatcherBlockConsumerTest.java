@@ -592,7 +592,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test(dataProvider = "gracefulUnload")
+    @Test(dataProvider = "gracefulUnload", invocationCount = 1000)
     public void testBrokerSubscriptionRecovery(boolean unloadBundleGracefully) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -646,7 +646,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
         Set<String> unackMsgs = unackMessages.stream().map(i -> "my-message-" + i).collect(Collectors.toSet());
         Set<String> receivedMsgs = Sets.newHashSet();
         for (int i = 0; i < totalProducedMsgs; i++) {
-            Message<?> msg = consumer.receive(500, TimeUnit.MILLISECONDS);
+            Message<?> msg = consumer.receive(10, TimeUnit.SECONDS);
             if (msg == null) {
                 break;
             }
