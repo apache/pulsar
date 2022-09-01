@@ -467,7 +467,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         long start = System.currentTimeMillis();
         // Asynchronously produce messages
         for (int i = 0; i < numProducedMessages; i++) {
-            producer.send(new byte[expectRate / 10]);
+            producer.sendAsync(new byte[expectRate / 10]);
         }
         latch.await();
         Assert.assertEquals(totalReceived.get(), numProducedMessages, 10);
