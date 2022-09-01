@@ -36,6 +36,8 @@ class SynchronizedHashMap {
    public:
     using OptValue = Optional<V>;
     using PairVector = std::vector<std::pair<K, V>>;
+    using MapType = std::unordered_map<K, V>;
+    using Iterator = typename MapType::iterator;
 
     SynchronizedHashMap() = default;
 
@@ -46,9 +48,9 @@ class SynchronizedHashMap {
     }
 
     template <typename... Args>
-    void emplace(Args&&... args) {
+    std::pair<Iterator, bool> emplace(Args&&... args) {
         Lock lock(mutex_);
-        data_.emplace(std::forward<Args>(args)...);
+        return data_.emplace(std::forward<Args>(args)...);
     }
 
     void forEach(std::function<void(const K&, const V&)> f) const {
@@ -105,7 +107,7 @@ class SynchronizedHashMap {
         Lock lock(mutex_);
         auto it = data_.find(key);
         if (it != data_.end()) {
-            auto result = OptValue::of(it->second);
+            auto result = OptValue::of(std::move(it->second));
             data_.erase(it);
             return result;
         } else {
