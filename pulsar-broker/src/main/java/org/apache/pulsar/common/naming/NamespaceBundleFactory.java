@@ -237,6 +237,26 @@ public class NamespaceBundleFactory {
         return bundles != null ? bundles.findBundle(topic) : null;
     }
 
+    public CompletableFuture<NamespaceBundle> getBundleWithHighestThroughputAsync(NamespaceName nsName) {
+        LoadManager loadManager = pulsar.getLoadManager().get();
+        if (loadManager instanceof ModularLoadManagerWrapper) {
+            NamespaceBundles bundles = getBundles(nsName);
+            double maxMsgThroughput = -1;
+            NamespaceBundle bundleWithHighestThroughput = null;
+            for (NamespaceBundle bundle : bundles.getBundles()) {
+                BundleData bundleData = ((ModularLoadManagerWrapper) loadManager).getLoadManager()
+                        .getBundleDataOrDefault(bundle.toString());
+                if (bundleData.getTopics() > 0
+                        && bundleData.getLongTermData().totalMsgThroughput() > maxMsgThroughput) {
+                    maxMsgThroughput = bundleData.getLongTermData().totalMsgThroughput();
+                    bundleWithHighestThroughput = bundle;
+                }
+            }
+            return CompletableFuture.completedFuture(bundleWithHighestThroughput);
+        }
+        return getBundleWithHighestTopicsAsync(nsName);
+    }
+
     public NamespaceBundle getBundleWithHighestThroughput(NamespaceName nsName) {
         LoadManager loadManager = pulsar.getLoadManager().get();
         if (loadManager instanceof ModularLoadManagerWrapper) {
