@@ -396,12 +396,14 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
     }
 
     private void failureCallbackByContextAndRecycle(FlushContext flushContext, ManagedLedgerException ex){
-        if (flushContext == null || CollectionUtils.isEmpty(flushContext.asyncAddArgsList)){
+        if (flushContext == null) {
             return;
         }
         try {
-            for (AsyncAddArgs asyncAddArgs : flushContext.asyncAddArgsList) {
-                failureCallbackByArgs(asyncAddArgs, ex, false);
+            if (flushContext.asyncAddArgsList != null) {
+                for (AsyncAddArgs asyncAddArgs : flushContext.asyncAddArgsList) {
+                    failureCallbackByArgs(asyncAddArgs, ex, false);
+                }
             }
         } finally {
             flushContext.recycle();
