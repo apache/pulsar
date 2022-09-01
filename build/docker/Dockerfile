@@ -24,14 +24,21 @@ RUN mkdir /pulsar
 
 RUN apt-get update && \
     apt-get install -y software-properties-common && \
-    add-apt-repository ppa:openjdk-r/ppa && \
     apt-get update && \
     apt-get install -y tig g++ cmake libssl-dev libcurl4-openssl-dev \
                 liblog4cxx-dev google-mock libgtest-dev \
                 libboost-dev libboost-program-options-dev libboost-system-dev libboost-python-dev \
-                libxml2-utils wget \
-                curl doxygen openjdk-17-jdk-headless clang-format \
+                libxml2-utils wget apt-transport-https \
+                curl doxygen clang-format \
                 gnupg2 golang-go zip unzip libzstd-dev libsnappy-dev wireshark-dev
+
+# Install Eclipse Temurin Package
+RUN mkdir -p /etc/apt/keyrings \
+     && wget -O - https://packages.adoptium.net/artifactory/api/gpg/key/public | tee /etc/apt/keyrings/adoptium.asc \
+     && echo "deb [signed-by=/etc/apt/keyrings/adoptium.asc] https://packages.adoptium.net/artifactory/deb $(awk -F= '/^VERSION_CODENAME/{print$2}' /etc/os-release) main" | tee /etc/apt/sources.list.d/adoptium.list \
+     && apt-get update \
+     && apt-get -y dist-upgrade \
+     && apt-get -y install temurin-17-jdk
 
 # Compile and install gtest & gmock
 RUN cd /usr/src/googletest && \
