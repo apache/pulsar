@@ -485,7 +485,7 @@ This section provides step-by-step instructions on how to use the end-to-end enc
 
    **Input**
 
-   ```nodejs
+   ```javascript
    const Pulsar = require('pulsar-client');
 
    (async () => {
@@ -524,7 +524,7 @@ This section provides step-by-step instructions on how to use the end-to-end enc
 
    **Input**
 
-   ```nodejs
+   ```javascript
    const Pulsar = require('pulsar-client');
 
    (async () => {

@@ -442,7 +442,7 @@ This example shows how to change the data of a MongoDB table using the Pulsar De
  
 ### Debezium postgres connector will hang when creating snap
 
-```$xslt
+```
 #18 prio=5 os_prio=31 tid=0x00007fd83096f800 nid=0xa403 waiting on condition [0x000070000f534000]
     java.lang.Thread.State: WAITING (parking)
      at sun.misc.Unsafe.park(Native Method)
@@ -477,7 +477,7 @@ This example shows how to change the data of a MongoDB table using the Pulsar De
 
 If you encounter the above problems in synchronizing data, please refer to [this](https://github.com/apache/pulsar/issues/4075) and add the following configuration to the configuration file:
 
-```$xslt
+```
 max.queue.size=
 ```
 
