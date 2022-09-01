@@ -189,7 +189,7 @@ void ProducerImpl::handleCreateProducer(const ClientConnectionPtr& cnx, Result r
         lock.unlock();
 
         if (conf_.isEncryptionEnabled()) {
-            auto weakSelf{weak_from_this()};
+            auto weakSelf = weak_from_this();
             dataKeyRefreshTask_.setCallback([this, weakSelf](const PeriodicTask::ErrorCode& ec) {
                 auto self = weakSelf.lock();
                 if (!self) {
@@ -464,7 +464,7 @@ void ProducerImpl::sendAsyncWithStatsUpdate(const Message& msg, const SendCallba
         if (isFirstMessage) {
             batchTimer_.expires_from_now(
                 boost::posix_time::milliseconds(conf_.getBatchingMaxPublishDelayMs()));
-            auto weakSelf{weak_from_this()};
+            auto weakSelf = weak_from_this();
             batchTimer_.async_wait([this, weakSelf](const boost::system::error_code& ec) {
                 auto self = weakSelf.lock();
                 if (!self) {
@@ -893,7 +893,7 @@ void ProducerImpl::startSendTimeoutTimer() {
 void ProducerImpl::asyncWaitSendTimeout(DurationType expiryTime) {
     sendTimer_.expires_from_now(expiryTime);
 
-    auto weakSelf{weak_from_this()};
+    auto weakSelf = weak_from_this();
     sendTimer_.async_wait([weakSelf](const boost::system::error_code& err) {
         auto self = weakSelf.lock();
         if (self) {
