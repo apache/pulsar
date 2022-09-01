@@ -105,6 +105,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     private final String testTenant = "my-tenant";
     private final String testLocalCluster = "use";
     private final String testNamespace = "my-namespace";
+    private final String testNamespaceLocal = "my-namespace-local";
     protected Field uriField;
     protected UriInfo uriInfo;
     private NonPersistentTopics nonPersistentTopic;
@@ -157,6 +158,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
                 new TenantInfoImpl(Set.of("role1", "role2"), Set.of(testLocalCluster, "test")));
         admin.namespaces().createNamespace(testTenant + "/" + testNamespace, Set.of(testLocalCluster, "test"));
         admin.namespaces().createNamespace("pulsar/system", 4);
+        admin.namespaces().createNamespace(testTenant + "/" + testNamespaceLocal);
     }
 
     @Override
@@ -615,6 +617,48 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, partitionedTopicName, 5, true);
         verify(response, timeout(5000).times(1)).resume(errCaptor.capture());
         Assert.assertEquals(errCaptor.getValue().getResponse().getStatus(), Response.Status.CONFLICT.getStatusCode());
+    }
+
+    @Test
+    public void testUpdatePartitionedTopicHavingProperties() throws Exception {
+        final String tenant = "tenant-testUpdatePartitionedTopicHavingProperties";
+        final String namespace = "ns-testUpdatePartitionedTopicHavingProperties";
+        final String topic = "topic-testUpdatePartitionedTopicHavingProperties";
+        Map<String, String> topicMetadata = new HashMap<>();
+        topicMetadata.put("key1", "value1");
+
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
+        admin.tenants().createTenant(tenant, tenantInfo);
+        admin.namespaces().createNamespace(tenant + "/" + namespace, Set.of("test"));
+
+        // create a 2 partition topic with properties key1->value1
+        AsyncResponse response = mock(AsyncResponse.class);
+        ArgumentCaptor<PartitionedTopicMetadata> responseCaptor =
+            ArgumentCaptor.forClass(PartitionedTopicMetadata.class);
+        PartitionedTopicMetadata metadata = new PartitionedTopicMetadata(2, topicMetadata);
+        persistentTopics.createPartitionedTopic(response, tenant, namespace, topic, metadata, true);
+        Awaitility.await().untilAsserted(() -> {
+            persistentTopics.getPartitionedMetadata(response,
+                tenant, namespace, topic, true, false);
+            verify(response, timeout(5000).atLeast(1)).resume(responseCaptor.capture());
+            Assert.assertEquals(responseCaptor.getValue().properties.size(), 1);
+            Assert.assertEquals(responseCaptor.getValue().properties, topicMetadata);
+        });
+
+        // update partition to 5
+        final int updatedPartition = 5;
+        AsyncResponse response2 = mock(AsyncResponse.class);
+        ArgumentCaptor<PartitionedTopicMetadata> responseCaptor2 =
+            ArgumentCaptor.forClass(PartitionedTopicMetadata.class);
+        persistentTopics.updatePartitionedTopic(response2, tenant, namespace, topic, false, false, false, updatedPartition);
+        Awaitility.await().untilAsserted(() -> {
+            persistentTopics.getPartitionedMetadata(response2,
+                tenant, namespace, topic, true, false);
+            verify(response2, timeout(5000).atLeast(1)).resume(responseCaptor2.capture());
+            Assert.assertEquals(responseCaptor2.getValue().partitions, updatedPartition);
+            Assert.assertEquals(responseCaptor2.getValue().properties.size(), 1);
+            Assert.assertEquals(responseCaptor2.getValue().properties, topicMetadata);
+        });
     }
 
     @Test
@@ -1517,4 +1561,45 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         }
     }
 
+    @Test
+    public void testUpdatePartitionedTopic()
+            throws KeeperException, InterruptedException, PulsarAdminException {
+        String topicName = "testUpdatePartitionedTopic";
+        String groupName = "cg_testUpdatePartitionedTopic";
+        AsyncResponse response = mock(AsyncResponse.class);
+        ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
+        persistentTopics.createPartitionedTopic(response, testTenant, testNamespaceLocal, topicName, 2, true);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
+
+        response = mock(AsyncResponse.class);
+        persistentTopics.createSubscription(response, testTenant, testNamespaceLocal, topicName, groupName, true,
+                new ResetCursorData(MessageId.latest), false);
+        responseCaptor = ArgumentCaptor.forClass(Response.class);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
+
+        response = mock(AsyncResponse.class);
+        ArgumentCaptor<PartitionedTopicMetadata> metaCaptor = ArgumentCaptor.forClass(PartitionedTopicMetadata.class);
+        persistentTopics.getPartitionedMetadata(response, testTenant, testNamespaceLocal, topicName, true, false);
+        verify(response, timeout(5000).times(1)).resume(metaCaptor.capture());
+        PartitionedTopicMetadata partitionedTopicMetadata = metaCaptor.getValue();
+        Assert.assertEquals(partitionedTopicMetadata.partitions, 2);
+
+        doNothing().when(persistentTopics).validatePartitionedTopicName(any(), any(), any());
+        doReturn(CompletableFuture.completedFuture(null)).when(persistentTopics)
+                .validatePartitionedTopicMetadataAsync();
+        response = mock(AsyncResponse.class);
+        responseCaptor = ArgumentCaptor.forClass(Response.class);
+        persistentTopics.updatePartitionedTopic(response, testTenant, testNamespaceLocal, topicName, false, true,
+                true, 4);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+
+        response = mock(AsyncResponse.class);
+        metaCaptor = ArgumentCaptor.forClass(PartitionedTopicMetadata.class);
+        persistentTopics.getPartitionedMetadata(response, testTenant, testNamespaceLocal, topicName, true, false);
+        verify(response, timeout(5000).times(1)).resume(metaCaptor.capture());
+        partitionedTopicMetadata = metaCaptor.getValue();
+        Assert.assertEquals(partitionedTopicMetadata.partitions, 4);
+    }
 }

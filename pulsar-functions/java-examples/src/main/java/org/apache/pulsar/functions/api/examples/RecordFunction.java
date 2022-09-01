@@ -38,6 +38,7 @@ public class RecordFunction implements Function<String, Record<String>> {
         return context.newOutputRecordBuilder(Schema.STRING)
                 .destinationTopic(publishTopic)
                 .value(output)
+                .schema(Schema.STRING)
                 .properties(properties)
                 .build();
     }

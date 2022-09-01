@@ -1141,6 +1141,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                 .map(PersistentSubscription::getName).toList();
                 return FutureUtil.failedFuture(
                         new TopicBusyException("Topic has subscriptions did not catch up: " + backlogSubs));
+            } else if (TopicName.get(topic).isPartitioned()
+                    && (getProducers().size() > 0 || getNumberOfConsumers() > 0)
+                    && getBrokerService().isAllowAutoTopicCreation(topic)) {
+                // to avoid inconsistent metadata as a result
+                return FutureUtil.failedFuture(
+                        new TopicBusyException("Partitioned topic has active consumers or producers and "
+                                + "auto-creation of topic is allowed"));
             }
 
             fenceTopicToCloseOrDelete(); // Avoid clients reconnections while deleting
@@ -1280,6 +1287,17 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         subscriptions.forEach((s, sub) -> futures.add(sub.disconnect()));
         if (this.resourceGroupPublishLimiter != null) {
             this.resourceGroupPublishLimiter.unregisterRateLimitFunction(this.getName());
+        }
+
+        //close entry filters
+        if (entryFilters != null) {
+            entryFilters.forEach((name, filter) -> {
+                try {
+                    filter.close();
+                } catch (Exception e) {
+                    log.warn("Error shutting down entry filter {}", name, e);
+                }
+            });
         }
 
         CompletableFuture<Void> clientCloseFuture = closeWithoutWaitingClientDisconnect

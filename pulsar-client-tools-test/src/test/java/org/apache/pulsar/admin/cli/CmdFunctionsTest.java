@@ -859,6 +859,44 @@ public class CmdFunctionsTest {
         verify(functions, times(1)).updateFunctionWithUrl(any(FunctionConfig.class), anyString(), eq(updateOptions));
     }
 
+    @Test
+    public void testDownloadFunction() throws Exception {
+        cmd.run(new String[] {
+                "download",
+                "--destination-file", JAR_NAME,
+                "--name", FN_NAME,
+                "--tenant", TENANT,
+                "--namespace", NAMESPACE
+        });
+        verify(functions, times(1))
+                .downloadFunction(JAR_NAME, TENANT, NAMESPACE, FN_NAME, false);
+    }
+
+    @Test
+    public void testDownloadFunctionByPath() throws Exception {
+        cmd.run(new String[] {
+                "download",
+                "--destination-file", JAR_NAME,
+                "--path", PACKAGE_URL
+        });
+        verify(functions, times(1))
+                .downloadFunction(JAR_NAME, PACKAGE_URL);
+    }
+
+    @Test
+    public void testDownloadTransformFunction() throws Exception {
+        cmd.run(new String[] {
+                "download",
+                "--destination-file", JAR_NAME,
+                "--name", FN_NAME,
+                "--tenant", TENANT,
+                "--namespace", NAMESPACE,
+                "--transform-function"
+        });
+        verify(functions, times(1))
+                .downloadFunction(JAR_NAME, TENANT, NAMESPACE, FN_NAME, true);
+    }
+
 
     public static class ConsoleOutputCapturer {
         private ByteArrayOutputStream stdout;

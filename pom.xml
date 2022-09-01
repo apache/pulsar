@@ -175,9 +175,9 @@ flexible messaging model and an intuitive client API.</description>
     <trino.version>363</trino.version>
     <scala.binary.version>2.13</scala.binary.version>
     <scala-library.version>2.13.6</scala-library.version>
-    <debezium.version>1.7.2.Final</debezium.version>
-    <debezium.postgresql.version>42.4.1</debezium.postgresql.version>
-    <debezium.mysql.version>8.0.28</debezium.mysql.version>
+    <debezium.version>1.9.5.Final</debezium.version>
+    <debezium.postgresql.version>42.5.0</debezium.postgresql.version>
+    <debezium.mysql.version>8.0.30</debezium.mysql.version>
     <jsonwebtoken.version>0.11.1</jsonwebtoken.version>
     <opencensus.version>0.28.0</opencensus.version>
     <hbase.version>2.4.9</hbase.version>
@@ -211,7 +211,7 @@ flexible messaging model and an intuitive client API.</description>
     <jakarta.activation.version>1.2.2</jakarta.activation.version>
     <jakarta.xml.bind.version>2.3.3</jakarta.xml.bind.version>
     <jakarta.validation.version>2.0.2</jakarta.validation.version>
-    <jna.version>4.2.0</jna.version>
+    <jna.version>5.12.1</jna.version>
     <kubernetesclient.version>12.0.1</kubernetesclient.version>
     <okhttp3.version>4.9.3</okhttp3.version>
     <!-- use okio version that matches the okhttp3 version -->
@@ -1537,7 +1537,7 @@ flexible messaging model and an intuitive client API.</description>
                 <exclude>**/django/stats/migrations/*.py</exclude>
                 <exclude>site2/**</exclude>
                 <exclude>generated-site/**</exclude>
-                <exclude>.github/*.md</exclude>
+                <exclude>**/*.md</exclude>
                 <exclude>**/.idea/**</exclude>
                 <exclude>**/.mvn/**</exclude>
                 <exclude>**/generated/**</exclude>
@@ -1671,7 +1671,7 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>**/_helpers.tpl</exclude>
 
             <!-- project ignored files -->
-            <exclude>*.md</exclude>
+            <exclude>**/*.md</exclude>
             <exclude>.github/**</exclude>
             <exclude>**/*.nar</exclude>
             <exclude>**/.terraform/**</exclude>
@@ -2089,7 +2089,9 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-client-admin-api</module>
         <module>pulsar-client-admin</module>
         <module>pulsar-client-admin-shaded</module>
+        <module>pulsar-client-tools-api</module>
         <module>pulsar-client-tools</module>
+        <module>pulsar-client-tools-customcommand-example</module>
         <module>pulsar-client-tools-test</module>
         <module>pulsar-client-all</module>
         <module>pulsar-websocket</module>
@@ -2152,7 +2154,9 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-client</module>
         <module>pulsar-client-admin-api</module>
         <module>pulsar-client-admin</module>
+        <module>pulsar-client-tools-api</module>
         <module>pulsar-client-tools</module>
+        <module>pulsar-client-tools-customcommand-example</module>
         <module>pulsar-client-tools-test</module>
         <module>pulsar-websocket</module>
         <module>pulsar-proxy</module>

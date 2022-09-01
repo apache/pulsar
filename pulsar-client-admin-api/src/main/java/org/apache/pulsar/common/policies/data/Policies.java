@@ -131,6 +131,9 @@ public class Policies {
         LARGEST, HOT;
     }
 
+    @SuppressWarnings("checkstyle:MemberName")
+    public EntryFilters entryFilters = null;
+
     @Override
     public int hashCode() {
         return Objects.hash(auth_policies, replication_clusters,
@@ -154,7 +157,7 @@ public class Policies {
                 offload_policies,
                 subscription_types_enabled,
                 properties,
-                resource_group_name,
+                resource_group_name, entryFilters,
                 number_of_buckets);
     }
 
@@ -201,6 +204,7 @@ public class Policies {
                     && Objects.equals(subscription_types_enabled, other.subscription_types_enabled)
                     && Objects.equals(properties, other.properties)
                     && Objects.equals(resource_group_name, other.resource_group_name)
+                    && Objects.equals(entryFilters, other.entryFilters)
                     && Objects.equals(number_of_buckets, other.number_of_buckets);
         }
 

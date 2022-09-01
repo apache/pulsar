@@ -398,6 +398,13 @@ public class CmdSinks extends CmdBase {
         @Parameter(names = "--secrets", description = "The map of secretName to an object that encapsulates "
                 + "how the secret is fetched by the underlying secrets provider")
         protected String secretsString;
+        @Parameter(names = "--transform-function", description = "Transform function applied before the Sink")
+        protected String transformFunction;
+        @Parameter(names = "--transform-function-classname", description = "The transform function class name")
+        protected String transformFunctionClassName;
+        @Parameter(names = "--transform-function-config", description = "Configuration of the transform function "
+                + "applied before the Sink")
+        protected String transformFunctionConfig;
 
         protected SinkConfig sinkConfig;
 
@@ -576,6 +583,18 @@ public class CmdSinks extends CmdBase {
                     secretsMap = Collections.emptyMap();
                 }
                 sinkConfig.setSecrets(secretsMap);
+            }
+
+            if (transformFunction != null) {
+                sinkConfig.setTransformFunction(transformFunction);
+            }
+
+            if (transformFunctionClassName != null) {
+                sinkConfig.setTransformFunctionClassName(transformFunctionClassName);
+            }
+
+            if (transformFunctionConfig != null) {
+                sinkConfig.setTransformFunctionConfig(transformFunctionConfig);
             }
 
             // check if configs are valid
