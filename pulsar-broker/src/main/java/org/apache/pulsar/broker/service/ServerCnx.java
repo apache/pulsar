@@ -808,6 +808,17 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 connect.hasOriginalPrincipal() ? connect.getOriginalPrincipal() : null);
         }
 
+        if (!this.service.getPulsar().isRunning()) {
+            if (log.isDebugEnabled()) {
+                log.debug("Failed CONNECT from {} due to pulsar service is not ready: {} state", remoteAddress,
+                        this.service.getPulsar().getState().toString());
+            }
+            ctx.writeAndFlush(
+                    Commands.newError(-1, ServerError.ServiceNotReady, "Failed due to pulsar service is not ready"));
+            close();
+            return;
+        }
+
         String clientVersion = connect.getClientVersion();
         int clientProtocolVersion = connect.getProtocolVersion();
         features = new FeatureFlags();
