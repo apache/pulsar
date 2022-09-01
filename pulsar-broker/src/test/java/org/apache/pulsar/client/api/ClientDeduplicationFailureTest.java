@@ -59,7 +59,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "quarantine")
+@Test(groups = "broker")
 public class ClientDeduplicationFailureTest {
     LocalBookkeeperEnsemble bkEnsemble;
 
