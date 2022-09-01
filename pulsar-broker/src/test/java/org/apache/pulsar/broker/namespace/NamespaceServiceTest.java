@@ -59,6 +59,7 @@ import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.PulsarClient;
 
@@ -595,6 +596,26 @@ public class NamespaceServiceTest extends BrokerTestBase {
         }
     }
 
+    public void testSplitBUndleWithNoBundle() throws  Exception {
+        conf.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
+        restartBroker();
+        String namespace = "prop/test/ns-abc2";
+
+        BundlesData bundleData = BundlesData.builder().numBundles(10).build();
+        admin.namespaces().createNamespace(namespace, bundleData);
+
+        NamespaceService namespaceService = pulsar.getNamespaceService();
+        NamespaceName nsname = NamespaceName.get(namespace);
+        NamespaceBundles bundles = namespaceService.getNamespaceBundleFactory().getBundles(nsname);
+
+        try {
+            admin.namespaces().splitNamespaceBundle(namespace, Policies.BundleType.HOT.toString(), false, null);
+            fail("should have failed.");
+        } catch (Exception ex) {
+            Assert.assertEquals(404, ((PulsarAdminException) ex).getStatusCode());
+            Assert.assertEquals("Bundle range HOT not found", ex.getMessage());
+        }
+    }
     /**
      * Test bundle split with hot bundle which is serving highest load.
      *
