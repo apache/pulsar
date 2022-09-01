@@ -601,6 +601,9 @@ jobs:
           - name: Schema
             group: SCHEMA
 
+          - name: Plugin
+            group: PLUGIN
+
           - name: Pulsar Connectors - Thread
             group: PULSAR_CONNECTORS_THREAD
 
