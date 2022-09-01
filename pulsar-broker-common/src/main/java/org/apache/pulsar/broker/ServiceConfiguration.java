@@ -2157,8 +2157,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             dynamic = true,
             category = CATEGORY_LOAD_BALANCER,
-            doc = "Acceptable difference between qps and loadBalancerNamespaceBundleMaxMsgRate "
-                    + " or flow and loadBalancerNamespaceBundleMaxBandwidthMbytes "
+            doc = "In FlowOrQpsEquallyDivideBundleSplitAlgorithm,"
+                    + " if msgRate >= loadBalancerNamespaceBundleMaxMsgRate * "
+                    + " (100 + flowOrQpsDifferenceThresholdPercentage)/100.0 "
+                    + " or throughput >=  loadBalancerNamespaceBundleMaxBandwidthMbytes * "
+                    + " (100 + flowOrQpsDifferenceThresholdPercentage)/100.0, "
+                    + " execute split bundle"
     )
     private int flowOrQpsDifferenceThresholdPercentage = 10;
 
