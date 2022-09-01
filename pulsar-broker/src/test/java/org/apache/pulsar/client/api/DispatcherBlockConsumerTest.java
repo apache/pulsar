@@ -592,7 +592,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test(dataProvider = "gracefulUnload", invocationCount = 1000)
+    @Test(dataProvider = "gracefulUnload")
     public void testBrokerSubscriptionRecovery(boolean unloadBundleGracefully) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
