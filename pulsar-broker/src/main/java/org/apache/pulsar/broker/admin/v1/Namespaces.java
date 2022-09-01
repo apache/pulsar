@@ -1141,10 +1141,13 @@ public class Namespaces extends NamespacesBase {
             @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, cluster, namespace);
         validateNamespacePolicyOperationAsync(namespaceName, PolicyName.REPLICATION_RATE, PolicyOperation.READ)
-                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
-                .thenApply(policies -> {
+                .thenCompose(__ -> namespaceResources().getPoliciesAsync(namespaceName))
+                .thenApply(policiesOpt -> {
+                    if (!policiesOpt.isPresent()) {
+                        throw new RestException(Response.Status.NOT_FOUND, "Namespace policies does not exist");
+                    }
                     String clusterName = pulsar().getConfiguration().getClusterName();
-                    return policies.replicatorDispatchRate.get(clusterName);
+                    return policiesOpt.get().replicatorDispatchRate.get(clusterName);
                 }).thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
                     log.error("[{}] Failed to get replicator dispatch-rate configured for the namespace {}",
