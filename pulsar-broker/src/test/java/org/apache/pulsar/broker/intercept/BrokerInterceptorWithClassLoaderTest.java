@@ -69,6 +69,12 @@ public class BrokerInterceptorWithClassLoaderTest {
             public void beforeSendMessage(Subscription subscription, Entry entry, long[] ackSet, MessageMetadata msgMetadata) {
                 assertEquals(Thread.currentThread().getContextClassLoader(), narLoader);
             }
+
+            @Override
+            public void beforeSendMessage(Subscription subscription,
+                                          Entry entry, long[] ackSet, MessageMetadata msgMetadata, Consumer consumer) {
+                assertEquals(Thread.currentThread().getContextClassLoader(), narLoader);
+            }
             @Override
             public void onConnectionCreated(ServerCnx cnx) {
                 assertEquals(Thread.currentThread().getContextClassLoader(), narLoader);
@@ -177,6 +183,8 @@ public class BrokerInterceptorWithClassLoaderTest {
         // test beforeSendMessage
         brokerInterceptorWithClassLoader
                 .beforeSendMessage(mock(Subscription.class), mock(Entry.class), null, null);
+        brokerInterceptorWithClassLoader
+                .beforeSendMessage(mock(Subscription.class), mock(Entry.class), null, null, null);
         assertEquals(Thread.currentThread().getContextClassLoader(), curClassLoader);
         // test close
         brokerInterceptorWithClassLoader.close();
