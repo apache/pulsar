@@ -892,6 +892,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
     public void testUpdatePartitionedTopicProperties() throws Exception {
         final String namespace = "prop-xyz/ns2";
         final String topicName = "persistent://" + namespace + "/testUpdatePartitionedTopicProperties";
+        final String topicNameTwo = "persistent://" + namespace + "/testUpdatePartitionedTopicProperties2";
         admin.namespaces().createNamespace(namespace, 20);
 
         // create partitioned topic without properties
@@ -924,6 +925,25 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(properties.size(), 2);
         Assert.assertEquals(properties.get("key1"), "value11");
         Assert.assertEquals(properties.get("key2"), "value2");
+
+        // create topic without properties
+        admin.topics().createPartitionedTopic(topicNameTwo, 2);
+        properties = admin.topics().getProperties(topicNameTwo);
+        Assert.assertNull(properties);
+        // remove key of properties on this topic
+        admin.topics().removeProperties(topicNameTwo, "key1");
+        properties = admin.topics().getProperties(topicNameTwo);
+        Assert.assertNull(properties);
+        Map<String, String> topicProp = new HashMap<>();
+        topicProp.put("key1", "value1");
+        topicProp.put("key2", "value2");
+        admin.topics().updateProperties(topicNameTwo, topicProp);
+        properties = admin.topics().getProperties(topicNameTwo);
+        Assert.assertEquals(properties, topicProp);
+        admin.topics().removeProperties(topicNameTwo, "key1");
+        topicProp.remove("key1");
+        properties = admin.topics().getProperties(topicNameTwo);
+        Assert.assertEquals(properties, topicProp);
     }
 
     @Test
