@@ -50,14 +50,13 @@ public class PulsarAdminBuilderImplTest {
         config.put("requestTimeoutMs", 10);
         config.put("autoCertRefreshSeconds", 20);
         config.put("connectionTimeoutMs", 30);
+        config.put("readTimeoutMs", 40);
         PulsarAdminBuilder adminBuilder = PulsarAdmin.builder().loadConf(config);
-        ClassLoader classLoader = PulsarAdminBuilderImplTest.class.getClassLoader();
-        adminBuilder.setContextClassLoader(classLoader);
         PulsarAdminImpl admin = (PulsarAdminImpl) adminBuilder.build();
         ClientConfigurationData clientConfigData = admin.getClientConfigData();
         Assert.assertEquals(clientConfigData.getRequestTimeoutMs(), 10);
         Assert.assertEquals(clientConfigData.getAutoCertRefreshSeconds(), 20);
         Assert.assertEquals(clientConfigData.getConnectionTimeoutMs(), 30);
-        Assert.assertEquals(clientConfigData.getContextClassLoader(), classLoader);
+        Assert.assertEquals(clientConfigData.getReadTimeoutMs(), 40);
     }
 }

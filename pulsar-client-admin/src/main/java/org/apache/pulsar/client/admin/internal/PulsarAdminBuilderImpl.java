@@ -34,9 +34,11 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
 
     protected ClientConfigurationData conf;
 
+    private ClassLoader clientBuilderClassLoader = null;
+
     @Override
     public PulsarAdmin build() throws PulsarClientException {
-        return new PulsarAdminImpl(conf.getServiceUrl(), conf);
+        return new PulsarAdminImpl(conf.getServiceUrl(), conf, clientBuilderClassLoader);
     }
 
     public PulsarAdminBuilderImpl() {
@@ -182,7 +184,7 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
 
     @Override
     public PulsarAdminBuilder readTimeout(int readTimeout, TimeUnit readTimeoutUnit) {
-        this.conf.setRequestTimeoutMs((int) readTimeoutUnit.toMillis(readTimeout));
+        this.conf.setReadTimeoutMs((int) readTimeoutUnit.toMillis(readTimeout));
         return this;
     }
 
@@ -200,7 +202,7 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
 
     @Override
     public PulsarAdminBuilder setContextClassLoader(ClassLoader clientBuilderClassLoader) {
-        this.conf.setContextClassLoader(clientBuilderClassLoader);
+        this.clientBuilderClassLoader = clientBuilderClassLoader;
         return this;
     }
 }
