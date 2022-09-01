@@ -1159,7 +1159,8 @@ public abstract class NamespacesBase extends AdminResource {
                 .thenCompose(policies->{
                     String bundleRange = getBundleRange(bundleName);
                     if (bundleRange == null) {
-                        throw new RestException(Status.PRECONDITION_FAILED, "Failed to find a bundleRange");
+                        throw new RestException(Status.NOT_FOUND,
+                                String.format("Bundle range {} not found", bundleName));
                     }
                     return validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles, bundleRange,
                             authoritative, false)
