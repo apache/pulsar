@@ -1192,12 +1192,16 @@ public class Namespaces extends NamespacesBase {
                              @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
         validateNamespacePolicyOperationAsync(namespaceName, PolicyName.RETENTION, PolicyOperation.READ)
-                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
-                .thenAccept(policies -> asyncResponse.resume(policies.retention_policies))
+                .thenCompose(__ -> namespaceResources().getPoliciesAsync(namespaceName))
+                .thenApply(policiesOpt -> {
+                    Policies policies = policiesOpt.orElseThrow(() -> new RestException(Response.Status.NOT_FOUND,
+                            "Namespace policies does not exist"));
+                    return policies.retention_policies;
+                }).thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
-                    log.error("[{}] Failed to get retention config on a namespace {}", clientAppId(), namespaceName,
-                            ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    log.error("[{}] Failed to get retention config on a namespace {}",
+                            clientAppId(), namespaceName, ex);
                     return null;
                 });
     }
@@ -1209,10 +1213,26 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 404, message = "Namespace does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification"),
             @ApiResponse(code = 412, message = "Retention Quota must exceed backlog quota") })
-    public void setRetention(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
-            @ApiParam(value = "Retention policies for the specified namespace") RetentionPolicies retention) {
+    public void setRetention(@Suspended final AsyncResponse asyncResponse,
+                             @PathParam("tenant") String tenant,
+                             @PathParam("namespace") String namespace,
+                             @ApiParam(value = "Retention policies for the specified namespace")
+                                 RetentionPolicies retention) {
         validateNamespaceName(tenant, namespace);
-        internalSetRetention(retention);
+        validateRetentionPolicies(retention);
+        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.RETENTION, PolicyOperation.WRITE)
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenCompose(__ -> internalSetRetentionAsync(retention))
+                .thenAccept(__ -> {
+                    asyncResponse.resume(Response.noContent().build());
+                    log.info("[{}] Successfully updated retention configuration: namespace={}, map={}", clientAppId(),
+                            namespaceName, retention);
+                }).exceptionally(ex -> {
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    log.error("[{}] Failed to update retention configuration for namespace {}",
+                            clientAppId(), namespaceName, ex);
+                    return null;
+                });
     }
 
     @DELETE
@@ -1222,10 +1242,23 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 404, message = "Namespace does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification"),
             @ApiResponse(code = 412, message = "Retention Quota must exceed backlog quota") })
-    public void removeRetention(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
-            @ApiParam(value = "Retention policies for the specified namespace") RetentionPolicies retention) {
+    public void removeRetention(@Suspended final AsyncResponse asyncResponse,
+                                @PathParam("tenant") String tenant,
+                                @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        internalSetRetention(null);
+        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.RETENTION, PolicyOperation.WRITE)
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenCompose(__ -> internalSetRetentionAsync(null))
+                .thenAccept(__ -> {
+                    asyncResponse.resume(Response.noContent().build());
+                    log.info("[{}] Successfully delete retention configuration: namespace={}",
+                            clientAppId(), namespaceName);
+                }).exceptionally(ex -> {
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    log.error("[{}] Failed to delete retention configuration for namespace {}",
+                            clientAppId(), namespaceName, ex);
+                    return null;
+                });
     }
 
     @POST

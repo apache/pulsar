@@ -1473,6 +1473,25 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
+    protected CompletableFuture<Void> internalSetRetentionAsync(RetentionPolicies retentionPolicies) {
+        return namespaceResources().setPoliciesAsync(namespaceName, policies -> {
+            Map<BacklogQuota.BacklogQuotaType, BacklogQuota> backlogQuotaMap = policies.backlog_quota_map;
+            if (backlogQuotaMap.isEmpty()) {
+                policies.retention_policies = retentionPolicies;
+                return policies;
+            }
+            // If we have backlog quota, we have to check the conflict
+            BacklogQuota backlogQuota = backlogQuotaMap.get(BacklogQuotaType.destination_storage);
+            boolean passCheck = checkBacklogQuota(backlogQuota, retentionPolicies);
+            if (!passCheck) {
+                throw new RestException(Response.Status.PRECONDITION_FAILED,
+                        "Retention Quota must exceed configured backlog quota for namespace.");
+            }
+            policies.retention_policies = retentionPolicies;
+            return policies;
+        });
+    }
+
     protected void internalSetRetention(RetentionPolicies retention) {
         validateRetentionPolicies(retention);
         validateNamespacePolicyOperation(namespaceName, PolicyName.RETENTION, PolicyOperation.WRITE);
@@ -2003,39 +2022,6 @@ public abstract class NamespacesBase extends AdminResource {
                 .build();
     }
 
-    private void validatePolicies(NamespaceName ns, Policies policies) {
-        if (ns.isV2() && policies.replication_clusters.isEmpty()) {
-            // Default to local cluster
-            policies.replication_clusters = Collections.singleton(config().getClusterName());
-        }
-
-        // Validate cluster names and permissions
-        policies.replication_clusters.forEach(cluster -> validateClusterForTenant(ns.getTenant(), cluster));
-
-        if (policies.message_ttl_in_seconds != null && policies.message_ttl_in_seconds < 0) {
-            throw new RestException(Status.PRECONDITION_FAILED, "Invalid value for message TTL");
-        }
-
-        if (policies.bundles != null && policies.bundles.getNumBundles() > 0) {
-            if (policies.bundles.getBoundaries() == null || policies.bundles.getBoundaries().size() == 0) {
-                policies.bundles = getBundles(policies.bundles.getNumBundles());
-            } else {
-                policies.bundles = validateBundlesData(policies.bundles);
-            }
-        } else {
-            int defaultNumberOfBundles = config().getDefaultNumberOfNamespaceBundles();
-            policies.bundles = getBundles(defaultNumberOfBundles);
-        }
-
-        if (policies.persistence != null) {
-            validatePersistencePolicies(policies.persistence);
-        }
-
-        if (policies.retention_policies != null) {
-            validateRetentionPolicies(policies.retention_policies);
-        }
-    }
-
     private CompletableFuture<Void> validatePoliciesAsync(NamespaceName ns, Policies policies) {
         if (ns.isV2() && policies.replication_clusters.isEmpty()) {
             // Default to local cluster
@@ -2073,9 +2059,6 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void validateRetentionPolicies(RetentionPolicies retention) {
-        if (retention == null) {
-            return;
-        }
         checkArgument(retention.getRetentionSizeInMB() >= -1,
                 "Invalid retention policy: size limit must be >= -1");
         checkArgument(retention.getRetentionTimeInMinutes() >= -1,
