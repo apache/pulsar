@@ -28,14 +28,12 @@
 #include <mutex>
 #include <lib/TopicName.h>
 #include "ProducerImplBase.h"
-#include "ConsumerImplBase.h"
 #include <atomic>
 #include <vector>
 #include "ServiceNameResolver.h"
 
 namespace pulsar {
 
-class ClientImpl;
 class PulsarFriend;
 typedef std::shared_ptr<ClientImpl> ClientImplPtr;
 typedef std::weak_ptr<ClientImpl> ClientImplWeakPtr;
@@ -43,6 +41,9 @@ typedef std::weak_ptr<ClientImpl> ClientImplWeakPtr;
 class ReaderImpl;
 typedef std::shared_ptr<ReaderImpl> ReaderImplPtr;
 typedef std::weak_ptr<ReaderImpl> ReaderImplWeakPtr;
+
+class ConsumerImplBase;
+typedef std::weak_ptr<ConsumerImplBase> ConsumerImplBaseWeakPtr;
 
 std::string generateRandomName();
 

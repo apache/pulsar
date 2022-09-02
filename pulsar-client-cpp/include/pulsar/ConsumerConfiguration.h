@@ -31,6 +31,8 @@
 #include <pulsar/InitialPosition.h>
 #include <pulsar/KeySharedPolicy.h>
 #include <pulsar/ConsumerEventListener.h>
+#include <pulsar/Messages.h>
+#include "BatchReceivePolicy.h"
 
 namespace pulsar {
 
@@ -40,6 +42,7 @@ class PulsarWrapper;
 /// Callback definition for non-data operation
 typedef std::function<void(Result result)> ResultCallback;
 typedef std::function<void(Result, const Message& msg)> ReceiveCallback;
+typedef std::function<void(Result, const Messages& msgs)> BatchReceiveCallback;
 typedef std::function<void(Result result, MessageId messageId)> GetLastMessageIdCallback;
 
 /// Callback definition for MessageListener
@@ -377,6 +380,20 @@ class PULSAR_PUBLIC ConsumerConfiguration {
      * @return the configured `InitialPosition` for the consumer
      */
     InitialPosition getSubscriptionInitialPosition() const;
+
+    /**
+     * Set batch receive policy.
+     *
+     * @param batchReceivePolicy the default is xxx
+     */
+    void setBatchReceivePolicy(const BatchReceivePolicy& batchReceivePolicy);
+
+    /**
+     * Get batch receive policy.
+     *
+     * @return batch receive policy
+     */
+    const BatchReceivePolicy& getBatchReceivePolicy() const;
 
     /**
      * Set whether the subscription status should be replicated.

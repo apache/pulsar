@@ -61,6 +61,9 @@ TEST(ConsumerConfigurationTest, testDefaultConfig) {
     ASSERT_EQ(conf.getPriorityLevel(), 0);
     ASSERT_EQ(conf.getMaxPendingChunkedMessage(), 10);
     ASSERT_EQ(conf.isAutoAckOldestChunkedMessageOnQueueFull(), false);
+    ASSERT_EQ(conf.getBatchReceivePolicy().getMaxNumMessages(), -1);
+    ASSERT_EQ(conf.getBatchReceivePolicy().getMaxNumBytes(), 10 * 1024 * 1024);
+    ASSERT_EQ(conf.getBatchReceivePolicy().getTimeoutMs(), 100);
 }
 
 TEST(ConsumerConfigurationTest, testCustomConfig) {
@@ -151,6 +154,11 @@ TEST(ConsumerConfigurationTest, testCustomConfig) {
 
     conf.setAutoAckOldestChunkedMessageOnQueueFull(true);
     ASSERT_TRUE(conf.isAutoAckOldestChunkedMessageOnQueueFull());
+
+    conf.setBatchReceivePolicy(BatchReceivePolicy(10, 10, 100));
+    ASSERT_EQ(conf.getBatchReceivePolicy().getMaxNumMessages(), 10);
+    ASSERT_EQ(conf.getBatchReceivePolicy().getMaxNumBytes(), 10);
+    ASSERT_EQ(conf.getBatchReceivePolicy().getTimeoutMs(), 100);
 }
 
 TEST(ConsumerConfigurationTest, testReadCompactPersistentExclusive) {

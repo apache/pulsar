@@ -19,6 +19,7 @@
 #include <lib/ConsumerConfigurationImpl.h>
 
 #include <stdexcept>
+#include <pulsar/ConsumerConfiguration.h>
 
 namespace pulsar {
 
@@ -258,6 +259,14 @@ ConsumerConfiguration& ConsumerConfiguration::setAutoAckOldestChunkedMessageOnQu
 
 bool ConsumerConfiguration::isAutoAckOldestChunkedMessageOnQueueFull() const {
     return impl_->autoAckOldestChunkedMessageOnQueueFull;
+}
+
+void ConsumerConfiguration::setBatchReceivePolicy(const BatchReceivePolicy& batchReceivePolicy) {
+    impl_->batchReceivePolicy = batchReceivePolicy;
+}
+
+const BatchReceivePolicy& ConsumerConfiguration::getBatchReceivePolicy() const {
+    return impl_->batchReceivePolicy;
 }
 
 }  // namespace pulsar

@@ -64,9 +64,7 @@ enum ConsumerTopicType
     Partitioned
 };
 
-class ConsumerImpl : public ConsumerImplBase,
-                     public HandlerBase,
-                     public std::enable_shared_from_this<ConsumerImpl> {
+class ConsumerImpl : public ConsumerImplBase {
    public:
     ConsumerImpl(const ClientImplPtr client, const std::string& topic, const std::string& subscriptionName,
                  const ConsumerConfiguration&,
@@ -147,7 +145,10 @@ class ConsumerImpl : public ConsumerImplBase,
     // overrided methods from HandlerBase
     void connectionOpened(const ClientConnectionPtr& cnx) override;
     void connectionFailed(Result result) override;
-    HandlerBaseWeakPtr get_weak_from_this() override { return shared_from_this(); }
+
+    // impl methods from ConsumerImpl base
+    bool hasEnoughMessagesForBatchReceive() const override;
+    void notifyBatchPendingReceivedCallback(const BatchReceiveCallback& callback) override;
 
     void handleCreateConsumer(const ClientConnectionPtr& cnx, Result result);
 
@@ -159,7 +160,8 @@ class ConsumerImpl : public ConsumerImplBase,
     ConsumerStatsBasePtr consumerStatsBasePtr_;
 
    private:
-    bool waitingForZeroQueueSizeMessage;
+    volatile bool waitingForZeroQueueSizeMessage;
+    std::shared_ptr<ConsumerImpl> get_shared_this_ptr();
     bool uncompressMessageIfNeeded(const ClientConnectionPtr& cnx, const proto::MessageIdData& messageIdData,
                                    const proto::MessageMetadata& metadata, SharedBuffer& payload,
                                    bool checkMaxMessageSize);
@@ -178,6 +180,7 @@ class ConsumerImpl : public ConsumerImplBase,
     Result receiveHelper(Message& msg);
     Result receiveHelper(Message& msg, int timeout);
     void statsCallback(Result, ResultCallback, proto::CommandAck_AckType);
+    void executeNotifyCallback(Message& msg);
     void notifyPendingReceivedCallback(Result result, Message& message, const ReceiveCallback& callback);
     void failPendingReceiveCallback();
     void setNegativeAcknowledgeEnabledForTesting(bool enabled) override;
@@ -194,13 +197,13 @@ class ConsumerImpl : public ConsumerImplBase,
     std::string originalSubscriptionName_;
     MessageListener messageListener_;
     ConsumerEventListenerPtr eventListener_;
-    ExecutorServicePtr listenerExecutor_;
     bool hasParent_;
     ConsumerTopicType consumerTopicType_;
 
     const Commands::SubscriptionMode subscriptionMode_;
 
     UnboundedBlockingQueue<Message> incomingMessages_;
+    std::atomic_int incomingMessagesSize_ = {0};
     std::queue<ReceiveCallback> pendingReceives_;
     std::atomic_int availablePermits_;
     const int receiverQueueRefillThreshold_;

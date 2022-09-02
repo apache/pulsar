@@ -38,17 +38,8 @@ namespace pulsar {
 typedef std::shared_ptr<Promise<Result, Consumer>> ConsumerSubResultPromisePtr;
 
 class MultiTopicsConsumerImpl;
-class MultiTopicsConsumerImpl : public ConsumerImplBase,
-                                public std::enable_shared_from_this<MultiTopicsConsumerImpl> {
+class MultiTopicsConsumerImpl : public ConsumerImplBase {
    public:
-    enum MultiTopicsConsumerState
-    {
-        Pending,
-        Ready,
-        Closing,
-        Closed,
-        Failed
-    };
     MultiTopicsConsumerImpl(ClientImplPtr client, const std::vector<std::string>& topics,
                             const std::string& subscriptionName, TopicNamePtr topicName,
                             const ConsumerConfiguration& conf, LookupServicePtr lookupServicePtr_);
@@ -99,16 +90,14 @@ class MultiTopicsConsumerImpl : public ConsumerImplBase,
     const ClientImplPtr client_;
     const std::string subscriptionName_;
     std::string consumerStr_;
-    std::string topic_;
     const ConsumerConfiguration conf_;
     typedef SynchronizedHashMap<std::string, ConsumerImplPtr> ConsumerMap;
     ConsumerMap consumers_;
     std::map<std::string, int> topicsPartitions_;
     mutable std::mutex mutex_;
     std::mutex pendingReceiveMutex_;
-    std::atomic<MultiTopicsConsumerState> state_{Pending};
-    BlockingQueue<Message> messages_;
-    const ExecutorServicePtr listenerExecutor_;
+    BlockingQueue<Message> incomingMessages_;
+    std::atomic_int incomingMessagesSize_ = {0};
     MessageListener messageListener_;
     DeadlineTimerPtr partitionsUpdateTimer_;
     boost::posix_time::time_duration partitionsUpdateInterval_;
@@ -125,6 +114,7 @@ class MultiTopicsConsumerImpl : public ConsumerImplBase,
                                               unsigned int partitionIndex);
     void notifyResult(CloseCallback closeCallback);
     void messageReceived(Consumer consumer, const Message& msg);
+    void messageProcessed(Message& msg);
     void internalListener(Consumer consumer);
     void receiveMessages();
     void failPendingReceiveCallback();
@@ -149,8 +139,12 @@ class MultiTopicsConsumerImpl : public ConsumerImplBase,
     void subscribeSingleNewConsumer(int numPartitions, TopicNamePtr topicName, int partitionIndex,
                                     ConsumerSubResultPromisePtr topicSubResultPromise,
                                     std::shared_ptr<std::atomic<int>> partitionsNeedCreate);
+    // impl consumer base virtual method
+    bool hasEnoughMessagesForBatchReceive() const override;
+    void notifyBatchPendingReceivedCallback(const BatchReceiveCallback& callback) override;
 
    private:
+    std::shared_ptr<MultiTopicsConsumerImpl> get_shared_this_ptr();
     void setNegativeAcknowledgeEnabledForTesting(bool enabled) override;
 
     FRIEND_TEST(ConsumerTest, testMultiTopicsConsumerUnAckedMessageRedelivery);

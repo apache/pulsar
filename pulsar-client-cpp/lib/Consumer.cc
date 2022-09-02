@@ -82,6 +82,24 @@ void Consumer::receiveAsync(ReceiveCallback callback) {
     impl_->receiveAsync(callback);
 }
 
+Result Consumer::batchReceive(Messages& msgs) {
+    if (!impl_) {
+        return ResultConsumerNotInitialized;
+    }
+    Promise<Result, Messages> promise;
+    impl_->batchReceiveAsync(WaitForCallbackValue<Messages>(promise));
+    return promise.getFuture().get(msgs);
+}
+
+void Consumer::batchReceiveAsync(BatchReceiveCallback callback) {
+    if (!impl_) {
+        Messages msgs;
+        callback(ResultConsumerNotInitialized, msgs);
+        return;
+    }
+    impl_->batchReceiveAsync(callback);
+}
+
 Result Consumer::acknowledge(const Message& message) { return acknowledge(message.getMessageId()); }
 
 Result Consumer::acknowledge(const MessageId& messageId) {
