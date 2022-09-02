@@ -740,7 +740,7 @@ public class PersistentTopicsBase extends AdminResource {
                         .fetchPartitionedTopicMetadataAsync(topicName)
                         .thenCompose(partitionedMeta -> {
                             final int numPartitions = partitionedMeta.partitions;
-                            if (numPartitions < 1){
+                            if (numPartitions < 1) {
                                 return CompletableFuture.completedFuture(null);
                             }
                             return internalRemovePartitionsAuthenticationPoliciesAsync(numPartitions)

@@ -765,7 +765,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
         mockZooKeeperGlobal.delete("/admin/partitioned-topics/" + topicName.getPersistenceNamingEncoding(), -1);
 
-        testNs = this.testLocalNamespaces.get(2);
+        testNs = this.testGlobalNamespaces.get(0);
         // setup ownership to localhost
         doReturn(Optional.of(localWebServiceUrl)).when(nsSvc).getWebServiceUrl(testNs, options);
         doReturn(true).when(nsSvc).isServiceUnitOwned(testNs);
@@ -785,7 +785,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         assertEquals(responseCaptor.getValue().getStatus(), Status.NO_CONTENT.getStatusCode());
         List<String> nsList = Lists.newArrayList(this.testLocalNamespaces.get(1).toString(),
-                this.testGlobalNamespaces.get(0).toString());
+                this.testLocalNamespaces.get(2).toString());
         nsList.sort(null);
         assertEquals(asyncRequests(ctx -> namespaces.getTenantNamespaces(ctx, this.testTenant)), nsList);
 

@@ -51,12 +51,14 @@ import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.ListUtils;
 import org.apache.commons.lang.mutable.MutableObject;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
+import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
@@ -202,9 +204,14 @@ public abstract class NamespacesBase extends AdminResource {
 
     @SuppressWarnings("unchecked")
     protected CompletableFuture<Void> internalDeleteNamespaceAsync(boolean force) {
-        CompletableFuture<Void> preconditionCheck = precheckWhenDeleteNamespace(namespaceName, force);
+        CompletableFuture<Policies> preconditionCheck = precheckWhenDeleteNamespace(namespaceName, force);
         return preconditionCheck
-                .thenCompose(__ -> pulsar().getNamespaceService().getFullListOfTopics(namespaceName))
+                .thenCompose(policies -> {
+                    if (policies == null || CollectionUtils.isEmpty(policies.replication_clusters)){
+                        return pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName);
+                    }
+                    return pulsar().getNamespaceService().getFullListOfTopics(namespaceName);
+                })
                 .thenCompose(allTopics -> pulsar().getNamespaceService().getFullListOfPartitionedTopic(namespaceName)
                          .thenCompose(allPartitionedTopics -> {
                              List<List<String>> topicsSum = new ArrayList<>(2);
@@ -223,42 +230,27 @@ public abstract class NamespacesBase extends AdminResource {
                                 break;
                             }
                         }
-                        for (String topic : allPartitionedTopics) {
-                            if (!pulsar().getBrokerService().isSystemTopic(TopicName.get(topic))) {
-                                hasNonSystemTopic = true;
-                                break;
+                        if (!hasNonSystemTopic) {
+                            for (String topic : allPartitionedTopics) {
+                                if (!pulsar().getBrokerService().isSystemTopic(TopicName.get(topic))) {
+                                    hasNonSystemTopic = true;
+                                    break;
+                                }
                             }
                         }
+
                         if (hasNonSystemTopic) {
                             throw new RestException(Status.CONFLICT, "Cannot delete non empty namespace");
-                        }
-                    }
-                    PulsarAdmin admin;
-                    try {
-                        admin = pulsar().getAdminClient();
-                    } catch (Exception ex) {
-                        log.error("[{}] Get admin client error when preparing to delete topics.", clientAppId(), ex);
-                        return FutureUtil.failedFuture(ex);
-                    }
-                    List<CompletableFuture<Void>> futures = new ArrayList<>();
-                    if (!allTopics.isEmpty()) {
-                        for (String topic: allTopics) {
-                            futures.add(admin.topics().deleteAsync(topic, true));
                         }
                     }
                     return namespaceResources().setPoliciesAsync(namespaceName, old -> {
                         old.deleted = true;
                         return  old;
-                    }).thenCompose(__ -> FutureUtil.waitForAll(futures).thenCompose(ignore -> {
-                        final List<CompletableFuture<Void>> deletePartitionedTopicFuture = Lists.newArrayList();
-                        if (!allPartitionedTopics.isEmpty()) {
-                            for (String topic : allPartitionedTopics) {
-                                deletePartitionedTopicFuture.add(admin.topics()
-                                        .deletePartitionedTopicAsync(topic, true));
-                            }
-                        }
-                        return FutureUtil.waitForAll(deletePartitionedTopicFuture);
-                    }));
+                    }).thenCompose(__ -> {
+                        return internalDeleteTopicsAsync(allTopics);
+                    }).thenCompose(__ -> {
+                        return internalDeletePartitionedTopicsAsync(allPartitionedTopics);
+                    });
                 })
                 .thenCompose(__ -> pulsar().getNamespaceService()
                         .getNamespaceBundleFactory().getBundlesAsync(namespaceName))
@@ -285,8 +277,38 @@ public abstract class NamespacesBase extends AdminResource {
                 .thenCompose(__ -> internalClearZkSources());
     }
 
-    private CompletableFuture<Void> precheckWhenDeleteNamespace(NamespaceName nsName, boolean force) {
-        CompletableFuture<Void> preconditionCheck =
+    private CompletableFuture<Void> internalDeletePartitionedTopicsAsync(List<String> topicNames) {
+        if (CollectionUtils.isEmpty(topicNames)) {
+            return CompletableFuture.completedFuture(null);
+        }
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
+        for (String topicName : topicNames) {
+            futures.add(namespaceResources().getPartitionedTopicResources()
+                    .deletePartitionedTopicAsync(TopicName.get(topicName)));
+        }
+        return FutureUtil.waitForAll(futures);
+    }
+
+    private CompletableFuture<Void> internalDeleteTopicsAsync(List<String> topicNames) {
+        if (CollectionUtils.isEmpty(topicNames)) {
+            return CompletableFuture.completedFuture(null);
+        }
+        PulsarAdmin admin;
+        try {
+            admin = pulsar().getAdminClient();
+        } catch (Exception ex) {
+            log.error("[{}] Get admin client error when preparing to delete topics.", clientAppId(), ex);
+            return FutureUtil.failedFuture(ex);
+        }
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
+        for (String topicName : topicNames) {
+            futures.add(admin.topics().deleteAsync(topicName, true));
+        }
+        return FutureUtil.waitForAll(futures);
+    }
+
+    private CompletableFuture<Policies> precheckWhenDeleteNamespace(NamespaceName nsName, boolean force) {
+        CompletableFuture<Policies> preconditionCheck =
                 validateTenantOperationAsync(nsName.getTenant(), TenantOperation.DELETE_NAMESPACE)
                         .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                         .thenCompose(__ -> {
@@ -300,7 +322,8 @@ public abstract class NamespacesBase extends AdminResource {
                             } else {
                                 return CompletableFuture.completedFuture(null);
                             }
-                        }).thenCompose(__ -> namespaceResources().getPoliciesAsync(nsName))
+                        })
+                        .thenCompose(__ -> namespaceResources().getPoliciesAsync(nsName))
                         .thenCompose(policiesOpt -> {
                             if (policiesOpt.isEmpty()) {
                                 throw new RestException(Status.NOT_FOUND, "Namespace " + nsName + " does not exist.");
@@ -350,7 +373,7 @@ public abstract class NamespacesBase extends AdminResource {
                                                     Response.temporaryRedirect(redirect).build());
                                         });
                             }
-                            return CompletableFuture.completedFuture(null);
+                            return CompletableFuture.completedFuture(policies);
                         });
         return preconditionCheck;
     }
