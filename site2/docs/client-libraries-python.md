@@ -59,7 +59,7 @@ To install the built Python bindings:
 ```shell
 $ git clone https://github.com/apache/pulsar
 $ cd pulsar/pulsar-client-cpp/python
-$ sudo python setup.py install
+$ sudo pip install .
 ```
 
 ## Connection URLs

@@ -129,7 +129,6 @@ import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
-import org.powermock.reflect.Whitebox;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -2578,10 +2577,10 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         // Open Cursor also adds cursor into activeCursor-container
         ManagedCursor cursor1 = ledger.openCursor("c1");
         ManagedCursor cursor2 = ledger.openCursor("c2");
-        Set<ManagedCursor> activeCursors = new HashSet();
+        Set<ManagedCursor> activeCursors = new HashSet<>();
         activeCursors.add(cursor1);
         activeCursors.add(cursor2);
-        EntryCache entryCache = Whitebox.getInternalState(ledger, "entryCache");
+        EntryCache entryCache = ledger.entryCache;
 
         Iterator<ManagedCursor> activeCursor = ledger.getActiveCursors().iterator();
 
@@ -2653,7 +2652,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     @Test
     public void testActiveDeactiveCursor() throws Exception {
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("cache_eviction_ledger");
-        EntryCache entryCache = Whitebox.getInternalState(ledger, "entryCache");
+        EntryCache entryCache = ledger.entryCache;
 
         final int totalInsertedEntries = 20;
         for (int i = 0; i < totalInsertedEntries; i++) {
