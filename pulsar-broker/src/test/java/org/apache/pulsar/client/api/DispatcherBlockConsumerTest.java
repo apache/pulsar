@@ -646,7 +646,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
         // consumer should only receive unakced messages
         Set<String> receivedMsgs = Sets.newHashSet();
         for (int i = 0; i < totalProducedMsgs; i++) {
-            Message<?> msg = consumer.receive(500, TimeUnit.MILLISECONDS);
+            Message<?> msg = consumer.receive(5, TimeUnit.SECONDS);
             if (msg == null) {
                 break;
             }
