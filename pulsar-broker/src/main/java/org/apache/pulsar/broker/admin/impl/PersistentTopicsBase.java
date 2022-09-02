@@ -658,6 +658,58 @@ public class PersistentTopicsBase extends AdminResource {
         return future;
     }
 
+    protected CompletableFuture<Void> internalRemovePropertiesAsync(boolean authoritative, String key) {
+        return validateTopicOwnershipAsync(topicName, authoritative)
+                .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.DELETE_METADATA))
+                .thenCompose(__ -> {
+                    if (topicName.isPartitioned()) {
+                        return internalRemoveNonPartitionedTopicProperties(key);
+                    } else {
+                        return pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName)
+                                .thenCompose(metadata -> {
+                                    if (metadata.partitions == 0) {
+                                        return internalRemoveNonPartitionedTopicProperties(key);
+                                    }
+                                    return namespaceResources()
+                                            .getPartitionedTopicResources().updatePartitionedTopicAsync(topicName,
+                                                    p -> {
+                                                        if (p.properties != null) {
+                                                            p.properties.remove(key);
+                                                        }
+                                                        return new PartitionedTopicMetadata(p.partitions, p.properties);
+                                                    });
+                                });
+                    }
+                }).thenAccept(__ ->
+                        log.info("[{}] remove [{}] properties success with key {}",
+                                clientAppId(), topicName, key));
+    }
+
+    private CompletableFuture<Void> internalRemoveNonPartitionedTopicProperties(String key) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        pulsar().getBrokerService().getTopicIfExists(topicName.toString())
+                .thenAccept(opt -> {
+                    if (!opt.isPresent()) {
+                        throw new RestException(Status.NOT_FOUND,
+                                getTopicNotFoundErrorMessage(topicName.toString()));
+                    }
+                    ManagedLedger managedLedger = ((PersistentTopic) opt.get()).getManagedLedger();
+                    managedLedger.asyncDeleteProperty(key, new AsyncCallbacks.UpdatePropertiesCallback() {
+
+                        @Override
+                        public void updatePropertiesComplete(Map<String, String> properties, Object ctx) {
+                            future.complete(null);
+                        }
+
+                        @Override
+                        public void updatePropertiesFailed(ManagedLedgerException exception, Object ctx) {
+                            future.completeExceptionally(exception);
+                        }
+                    }, null);
+                });
+        return future;
+    }
+
     protected CompletableFuture<Void> internalCheckTopicExists(TopicName topicName) {
         return pulsar().getNamespaceService().checkTopicExists(topicName)
                 .thenAccept(exist -> {
