@@ -94,61 +94,49 @@ static ReaderConfiguration& ReaderConfiguration_setCryptoKeyReader(ReaderConfigu
 }
 
 class LoggerWrapper : public Logger, public CaptivePythonObjectMixin {
-    const int _pythonLogLevel;
     const std::unique_ptr<Logger> _fallbackLogger;
-    py::object _loggerModule;
-    static constexpr int _getLogLevelValue(Level level) { return 10 + (level * 10); }
 
    public:
-    LoggerWrapper(PyObject* pyLogger, int pythonLogLevel, Logger* fallbackLogger)
-        : CaptivePythonObjectMixin(pyLogger),
-          _pythonLogLevel(pythonLogLevel),
-          _fallbackLogger(fallbackLogger) {
-        PyGILState_STATE state = PyGILState_Ensure();
-        _loggerModule = py::import("logging");
-        PyGILState_Release(state);
-    }
+    LoggerWrapper(PyObject* pyLogger, Logger* fallbackLogger)
+        : CaptivePythonObjectMixin(pyLogger), _fallbackLogger(fallbackLogger) {}
 
     LoggerWrapper(const LoggerWrapper&) = delete;
     LoggerWrapper(LoggerWrapper&&) noexcept = delete;
     LoggerWrapper& operator=(const LoggerWrapper&) = delete;
     LoggerWrapper& operator=(LoggerWrapper&&) = delete;
 
-    bool isEnabled(Level level) { return _getLogLevelValue(level) >= _pythonLogLevel; }
-
-    void log(Level level, int line, const std::string& message) {
-        switch (level) {
-            case Logger::LEVEL_DEBUG:
-                log(level, line, "debug", message);
-                break;
-            case Logger::LEVEL_INFO:
-                log(level, line, "info", message);
-                break;
-            case Logger::LEVEL_WARN:
-                log(level, line, "warning", message);
-                break;
-            case Logger::LEVEL_ERROR:
-                log(level, line, "error", message);
-                break;
-        }
+    bool isEnabled(Level level) {
+        return true;  // Python loggers are always enabled; they decide internally whether or not to log.
     }
 
-   private:
-    void log(Level level, int line, const char* method, const std::string& message) {
+    void log(Level level, int line, const std::string& message) {
         if (!Py_IsInitialized()) {
             // Python logger is unavailable - fallback to console logger
             _fallbackLogger->log(level, line, message);
         } else {
             PyGILState_STATE state = PyGILState_Ensure();
-            py::object oldLogThreads = _loggerModule.attr("logThreads");
-            _loggerModule.attr("logThreads") = py::object(false);
+            PyObject *type, *value, *traceback;
+            PyErr_Fetch(&type, &value, &traceback);
             try {
-                py::call_method<void>(_captive, method, message.c_str());
-                _loggerModule.attr("logThreads") = oldLogThreads;
+                switch (level) {
+                    case Logger::LEVEL_DEBUG:
+                        py::call<void>(_captive, "DEBUG", message.c_str());
+                        break;
+                    case Logger::LEVEL_INFO:
+                        py::call<void>(_captive, "INFO", message.c_str());
+                        break;
+                    case Logger::LEVEL_WARN:
+                        py::call<void>(_captive, "WARNING", message.c_str());
+                        break;
+                    case Logger::LEVEL_ERROR:
+                        py::call<void>(_captive, "ERROR", message.c_str());
+                        break;
+                }
             } catch (const py::error_already_set& e) {
+                PyErr_Print();
                 _fallbackLogger->log(level, line, message);
-                _loggerModule.attr("logThreads") = oldLogThreads;
             }
+            PyErr_Restore(type, value, traceback);
             PyGILState_Release(state);
         }
     }
@@ -156,33 +144,16 @@ class LoggerWrapper : public Logger, public CaptivePythonObjectMixin {
 
 class LoggerWrapperFactory : public LoggerFactory, public CaptivePythonObjectMixin {
     std::unique_ptr<LoggerFactory> _fallbackLoggerFactory{new ConsoleLoggerFactory};
-    Optional<int> _pythonLogLevel{Optional<int>::empty()};
-
-    void initializePythonLogLevel() {
-        PyGILState_STATE state = PyGILState_Ensure();
-
-        try {
-            int level = py::call_method<int>(_captive, "getEffectiveLevel");
-            _pythonLogLevel = Optional<int>::of(level);
-        } catch (const py::error_already_set& e) {
-            // Failed to get log level from _pyLogger, set it to empty to fallback to _fallbackLogger
-            _pythonLogLevel = Optional<int>::empty();
-        }
-
-        PyGILState_Release(state);
-    }
 
    public:
-    LoggerWrapperFactory(py::object pyLogger) : CaptivePythonObjectMixin(pyLogger) {
-        initializePythonLogLevel();
-    }
+    LoggerWrapperFactory(py::object pyLogger) : CaptivePythonObjectMixin(pyLogger.ptr()) {}
 
     Logger* getLogger(const std::string& fileName) {
         const auto fallbackLogger = _fallbackLoggerFactory->getLogger(fileName);
-        if (_pythonLogLevel.is_present()) {
-            return new LoggerWrapper(_captive, _pythonLogLevel.value(), fallbackLogger);
-        } else {
+        if (_captive == py::object().ptr()) {
             return fallbackLogger;
+        } else {
+            return new LoggerWrapper(_captive, fallbackLogger);
         }
     }
 };
