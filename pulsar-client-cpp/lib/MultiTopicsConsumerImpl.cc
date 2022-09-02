@@ -812,7 +812,8 @@ void MultiTopicsConsumerImpl::subscribeSingleNewConsumer(
     std::string topicPartitionName = topicName->getTopicPartitionName(partitionIndex);
 
     auto consumer = std::make_shared<ConsumerImpl>(client_, topicPartitionName, subscriptionName_, config,
-                                                   topicName->isPersistent(), internalListenerExecutor, true, Partitioned);
+                                                   topicName->isPersistent(), internalListenerExecutor, true,
+                                                   Partitioned);
     consumer->getConsumerCreatedFuture().addListener(
         std::bind(&MultiTopicsConsumerImpl::handleSingleConsumerCreated, shared_from_this(),
                   std::placeholders::_1, std::placeholders::_2, partitionsNeedCreate, topicSubResultPromise));
