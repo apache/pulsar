@@ -1107,24 +1107,7 @@ public class Namespaces extends NamespacesBase {
             @ApiParam(value = "Replicator dispatch rate for all topics of the specified namespace")
                                               DispatchRateImpl dispatchRate) {
         validateNamespaceName(tenant, cluster, namespace);
-        validateSuperUserAccessAsync()
-                .thenAccept(__ -> {
-                    log.info("[{}] Set namespace replicator dispatch-rate {}/{}",
-                            clientAppId(), namespaceName, dispatchRate);
-                }).thenCompose(__ -> namespaceResources().setPoliciesAsync(namespaceName, policies -> {
-                    String clusterName = pulsar().getConfiguration().getClusterName();
-                    policies.replicatorDispatchRate.put(clusterName, dispatchRate);
-                    return policies;
-                })).thenAccept(__ -> {
-                    log.info("[{}] Successfully updated the replicatorDispatchRate for cluster on namespace {}",
-                            clientAppId(), namespaceName);
-                    asyncResponse.resume(Response.noContent().build());
-                }).exceptionally(ex -> {
-                    log.error("[{}] Failed to update the replicatorDispatchRate for cluster on namespace {}",
-                            clientAppId(), namespaceName, ex);
-                    resumeAsyncResponseExceptionally(asyncResponse, ex);
-                    return null;
-                });
+        internalSetReplicatorDispatchRate(asyncResponse, dispatchRate);
     }
 
     @GET
@@ -1140,21 +1123,7 @@ public class Namespaces extends NamespacesBase {
             @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, cluster, namespace);
-        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.REPLICATION_RATE, PolicyOperation.READ)
-                .thenCompose(__ -> namespaceResources().getPoliciesAsync(namespaceName))
-                .thenApply(policiesOpt -> {
-                    if (!policiesOpt.isPresent()) {
-                        throw new RestException(Response.Status.NOT_FOUND, "Namespace policies does not exist");
-                    }
-                    String clusterName = pulsar().getConfiguration().getClusterName();
-                    return policiesOpt.get().replicatorDispatchRate.get(clusterName);
-                }).thenAccept(asyncResponse::resume)
-                .exceptionally(ex -> {
-                    log.error("[{}] Failed to get replicator dispatch-rate configured for the namespace {}",
-                            clientAppId(), namespaceName, ex);
-                    resumeAsyncResponseExceptionally(asyncResponse, ex);
-                    return null;
-                });
+        internalGetReplicatorDispatchRate(asyncResponse);
     }
 
     @GET

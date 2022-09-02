@@ -2692,5 +2692,71 @@ public abstract class NamespacesBase extends AdminResource {
                 }));
     }
 
+    /**
+     * Base method for setReplicatorDispatchRate v1 and v2.
+     * Notion: don't re-use this logic.
+     */
+    protected void internalSetReplicatorDispatchRate(AsyncResponse asyncResponse, DispatchRateImpl dispatchRate) {
+        validateSuperUserAccessAsync()
+                .thenAccept(__ -> {
+                    log.info("[{}] Set namespace replicator dispatch-rate {}/{}",
+                            clientAppId(), namespaceName, dispatchRate);
+                }).thenCompose(__ -> namespaceResources().setPoliciesAsync(namespaceName, policies -> {
+                    String clusterName = pulsar().getConfiguration().getClusterName();
+                    policies.replicatorDispatchRate.put(clusterName, dispatchRate);
+                    return policies;
+                })).thenAccept(__ -> {
+                    asyncResponse.resume(Response.noContent().build());
+                    log.info("[{}] Successfully updated the replicatorDispatchRate for cluster on namespace {}",
+                            clientAppId(), namespaceName);
+                }).exceptionally(ex -> {
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    log.error("[{}] Failed to update the replicatorDispatchRate for cluster on namespace {}",
+                            clientAppId(), namespaceName, ex);
+                    return null;
+                });
+    }
+    /**
+     * Base method for getReplicatorDispatchRate v1 and v2.
+     * Notion: don't re-use this logic.
+     */
+    protected void internalGetReplicatorDispatchRate(AsyncResponse asyncResponse) {
+        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.REPLICATION_RATE, PolicyOperation.READ)
+                .thenCompose(__ -> namespaceResources().getPoliciesAsync(namespaceName))
+                .thenApply(policiesOpt -> {
+                    if (!policiesOpt.isPresent()) {
+                        throw new RestException(Response.Status.NOT_FOUND, "Namespace policies does not exist");
+                    }
+                    String clusterName = pulsar().getConfiguration().getClusterName();
+                    return policiesOpt.get().replicatorDispatchRate.get(clusterName);
+                }).thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    log.error("[{}] Failed to get replicator dispatch-rate configured for the namespace {}",
+                            clientAppId(), namespaceName, ex);
+                    return null;
+                });
+    }
+    /**
+     * Base method for removeReplicatorDispatchRate v1 and v2.
+     * Notion: don't re-use this logic.
+     */
+    protected void internalRemoveReplicatorDispatchRate(AsyncResponse asyncResponse) {
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> namespaceResources().setPoliciesAsync(namespaceName, policies -> {
+                    String clusterName = pulsar().getConfiguration().getClusterName();
+                    policies.replicatorDispatchRate.remove(clusterName);
+                    return policies;
+                })).thenAccept(__ -> {
+                    asyncResponse.resume(Response.noContent().build());
+                    log.info("[{}] Successfully delete the replicatorDispatchRate for cluster on namespace {}",
+                            clientAppId(), namespaceName);
+                }).exceptionally(ex -> {
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    log.error("[{}] Failed to delete the replicatorDispatchRate for cluster on namespace {}",
+                            clientAppId(), namespaceName, ex);
+                    return null;
+                });
+    }
     private static final Logger log = LoggerFactory.getLogger(NamespacesBase.class);
 }
