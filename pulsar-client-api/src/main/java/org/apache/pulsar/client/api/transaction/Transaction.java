@@ -29,6 +29,16 @@ import org.apache.pulsar.common.classification.InterfaceStability;
 @InterfaceStability.Evolving
 public interface Transaction {
 
+    enum State {
+        OPEN,
+        COMMITTING,
+        ABORTING,
+        COMMITTED,
+        ABORTED,
+        ERROR,
+        TIMEOUT
+    }
+
     /**
      * Commit the transaction.
      *
@@ -48,4 +58,12 @@ public interface Transaction {
      *  @return {@link TxnID} the txnID.
      */
     TxnID getTxnID();
+
+    /**
+     * Get transaction state.
+     *
+     * @return {@link State} the state of the transaction.
+     */
+    State getTxnState();
+
 }

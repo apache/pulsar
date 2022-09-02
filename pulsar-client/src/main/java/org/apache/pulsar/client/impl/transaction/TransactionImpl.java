@@ -73,16 +73,6 @@ public class TransactionImpl implements Transaction , TimerTask {
         STATE_UPDATE.compareAndSet(this, State.OPEN, State.TIMEOUT);
     }
 
-    public enum State {
-        OPEN,
-        COMMITTING,
-        ABORTING,
-        COMMITTED,
-        ABORTED,
-        ERROR,
-        TIMEOUT
-    }
-
     TransactionImpl(PulsarClientImpl client,
                     long transactionTimeoutMs,
                     long txnIdLeastBits,
@@ -213,6 +203,11 @@ public class TransactionImpl implements Transaction , TimerTask {
     @Override
     public TxnID getTxnID() {
         return new TxnID(txnIdMostBits, txnIdLeastBits);
+    }
+
+    @Override
+    public State getTxnState() {
+        return state;
     }
 
     public <T> boolean checkIfOpen(CompletableFuture<T> completableFuture) {
