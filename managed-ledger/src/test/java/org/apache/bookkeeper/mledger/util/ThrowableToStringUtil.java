@@ -16,16 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.util;
+package org.apache.bookkeeper.mledger.util;
+
+import org.apache.pulsar.common.util.FutureUtil;
 
 public class ThrowableToStringUtil {
 
-    public static String toString(Throwable ex){
-        Throwable throwable = FutureUtil.unwrapCompletionException(ex);
+    public static String toString(Throwable throwable){
+        Throwable unwrapThrowable = FutureUtil.unwrapCompletionException(throwable);
         StringBuilder stringBuilder = new StringBuilder();
-        stringBuilder.append(throwable.getClass().getName())
-                .append(": ").append(throwable.getMessage());
-        for (StackTraceElement stackTraceElement : throwable.getStackTrace()){
+        stringBuilder.append(unwrapThrowable.getClass().getName())
+                .append(": ").append(unwrapThrowable.getMessage());
+        for (StackTraceElement stackTraceElement : unwrapThrowable.getStackTrace()){
+            stringBuilder.append("    at: ");
             stringBuilder.append(stackTraceElement.toString());
         }
         return stringBuilder.toString();
