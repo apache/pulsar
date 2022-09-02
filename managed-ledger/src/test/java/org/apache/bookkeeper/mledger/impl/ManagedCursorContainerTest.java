@@ -80,7 +80,7 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public CompletableFuture<Void> setCursorProperties(Map<String, String> properties) {
+        public CompletableFuture<Void> setCursorProperties(Map<String, String> cursorProperties) {
             return CompletableFuture.completedFuture(null);
         }
 

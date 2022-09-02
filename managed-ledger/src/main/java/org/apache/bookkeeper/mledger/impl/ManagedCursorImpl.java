@@ -376,7 +376,8 @@ public class ManagedCursorImpl implements ManagedCursor {
     public CompletableFuture<Void> setCursorProperties(Map<String, String> cursorProperties) {
         MutableObject<CompletableFuture<Void>> updateCursorPropertiesResultRef = new MutableObject<>();
         CURSOR_PROPERTIES_UPDATER.updateAndGet(this, map -> {
-            Map<String, String> newProperties = cursorProperties == null ? new TreeMap<>() : new TreeMap<>(cursorProperties);
+            Map<String, String> newProperties =
+                    cursorProperties == null ? new TreeMap<>() : new TreeMap<>(cursorProperties);
             if (map != null) {
                 map.forEach((k, v) -> {
                     if (((String) k).startsWith(CURSOR_INTERNAL_PROPERTY_PREFIX)) {
