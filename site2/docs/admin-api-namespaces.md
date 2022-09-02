@@ -520,8 +520,6 @@ $ pulsar-admin namespaces unload --bundle 0x00000000_0xffffffff test-tenant/ns1
 </TabItem>
 <TabItem value="REST API">
 
-```
-
 {@inject: endpoint|PUT|/admin/v2/namespaces/:tenant/:namespace/:bundle/unload|operation/unloadNamespaceBundle?version=@pulsar:version_number@}
 
 </TabItem>
@@ -557,7 +555,6 @@ $ pulsar-admin namespaces split-bundle --bundle 0x00000000_0xffffffff test-tenan
 </TabItem>
 <TabItem value="REST API">
 
-```
 
 {@inject: endpoint|PUT|/admin/v2/namespaces/:tenant/:namespace/:bundle/split|operation/splitNamespaceBundle?version=@pulsar:version_number@}
 
