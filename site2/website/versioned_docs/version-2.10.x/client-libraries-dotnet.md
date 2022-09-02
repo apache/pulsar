@@ -17,7 +17,7 @@ Install the [.NET Core SDK](https://dotnet.microsoft.com/download/), which provi
 
 ### Procedures
 
-To install the Pulsar C# client library, following these steps:
+To install the Pulsar C# client library, follow these steps:
 
 1. Create a project.
 

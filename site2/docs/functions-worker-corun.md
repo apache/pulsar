@@ -24,10 +24,8 @@ To set up function workers to run with brokers, complete the following steps:
 
 In the `conf/broker.conf` file, set `functionsWorkerEnabled` to `true`.
 
-```properties
-
+```conf
 functionsWorkerEnabled=true
-
 ```
 
 ### Configure function workers to run with brokers
@@ -53,15 +51,11 @@ Once function workers are configured properly, you can start the brokers (functi
 To verify whether each worker is running or not, you can use the following command.
 
 ```bash
-
 curl <broker-ip>:8080/admin/v2/worker/cluster
-
 ```
 
 If a list of active function workers is returned, it means they have been started successfully. The output is similar to the following.
 
 ```json
-
 [{"workerId":"<worker-id>","workerHostname":"<worker-hostname>","port":8080}]
-
 ```
