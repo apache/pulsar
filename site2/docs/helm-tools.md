@@ -10,7 +10,7 @@ Before deploying Pulsar to your Kubernetes cluster, there are some tools you mus
 
 kubectl is the tool that talks to the Kubernetes API. kubectl 1.14 or higher is required and it needs to be compatible with your cluster ([+/- 1 minor release from your cluster](https://kubernetes.io/docs/tasks/tools/install-kubectl/#before-you-begin)).
 
-To Install kubectl locally, follow the [Kubernetes documentation](https://kubernetes.io/docs/tasks/tools/install-kubectl/#install-kubectl).
+To install kubectl locally, follow the [Kubernetes documentation](https://kubernetes.io/docs/tasks/tools/install-kubectl/#install-kubectl).
 
 The server version of kubectl cannot be obtained until we connect to a cluster.
 
@@ -39,4 +39,4 @@ For more information about how all the inner workings behave, check these docume
 
 ### Tips and tricks
 
-For additional information on developing with Helm, check [tips and tricks section](https://helm.sh/docs/howto/charts_tips_and_tricks/) in the Helm repository.
+For additional information on developing with Helm, check [tips and tricks](https://helm.sh/docs/howto/charts_tips_and_tricks/) in the Helm repository.

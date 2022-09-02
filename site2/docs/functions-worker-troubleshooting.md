@@ -25,17 +25,13 @@ If any of these cases happen, follow the instructions below to fix the problem.
 2. Get the current cluster list of the `public/functions` namespace.
 
    ```bash
-
    bin/pulsar-admin namespaces get-clusters public/functions
-
    ```
 
 3. Check if the cluster is in the cluster list. If not, add it and update the list.
 
    ```bash
-
    bin/pulsar-admin namespaces set-clusters --clusters <existing-clusters>,<new-cluster> public/functions
-
    ```
 
 4. After setting the cluster successfully, enable function workers by setting `functionsWorkerEnabled=true`. 
