@@ -70,7 +70,7 @@ public class TransactionImpl implements Transaction , TimerTask {
 
     @Override
     public void run(Timeout timeout) throws Exception {
-        STATE_UPDATE.compareAndSet(this, State.OPEN, State.TIMEOUT);
+        STATE_UPDATE.compareAndSet(this, State.OPEN, State.TIME_OUT);
     }
 
     TransactionImpl(PulsarClientImpl client,
@@ -206,7 +206,7 @@ public class TransactionImpl implements Transaction , TimerTask {
     }
 
     @Override
-    public State getTxnState() {
+    public State getState() {
         return state;
     }
 

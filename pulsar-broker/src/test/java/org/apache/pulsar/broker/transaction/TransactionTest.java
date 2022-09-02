@@ -1476,21 +1476,21 @@ public class TransactionTest extends TransactionTestBase {
                 .build().get();
 
         // test OPEN and TIMEOUT
-        assertEquals(transaction.getTxnState(), Transaction.State.OPEN);
+        assertEquals(transaction.getState(), Transaction.State.OPEN);
         Transaction timeoutTxn = transaction;
-        Awaitility.await().until(() -> timeoutTxn.getTxnState() == Transaction.State.TIMEOUT);
+        Awaitility.await().until(() -> timeoutTxn.getState() == Transaction.State.TIME_OUT);
 
         // test abort
         transaction = pulsarClient.newTransaction().withTransactionTimeout(3, TimeUnit.SECONDS)
                 .build().get();
         transaction.abort().get();
-        assertEquals(transaction.getTxnState(), Transaction.State.ABORTED);
+        assertEquals(transaction.getState(), Transaction.State.ABORTED);
 
         // test commit
         transaction = pulsarClient.newTransaction().withTransactionTimeout(3, TimeUnit.SECONDS)
                 .build().get();
         transaction.commit().get();
-        assertEquals(transaction.getTxnState(), Transaction.State.COMMITTED);
+        assertEquals(transaction.getState(), Transaction.State.COMMITTED);
 
         // test error
         transaction = pulsarClient.newTransaction().withTransactionTimeout(1, TimeUnit.SECONDS)
@@ -1499,7 +1499,7 @@ public class TransactionTest extends TransactionTestBase {
                 .endTransaction(transaction.getTxnID(), 0, false);
         transaction.commit();
         Transaction errorTxn = transaction;
-        Awaitility.await().until(() -> errorTxn.getTxnState() == Transaction.State.ERROR);
+        Awaitility.await().until(() -> errorTxn.getState() == Transaction.State.ERROR);
 
         // test committing
         transaction = pulsarClient.newTransaction().withTransactionTimeout(3, TimeUnit.SECONDS)
@@ -1507,7 +1507,7 @@ public class TransactionTest extends TransactionTestBase {
         ((TransactionImpl) transaction).registerSendOp(new CompletableFuture<>());
         transaction.commit();
         Transaction committingTxn = transaction;
-        Awaitility.await().until(() -> committingTxn.getTxnState() == Transaction.State.COMMITTING);
+        Awaitility.await().until(() -> committingTxn.getState() == Transaction.State.COMMITTING);
 
         // test aborting
         transaction = pulsarClient.newTransaction().withTransactionTimeout(3, TimeUnit.SECONDS)
@@ -1515,6 +1515,6 @@ public class TransactionTest extends TransactionTestBase {
         ((TransactionImpl) transaction).registerSendOp(new CompletableFuture<>());
         transaction.abort();
         Transaction abortingTxn = transaction;
-        Awaitility.await().until(() -> abortingTxn.getTxnState() == Transaction.State.ABORTING);
+        Awaitility.await().until(() -> abortingTxn.getState() == Transaction.State.ABORTING);
     }
 }

@@ -30,13 +30,50 @@ import org.apache.pulsar.common.classification.InterfaceStability;
 public interface Transaction {
 
     enum State {
+
+        /**
+         * When the transaction is in the `OPEN` state, it can produce with transaction and ack with the transaction.
+         *
+         * When the transaction is in the `OPEN` state, it can commit or abort.
+         */
         OPEN,
+
+        /**
+         * When the client invokes commit, the state will change to `COMMITTING` from `OPEN`.
+         */
         COMMITTING,
+
+        /**
+         * When the client invokes abort, the state will change to `ABORTING` from `OPEN`.
+         */
         ABORTING,
+
+        /**
+         * When the client receives the response to the commit, the state will change to `COMMITTED` from `COMMITTING`.
+         */
         COMMITTED,
+
+        /**
+         * When the client receives the response to the abort, the state will change to `ABORTED` from `ABORTING`.
+         */
         ABORTED,
+
+        /**
+         * When the client invokes commit or abort but transaction not exist in coordinator,
+         * the state will change to `ERROR`.
+         *
+         * When the client invokes commit, but the transaction state in coordinator is committed or committing,
+         * the state will change to `ERROR`.
+         *
+         * When the client invokes abort, but the transaction state in coordinator is aborted or aborting,
+         * the state will change to `ERROR`.
+         */
         ERROR,
-        TIMEOUT
+
+        /**
+         * When the transaction timeout and the state is in `OPEN`, the state will change to `TIME_OUT` from `OPEN`.
+         */
+        TIME_OUT
     }
 
     /**
@@ -64,6 +101,6 @@ public interface Transaction {
      *
      * @return {@link State} the state of the transaction.
      */
-    State getTxnState();
+    State getState();
 
 }
