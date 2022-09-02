@@ -38,13 +38,13 @@ in the `bookkeeper.conf` configuration file.
 
 | Name | Type | Description |
 |---|---|---|
-| bookie_SERVER_STATUS | Gauge | The server status for bookie server. <br /><ul><li>1: the bookie is running in writable mode.</li><li>0: the bookie is running in readonly mode.</li></ul> |
-| bookkeeper_server_ADD_ENTRY_count | Counter | The total number of ADD_ENTRY requests received at the bookie. The `success` label is used to distinguish successes and failures. |
-| bookkeeper_server_READ_ENTRY_count | Counter | The total number of READ_ENTRY requests received at the bookie. The `success` label is used to distinguish successes and failures. |
+| bookie_SERVER_STATUS | Gauge | The server status for bookie server. <br /><ul><li>1: the bookie is running in writable mode.</li><li>0: the bookie is running in read-only mode.</li></ul> |
+| bookkeeper_server_ADD_ENTRY_count | Counter | The total number of ADD_ENTRY requests received at the bookie. The `success` label is used to distinguish between successes and failures. |
+| bookkeeper_server_READ_ENTRY_count | Counter | The total number of READ_ENTRY requests received at the bookie. The `success` label is used to distinguish between successes and failures. |
 | bookie_WRITE_BYTES | Counter | The total number of bytes written to the bookie. |
 | bookie_READ_BYTES | Counter | The total number of bytes read from the bookie. |
-| bookkeeper_server_ADD_ENTRY_REQUEST | Summary | The summary of request latency of ADD_ENTRY requests at the bookie. The `success` label is used to distinguish successes and failures. |
-| bookkeeper_server_READ_ENTRY_REQUEST | Summary | The summary of request latency of READ_ENTRY requests at the bookie. The `success` label is used to distinguish successes and failures. |
+| bookkeeper_server_ADD_ENTRY_REQUEST | Summary | The summary of request latency of ADD_ENTRY requests at the bookie. The `success` label is used to distinguish between successes and failures. |
+| bookkeeper_server_READ_ENTRY_REQUEST | Summary | The summary of request latency of READ_ENTRY requests at the bookie. The `success` label is used to distinguish between successes and failures. |
 | bookkeeper_server_BookieReadThreadPool_queue_{thread_id}|Gauge|The number of requests to be processed in a read thread queue.|
 | bookkeeper_server_BookieReadThreadPool_task_queued|Summary | The waiting time of a task to be processed in a read thread queue. |
 | bookkeeper_server_BookieReadThreadPool_task_execution|Summary | The execution time of a task in a read thread queue.|
@@ -53,7 +53,7 @@ in the `bookkeeper.conf` configuration file.
 
 | Name | Type | Description |
 |---|---|---|
-| bookie_journal_JOURNAL_SYNC_count | Counter | The total number of journal fsync operations happening at the bookie. The `success` label is used to distinguish successes and failures. |
+| bookie_journal_JOURNAL_SYNC_count | Counter | The total number of journal fsync operations happening at the bookie. The `success` label is used to distinguish between successes and failures. |
 | bookie_journal_JOURNAL_QUEUE_SIZE | Gauge | The total number of requests pending in the journal queue. |
 | bookie_journal_JOURNAL_FORCE_WRITE_QUEUE_SIZE | Gauge | The total number of force write (fsync) requests pending in the force-write queue. |
 | bookie_journal_JOURNAL_CB_QUEUE_SIZE | Gauge | The total number of callbacks pending in the callback queue. |
@@ -91,17 +91,17 @@ in the `bookkeeper.conf` configuration file.
 | auditor_NUM_BOOKIES_PER_LEDGER | Summary | The distribution of number of bookies per ledger. |
 | auditor_NUM_BOOKIE_AUDITS_DELAYED | Counter | The number of bookie-audits delayed. |
 | auditor_NUM_DELAYED_BOOKIE_AUDITS_DELAYES_CANCELLED | Counter | The number of delayed-bookie-audits cancelled. |
-| auditor_NUM_LEDGERS_NOT_ADHERING_TO_PLACEMENT_POLICY | Gauge | Gauge for number of ledgers not adhering to placement policy found in placement policy check. |
-| auditor_NUM_LEDGERS_SOFTLY_ADHERING_TO_PLACEMENT_POLICY | Gauge | Gauge for number of ledgers softly adhering to placement policy found in placement policy check. |
-| auditor_NUM_UNDERREPLICATED_LEDGERS_ELAPSED_RECOVERY_GRACE_PERIOD | Gauge | Gauge for number of underreplicated ledgers elapsed recovery grace period. |
-| auditor_NUM_LEDGERS_HAVING_NO_REPLICA_OF_AN_ENTRY | Gauge | Gauge for number of ledgers having an entry with all the replicas missing. |
-| auditor_NUM_LEDGERS_HAVING_LESS_THAN_AQ_REPLICAS_OF_AN_ENTRY | Gauge | Gauge for number of ledgers having an entry with less than AQ number of replicas, this doesn't include ledgers counted towards numLedgersHavingNoReplicaOfAnEntry. |
-| auditor_NUM_LEDGERS_HAVING_LESS_THAN_WQ_REPLICAS_OF_AN_ENTRY | Gauge | Gauge for number of ledgers having an entry with less than WQ number of replicas, this doesn't include ledgers counted towards numLedgersHavingLessThanAQReplicasOfAnEntry. |
+| auditor_NUM_LEDGERS_NOT_ADHERING_TO_PLACEMENT_POLICY | Gauge | The number of ledgers not adhering to placement policy found in placement policy check. |
+| auditor_NUM_LEDGERS_SOFTLY_ADHERING_TO_PLACEMENT_POLICY | Gauge | The number of ledgers softly adhering to placement policy found in placement policy check. |
+| auditor_NUM_UNDERREPLICATED_LEDGERS_ELAPSED_RECOVERY_GRACE_PERIOD | Gauge | The number of underreplicated ledgers elapsed recovery grace period. |
+| auditor_NUM_LEDGERS_HAVING_NO_REPLICA_OF_AN_ENTRY | Gauge | The number of ledgers having an entry with all the replicas missing. |
+| auditor_NUM_LEDGERS_HAVING_LESS_THAN_AQ_REPLICAS_OF_AN_ENTRY | Gauge | The number of ledgers having an entry with less than AQ number of replicas, this doesn't include ledgers counted towards numLedgersHavingNoReplicaOfAnEntry. |
+| auditor_NUM_LEDGERS_HAVING_LESS_THAN_WQ_REPLICAS_OF_AN_ENTRY | Gauge | The number of ledgers having an entry with less than WQ number of replicas, this doesn't include ledgers counted towards numLedgersHavingLessThanAQReplicasOfAnEntry. |
 | election_attempts | Counter | The number of auditor election attempts. |
-| replication_worker_NUM_BYTES_READ | Summary | The distribution of size of entries read by the replicator. |
+| replication_worker_NUM_BYTES_READ | Summary | The distribution size of entries read by the replicator. |
 | replication_worker_NUM_ENTRIES_READ | Counter | Number of entries read by the replicator. |
 | replication_worker_NUM_ENTRIES_WRITTEN | Counter | Number of entries written by the replicator. |
-| replication_worker_NUM_BYTES_WRITTEN | Summary | The distribution of size of entries written by the replicator. |
+| replication_worker_NUM_BYTES_WRITTEN | Summary | The distribution size of entries written by the replicator. |
 | replication_worker_READ_DATA_LATENCY | Summary | The distribution of latency of read entries by the replicator. |
 | replication_worker_WRITE_DATA_LATENCY | Summary | The distribution of latency of write entries by the replicator. |
 | replication_worker_exceptions | Summary | Replication related exceptions. |
@@ -115,7 +115,7 @@ in the `bookkeeper.conf` configuration file.
 The broker metrics are exposed under "/metrics" at port `8080`. You can change the port by updating `webServicePort` to a different port
 in the `broker.conf` configuration file.
 
-All the metrics exposed by a broker are labelled with `cluster=${pulsar_cluster}`. The name of Pulsar cluster is the value of `${pulsar_cluster}`, which you have configured in the `broker.conf` file.
+All the metrics exposed by a broker are labeled with `cluster=${pulsar_cluster}`. The name of Pulsar cluster is the value of `${pulsar_cluster}`, which you have configured in the `broker.conf` file.
 
 The following metrics are available for broker:
 
@@ -153,7 +153,7 @@ The following metrics are available for broker:
 - [Pulsar transaction](#pulsar-transaction)
 
 ### Broker metrics
-All the broker metrics are labelled with the following labels:
+All the broker metrics are labeled with the following labels:
 - cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the `broker.conf` file.
 
 | Name | Type   | Description                                          |
@@ -185,7 +185,7 @@ All the broker metrics are labelled with the following labels:
 
 ### BookKeeper client metrics
 
-All the BookKeeper client metric are labelled with the following label:
+All the BookKeeper client metrics are labeled with the following label:
 
 - *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you configured in `broker.conf`.
 
@@ -197,7 +197,7 @@ All the BookKeeper client metric are labelled with the following label:
 
 > Namespace metrics are only exposed when `exposeTopicLevelMetricsInPrometheus` is set to `false`.
 
-All the namespace metrics are labelled with the following labels:
+All the namespace metrics are labeled with the following labels:
 
 - *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you configured in `broker.conf`.
 - *namespace*: `namespace=${pulsar_namespace}`. `${pulsar_namespace}` is the namespace name.
@@ -228,7 +228,7 @@ All the namespace metrics are labelled with the following labels:
 
 If a namespace is configured to be replicated among multiple Pulsar clusters, the corresponding replication metrics is also exposed when `replicationMetricsEnabled` is enabled.
 
-All the replication metrics are also labelled with `remoteCluster=${pulsar_remote_cluster}`.
+All the replication metrics are also labeled with `remoteCluster=${pulsar_remote_cluster}`.
 
 | Name | Type | Description |
 |---|---|---|
@@ -246,7 +246,7 @@ All the replication metrics are also labelled with `remoteCluster=${pulsar_remot
 
 > Topic metrics are only exposed when `exposeTopicLevelMetricsInPrometheus` is set to `true`.
 
-All the topic metrics are labelled with the following labels:
+All the topic metrics are labeled with the following labels:
 
 - *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you configured in `broker.conf`.
 - *namespace*: `namespace=${pulsar_namespace}`. `${pulsar_namespace}` is the namespace name.
@@ -292,7 +292,7 @@ All the topic metrics are labelled with the following labels:
 
 If a namespace that a topic belongs to is configured to be replicated among multiple Pulsar clusters, the corresponding replication metrics is also exposed when `replicationMetricsEnabled` is enabled.
 
-All the replication metrics are labelled with `remoteCluster=${pulsar_remote_cluster}`.
+All the replication metrics are labeled with `remoteCluster=${pulsar_remote_cluster}`.
 
 | Name | Type | Description |
 |---|---|---|
@@ -315,7 +315,7 @@ All the replication metrics are labelled with `remoteCluster=${pulsar_remote_clu
 | pulsar_broker_topic_load_pending_requests | Gauge | The load of pending topic operations. |
 
 ### ManagedLedger metrics
-All the managedLedger metrics are labelled with the following labels:
+All the managedLedger metrics are labeled with the following labels:
 - cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the `broker.conf` file.
 - namespace: namespace=${pulsar_namespace}. ${pulsar_namespace} is the namespace name.
 - quantile: quantile=${quantile}. Quantile is only for `Histogram` type metric, and represents the threshold for given Buckets.
@@ -325,7 +325,7 @@ All the managedLedger metrics are labelled with the following labels:
 | pulsar_ml_AddEntryBytesRate | Gauge | The B/s rate of messages added |
 | pulsar_ml_AddEntryWithReplicasBytesRate | Gauge | The B/s rate of messages added with replicas |
 | pulsar_ml_AddEntryErrors | Gauge | The number of addEntry requests that failed |
-| pulsar_ml_AddEntryLatencyBuckets | Histogram | The latency of adding a ledger entry with a given quantile (threshold), including time spent on waiting in queue on the broker side.<br /> Available quantile: <br /><ul><li> quantile="0.0_0.5" is AddEntryLatency between (0.0ms, 0.5ms]</li> <li>quantile="0.5_1.0" is AddEntryLatency between (0.5ms, 1.0ms]</li><li>quantile="1.0_5.0" is AddEntryLatency between (1ms, 5ms]</li><li>quantile="5.0_10.0" is AddEntryLatency between (5ms, 10ms]</li><li>quantile="10.0_20.0" is AddEntryLatency between (10ms, 20ms]</li><li>quantile="20.0_50.0" is AddEntryLatency between (20ms, 50ms]</li><li>quantile="50.0_100.0" is AddEntryLatency between (50ms, 100ms]</li><li>quantile="100.0_200.0" is AddEntryLatency between (100ms, 200ms]</li><li>quantile="200.0_1000.0" is AddEntryLatency between (200ms, 1s]</li></ul>|
+| pulsar_ml_AddEntryLatencyBuckets | Histogram | The latency of adding a ledger entry with a given quantile (threshold), including time spent waiting in queue on the broker side.<br /> Available quantile: <br /><ul><li> quantile="0.0_0.5" is AddEntryLatency between (0.0ms, 0.5ms]</li> <li>quantile="0.5_1.0" is AddEntryLatency between (0.5ms, 1.0ms]</li><li>quantile="1.0_5.0" is AddEntryLatency between (1ms, 5ms]</li><li>quantile="5.0_10.0" is AddEntryLatency between (5ms, 10ms]</li><li>quantile="10.0_20.0" is AddEntryLatency between (10ms, 20ms]</li><li>quantile="20.0_50.0" is AddEntryLatency between (20ms, 50ms]</li><li>quantile="50.0_100.0" is AddEntryLatency between (50ms, 100ms]</li><li>quantile="100.0_200.0" is AddEntryLatency between (100ms, 200ms]</li><li>quantile="200.0_1000.0" is AddEntryLatency between (200ms, 1s]</li></ul>|
 | pulsar_ml_AddEntryLatencyBuckets_OVERFLOW | Gauge | The number of times the AddEntryLatency is longer than 1 second |
 | pulsar_ml_AddEntryMessagesRate | Gauge | The msg/s rate of messages added |
 | pulsar_ml_AddEntrySucceed | Gauge | The number of addEntry requests that succeeded |
@@ -347,7 +347,7 @@ All the managedLedger metrics are labelled with the following labels:
 
 The acknowledgment state is persistent to the ledger first. When the acknowledgment state fails to be persistent to the ledger, they are persistent to ZooKeeper. To track the stats of acknowledgment, you can configure the metrics for the managed cursor.
 
-All the cursor acknowledgment state metrics are labelled with the following labels:
+All the cursor acknowledgment state metrics are labeled with the following labels:
 
 - namespace: `namespace=${pulsar_namespace}`. `${pulsar_namespace}` is the namespace name.
 
@@ -367,21 +367,21 @@ brk_ml_cursor_writeLedgerLogicalSize|Gauge|The size of write to ledger (accounti
 brk_ml_cursor_readLedgerSize|Gauge|The size of read from ledger.
 
 ### LoadBalancing metrics
-All the loadbalancing metrics are labelled with the following labels:
+All the loadbalancing metrics are labeled with the following labels:
 - cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the `broker.conf` file.
 - broker: broker=${broker}. ${broker} is the IP address of the broker
 - metric: metric="loadBalancing".
 
 | Name | Type | Description |
 | --- | --- | --- |
-| pulsar_lb_bandwidth_in_usage | Gauge | The broker inbound bandwith usage (in percent). |
-| pulsar_lb_bandwidth_out_usage | Gauge | The broker outbound bandwith usage (in percent). |
+| pulsar_lb_bandwidth_in_usage | Gauge | The broker inbound bandwidth usage (in percent). |
+| pulsar_lb_bandwidth_out_usage | Gauge | The broker outbound bandwidth usage (in percent). |
 | pulsar_lb_cpu_usage | Gauge | The broker cpu usage (in percent). |
 | pulsar_lb_directMemory_usage | Gauge | The broker process direct memory usage (in percent). | 
 | pulsar_lb_memory_usage | Gauge | The broker process memory usage (in percent). |
 
 #### BundleUnloading metrics
-All the bundleUnloading metrics are labelled with the following labels:
+All the bundleUnloading metrics are labeled with the following labels:
 - cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the `broker.conf` file.
 - metric: metric="bundleUnloading".
 
@@ -391,7 +391,7 @@ All the bundleUnloading metrics are labelled with the following labels:
 | pulsar_lb_unload_bundle_total | Counter | Bundle unload count in this bundle unloading |
 
 #### BundleSplit metrics
-All the bundleUnloading metrics are labelled with the following labels:
+All the bundleUnloading metrics are labeled with the following labels:
 - cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the `broker.conf` file.
 - metric: metric="bundlesSplit".
 
@@ -400,7 +400,7 @@ All the bundleUnloading metrics are labelled with the following labels:
 | pulsar_lb_bundles_split_total | Counter | bundle split count in this bundle splitting check interval |
 
 #### Bundle metrics
-All the bundle metrics are labelled with the following labels:
+All the bundle metrics are labeled with the following labels:
 - cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the `broker.conf` file.
 - broker: broker=${broker}. ${broker} is the IP address of the broker
 - bundle: bundle=${bundle}. ${bundle} is the bundle range on this broker
@@ -420,7 +420,7 @@ All the bundle metrics are labelled with the following labels:
 
 > Subscription metrics are only exposed when `exposeTopicLevelMetricsInPrometheus` is set to `true`.
 
-All the subscription metrics are labelled with the following labels:
+All the subscription metrics are labeled with the following labels:
 
 - *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you have configured in the `broker.conf` file.
 - *namespace*: `namespace=${pulsar_namespace}`. `${pulsar_namespace}` is the namespace name.
@@ -430,11 +430,11 @@ All the subscription metrics are labelled with the following labels:
 | Name | Type | Description |
 |---|---|---|
 | pulsar_subscription_back_log | Gauge | The total backlog of a subscription (entries). |
-| pulsar_subscription_back_log_no_delayed | Gauge | The backlog of a subscription that do not contain the delay messages (entries). |
+| pulsar_subscription_back_log_no_delayed | Gauge | The backlog of a subscription that does not contain the delay messages (entries). |
 | pulsar_subscription_delayed | Gauge | The total number of messages are delayed to be dispatched for a subscription (messages). |
 | pulsar_subscription_msg_rate_redeliver | Gauge | The total message rate for message being redelivered (message per second). |
 | pulsar_subscription_unacked_messages | Gauge | The total number of unacknowledged messages of a subscription (messages). |
-| pulsar_subscription_blocked_on_unacked_messages | Gauge | Indicate whether a subscription is blocked on unacknowledged messages or not. <br /> <ul><li>1 means the subscription is blocked on waiting unacknowledged messages to be acked.</li><li>0 means the subscription is not blocked on waiting unacknowledged messages to be acked.</li></ul> |
+| pulsar_subscription_blocked_on_unacked_messages | Gauge | Indicate whether a subscription is blocked on unacknowledged messages or not. <br /> <ul><li>1 means the subscription is blocked on waiting for unacknowledged messages to be acked.</li><li>0 means the subscription is not blocked on waiting for unacknowledged messages to be acked.</li></ul> |
 | pulsar_subscription_msg_rate_out | Gauge | The total message dispatch rate for a subscription (message per second). |
 | pulsar_subscription_msg_throughput_out | Gauge | The total message dispatch throughput for a subscription (byte per second). |
 | pulsar_subscription_msg_ack_rate | Gauge | The total message acknowledgment rate for a subscription (message per second). |
@@ -456,7 +456,7 @@ All the subscription metrics are labelled with the following labels:
 
 > Consumer metrics are only exposed when both `exposeTopicLevelMetricsInPrometheus` and `exposeConsumerLevelMetricsInPrometheus` are set to `true`.
 
-All the consumer metrics are labelled with the following labels:
+All the consumer metrics are labeled with the following labels:
 
 - *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you have configured in the `broker.conf` file.
 - *namespace*: `namespace=${pulsar_namespace}`. `${pulsar_namespace}` is the namespace name.
@@ -469,7 +469,7 @@ All the consumer metrics are labelled with the following labels:
 |---|---|---|
 | pulsar_consumer_msg_rate_redeliver | Gauge | The total message rate for message being redelivered (message per second). |
 | pulsar_consumer_unacked_messages | Gauge | The total number of unacknowledged messages of a consumer (messages). |
-| pulsar_consumer_blocked_on_unacked_messages | Gauge | Indicate whether a consumer is blocked on unacknowledged messages or not. <br /> <ul><li>1 means the consumer is blocked on waiting unacknowledged messages to be acked.</li><li>0 means the consumer is not blocked on waiting unacknowledged messages to be acked.</li></ul> |
+| pulsar_consumer_blocked_on_unacked_messages | Gauge | Indicate whether a consumer is blocked on unacknowledged messages or not. <br /> <ul><li>1 means the consumer is blocked on waiting for unacknowledged messages to be acked.</li><li>0 means the consumer is not blocked on waiting for unacknowledged messages to be acked.</li></ul> |
 | pulsar_consumer_msg_rate_out | Gauge | The total message dispatch rate for a consumer (message per second). |
 | pulsar_consumer_msg_ack_rate | Gauge | The total rate of message ack (message per second). |
 | pulsar_consumer_msg_throughput_out | Gauge | The total message dispatch throughput for a consumer (byte per second). |
@@ -477,21 +477,21 @@ All the consumer metrics are labelled with the following labels:
 
 ### Managed ledger bookie client metrics
 
-All the managed ledger bookie client metrics are labelled with the following labels:
+All the managed ledger bookie client metrics are labeled with the following labels:
 
 - *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you have configured in the `broker.conf` file.
 
 | Name | Type | Description |
 | --- | --- | --- |
 | pulsar_managedLedger_client_bookkeeper_ml_scheduler_completed_tasks_* | Gauge |  The number of tasks the scheduler executor execute completed. <br />The number of metrics determined by the scheduler executor thread number configured by `managedLedgerNumSchedulerThreads` in `broker.conf`. <br /> |
-| pulsar_managedLedger_client_bookkeeper_ml_scheduler_queue_* | Gauge | The number of tasks queued in the scheduler executor's queue. <br />The number of metrics determined by scheduler executor's thread number configured by `managedLedgerNumSchedulerThreads` in `broker.conf`. <br /> |
-| pulsar_managedLedger_client_bookkeeper_ml_scheduler_total_tasks_* | Gauge | The total number of tasks the scheduler executor received. <br />The number of metrics determined by scheduler executor's thread number configured by `managedLedgerNumSchedulerThreads` in `broker.conf`. <br /> |
+| pulsar_managedLedger_client_bookkeeper_ml_scheduler_queue_* | Gauge | The number of tasks queued in the scheduler executor's queue. <br />The number of metrics determined by the scheduler executor's thread number configured by `managedLedgerNumSchedulerThreads` in `broker.conf`. <br /> |
+| pulsar_managedLedger_client_bookkeeper_ml_scheduler_total_tasks_* | Gauge | The total number of tasks the scheduler executor received. <br />The number of metrics determined by the scheduler executor's thread number configured by `managedLedgerNumSchedulerThreads` in `broker.conf`. <br /> |
 | pulsar_managedLedger_client_bookkeeper_ml_scheduler_task_execution | Summary | The scheduler task execution latency calculated in milliseconds. |
 | pulsar_managedLedger_client_bookkeeper_ml_scheduler_task_queued | Summary | The scheduler task queued latency calculated in milliseconds. |
 
 ### Token metrics
 
-All the token metrics are labelled with the following labels:
+All the token metrics are labeled with the following labels:
 
 - *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you have configured in the `broker.conf` file.
 
@@ -502,7 +502,7 @@ All the token metrics are labelled with the following labels:
 
 ### Authentication metrics
 
-All the authentication metrics are labelled with the following labels:
+All the authentication metrics are labeled with the following labels:
 
 - *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you have configured in the `broker.conf` file.
 - *provider_name*: `provider_name=${provider_name}`. `${provider_name}` is the class name of the authentication provider.
@@ -518,7 +518,7 @@ All the authentication metrics are labelled with the following labels:
 
 > For a functions-worker running separately from brokers, its Jetty metrics are only exposed when `includeStandardPrometheusMetrics` is set to `true`.
 
-All the jetty metrics are labelled with the following labels:
+All the jetty metrics are labeled with the following labels:
 
 - *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you have configured in the `broker.conf` file.
 
@@ -537,8 +537,8 @@ All the jetty metrics are labelled with the following labels:
 | jetty_async_requests_total | Counter | Total number of async requests. |
 | jetty_async_requests_waiting | Gauge | Currently waiting async requests. |
 | jetty_async_requests_waiting_max | Gauge | Maximum number of waiting async requests. |
-| jetty_async_dispatches_total | Counter | Number of requested that have been asynchronously dispatched. |
-| jetty_expires_total | Counter | Number of async requests requests that have expired. |
+| jetty_async_dispatches_total | Counter | Number of requests that have been asynchronously dispatched. |
+| jetty_expires_total | Counter | Number of async requests that have expired. |
 | jetty_responses_total | Counter | Number of responses, labeled by status code. The `code` label can be "1xx", "2xx", "3xx", "4xx", or "5xx". |
 | jetty_stats_seconds | Gauge | Time in seconds stats have been collected for. |
 | jetty_responses_bytes_total | Counter | Total number of bytes across all responses. |
@@ -547,7 +547,7 @@ All the jetty metrics are labelled with the following labels:
 
 > For a functions-worker running separately from brokers, its schema metrics are only exposed when `includeStandardPrometheusMetrics` is set to `true`.
 
-All the schema metrics are labelled with the following labels:
+All the schema metrics are labeled with the following labels:
 
 - *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you have configured in the `broker.conf` file.
 
@@ -564,7 +564,7 @@ All the schema metrics are labelled with the following labels:
 
 ### Offload metrics
 
-All the offload metrics are labelled with the following labels:
+All the offload metrics are labeled with the following labels:
 
 - *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you configured in `broker.conf`.
 - *namespace*: `namespace=${pulsar_namespace}`. `${pulsar_namespace}` is the namespace name.
@@ -587,7 +587,7 @@ All the offload metrics are labelled with the following labels:
 
 > For functions workers running separately from brokers, their Jetty metrics are only exposed when `includeStandardPrometheusMetrics` is set to `true`.
 
-All the web service executor metrics are labelled with the following labels:
+All the web service executor metrics are labeled with the following labels:
 
 - *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you have configured in the `broker.conf` file.
 
@@ -601,7 +601,7 @@ All the web service executor metrics are labelled with the following labels:
 
 ## Pulsar Functions
 
-All the Pulsar Functions metrics are labelled with the following labels:
+All the Pulsar Functions metrics are labeled with the following labels:
 
 - *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you have configured in the `broker.conf` file.
 - *namespace*: `namespace=${pulsar_namespace}`. `${pulsar_namespace}` is the namespace name.
@@ -623,7 +623,7 @@ pulsar_function_user_metric_ | Summary|The user-defined metrics.
 
 ## Connectors
 
-All the Pulsar connector metrics are labelled with the following labels:
+All the Pulsar connector metrics are labeled with the following labels:
 
 - *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you have configured in the `broker.conf` file.
 - *namespace*: `namespace=${pulsar_namespace}`. `${pulsar_namespace}` is the namespace name.
@@ -666,7 +666,7 @@ Connector metrics contain **source** metrics and **sink** metrics.
 
 ## Proxy
 
-All the proxy metrics are labelled with the following labels:
+All the proxy metrics are labeled with the following labels:
 
 - *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you have configured in the `broker.conf` file.
 - *kubernetes_pod_name*: `kubernetes_pod_name=${kubernetes_pod_name}`. `${kubernetes_pod_name}` is the Kubernetes pod name.
@@ -687,28 +687,28 @@ All the proxy metrics are labelled with the following labels:
 | split_num_messages_deserialized | Counter | Number of messages deserialized. |
 | split_num_record_deserialized | Counter | Number of records deserialized. |
 | split_bytes_read_per_query | Summary | Total number of bytes read per query. |
-| split_entry_deserialize_time | Summary | Time spent on derserializing entries. |
-| split_entry_deserialize_time_per_query | Summary | Time spent on derserializing entries per query. |
+| split_entry_deserialize_time | Summary | Time spent on deserializing entries. |
+| split_entry_deserialize_time_per_query | Summary | Time spent on deserializing entries per query. |
 | split_entry_queue_dequeue_wait_time | Summary | Time spend on waiting to get entry from entry queue because it is empty. |
-| split_entry_queue_dequeue_wait_time_per_query | Summary | Total time spent on waiting to get entry from entry queue per query. |
-| split_message_queue_dequeue_wait_time_per_query | Summary | Time spent on waiting to dequeue from message queue because is is empty per query. |
-| split_message_queue_enqueue_wait_time | Summary | Time spent on waiting for message queue enqueue because the message queue is full. |
-| split_message_queue_enqueue_wait_time_per_query | Summary | Time spent on waiting for message queue enqueue because the message queue is full per query. |
+| split_entry_queue_dequeue_wait_time_per_query | Summary | Total time spent waiting to get entry from entry queue per query. |
+| split_message_queue_dequeue_wait_time_per_query | Summary | Time spent waiting to dequeue from message queue because is is empty per query. |
+| split_message_queue_enqueue_wait_time | Summary | Time spent waiting for message queue enqueue because the message queue is full. |
+| split_message_queue_enqueue_wait_time_per_query | Summary | Time spent waiting for message queue enqueue because the message queue is full per query. |
 | split_num_entries_per_batch | Summary | Number of entries per batch. |
 | split_num_entries_per_query | Summary | Number of entries per query. |
 | split_num_messages_deserialized_per_entry | Summary | Number of messages deserialized per entry. |
 | split_num_messages_deserialized_per_query | Summary | Number of messages deserialized per query. |
-| split_read_attempts | Summary | Number of read attempts (fail if queues are full). |
-| split_read_attempts_per_query | Summary | Number of read attempts per query. |
+| split_read_attempts | Summary | Number of reading attempts (fail if queues are full). |
+| split_read_attempts_per_query | Summary | Number of reading attempts per query. |
 | split_read_latency_per_batch | Summary | Latency of reads per batch. |
 | split_read_latency_per_query | Summary | Total read latency per query. |
-| split_record_deserialize_time | Summary | Time spent on deserializing message to record. For example, Avro, JSON, and so on. |
-| split_record_deserialize_time_per_query | Summary | Time spent on deserializing message to record per query. |
+| split_record_deserialize_time | Summary | Time spent deserializing message to record. For example, Avro, JSON, and so on. |
+| split_record_deserialize_time_per_query | Summary | Time spent deserializing message to record per query. |
 | split_total_execution_time | Summary | The total execution time. |
 
 ## Pulsar transaction
 
-All the transaction metrics are labelled with the following labels:
+All the transaction metrics are labeled with the following labels:
 
 - *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you have configured in the `broker.conf` file.
 - *coordinator_id*: `coordinator_id=${coordinator_id}`. `${coordinator_id}` is the coordinator id.

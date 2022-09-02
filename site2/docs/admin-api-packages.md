@@ -61,11 +61,9 @@ Packages can efficiently use the same set of functions and IO connectors. For ex
 Now, you can use the elements you defined in the package by calling this package from within the package manager. The package manager locates it by the URL. For example,
 
 ```
-
 sink://public/default/mysql-sink@1.0
 function://my-tenant/my-ns/my-function@0.1
 source://my-tenant/my-ns/mysql-cdc-source@2.3
-
 ```
 
 ## Package management in Pulsar
@@ -74,15 +72,17 @@ You can use the command line tools, REST API, or the Java client to manage your 
 
 To use package management service, ensure that the package management service has been enabled in your cluster by setting the following properties in `broker.conf`.
 
-> Note: Package management service is not enabled by default.
+:::note
+
+Package management service is not enabled by default.
+
+:::
 
 ```properties
-
 enablePackagesManagement=true
 packagesManagementStorageProvider=org.apache.pulsar.packages.management.storage.bookkeeper.BookKeeperPackagesStorageProvider
 packagesReplicas=1
 packagesManagementLedgerRootPath=/ledgers
-
 ```
 
 ### Upload a package
@@ -96,9 +96,7 @@ You can use the following commands to upload a package.
 <TabItem value="pulsar-admin">
 
 ```shell
-
 bin/pulsar-admin packages upload function://public/default/example@v0.1 --path package-file --description package-description
-
 ```
 
 </TabItem>
@@ -112,17 +110,13 @@ bin/pulsar-admin packages upload function://public/default/example@v0.1 --path p
 Upload a package to the package management service synchronously.
 
 ```java
-
-  void upload(PackageMetadata metadata, String packageName, String path) throws PulsarAdminException;
-
+void upload(PackageMetadata metadata, String packageName, String path) throws PulsarAdminException;
 ```
 
 Upload a package to the package management service asynchronously.
 
 ```java
-
-  CompletableFuture<Void> uploadAsync(PackageMetadata metadata, String packageName, String path);
-
+CompletableFuture<Void> uploadAsync(PackageMetadata metadata, String packageName, String path);
 ```
 
 </TabItem>
@@ -141,9 +135,7 @@ You can use the following commands to download a package.
 <TabItem value="pulsar-admin">
 
 ```shell
-
 bin/pulsar-admin packages download function://public/default/example@v0.1 --path package-file
-
 ```
 
 </TabItem>
@@ -157,17 +149,13 @@ bin/pulsar-admin packages download function://public/default/example@v0.1 --path
 Download a package from the package management service synchronously.
 
 ```java
-
-  void download(String packageName, String path) throws PulsarAdminException;
-
+void download(String packageName, String path) throws PulsarAdminException;
 ```
 
 Download a package from the package management service asynchronously.
 
 ```java
-
-  CompletableFuture<Void> downloadAsync(String packageName, String path);
-
+CompletableFuture<Void> downloadAsync(String packageName, String path);
 ```
 
 </TabItem>
@@ -188,9 +176,7 @@ You can use the following commands to delete a package.
 The following command deletes a package of version 0.1.
 
 ```shell
-
 bin/pulsar-admin packages delete functions://public/default/example@v0.1
-
 ```
 
 </TabItem>
@@ -204,17 +190,13 @@ bin/pulsar-admin packages delete functions://public/default/example@v0.1
 Delete a specified package synchronously.
 
 ```java
-
-  void delete(String packageName) throws PulsarAdminException;
-
+void delete(String packageName) throws PulsarAdminException;
 ```
 
 Delete a specified package asynchronously.
 
 ```java
-
-  CompletableFuture<Void> deleteAsync(String packageName);
-
+CompletableFuture<Void> deleteAsync(String packageName);
 ```
 
 </TabItem>
@@ -224,7 +206,7 @@ Delete a specified package asynchronously.
 
 ### Get the metadata of a package
 
-You can use the following commands to get the metadate of a package.
+You can use the following commands to get the metadata of a package.
 
 ````mdx-code-block
 <Tabs groupId="api-choice"
@@ -233,9 +215,7 @@ You can use the following commands to get the metadate of a package.
 <TabItem value="pulsar-admin">
 
 ```shell
-
 bin/pulsar-admin packages get-metadata function://public/default/test@v1
-
 ```
 
 </TabItem>
@@ -249,17 +229,13 @@ bin/pulsar-admin packages get-metadata function://public/default/test@v1
 Get the metadata of a package synchronously.
 
 ```java
-
-  PackageMetadata getMetadata(String packageName) throws PulsarAdminException;
-
+PackageMetadata getMetadata(String packageName) throws PulsarAdminException;
 ```
 
 Get the metadata of a package asynchronously.
 
 ```java
-
-  CompletableFuture<PackageMetadata> getMetadataAsync(String packageName);
-
+CompletableFuture<PackageMetadata> getMetadataAsync(String packageName);
 ```
 
 </TabItem>
@@ -278,9 +254,7 @@ You can use the following commands to update the metadata of a package.
 <TabItem value="pulsar-admin">
 
 ```shell
-
 bin/pulsar-admin packages update-metadata function://public/default/example@v0.1 --description update-description
-
 ```
 
 </TabItem>
@@ -294,17 +268,13 @@ bin/pulsar-admin packages update-metadata function://public/default/example@v0.1
 Update the metadata of a package synchronously.
 
 ```java
-
-  void updateMetadata(String packageName, PackageMetadata metadata) throws PulsarAdminException;
-
+void updateMetadata(String packageName, PackageMetadata metadata) throws PulsarAdminException;
 ```
 
 Update the metadata of a package asynchronously.
 
 ```java
-
-  CompletableFuture<Void> updateMetadataAsync(String packageName, PackageMetadata metadata);
-
+CompletableFuture<Void> updateMetadataAsync(String packageName, PackageMetadata metadata);
 ```
 
 </TabItem>
@@ -323,9 +293,7 @@ You can use the following commands to list all versions of a package.
 <TabItem value="pulsar-admin">
 
 ```shell
-
 bin/pulsar-admin packages list-versions type://tenant/namespace/packageName
-
 ```
 
 </TabItem>
@@ -339,17 +307,13 @@ bin/pulsar-admin packages list-versions type://tenant/namespace/packageName
 List all versions of a package synchronously.
 
 ```java
-
-  List<String> listPackageVersions(String packageName) throws PulsarAdminException;
-
+List<String> listPackageVersions(String packageName) throws PulsarAdminException;
 ```
 
 List all versions of a package asynchronously.
 
 ```java
-
-  CompletableFuture<List<String>> listPackageVersionsAsync(String packageName);
-
+CompletableFuture<List<String>> listPackageVersionsAsync(String packageName);
 ```
 
 </TabItem>
@@ -369,9 +333,7 @@ You can use the following commands to list all packages of a specific type under
 <TabItem value="pulsar-admin">
 
 ```shell
-
 bin/pulsar-admin packages list --type function public/default
-
 ```
 
 </TabItem>
@@ -385,17 +347,13 @@ bin/pulsar-admin packages list --type function public/default
 List all packages of a specific type under a namespace synchronously.
 
 ```java
-
-  List<String> listPackages(String type, String namespace) throws PulsarAdminException;
-
+List<String> listPackages(String type, String namespace) throws PulsarAdminException;
 ```
 
 List all packages of a specific type under a namespace asynchronously.
 
 ```java
-
-  CompletableFuture<List<String>> listPackagesAsync(String type, String namespace);
-
+CompletableFuture<List<String>> listPackagesAsync(String type, String namespace);
 ```
 
 </TabItem>

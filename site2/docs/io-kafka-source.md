@@ -4,8 +4,7 @@ title: Kafka source connector
 sidebar_label: "Kafka source connector"
 ---
 
-The Kafka source connector pulls messages from Kafka topics and persists the messages
-to Pulsar topics.
+The Kafka source connector pulls messages from Kafka topics and persists the messages to Pulsar topics.
 
 This guide explains how to configure and use the Kafka source connector.
 
@@ -44,18 +43,18 @@ In this case, you need to set `schema.registry.url` inside of the `consumerConfi
 of the source.
 
 If `keyDeserializationClass` is not `org.apache.kafka.common.serialization.StringDeserializer`, it means 
-that you do not have a String as key and the Kafka Source uses the KeyValue schema type with the SEPARATED encoding.
+that you do not have a string as a key and the Kafka Source uses the KeyValue schema type with the SEPARATED encoding.
 
-Pulsar supports AVRO format for keys.
+Pulsar supports the AVRO format for keys.
 
 In this case, you can have a Pulsar topic with the following properties:
 - Schema: KeyValue schema with SEPARATED encoding
-- Key: the content of key of the Kafka message (base64 encoded)
-- Value: the content of value of the Kafka message
+- Key: the key content of the Kafka message (base64-encoded)
+- Value: the value content of the Kafka message
 - KeySchema: the schema detected from `keyDeserializationClass`
 - ValueSchema: the schema detected from `valueDeserializationClass`
 
-Topic compaction and partition routing use the Pulsar key, that contains the Kafka key, and so they are driven by the same value that you have on Kafka.
+Topic compaction and partition routing use the Pulsar key, which contains the Kafka key, and so they are driven by the same value that you have on Kafka.
 
 When you consume data from Pulsar topics, you can use the `KeyValue` schema. In this way, you can decode the data properly.
 If you want to access the raw key, you can use the `Message#getKeyBytes()` API.
@@ -67,7 +66,6 @@ Before using the Kafka source connector, you need to create a configuration file
 - JSON
 
    ```json
-   
      {
        "bootstrapServers": "pulsar-kafka:9092",
        "groupId": "test-pulsar-io",
@@ -75,20 +73,17 @@ Before using the Kafka source connector, you need to create a configuration file
        "sessionTimeoutMs": "10000",
        "autoCommitEnabled": false
      }
-   
    ```
 
 - YAML
 
    ```yaml
-   
      configs:
        bootstrapServers: "pulsar-kafka:9092"
        groupId: "test-pulsar-io"
        topic: "my-topic"
        sessionTimeoutMs: "10000"
          autoCommitEnabled: false
-   
    ```
 
 ## Usage
@@ -112,28 +107,23 @@ For details, see the [documentation](https://docs.confluent.io/platform/current/
 2. Pull a Pulsar image and start Pulsar in standalone mode.
 
    ```bash
-   
    docker pull apachepulsar/pulsar:latest
      
    docker run -d -it -p 6650:6650 -p 8080:8080 -v $PWD/data:/pulsar/data --name pulsar-kafka-standalone apachepulsar/pulsar:latest bin/pulsar standalone
-   
    ```
 
 3. Create a producer file _kafka-producer.py_.
 
    ```python
-   
    from kafka import KafkaProducer
    producer = KafkaProducer(bootstrap_servers='localhost:9092')
    future = producer.send('my-topic', b'hello world')
    future.get()
-   
    ```
 
 4. Create a consumer file _pulsar-client.py_.
 
    ```python
-   
    import pulsar
 
    client = pulsar.Client('pulsar://localhost:6650')
@@ -147,22 +137,18 @@ For details, see the [documentation](https://docs.confluent.io/platform/current/
        consumer.acknowledge(msg)
 
    client.close()
-   
    ```
 
 5. Copy the following files to Pulsar.
 
    ```bash
-   
    docker cp pulsar-io-kafka.nar pulsar-kafka-standalone:/pulsar
    docker cp kafkaSourceConfig.yaml pulsar-kafka-standalone:/pulsar/conf
-   
    ```
 
 6. Open a new terminal window and start the Kafka source connector in local run mode.
 
    ```bash
-   
    docker exec -it pulsar-kafka-standalone /bin/bash
 
    ./bin/pulsar-admin source localrun \
@@ -173,32 +159,25 @@ For details, see the [documentation](https://docs.confluent.io/platform/current/
    --destination-topic-name my-topic \
    --source-config-file ./conf/kafkaSourceConfig.yaml \
    --parallelism 1
-   
    ```
 
 7. Open a new terminal window and run the Kafka producer locally.
 
    ```bash
-   
    python3 kafka-producer.py
-   
    ```
 
 8. Open a new terminal window and run the Pulsar consumer locally.
 
    ```bash
-   
    python3 pulsar-client.py
-   
    ```
 
 The following information appears on the consumer terminal window.
 
-    ```bash
-    
-    Received message: 'hello world'
-    
-    ```
+   ```bash
+   Received message: 'hello world'
+   ```
 
 ### On-premises cluster
 
@@ -206,34 +185,26 @@ This example explains how to create a Kafka source connector in an on-premises c
 
 1. Copy the NAR package of the Kafka connector to the Pulsar connectors directory.
 
-   ```
-   
+   ```bash
    cp pulsar-io-kafka-{{connector:version}}.nar $PULSAR_HOME/connectors/pulsar-io-kafka-{{connector:version}}.nar
-   
    ```
 
 2. Reload all [built-in connectors](/io-connectors.md).
 
-   ```
-   
+   ```bash
    PULSAR_HOME/bin/pulsar-admin sources reload
-   
    ```
 
 3. Check whether the Kafka source connector is available on the list or not.
 
-   ```
-   
+   ```bash
    PULSAR_HOME/bin/pulsar-admin sources available-sources
-   
    ```
 
 4. Create a Kafka source connector on a Pulsar cluster using the [`pulsar-admin sources create`](/tools/pulsar-admin/2.11.0-SNAPSHOT/#-em-create-em--14) command.
 
-   ```
-   
+   ```bash
    PULSAR_HOME/bin/pulsar-admin sources create \
    --source-config-file <kafka-source-config.yaml>
-   
    ```
 

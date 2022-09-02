@@ -24,6 +24,7 @@ ARG PULSAR_TARBALL
 
 ADD ${PULSAR_TARBALL} /
 RUN mv /apache-pulsar-* /pulsar
+RUN rm -rf /pulsar/bin/*.cmd
 
 COPY scripts/apply-config-from-env.py /pulsar/bin
 COPY scripts/apply-config-from-env-with-prefix.py /pulsar/bin

@@ -14,7 +14,6 @@ When the stateful APIs of Pulsar Functions are required – for example, `putSta
    Currently, the service uses the NAR package, so you need to set the configuration in the `conf/bookkeeper.conf` file.
 
    ```text
-   
    ##################################################################
    ##################################################################
    # Settings below are used by stream/table service
@@ -43,7 +42,6 @@ When the stateful APIs of Pulsar Functions are required – for example, `putSta
 
    # the cluster controller schedule interval, in milliseconds. default is 30 seconds.
    storage.cluster.controller.schedule.interval.ms=30000
-
    ```
 
 2. After starting the bookie, use the following methods to check whether the `streamStorage` service has been started successfully.
@@ -51,26 +49,20 @@ When the stateful APIs of Pulsar Functions are required – for example, `putSta
    * Input:
 
       ```shell
-
       telnet localhost 4181
-
       ```
 
    * Output:
 
-       ```text
-
+      ```text
       Trying 127.0.0.1...
       Connected to localhost.
       Escape character is '^]'.
-
       ```
 
 3. Configure `stateStorageServiceUrl` in the `conf/functions_worker.yml` file. 
    `bk-service-url` is the service URL pointing to the BookKeeper table service.
 
    ```shell
-
    stateStorageServiceUrl: bk://<bk-service-url>:4181
-
    ```
