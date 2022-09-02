@@ -490,6 +490,6 @@ class TopicStats {
     }
 
     private static void appendEndings(SimpleTextOutputStream stream) {
-        stream.write(' ').write(System.currentTimeMillis()).write('\n');
+        stream.write('\n');
     }
 }

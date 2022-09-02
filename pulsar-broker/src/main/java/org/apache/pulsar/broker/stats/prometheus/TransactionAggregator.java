@@ -176,7 +176,7 @@ public class TransactionAggregator {
         stream.write(name)
                 .write("{cluster=\"").write(cluster)
                 .write("\",coordinator_id=\"").write(coordinatorId).write("\"} ")
-                .write(value).write(' ').write(System.currentTimeMillis())
+                .write(value)
                 .write('\n');
     }
 
@@ -184,14 +184,14 @@ public class TransactionAggregator {
                                 String topic, String subscription, String name, long value) {
         stream.write(name).write("{cluster=\"").write(cluster).write("\", namespace=\"").write(namespace)
                 .write("\",topic=\"").write(topic).write("\",subscription=\"").write(subscription).write("\"} ");
-        stream.write(value).write(' ').write(System.currentTimeMillis()).write('\n');
+        stream.write(value).write('\n');
     }
 
     private static void metrics(SimpleTextOutputStream stream, String cluster, String namespace,
                                 String topic, String subscription, String name, double value) {
         stream.write(name).write("{cluster=\"").write(cluster).write("\", namespace=\"").write(namespace)
                 .write("\",topic=\"").write(topic).write("\",subscription=\"").write(subscription).write("\"} ");
-        stream.write(value).write(' ').write(System.currentTimeMillis()).write('\n');
+        stream.write(value).write('\n');
     }
 
     private static void printManageLedgerStats(SimpleTextOutputStream stream, String cluster, String namespace,
@@ -289,7 +289,7 @@ public class TransactionAggregator {
                                String name, long value) {
         stream.write(name).write("{cluster=\"").write(cluster).write("\",namespace=\"").write(namespace)
                 .write("\",topic=\"").write(topic).write("\",subscription=\"").write(subscription).write("\"} ");
-        stream.write(value).write(' ').write(System.currentTimeMillis()).write('\n');
+        stream.write(value).write('\n');
     }
 
     static void printTransactionCoordinatorStats(SimpleTextOutputStream stream, String cluster,

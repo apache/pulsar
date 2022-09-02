@@ -428,7 +428,7 @@ public class NamespaceStatsAggregator {
         TopicStats.metricType(stream, name);
         stream.write(name)
                 .write("{cluster=\"").write(cluster).write("\"} ")
-                .write(value).write(' ').write(System.currentTimeMillis())
+                .write(value)
                 .write('\n');
     }
 
@@ -436,14 +436,14 @@ public class NamespaceStatsAggregator {
                                long value) {
         TopicStats.metricType(stream, name);
         stream.write(name).write("{cluster=\"").write(cluster).write("\",namespace=\"").write(namespace).write("\"} ");
-        stream.write(value).write(' ').write(System.currentTimeMillis()).write('\n');
+        stream.write(value).write('\n');
     }
 
     private static void metric(SimpleTextOutputStream stream, String cluster, String namespace, String name,
                                double value) {
         TopicStats.metricType(stream, name);
         stream.write(name).write("{cluster=\"").write(cluster).write("\",namespace=\"").write(namespace).write("\"} ");
-        stream.write(value).write(' ').write(System.currentTimeMillis()).write('\n');
+        stream.write(value).write('\n');
     }
 
     private static void metricWithRemoteCluster(SimpleTextOutputStream stream, String cluster, String namespace,
@@ -451,6 +451,6 @@ public class NamespaceStatsAggregator {
         TopicStats.metricType(stream, name);
         stream.write(name).write("{cluster=\"").write(cluster).write("\",namespace=\"").write(namespace);
         stream.write("\",remote_cluster=\"").write(remoteCluster).write("\"} ");
-        stream.write(value).write(' ').write(System.currentTimeMillis()).write('\n');
+        stream.write(value).write('\n');
     }
 }
