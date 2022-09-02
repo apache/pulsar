@@ -14,10 +14,10 @@ sidebar_label: "Bare metal"
 
 Deploying a Pulsar cluster consists of the following steps:
 
-1. Deploy a [ZooKeeper](#deploy-a-zookeeper-cluster) cluster (optional)  
-2. Initialize [cluster metadata](#initialize-cluster-metadata)  
-3. Deploy a [BookKeeper](#deploy-a-bookkeeper-cluster) cluster  
-4. Deploy one or more Pulsar [brokers](#deploy-pulsar-brokers)  
+1. Deploy a [ZooKeeper](#deploy-a-zookeeper-cluster) cluster (optional)
+2. Initialize [cluster metadata](#initialize-cluster-metadata)
+3. Deploy a [BookKeeper](#deploy-a-bookkeeper-cluster) cluster
+4. Deploy one or more Pulsar [brokers](#deploy-pulsar-brokers)
 
 ## Preparation
 
@@ -76,7 +76,7 @@ To start a Pulsar instance, below are the minimum and the recommended hardware s
 A cluster consists of 3 broker nodes, 3 bookie nodes, and 3 ZooKeeper nodes. The following recommendation is suitable for one node.
 
 - The minimum hardware settings (**250 Pulsar topics**)
-   
+
    Component | CPU|Memory|Storage|Throughput |Rate
    |---|---|---|---|---|---
    Broker|0.2|256 MB|/|Write throughput: 3 MB/s<br /><br />Read throughput: 6 MB/s<br /><br />|Write rate: 350 entries/s<br /><br />Read rate: 650 entries/s
@@ -144,12 +144,12 @@ To use `builtin` connectors, you need to download the connectors tarball release
 * using [wget](https://www.gnu.org/software/wget):
 
   ```shell
-  
+
   $ wget pulsar:connector_release_url/{connector}-@pulsar:version@.nar
-  
+
   ```
 
-Once you download the .nar file, copy the file to directory `connectors` in the pulsar directory. 
+Once you download the .nar file, copy the file to directory `connectors` in the pulsar directory.
 For example, if you download the connector file `pulsar-io-aerospike-@pulsar:version@.nar`:
 
 ```bash
@@ -180,9 +180,9 @@ To use tiered storage offloaders, you need to download the offloaders tarball re
 * using [wget](https://www.gnu.org/software/wget):
 
   ```shell
-  
+
   $ wget pulsar:offloader_release_url
-  
+
   ```
 
 Once you download the tarball, in the Pulsar directory, untar the offloaders package and copy the offloaders as `offloaders` in the Pulsar directory:
@@ -296,13 +296,13 @@ Flag | Description
 >
 
 > ```shell
-> 
+>
 > --web-service-url http://host1:8080,host2:8080,host3:8080 \
 > --web-service-url-tls https://host1:8443,host2:8443,host3:8443 \
 > --broker-service-url pulsar://host1:6650,host2:6650,host3:6650 \
 > --broker-service-url-tls pulsar+ssl://host1:6651,host2:6651,host3:6651
 >
-> 
+>
 > ```
 
 >
@@ -310,14 +310,14 @@ Flag | Description
 >
 
 > ```shell
-> 
+>
 > --existing-bk-metadata-service-uri "zk+null://zk1:2181;zk2:2181/ledgers" \
 > --web-service-url http://host1:8080,host2:8080,host3:8080 \
 > --web-service-url-tls https://host1:8443,host2:8443,host3:8443 \
 > --broker-service-url pulsar://host1:6650,host2:6650,host3:6650 \
 > --broker-service-url-tls pulsar+ssl://host1:6651,host2:6651,host3:6651
 >
-> 
+>
 > ```
 
 > You can obtain the metadata service URI of the existing BookKeeper cluster by using the `bin/bookkeeper shell whatisinstanceid` command. You must enclose the value in double quotes since the multiple metadata service URIs are separated with semicolons.
@@ -413,17 +413,17 @@ webServicePortTls=8443
 >
 
 > ```properties
-> 
+>
 > # Number of bookies to use when creating a ledger
 > managedLedgerDefaultEnsembleSize=1
 >
 > # Number of copies to store for each message
 > managedLedgerDefaultWriteQuorum=1
-> 
+>
 > # Number of guaranteed copies (acks to wait before write is complete)
 > managedLedgerDefaultAckQuorum=1
 >
-> 
+>
 > ```
 
 
@@ -433,18 +433,18 @@ If you want to enable [Pulsar Functions](functions-overview.md), you can follow 
 
 1. Edit `conf/broker.conf` to enable functions worker, by setting `functionsWorkerEnabled` to `true`.
 
-   ```conf
-   
+   ```properties
+
    functionsWorkerEnabled=true
-   
+
    ```
 
-2. Edit `conf/functions_worker.yml` and set `pulsarFunctionsCluster` to the cluster name that you provide when you [initialize the metadata of the cluster](#initialize-cluster-metadata). 
+2. Edit `conf/functions_worker.yml` and set `pulsarFunctionsCluster` to the cluster name that you provide when you [initialize the metadata of the cluster](#initialize-cluster-metadata).
 
-   ```conf
-   
+   ```properties
+
    pulsarFunctionsCluster: pulsar-cluster-1
-   
+
    ```
 
 If you want to learn more options about deploying the functions worker, check out [Deploy and manage functions worker](functions-worker.md).
@@ -488,11 +488,11 @@ brokerServiceurl=pulsar://us-west.example.com:6650
 >
 
 > ```properties
-> 
+>
 > webServiceUrl=http://host1:8080,host2:8080,host3:8080
 > brokerServiceurl=pulsar://host1:6650,host2:6650,host3:6650
 >
-> 
+>
 > ```
 
 

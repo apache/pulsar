@@ -399,7 +399,7 @@ The Apache Software License, Version 2.0
     - org.apache.logging.log4j-log4j-core-2.18.0.jar
     - org.apache.logging.log4j-log4j-slf4j-impl-2.18.0.jar
     - org.apache.logging.log4j-log4j-web-2.18.0.jar
- * Java Native Access JNA -- net.java.dev.jna-jna-4.2.0.jar
+ * Java Native Access JNA -- net.java.dev.jna-jna-5.12.1.jar
  * BookKeeper
     - org.apache.bookkeeper-bookkeeper-common-4.15.0.jar
     - org.apache.bookkeeper-bookkeeper-common-allocator-4.15.0.jar
