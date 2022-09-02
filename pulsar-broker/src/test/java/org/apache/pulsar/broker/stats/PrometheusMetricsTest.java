@@ -843,16 +843,6 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                     if (!typeDefs.containsKey(summaryMetricName)) {
                         fail("Metric " + metricName + " does not have a corresponding summary type definition");
                     }
-                } else if (metricName.endsWith("_created")) {
-                    String summaryMetricName = metricName.substring(0, metricName.indexOf("_created"));
-                    if (!typeDefs.containsKey(summaryMetricName)) {
-                        fail("Metric " + metricName + " does not have a corresponding summary type definition");
-                    }
-                } else if (metricName.endsWith("_total")) {
-                    String summaryMetricName = metricName.substring(0, metricName.indexOf("_total"));
-                    if (!typeDefs.containsKey(summaryMetricName)) {
-                        fail("Metric " + metricName + " does not have a corresponding counter type definition");
-                    }
                 } else {
                     fail("Metric " + metricName + " does not have a type definition");
                 }
@@ -1090,7 +1080,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         PrometheusMetricsGenerator.generate(pulsar, false, false, false, statsOut);
         String metricsStr = statsOut.toString();
         Multimap<String, Metric> metrics = parseMetrics(metricsStr);
-        List<Metric> cm = (List<Metric>) metrics.get("pulsar_authentication_success_total");
+        List<Metric> cm = (List<Metric>) metrics.get("pulsar_authentication_success_count");
         boolean haveSucceed = false;
         for (Metric metric : cm) {
             if (Objects.equals(metric.tags.get("auth_method"), "token")
@@ -1100,7 +1090,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         }
         Assert.assertTrue(haveSucceed);
 
-        cm = (List<Metric>) metrics.get("pulsar_authentication_failures_total");
+        cm = (List<Metric>) metrics.get("pulsar_authentication_failures_count");
 
         boolean haveFailed = false;
         for (Metric metric : cm) {
@@ -1150,7 +1140,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         PrometheusMetricsGenerator.generate(pulsar, false, false, false, statsOut);
         String metricsStr = statsOut.toString();
         Multimap<String, Metric> metrics = parseMetrics(metricsStr);
-        List<Metric> cm = (List<Metric>) metrics.get("pulsar_expired_token_total");
+        List<Metric> cm = (List<Metric>) metrics.get("pulsar_expired_token_count");
         assertEquals(cm.size(), 1);
 
         provider.close();

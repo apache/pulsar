@@ -59,7 +59,7 @@ public class PrometheusMetricsGeneratorUtils {
             Collector.MetricFamilySamples metricFamily = metricFamilySamples.nextElement();
 
             // Write type of metric
-            stream.write("# TYPE ").write(metricFamily.name).write(getTypeNameSuffix(metricFamily.type)).write(' ')
+            stream.write("# TYPE ").write(metricFamily.name).write(' ')
                     .write(getTypeStr(metricFamily.type)).write('\n');
 
             for (int i = 0; i < metricFamily.samples.size(); i++) {
@@ -88,27 +88,19 @@ public class PrometheusMetricsGeneratorUtils {
         }
     }
 
-    static String getTypeNameSuffix(Collector.Type type) {
-        if (type.equals(Collector.Type.INFO)) {
-            return "_info";
-        }
-        return "";
-    }
-
     static String getTypeStr(Collector.Type type) {
         switch (type) {
             case COUNTER:
                 return "counter";
             case GAUGE:
-            case INFO:
                 return "gauge";
-            case SUMMARY:
+            case SUMMARY        :
                 return "summary";
             case HISTOGRAM:
                 return "histogram";
-            case UNKNOWN:
+            case UNTYPED:
             default:
-                return "unknown";
+                return "untyped";
         }
     }
 
