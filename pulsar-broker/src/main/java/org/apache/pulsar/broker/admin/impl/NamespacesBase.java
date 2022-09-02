@@ -1157,10 +1157,6 @@ public abstract class NamespacesBase extends AdminResource {
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenCompose(__ -> getBundleRangeAsync(bundleName))
                 .thenCompose(bundleRange -> {
-                    if (bundleRange == null) {
-                        throw new RestException(Status.NOT_FOUND,
-                                String.format("Bundle range %s not found", bundleName));
-                    }
                     return getNamespacePoliciesAsync(namespaceName)
                             .thenCompose(policies ->
                                     validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles, bundleRange,
@@ -1230,7 +1226,8 @@ public abstract class NamespacesBase extends AdminResource {
         }
         return future.thenApply(nsBundle -> {
             if (nsBundle == null) {
-                return null;
+                throw new RestException(Status.NOT_FOUND,
+                        String.format("Bundle range %s not found", bundleName));
             }
             return nsBundle.getBundleRange();
         });
