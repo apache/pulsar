@@ -106,7 +106,7 @@ public class AggregatedNamespaceStats {
 
         stats.replicationStats.forEach((n, as) -> {
             AggregatedReplicationStats replStats =
-                    replicationStats.computeIfAbsent(n,  k -> new AggregatedReplicationStats());
+                    replicationStats.computeIfAbsent(n, k -> new AggregatedReplicationStats());
             replStats.msgRateIn += as.msgRateIn;
             replStats.msgRateOut += as.msgRateOut;
             replStats.msgThroughputIn += as.msgThroughputIn;
