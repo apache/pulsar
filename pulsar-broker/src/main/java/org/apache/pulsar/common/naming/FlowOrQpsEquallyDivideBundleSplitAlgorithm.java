@@ -108,8 +108,8 @@ public class FlowOrQpsEquallyDivideBundleSplitAlgorithm implements NamespaceBund
                 double msgRate = topicInfoMap.get(topicHashCode).msgRate;
                 double throughput = topicInfoMap.get(topicHashCode).throughput;
 
-                if (bundleMsgRateTmp > loadBalancerNamespaceBundleMaxMsgRate
-                        || bundleThroughputTmp > loadBalancerNamespaceBundleMaxBandwidthBytes) {
+                if ((bundleMsgRateTmp + msgRate) > loadBalancerNamespaceBundleMaxMsgRate
+                        || (bundleThroughputTmp + throughput) > loadBalancerNamespaceBundleMaxBandwidthBytes) {
                     long splitStart = topicHashList.get(i - 1);
                     long splitEnd = topicHashList.get(i);
                     long splitMiddle = splitStart + (splitEnd - splitStart) / 2 + 1;
