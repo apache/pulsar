@@ -103,7 +103,7 @@ public class ProtocolHandlerUtilsTest {
         }
     }
 
-    @Test(expectedExceptions = RuntimeException.class)
+    @Test
     public void testLoadProtocolHandlerWrongHandlerClass() throws Exception {
         ProtocolHandlerDefinition def = new ProtocolHandlerDefinition();
         def.setHandlerClass(Runnable.class.getName());
@@ -126,8 +126,13 @@ public class ProtocolHandlerUtilsTest {
         when(mockedBuilder.build()).thenReturn(mockLoader);
         try (MockedStatic<NarClassLoaderBuilder> builder = Mockito.mockStatic(NarClassLoaderBuilder.class)) {
             builder.when(() -> NarClassLoaderBuilder.builder()).thenReturn(mockedBuilder);
-            ProtocolHandlerUtils.load(metadata, "");
-            fail("Should not reach here");
+
+            try {
+                ProtocolHandlerUtils.load(metadata, "");
+                fail("Should not reach here");
+            } catch (IOException ioe) {
+                // expected
+            }
         }
     }
 

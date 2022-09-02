@@ -97,7 +97,7 @@ public class BrokerInterceptorUtilsTest {
         }
     }
 
-    @Test(expectedExceptions = RuntimeException.class)
+    @Test(expectedExceptions = IOException.class)
     public void testLoadBrokerEventListenerWithWrongListerClass() throws Exception {
         BrokerInterceptorDefinition def = new BrokerInterceptorDefinition();
         def.setInterceptorClass(Runnable.class.getName());
