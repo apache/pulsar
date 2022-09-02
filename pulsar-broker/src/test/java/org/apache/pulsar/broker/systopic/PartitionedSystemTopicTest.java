@@ -246,6 +246,10 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         producer1.close();
         PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName.toString(), false).get().get();
         persistentTopic.close().join();
+        List<String> topics = new ArrayList<>();
+        topics.addAll(pulsar.getBrokerService().getTopics().keys());
+        topics.removeIf(item -> item.contains(SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME));
+        Assert.assertEquals(topics.size(), 0);
         @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topicName)
