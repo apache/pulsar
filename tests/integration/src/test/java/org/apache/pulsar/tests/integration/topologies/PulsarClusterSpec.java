@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.tests.integration.topologies;
 
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -155,4 +156,9 @@ public class PulsarClusterSpec {
 
     @Default
     int maxMessageSize = Commands.DEFAULT_MAX_MESSAGE_SIZE;
+
+    /**
+     * Additional ports to expose on broker containers.
+     */
+    List<Integer> brokerAdditionalPorts;
 }

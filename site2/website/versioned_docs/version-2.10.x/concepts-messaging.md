@@ -76,7 +76,7 @@ You can have different types of access modes on topics for producers.
 |Access mode | Description
 |---|---
 `Shared`|Multiple producers can publish on a topic. <br /><br />This is the **default** setting.
-`Exclusive`|Only one producer can publish on a topic. <br /><br />If there is already a producer connected, other producers trying to publish on this topic get errors immediately.<br /><br />The “old” producer is evicted and a “new” producer is selected to be the next exclusive producer if the “old” producer experiences a network partition with the broker.
+`Exclusive`|Only one producer can publish on a topic. <br /><br />If there is already a producer connected, other producers trying to publish on this topic get errors immediately.<br /><br />The "old" producer is evicted and a "new" producer is selected to be the next exclusive producer if the "old" producer experiences a network partition with the broker.
 `WaitForExclusive`|If there is already a producer connected, the producer creation is pending (rather than timing out) until the producer gets the `Exclusive` access.<br /><br />The producer that succeeds in becoming the exclusive one is treated as the leader. Consequently, if you want to implement the leader election scheme for your application, you can use this access mode.
 
 :::note
@@ -857,11 +857,11 @@ Producer<byte[]> producer = client.newProducer()
 
 ## System topic
 
-System topic is a predefined topic for internal use within Pulsar. It can be either persistent or non-persistent topic.
+System topic is a predefined topic for internal use within Pulsar. It can be either a persistent or non-persistent topic.
 
-System topics serve to implement certain features and eliminate dependencies on third-party components, such as transactions, heartbeat detections, topic-level policies, and resource group services. System topics empower the implementation of these features to be simplified, dependent, and flexible. Take heartbeat detections for example, you can leverage the system topic for healthcheck to internally enable producer/reader to procude/consume messages under the heartbeat namespace, which can detect whether the current service is still alive.
+System topics serve to implement certain features and eliminate dependencies on third-party components, such as transactions, heartbeat detections, topic-level policies, and resource group services. System topics empower the implementation of these features to be simplified, dependent, and flexible. Take heartbeat detections for example, you can leverage the system topic for healthcheck to internally enable producer/reader to produce/consume messages under the heartbeat namespace, which can detect whether the current service is still alive.
 
-There are diverse system topics depending on namespaces. The following table outlines the available system topics for each specific namespace.
+The following table outlines the available system topics for each specific namespace.
 
 | Namespace | TopicName | Domain | Count | Usage |
 |-----------|-----------|--------|-------|-------|

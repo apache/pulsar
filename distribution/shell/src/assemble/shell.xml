@@ -51,6 +51,16 @@
       <fileMode>755</fileMode>
     </file>
     <file>
+      <outputDirectory>bin</outputDirectory>
+      <source>${basedir}/../../bin/pulsar-admin-common.cmd</source>
+      <fileMode>755</fileMode>
+    </file>
+    <file>
+      <outputDirectory>bin</outputDirectory>
+      <source>${basedir}/../../bin/pulsar-shell.cmd</source>
+      <fileMode>755</fileMode>
+    </file>
+    <file>
       <outputDirectory>conf</outputDirectory>
       <source>${basedir}/../../conf/client.conf</source>
     </file>
