@@ -49,7 +49,6 @@ Here's an example that uses a shared subscription.
 <TabItem value="Java">
 
 ```java
-
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -69,14 +68,12 @@ Consumer consumer = client.newConsumer()
         // If you'd like to restrict the receiver queue size
         .receiverQueueSize(10)
         .subscribe();
-
 ```
 
 </TabItem>
 <TabItem value="Python">
 
 ```python
-
 from pulsar import Client, ConsumerType
 
 SERVICE_URL = "pulsar://localhost:6650"
@@ -90,14 +87,12 @@ consumer = client.subscribe(
     # If you'd like to restrict the receiver queue size
     receiver_queue_size=10,
     consumer_type=ConsumerType.Shared)
-
 ```
 
 </TabItem>
 <TabItem value="C++">
 
 ```cpp
-
 #include <pulsar/Client.h>
 
 std::string serviceUrl = "pulsar://localhost:6650";
@@ -114,14 +109,12 @@ consumerConfig.setReceiverQueueSize(10);
 Consumer consumer;
 
 Result result = client.subscribe(topic, subscription, consumerConfig, consumer);
-
 ```
 
 </TabItem>
 <TabItem value="Go">
 
 ```go
-
 import "github.com/apache/pulsar-client-go/pulsar"
 
 client, err := pulsar.NewClient(pulsar.ClientOptions{
@@ -139,7 +132,6 @@ consumer, err := client.Subscribe(pulsar.ConsumerOptions{
 if err != nil {
     log.Fatal(err)
 }
-
 ```
 
 </TabItem>

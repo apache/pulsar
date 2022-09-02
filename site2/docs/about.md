@@ -19,7 +19,7 @@ This portal holds a variety of topics, tutorials, guides, and reference material
 Select one of the content blocks below to begin your Pulsar journey. If you ...
 * Are new to Pulsar, start with **About Pulsar** to learn about features and concepts.
 * Want to jump to the quickstart, select **Get Started**.
-* Are an operator responsible for architecting and supporting Apache Pulsar. start with **Install, Deploy, Upgrade**.
+* Are an operator responsible for architecting and supporting Apache Pulsar, start with **Install, Deploy, Upgrade**.
 * Are a developer who wants to master Apache Pulsar, select **Pulsar for Developers**. 
 * Want to try out Pulsar, select **How To** for access to the "hello world" tutorial.
 * An experienced Pulsar coder looking for API, metrics, or configuration documentation, go to **Reference**. 
@@ -56,7 +56,7 @@ You’ll notice an Edit button at the bottom and top of each page. Click it to o
 ## Join the Community!
 ***
 
-The Pulsar community on github is active, passionate, and knowledgeable.  Join discussions, voice opinions, suggest features, and dive into the code itself. Find your Pulsar family here at [apache/pulsar](https://github.com/apache/pulsar).
+The Pulsar community on GitHub is active, passionate, and knowledgeable.  Join discussions, voice opinions, suggest features, and dive into the code itself. Find your Pulsar family here at [apache/pulsar](https://github.com/apache/pulsar).
 
 An equally passionate community can be found in the [Pulsar Slack channel](https://apache-pulsar.slack.com/). You’ll need an invitation to join, but many Github Pulsar community members are Slack members too.  Join, hang out, learn, and make some new friends.
 

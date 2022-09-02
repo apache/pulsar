@@ -66,7 +66,7 @@ CryptoKeyReader keyReader = new RawFileKeyReader("test_ecdsa_pubkey.pem", "test_
 Producer<byte[]> producer = pulsarClient.newProducer()
         .topic(topic)
         .cryptoKeyReader(keyReader)
-        .addEncryptionKey(“myappkey”)
+        .addEncryptionKey("myappkey")
         .create();
 
 Consumer<byte[]> consumer = pulsarClient.newConsumer()
