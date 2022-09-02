@@ -49,6 +49,7 @@ struct ProducerConfigurationImpl {
     ProducerCryptoFailureAction cryptoFailureAction{ProducerCryptoFailureAction::FAIL};
     std::map<std::string, std::string> properties;
     bool chunkingEnabled{false};
+    ProducerAccessMode accessMode{proto::ProducerAccessMode::Shared};
 };
 }  // namespace pulsar
 

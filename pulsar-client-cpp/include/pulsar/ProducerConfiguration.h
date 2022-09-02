@@ -27,6 +27,7 @@
 #include <pulsar/ProducerCryptoFailureAction.h>
 #include <pulsar/CryptoKeyReader.h>
 #include <pulsar/Schema.h>
+#include <lib/PulsarApi.pb.h>
 
 #include <set>
 
@@ -34,6 +35,8 @@ namespace pulsar {
 
 typedef std::function<void(Result, const MessageId& messageId)> SendCallback;
 typedef std::function<void(Result)> CloseCallback;
+
+typedef proto::ProducerAccessMode ProducerAccessMode;
 
 struct ProducerConfigurationImpl;
 class PulsarWrapper;
@@ -500,6 +503,10 @@ class PULSAR_PUBLIC ProducerConfiguration {
      * The getter associated with setChunkingEnabled().
      */
     bool isChunkingEnabled() const;
+
+    ProducerConfiguration& setAccessMode(const ProducerAccessMode& mode);
+
+    ProducerAccessMode getAccessMode() const;
 
     friend class PulsarWrapper;
 
