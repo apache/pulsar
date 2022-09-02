@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.common.naming;
 
-import com.google.common.base.Charsets;
 import com.google.common.hash.Hashing;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -29,6 +28,7 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.testng.annotations.Test;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.doReturn;
 import static org.testng.Assert.assertTrue;
@@ -95,7 +95,7 @@ public class FlowOrQpsEquallyDivideBundleSplitAlgorithmTest {
         doReturn(mockNamespaceBundleFactory)
                 .when(mockNamespaceBundle).getNamespaceBundleFactory();
         mockTopics.forEach((topic) -> {
-            long hashValue = Hashing.crc32().hashString(topic, Charsets.UTF_8).padToLong();
+            long hashValue = Hashing.crc32().hashString(topic, UTF_8).padToLong();
             doReturn(hashValue)
                     .when(mockNamespaceBundleFactory).getLongHashCode(topic);
             hashList.add(hashValue);
@@ -141,7 +141,7 @@ public class FlowOrQpsEquallyDivideBundleSplitAlgorithmTest {
         for (int i = 0; i < topicNum; i++) {
             String topicName = "persistent://test-tenant1/test-namespace1/test-partition-" + i;
             mockTopics.add(topicName);
-            long hashValue = Hashing.crc32().hashString(topicName, Charsets.UTF_8).padToLong();
+            long hashValue = Hashing.crc32().hashString(topicName, UTF_8).padToLong();
             topicHashList.add(hashValue);
             hashAndTopic.put(hashValue, topicName);
         }
@@ -178,7 +178,7 @@ public class FlowOrQpsEquallyDivideBundleSplitAlgorithmTest {
         doReturn(mockNamespaceBundleFactory)
                 .when(mockNamespaceBundle).getNamespaceBundleFactory();
         mockTopics.forEach((topic) -> {
-            long hash = Hashing.crc32().hashString(topic, Charsets.UTF_8).padToLong();
+            long hash = Hashing.crc32().hashString(topic, UTF_8).padToLong();
             doReturn(hash)
                     .when(mockNamespaceBundleFactory).getLongHashCode(topic);
         });
