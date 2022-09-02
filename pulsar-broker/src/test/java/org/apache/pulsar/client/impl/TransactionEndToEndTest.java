@@ -1173,6 +1173,52 @@ public class TransactionEndToEndTest extends TransactionTestBase {
     }
 
     @Test
+    public void testAckWithTransactionReduceUnackCountNotInPendingAcks() throws Exception {
+        final String topic = "persistent://" + NAMESPACE1 + "/testAckWithTransactionReduceUnackCountNotInPendingAcks";
+        final String subName = "test";
+        @Cleanup
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
+                .topic(topic)
+                .batchingMaxPublishDelay(1, TimeUnit.SECONDS)
+                .sendTimeout(1, TimeUnit.SECONDS)
+                .create();
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName(subName)
+                .subscribe();
+
+        // send 5 messages with one batch
+        for (int i = 0; i < 5; i++) {
+            producer.sendAsync((i + "").getBytes(UTF_8));
+        }
+
+        List<MessageId> messageIds = new ArrayList<>();
+
+        // receive the batch messages add to a list
+        for (int i = 0; i < 5; i++) {
+            messageIds.add(consumer.receive().getMessageId());
+        }
+
+        MessageIdImpl messageId = (MessageIdImpl) messageIds.get(0);
+
+
+        // remove the message from the pendingAcks, in fact redeliver will remove the messageId from the pendingAck
+        getPulsarServiceList().get(0).getBrokerService().getTopic(topic, false)
+                .get().get().getSubscription(subName).getConsumers().get(0).getPendingAcks()
+                .remove(messageId.ledgerId, messageId.entryId);
+
+        Transaction txn = getTxn();
+        consumer.acknowledgeAsync(messageIds.get(1), txn).get();
+
+        // ack one message, the unack count is 4
+        assertEquals(getPulsarServiceList().get(0).getBrokerService().getTopic(topic, false)
+                .get().get().getSubscription(subName).getConsumers().get(0).getUnackedMessages(), 4);
+    }
+
+    @Test
     public void testSendTxnAckMessageToDLQ() throws Exception {
         String topic = NAMESPACE1 + "/testSendTxnAckMessageToDLQ";
         String subName = "test";

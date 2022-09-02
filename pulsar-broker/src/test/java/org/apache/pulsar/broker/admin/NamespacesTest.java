@@ -1262,6 +1262,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         pulsarClient.updateServiceUrl(lookupUrl.toString());
         Awaitility.await().untilAsserted(() -> assertTrue(consumer.isConnected()));
         pulsar.getConfiguration().setAuthorizationEnabled(true);
+        consumer.close();
         admin.topics().deletePartitionedTopic(topicName, true);
         admin.namespaces().deleteNamespace(namespace);
         admin.tenants().deleteTenant("my-tenants");
