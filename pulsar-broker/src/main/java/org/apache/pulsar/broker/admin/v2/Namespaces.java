@@ -1103,23 +1103,24 @@ public class Namespaces extends NamespacesBase {
     @Path("/{tenant}/{namespace}/replicatorDispatchRate")
     @ApiOperation(value = "Remove replicator dispatch-rate throttling for all topics of the namespace")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission")})
-    public void removeReplicatorDispatchRate(
-            @PathParam("tenant") String tenant,
-            @PathParam("namespace") String namespace) {
+    public void removeReplicatorDispatchRate(@Suspended AsyncResponse asyncResponse,
+                                             @PathParam("tenant") String tenant,
+                                             @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        internalRemoveReplicatorDispatchRate();
+        internalRemoveReplicatorDispatchRate(asyncResponse);
     }
 
     @POST
     @Path("/{tenant}/{namespace}/replicatorDispatchRate")
     @ApiOperation(value = "Set replicator dispatch-rate throttling for all topics of the namespace")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission")})
-    public void setReplicatorDispatchRate(@PathParam("tenant") String tenant,
-                                          @PathParam("namespace") String namespace, @ApiParam(value =
-            "Replicator dispatch rate for all topics of the specified namespace")
-                                                      DispatchRateImpl dispatchRate) {
+    public void setReplicatorDispatchRate(@Suspended AsyncResponse asyncResponse,
+                                          @PathParam("tenant") String tenant,
+                                          @PathParam("namespace") String namespace,
+                                          @ApiParam(value =
+            "Replicator dispatch rate for all topics of the specified namespace") DispatchRateImpl dispatchRate) {
         validateNamespaceName(tenant, namespace);
-        internalSetReplicatorDispatchRate(dispatchRate);
+        internalSetReplicatorDispatchRate(asyncResponse, dispatchRate);
     }
 
     @GET
@@ -1128,19 +1129,12 @@ public class Namespaces extends NamespacesBase {
             + "dispatch-rate not configured, -1 means msg-dispatch-rate or byte-dispatch-rate not configured "
             + "in dispatch-rate yet")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-        @ApiResponse(code = 404, message = "Namespace does not exist") })
-    public void getReplicatorDispatchRate(
-            @Suspended final AsyncResponse asyncResponse,
-            @PathParam("tenant") String tenant,
-            @PathParam("namespace") String namespace) {
+    @ApiResponse(code = 404, message = "Namespace does not exist") })
+    public void getReplicatorDispatchRate(@Suspended final AsyncResponse asyncResponse,
+                                          @PathParam("tenant") String tenant,
+                                          @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        internalGetReplicatorDispatchRateAsync().thenAccept(asyncResponse::resume)
-                .exceptionally(ex -> {
-                    log.error("[{}] Failed to get replicator dispatch-rate configured for the namespace {}",
-                            clientAppId(), namespaceName, ex);
-                    resumeAsyncResponseExceptionally(asyncResponse, ex);
-                    return null;
-                });
+        internalGetReplicatorDispatchRate(asyncResponse);
     }
 
     @GET

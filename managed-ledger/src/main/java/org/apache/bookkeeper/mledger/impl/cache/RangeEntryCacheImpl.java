@@ -21,12 +21,14 @@ package org.apache.bookkeeper.mledger.impl.cache;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.createManagedLedgerException;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.client.api.BKException;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
@@ -48,15 +50,18 @@ import org.slf4j.LoggerFactory;
 public class RangeEntryCacheImpl implements EntryCache {
 
     private final RangeEntryCacheManagerImpl manager;
-    private final ManagedLedgerImpl ml;
+    final ManagedLedgerImpl ml;
     private ManagedLedgerInterceptor interceptor;
     private final RangeCache<PositionImpl, EntryImpl> entries;
     private final boolean copyEntries;
+    private final PendingReadsManager pendingReadsManager;
+
 
     private static final double MB = 1024 * 1024;
 
     public RangeEntryCacheImpl(RangeEntryCacheManagerImpl manager, ManagedLedgerImpl ml, boolean copyEntries) {
         this.manager = manager;
+        this.pendingReadsManager = new PendingReadsManager(this);
         this.ml = ml;
         this.interceptor = ml.getManagedLedgerInterceptor();
         this.entries = new RangeCache<>(EntryImpl::getLength, EntryImpl::getTimestamp);
@@ -65,6 +70,11 @@ public class RangeEntryCacheImpl implements EntryCache {
         if (log.isDebugEnabled()) {
             log.debug("[{}] Initialized managed-ledger entry cache", ml.getName());
         }
+    }
+
+    @VisibleForTesting
+    ManagedLedgerImpl getManagedLedger() {
+        return ml;
     }
 
     @Override
@@ -185,6 +195,7 @@ public class RangeEntryCacheImpl implements EntryCache {
         }
 
         manager.entriesRemoved(sizeRemoved, entriesRemoved);
+        pendingReadsManager.invalidateLedger(ledgerId);
     }
 
     @Override
@@ -235,6 +246,7 @@ public class RangeEntryCacheImpl implements EntryCache {
                         }
                     }, ml.getExecutor().chooseThread(ml.getName())).exceptionally(exception -> {
                         ml.invalidateLedgerHandle(lh);
+                        pendingReadsManager.invalidateLedger(lh.getId());
                         callback.readEntryFailed(createManagedLedgerException(exception), ctx);
                         return null;
             });
@@ -257,7 +269,7 @@ public class RangeEntryCacheImpl implements EntryCache {
     }
 
     @SuppressWarnings({ "unchecked", "rawtypes" })
-    private void asyncReadEntry0(ReadHandle lh, long firstEntry, long lastEntry, boolean shouldCacheEntry,
+    void asyncReadEntry0(ReadHandle lh, long firstEntry, long lastEntry, boolean shouldCacheEntry,
             final ReadEntriesCallback callback, Object ctx) {
         final long ledgerId = lh.getId();
         final int entriesToRead = (int) (lastEntry - firstEntry) + 1;
@@ -295,51 +307,71 @@ public class RangeEntryCacheImpl implements EntryCache {
             }
 
             // Read all the entries from bookkeeper
-            lh.readAsync(firstEntry, lastEntry).thenAcceptAsync(
-                    ledgerEntries -> {
-                        requireNonNull(ml.getName());
-                        requireNonNull(ml.getExecutor());
+            pendingReadsManager.readEntries(lh, firstEntry, lastEntry,
+                    shouldCacheEntry, callback, ctx);
 
-                        try {
-                            // We got the entries, we need to transform them to a List<> type
-                            long totalSize = 0;
-                            final List<EntryImpl> entriesToReturn = Lists.newArrayListWithExpectedSize(entriesToRead);
-                            for (LedgerEntry e : ledgerEntries) {
-                                EntryImpl entry = RangeEntryCacheManagerImpl.create(e, interceptor);
-                                entriesToReturn.add(entry);
-                                totalSize += entry.getLength();
-                                if (shouldCacheEntry) {
-                                    EntryImpl cacheEntry = EntryImpl.create(entry);
-                                    insert(cacheEntry);
-                                    cacheEntry.release();
-                                }
-                            }
-
-                            manager.mlFactoryMBean.recordCacheMiss(entriesToReturn.size(), totalSize);
-                            ml.getMbean().addReadEntriesSample(entriesToReturn.size(), totalSize);
-
-                            callback.readEntriesComplete((List) entriesToReturn, ctx);
-                        } finally {
-                            ledgerEntries.close();
-                        }
-                    }, ml.getExecutor().chooseThread(ml.getName())).exceptionally(exception -> {
-                        if (exception instanceof BKException
-                                && ((BKException) exception).getCode() == BKException.Code.TooManyRequestsException) {
-                            callback.readEntriesFailed(createManagedLedgerException(exception), ctx);
-                        } else {
-                            ml.invalidateLedgerHandle(lh);
-                            ManagedLedgerException mlException = createManagedLedgerException(exception);
-                            callback.readEntriesFailed(mlException, ctx);
-                        }
-                        return null;
-            });
         }
+    }
+
+    /**
+     * Reads the entries from Storage.
+     * @param lh the handle
+     * @param firstEntry the first entry
+     * @param lastEntry the last entry
+     * @param shouldCacheEntry if we should put the entry into the cache
+     * @return a handle to the operation
+     */
+    CompletableFuture<List<EntryImpl>> readFromStorage(ReadHandle lh,
+                                                       long firstEntry, long lastEntry, boolean shouldCacheEntry) {
+        final int entriesToRead = (int) (lastEntry - firstEntry) + 1;
+        CompletableFuture<List<EntryImpl>> readResult = lh.readAsync(firstEntry, lastEntry)
+                .thenApply(
+                        ledgerEntries -> {
+                            requireNonNull(ml.getName());
+                            requireNonNull(ml.getExecutor());
+
+                            try {
+                                // We got the entries, we need to transform them to a List<> type
+                                long totalSize = 0;
+                                final List<EntryImpl> entriesToReturn =
+                                        Lists.newArrayListWithExpectedSize(entriesToRead);
+                                for (LedgerEntry e : ledgerEntries) {
+                                    EntryImpl entry = RangeEntryCacheManagerImpl.create(e, interceptor);
+                                    entriesToReturn.add(entry);
+                                    totalSize += entry.getLength();
+                                    if (shouldCacheEntry) {
+                                        EntryImpl cacheEntry = EntryImpl.create(entry);
+                                        insert(cacheEntry);
+                                        cacheEntry.release();
+                                    }
+                                }
+
+                                manager.mlFactoryMBean.recordCacheMiss(entriesToReturn.size(), totalSize);
+                                ml.getMbean().addReadEntriesSample(entriesToReturn.size(), totalSize);
+
+                                return entriesToReturn;
+                            } finally {
+                                ledgerEntries.close();
+                            }
+                        });
+        // handle LH invalidation
+        readResult.exceptionally(exception -> {
+            if (exception instanceof BKException
+                    && ((BKException) exception).getCode() == BKException.Code.TooManyRequestsException) {
+            } else {
+                ml.invalidateLedgerHandle(lh);
+                pendingReadsManager.invalidateLedger(lh.getId());
+            }
+            return null;
+        });
+        return readResult;
     }
 
     @Override
     public void clear() {
         Pair<Integer, Long> removedPair = entries.clear();
         manager.entriesRemoved(removedPair.getRight(), removedPair.getLeft());
+        pendingReadsManager.clear();
     }
 
     @Override

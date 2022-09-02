@@ -4,8 +4,7 @@ title: HDFS2 sink connector
 sidebar_label: "HDFS2 sink connector"
 ---
 
-The HDFS2 sink connector pulls the messages from Pulsar topics 
-and persists the messages to HDFS files.
+The HDFS2 sink connector pulls the messages from Pulsar topics and persists the messages to HDFS files.
 
 ## Configuration
 
@@ -35,7 +34,6 @@ Before using the HDFS2 sink connector, you need to create a configuration file t
 * JSON 
 
   ```json
-  
   {
      "configs": {
         "hdfsConfigResources": "core-site.xml",
@@ -46,13 +44,11 @@ Before using the HDFS2 sink connector, you need to create a configuration file t
         "subdirectoryPattern": "yyyy-MM-dd"
      }
   }
-  
   ```
 
 * YAML
 
   ```yaml
-  
   configs:
       hdfsConfigResources: "core-site.xml"
       directory: "/foo/bar"
@@ -60,6 +56,5 @@ Before using the HDFS2 sink connector, you need to create a configuration file t
       fileExtension: ".log"
       compression: "SNAPPY"
       subdirectoryPattern: "yyyy-MM-dd"
-  
   ```
 

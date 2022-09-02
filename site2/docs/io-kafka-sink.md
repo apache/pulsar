@@ -4,8 +4,7 @@ title: Kafka sink connector
 sidebar_label: "Kafka sink connector"
 ---
 
-The Kafka sink connector pulls messages from Pulsar topics and persists the messages
-to Kafka topics.
+The Kafka sink connector pulls messages from Pulsar topics and persists the messages to Kafka topics.
 
 This guide explains how to configure and use the Kafka sink connector.
 
@@ -34,7 +33,6 @@ Before using the Kafka sink connector, you need to create a configuration file t
 * JSON 
 
   ```json
-  
   {
      "configs": {
         "bootstrapServers": "localhost:6667",
@@ -51,7 +49,8 @@ Before using the Kafka sink connector, you need to create a configuration file t
         }
      }
   }
-
+  ```
+  
 * YAML
   
   ```yaml

@@ -4,8 +4,7 @@ title: RabbitMQ source connector
 sidebar_label: "RabbitMQ source connector"
 ---
 
-The RabbitMQ source connector receives messages from RabbitMQ clusters 
-and writes messages to Pulsar topics.
+The RabbitMQ source connector receives messages from RabbitMQ clusters and writes messages to Pulsar topics.
 
 ## Configuration 
 
@@ -38,7 +37,6 @@ Before using the RabbitMQ source connector, you need to create a configuration f
 * JSON 
 
   ```json
-  
   {
      "configs": {
         "host": "localhost",
@@ -58,13 +56,11 @@ Before using the RabbitMQ source connector, you need to create a configuration f
         "passive": "false"
      }
   }
-  
   ```
 
 * YAML
 
   ```yaml
-  
   configs:
       host: "localhost"
       port: 5672
@@ -81,6 +77,5 @@ Before using the RabbitMQ source connector, you need to create a configuration f
       prefetchCount: 0
       prefetchGlobal: "false"
       passive: "false"
-  
   ```
 

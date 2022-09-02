@@ -29,9 +29,7 @@ In localrun mode, Java functions use thread runtime; Python and Go functions use
 By default, the function connects with a Pulsar cluster running on the same machine via a local broker service URL. If you want to connect it to a non-local Pulsar cluster, you can specify a different broker service URL using the `--brokerServiceUrl` flag.
 
 ```bash
-
 bin/pulsar-admin functions localrun \
   --broker-service-url pulsar://my-cluster-host:6650 \
   # Other function parameters
-
 ```
