@@ -5,6 +5,7 @@ test-results
 dependency-reduced-pom.xml
 logs
 /data
+packages-storage
 pulsar-broker/data/
 pulsar-broker/tmp.*
 pulsar-broker/src/test/resources/log4j2.yaml

@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.common.naming;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -114,7 +113,7 @@ public class ServiceConfigurationTest {
 
     private InputStream updateProp(String zookeeperServer, String brokerServicePort, String namespace, double backlogQuotaGB)
             throws IOException {
-        checkNotNull(fileName);
+        Objects.requireNonNull(fileName);
         Properties properties = new Properties();
         InputStream stream = this.getClass().getClassLoader().getResourceAsStream(fileName);
         properties.load(stream);
@@ -135,8 +134,8 @@ public class ServiceConfigurationTest {
         InputStream stream = new ByteArrayInputStream(confFile.getBytes());
         final ServiceConfiguration conf = PulsarConfigurationLoader.create(stream, ServiceConfiguration.class);
 
-        assertEquals(conf.getMetadataStoreUrl(), "zk1:2181");
-        assertEquals(conf.getConfigurationMetadataStoreUrl(), "zk1:2181");
+        assertEquals(conf.getMetadataStoreUrl(), "zk:zk1:2181");
+        assertEquals(conf.getConfigurationMetadataStoreUrl(), "zk:zk1:2181");
         assertEquals(conf.getBookkeeperMetadataStoreUrl(), "metadata-store:zk:zk1:2181/ledgers");
         assertFalse(conf.isConfigurationStoreSeparated());
         assertFalse(conf.isBookkeeperMetadataStoreSeparated());
@@ -238,7 +237,6 @@ public class ServiceConfigurationTest {
                         + key + "' conf/broker.conf default value doesn't match java default value\nConf: "+ fileValue + "\nJava: " + javaValue);
             }
         }
-
     }
 
     @Test
@@ -255,6 +253,15 @@ public class ServiceConfigurationTest {
             assertTrue(conf.isBookkeeperClientSeparatedIoThreadsEnabled());
             assertEquals(conf.getBookkeeperClientNumIoThreads(), 1);
         }
+    }
+
+    @Test
+    public void testSubscriptionTypesEnableWins() throws Exception {
+        final Properties properties = new Properties();
+        properties.setProperty("subscriptionKeySharedEnable", "true");
+        properties.setProperty("subscriptionTypesEnabled", "Exclusive,Shared,Failover");
+        final ServiceConfiguration conf = PulsarConfigurationLoader.create(properties, ServiceConfiguration.class);
+        assertFalse(conf.isSubscriptionKeySharedEnable());
     }
 
     /**

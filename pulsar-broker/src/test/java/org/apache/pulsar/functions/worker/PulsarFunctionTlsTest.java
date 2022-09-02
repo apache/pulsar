@@ -71,12 +71,13 @@ public class PulsarFunctionTlsTest {
     protected PulsarService[] pulsarServices = new PulsarService[BROKER_COUNT];
     protected PulsarService leaderPulsar;
     protected PulsarAdmin leaderAdmin;
+    protected WorkerService[] fnWorkerServices = new WorkerService[BROKER_COUNT];
     protected String testCluster = "my-cluster";
     protected String testTenant = "my-tenant";
     protected String testNamespace = testTenant + "/my-ns";
     private PulsarFunctionTestTemporaryDirectory[] tempDirectories = new PulsarFunctionTestTemporaryDirectory[BROKER_COUNT];
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     void setup() throws Exception {
         log.info("---- Initializing TopicOwnerTest -----");
         // Start local bookkeeper ensemble
@@ -97,7 +98,7 @@ public class PulsarFunctionTlsTest {
             config.setBrokerServicePortTls(Optional.of(brokerPort));
             config.setClusterName("my-cluster");
             config.setAdvertisedAddress("localhost");
-            config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+            config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
             config.setDefaultNumberOfNamespaceBundles(1);
             config.setLoadBalancerEnabled(false);
             Set<String> superUsers = Sets.newHashSet("superUser", "admin");
@@ -137,12 +138,12 @@ public class PulsarFunctionTlsTest {
             workerConfig.setBrokerClientAuthenticationEnabled(true);
             workerConfig.setTlsEnabled(true);
             workerConfig.setUseTls(true);
-            WorkerService fnWorkerService = WorkerServiceLoader.load(workerConfig);
+            fnWorkerServices[i] = WorkerServiceLoader.load(workerConfig);
 
             configurations[i] = config;
 
             pulsarServices[i] = new PulsarService(
-                config, workerConfig, Optional.of(fnWorkerService), code -> {});
+                config, workerConfig, Optional.of(fnWorkerServices[i]), code -> {});
             pulsarServices[i].start();
 
             // Sleep until pulsarServices[0] becomes leader, this way we can spy namespace bundle assignment easily.
@@ -180,6 +181,9 @@ public class PulsarFunctionTlsTest {
             for (int i = 0; i < BROKER_COUNT; i++) {
                 if (pulsarAdmins[i] != null) {
                     pulsarAdmins[i].close();
+                }
+                if (fnWorkerServices[i] != null) {
+                    fnWorkerServices[i].stop();
                 }
                 if (pulsarServices[i] != null) {
                     pulsarServices[i].close();

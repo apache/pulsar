@@ -34,7 +34,6 @@ BINDIR=$(dirname "$PRG")
 export PULSAR_HOME=`cd -P $BINDIR/..;pwd`
 . "$PULSAR_HOME/bin/pulsar-admin-common.sh"
 OPTS="-Dorg.jline.terminal.jansi=false $OPTS"
+DEFAULT_CONFIG="-Dpulsar.shell.config.default=$PULSAR_CLIENT_CONF"
 
-#Change to PULSAR_HOME to support relative paths
-cd "$PULSAR_HOME"
-exec $JAVA $OPTS org.apache.pulsar.shell.PulsarShell $PULSAR_CLIENT_CONF "$@"
+exec $JAVA $OPTS $DEFAULT_CONFIG org.apache.pulsar.shell.PulsarShell "$@"

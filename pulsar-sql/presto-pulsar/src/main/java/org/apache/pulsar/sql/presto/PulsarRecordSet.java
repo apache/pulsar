@@ -20,9 +20,9 @@ package org.apache.pulsar.sql.presto;
 
 import static java.util.Objects.requireNonNull;
 import com.google.common.collect.ImmutableList;
-import io.prestosql.spi.connector.RecordCursor;
-import io.prestosql.spi.connector.RecordSet;
-import io.prestosql.spi.type.Type;
+import io.trino.spi.connector.RecordCursor;
+import io.trino.spi.connector.RecordSet;
+import io.trino.spi.type.Type;
 import java.util.List;
 
 /**
