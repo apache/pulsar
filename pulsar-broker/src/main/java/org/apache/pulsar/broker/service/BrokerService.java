@@ -2384,7 +2384,10 @@ public class BrokerService implements Closeable {
 
         // add more listeners here
 
-        // (3) update ServiceConfiguration value by reading zk-configuration-map and trigger corresponding listeners.
+        // (3) create dynamic-config if not exist.
+        createDynamicConfigPathIfNotExist();
+
+        // (4) update ServiceConfiguration value by reading zk-configuration-map and trigger corresponding listeners.
         handleDynamicConfigurationUpdates();
     }
 
@@ -2569,6 +2572,21 @@ public class BrokerService implements Closeable {
         } catch (Exception e) {
             log.error("ServiceConfiguration key {} not found {}", key, e.getMessage());
             throw new IllegalArgumentException("Invalid service config " + key, e);
+        }
+    }
+
+    private void createDynamicConfigPathIfNotExist() {
+        try {
+            Optional<Map<String, String>> configCache =
+                    pulsar().getPulsarResources().getDynamicConfigResources().getDynamicConfiguration();
+
+            // create dynamic-config if not exist.
+            if (!configCache.isPresent()) {
+                pulsar().getPulsarResources().getDynamicConfigResources()
+                        .setDynamicConfigurationWithCreate(n -> Maps.newHashMap());
+            }
+        } catch (Exception e) {
+            log.warn("Failed to read dynamic broker configuration", e);
         }
     }
 
