@@ -4,7 +4,7 @@ title: Use S3 offloader with Pulsar
 sidebar_label: "S3 offloader"
 ---
 
-S3 offloader is introduced to serve S3-compatible storage, which means that the storage employs the S3 API as its “language" and applications that speak the S3 API are able to plug and play with S3-compatible storage.
+S3 offloader is introduced to serve S3-compatible storage, which means that the storage employs the S3 API as its "language" and applications that speak the S3 API are able to plug and play with S3-compatible storage.
 
 This chapter guides you through every step of installing and configuring the S3 offloader and using it with Pulsar.
 

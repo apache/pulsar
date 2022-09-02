@@ -30,7 +30,7 @@ The following examples are language-native functions.
   values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"}]}>
 <TabItem value="Java">
 
-To use a piece of Java code as a “language-native” function, you need to implement the `java.util.Function` interface. You can include any sort of complex logic inside the `apply` method to provide more processing capabilities.
+To use a piece of Java code as a "language-native" function, you need to implement the `java.util.Function` interface. You can include any sort of complex logic inside the `apply` method to provide more processing capabilities.
 
 ```java
 import java.util.function.Function;
@@ -48,7 +48,7 @@ For more details, see [code example](https://github.com/apache/pulsar/blob/maste
 </TabItem>
 <TabItem value="Python">
 
-To use a piece of Python code as a “language-native” function, you must have a method named `process` as follows. It appends an exclamation point to any string value it receives.
+To use a piece of Python code as a "language-native" function, you must have a method named `process` as follows. It appends an exclamation point to any string value it receives.
 
 ```python
 def process(input):

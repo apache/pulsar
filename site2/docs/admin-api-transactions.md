@@ -668,7 +668,7 @@ The following is an example of the returned values.
 
 ```shell
 {
-“State” : “MarkDelete”
+"State" : "MarkDelete"
 }
 ```
 
