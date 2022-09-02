@@ -616,12 +616,13 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
         }
         latch.await();
         // (2) consume all messages except: unackMessages-set
-        Set<Integer> unackMessages = Sets.newHashSet(5, 10, 20, 21, 22, 23, 25, 26, 30, 32, 40, 80, 160, 320);
+        Set<Integer> unackMsgIndex = Sets.newHashSet(5, 10, 20, 21, 22, 23, 25, 26, 30, 32, 40, 80, 160, 320);
+        Set<String> unackMsgs = unackMsgIndex.stream().map(i -> "my-message-" + i).collect(Collectors.toSet());
         int receivedMsgCount = 0;
         for (int i = 0; i < totalProducedMsgs; i++) {
             Message<?> msg = consumer.receive(500, TimeUnit.MILLISECONDS);
             assertNotNull(msg);
-            if (!unackMessages.contains(i)) {
+            if (!unackMsgs.contains(new String(msg.getData()))) {
                 consumer.acknowledge(msg);
             }
             receivedMsgCount++;
@@ -643,7 +644,6 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
                 .subscriptionType(SubscriptionType.Shared).subscribe();
 
         // consumer should only receive unakced messages
-        Set<String> unackMsgs = unackMessages.stream().map(i -> "my-message-" + i).collect(Collectors.toSet());
         Set<String> receivedMsgs = Sets.newHashSet();
         for (int i = 0; i < totalProducedMsgs; i++) {
             Message<?> msg = consumer.receive(500, TimeUnit.MILLISECONDS);
