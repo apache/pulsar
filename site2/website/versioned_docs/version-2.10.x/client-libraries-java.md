@@ -241,7 +241,7 @@ The cluster-level failover provides fault tolerance, continuous availability, an
 
 * Reduced cost: services can be switched and recovered automatically with no data loss.
 
-* Simplified management: businesses can operate on an “always-on” basis since no immediate user intervention is required.
+* Simplified management: businesses can operate on an "always-on" basis since no immediate user intervention is required.
 
 * Improved stability and robustness: it ensures continuous performance and minimizes service downtime. 
 
@@ -389,10 +389,10 @@ This is an example of how to construct a Java Pulsar client to use controlled cl
 
  public PulsarClient getControlledFailoverClient() throws IOException {
 Map<String, String> header = new HashMap(); 
-  header.put(“service_user_id”, “my-user”);
-  header.put(“service_password”, “tiger”);
-  header.put(“clusterA”, “tokenA”);
-  header.put(“clusterB”, “tokenB”);
+  header.put("service_user_id", "my-user");
+  header.put("service_password", "tiger");
+  header.put("clusterA", "tokenA");
+  header.put("clusterB", "tokenB");
 
   ServiceUrlProvider provider = 
       ControlledClusterFailover.builder()
@@ -652,6 +652,47 @@ Producer<byte[]> producer = client.newProducer()
 By default, producer chunks the large message based on max message size (`maxMessageSize`) configured at broker (eg: 5MB). However, client can also configure max chunked size using producer configuration `chunkMaxMessageSize`.
 > **Note:** To enable chunking, you need to disable batching (`enableBatching`=`false`) concurrently.
 
+### Intercept messages
+
+`ProducerInterceptor`s intercept and possibly mutate messages received by the producer before they are published to the brokers.
+
+The interface has three main events:
+* `eligible` checks if the interceptor can be applied to the message.
+* `beforeSend` is triggered before the producer sends the message to the broker. You can modify messages within this event.
+* `onSendAcknowledgement` is triggered when the message is acknowledged by the broker or the sending failed.
+
+To intercept messages, you can add one or multiple `ProducerInterceptor`s when creating a `Producer` as follows.
+
+```java
+
+Producer<byte[]> producer = client.newProducer()
+        .topic(topic)
+        .intercept(new ProducerInterceptor {
+			@Override
+			boolean eligible(Message message) {
+			    return true;  // process all messages
+			}
+
+			@Override
+			Message beforeSend(Producer producer, Message message) {
+			    // user-defined processing logic
+			}
+
+			@Override
+			void onSendAcknowledgement(Producer producer, Message message, MessageId msgId, Throwable exception) {
+			    // user-defined processing logic
+			}
+        })
+        .create();
+
+```
+
+:::note
+
+If you are using multiple interceptors, they apply in the order they are passed to the `intercept` method.
+
+:::
+
 ## Consumer
 
 In Pulsar, consumers subscribe to topics and handle messages that producers publish to those topics. You can instantiate a new [consumer](reference-terminology.md#consumer) by first instantiating a {@inject: javadoc:PulsarClient:/client/org/apache/pulsar/client/api/PulsarClient} object and passing it a URL for a Pulsar broker (as [above](#client-configuration)).
@@ -793,7 +834,7 @@ consumer.acknowledge(messages)
 :::note
 
 Batch receive policy limits the number and bytes of messages in a single batch. You can specify a timeout to wait for enough messages.
-The batch receive is completed if any of the following condition is met: enough number of messages, bytes of messages, wait timeout.
+The batch receive is completed if any of the following conditions are met: enough number of messages, bytes of messages, wait timeout.
 
 ```java
 
@@ -997,11 +1038,11 @@ private void receiveMessageFromConsumer(Object consumer) {
 
 Pulsar has various [subscription types](concepts-messaging#subscription-types) to match different scenarios. A topic can have multiple subscriptions with different subscription types. However, a subscription can only have one subscription type at a time.
 
-A subscription is identical with the subscription name; a subscription name can specify only one subscription type at a time. To change the subscription type, you should first stop all consumers of this subscription.
+A subscription is identical to the subscription name; a subscription name can specify only one subscription type at a time. To change the subscription type, you should first stop all consumers of this subscription.
 
 Different subscription types have different message distribution types. This section describes the differences of subscription types and how to use them.
 
-In order to better describe their differences, assuming you have a topic named "my-topic", and the producer has published 10 messages.
+In order to better describe their differences, assume you have a topic named "my-topic", and the producer has published 10 messages.
 
 ```java
 
@@ -1218,13 +1259,73 @@ Producer producer = client.newProducer()
 
 :::note
 
-If the message key is not specified, messages without key are dispatched to one consumer in order by default.
+If the message key is not specified, messages without keys are dispatched to one consumer in order by default.
+
+:::
+
+### Intercept messages
+
+`ConsumerInterceptor`s intercept and possibly mutate messages received by the consumer.
+
+The interface has six main events:
+* `beforeConsume` is triggered before the message is returned by `receive()` or `receiveAsync()`. You can modify messages within this event.
+* `onAcknowledge` is triggered before the consumer sends the acknowledgement to the broker.
+* `onAcknowledgeCumulative` is triggered before the consumer sends the cumulative acknowledgement to the broker.
+* `onNegativeAcksSend` is triggered when a redelivery from a negative acknowledgement occurs.
+* `onAckTimeoutSend` is triggered when a redelivery from an acknowledgement timeout occurs.
+* `onPartitionsChange` is triggered when the partitions of the (partitioned) topic change.
+
+To intercept messages, you can add one or multiple `ConsumerInterceptor`s when creating a `Consumer` as follows.
+
+```java
+
+Consumer<String> consumer = client.newConsumer()
+        .topic("my-topic")
+        .subscriptionName("my-subscription")
+        .intercept(new ConsumerInterceptor<String> {
+              @Override
+              public Message<String> beforeConsume(Consumer<String> consumer, Message<String> message) {
+                  // user-defined processing logic
+              }
+
+              @Override
+              public void onAcknowledge(Consumer<String> consumer, MessageId messageId, Throwable cause) {
+                  // user-defined processing logic
+              }
+
+              @Override
+              public void onAcknowledgeCumulative(Consumer<String> consumer, MessageId messageId, Throwable cause) {
+                  // user-defined processing logic
+              }
+
+              @Override
+              public void onNegativeAcksSend(Consumer<String> consumer, Set<MessageId> messageIds) {
+                  // user-defined processing logic
+              }
+
+              @Override
+              public void onAckTimeoutSend(Consumer<String> consumer, Set<MessageId> messageIds) {
+                  // user-defined processing logic
+              }
+
+              @Override
+              public void onPartitionsChange(String topicName, int partitions) {
+                  // user-defined processing logic
+              }
+        })
+        .subscribe();
+
+```
+
+:::note
+
+If you are using multiple interceptors, they apply in the order they are passed to the `intercept` method.
 
 :::
 
 ## Reader 
 
-With the [reader interface](concepts-clients.md#reader-interface), Pulsar clients can "manually position" themselves within a topic and reading all messages from a specified message onward. The Pulsar API for Java enables you to create {@inject: javadoc:Reader:/client/org/apache/pulsar/client/api/Reader} objects by specifying a topic and a {@inject: javadoc:MessageId:/client/org/apache/pulsar/client/api/MessageId}.
+With the [reader interface](concepts-clients.md#reader-interface), Pulsar clients can "manually position" themselves within a topic and read all messages from a specified message onward. The Pulsar API for Java enables you to create {@inject: javadoc:Reader:/client/org/apache/pulsar/client/api/Reader} objects by specifying a topic and a {@inject: javadoc:MessageId:/client/org/apache/pulsar/client/api/MessageId}.
 
 The following is an example.
 

@@ -497,6 +497,16 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
             this.resourceGroupPublishLimiter.unregisterRateLimitFunction(this.getName());
         }
 
+        if (entryFilters != null) {
+            entryFilters.forEach((name, filter) -> {
+                try {
+                    filter.close();
+                } catch (Exception e) {
+                    log.warn("Error shutting down entry filter {}", name, e);
+                }
+            });
+        }
+
         CompletableFuture<Void> clientCloseFuture =
                 closeWithoutWaitingClientDisconnect ? CompletableFuture.completedFuture(null)
                         : FutureUtil.waitForAll(futures);

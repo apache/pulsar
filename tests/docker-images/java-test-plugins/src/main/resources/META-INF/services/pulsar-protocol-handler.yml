@@ -17,23 +17,6 @@
 # under the License.
 #
 
-name: 'Pulsar CI Test Report'
-on:
-  workflow_run:
-    workflows: ['Pulsar CI']    # runs after Pulsar CI workflow
-    types:
-      - completed
-jobs:
-  report:
-    runs-on: ubuntu-20.04
-    steps:
-      - uses: apache/pulsar-test-infra/test-reporter@master
-        with:
-          artifact: /(.*)-test-report/
-          name: '$1 Tests'
-          path: '*.xml'
-          reporter: java-junit
-          max-annotations: 50
-          token: ${{ secrets.GITHUB_TOKEN }}
-          fail-on-error: false
-          only-summary: true
+name: echo
+description: Echo Protocol Handler
+handlerClass: org.apache.pulsar.tests.integration.plugins.EchoProtocolHandler

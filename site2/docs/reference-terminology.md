@@ -73,15 +73,15 @@ The subscription position for a [consumer](#consumer).
 #### Acknowledgment (ack)
 
 A message sent to a Pulsar broker by a [consumer](#consumer) that a message has been successfully processed.
-An acknowledgement (ack) is Pulsar's way of knowing that the message can be deleted from the system;
-if no acknowledgement, then the message will be retained until it's processed.
+An acknowledgment (ack) is Pulsar's way of knowing that the message can be deleted from the system;
+if no acknowledgment, then the message will be retained until it's processed.
 
 #### Negative Acknowledgment (nack)
 
 When an application fails to process a particular message, it can send a "negative ack" to Pulsar
 to signal that the message should be replayed at a later timer. (By default, failed messages are
-replayed after a 1 minute delay). Be aware that negative acknowledgment on ordered subscription types,
-such as Exclusive, Failover and Key_Shared, can cause failed messages to arrive consumers out of the original order.
+replayed after a 1-minute delay). Be aware that negative acknowledgment on ordered subscription types,
+such as Exclusive, Failover and Key_Shared, can cause failed messages to arrive to consumers out of the original order.
 
 #### Unacknowledged
 
@@ -90,7 +90,7 @@ A message that has been delivered to a consumer for processing but not yet confi
 #### Retention Policy
 
 Size and time limits that you can set on a [namespace](#namespace) to configure retention of [messages](#message)
-that have already been [acknowledged](#acknowledgement-ack).
+that have already been [acknowledged](#acknowledgment-ack).
 
 #### Multi-Tenancy
 
@@ -153,7 +153,7 @@ handles all message transfers. Pulsar clusters typically consist of multiple bro
 
 #### Dispatcher
 
-An asynchronous TCP server used for all data transfers in-and-out a Pulsar [broker](#broker). The Pulsar
+An asynchronous TCP server used for all data transfers in and out of a Pulsar [broker](#broker)](#broker). The Pulsar
 dispatcher uses a custom binary protocol for all communications.
 
 ### Storage
