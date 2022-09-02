@@ -34,48 +34,40 @@ Tenant administrators can configure a policy for compaction at the namespace lev
 For example, to trigger compaction when the backlog reaches 100MB:
 
 ```bash
-
-$ bin/pulsar-admin namespaces set-compaction-threshold \
-  --threshold 100M my-tenant/my-namespace
-
+bin/pulsar-admin namespaces set-compaction-threshold \
+--threshold 100M my-tenant/my-namespace
 ```
 
 Configuring the compaction threshold on a namespace will apply to all topics within that namespace.
 
 ## Triggering compaction manually
 
-In order to run compaction on a topic, you need to use the [`topics compact`](/tools/pulsar-admin/) command for the [`pulsar-admin`](/tools/pulsar-admin/) CLI tool. Here's an example:
+To run compaction on a topic, you need to use the [`topics compact`](/tools/pulsar-admin/) command for the [`pulsar-admin`](/tools/pulsar-admin/) CLI tool. Here's an example:
 
 ```bash
-
-$ bin/pulsar-admin topics compact \
-  persistent://my-tenant/my-namespace/my-topic
-
+bin/pulsar-admin topics compact \
+persistent://my-tenant/my-namespace/my-topic
 ```
 
 The `pulsar-admin` tool runs compaction via the Pulsar {@inject: rest:REST:/} API. To run compaction in its own dedicated process, i.e. *not* through the REST API, you can use the [`pulsar compact-topic`](reference-cli-tools.md#pulsar-compact-topic) command. Here's an example:
 
 ```bash
-
-$ bin/pulsar compact-topic \
-  --topic persistent://my-tenant-namespace/my-topic
-
+bin/pulsar compact-topic \
+--topic persistent://my-tenant-namespace/my-topic
 ```
 
 > Running compaction in its own process is recommended when you want to avoid interfering with the broker's performance. Broker performance should only be affected, however, when running compaction on topics with a large keyspace (i.e when there are many keys on the topic). The first phase of the compaction process keeps a copy of each key in the topic, which can create memory pressure as the number of keys grows. Using the `pulsar-admin topics compact` command to run compaction through the REST API should present no issues in the overwhelming majority of cases; using `pulsar compact-topic` should correspondingly be considered an edge case.
 
-The `pulsar compact-topic` command communicates with [ZooKeeper](https://zookeeper.apache.org) directly. In order to establish communication with ZooKeeper, though, the `pulsar` CLI tool will need to have a valid [broker configuration](reference-configuration.md#broker). You can either supply a proper configuration in `conf/broker.conf` or specify a non-default location for the configuration:
+The `pulsar compact-topic` command communicates with [ZooKeeper](https://zookeeper.apache.org) directly. To establish communication with ZooKeeper, though, the `pulsar` CLI tool will need to have a valid [broker configuration](reference-configuration.md#broker). You can either supply a proper configuration in `conf/broker.conf` or specify a non-default location for the configuration:
 
 ```bash
-
-$ bin/pulsar compact-topic \
-  --broker-conf /path/to/broker.conf \
-  --topic persistent://my-tenant/my-namespace/my-topic
+bin/pulsar compact-topic \
+--broker-conf /path/to/broker.conf \
+--topic persistent://my-tenant/my-namespace/my-topic
 
 # If the configuration is in conf/broker.conf
-$ bin/pulsar compact-topic \
-  --topic persistent://my-tenant/my-namespace/my-topic
-
+bin/pulsar compact-topic \
+--topic persistent://my-tenant/my-namespace/my-topic
 ```
 
 #### When should I trigger compaction?
@@ -88,21 +80,18 @@ Pulsar consumers and readers need to be configured to read from compacted topics
 
 ### Java
 
-In order to read from a compacted topic using a Java consumer, the `readCompacted` parameter must be set to `true`. Here's an example consumer for a compacted topic:
+To read from a compacted topic using a Java consumer, the `readCompacted` parameter must be set to `true`. Here's an example consumer for a compacted topic:
 
 ```java
-
 Consumer<byte[]> compactedTopicConsumer = client.newConsumer()
         .topic("some-compacted-topic")
         .readCompacted(true)
         .subscribe();
-
 ```
 
 As mentioned above, topic compaction in Pulsar works on a *per-key basis*. That means that messages that you produce on compacted topics need to have keys (the content of the key will depend on your use case). Messages that don't have keys will be ignored by the compaction process. Here's an example Pulsar message with a key:
 
 ```java
-
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageBuilder;
 
@@ -110,13 +99,11 @@ Message<byte[]> msg = MessageBuilder.create()
         .setContent(someByteArray)
         .setKey("some-key")
         .build();
-
 ```
 
 The example below shows a message with a key being produced on a compacted Pulsar topic:
 
 ```java
-
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.Producer;
@@ -136,6 +123,5 @@ Message<byte[]> msg = MessageBuilder.create()
         .build();
 
 compactedTopicProducer.send(msg);
-
 ```
 

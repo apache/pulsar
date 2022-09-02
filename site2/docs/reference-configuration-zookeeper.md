@@ -70,7 +70,7 @@ The maximum number of client connections. Increase this if you need to handle mo
 
 ---
 
-In addition to the parameters above, configuring ZooKeeper for Pulsar involves adding a `server.N` line to the `conf/zookeeper.conf` file for each node in the ZooKeeper cluster, where `N` is the number of the ZooKeeper node. Here's an example for a three-node ZooKeeper cluster:
+In addition to the parameters above, configuring ZooKeeper for Pulsar involves adding a `server.N` line to the `conf/zookeeper.conf` file for each node in the ZooKeeper cluster, where `N` is the number of the ZooKeeper node. Here's an example of a three-node ZooKeeper cluster:
 
 ```properties
 

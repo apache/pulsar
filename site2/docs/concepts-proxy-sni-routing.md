@@ -36,8 +36,7 @@ To configure the `records.config` files, complete the following steps.
 
 The following is an example.
 
-```
-
+```conf
 # PROXY TLS PORT
 CONFIG proxy.config.http.server_ports STRING 4443:ssl 4080
 # PROXY CERTS FILE PATH
@@ -45,18 +44,15 @@ CONFIG proxy.config.ssl.client.cert.path STRING /proxy-cert.pem
 # PROXY KEY FILE PATH
 CONFIG proxy.config.ssl.client.cert.filename STRING /proxy-key.pem
 
-
 # The range of origin server ports that can be used for tunneling via CONNECT. # Traffic Server allows tunnels only to the specified ports. Supports both wildcards (*) and ranges (e.g. 0-1023).
 CONFIG proxy.config.http.connect_ports STRING 4443 6651
-
 ```
 
 The `ssl_server_name` file is used to configure TLS connection handling for inbound and outbound connections. The configuration is determined by the SNI values provided by the inbound connection. The file consists of a set of configuration items, and each is identified by an SNI value (`fqdn`). When an inbound TLS connection is made, the SNI value from the TLS negotiation is matched with the items specified in this file. If the values match, the values specified in that item override the default values.
 
-The following example shows mapping of the inbound SNI hostname coming from the client, and the actual broker service URL where request should be redirected. For example, if the client sends the SNI header `pulsar-broker1`, the proxy creates a TLS tunnel by redirecting request to the `pulsar-broker1:6651` service URL.
+The following example shows the mapping of the inbound SNI hostname coming from the client, and the actual broker service URL where requests should be redirected. For example, if the client sends the SNI header `pulsar-broker1`, the proxy creates a TLS tunnel by redirecting the request to the `pulsar-broker1:6651` service URL.
 
-```
-
+```conf
 server_config = {
   {
      fqdn = 'pulsar-broker-vip',
@@ -74,7 +70,6 @@ server_config = {
      tunnel_route = 'pulsar-broker2:6651'
   },
 }
-
 ```
 
 After you configure the `ssl_server_name.config` and `records.config` files, the ATS-proxy server handles SNI routing and creates TCP tunnel between the client and the broker.
@@ -90,9 +85,8 @@ ATS SNI-routing works only with TLS. You need to enable TLS for the ATS proxy an
 <TabItem value="Java">
 
 ```java
-
-String brokerServiceUrl = “pulsar+ssl://pulsar-broker-vip:6651/”;
-String proxyUrl = “pulsar+ssl://ats-proxy:443”;
+String brokerServiceUrl = "pulsar+ssl://pulsar-broker-vip:6651/";
+String proxyUrl = "pulsar+ssl://ats-proxy:443";
 ClientBuilder clientBuilder = PulsarClient.builder()
 		.serviceUrl(brokerServiceUrl)
         .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH)
@@ -107,14 +101,12 @@ authParams.put("tlsKeyFile", TLS_CLIENT_KEY_FILE_PATH);
 clientBuilder.authentication(AuthenticationTls.class.getName(), authParams);
 
 PulsarClient pulsarClient = clientBuilder.build();
-
 ```
 
 </TabItem>
 <TabItem value="C++">
 
 ```cpp
-
 ClientConfiguration config = ClientConfiguration();
 config.setUseTls(true);
 config.setTlsTrustCertsFilePath("/path/to/cacert.pem");
@@ -123,14 +115,12 @@ config.setAuth(pulsar::AuthTls::create(
             "/path/to/client-cert.pem", "/path/to/client-key.pem"););
 
 Client client("pulsar+ssl://ats-proxy:443", config);
-
 ```
 
 </TabItem>
 <TabItem value="Python">
 
 ```python
-
 from pulsar import Client, AuthenticationTLS
 
 auth = AuthenticationTLS("/path/to/my-role.cert.pem", "/path/to/my-role.key-pk8.pem")
@@ -138,7 +128,6 @@ client = Client("pulsar+ssl://ats-proxy:443",
                 tls_trust_certs_file_path="/path/to/ca.cert.pem",
                 tls_allow_insecure_connection=False,
                 authentication=auth)
-
 ```
 
 </TabItem>
@@ -155,25 +144,21 @@ In this example, a Pulsar cluster is deployed into two separate regions, `us-wes
 
 (a) Configure the cluster metadata for `us-east` with `us-east` broker service URL and `us-east` ATS proxy URL with SNI proxy-protocol.
 
-```
-
+```shell
 ./pulsar-admin clusters update \
 --broker-url-secure pulsar+ssl://east-broker-vip:6651 \
 --url http://east-broker-vip:8080 \
 --proxy-protocol SNI \
 --proxy-url pulsar+ssl://east-ats-proxy:443
-
 ```
 
 (b) Configure the cluster metadata for `us-west` with `us-west` broker service URL and `us-west` ATS proxy URL with SNI proxy-protocol.
 
-```
-
+```shell
 ./pulsar-admin clusters update \
 --broker-url-secure pulsar+ssl://west-broker-vip:6651 \
 --url http://west-broker-vip:8080 \
 --proxy-protocol SNI \
 --proxy-url pulsar+ssl://west-ats-proxy:443
-
 ```
 
