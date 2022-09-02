@@ -48,6 +48,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import lombok.AllArgsConstructor;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
@@ -85,6 +86,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     // shared incoming queue was full
     private final ConcurrentLinkedQueue<ConsumerImpl<T>> pausedConsumers;
 
+    private final ConcurrentLinkedQueue<CompletableFuture<Void>> receiveMessageFutures;
+
+    private final ConcurrentLinkedQueue<PendingReceiveFromConsumer> pendingReceivesFromConsumer;
+
     // sum of topicPartitions, simple topic has 1, partitioned topic equals to partition number.
     AtomicInteger allTopicPartitionsNumber;
 
@@ -100,6 +105,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     private volatile BatchMessageIdImpl startMessageId = null;
     private final long startMessageRollbackDurationInSec;
+
     MultiTopicsConsumerImpl(PulsarClientImpl client, ConsumerConfigurationData<T> conf,
             ExecutorProvider executorProvider, CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema,
             ConsumerInterceptors<T> interceptors, boolean createTopicIfDoesNotExist) {
@@ -132,10 +138,11 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
         checkArgument(conf.getReceiverQueueSize() > 0,
             "Receiver queue size needs to be greater than 0 for Topics Consumer");
-
         this.partitionedTopics = new ConcurrentHashMap<>();
         this.consumers = new ConcurrentHashMap<>();
         this.pausedConsumers = new ConcurrentLinkedQueue<>();
+        this.receiveMessageFutures = new ConcurrentLinkedQueue<>();
+        this.pendingReceivesFromConsumer = new ConcurrentLinkedQueue<>();
         this.allTopicPartitionsNumber = new AtomicInteger(0);
         this.startMessageId = startMessageId != null
                 ? new BatchMessageIdImpl(MessageIdImpl.convertToMessageIdImpl(startMessageId))
@@ -245,13 +252,16 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     private void receiveMessageFromConsumer(ConsumerImpl<T> consumer, boolean batchReceive) {
+        if (paused){
+            pendingReceivesFromConsumer.add(new PendingReceiveFromConsumer(consumer, batchReceive));
+        }
         CompletableFuture<List<Message<T>>> messagesFuture;
         if (batchReceive) {
             messagesFuture = consumer.batchReceiveAsync().thenApply(msgs -> ((MessagesImpl<T>) msgs).getMessageList());
         } else {
             messagesFuture = consumer.receiveAsync().thenApply(Collections::singletonList);
         }
-        messagesFuture.thenAcceptAsync(messages -> {
+        CompletableFuture receiveMessageFuture = messagesFuture.thenAcceptAsync(messages -> {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] Receive message from sub consumer:{}",
                     topic, subscription, consumer.getTopic());
@@ -288,6 +298,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     .schedule(() -> receiveMessageFromConsumer(consumer, true), 10, TimeUnit.SECONDS);
             return null;
         });
+        receiveMessageFuture.whenComplete((ignore, ex) -> {
+            receiveMessageFutures.remove(receiveMessageFutures);
+        });
+        receiveMessageFutures.add(receiveMessageFuture);
     }
 
     // Must be called from the internalPinnedExecutor thread
@@ -771,14 +785,15 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         }
     }
 
-    @Override
-    public CompletableFuture<Void> seekAsync(Function<String, Object> function) {
-        List<CompletableFuture<Void>> futures = new ArrayList<>(consumers.size());
-        consumers.values().forEach(consumer -> futures.add(consumer.seekAsync(function)));
+    private void cleanAfterSeek(){
         unAckedMessageTracker.clear();
         incomingMessages.clear();
         resetIncomingMessageSize();
-        return FutureUtil.waitForAll(futures);
+    }
+
+    @Override
+    public CompletableFuture<Void> seekAsync(Function<String, Object> function) {
+        return internalSeekAsync(consumer -> consumer.seekAsync(function));
     }
 
     @Override
@@ -789,20 +804,31 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     new PulsarClientException("Illegal messageId, messageId can only be earliest/latest")
             );
         }
-        List<CompletableFuture<Void>> futures = new ArrayList<>(consumers.size());
-        consumers.values().forEach(consumerImpl -> futures.add(consumerImpl.seekAsync(targetMessageId)));
-
-        unAckedMessageTracker.clear();
-        clearIncomingMessages();
-
-        return FutureUtil.waitForAll(futures);
+        return internalSeekAsync(consumer -> consumer.seekAsync(messageId));
     }
 
     @Override
     public CompletableFuture<Void> seekAsync(long timestamp) {
-        List<CompletableFuture<Void>> futures = new ArrayList<>(consumers.size());
-        consumers.values().forEach(consumer -> futures.add(consumer.seekAsync(timestamp)));
-        return FutureUtil.waitForAll(futures);
+        return internalSeekAsync(consumer -> consumer.seekAsync(timestamp));
+    }
+
+    private CompletableFuture<Void> internalSeekAsync(Function<Consumer, CompletableFuture<Void>> childSeekFunction) {
+        pause();
+        CompletableFuture<Void> res = FutureUtil.waitForAll(receiveMessageFutures).thenCompose(__ -> {
+            List<CompletableFuture<Void>> futures = new ArrayList<>(consumers.size());
+            consumers.values().forEach(consumer -> futures.add(childSeekFunction.apply(consumer)));
+            return FutureUtil.waitForAll(futures).thenAccept(ignore -> {
+                cleanAfterSeek();
+                resume();
+            });
+        });
+        res.whenComplete((ignore, ex) -> {
+            log.error("[{}] [{}] seek fail", topic, subscription, ex);
+            if (ex != null){
+                resume();
+            }
+        });
+        return res;
     }
 
     @Override
@@ -1310,6 +1336,12 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         synchronized (pauseMutex) {
             paused = false;
             consumers.forEach((name, consumer) -> consumer.resume());
+            internalPinnedExecutor.execute(() -> {
+                while (!pendingReceivesFromConsumer.isEmpty()){
+                    PendingReceiveFromConsumer pendingReceive = pendingReceivesFromConsumer.poll();
+                    receiveMessageFromConsumer((ConsumerImpl<T>) pendingReceive.consumer, pendingReceive.batchReceive);
+                }
+            });
         }
     }
 
@@ -1527,5 +1559,11 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         }
         CURRENT_RECEIVER_QUEUE_SIZE_UPDATER.set(this, newSize);
         resumeReceivingFromPausedConsumersIfNeeded();
+    }
+
+    @AllArgsConstructor
+    private static class PendingReceiveFromConsumer {
+        private Consumer consumer;
+        private boolean batchReceive;
     }
 }
