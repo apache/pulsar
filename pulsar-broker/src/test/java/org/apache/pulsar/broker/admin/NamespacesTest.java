@@ -1065,7 +1065,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     public void testPersistence() throws Exception {
         NamespaceName testNs = this.testLocalNamespaces.get(0);
         PersistencePolicies persistence1 = new PersistencePolicies(3, 2, 1, 0.0);
-        namespaces.setPersistence(testNs.getTenant(), testNs.getCluster(), testNs.getLocalName(), persistence1);
+        asyncRequests(response -> namespaces.setPersistence(response, testNs.getTenant(), testNs.getCluster(),
+                testNs.getLocalName(), persistence1));
         AsyncResponse response = mock(AsyncResponse.class);
         namespaces.getPersistence(response, testNs.getTenant(), testNs.getCluster(), testNs.getLocalName());
         ArgumentCaptor<PersistencePolicies> captor = ArgumentCaptor.forClass(PersistencePolicies.class);
@@ -1079,7 +1080,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         try {
             NamespaceName testNs = this.testLocalNamespaces.get(3);
             PersistencePolicies persistence = new PersistencePolicies(3, 2, 1, 0.0);
-            namespaces.setPersistence(testNs.getTenant(), testNs.getCluster(), testNs.getLocalName(), persistence);
+            asyncRequests(response -> namespaces.setPersistence(response, testNs.getTenant(), testNs.getCluster(),
+                    testNs.getLocalName(), persistence));
             fail("Should fail");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.UNAUTHORIZED.getStatusCode());
