@@ -26,7 +26,7 @@ To isolate bookies, you need to complete the following tasks.
 
 ## Understand bookie data isolation policy
 
-Bookie data isolation policy is built on top of the existing BookKeeper rack-aware placement policy. The “rack” concept can be anything, for example, racks, regions, availability zones. It writes the configured isolation policy into the metadata store. Both BookKeeper clients on the broker and bookie auto-recovery side read the configured isolation policy from the metadata store and apply it when choosing bookies to store messages.
+Bookie data isolation policy is built on top of the existing BookKeeper rack-aware placement policy. The "rack" concept can be anything, for example, racks, regions, availability zones. It writes the configured isolation policy into the metadata store. Both BookKeeper clients on the broker and bookie auto-recovery side read the configured isolation policy from the metadata store and apply it when choosing bookies to store messages.
 
 BookKeeper provides three kinds of data isolation policies for disaster tolerance.
 * Rack-aware placement policy (default)

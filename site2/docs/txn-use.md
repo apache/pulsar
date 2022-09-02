@@ -60,7 +60,7 @@ This section provides an example of how to use the transaction API to send and r
 
    ```shell
    PulsarClient client = PulsarClient.builder()
-      .serviceUrl(“pulsar://localhost:6650”)
+      .serviceUrl("pulsar://localhost:6650")
       .enableTransaction(true)
       .build();
    ```

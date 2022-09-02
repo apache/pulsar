@@ -150,7 +150,7 @@ Currently, window functions are only available in Java, and do not support `MANU
 
 :::
 
-A window function is a function that performs computation across a data window, that is, a finite subset of the event stream. As illustrated below, the stream is split into “buckets” where functions can be applied.
+A window function is a function that performs computation across a data window, that is, a finite subset of the event stream. As illustrated below, the stream is split into "buckets" where functions can be applied.
 
 ![A window of data within an event stream](/assets/function-data-window.svg)
 

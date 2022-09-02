@@ -218,7 +218,7 @@ The cluster-level failover provides fault tolerance, continuous availability, an
 
 * Reduced cost: services can be switched and recovered automatically with no data loss.
 
-* Simplified management: businesses can operate on an “always-on” basis since no immediate user intervention is required.
+* Simplified management: businesses can operate on an "always-on" basis since no immediate user intervention is required.
 
 * Improved stability and robustness: it ensures continuous performance and minimizes service downtime. 
 
@@ -319,26 +319,25 @@ This section guides you through every step on how to configure cluster-level fai
 This is an example of how to construct a Java Pulsar client to use automatic cluster-level failover. The switchover is triggered automatically.
 
 ```java
-  private PulsarClient getAutoFailoverClient() throws PulsarClientException {
+private PulsarClient getAutoFailoverClient() throws PulsarClientException {
+    ServiceUrlProvider failover = AutoClusterFailover.builder()
+            .primary("pulsar://localhost:6650")
+            .secondary(Collections.singletonList("pulsar://other1:6650", "pulsar://other2:6650"))
+            .failoverDelay(30, TimeUnit.SECONDS)
+            .switchBackDelay(60, TimeUnit.SECONDS)
+            .checkInterval(1000, TimeUnit.MILLISECONDS)
+            .secondaryTlsTrustCertsFilePath("/path/to/ca.cert.pem")
+            .secondaryAuthentication("org.apache.pulsar.client.impl.auth.AuthenticationTls",
+                    "tlsCertFile:/path/to/my-role.cert.pem,tlsKeyFile:/path/to/my-role.key-pk8.pem")
 
-        ServiceUrlProvider failover = AutoClusterFailover.builder()
-                .primary("pulsar://localhost:6650")
-                .secondary(Collections.singletonList("pulsar://other1:6650","pulsar://other2:6650"))
-                .failoverDelay(30, TimeUnit.SECONDS)
-                .switchBackDelay(60, TimeUnit.SECONDS)
-                .checkInterval(1000, TimeUnit.MILLISECONDS)
-	    	    .secondaryTlsTrustCertsFilePath("/path/to/ca.cert.pem")
-    .secondaryAuthentication("org.apache.pulsar.client.impl.auth.AuthenticationTls",
-"tlsCertFile:/path/to/my-role.cert.pem,tlsKeyFile:/path/to/my-role.key-pk8.pem")
+            .build();
 
-                .build();
+    PulsarClient pulsarClient = PulsarClient.builder()
+            .build();
 
-        PulsarClient pulsarClient = PulsarClient.builder()
-                .build();
-
-        failover.initialize(pulsarClient);
-        return pulsarClient;
-    }
+    failover.initialize(pulsarClient);
+    return pulsarClient;
+}
 ```
 
 Configure the following parameters:
@@ -361,27 +360,27 @@ This is an example of how to construct a Java Pulsar client to use controlled cl
 **Note**: you can have one or several backup clusters but can only specify one.
 
 ```java
- public PulsarClient getControlledFailoverClient() throws IOException {
-Map<String, String> header = new HashMap(); 
-  header.put(“service_user_id”, “my-user”);
-  header.put(“service_password”, “tiger”);
-  header.put(“clusterA”, “tokenA”);
-  header.put(“clusterB”, “tokenB”);
+public PulsarClient getControlledFailoverClient() throws IOException {
+    Map<String, String> header = new HashMap();
+    header.put("service_user_id", "my-user");
+    header.put("service_password", "tiger");
+    header.put("clusterA", "tokenA");
+    header.put("clusterB", "tokenB");
 
-  ServiceUrlProvider provider = 
-      ControlledClusterFailover.builder()
-        .defaultServiceUrl("pulsar://localhost:6650")
-        .checkInterval(1, TimeUnit.MINUTES)
-        .urlProvider("http://localhost:8080/test")
-        .urlProviderHeader(header)
-        .build();
+    ServiceUrlProvider provider =
+            ControlledClusterFailover.builder()
+                    .defaultServiceUrl("pulsar://localhost:6650")
+                    .checkInterval(1, TimeUnit.MINUTES)
+                    .urlProvider("http://localhost:8080/test")
+                    .urlProviderHeader(header)
+                    .build();
 
-  PulsarClient pulsarClient = 
-     PulsarClient.builder()
-      .build();
+    PulsarClient pulsarClient =
+            PulsarClient.builder()
+                    .build();
 
-  provider.initialize(pulsarClient);
-  return pulsarClient;
+    provider.initialize(pulsarClient);
+    return pulsarClient;
 }
 ```
 
@@ -820,7 +819,7 @@ When you create a consumer, you can use the `loadConf` configuration. The follow
 `regexSubscriptionMode`|RegexSubscriptionMode|When subscribing to a topic using a regular expression, you can pick a certain type of topics.<br /><br /><li>**PersistentOnly**: only subscribe to persistent topics.</li><li>**NonPersistentOnly**: only subscribe to non-persistent topics.</li><li>**AllTopics**: subscribe to both persistent and non-persistent topics.</li>|RegexSubscriptionMode.PersistentOnly
 `deadLetterPolicy`|DeadLetterPolicy|Dead letter policy for consumers.<br /><br />By default, some messages are probably redelivered many times, even to the extent that it never stops.<br /><br />By using the dead letter mechanism, messages have the max redelivery count. **When exceeding the maximum number of redeliveries, messages are sent to the Dead Letter Topic and acknowledged automatically**.<br /><br />You can enable the dead letter mechanism by setting `deadLetterPolicy`.<br /><br />**Example**<br /><br /><code>client.newConsumer()<br />.deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(10).build())<br />.subscribe();</code><br /><br />Default dead letter topic name is `{TopicName}-{Subscription}-DLQ`.<br /><br />To set a custom dead letter topic name:<br /><code>client.newConsumer()<br />.deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(10)<br />.deadLetterTopic("your-topic-name").build())<br />.subscribe();</code><br /><br />When specifying the dead letter policy while not specifying `ackTimeoutMillis`, you can set the ack timeout to 30000 millisecond.|None
 `autoUpdatePartitions`|boolean|If `autoUpdatePartitions` is enabled, a consumer subscribes to partition increasement automatically.<br /><br />**Note**: this is only for partitioned consumers.|true
-`replicateSubscriptionState`|boolean|If `replicateSubscriptionState` is enabled, a subscription state is replicated to geo-replicated clusters.|false
+`replicateSubscriptionState`|boolean|If `replicateSubscriptionState` is enabled, a subscription state is replicated to geo-replicated clusters.|false
 `negativeAckRedeliveryBackoff`|RedeliveryBackoff|Interface for custom message is negativeAcked policy. You can specify `RedeliveryBackoff` for a consumer.| `MultiplierRedeliveryBackoff`
 `ackTimeoutRedeliveryBackoff`|RedeliveryBackoff|Interface for custom message is ackTimeout policy. You can specify `RedeliveryBackoff` for a consumer.| `MultiplierRedeliveryBackoff`
 `autoAckOldestChunkedMessageOnQueueFull`|boolean|Whether to automatically acknowledge pending chunked messages when the threashold of `maxPendingChunkedMessage` is reached. If set to `false`, these messages will be redelivered by their broker. |true
@@ -1402,7 +1401,7 @@ To perceive triggered events and perform customized processing, you can add `Rea
 ```java
 PulsarClient pulsarClient = PulsarClient.builder().serviceUrl("pulsar://localhost:6650").build();
 Reader<byte[]> reader = pulsarClient.newReader()
-        .topic(“t1”)
+        .topic("t1")
         .autoUpdatePartitionsInterval(5, TimeUnit.SECONDS)
         .intercept(new ReaderInterceptor<byte[]>() {
             @Override
