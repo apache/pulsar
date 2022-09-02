@@ -34,23 +34,19 @@ Pulsar metadata store can be deployed on a separate ZooKeeper cluster or deploye
 
 To use ZooKeeper as the metadata store, add the following parameters to the `conf/broker.conf` or `conf/standalone.conf` file.
 
-```properties
-
+```conf
 metadataStoreUrl=zk:my-zk-1:2181,my-zk-2:2181,my-zk-3:2181
 configurationMetadataStoreUrl=zk:my-global-zk-1:2181,my-global-zk-2:2181,my-global-zk-3:2181
-
 ```
 
 ## Use etcd as metadata store
 
 To use etcd as the metadata store, add the following parameters to the `conf/broker.conf` or `conf/standalone.conf` file.
 
-```properties
-
+```conf
 metadataStoreUrl=etcd:http://my-etcd-1:2379,http://my-etcd-2:2379,http://my-etcd-3:2379
 configurationMetadataStoreUrl=etcd:my-global-etcd-1:2379,my-global-etcd-2:2379,my-global-etcd-3:2379
 # metadataStoreConfigPath=/path/to/file
-
 ```
 
 :::tip
@@ -72,11 +68,9 @@ authority=
 
 To use RocksDB as the metadata store, add the following parameters to the `conf/broker.conf` or `conf/standalone.conf` file.
 
-```properties
-
+```conf
 metadataStoreUrl=rocksdb://data/metadata
 # metadataStoreConfigPath=/path/to/file
-
 ```
 
 :::tip
@@ -89,10 +83,8 @@ The `metadataStoreConfigPath` parameter is required when you want to use advance
 
 To use local memory as the metadata store, add the following parameters to the `conf/broker.conf` or `conf/standalone.conf` file.
 
-```properties
-
+```conf
 metadataStoreUrl=memory://local
-
 ```
 
 
@@ -102,8 +94,7 @@ Pulsar metadata store supports batch operations and caching to meet low latency 
 
 To enable batch operations on the metadata store, you can configure the following parameters in the `conf/broker.conf` or `conf/standalone.conf` file.
 
-```properties
-
+```conf
 # Whether we should enable metadata operations batching
 metadataStoreBatchingEnabled=true
 
@@ -115,6 +106,5 @@ metadataStoreBatchingMaxOperations=1000
 
 # Maximum size of a batch
 metadataStoreBatchingMaxSizeKb=128
-
 ```
 

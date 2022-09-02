@@ -38,7 +38,7 @@ supported time window. It is challenging to decide which bug fixes to back port 
 versions will have the most bug fixes.
 
 When 3.0.0 is released, the community will decide how to continue supporting 2.x. It is possible that the last minor
-release within 2.x will be maintained for longer as an “LTS” release, but it has not been officially decided.
+release within 2.x will be maintained for longer as an "LTS" release, but it has not been officially decided.
 
 The following table shows version support timelines and will be updated with each release.
 
