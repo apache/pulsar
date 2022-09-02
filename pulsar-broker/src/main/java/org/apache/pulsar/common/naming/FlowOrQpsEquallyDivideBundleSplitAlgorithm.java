@@ -110,7 +110,7 @@ public class FlowOrQpsEquallyDivideBundleSplitAlgorithm implements NamespaceBund
 
                 if (bundleMsgRateTmp > loadBalancerNamespaceBundleMaxMsgRate
                         || bundleThroughputTmp > loadBalancerNamespaceBundleMaxBandwidthBytes) {
-                    long splitStart = topicHashList.get(i-1);
+                    long splitStart = topicHashList.get(i - 1);
                     long splitEnd = topicHashList.get(i);
                     long splitMiddle = splitStart + (splitEnd - splitStart) / 2 + 1;
                     splitResults.add(splitMiddle);
@@ -118,8 +118,8 @@ public class FlowOrQpsEquallyDivideBundleSplitAlgorithm implements NamespaceBund
                     bundleMsgRateTmp = msgRate;
                     bundleThroughputTmp = throughput;
                 } else {
-                     bundleMsgRateTmp += msgRate;
-                     bundleThroughputTmp += throughput;
+                    bundleMsgRateTmp += msgRate;
+                    bundleThroughputTmp += throughput;
                 }
             }
 
