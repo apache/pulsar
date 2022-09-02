@@ -12,11 +12,11 @@ In a Pulsar cluster:
 * A BookKeeper cluster consisting of one or more bookies handles [persistent storage](#persistent-storage) of messages.
 * A ZooKeeper cluster specific to that cluster handles coordination tasks between Pulsar clusters.
 
-The diagram below provides an illustration of a Pulsar cluster:
+The diagram below illustrates a Pulsar cluster:
 
 ![Pulsar architecture diagram](/assets/pulsar-system-architecture.png)
 
-At the broader instance level, an instance-wide ZooKeeper cluster called the configuration store handles coordination tasks involving multiple clusters, for example [geo-replication](concepts-replication.md).
+At the broader instance level, an instance-wide ZooKeeper cluster called the configuration store handles coordination tasks involving multiple clusters, for example, [geo-replication](concepts-replication.md).
 
 ## Brokers
 
@@ -39,7 +39,7 @@ A Pulsar instance consists of one or more Pulsar *clusters*. Clusters, in turn, 
 * A ZooKeeper quorum used for cluster-level configuration and coordination
 * An ensemble of bookies used for [persistent storage](#persistent-storage) of messages
 
-Clusters can replicate amongst themselves using [geo-replication](concepts-replication.md).
+Clusters can replicate among themselves using [geo-replication](concepts-replication.md).
 
 > For a guide to managing Pulsar clusters, see the [clusters](admin-api-clusters.md) guide.
 
@@ -47,7 +47,7 @@ Clusters can replicate amongst themselves using [geo-replication](concepts-repli
 
 The Pulsar metadata store maintains all the metadata of a Pulsar cluster, such as topic metadata, schema, broker load data, and so on. Pulsar uses [Apache ZooKeeper](https://zookeeper.apache.org/) for metadata storage, cluster configuration, and coordination. The Pulsar metadata store can be deployed on a separate ZooKeeper cluster or deployed on an existing ZooKeeper cluster. You can use one ZooKeeper cluster for both Pulsar metadata store and BookKeeper metadata store. If you want to deploy Pulsar brokers connected to an existing BookKeeper cluster, you need to deploy separate ZooKeeper clusters for Pulsar metadata store and BookKeeper metadata store respectively.
 
-> Pulsar also supports more metadata backend services, including [ETCD](https://etcd.io/) and [RocksDB](http://rocksdb.org/) (for standalone Pulsar only). 
+> Pulsar also supports more metadata backend services, including [etcd](https://etcd.io/) and [RocksDB](http://rocksdb.org/) (for standalone Pulsar only). 
 
 
 In a Pulsar instance:
@@ -57,33 +57,31 @@ In a Pulsar instance:
 
 ## Configuration store
 
-The configuration store maintains all the configurations of a Pulsar instance, such as clusters, tenants, namespaces, partitioned topic related configurations, and so on. A Pulsar instance can have a single local cluster, multiple local clusters, or multiple cross-region clusters. Consequently, the configuration store can share the configurations across multiple clusters under a Pulsar instance. The configuration store can be deployed on a separate ZooKeeper cluster or deployed on an existing ZooKeeper cluster.
+The configuration store maintains all the configurations of a Pulsar instance, such as clusters, tenants, namespaces, partitioned topic-related configurations, and so on. A Pulsar instance can have a single local cluster, multiple local clusters, or multiple cross-region clusters. Consequently, the configuration store can share the configurations across multiple clusters under a Pulsar instance. The configuration store can be deployed on a separate ZooKeeper cluster or deployed on an existing ZooKeeper cluster.
 
 ## Persistent storage
 
 Pulsar provides guaranteed message delivery for applications. If a message successfully reaches a Pulsar broker, it will be delivered to its intended target.
 
-This guarantee requires that non-acknowledged messages are stored in a durable manner until they can be delivered to and acknowledged by consumers. This mode of messaging is commonly called *persistent messaging*. In Pulsar, N copies of all messages are stored and synced on disk, for example 4 copies across two servers with mirrored [RAID](https://en.wikipedia.org/wiki/RAID) volumes on each server.
+This guarantee requires that non-acknowledged messages are stored durably until they can be delivered to and acknowledged by consumers. This mode of messaging is commonly called *persistent messaging*. In Pulsar, N copies of all messages are stored and synced on disk, for example, 4 copies across two servers with mirrored [RAID](https://en.wikipedia.org/wiki/RAID) volumes on each server.
 
 ### Apache BookKeeper
 
-Pulsar uses a system called [Apache BookKeeper](http://bookkeeper.apache.org/) for persistent message storage. BookKeeper is a distributed [write-ahead log](https://en.wikipedia.org/wiki/Write-ahead_logging) (WAL) system that provides a number of crucial advantages for Pulsar:
+Pulsar uses a system called [Apache BookKeeper](http://bookkeeper.apache.org/) for persistent message storage. BookKeeper is a distributed [write-ahead log](https://en.wikipedia.org/wiki/Write-ahead_logging) (WAL) system that provides several crucial advantages for Pulsar:
 
 * It enables Pulsar to utilize many independent logs, called [ledgers](#ledgers). Multiple ledgers can be created for topics over time.
 * It offers very efficient storage for sequential data that handles entry replication.
 * It guarantees read consistency of ledgers in the presence of various system failures.
 * It offers even distribution of I/O across bookies.
 * It's horizontally scalable in both capacity and throughput. Capacity can be immediately increased by adding more bookies to a cluster.
-* Bookies are designed to handle thousands of ledgers with concurrent reads and writes. By using multiple disk devices---one for journal and another for general storage--bookies are able to isolate the effects of read operations from the latency of ongoing write operations.
+* Bookies are designed to handle thousands of ledgers with concurrent reads and writes. By using multiple disk devices---one for journal and another for general storage--bookies can isolate the effects of reading operations from the latency of ongoing write operations.
 
 In addition to message data, *cursors* are also persistently stored in BookKeeper. Cursors are [subscription](reference-terminology.md#subscription) positions for [consumers](reference-terminology.md#consumer). BookKeeper enables Pulsar to store consumer position in a scalable fashion.
 
 At the moment, Pulsar supports persistent message storage. This accounts for the `persistent` in all topic names. Here's an example:
 
 ```http
-
 persistent://my-tenant/my-namespace/my-topic
-
 ```
 
 > Pulsar also supports ephemeral ([non-persistent](concepts-messaging.md#non-persistent-topics.md)) message storage.
@@ -130,12 +128,10 @@ The **Pulsar proxy** provides a solution to this problem by acting as a single g
 Architecturally, the Pulsar proxy gets all the information it requires from ZooKeeper. When starting the proxy on a machine, you only need to provide metadata store connection strings for the cluster-specific and instance-wide configuration store clusters. Here's an example:
 
 ```bash
-
-$ cd /path/to/pulsar/directory
-$ bin/pulsar proxy \
-  --metadata-store zk:my-zk-1:2181,my-zk-2:2181,my-zk-3:2181 \
-  --configuration-metadata-store zk:my-zk-1:2181,my-zk-2:2181,my-zk-3:2181
-
+cd /path/to/pulsar/directory
+bin/pulsar proxy \
+--metadata-store zk:my-zk-1:2181,my-zk-2:2181,my-zk-3:2181 \
+--configuration-metadata-store zk:my-zk-1:2181,my-zk-2:2181,my-zk-3:2181
 ```
 
 > #### Pulsar proxy docs
@@ -160,11 +156,9 @@ The diagram below illustrates Pulsar service discovery:
 In this diagram, the Pulsar cluster is addressable via a single DNS name: `pulsar-cluster.acme.com`. A [Python client](client-libraries-python.md), for example, could access this Pulsar cluster like this:
 
 ```python
-
 from pulsar import Client
 
 client = Client('pulsar://pulsar-cluster.acme.com:6650')
-
 ```
 
 :::note
