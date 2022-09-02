@@ -97,7 +97,7 @@ components in the Pulsar ecosystem, including connectors, adapters, and other la
 
 ## Pulsar Runtime Java Version Recommendation
 
-- pulsar ver >= 2.11 and master branch
+- pulsar ver > 2.10 and master branch
 
 | Pulsar Components | Java Version  |
 | ----------------- | :-----------: |
