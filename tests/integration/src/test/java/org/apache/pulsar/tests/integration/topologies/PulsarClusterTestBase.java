@@ -34,6 +34,7 @@ import static java.util.stream.Collectors.joining;
 @Slf4j
 public abstract class PulsarClusterTestBase extends PulsarTestBase {
     protected final Map<String, String> brokerEnvs = new HashMap<>();
+    protected final Map<String, String> proxyEnvs = new HashMap<>();
     protected final List<Integer> brokerAdditionalPorts = new LinkedList<>();
 
     @Override
@@ -107,6 +108,7 @@ public abstract class PulsarClusterTestBase extends PulsarTestBase {
         PulsarClusterSpec.PulsarClusterSpecBuilder specBuilder = PulsarClusterSpec.builder()
                 .clusterName(clusterName)
                 .brokerEnvs(brokerEnvs)
+                .proxyEnvs(proxyEnvs)
                 .brokerAdditionalPorts(brokerAdditionalPorts);
 
         setupCluster(beforeSetupCluster(clusterName, specBuilder).build());
