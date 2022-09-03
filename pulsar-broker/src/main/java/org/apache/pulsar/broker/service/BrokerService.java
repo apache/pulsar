@@ -974,7 +974,7 @@ public class BrokerService implements Closeable {
                             return topicFuture.thenCompose(value -> {
                                 if (!value.isPresent()) {
                                     // retry and create topic
-                                    return getTopic(topicName.toString(), createIfMissing, properties);
+                                    return getTopic(topicName, createIfMissing, properties);
                                 } else {
                                     // in-progress future completed successfully
                                     return CompletableFuture.completedFuture(value);
@@ -1009,14 +1009,14 @@ public class BrokerService implements Closeable {
                 });
             }
         } catch (IllegalArgumentException e) {
-            log.warn("[{}] Illegalargument exception when loading topic", topicName.toString(), e);
+            log.warn("[{}] Illegalargument exception when loading topic", topicName, e);
             return FutureUtil.failedFuture(e);
         } catch (RuntimeException e) {
             Throwable cause = e.getCause();
             if (cause instanceof ServiceUnitNotReadyException) {
-                log.warn("[{}] Service unit is not ready when loading the topic", topicName.toString());
+                log.warn("[{}] Service unit is not ready when loading the topic", topicName);
             } else {
-                log.warn("[{}] Unexpected exception when loading topic: {}", topicName.toString(), e.getMessage(), e);
+                log.warn("[{}] Unexpected exception when loading topic: {}", topicName, e.getMessage(), e);
             }
 
             return FutureUtil.failedFuture(cause);
