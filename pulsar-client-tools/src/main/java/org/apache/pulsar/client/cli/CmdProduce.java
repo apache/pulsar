@@ -251,6 +251,7 @@ public class CmdProduce {
             if (this.chunkingAllowed) {
                 producerBuilder.enableChunking(true);
                 producerBuilder.enableBatching(false);
+                producerBuilder.blockIfQueueFull(false);
             } else if (this.disableBatching) {
                 producerBuilder.enableBatching(false);
             }

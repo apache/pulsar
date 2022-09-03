@@ -553,6 +553,7 @@ public class PerformanceProducer {
                     if (arguments.chunkingAllowed) {
                         prodBuilder.enableChunking(true);
                         prodBuilder.enableBatching(false);
+                        prodBuilder.blockIfQueueFull(false);
                     }
                     futures.add(prodBuilder.createAsync());
                 }
