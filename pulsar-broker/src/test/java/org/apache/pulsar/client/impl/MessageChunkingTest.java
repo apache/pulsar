@@ -109,6 +109,13 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         } catch (IllegalArgumentException ie) {
             // Ok
         }
+        // blockIfQueueFull and chunking can't be enabled together
+        try {
+            Producer<byte[]> producer = producerBuilder.enableChunking(true).blockIfQueueFull(true).create();
+            fail("producer creation should have fail");
+        } catch (IllegalArgumentException ie) {
+            // Ok
+        }
     }
 
     @Test(dataProvider = "ackReceiptEnabledWithMaxMessageSize")
@@ -463,26 +470,6 @@ public class MessageChunkingTest extends ProducerConsumerBase {
             assertEquals(controller.currentUsage(), 0);
             assertEquals(semaphore.availablePermits(), maxPendingMessages);
         }
-    }
-
-    @Test
-    public void testChunksBlockIfQueueFull() throws Exception {
-        this.conf.setMaxMessageSize(10);
-
-        final String topicName = "persistent://my-property/my-ns/testChunkingWithOrderingKey";
-
-        final ExecutorService exec = Executors.newFixedThreadPool(1);
-
-        @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).enableChunking(true)
-                .chunkMaxMessageSize(10)
-                // blockIfQueueFull will be ignored when chunking is enabled
-                .blockIfQueueFull(true)
-                .maxPendingMessages(10)
-                .enableBatching(false).create();
-
-        byte[] data = RandomUtils.nextBytes(1001);
-        producer.newMessage().value(data).send();
     }
 
     @Override
