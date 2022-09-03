@@ -465,6 +465,26 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         }
     }
 
+    @Test
+    public void testChunksBlockIfQueueFull() throws Exception {
+        this.conf.setMaxMessageSize(10);
+
+        final String topicName = "persistent://my-property/my-ns/testChunkingWithOrderingKey";
+
+        final ExecutorService exec = Executors.newFixedThreadPool(1);
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).enableChunking(true)
+                .chunkMaxMessageSize(10)
+                // blockIfQueueFull will be ignored when chunking is enabled
+                .blockIfQueueFull(true)
+                .maxPendingMessages(10)
+                .enableBatching(false).create();
+
+        byte[] data = RandomUtils.nextBytes(1001);
+        producer.newMessage().value(data).send();
+    }
+
     @Override
     protected void customizeNewPulsarClientBuilder(ClientBuilder clientBuilder) {
         clientBuilder.memoryLimit(10000L, SizeUnit.BYTES);
