@@ -149,6 +149,7 @@ import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -2854,7 +2855,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         .sum();
                 if (hasSchema
                         || (!producers.isEmpty())
-                        || (numActiveConsumers != 0)
+                        || (numActiveConsumers != 0 && schema.getType() == SchemaType.AUTO_CONSUME)
                         || (ledger.getTotalSize() != 0)) {
                     return checkSchemaCompatibleForConsumer(schema);
                 } else {
