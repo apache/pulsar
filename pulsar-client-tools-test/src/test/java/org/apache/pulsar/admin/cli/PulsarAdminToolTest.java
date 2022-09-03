@@ -2335,7 +2335,7 @@ public class PulsarAdminToolTest {
 
     private static String runCustomCommand(String[] args) throws Exception {
         File narFile = new File(PulsarAdminTool.class.getClassLoader()
-                .getResource("cliExtensions/customCommands-nar.nar").getFile());
+                .getResource("cliextensions/customCommands-nar.nar").getFile());
         log.info("NAR FILE is {}", narFile);
 
         PulsarAdminBuilder builder = mock(PulsarAdminBuilder.class);
