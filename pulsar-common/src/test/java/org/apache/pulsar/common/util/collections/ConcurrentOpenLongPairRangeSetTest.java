@@ -25,6 +25,7 @@ import static org.testng.Assert.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.apache.pulsar.common.util.collections.LongPairRangeSet.LongPair;
@@ -459,5 +460,31 @@ public class ConcurrentOpenLongPairRangeSetTest {
                 lastRange.upperEndpoint());
         gRangeConnected.add(lastRange);
         return gRangeConnected;
+    }
+
+    @Test
+    public void testCardinality() {
+        ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
+        Map<Long, Integer> v = set.cardinality(0, 0, Integer.MAX_VALUE, Integer.MAX_VALUE);
+        assertEquals(v.size(), 0 );
+        set.addOpenClosed(1, 0, 1, 20);
+        set.addOpenClosed(1, 30, 1, 90);
+        set.addOpenClosed(2, 0, 3, 30);
+        v = set.cardinality(1, 0, 1, 100);
+        assertEquals(v.size(), 1);
+        assertEquals((int) v.get(1L), 80);
+        v = set.cardinality(1, 11, 1, 100);
+        assertEquals(v.size(), 1);
+        assertEquals((int) v.get(1L), 70);
+        v = set.cardinality(1, 0, 1, 90);
+        assertEquals(v.size(), 1);
+        assertEquals((int) v.get(1L), 80);
+        v = set.cardinality(1, 0, 1, 80);
+        assertEquals(v.size(), 1);
+        assertEquals((int) v.get(1L), 70);
+        v = set.cardinality(1, 0, 3, 30);
+        assertEquals(v.size(), 2);
+        assertEquals((int) v.get(1L), 80);
+        assertEquals((int) v.get(3L), 31);
     }
 }

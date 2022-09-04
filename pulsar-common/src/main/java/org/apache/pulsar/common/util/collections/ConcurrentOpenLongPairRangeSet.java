@@ -23,7 +23,9 @@ import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -240,6 +242,33 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
         int upper = lastSet.getValue().previousSetBit(lastSet.getValue().size());
         int lower = Math.min(lastSet.getValue().previousClearBit(upper), upper);
         return Range.openClosed(consumer.apply(lastSet.getKey(), lower), consumer.apply(lastSet.getKey(), upper));
+    }
+
+    @Override
+    public Map<Long, Integer> cardinality(long lowerKey, long lowerValue, long upperKey, long upperValue) {
+        NavigableMap<Long, BitSet> subMap = rangeBitSetMap.subMap(lowerKey, true, upperKey, true);
+        Map<Long, Integer> v = new HashMap<>();
+        subMap.forEach((ledgerId, bitset) -> {
+            boolean isLowerOrUpper = false;
+            BitSet lowerBitSet = null;
+            if (ledgerId == lowerKey) {
+                isLowerOrUpper = true;
+                BitSet temp = (BitSet) bitset.clone();
+                temp.clear(0, (int) Math.max(0, lowerValue));
+                lowerBitSet = temp;
+                v.put(ledgerId, temp.cardinality());
+            }
+            if (ledgerId == upperKey) {
+                isLowerOrUpper = true;
+                BitSet temp = lowerBitSet == null ? (BitSet) bitset.clone() : lowerBitSet;
+                temp.clear((int) Math.min(upperValue + 1, temp.length()), temp.length());
+                v.put(ledgerId, temp.cardinality());
+            }
+            if (!isLowerOrUpper) {
+                v.put(ledgerId, bitset.cardinality());
+            }
+        });
+        return v;
     }
 
     @Override

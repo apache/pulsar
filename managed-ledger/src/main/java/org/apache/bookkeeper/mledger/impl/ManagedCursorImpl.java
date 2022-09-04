@@ -1455,25 +1455,40 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         lock.readLock().lock();
         try {
-            individualDeletedMessages.forEach((r) -> {
-                try {
-                    if (r.isConnected(range)) {
-                        Range<PositionImpl> commonEntries = r.intersection(range);
-                        long commonCount = ledger.getNumberOfEntries(commonEntries);
-                        if (log.isDebugEnabled()) {
-                            log.debug("[{}] [{}] Discounting {} entries for already deleted range {}", ledger.getName(),
-                                    name, commonCount, commonEntries);
+            if (config.isUnackedRangesOpenCacheSetEnabled()) {
+                Map<Long, Integer> cardinalityMap = individualDeletedMessages.cardinality(
+                        range.lowerEndpoint().ledgerId, range.lowerEndpoint().entryId,
+                        range.upperEndpoint().ledgerId, range.upperEndpoint().entryId);
+                deletedEntries.addAndGet(cardinalityMap.values().stream().mapToInt(v -> v).sum());
+                deletedEntries.addAndGet(
+                    ledger.ledgers.subMap(range.lowerEndpoint().ledgerId, true,
+                                    range.upperEndpoint().ledgerId, true)
+                        .values()
+                        .stream()
+                        .filter(ledgerInfo -> !cardinalityMap.containsKey(ledgerInfo.getLedgerId()))
+                        .mapToLong(LedgerInfo::getEntries).sum()
+                );
+            } else {
+                individualDeletedMessages.forEach((r) -> {
+                    try {
+                        if (r.isConnected(range)) {
+                            Range<PositionImpl> commonEntries = r.intersection(range);
+                            long commonCount = ledger.getNumberOfEntries(commonEntries);
+                            if (log.isDebugEnabled()) {
+                                log.debug("[{}] [{}] Discounting {} entries for already deleted range {}",
+                                        ledger.getName(), name, commonCount, commonEntries);
+                            }
+                            deletedEntries.addAndGet(commonCount);
                         }
-                        deletedEntries.addAndGet(commonCount);
+                        return true;
+                    } finally {
+                        if (r.lowerEndpoint() instanceof PositionImplRecyclable) {
+                            ((PositionImplRecyclable) r.lowerEndpoint()).recycle();
+                            ((PositionImplRecyclable) r.upperEndpoint()).recycle();
+                        }
                     }
-                    return true;
-                } finally {
-                    if (r.lowerEndpoint() instanceof PositionImplRecyclable) {
-                        ((PositionImplRecyclable) r.lowerEndpoint()).recycle();
-                        ((PositionImplRecyclable) r.upperEndpoint()).recycle();
-                    }
-                }
-            }, recyclePositionRangeConverter);
+                }, recyclePositionRangeConverter);
+            }
         } finally {
             lock.readLock().unlock();
         }
