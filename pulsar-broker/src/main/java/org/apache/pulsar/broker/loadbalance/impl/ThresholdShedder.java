@@ -63,7 +63,7 @@ public class ThresholdShedder implements LoadSheddingStrategy {
         return (int) (usage * 100);
     }
 
-    private boolean canSampleLog() {
+    protected boolean canSampleLog() {
         long now = System.currentTimeMillis() / 1000;
         boolean sampleLog = now - lastSampledLoadLogTS >= LOAD_LOG_SAMPLE_DELAY_IN_SEC;
         if (sampleLog) {
@@ -163,11 +163,7 @@ public class ThresholdShedder implements LoadSheddingStrategy {
                 });
     }
 
-    protected double getBrokerAvgUsage(LoadData loadData, ServiceConfiguration conf) {
-        return getBrokerAvgUsage(loadData, conf, canSampleLog());
-    }
-
-    private double getBrokerAvgUsage(final LoadData loadData,
+    protected double getBrokerAvgUsage(final LoadData loadData,
                                      final ServiceConfiguration conf, boolean sampleLog) {
         double historyPercentage = conf.getLoadBalancerHistoryResourcePercentage();
         double totalUsage = 0.0;
