@@ -1460,14 +1460,18 @@ public class ManagedCursorImpl implements ManagedCursor {
                         range.lowerEndpoint().ledgerId, range.lowerEndpoint().entryId,
                         range.upperEndpoint().ledgerId, range.upperEndpoint().entryId);
                 deletedEntries.addAndGet(cardinalityMap.values().stream().mapToInt(v -> v).sum());
-                deletedEntries.addAndGet(
-                    ledger.ledgers.subMap(range.lowerEndpoint().ledgerId, true,
-                                    range.upperEndpoint().ledgerId, true)
-                        .values()
-                        .stream()
-                        .filter(ledgerInfo -> !cardinalityMap.containsKey(ledgerInfo.getLedgerId()))
-                        .mapToLong(LedgerInfo::getEntries).sum()
-                );
+                if (cardinalityMap.isEmpty()) {
+                    deletedEntries.addAndGet(ledger.getNumberOfEntries(range));
+                } else {
+                    deletedEntries.addAndGet(
+                            ledger.ledgers.subMap(range.lowerEndpoint().ledgerId, true,
+                                            range.upperEndpoint().ledgerId, true)
+                                    .values()
+                                    .stream()
+                                    .filter(ledgerInfo -> !cardinalityMap.containsKey(ledgerInfo.getLedgerId()))
+                                    .mapToLong(LedgerInfo::getEntries).sum()
+                    );
+                }
             } else {
                 individualDeletedMessages.forEach((r) -> {
                     try {
