@@ -4042,7 +4042,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     }
 
     @Test
-    public void testReadPositionUpdateOverflow() throws ManagedLedgerException, InterruptedException,
+    public void testReadPositionInfinityGrowth() throws ManagedLedgerException, InterruptedException,
             NoSuchFieldException, IllegalAccessException {
         // Init managed ledger
         ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
