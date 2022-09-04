@@ -1791,24 +1791,60 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             // ledger handles (read & write)for the same ledger.
             internalReadFromLedger(currentLedger, opReadEntry);
         } else {
-            LedgerInfo ledgerInfo = ledgers.get(ledgerId);
-            if (ledgerInfo == null || ledgerInfo.getEntries() == 0) {
-                // Cursor is pointing to a empty ledger, there's no need to try opening it. Skip this ledger and
-                // move to the next one
-                opReadEntry.updateReadPosition(new PositionImpl(opReadEntry.readPosition.getLedgerId() + 1, 0));
-                opReadEntry.checkReadCompletion();
-                return;
+            try {
+                final PositionImpl readPosition = opReadEntry.readPosition;
+                Position checkedReadPosition = checkReadPosition(readPosition);
+                if (checkedReadPosition != readPosition) {
+                    opReadEntry.updateReadPosition(checkedReadPosition);
+                    opReadEntry.checkReadCompletion();
+                    return;
+                }
+                // Get a ledger handle to read from
+                getLedgerHandle(ledgerId)
+                        .thenAccept(ledger -> internalReadFromLedger(ledger, opReadEntry))
+                        .exceptionally(ex -> {
+                            log.error("[{}] Error opening ledger for reading at position {} - {}",
+                                    name, opReadEntry.readPosition, ex.getMessage());
+                            opReadEntry.readEntriesFailed(
+                                    ManagedLedgerException.getManagedLedgerException(ex.getCause()), opReadEntry.ctx);
+                            return null;
+                        });
+            } catch (ManagedLedgerException.NoMoreEntriesToReadException ex) {
+                opReadEntry.readEntriesFailed(ex, opReadEntry.ctx);
             }
+        }
+    }
 
-            // Get a ledger handle to read from
-            getLedgerHandle(ledgerId).thenAccept(ledger -> internalReadFromLedger(ledger, opReadEntry)).exceptionally(ex
-                    -> {
-                log.error("[{}] Error opening ledger for reading at position {} - {}", name, opReadEntry.readPosition,
-                        ex.getMessage());
-                opReadEntry.readEntriesFailed(ManagedLedgerException.getManagedLedgerException(ex.getCause()),
-                        opReadEntry.ctx);
-                return null;
-            });
+    /**
+     * Check read position legality and auto get the next valid position.
+     * This method will auto skip 0 entries ledger if it's not current ledger.
+     * @param readPosition - Read position
+     * @throws ManagedLedgerException.NoMoreEntriesToReadException throw the exception if pass the position
+     * grater than maximum ledger id.
+     * @return checked read position
+     */
+    private Position checkReadPosition(PositionImpl readPosition)
+            throws ManagedLedgerException.NoMoreEntriesToReadException {
+        final long readLedgerId = readPosition.getLedgerId();
+        final Map.Entry<Long, LedgerInfo> ceilingLedgerInfo = ledgers.ceilingEntry(readLedgerId);
+        if (ceilingLedgerInfo == null) {
+            throw new ManagedLedgerException.NoMoreEntriesToReadException(
+                    String.format("[%s] No more entries to read. readPosition: %s", name,  readPosition));
+        } else {
+            final Long ceilingLedgerId = ceilingLedgerInfo.getKey();
+            final boolean ledgerIdChanged = ceilingLedgerId != readLedgerId;
+            LedgerInfo ledgerInfo = ledgers.get(ledgerIdChanged ? ceilingLedgerId : readLedgerId);
+            if (ledgerInfo.getLedgerId() != currentLedger.getId() // avoid race condition, check again
+                    && ledgerInfo.getEntries() == 0) {
+                // skip 0 entries ledger if it's not current ledger.
+                return new PositionImpl(ceilingLedgerInfo.getKey() + 1, 0);
+            }
+            if (ledgerIdChanged) {
+                // skip to new ledger fist entry.
+                return new PositionImpl(ceilingLedgerId, 0);
+            }
+            // pass check
+            return readPosition;
         }
     }
 
@@ -2255,17 +2291,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         if (!config.isCacheEvictionByMarkDeletedPosition()) {
             updateActiveCursor(cursor, newReadPosition);
         }
-    }
-
-    PositionImpl startReadOperationOnLedger(PositionImpl position) {
-        Long ledgerId = ledgers.ceilingKey(position.getLedgerId());
-        if (ledgerId != null && ledgerId != position.getLedgerId()) {
-            // The ledger pointed by this position does not exist anymore. It was deleted because it was empty. We need
-            // to skip on the next available ledger
-            position = new PositionImpl(ledgerId, 0);
-        }
-
-        return position;
     }
 
     void notifyCursors() {

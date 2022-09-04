@@ -46,6 +46,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableMap;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -92,6 +93,7 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
+import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.IntRange;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
@@ -4037,6 +4039,54 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ManagedCursorImpl cursor1 = (ManagedCursorImpl) ledger.openCursor("test");
         assertEquals(cursor1.getMarkDeletedPosition(), p1);
         factory2.shutdown();
+    }
+
+    @Test
+    public void testReadPositionUpdateOverflow() throws ManagedLedgerException, InterruptedException, NoSuchFieldException, IllegalAccessException {
+        // Init managed ledger
+        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testReadPositionUpdateOverflow", managedLedgerConfig);
+        ledger.config.setMaximumRolloverTime(0, TimeUnit.MILLISECONDS);
+        Position writePosition = ledger.addEntry("test".getBytes());
+        NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgers = ledger.ledgers;
+        Assert.assertEquals(ledgers.size(), 1);
+        // Init cursor
+        ManagedCursor managedCursor = ledger.openCursor("test-cursor",
+                CommandSubscribe.InitialPosition.Earliest);
+        // Read from current ledger
+        List<Entry> entries = managedCursor.readEntries(10);
+        Assert.assertEquals(entries.size(), 1);
+        Entry entry = entries.get(0);
+        Position readPosition = entry.getPosition();
+        Assert.assertEquals(writePosition, readPosition);
+        // Read from zero entries ledger
+        Field currentLedgerEntries = ledger.getClass().getDeclaredField("currentLedgerEntries");
+        currentLedgerEntries.setAccessible(true);
+        currentLedgerEntries.set(ledger, 1);
+
+        Field stateUpdater = ManagedLedgerImpl.class.getDeclaredField("state");
+        stateUpdater.setAccessible(true);
+        stateUpdater.set(ledger, ManagedLedgerImpl.State.LedgerOpened);
+
+        ledger.rollCurrentLedgerIfFull();
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(ledgers.size(), 2));
+        // Read from zero entries ledger
+        List<Entry> entries1 = managedCursor.readEntries(10);
+        Assert.assertEquals(entries1.size(), 0);
+        // Read position change to next ledger head
+        Assert.assertEquals(managedCursor.getReadPosition(), PositionImpl.get(ledgers.lastKey(), 0));
+        // Read from invalid position
+        ManagedCursorImpl managedCursorImpl = (ManagedCursorImpl) managedCursor;
+        PositionImpl invalidPosition = PositionImpl.get(writePosition.getLedgerId() + 5, 0);
+        managedCursorImpl.setReadPosition(invalidPosition);
+        try {
+            managedCursor.readEntries(10);
+            fail();
+        } catch (Exception ex) {
+            Assert.assertTrue(ex instanceof ManagedLedgerException.NoMoreEntriesToReadException);
+        }
+        // Read position does not change
+        Assert.assertEquals(managedCursor.getReadPosition(), invalidPosition);
     }
 
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorTest.class);
