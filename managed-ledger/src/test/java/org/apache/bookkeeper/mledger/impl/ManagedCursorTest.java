@@ -4079,11 +4079,12 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ManagedCursorImpl managedCursorImpl = (ManagedCursorImpl) managedCursor;
         PositionImpl invalidPosition = PositionImpl.get(writePosition.getLedgerId() + 5, 0);
         managedCursorImpl.setReadPosition(invalidPosition);
-        try {
-            managedCursor.readEntries(10);
-            fail();
-        } catch (Exception ex) {
-            Assert.assertTrue(ex instanceof ManagedLedgerException.NoMoreEntriesToReadException);
+        for (int i = 0; i < 50; i++) {
+            try {
+                managedCursor.readEntries(10);
+            } catch (Exception ex) {
+                Assert.assertTrue(ex instanceof ManagedLedgerException.NoMoreEntriesToReadException);
+            }
         }
         // Read position does not change
         Assert.assertEquals(managedCursor.getReadPosition(), invalidPosition);
