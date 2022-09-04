@@ -4042,10 +4042,12 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     }
 
     @Test
-    public void testReadPositionUpdateOverflow() throws ManagedLedgerException, InterruptedException, NoSuchFieldException, IllegalAccessException {
+    public void testReadPositionUpdateOverflow() throws ManagedLedgerException, InterruptedException,
+            NoSuchFieldException, IllegalAccessException {
         // Init managed ledger
         ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testReadPositionUpdateOverflow", managedLedgerConfig);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testReadPositionUpdateOverflow",
+                managedLedgerConfig);
         ledger.config.setMaximumRolloverTime(0, TimeUnit.MILLISECONDS);
         Position writePosition = ledger.addEntry("test".getBytes());
         NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgers = ledger.ledgers;
