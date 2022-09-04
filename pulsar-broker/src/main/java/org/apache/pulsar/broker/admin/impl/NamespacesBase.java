@@ -1513,13 +1513,7 @@ public abstract class NamespacesBase extends AdminResource {
         return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.PERSISTENCE, PolicyOperation.WRITE)
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenAccept(__ -> validatePersistencePolicies(persistence))
-                .thenCompose(__ -> {
-                    return CompletableFuture.supplyAsync(() -> {
-                        validatePersistencePolicies(persistence);
-                        return null;
-                    });
-                })
-                .thenCompose(__ -> doUpdatePersistenceAsync(null));
+                .thenCompose(__ -> doUpdatePersistenceAsync(persistence));
     }
 
     private CompletableFuture<Void> doUpdatePersistenceAsync(PersistencePolicies persistence) {
