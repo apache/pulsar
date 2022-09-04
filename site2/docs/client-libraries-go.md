@@ -424,6 +424,7 @@ if err != nil {
 defer consumer.Close()
 
 for i := 0; i < 10; i++ {
+    // may block here
 	msg, err := consumer.Receive(context.Background())
 	if err != nil {
 		log.Fatal(err)
@@ -460,62 +461,73 @@ Pulsar Go consumers have the following methods available:
 | `Close()`                                          | Closes the consumer, disabling its ability to receive messages from the broker                                                                                                       | None                     |
 | `Name()`                                           | Name returns the name of consumer                                                                                                                                                    | `string`                 |
 
-### Receive example
+#### Create single-topic consumer
 
-#### How to use regex consumer
+```go
+client, err := pulsar.NewClient(pulsar.ClientOptions{URL: "pulsar://localhost:6650"})
+if err != nil {
+    log.Fatal(err)
+}
+
+defer client.Close()
+
+consumer, err := client.Subscribe(pulsar.ConsumerOptions{
+    // fill `Topic` field will create a single-topic consumer
+    Topic:            "topic-1",
+    SubscriptionName: "my-sub",
+    Type:             pulsar.Shared,
+})
+if err != nil {
+    log.Fatal(err)
+}
+defer consumer.Close()
+```
+
+#### Create regex-topic consumer
+
+```go
+client, err := pulsar.NewClient(pulsar.ClientOptions{
+		URL: "pulsar://localhost:6650",
+})
+defer client.Close()
+
+topicsPattern := "persistent://public/default/topic.*"
+opts := pulsar.ConsumerOptions{
+    // fill `TopicsPattern` field will create a regex consumer
+    TopicsPattern:    topicsPattern,
+    SubscriptionName: "regex-sub",
+}
+
+consumer, err := client.Subscribe(opts)
+if err != nil {
+    log.Fatal(err)
+}
+defer consumer.Close()
+```
+
+#### Create multi-topic Consumer
 
 ```go
 client, err := pulsar.NewClient(pulsar.ClientOptions{
     URL: "pulsar://localhost:6650",
 })
-
-defer client.Close()
-
-p, err := client.CreateProducer(pulsar.ProducerOptions{
-	Topic:           topicInRegex,
-	DisableBatching: true,
-})
 if err != nil {
-	log.Fatal(err)
+    log.Fatal(err)
 }
-defer p.Close()
 
-topicsPattern := fmt.Sprintf("persistent://%s/foo.*", namespace)
-opts := pulsar.ConsumerOptions{
-	TopicsPattern:    topicsPattern,
-	SubscriptionName: "regex-sub",
-}
-consumer, err := client.Subscribe(opts)
-if err != nil {
-	log.Fatal(err)
-}
-defer consumer.Close()
-```
-
-#### How to use multi topics Consumer
-
-```go
-topic1 := "topic-1"
-topic2 := "topic-2"
-
-client, err := pulsar.NewClient(pulsar.ClientOptions{
-	URL: "pulsar://localhost:6650",
-})
-if err != nil {
-	log.Fatal(err)
-}
-topics := []string{topic1, topic2}
+topics := []string{"topic-1", "topic-2"}
 consumer, err := client.Subscribe(pulsar.ConsumerOptions{
-	Topics:           topics,
-	SubscriptionName: "multi-topic-sub",
+    // fill `Topics` field will create a multi-topic consumer
+    Topics:           topics,
+    SubscriptionName: "multi-topic-sub",
 })
 if err != nil {
-	log.Fatal(err)
+    log.Fatal(err)
 }
 defer consumer.Close()
 ```
 
-#### How to use consumer listener
+#### Create consumer listener
 
 ```go
 import (
@@ -533,15 +545,16 @@ func main() {
 
 	defer client.Close()
 
+	// we can listen this channel
 	channel := make(chan pulsar.ConsumerMessage, 100)
 
 	options := pulsar.ConsumerOptions{
 		Topic:            "topic-1",
 		SubscriptionName: "my-subscription",
 		Type:             pulsar.Shared,
+		// fill `MessageChannel` field will create a listener
+		MessageChannel: channel,
 	}
-
-	options.MessageChannel = channel
 
 	consumer, err := client.Subscribe(options)
 	if err != nil {
@@ -550,20 +563,21 @@ func main() {
 
 	defer consumer.Close()
 
-	// Receive messages from channel. The channel returns a struct which contains message and the consumer from where
+	// Receive messages from channel. The channel returns a struct `ConsumerMessage` which contains message and the consumer from where
 	// the message was received. It's not necessary here since we have 1 single consumer, but the channel could be
 	// shared across multiple consumers as well
 	for cm := range channel {
+		consumer := cm.Consumer
 		msg := cm.Message
-		fmt.Printf("Received message  msgId: %v -- content: '%s'\n",
-			msg.ID(), string(msg.Payload()))
+		fmt.Printf("Consumer %s received a message, msgId: %v, content: '%s'\n",
+			consumer.Name(), msg.ID(), string(msg.Payload()))
 
 		consumer.Ack(msg)
 	}
 }
 ```
 
-#### How to use consumer receive timeout
+#### Receive message with timeout
 
 ```go
 client, err := NewClient(pulsar.ClientOptions{
@@ -589,11 +603,12 @@ if err != nil {
 }
 defer consumer.Close()
 
+// receive message with a timeout
 msg, err := consumer.Receive(ctx)
-fmt.Println(msg.Payload())
 if err != nil {
 	log.Fatal(err)
 }
+fmt.Println(msg.Payload())
 ```
 
 #### How to use schema in consumer
@@ -603,16 +618,12 @@ type testJSON struct {
 	ID   int    `json:"id"`
 	Name string `json:"name"`
 }
-```
 
-```go
 var (
 	exampleSchemaDef = "{\"type\":\"record\",\"name\":\"Example\",\"namespace\":\"test\"," +
 		"\"fields\":[{\"name\":\"ID\",\"type\":\"int\"},{\"name\":\"Name\",\"type\":\"string\"}]}"
 )
-```
 
-```go
 client, err := NewClient(pulsar.ClientOptions{
 	URL: "pulsar://localhost:6650",
 })
@@ -630,14 +641,19 @@ consumer, err := client.Subscribe(ConsumerOptions{
 	Schema:                      consumerJS,
 	SubscriptionInitialPosition: SubscriptionPositionEarliest,
 })
-assert.Nil(t, err)
-msg, err := consumer.Receive(context.Background())
-assert.Nil(t, err)
-err = msg.GetSchemaValue(&s)
 if err != nil {
 	log.Fatal(err)
 }
 
+msg, err := consumer.Receive(context.Background())
+if err != nil {
+	log.Fatal(err)
+}
+
+err = msg.GetSchemaValue(&s)
+if err != nil {
+	log.Fatal(err)
+}
 defer consumer.Close()
 ```
 
@@ -902,7 +918,7 @@ defer readerInclusive.Close()
 | StartMessageIDInclusive | If true, the reader will start at the `StartMessageID`, included. Default is `false` and the reader will start from the "next" message                                                                 | false    |
 | MessageChannel          | MessageChannel sets a `MessageChannel` for the consumer When a message is received, it will be pushed to the channel for consumption                                                                   |          |
 | ReceiverQueueSize       | ReceiverQueueSize sets the size of the consumer receive queue.                                                                                                                                         | 1000     |
-| SubscriptionRolePrefix  | SubscriptionRolePrefix set the subscription role prefix.                                                                                                                                               | “reader” |
+| SubscriptionRolePrefix  | SubscriptionRolePrefix set the subscription role prefix.                                                                                                                                               | "reader" |
 | ReadCompacted           | If enabled, the reader will read messages from the compacted topic rather than reading the full message backlog of the topic.  ReadCompacted can only be enabled when reading from a persistent topic. | false    |
 
 ## Messages
