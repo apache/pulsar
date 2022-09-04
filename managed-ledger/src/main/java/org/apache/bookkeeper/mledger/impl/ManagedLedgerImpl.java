@@ -1834,7 +1834,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             final Long ceilingLedgerId = ceilingLedgerInfo.getKey();
             final boolean ledgerIdChanged = ceilingLedgerId != readLedgerId;
             LedgerInfo ledgerInfo = ledgers.get(ledgerIdChanged ? ceilingLedgerId : readLedgerId);
-            if (ledgerInfo.getLedgerId() != currentLedger.getId() // avoid race condition, check again
+            if (currentLedger != null
+                    && ledgerInfo.getLedgerId() != currentLedger.getId() // avoid race condition, check again
                     && ledgerInfo.getEntries() == 0) {
                 // skip 0 entries ledger if it's not current ledger.
                 return new PositionImpl(ceilingLedgerInfo.getKey() + 1, 0);
