@@ -105,8 +105,8 @@ PULSAR_PUBLIC pulsar_result pulsar_consumer_receive_with_timeout(pulsar_consumer
  *
  * @param callback callback that will be triggered when the message is available
  */
-PULSAR_PUBLIC void pulsar_consumer_receive_async(pulsar_consumer_t *consumer, pulsar_receive_callback callback,
-                                                 void *ctx);
+PULSAR_PUBLIC void pulsar_consumer_receive_async(pulsar_consumer_t *consumer,
+                                                 pulsar_receive_callback callback, void *ctx);
 
 /**
  * Acknowledge the reception of a single message.
