@@ -38,7 +38,7 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 @Slf4j
 public class ThresholdShedderTest {
-    private ThresholdShedder thresholdShedder;
+    protected ThresholdShedder thresholdShedder;
     private final ServiceConfiguration conf;
 
     public ThresholdShedderTest() {
