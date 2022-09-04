@@ -37,7 +37,7 @@ Each function has a separate state store with FQFN. You can specify a state inte
 
 ## Function worker
 
-Function worker is a logic component to monitor, orchestrate, and execute individual function in [cluster-mode](functions-deploy.md#depoy-a-function-in-cluster-mode) deployment of Pulsar Functions. 
+Function worker is a logic component to monitor, orchestrate, and execute an individual function in [cluster-mode](functions-deploy.md#depoy-a-function-in-cluster-mode) deployment of Pulsar Functions. 
 
 Within function workers, each [function instance](#function-instance) can be executed as a thread or process, depending on the selected configurations. Alternatively, if a Kubernetes cluster is available, functions can be spawned as StatefulSets within Kubernetes. See [Set up function workers](functions-worker.md) for more details.
 
@@ -71,13 +71,15 @@ The following table outlines the three types of function runtime.
 
 ## Processing guarantees and subscription types
 
-Pulsar provides three different messaging delivery semantics that you can apply to a function. 
+Pulsar provides three different messaging delivery semantics that you can apply to a function. Different delivery semantic implementations are determined according to the **ack time node**.
 
 | Delivery semantics | Description | Adopted subscription type |
 |--------------------|-------------|---------------------------|
-| **At-most-once** delivery | Each message sent to a function is processed at its best effort. There’s no guarantee that the message will be processed or not. | Shared |
-| **At-least-once** delivery (default) | Each message sent to the function can be processed more than once (in case of a processing failure or redelivery).<br /><br />If you create a function without specifying the `--processing-guarantees` flag, the function provides `at-least-once` delivery guarantee. | Shared |
-| **Effectively-once** delivery | Each message sent to the function can be processed more than once but it has only one output. Duplicated messages are ignored.<br /><br />`Effectively once` is achieved on top of `at-least-once` processing and guaranteed server-side deduplication. This means a state update can happen twice, but the same state update is only applied once, the other duplicated state update is discarded on the server-side. | Failover |
+| **At-most-once** delivery | Each message sent to a function is processed at its best effort. There’s no guarantee that the message will be processed or not. <br /><br /> When you select this semantic, the `autoAck` configuration must be set to `true`, otherwise the startup will fail (the `autoAck` configuration will be deprecated in future releases). <br /><br /> **Ack time node**: Before function processing. | Shared |
+| **At-least-once** delivery (default) | Each message sent to a function can be processed more than once (in case of a processing failure or redelivery).<br /><br />If you create a function without specifying the `--processing-guarantees` flag, the function provides `at-least-once` delivery guarantee. <br /><br /> **Ack time node**: After sending a message to output. | Shared |
+| **Effectively-once** delivery | Each message sent to a function can be processed more than once but it has only one output. Duplicated messages are ignored.<br /><br />`Effectively once` is achieved on top of `at-least-once` processing and guaranteed server-side deduplication. This means a state update can happen twice, but the same state update is only applied once, the other duplicated state update is discarded on the server-side. <br /><br /> **Ack time node**: After sending a message to output. | Failover |
+| **Manual** delivery | When you select this semantic, the framework does not perform any ack operations, and you need to call the method `context.getCurrentRecord().ack()` inside a function to manually perform the ack operation. <br /><br /> **Ack time node**: User-defined within function methods. | Shared |
+
 
 :::tip
 
@@ -92,22 +94,18 @@ Pulsar provides three different messaging delivery semantics that you can apply 
 You can set the processing guarantees for a function when you create the function. The following command creates a function with effectively-once guarantees applied.
 
 ```bash
-
 bin/pulsar-admin functions create \
   --name my-effectively-once-function \
   --processing-guarantees EFFECTIVELY_ONCE \
   # Other function configs
-
 ```
 
 You can change the processing guarantees applied to a function using the `update` command. 
 
 ```bash
-
 bin/pulsar-admin functions update \
   --processing-guarantees ATMOST_ONCE \
   # Other function configs
-
 ```
 
 ## Context
@@ -118,17 +116,18 @@ Java, Python, and Go SDKs provide access to a **context object** that can be use
 * The key, event time, properties, and partition key of a message.
 * The name of the topic that a message is sent to.
 * The names of all input topics as well as the output topic associated with the function.
-* The name of the class used for [SerDe](functions-develop-serde).
+* The name of the class used for [SerDe](functions-develop-serde.md).
 * The tenant and namespace associated with the function.
 * The ID of the function instance running the function.
 * The version of the function.
-* The [logger object](functions-develop-log) used by the function, which is used to create log messages.
-* Access to arbitrary [user configuration](functions-develop-user-defined-configs) values supplied via the CLI.
-* An interface for recording [metrics](functions-develop-metrics).
-* An interface for storing and retrieving state in [state storage](functions-develop-state).
+* The [logger object](functions-develop-log.md) used by the function, which is used to create log messages.
+* Access to arbitrary [user configuration](functions-develop-user-defined-configs.md) values supplied via the CLI.
+* An interface for recording [metrics](functions-develop-metrics.md).
+* An interface for storing and retrieving state in [state storage](functions-develop-state.md).
 * A function to publish new messages onto arbitrary topics.
 * A function to acknowledge the message being processed (if auto-ack is disabled).
-* (Java) get Pulsar admin client.
+* (Java) A function to get the Pulsar admin client.
+* (Java) A function to create a Record to return with default values taken from the Context and the input Record.
 
 :::tip
 
@@ -147,13 +146,13 @@ Pulsar Functions take byte arrays as inputs and spit out byte arrays as output. 
 
 :::note    
 
-Currently, window function is only available in Java.
+Currently, window functions are only available in Java, and do not support `MANUAL` and  `Effectively-once` delivery semantics.
 
 :::
 
-Window function is a function that performs computation across a data window, that is, a finite subset of the event stream. As illustrated below, the stream is split into “buckets” where functions can be applied.
+A window function is a function that performs computation across a data window, that is, a finite subset of the event stream. As illustrated below, the stream is split into "buckets" where functions can be applied.
 
-![A window of data within an event stream](/assets/function-data-window.png)
+![A window of data within an event stream](/assets/function-data-window.svg)
 
 The definition of a data window for a function involves two policies:
 * Eviction policy: Controls the amount of data collected in a window. 
@@ -166,7 +165,7 @@ Both trigger policy and eviction policy are driven by either time or count.
 Both processing time and event time are supported.
  * Processing time is defined based on the wall time when the function instance builds and processes a window. The judging of window completeness is straightforward and you don’t have to worry about data arrival disorder. 
  * Event time is defined based on the timestamps that come with the event record. It guarantees event time correctness but also offers more data buffering and a limited completeness guarantee.
-
+   
 :::
 
 ### Types of window
@@ -177,15 +176,15 @@ Based on whether two adjacent windows can share common events or not, windows ca
 
 #### Tumbling window
 
-Tumbling window assigns elements to a window of a specified time length or count. The eviction policy for tumbling windows is always based on the window being full. So you only need to specify the trigger policy, either count-based or time-based. 
+A tumbling window assigns elements to a window of a specified time length or count. The eviction policy for tumbling windows is always based on the window being full. So you only need to specify the trigger policy, either count-based or time-based. 
 
 In a tumbling window with a count-based trigger policy, as illustrated in the following example, the trigger policy is set to 2. Each function is triggered and executed when two items are in the window, regardless of the time. 
 
-![A tumbling window with a count-based trigger policy](/assets/function-count-based-tumbling-window.png)
+![A tumbling window with a count-based trigger policy](/assets/function-count-based-tumbling-window.svg)
 
 In contrast, as illustrated in the following example, the window length of the tumbling window is 10 seconds, which means the function is triggered when the 10-second time interval has elapsed, regardless of how many events are in the window. 
 
-![A tumbling window with a time-based trigger policy](/assets/function-time-based-tumbling-window.png)
+![A tumbling window with a time-based trigger policy](/assets/function-time-based-tumbling-window.svg)
 
 #### Sliding window
 
@@ -193,4 +192,4 @@ The sliding window method defines a fixed window length by setting the eviction 
 
 As illustrated in the following example, the window length is 2 seconds, which means that any data older than 2 seconds will be evicted and not used in the computation. The sliding interval is configured to be 1 second, which means that function is executed every second to process the data within the entire window length. 
 
-![Sliding window with an overlap](/assets/function-sliding-window.png)
+![Sliding window with an overlap](/assets/function-sliding-window.svg)

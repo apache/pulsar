@@ -40,7 +40,6 @@ The latest version of the Pulsar Java client library is available via [Maven Cen
 If you use Maven, add the following information to the `pom.xml` file.
 
 ```xml
-
 <!-- in your <properties> block -->
 <pulsar.version>@pulsar:version@</pulsar.version>
 
@@ -50,7 +49,6 @@ If you use Maven, add the following information to the `pom.xml` file.
   <artifactId>pulsar-client</artifactId>
   <version>${pulsar.version}</version>
 </dependency>
-
 ```
 
 ### Gradle
@@ -58,49 +56,33 @@ If you use Maven, add the following information to the `pom.xml` file.
 If you use Gradle, add the following information to the `build.gradle` file.
 
 ```groovy
-
 def pulsarVersion = '@pulsar:version@'
 
 dependencies {
     compile group: 'org.apache.pulsar', name: 'pulsar-client', version: pulsarVersion
 }
-
 ```
 
 ## Connection URLs
 
 To connect to Pulsar using client libraries, you need to specify a [Pulsar protocol](developing-binary-protocol.md) URL.
 
-You can assign Pulsar protocol URLs to specific clusters and use the `pulsar` scheme. The default port is `6650`. The following is an example of `localhost`.
+You can assign Pulsar protocol URLs to specific clusters and use the `pulsar` scheme. The following is an example of `localhost` with the default port `6650`:
 
 ```http
-
 pulsar://localhost:6650
-
 ```
 
-If you have multiple brokers, the URL is as follows.
+If you have multiple brokers, separate `IP:port` by commas:
 
 ```http
-
 pulsar://localhost:6550,localhost:6651,localhost:6652
-
 ```
 
-A URL for a production Pulsar cluster is as follows.
+If you use [TLS](security-tls-authentication.md) authentication, add `+ssl` in the scheme:
 
 ```http
-
-pulsar://pulsar.us-west.example.com:6650
-
-```
-
-If you use [TLS](security-tls-authentication.md) authentication, the URL is as follows. 
-
-```http
-
 pulsar+ssl://pulsar.us-west.example.com:6651
-
 ```
 
 ## Client 
@@ -108,21 +90,17 @@ pulsar+ssl://pulsar.us-west.example.com:6651
 You can instantiate a {@inject: javadoc:PulsarClient:/client/org/apache/pulsar/client/api/PulsarClient} object using just a URL for the target Pulsar [cluster](reference-terminology.md#cluster) like this:
 
 ```java
-
 PulsarClient client = PulsarClient.builder()
         .serviceUrl("pulsar://localhost:6650")
         .build();
-
 ```
 
 If you have multiple brokers, you can initiate a PulsarClient like this:
 
 ```java
-
 PulsarClient client = PulsarClient.builder()
         .serviceUrl("pulsar://localhost:6650,localhost:6651,localhost:6652")
         .build();
-
 ```
 
 > ### Default broker URLs for standalone clusters
@@ -140,7 +118,7 @@ If you create a client, you can use the `loadConf` configuration. The following 
 `numIoThreads`| int| The number of threads used for handling connections to brokers | 1 
 `numListenerThreads`|int|The number of threads used for handling message listeners. The listener thread pool is shared across all the consumers and readers using the "listener" model to get messages. For a given consumer, the listener is always invoked from the same thread to ensure ordering. If you want multiple threads to process a single topic, you need to create a [`shared`](/concepts-messaging.md#shared) subscription and multiple consumers for this subscription. This does not ensure ordering.| 1 
 `useTcpNoDelay`| boolean| Whether to use TCP no-delay flag on the connection to disable Nagle algorithm |true
-`useTls` |boolean |Whether to use TLS encryption on the connection| false
+`enableTls` |boolean | Whether to use TLS encryption on the connection. Note that this parameter is **deprecated**. If you want to enable TLS, use `pulsar+ssl://` in `serviceUrl` instead. | false
  `tlsTrustCertsFilePath` |string |Path to the trusted TLS certificate file|None
 `tlsAllowInsecureConnection`|boolean|Whether the Pulsar client accepts untrusted TLS certificate from broker | false
 `tlsHostnameVerificationEnable` |boolean |  Whether to enable TLS hostname verification|false
@@ -155,6 +133,7 @@ If you create a client, you can use the `loadConf` configuration. The following 
 `socks5ProxyAddress`|SocketAddress|SOCKS5 proxy address | None
 `socks5ProxyUsername`|string|SOCKS5 proxy username | None
 `socks5ProxyPassword`|string|SOCKS5 proxy password | None
+`connectionMaxIdleSeconds`|int|Release the connection if it is not used for more than `connectionMaxIdleSeconds` seconds.If `connectionMaxIdleSeconds` < 0, disabled the feature that auto release the idle connection|180
 
 Check out the Javadoc for the {@inject: javadoc:PulsarClient:/client/org/apache/pulsar/client/api/PulsarClient} class for a full list of configurable parameters.
 
@@ -167,18 +146,16 @@ You can set the client memory allocator configurations through Java properties.<
 |---|---|---|---|---
 `pulsar.allocator.pooled` | String | If set to `true`, the client uses a direct memory pool. <br /> If set to `false`, the client uses a heap memory without pool | true | <li> true </li> <li> false </li> 
 `pulsar.allocator.exit_on_oom` | String | Whether to exit the JVM when OOM happens | false |  <li> true </li> <li> false </li>
-`pulsar.allocator.leak_detection` | String | Service URL provider for Pulsar service | Disabled | <li> Disabled </li> <li> Simple </li> <li> Advanced </li> <li> Paranoid </li>
+`pulsar.allocator.leak_detection` | String | The leak detection policy for Pulsar bytebuf allocator. <li> **Disabled**: No leak detection and no overhead. </li> <li> **Simple**: Instruments 1% of the allocated buffer to track for leaks. </li> <li> **Advanced**: Instruments 1% of the allocated buffer to track for leaks, reporting stack traces of places where the buffer is used. </li> <li> **Paranoid**: Instruments 100% of the allocated buffer to track for leaks, reporting stack traces of places where the buffer is used and introduces a significant overhead. </li> | Disabled | <li> Disabled </li> <li> Simple </li> <li> Advanced </li> <li> Paranoid </li>
 `pulsar.allocator.out_of_memory_policy` | String | When an OOM occurs, the client throws an exception or fallbacks to heap | FallbackToHeap | <li> ThrowException </li> <li> FallbackToHeap </li>
 
-**Example**:
+**Example**
 
-```
-
--Dpulsar.allocator.pooled=true
--Dpulsar.allocator.exit_on_oom=false
--Dpulsar.allocator.leak_detection=Disabled
--Dpulsar.allocator.out_of_memory_policy=ThrowException
-
+```conf
+Dpulsar.allocator.pooled=true
+Dpulsar.allocator.exit_on_oom=false
+Dpulsar.allocator.leak_detection=Disabled
+Dpulsar.allocator.out_of_memory_policy=ThrowException
 ```
 
 ### Cluster-level failover
@@ -205,10 +182,11 @@ This chapter describes the concept, benefits, use cases, constraints, usage, wor
 
 - [How does cluster-level failover work?](#how-does-cluster-level-failover-work)
   
-> #### What is cluster-level failover
+#### What is cluster-level failover
 
 This chapter helps you better understand the concept of cluster-level failover.
-> ##### Concept of cluster-level failover
+
+##### Concept of cluster-level failover
 
 ````mdx-code-block
 <Tabs groupId="failover-choice"
@@ -234,13 +212,13 @@ Controlled cluster-level failover supports Pulsar clients switching from a prima
 
 Once the primary cluster functions again, Pulsar clients can switch back to the primary cluster. Most of the time users won’t even notice a thing. Users can keep using applications and services without interruptions or timeouts.
 
-> ##### Why use cluster-level failover?
+##### Why use cluster-level failover?
 
 The cluster-level failover provides fault tolerance, continuous availability, and high availability together. It brings a number of benefits, including but not limited to:
 
 * Reduced cost: services can be switched and recovered automatically with no data loss.
 
-* Simplified management: businesses can operate on an “always-on” basis since no immediate user intervention is required.
+* Simplified management: businesses can operate on an "always-on" basis since no immediate user intervention is required.
 
 * Improved stability and robustness: it ensures continuous performance and minimizes service downtime. 
 
@@ -252,7 +230,7 @@ The cluster-level failover protects your environment in a number of ways, includ
 
 * Planned migration: if you want to migrate production workloads from an old cluster to a new cluster, you can improve the migration efficiency with cluster-level failover. For example, you can test whether the data migration goes smoothly in case of a failover event, identify possible issues and risks before the migration.
 
-> ##### When cluster-level failover is triggered?
+##### When cluster-level failover is triggered?
 
 ````mdx-code-block
 <Tabs groupId="failover-choice"
@@ -280,7 +258,7 @@ Controlled cluster-level failover is triggered when administrators set the switc
 </Tabs>
 ````
 
-> ##### Why does cluster-level failover fail?
+##### Why does cluster-level failover fail?
 
 Obviously, the cluster-level failover does not succeed if the backup cluster is unreachable by active Pulsar clients. This can happen for many reasons, including but not limited to:
 
@@ -294,11 +272,11 @@ Obviously, the cluster-level failover does not succeed if the backup cluster is 
 
 * Fail to authenticate or authorize between 1) primary and backup clusters, or 2) between two backup clusters.
 
-> ##### What are the limitations of cluster-level failover?
+##### What are the limitations of cluster-level failover?
 
 Currently, cluster-level failover can perform probes to prevent data loss, but it can not check the status of backup clusters. If backup clusters are not healthy, you cannot produce or consume data.
 
-> #### What are the relationships between cluster-level failover and geo-replication?
+#### What are the relationships between cluster-level failover and geo-replication?
 
 The cluster-level failover is an extension of [geo-replication](concepts-replication.md) to improve stability and robustness. The cluster-level failover depends on geo-replication, and they have some **differences** as below.
 
@@ -308,7 +286,7 @@ Do administrators have heavy workloads?|No or maybe.<br /><br />- For the **auto
 Result in data loss?|No.<br /><br />For both **automatic** and **controlled** cluster-level failover, if the failed primary cluster doesn't replicate messages immediately to the backup cluster, the Pulsar client can't consume the non-replicated messages. After the primary cluster is restored and the Pulsar client switches back, the non-replicated data can still be consumed by the Pulsar client. Consequently, the data is not lost.<br /><br />- For the **automatic** cluster-level failover, services can be switched and recovered automatically with no data loss.<br /><br />- For the **controlled** cluster-level failover, services can be switched and recovered manually and data loss may happen.|Yes.<br /><br />Pulsar clients and DNS systems have caches. When administrators switch the DNS from a primary cluster to a backup cluster, it takes some time for cache trigger timeout, which delays client recovery time and fails to produce or consume messages.
 Result in Pulsar client failure? |No or maybe.<br /><br />- For **automatic** cluster-level failover, services can be switched and recovered automatically and the Pulsar client does not fail. <br /><br />- For **controlled** cluster-level failover, services can be switched and recovered manually, but the Pulsar client fails before administrators can take action. |Same as above.
 
-> #### How to use cluster-level failover
+#### How to use cluster-level failover
 
 This section guides you through every step on how to configure cluster-level failover.
 
@@ -324,7 +302,7 @@ This section guides you through every step on how to configure cluster-level fai
 
 * For backup clusters:
 
-  * The number of BooKeeper nodes should be equal to or greater than the ensemble quorum.
+  * The number of BookKeeper nodes should be equal to or greater than the ensemble quorum.
 
   * The number of ZooKeeper nodes should be equal to or greater than 3.
 
@@ -340,29 +318,26 @@ This section guides you through every step on how to configure cluster-level fai
 
 This is an example of how to construct a Java Pulsar client to use automatic cluster-level failover. The switchover is triggered automatically.
 
-```
+```java
+private PulsarClient getAutoFailoverClient() throws PulsarClientException {
+    ServiceUrlProvider failover = AutoClusterFailover.builder()
+            .primary("pulsar://localhost:6650")
+            .secondary(Collections.singletonList("pulsar://other1:6650", "pulsar://other2:6650"))
+            .failoverDelay(30, TimeUnit.SECONDS)
+            .switchBackDelay(60, TimeUnit.SECONDS)
+            .checkInterval(1000, TimeUnit.MILLISECONDS)
+            .secondaryTlsTrustCertsFilePath("/path/to/ca.cert.pem")
+            .secondaryAuthentication("org.apache.pulsar.client.impl.auth.AuthenticationTls",
+                    "tlsCertFile:/path/to/my-role.cert.pem,tlsKeyFile:/path/to/my-role.key-pk8.pem")
 
-  private PulsarClient getAutoFailoverClient() throws PulsarClientException {
+            .build();
 
-        ServiceUrlProvider failover = AutoClusterFailover.builder()
-                .primary("pulsar://localhost:6650")
-                .secondary(Collections.singletonList("pulsar://other1:6650","pulsar://other2:6650"))
-                .failoverDelay(30, TimeUnit.SECONDS)
-                .switchBackDelay(60, TimeUnit.SECONDS)
-                .checkInterval(1000, TimeUnit.MILLISECONDS)
-	    	    .secondaryTlsTrustCertsFilePath("/path/to/ca.cert.pem")
-    .secondaryAuthentication("org.apache.pulsar.client.impl.auth.AuthenticationTls",
-"tlsCertFile:/path/to/my-role.cert.pem,tlsKeyFile:/path/to/my-role.key-pk8.pem")
+    PulsarClient pulsarClient = PulsarClient.builder()
+            .build();
 
-                .build();
-
-        PulsarClient pulsarClient = PulsarClient.builder()
-                .build();
-
-        failover.initialize(pulsarClient);
-        return pulsarClient;
-    }
-
+    failover.initialize(pulsarClient);
+    return pulsarClient;
+}
 ```
 
 Configure the following parameters:
@@ -384,31 +359,29 @@ This is an example of how to construct a Java Pulsar client to use controlled cl
 
 **Note**: you can have one or several backup clusters but can only specify one.
 
-```
+```java
+public PulsarClient getControlledFailoverClient() throws IOException {
+    Map<String, String> header = new HashMap();
+    header.put("service_user_id", "my-user");
+    header.put("service_password", "tiger");
+    header.put("clusterA", "tokenA");
+    header.put("clusterB", "tokenB");
 
- public PulsarClient getControlledFailoverClient() throws IOException {
-Map<String, String> header = new HashMap(); 
-  header.put(“service_user_id”, “my-user”);
-  header.put(“service_password”, “tiger”);
-  header.put(“clusterA”, “tokenA”);
-  header.put(“clusterB”, “tokenB”);
+    ServiceUrlProvider provider =
+            ControlledClusterFailover.builder()
+                    .defaultServiceUrl("pulsar://localhost:6650")
+                    .checkInterval(1, TimeUnit.MINUTES)
+                    .urlProvider("http://localhost:8080/test")
+                    .urlProviderHeader(header)
+                    .build();
 
-  ServiceUrlProvider provider = 
-      ControlledClusterFailover.builder()
-        .defaultServiceUrl("pulsar://localhost:6650")
-        .checkInterval(1, TimeUnit.MINUTES)
-        .urlProvider("http://localhost:8080/test")
-        .urlProviderHeader(header)
-        .build();
+    PulsarClient pulsarClient =
+            PulsarClient.builder()
+                    .build();
 
-  PulsarClient pulsarClient = 
-     PulsarClient.builder()
-      .build();
-
-  provider.initialize(pulsarClient);
-  return pulsarClient;
+    provider.initialize(pulsarClient);
+    return pulsarClient;
 }
-
 ```
 
 Parameter|Default value|Required?|Description
@@ -432,8 +405,7 @@ Assume that you want to connect Pulsar client 1 to cluster A.
 
    **Note**: **the credential must be in a JSON file and contain parameters as shown**.
 
-   ```
-   
+   ```java
    {
    "serviceUrl": "pulsar+ssl://target:6651", 
    "tlsTrustCertsFilePath": "/security/ca.cert.pem",
@@ -441,7 +413,6 @@ Assume that you want to connect Pulsar client 1 to cluster A.
    "authParamsString": " \"tlsCertFile\": \"/security/client.cert.pem\" 
        \"tlsKeyFile\": \"/security/client-pk8.pem\" "
    }
-   
    ```
 
 3. Pulsar client 1 connects to cluster A using credential *c1*.
@@ -451,7 +422,7 @@ Assume that you want to connect Pulsar client 1 to cluster A.
 </Tabs>
 ````
 
->#### How does cluster-level failover work?
+#### How does cluster-level failover work?
 
 This chapter explains the working process of cluster-level failover. For more implementation details, see [PIP-121](https://github.com/apache/pulsar/issues/13315).
 
@@ -508,51 +479,41 @@ In an automatic failover cluster, the primary cluster and backup cluster are awa
 In Pulsar, producers write messages to topics. Once you've instantiated a {@inject: javadoc:PulsarClient:/client/org/apache/pulsar/client/api/PulsarClient} object (as in the section [above](#client-configuration)), you can create a {@inject: javadoc:Producer:/client/org/apache/pulsar/client/api/Producer} for a specific Pulsar [topic](reference-terminology.md#topic).
 
 ```java
-
 Producer<byte[]> producer = client.newProducer()
         .topic("my-topic")
         .create();
 
 // You can then send messages to the broker and topic you specified:
 producer.send("My message".getBytes());
-
 ```
 
 By default, producers produce messages that consist of byte arrays. You can produce different types by specifying a message [schema](#schema).
 
 ```java
-
 Producer<String> stringProducer = client.newProducer(Schema.STRING)
         .topic("my-topic")
         .create();
 stringProducer.send("My message");
-
 ```
 
 > Make sure that you close your producers, consumers, and clients when you do not need them.
 
 > ```java
-> 
 > producer.close();
 > consumer.close();
 > client.close();
->
-> 
 > ```
 
 >
 > Close operations can also be asynchronous:
 
 > ```java
-> 
 > producer.closeAsync()
 >    .thenRun(() -> System.out.println("Producer closed"))
 >    .exceptionally((ex) -> {
 >        System.err.println("Failed to close producer: " + ex);
 >        return null;
 >    });
->
-> 
 > ```
 
 
@@ -585,19 +546,106 @@ You can configure parameters if you do not want to use the default configuration
 For a full list, see the Javadoc for the {@inject: javadoc:ProducerBuilder:/client/org/apache/pulsar/client/api/ProducerBuilder} class. The following is an example.
 
 ```java
-
 Producer<byte[]> producer = client.newProducer()
     .topic("my-topic")
     .batchingMaxPublishDelay(10, TimeUnit.MILLISECONDS)
     .sendTimeout(10, TimeUnit.SECONDS)
     .blockIfQueueFull(true)
     .create();
+```
+
+### Publish to partitioned topics
+
+By default, Pulsar topics are served by a single broker, which limits the maximum throughput of a topic. *Partitioned topics* can span multiple brokers and thus allow for higher throughput.
+
+You can publish messages to partitioned topics using Pulsar client libraries. When publishing messages to partitioned topics, you must specify a routing mode. If you do not specify any routing mode when you create a new producer, the round-robin routing mode is used.
+
+#### Routing mode
+
+You can specify the routing mode in the `ProducerConfiguration` object used to configure your producer. The routing mode determines which partition (internal topic) each message should be published to.
+
+The following {@inject: javadoc:MessageRoutingMode:/client/org/apache/pulsar/client/api/MessageRoutingMode} options are available.
+
+Mode     | Description
+:--------|:------------
+`RoundRobinPartition` | If no key is provided, the producer publishes messages across all partitions in the round-robin policy to achieve the maximum throughput. Round-robin is not done per individual message. It is set to the same boundary of batching delay to ensure that batching is effective. If a key is specified on the message, the partitioned producer hashes the key and assigns the message to a particular partition. This is the default mode.
+`SinglePartition`     | If no key is provided, the producer picks a single partition randomly and publishes all messages into that partition. If a key is specified on the message, the partitioned producer hashes the key and assigns the message to a particular partition.
+`CustomPartition`     | Use custom message router implementation that is called to determine the partition for a particular message. You can create a custom routing mode by using the Java client and implementing the {@inject: javadoc:MessageRouter:/client/org/apache/pulsar/client/api/MessageRouter} interface.
+
+The following is an example:
+
+```java
+
+String pulsarBrokerRootUrl = "pulsar://localhost:6650";
+String topic = "persistent://my-tenant/my-namespace/my-topic";
+
+PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsarBrokerRootUrl).build();
+Producer<byte[]> producer = pulsarClient.newProducer()
+        .topic(topic)
+        .messageRoutingMode(MessageRoutingMode.SinglePartition)
+        .create();
+producer.send("Partitioned topic message".getBytes());
 
 ```
 
-### Message routing
+#### Custom message router
 
-When using partitioned topics, you can specify the routing mode whenever you publish messages using a producer. For more information on specifying a routing mode using the Java client, see the [Partitioned Topics cookbook](cookbooks-partitioned.md).
+To use a custom message router, you need to provide an implementation of the {@inject: javadoc:MessageRouter:/client/org/apache/pulsar/client/api/MessageRouter} interface, which has just one `choosePartition` method:
+
+```java
+
+public interface MessageRouter extends Serializable {
+    int choosePartition(Message msg);
+}
+
+```
+
+The following router routes every message to partition 10:
+
+```java
+
+public class AlwaysTenRouter implements MessageRouter {
+    public int choosePartition(Message msg) {
+        return 10;
+    }
+}
+
+```
+
+With that implementation, you can send messages to partitioned topics as below.
+
+```java
+
+String pulsarBrokerRootUrl = "pulsar://localhost:6650";
+String topic = "persistent://my-tenant/my-cluster-my-namespace/my-topic";
+
+PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsarBrokerRootUrl).build();
+Producer<byte[]> producer = pulsarClient.newProducer()
+        .topic(topic)
+        .messageRouter(new AlwaysTenRouter())
+        .create();
+producer.send("Partitioned topic message".getBytes());
+
+```
+
+#### How to choose partitions when using a key
+If a message has a key, it supersedes the round robin routing policy. The following example illustrates how to choose the partition when using a key.
+
+```java
+
+// If the message has a key, it supersedes the round robin routing policy
+        if (msg.hasKey()) {
+            return signSafeMod(hash.makeHash(msg.getKey()), topicMetadata.numPartitions());
+        }
+
+        if (isBatchingEnabled) { // if batching is enabled, choose partition on `partitionSwitchMs` boundary.
+            long currentMs = clock.millis();
+            return signSafeMod(currentMs / partitionSwitchMs + startPtnIdx, topicMetadata.numPartitions());
+        } else {
+            return signSafeMod(PARTITION_INDEX_UPDATER.getAndIncrement(this), topicMetadata.numPartitions());
+        }
+
+```
 
 ### Async send
 
@@ -606,11 +654,9 @@ You can publish messages [asynchronously](concepts-messaging.md#send-modes) usin
 The following is an example.
 
 ```java
-
 producer.sendAsync("my-async-message".getBytes()).thenAccept(msgId -> {
     System.out.println("Message with ID " + msgId + " successfully sent");
 });
-
 ```
 
 As you can see from the example above, async send operations return a {@inject: javadoc:MessageId:/client/org/apache/pulsar/client/api/MessageId} wrapped in a [`CompletableFuture`](http://www.baeldung.com/java-completablefuture).
@@ -620,14 +666,12 @@ As you can see from the example above, async send operations return a {@inject: 
 In addition to a value, you can set additional items on a given message:
 
 ```java
-
 producer.newMessage()
     .key("my-message-key")
     .value("my-async-message".getBytes())
     .property("my-key", "my-value")
     .property("my-other-key", "my-other-value")
     .send();
-
 ```
 
 You can terminate the builder chain with `sendAsync()` and get a future return.
@@ -639,17 +683,61 @@ Message [chunking](concepts-messaging.md#chunking) enables Pulsar to process lar
 The message chunking feature is OFF by default. The following is an example of how to enable message chunking when creating a producer.
 
 ```java
-
 Producer<byte[]> producer = client.newProducer()
         .topic(topic)
         .enableChunking(true)
         .enableBatching(false)
         .create();
-
 ```
 
 By default, producer chunks the large message based on max message size (`maxMessageSize`) configured at broker (eg: 5MB). However, client can also configure max chunked size using producer configuration `chunkMaxMessageSize`.
-> **Note:** To enable chunking, you need to disable batching (`enableBatching`=`false`) concurrently.
+
+:::note
+
+To enable chunking, you need to disable batching (`enableBatching`=`false`) concurrently.
+
+:::
+
+### Intercept messages
+
+`ProducerInterceptor`s intercept and possibly mutate messages received by the producer before they are published to the brokers.
+
+The interface has three main events:
+* `eligible` checks if the interceptor can be applied to the message.
+* `beforeSend` is triggered before the producer sends the message to the broker. You can modify messages within this event.
+* `onSendAcknowledgement` is triggered when the message is acknowledged by the broker or the sending failed.
+
+To intercept messages, you can add one or multiple `ProducerInterceptor`s when creating a `Producer` as follows.
+
+```java
+
+Producer<byte[]> producer = client.newProducer()
+        .topic(topic)
+        .intercept(new ProducerInterceptor {
+			@Override
+			boolean eligible(Message message) {
+			    return true;  // process all messages
+			}
+
+			@Override
+			Message beforeSend(Producer producer, Message message) {
+			    // user-defined processing logic
+			}
+
+			@Override
+			void onSendAcknowledgement(Producer producer, Message message, MessageId msgId, Throwable exception) {
+			    // user-defined processing logic
+			}
+        })
+        .create();
+
+```
+
+:::note
+
+If you are using multiple interceptors, they apply in the order they are passed to the `intercept` method.
+
+:::
 
 ## Consumer
 
@@ -658,18 +746,15 @@ In Pulsar, consumers subscribe to topics and handle messages that producers publ
 Once you've instantiated a {@inject: javadoc:PulsarClient:/client/org/apache/pulsar/client/api/PulsarClient} object, you can create a {@inject: javadoc:Consumer:/client/org/apache/pulsar/client/api/Consumer} by specifying a [topic](reference-terminology.md#topic) and a [subscription](concepts-messaging.md#subscription-types).
 
 ```java
-
 Consumer consumer = client.newConsumer()
         .topic("my-topic")
         .subscriptionName("my-subscription")
         .subscribe();
-
 ```
 
-The `subscribe` method will auto-subscribe the consumer to the specified topic and subscription. One way to make the consumer listen on the topic is to set up a `while` loop. In this example loop, the consumer listens for messages, prints the contents of any received message, and then [acknowledges](reference-terminology.md#acknowledgment-ack) that the message has been processed. If the processing logic fails, you can use [negative acknowledgement](reference-terminology.md#acknowledgment-ack) to redeliver the message later.
+The `subscribe` method will auto-subscribe the consumer to the specified topic and subscription. One way to make the consumer listen to the topic is to set up a `while` loop. In this example loop, the consumer listens for messages, prints the contents of any received message, and then [acknowledges](reference-terminology.md#acknowledgment-ack) that the message has been processed. If the processing logic fails, you can use [negative acknowledgment](reference-terminology.md#acknowledgment-ack) to redeliver the message later.
 
 ```java
-
 while (true) {
   // Wait for a message
   Message msg = consumer.receive();
@@ -685,13 +770,11 @@ while (true) {
       consumer.negativeAcknowledge(msg);
   }
 }
-
 ```
 
 If you don't want to block your main thread and rather listen constantly for new messages, consider using a `MessageListener`.
 
 ```java
-
 MessageListener myMessageListener = (consumer, msg) -> {
   try {
       System.out.println("Message received: " + new String(msg.getData()));
@@ -706,7 +789,6 @@ Consumer consumer = client.newConsumer()
      .subscriptionName("my-subscription")
      .messageListener(myMessageListener)
      .subscribe();
-
 ```
 
 ### Configure consumer
@@ -728,7 +810,7 @@ When you create a consumer, you can use the `loadConf` configuration. The follow
 `consumerName`|String|Consumer name|null
 `ackTimeoutMillis`|long|Timeout of unacked messages|0
 `tickDurationMillis`|long|Granularity of the ack-timeout redelivery.<br /><br />Using an higher `tickDurationMillis` reduces the memory overhead to track messages when setting ack-timeout to a bigger value (for example, 1 hour).|1000
-`priorityLevel`|int|Priority level for a consumer to which a broker gives more priority while dispatching messages in Shared subscription type. <br /><br />The broker follows descending priorities. For example, 0=max-priority, 1, 2,...<br /><br />In Shared subscription type, the broker **first dispatches messages to the max priority level consumers if they have permits**. Otherwise, the broker considers next priority level consumers.<br /><br /> **Example 1**<br />If a subscription has consumerA with `priorityLevel` 0 and consumerB with `priorityLevel` 1, then the broker **only dispatches messages to consumerA until it runs out permits** and then starts dispatching messages to consumerB.<br /><br />**Example 2**<br />Consumer Priority, Level, Permits<br />C1, 0, 2<br />C2, 0, 1<br />C3, 0, 1<br />C4, 1, 2<br />C5, 1, 1<br /><br />Order in which a broker dispatches messages to consumers is: C1, C2, C3, C1, C4, C5, C4.|0
+`priorityLevel`|int|Priority level for a consumer to which a broker gives more priority while dispatching messages in Shared subscription type. It can be set at the consumer level so all topics being consumed will have the same priority level or each topic being consumed can be given a different priority level.<br /><br />The broker follows descending priorities. For example, 0=max-priority, 1, 2,...<br /><br />In Shared subscription type, the broker **first dispatches messages to the max priority level consumers if they have permits**. Otherwise, the broker considers next priority level consumers.<br /><br /> **Example 1**<br />If a subscription has consumerA with `priorityLevel` 0 and consumerB with `priorityLevel` 1, then the broker **only dispatches messages to consumerA until it runs out permits** and then starts dispatching messages to consumerB.<br /><br />**Example 2**<br />Consumer Priority, Level, Permits<br />C1, 0, 2<br />C2, 0, 1<br />C3, 0, 1<br />C4, 1, 2<br />C5, 1, 1<br /><br />Order in which a broker dispatches messages to consumers is: C1, C2, C3, C1, C4, C5, C4.|0
 `cryptoFailureAction`|ConsumerCryptoFailureAction|Consumer should take action when it receives a message that can not be decrypted.<br /><li>**FAIL**: this is the default option to fail messages until crypto succeeds.</li><li> **DISCARD**:silently acknowledge and not deliver message to an application.</li><li>**CONSUME**: deliver encrypted messages to applications. It is the application's responsibility to decrypt the message.</li><br />The decompression of message fails. <br /><br />If messages contain batch messages, a client is not be able to retrieve individual messages in batch.<br /><br />Delivered encrypted message contains {@link EncryptionContext} which contains encryption and compression information in it using which application can decrypt consumed message payload.|<li>ConsumerCryptoFailureAction.FAIL</li>
 `properties`|SortedMap<String, String>|A name or value property of this consumer.<br /><br />`properties` is application defined metadata attached to a consumer. <br /><br />When getting a topic stats, associate this metadata with the consumer stats for easier identification.|new TreeMap()
 `readCompacted`|boolean|If enabling `readCompacted`, a consumer reads messages from a compacted topic rather than reading a full message backlog of a topic.<br /><br /> A consumer only sees the latest value for each key in the compacted topic, up until reaching the point in the topic message when compacting backlog. Beyond that point, send messages as normal.<br /><br />Only enabling `readCompacted` on subscriptions to persistent topics, which have a single active consumer (like failure or exclusive subscriptions). <br /><br />Attempting to enable it on subscriptions to non-persistent topics or on shared subscriptions leads to a subscription call throwing a `PulsarClientException`.|false
@@ -737,26 +819,25 @@ When you create a consumer, you can use the `loadConf` configuration. The follow
 `regexSubscriptionMode`|RegexSubscriptionMode|When subscribing to a topic using a regular expression, you can pick a certain type of topics.<br /><br /><li>**PersistentOnly**: only subscribe to persistent topics.</li><li>**NonPersistentOnly**: only subscribe to non-persistent topics.</li><li>**AllTopics**: subscribe to both persistent and non-persistent topics.</li>|RegexSubscriptionMode.PersistentOnly
 `deadLetterPolicy`|DeadLetterPolicy|Dead letter policy for consumers.<br /><br />By default, some messages are probably redelivered many times, even to the extent that it never stops.<br /><br />By using the dead letter mechanism, messages have the max redelivery count. **When exceeding the maximum number of redeliveries, messages are sent to the Dead Letter Topic and acknowledged automatically**.<br /><br />You can enable the dead letter mechanism by setting `deadLetterPolicy`.<br /><br />**Example**<br /><br /><code>client.newConsumer()<br />.deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(10).build())<br />.subscribe();</code><br /><br />Default dead letter topic name is `{TopicName}-{Subscription}-DLQ`.<br /><br />To set a custom dead letter topic name:<br /><code>client.newConsumer()<br />.deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(10)<br />.deadLetterTopic("your-topic-name").build())<br />.subscribe();</code><br /><br />When specifying the dead letter policy while not specifying `ackTimeoutMillis`, you can set the ack timeout to 30000 millisecond.|None
 `autoUpdatePartitions`|boolean|If `autoUpdatePartitions` is enabled, a consumer subscribes to partition increasement automatically.<br /><br />**Note**: this is only for partitioned consumers.|true
-`replicateSubscriptionState`|boolean|If `replicateSubscriptionState` is enabled, a subscription state is replicated to geo-replicated clusters.|false
+`replicateSubscriptionState`|boolean|If `replicateSubscriptionState` is enabled, a subscription state is replicated to geo-replicated clusters.|false
 `negativeAckRedeliveryBackoff`|RedeliveryBackoff|Interface for custom message is negativeAcked policy. You can specify `RedeliveryBackoff` for a consumer.| `MultiplierRedeliveryBackoff`
 `ackTimeoutRedeliveryBackoff`|RedeliveryBackoff|Interface for custom message is ackTimeout policy. You can specify `RedeliveryBackoff` for a consumer.| `MultiplierRedeliveryBackoff`
 `autoAckOldestChunkedMessageOnQueueFull`|boolean|Whether to automatically acknowledge pending chunked messages when the threashold of `maxPendingChunkedMessage` is reached. If set to `false`, these messages will be redelivered by their broker. |true
 `maxPendingChunkedMessage`|int| The maximum size of a queue holding pending chunked messages. When the threshold is reached, the consumer drops pending messages to optimize memory utilization.|10
 `expireTimeOfIncompleteChunkedMessageMillis`|long|The time interval to expire incomplete chunks if a consumer fails to receive all the chunks in the specified time period. The default value is 1 minute. | 60000
+`ackReceiptEnabled`|boolean| If `ackReceiptEnabled` is enabled, ACK returns a receipt. The client got the ack receipt means the broker has processed the ack request, but if without transaction, the broker does not guarantee persistence of acknowledgments, which means the messages still have a chance to be redelivered after the broker crashes. With the transaction, the client can only get the receipt after the acknowledgments have been persistent. | false
 
 You can configure parameters if you do not want to use the default configuration. For a full list, see the Javadoc for the {@inject: javadoc:ConsumerBuilder:/client/org/apache/pulsar/client/api/ConsumerBuilder} class. 
 
 The following is an example.
 
 ```java
-
 Consumer consumer = client.newConsumer()
         .topic("my-topic")
         .subscriptionName("my-subscription")
         .ackTimeout(10, TimeUnit.SECONDS)
         .subscriptionType(SubscriptionType.Exclusive)
         .subscribe();
-
 ```
 
 ### Async receive
@@ -766,9 +847,7 @@ The `receive` method receives messages synchronously (the consumer process is bl
 The following is an example.
 
 ```java
-
 CompletableFuture<Message> asyncMessage = consumer.receiveAsync();
-
 ```
 
 Async receive operations return a {@inject: javadoc:Message:/client/org/apache/pulsar/client/api/Message} wrapped inside of a [`CompletableFuture`](http://www.baeldung.com/java-completablefuture).
@@ -780,22 +859,19 @@ Use `batchReceive` to receive multiple messages for each call.
 The following is an example.
 
 ```java
-
 Messages messages = consumer.batchReceive();
 for (Object message : messages) {
   // do something
 }
 consumer.acknowledge(messages)
-
 ```
 
 :::note
 
 Batch receive policy limits the number and bytes of messages in a single batch. You can specify a timeout to wait for enough messages.
-The batch receive is completed if any of the following conditions is met: enough number of messages, bytes of messages, wait timeout.
+The batch receive is completed if any of the following conditions are met: enough number of messages, bytes of messages, wait timeout.
 
 ```java
-
 Consumer consumer = client.newConsumer()
 .topic("my-topic")
 .subscriptionName("my-subscription")
@@ -805,19 +881,16 @@ Consumer consumer = client.newConsumer()
 .timeout(200, TimeUnit.MILLISECONDS)
 .build())
 .subscribe();
-
 ```
 
 The default batch receive policy is:
 
 ```java
-
 BatchReceivePolicy.builder()
 .maxNumMessage(-1)
 .maxNumBytes(10 * 1024 * 1024)
 .timeout(100, TimeUnit.MILLISECONDS)
 .build();
-
 ```
 
 :::
@@ -829,7 +902,6 @@ You can limit the maximum number of chunked messages a consumer maintains concur
 The following is an example of how to configure message chunking.
 
 ```java
-
 Consumer<byte[]> consumer = client.newConsumer()
         .topic(topic)
         .subscriptionName("test")
@@ -837,7 +909,6 @@ Consumer<byte[]> consumer = client.newConsumer()
         .maxPendingChunkedMessage(100)
         .expireTimeOfIncompleteChunkedMessage(10, TimeUnit.MINUTES)
         .subscribe();
-
 ```
 
 ### Negative acknowledgment redelivery backoff
@@ -845,7 +916,6 @@ Consumer<byte[]> consumer = client.newConsumer()
 The `RedeliveryBackoff` introduces a redelivery backoff mechanism. You can achieve redelivery with different delays by setting `redeliveryCount ` of messages. 
 
 ```java
-
 Consumer consumer =  client.newConsumer()
         .topic("my-topic")
         .subscriptionName("my-subscription")
@@ -854,16 +924,13 @@ Consumer consumer =  client.newConsumer()
                 .maxDelayMs(60 * 1000)
                 .build())
         .subscribe();
-
 ```
 
-### Acknowledgement timeout redelivery backoff
+### Acknowledgment timeout redelivery backoff
 
-The `RedeliveryBackoff` introduces a redelivery backoff mechanism. You can redeliver messages with different delays by setting the number
-of times the messages is retried.
+The `RedeliveryBackoff` introduces a redelivery backoff mechanism. You can redeliver messages with different delays by setting the number of times the messages are retried.
 
 ```java
-
 Consumer consumer =  client.newConsumer()
         .topic("my-topic")
         .subscriptionName("my-subscription")
@@ -874,7 +941,6 @@ Consumer consumer =  client.newConsumer()
                 .multiplier(2)
                 .build())
         .subscribe();
-
 ```
 
 The message redelivery behavior should be as follows.
@@ -904,7 +970,6 @@ In addition to subscribing a consumer to a single Pulsar topic, you can also sub
 The followings are some examples.
 
 ```java
-
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.PulsarClient;
 
@@ -926,20 +991,17 @@ Pattern someTopicsInNamespace = Pattern.compile("public/default/foo.*");
 Consumer allTopicsConsumer = consumerBuilder
         .topicsPattern(someTopicsInNamespace)
         .subscribe();
-
 ```
 
 In the above example, the consumer subscribes to the `persistent` topics that can match the topic name pattern. If you want the consumer subscribes to all `persistent` and `non-persistent` topics that can match the topic name pattern, set `subscriptionTopicsMode` to `RegexSubscriptionMode.AllTopics`.
 
 ```java
-
 Pattern pattern = Pattern.compile("public/default/.*");
 pulsarClient.newConsumer()
         .subscriptionName("my-sub")
         .topicsPattern(pattern)
         .subscriptionTopicsMode(RegexSubscriptionMode.AllTopics)
         .subscribe();
-
 ```
 
 :::note
@@ -951,7 +1013,6 @@ By default, the `subscriptionTopicsMode` of the consumer is `PersistentOnly`. Av
 You can also subscribe to an explicit list of topics (across namespaces if you wish):
 
 ```java
-
 List<String> topics = Arrays.asList(
         "topic-1",
         "topic-2",
@@ -970,13 +1031,11 @@ Consumer multiTopicConsumer = consumerBuilder
             "topic-3"
         )
         .subscribe();
-
 ```
 
 You can also subscribe to multiple topics asynchronously using the `subscribeAsync` method rather than the synchronous `subscribe` method. The following is an example.
 
 ```java
-
 Pattern allTopicsInNamespace = Pattern.compile("persistent://public/default.*");
 consumerBuilder
         .topics(topics)
@@ -989,21 +1048,19 @@ private void receiveMessageFromConsumer(Object consumer) {
                 receiveMessageFromConsumer(consumer);
             });
 }
-
 ```
 
 ### Subscription types
 
 Pulsar has various [subscription types](concepts-messaging#subscription-types) to match different scenarios. A topic can have multiple subscriptions with different subscription types. However, a subscription can only have one subscription type at a time.
 
-A subscription is identical with the subscription name; a subscription name can specify only one subscription type at a time. To change the subscription type, you should first stop all consumers of this subscription.
+A subscription is identical to the subscription name; a subscription name can specify only one subscription type at a time. To change the subscription type, you should first stop all consumers of this subscription.
 
 Different subscription types have different message distribution types. This section describes the differences between subscription types and how to use them.
 
-In order to better describe their differences, assuming you have a topic named "my-topic", and the producer has published 10 messages.
+To better describe their differences, assume you have a topic named "my-topic", and the producer has published 10 messages.
 
 ```java
-
 Producer<String> producer = client.newProducer(Schema.STRING)
         .topic("my-topic")
         .enableBatching(false)
@@ -1019,7 +1076,6 @@ producer.newMessage().key("key-3").value("message-3-1").send();
 producer.newMessage().key("key-3").value("message-3-2").send();
 producer.newMessage().key("key-4").value("message-4-1").send();
 producer.newMessage().key("key-4").value("message-4-2").send();
-
 ```
 
 #### Exclusive
@@ -1027,13 +1083,11 @@ producer.newMessage().key("key-4").value("message-4-2").send();
 Create a new consumer and subscribe with the `Exclusive` subscription type.
 
 ```java
-
 Consumer consumer = client.newConsumer()
         .topic("my-topic")
         .subscriptionName("my-subscription")
         .subscriptionType(SubscriptionType.Exclusive)
         .subscribe()
-
 ```
 
 Only the first consumer is allowed to the subscription, other consumers receive an error. The first consumer receives all 10 messages, and the consuming order is the same as the producing order.
@@ -1049,7 +1103,6 @@ If topic is a partitioned topic, the first consumer subscribes to all partitione
 Create new consumers and subscribe with the`Failover` subscription type.
 
 ```java
-
 Consumer consumer1 = client.newConsumer()
         .topic("my-topic")
         .subscriptionName("my-subscription")
@@ -1062,33 +1115,28 @@ Consumer consumer2 = client.newConsumer()
         .subscribe()
 //conumser1 is the active consumer, consumer2 is the standby consumer.
 //consumer1 receives 5 messages and then crashes, consumer2 takes over as an  active consumer.
-
 ```
 
-Multiple consumers can attach to the same subscription, yet only the first consumer is active, and others are standby. When the active consumer is disconnected, messages will be dispatched to one of standby consumers, and the standby consumer then becomes active consumer. 
+Multiple consumers can attach to the same subscription, yet only the first consumer is active, and others are standby. When the active consumer is disconnected, messages will be dispatched to one of standby consumers, and the standby consumer then becomes the active consumer. 
 
 If the first active consumer is disconnected after receiving 5 messages, the standby consumer becomes active consumer. Consumer1 will receive:
 
 ```
-
 ("key-1", "message-1-1")
 ("key-1", "message-1-2")
 ("key-1", "message-1-3")
 ("key-2", "message-2-1")
 ("key-2", "message-2-2")
-
 ```
 
 consumer2 will receive:
 
 ```
-
 ("key-2", "message-2-3")
 ("key-3", "message-3-1")
 ("key-3", "message-3-2")
 ("key-4", "message-4-1")
 ("key-4", "message-4-2")
-
 ```
 
 :::note
@@ -1102,7 +1150,6 @@ If a topic is a partitioned topic, each partition has only one active consumer, 
 Create new consumers and subscribe with `Shared` subscription type.
 
 ```java
-
 Consumer consumer1 = client.newConsumer()
         .topic("my-topic")
         .subscriptionName("my-subscription")
@@ -1115,7 +1162,6 @@ Consumer consumer2 = client.newConsumer()
         .subscriptionType(SubscriptionType.Shared)
         .subscribe()
 //Both consumer1 and consumer2 are active consumers.
-
 ```
 
 In Shared subscription type, multiple consumers can attach to the same subscription and messages are delivered in a round-robin distribution across consumers.
@@ -1123,35 +1169,30 @@ In Shared subscription type, multiple consumers can attach to the same subscript
 If a broker dispatches only one message at a time, consumer1 receives the following information.
 
 ```
-
 ("key-1", "message-1-1")
 ("key-1", "message-1-3")
 ("key-2", "message-2-2")
 ("key-3", "message-3-1")
 ("key-4", "message-4-1")
-
 ```
 
 consumer2 receives the following information.
 
 ```
-
 ("key-1", "message-1-2")
 ("key-2", "message-2-1")
 ("key-2", "message-2-3")
 ("key-3", "message-3-2")
 ("key-4", "message-4-2")
-
 ```
 
-`Shared` subscription is different from `Exclusive` and `Failover` subscription types. `Shared` subscription has better flexibility, but cannot provide order guarantee.
+The `Shared` subscription is different from the `Exclusive` and `Failover` subscription types. `Shared` subscription has better flexibility, but cannot provide an ordering guarantee.
 
 #### Key_shared
 
 This is a new subscription type since 2.4.0 release. Create new consumers and subscribe with `Key_Shared` subscription type.
 
 ```java
-
 Consumer consumer1 = client.newConsumer()
         .topic("my-topic")
         .subscriptionName("my-subscription")
@@ -1164,71 +1205,121 @@ Consumer consumer2 = client.newConsumer()
         .subscriptionType(SubscriptionType.Key_Shared)
         .subscribe()
 //Both consumer1 and consumer2 are active consumers.
-
 ```
 
-Just like in `Shared` subscription, all consumers in `Key_Shared` subscription type can attach to the same subscription. But `Key_Shared` subscription type is different from the `Shared` subscription. In `Key_Shared` subscription type, messages with the same key are delivered to only one consumer in order. The possible distribution of messages between different consumers (by default we do not know in advance which keys will be assigned to a consumer, but a key will only be assigned to a consumer at the same time).
+Just like in the `Shared` subscription, all consumers in the `Key_Shared` subscription type can attach to the same subscription. But the `Key_Shared` subscription type is different from the `Shared` subscription. In the `Key_Shared` subscription type, messages with the same key are delivered to only one consumer in order. The possible distribution of messages between different consumers (by default we do not know in advance which keys will be assigned to a consumer, but a key will only be assigned to a consumer at the same time).
 
 consumer1 receives the following information.
 
 ```
-
 ("key-1", "message-1-1")
 ("key-1", "message-1-2")
 ("key-1", "message-1-3")
 ("key-3", "message-3-1")
 ("key-3", "message-3-2")
-
 ```
 
 consumer2 receives the following information.
 
 ```
-
 ("key-2", "message-2-1")
 ("key-2", "message-2-2")
 ("key-2", "message-2-3")
 ("key-4", "message-4-1")
 ("key-4", "message-4-2")
-
 ```
 
 If batching is enabled at the producer side, messages with different keys are added to a batch by default. The broker will dispatch the batch to the consumer, so the default batch mechanism may break the Key_Shared subscription guaranteed message distribution semantics. The producer needs to use the `KeyBasedBatcher`.
 
 ```java
-
 Producer producer = client.newProducer()
         .topic("my-topic")
         .batcherBuilder(BatcherBuilder.KEY_BASED)
         .create();
-
 ```
 
 Or the producer can disable batching.
 
 ```java
-
 Producer producer = client.newProducer()
         .topic("my-topic")
         .enableBatching(false)
         .create();
+```
+
+:::note
+
+If the message key is not specified, messages without keys are dispatched to one consumer in order by default.
+
+:::
+
+### Intercept messages
+
+`ConsumerInterceptor`s intercept and possibly mutate messages received by the consumer.
+
+The interface has six main events:
+* `beforeConsume` is triggered before the message is returned by `receive()` or `receiveAsync()`. You can modify messages within this event.
+* `onAcknowledge` is triggered before the consumer sends the acknowledgement to the broker.
+* `onAcknowledgeCumulative` is triggered before the consumer sends the cumulative acknowledgement to the broker.
+* `onNegativeAcksSend` is triggered when a redelivery from a negative acknowledgement occurs.
+* `onAckTimeoutSend` is triggered when a redelivery from an acknowledgement timeout occurs.
+* `onPartitionsChange` is triggered when the partitions of the (partitioned) topic change.
+
+To intercept messages, you can add one or multiple `ConsumerInterceptor`s when creating a `Consumer` as follows.
+
+```java
+
+Consumer<String> consumer = client.newConsumer()
+        .topic("my-topic")
+        .subscriptionName("my-subscription")
+        .intercept(new ConsumerInterceptor<String> {
+              @Override
+              public Message<String> beforeConsume(Consumer<String> consumer, Message<String> message) {
+                  // user-defined processing logic
+              }
+
+              @Override
+              public void onAcknowledge(Consumer<String> consumer, MessageId messageId, Throwable cause) {
+                  // user-defined processing logic
+              }
+
+              @Override
+              public void onAcknowledgeCumulative(Consumer<String> consumer, MessageId messageId, Throwable cause) {
+                  // user-defined processing logic
+              }
+
+              @Override
+              public void onNegativeAcksSend(Consumer<String> consumer, Set<MessageId> messageIds) {
+                  // user-defined processing logic
+              }
+
+              @Override
+              public void onAckTimeoutSend(Consumer<String> consumer, Set<MessageId> messageIds) {
+                  // user-defined processing logic
+              }
+
+              @Override
+              public void onPartitionsChange(String topicName, int partitions) {
+                  // user-defined processing logic
+              }
+        })
+        .subscribe();
 
 ```
 
 :::note
 
-If the message key is not specified, messages without key are dispatched to one consumer in order by default.
+If you are using multiple interceptors, they apply in the order they are passed to the `intercept` method.
 
 :::
 
 ## Reader 
 
-With the [reader interface](concepts-clients.md#reader-interface), Pulsar clients can "manually position" themselves within a topic and reading all messages from a specified message onward. The Pulsar API for Java enables you to create {@inject: javadoc:Reader:/client/org/apache/pulsar/client/api/Reader} objects by specifying a topic and a {@inject: javadoc:MessageId:/client/org/apache/pulsar/client/api/MessageId}.
+With the [reader interface](concepts-clients.md#reader-interface), Pulsar clients can "manually position" themselves within a topic and read all messages from a specified message onward. The Pulsar API for Java enables you to create {@inject: javadoc:Reader:/client/org/apache/pulsar/client/api/Reader} objects by specifying a topic and a {@inject: javadoc:MessageId:/client/org/apache/pulsar/client/api/MessageId}.
 
 The following is an example.
 
 ```java
-
 byte[] msgIdBytes = // Some message ID byte array
 MessageId id = MessageId.fromByteArray(msgIdBytes);
 Reader reader = pulsarClient.newReader()
@@ -1240,7 +1331,6 @@ while (true) {
     Message message = reader.readNext();
     // Process message
 }
-
 ```
 
 In the example above, a `Reader` object is instantiated for a specific topic and message (by ID); the reader iterates over each message in the topic after the message is identified by `msgIdBytes` (how that value is obtained depends on the application).
@@ -1265,31 +1355,28 @@ When you create a reader, you can use the `loadConf` configuration. The followin
 
 ### Sticky key range reader
 
-In sticky key range reader, broker will only dispatch messages which hash of the message key contains by the specified key hash range. Multiple key hash ranges can be specified on a reader.
+In a sticky key range reader, broker only dispatches messages which hash of the message key contains by the specified key hash range. Multiple key hash ranges can be specified on a reader.
 
 The following is an example to create a sticky key range reader.
 
 ```java
-
 pulsarClient.newReader()
         .topic(topic)
         .startMessageId(MessageId.earliest)
         .keyHashRange(Range.of(0, 10000), Range.of(20001, 30000))
         .create();
-
 ```
 
-Total hash range size is 65536, so the max end of the range should be less than or equal to 65535.
+The total hash range size is 65536, so the max end of the range should be less than or equal to 65535.
 
 
 ### Configure chunking
 
-Configuring chuncking for readers is similar to that for consumers. See [configure chunking for consumers](#configure-chunking) for more information.
+Configuring chunking for readers is similar to that for consumers. See [configure chunking for consumers](#configure-chunking) for more information.
 
 The following is an example of how to configure message chunking for a reader.
 
 ```java
-
 Reader<byte[]> reader = pulsarClient.newReader()
         .topic(topicName)
         .startMessageId(MessageId.earliest)
@@ -1297,7 +1384,6 @@ Reader<byte[]> reader = pulsarClient.newReader()
         .autoAckOldestChunkedMessageOnQueueFull(true)
         .expireTimeOfIncompleteChunkedMessage(12, TimeUnit.MILLISECONDS)
         .create();
-
 ```
 
 ### Create reader with interceptor
@@ -1313,10 +1399,9 @@ Pulsar reader interceptor works on top of Pulsar consumer interceptor. The plugi
 To perceive triggered events and perform customized processing, you can add `ReaderInterceptor` when creating a `Reader` as follows.
 
 ```java
-
 PulsarClient pulsarClient = PulsarClient.builder().serviceUrl("pulsar://localhost:6650").build();
 Reader<byte[]> reader = pulsarClient.newReader()
-        .topic(“t1”)
+        .topic("t1")
         .autoUpdatePartitionsInterval(5, TimeUnit.SECONDS)
         .intercept(new ReaderInterceptor<byte[]>() {
             @Override
@@ -1336,7 +1421,6 @@ Reader<byte[]> reader = pulsarClient.newReader()
         })
         .startMessageId(MessageId.earliest)
         .create();
-
 ```
 
 ## TableView
@@ -1359,11 +1443,9 @@ The following figure illustrates the dynamic construction of a TableView updated
 The following is an example of how to configure a TableView.
 
 ```java
-
 TableView<String> tv = client.newTableViewBuilder(Schema.STRING)
   .topic("my-tableview")
   .create()
-
 ```
 
 You can use the available parameters in the `loadConf` configuration or related [API](/api/client/2.10.0-SNAPSHOT/org/apache/pulsar/client/api/TableViewBuilder.html) to customize your TableView.
@@ -1380,25 +1462,21 @@ You can register listeners for both existing messages on a topic and new message
 The following is an example of how to register listeners with TableView.
 
 ```java
-
 // Register listeners for all existing and incoming messages
 tv.forEachAndListen((key, value) -> /*operations on all existing and incoming messages*/)
 
 // Register action for all existing messages
 tv.forEach((key, value) -> /*operations on all existing messages*/)
-
 ```
 
 ## Schema
 
-In Pulsar, all message data consists of byte arrays "under the hood." [Message schemas](schema-get-started) enable you to use other types of data when constructing and handling messages (from simple types like strings to more complex, application-specific types). If you construct, say, a [producer](#producer) without specifying a schema, then the producer can only produce messages of type `byte[]`. The following is an example.
+In Pulsar, all message data consists of byte arrays "under the hood." [Message schemas](schema-get-started.md) enable you to use other types of data when constructing and handling messages (from simple types like strings to more complex, application-specific types). If you construct, say, a [producer](#producer) without specifying a schema, then the producer can only produce messages of type `byte[]`. The following is an example.
 
 ```java
-
 Producer<byte[]> producer = client.newProducer()
         .topic(topic)
         .create();
-
 ```
 
 The producer above is equivalent to a `Producer<byte[]>` (in fact, you should *always* explicitly specify the type). If you'd like to use a producer for a different type of data, you'll need to specify a **schema** that informs Pulsar which data type will be transmitted over the [topic](reference-terminology.md#topic).
@@ -1408,7 +1486,6 @@ The producer above is equivalent to a `Producer<byte[]>` (in fact, you should *a
 Let's say that you have a `SensorReading` class that you'd like to transmit over a Pulsar topic:
 
 ```java
-
 public class SensorReading {
     public float temperature;
 
@@ -1428,17 +1505,14 @@ public class SensorReading {
         this.temperature = temperature;
     }
 }
-
 ```
 
 You could then create a `Producer<SensorReading>` (or `Consumer<SensorReading>`) like this:
 
 ```java
-
 Producer<SensorReading> producer = client.newProducer(JSONSchema.of(SensorReading.class))
         .topic("sensor-readings")
         .create();
-
 ```
 
 The following schema formats are currently available for Java:
@@ -1446,66 +1520,54 @@ The following schema formats are currently available for Java:
 * No schema or the byte array schema (which can be applied using `Schema.BYTES`):
 
   ```java
-  
   Producer<byte[]> bytesProducer = client.newProducer(Schema.BYTES)
       .topic("some-raw-bytes-topic")
       .create();
-  
   ```
 
   Or, equivalently:
 
   ```java
-  
   Producer<byte[]> bytesProducer = client.newProducer()
       .topic("some-raw-bytes-topic")
       .create();
-  
   ```
 
 * `String` for normal UTF-8-encoded string data. Apply the schema using `Schema.STRING`:
 
   ```java
-  
   Producer<String> stringProducer = client.newProducer(Schema.STRING)
       .topic("some-string-topic")
       .create();
-  
   ```
 
 * Create JSON schemas for POJOs using `Schema.JSON`. The following is an example.
 
   ```java
-  
   Producer<MyPojo> pojoProducer = client.newProducer(Schema.JSON(MyPojo.class))
       .topic("some-pojo-topic")
       .create();
-  
   ```
 
 * Generate Protobuf schemas using `Schema.PROTOBUF`. The following example shows how to create the Protobuf schema and use it to instantiate a new producer:
 
   ```java
-  
   Producer<MyProtobuf> protobufProducer = client.newProducer(Schema.PROTOBUF(MyProtobuf.class))
       .topic("some-protobuf-topic")
       .create();
-  
   ```
 
 * Define Avro schemas with `Schema.AVRO`. The following code snippet demonstrates how to create and use Avro schema.
 
   ```java
-  
   Producer<MyAvro> avroProducer = client.newProducer(Schema.AVRO(MyAvro.class))
       .topic("some-avro-topic")
       .create();
-  
   ```
 
 ### ProtobufNativeSchema example
 
-For example of ProtobufNativeSchema, see [`SchemaDefinition` in `Complex type`](schema-understand.md#complex-type).
+For examples of ProtobufNativeSchema, see [`SchemaDefinition` in `Complex type`](schema-understand.md#complex-type).
 
 ## Authentication
 
@@ -1513,12 +1575,11 @@ Pulsar currently supports three authentication schemes: [TLS](security-tls-authe
 
 ### TLS Authentication
 
-To use [TLS](security-tls-authentication.md), you need to set TLS to `true` using the `setUseTls` method, point your Pulsar client to a TLS cert path, and provide paths to cert and key files.
+To use [TLS](security-tls-authentication.md), `enableTls` method is deprecated and you need to use "pulsar+ssl://" in serviceUrl to enable, point your Pulsar client to a TLS cert path, and provide paths to cert and key files.
 
 The following is an example.
 
 ```java
-
 Map<String, String> authParams = new HashMap();
 authParams.put("tlsCertFile", "/path/to/client-cert.pem");
 authParams.put("tlsKeyFile", "/path/to/client-key.pem");
@@ -1528,11 +1589,9 @@ Authentication tlsAuth = AuthenticationFactory
 
 PulsarClient client = PulsarClient.builder()
         .serviceUrl("pulsar+ssl://my-broker.com:6651")
-        .enableTls(true)
         .tlsTrustCertsFilePath("/path/to/cacert.pem")
         .authentication(tlsAuth)
         .build();
-
 ```
 
 ### Athenz
@@ -1547,7 +1606,6 @@ To use [Athenz](security-athenz.md) as an authentication provider, you need to [
 You can also set an optional `keyId`. The following is an example.
 
 ```java
-
 Map<String, String> authParams = new HashMap();
 authParams.put("tenantDomain", "shopping"); // Tenant domain name
 authParams.put("tenantService", "some_app"); // Tenant service name
@@ -1560,18 +1618,16 @@ Authentication athenzAuth = AuthenticationFactory
 
 PulsarClient client = PulsarClient.builder()
         .serviceUrl("pulsar+ssl://my-broker.com:6651")
-        .enableTls(true)
         .tlsTrustCertsFilePath("/path/to/cacert.pem")
         .authentication(athenzAuth)
         .build();
-
 ```
 
-> #### Supported pattern formats
-> The `privateKey` parameter supports the following three pattern formats:
-> * `file:///path/to/file`
-> * `file:/path/to/file`
-> * `data:application/x-pem-file;base64,<base64-encoded value>`
+#### Supported pattern formats
+The `privateKey` parameter supports the following three pattern formats:
+* `file:///path/to/file`
+* `file:/path/to/file`
+* `data:application/x-pem-file;base64,<base64-encoded value>`
 
 ### Oauth2
 
@@ -1580,25 +1636,21 @@ The following example shows how to use [Oauth2](security-oauth2.md) as an authen
 You can use the factory method to configure authentication for Pulsar Java client.
 
 ```java
-
 PulsarClient client = PulsarClient.builder()
     .serviceUrl("pulsar://broker.example.com:6650/")
     .authentication(
         AuthenticationFactoryOAuth2.clientCredentials(this.issuerUrl, this.credentialsUrl, this.audience))
     .build();
-
 ```
 
 In addition, you can also use the encoded parameters to configure authentication for Pulsar Java client.
 
 ```java
-
 Authentication auth = AuthenticationFactory
     .create(AuthenticationOAuth2.class.getName(), "{"type":"client_credentials","privateKey":"...","issuerUrl":"...","audience":"..."}");
 PulsarClient client = PulsarClient.builder()
     .serviceUrl("pulsar://broker.example.com:6650/")
     .authentication(auth)
     .build();
-
 ```
 

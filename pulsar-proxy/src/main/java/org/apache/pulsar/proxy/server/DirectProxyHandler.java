@@ -128,6 +128,9 @@ public class DirectProxyHandler {
                         config.getBrokerClientTlsTrustStoreType(),
                         config.getBrokerClientTlsTrustStore(),
                         config.getBrokerClientTlsTrustStorePassword(),
+                        null,
+                        null,
+                        null,
                         config.getBrokerClientTlsCiphers(),
                         config.getBrokerClientTlsProtocols(),
                         config.getTlsCertRefreshCheckDurationSec(),
@@ -206,7 +209,8 @@ public class DirectProxyHandler {
                             new ProxyReadTimeoutHandler(brokerProxyReadTimeoutMs, TimeUnit.MILLISECONDS));
                 }
                 ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(
-                    Commands.DEFAULT_MAX_MESSAGE_SIZE + Commands.MESSAGE_SIZE_FRAME_PADDING, 0, 4, 0, 4));
+                        service.getConfiguration().getMaxMessageSize() + Commands.MESSAGE_SIZE_FRAME_PADDING, 0, 4, 0,
+                        4));
                 ch.pipeline().addLast("proxyOutboundHandler",
                         (ChannelHandler) new ProxyBackendHandler(config, protocolVersion, remoteHost));
             }

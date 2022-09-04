@@ -130,4 +130,8 @@ public abstract class CmdBase {
         }
         return map;
     }
+
+    public JCommander getJcommander() {
+        return jcommander;
+    }
 }

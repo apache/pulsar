@@ -28,6 +28,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.metadata.bookkeeper.BKCluster;
+import org.junit.platform.commons.util.StringUtils;
 
 
 public class EmbeddedPulsarCluster implements AutoCloseable {
@@ -52,13 +53,16 @@ public class EmbeddedPulsarCluster implements AutoCloseable {
     private final PulsarAdmin admin;
 
     @Builder
-    private EmbeddedPulsarCluster(int numBrokers, int numBookies, String metadataStoreUrl) throws Exception {
+    private EmbeddedPulsarCluster(int numBrokers, int numBookies, String metadataStoreUrl,
+                                  String dataDir, boolean clearOldData) throws Exception {
         this.numBrokers = numBrokers;
         this.numBookies = numBookies;
         this.metadataStoreUrl = metadataStoreUrl;
         this.bkCluster = BKCluster.builder()
                 .metadataServiceUri(metadataStoreUrl)
                 .numBookies(numBookies)
+                .dataDir(StringUtils.isNotBlank(dataDir) ? dataDir : null)
+                .clearOldData(clearOldData)
                 .build();
 
         for (int i = 0; i < numBrokers; i++) {

@@ -241,7 +241,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
 
     /**
      * Test that when a ledger has been marked as replicated, it
-     * will not be offered to anther client.
+     * will not be offered to another client.
      * This test checked that by marking two ledgers, and acquiring
      * them on a single client. It marks one as replicated and then
      * the client is killed. We then check that another client can

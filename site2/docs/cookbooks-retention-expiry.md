@@ -10,15 +10,15 @@ import TabItem from '@theme/TabItem';
 ````
 
 
-Pulsar brokers are responsible for handling messages that pass through Pulsar, including [persistent storage](concepts-architecture-overview.md#persistent-storage) of messages. By default, for each topic, brokers only retain messages that are in at least one backlog. A backlog is the set of unacknowledged messages for a particular subscription. As a topic can have multiple subscriptions, a topic can have multiple backlogs.
+Pulsar brokers are responsible for handling messages that pass through Pulsar, including [persistent storage](concepts-architecture-overview.md#persistent-storage) of messages. By default, for each topic, brokers only retain messages that are in at least one backlog. A backlog is a set of unacknowledged messages for a particular subscription. As a topic can have multiple subscriptions, a topic can have multiple backlogs.
 
 As a consequence, no messages are retained (by default) on a topic that has not had any subscriptions created for it.
 
-(Note that messages that are no longer being stored are not necessarily immediately deleted, and may in fact still be accessible until the next ledger rollover. Because clients cannot predict when rollovers may happen, it is not wise to rely on a rollover not happening at an inconvenient point in time.)
+(Note that messages that are no longer being stored are not necessarily immediately deleted, and may still be accessible until the next ledger rollover. Because clients cannot predict when rollovers may happen, it is not wise to rely on a rollover not happening at an inconvenient point in time.)
 
 In Pulsar, you can modify this behavior, with namespace granularity, in two ways:
 
-* You can persistently store messages that are not within a backlog (because they've been acknowledged by on every existing subscription, or because there are no subscriptions) by setting [retention policies](#retention-policies).
+* You can persistently store messages that are not within a backlog (because they've been acknowledged by every existing subscription, or because there are no subscriptions) by setting [retention policies](#retention-policies).
 * Messages that are not acknowledged within a specified timeframe can be automatically acknowledged, by specifying the [time to live](#time-to-live-ttl) (TTL).
 
 Pulsar's [admin interface](admin-api-overview.md) enables you to manage both retention policies and TTL with namespace granularity (and thus within a specific tenant and either on a specific cluster or in the [`global`](concepts-architecture-overview.md#global-cluster) cluster).
@@ -38,7 +38,7 @@ By default, when a Pulsar message arrives at a broker, the message is stored unt
 The diagram below illustrates the concept of message retention.
 ![](/assets/retention.svg)
 
-Retention policies are useful when you use the Reader interface. The Reader interface does not use acknowledgements, and messages do not exist within backlogs. It is required to configure retention for Reader-only use cases.
+Retention policies are useful when you use the Reader interface. The Reader interface does not use acknowledgments, and messages do not exist within backlogs. It is required to configure retention for Reader-only use cases.
 
 When you set a retention policy on topics in a namespace, you must set **both** a *size limit* (via `defaultRetentionSizeInMB`) and a *time limit* (via `defaultRetentionTimeInMinutes`) . You can refer to the following table to set retention policies in `pulsar-admin` and Java.
 
@@ -60,7 +60,7 @@ When a retention limit on a topic is exceeded, the oldest message is marked for 
 
 You can set message retention at instance level with the following two parameters: `defaultRetentionTimeInMinutes` and `defaultRetentionSizeInMB`. Both parameters are set to `0` by default. 
 
-For more information of the two parameters, refer to the [`broker.conf`](reference-configuration.md#broker) configuration file.
+For more information on the two parameters, refer to the [`broker.conf`](reference-configuration.md#broker) configuration file.
 
 ### Set retention policy
 
@@ -79,51 +79,41 @@ In the following example, the size limit is set to 10 GB and the time limit is s
 - After 3 hours, even if the message size is less than 10 GB, the acknowledged messages will not be retained. 
 
 ```shell
-
-$ pulsar-admin namespaces set-retention my-tenant/my-ns \
-  --size 10G \
-  --time 3h
-
+pulsar-admin namespaces set-retention my-tenant/my-ns \
+--size 10G \
+--time 3h
 ```
 
 In the following example, the time is not limited and the size limit is set to 1 TB. The size limit determines the retention.
 
 ```shell
-
-$ pulsar-admin namespaces set-retention my-tenant/my-ns \
-  --size 1T \
-  --time -1
-
+pulsar-admin namespaces set-retention my-tenant/my-ns \
+--size 1T \
+--time -1
 ```
 
 In the following example, the size is not limited and the time limit is set to 3 hours. The time limit determines the retention.
 
 ```shell
-
-$ pulsar-admin namespaces set-retention my-tenant/my-ns \
-  --size -1 \
-  --time 3h
-
+pulsar-admin namespaces set-retention my-tenant/my-ns \
+--size -1 \
+--time 3h
 ```
 
 To achieve infinite retention, set both values to `-1`.
 
 ```shell
-
-$ pulsar-admin namespaces set-retention my-tenant/my-ns \
-  --size -1 \
-  --time -1
-
+pulsar-admin namespaces set-retention my-tenant/my-ns \
+--size -1 \
+--time -1
 ```
 
 To disable the retention policy, set both values to `0`.
 
 ```shell
-
-$ pulsar-admin namespaces set-retention my-tenant/my-ns \
-  --size 0 \
-  --time 0
-
+pulsar-admin namespaces set-retention my-tenant/my-ns \
+--size 0 \
+--time 0
 ```
 
 </TabItem>
@@ -141,12 +131,10 @@ To disable the retention policy, you need to set both the size and time limit to
 <TabItem value="Java">
 
 ```java
-
 int retentionTime = 10; // 10 minutes
 int retentionSize = 500; // 500 megabytes
 RetentionPolicies policies = new RetentionPolicies(retentionTime, retentionSize);
 admin.namespaces().setRetention(namespace, policies);
-
 ```
 
 </TabItem>
@@ -169,13 +157,11 @@ Use the [`get-retention`](/tools/pulsar-admin/) subcommand and specify the names
 ##### Example
 
 ```shell
-
-$ pulsar-admin namespaces get-retention my-tenant/my-ns
+pulsar-admin namespaces get-retention my-tenant/my-ns
 {
   "retentionTimeInMinutes": 10,
   "retentionSizeInMB": 500
 }
-
 ```
 
 </TabItem>
@@ -187,9 +173,7 @@ $ pulsar-admin namespaces get-retention my-tenant/my-ns
 <TabItem value="Java">
 
 ```java
-
 admin.namespaces().getRetention(namespace);
-
 ```
 
 </TabItem>
@@ -241,20 +225,16 @@ Use the [`set-backlog-quota`](/tools/pulsar-admin/) subcommand and specify a nam
 ##### Example
 
 ```shell
-
-$ pulsar-admin namespaces set-backlog-quota my-tenant/my-ns \
-  --limit 2G \
-  --policy producer_request_hold
-
+pulsar-admin namespaces set-backlog-quota my-tenant/my-ns \
+--limit 2G \
+--policy producer_request_hold
 ```
 
 ```shell
-
-$ pulsar-admin namespaces set-backlog-quota my-tenant/my-ns/my-topic \
+pulsar-admin namespaces set-backlog-quota my-tenant/my-ns/my-topic \
 --limitTime 3600 \
 --policy producer_request_hold \
 --type message_age
-
 ```
 
 </TabItem>
@@ -266,12 +246,10 @@ $ pulsar-admin namespaces set-backlog-quota my-tenant/my-ns/my-topic \
 <TabItem value="Java">
 
 ```java
-
 long sizeLimit = 2147483648L;
 BacklogQuota.RetentionPolicy policy = BacklogQuota.RetentionPolicy.producer_request_hold;
 BacklogQuota quota = new BacklogQuota(sizeLimit, policy);
 admin.namespaces().setBacklogQuota(namespace, quota);
-
 ```
 
 </TabItem>
@@ -292,15 +270,13 @@ You can see which size threshold and backlog retention policy has been applied t
 Use the [`get-backlog-quotas`](/tools/pulsar-admin/) subcommand and specify a namespace. Here's an example:
 
 ```shell
-
-$ pulsar-admin namespaces get-backlog-quotas my-tenant/my-ns
+pulsar-admin namespaces get-backlog-quotas my-tenant/my-ns
 {
   "destination_storage": {
     "limit" : 2147483648,
     "policy" : "producer_request_hold"
   }
 }
-
 ```
 
 </TabItem>
@@ -312,10 +288,8 @@ $ pulsar-admin namespaces get-backlog-quotas my-tenant/my-ns
 <TabItem value="Java">
 
 ```java
-
 Map<BacklogQuota.BacklogQuotaType,BacklogQuota> quotas =
   admin.namespaces().getBacklogQuotas(namespace);
-
 ```
 
 </TabItem>
@@ -334,9 +308,7 @@ Map<BacklogQuota.BacklogQuotaType,BacklogQuota> quotas =
 Use the [`remove-backlog-quota`](/tools/pulsar-admin/) subcommand and specify a namespace, use `t`/`--type` to specify backlog type to remove(default is destination_storage). Here's an example:
 
 ```shell
-
-$ pulsar-admin namespaces remove-backlog-quota my-tenant/my-ns
-
+pulsar-admin namespaces remove-backlog-quota my-tenant/my-ns
 ```
 
 </TabItem>
@@ -348,9 +320,7 @@ $ pulsar-admin namespaces remove-backlog-quota my-tenant/my-ns
 <TabItem value="Java">
 
 ```java
-
 admin.namespaces().removeBacklogQuota(namespace);
-
 ```
 
 </TabItem>
@@ -367,18 +337,16 @@ Use the [`clear-backlog`](/tools/pulsar-admin/) subcommand.
 ##### Example
 
 ```shell
-
-$ pulsar-admin namespaces clear-backlog my-tenant/my-ns
-
+pulsar-admin namespaces clear-backlog my-tenant/my-ns
 ```
 
-By default, you will be prompted to ensure that you really want to clear the backlog for the namespace. You can override the prompt using the `-f`/`--force` flag.
+By default, you will be prompted to ensure that you want to clear the backlog for the namespace. You can override the prompt using the `-f`/`--force` flag.
 
 ## Time to live (TTL)
 
 By default, Pulsar stores all unacknowledged messages forever. This can lead to heavy disk space usage in cases where a lot of messages are going unacknowledged. If disk space is a concern, you can set a time to live (TTL) that determines how long unacknowledged messages will be retained.
 
-The TTL parameter is like a stopwatch attached to each message that defines the amount of time a message is allowed to stay in the unacknowledged state. When the TTL expires, Pulsar automatically moves the message to the acknowledged state (and thus makes it ready for deletion).
+The TTL parameter is like a stopwatch attached to each message that defines the amount of time a message is allowed to stay unacknowledged. When the TTL expires, Pulsar automatically moves the message to the acknowledged state (and thus makes it ready for deletion).
 
 The diagram below illustrates the concept of TTL.
 ![](/assets/ttl.svg)
@@ -396,10 +364,8 @@ Use the [`set-message-ttl`](/tools/pulsar-admin/) subcommand and specify a names
 ##### Example
 
 ```shell
-
-$ pulsar-admin namespaces set-message-ttl my-tenant/my-ns \
-  --messageTTL 120 # TTL of 2 minutes
-
+pulsar-admin namespaces set-message-ttl my-tenant/my-ns \
+--messageTTL 120 # TTL of 2 minutes
 ```
 
 </TabItem>
@@ -411,9 +377,7 @@ $ pulsar-admin namespaces set-message-ttl my-tenant/my-ns \
 <TabItem value="Java">
 
 ```java
-
 admin.namespaces().setNamespaceMessageTTL(namespace, ttlInSeconds);
-
 ```
 
 </TabItem>
@@ -434,10 +398,8 @@ Use the [`get-message-ttl`](/tools/pulsar-admin/) subcommand and specify a names
 ##### Example
 
 ```shell
-
-$ pulsar-admin namespaces get-message-ttl my-tenant/my-ns
+pulsar-admin namespaces get-message-ttl my-tenant/my-ns
 60
-
 ```
 
 </TabItem>
@@ -449,9 +411,7 @@ $ pulsar-admin namespaces get-message-ttl my-tenant/my-ns
 <TabItem value="Java">
 
 ```java
-
 admin.namespaces().getNamespaceMessageTTL(namespace)
-
 ```
 
 </TabItem>
@@ -472,9 +432,7 @@ Use the [`remove-message-ttl`](/tools/pulsar-admin/) subcommand and specify a na
 ##### Example
 
 ```shell
-
-$ pulsar-admin namespaces remove-message-ttl my-tenant/my-ns
-
+pulsar-admin namespaces remove-message-ttl my-tenant/my-ns
 ```
 
 </TabItem>
@@ -486,9 +444,7 @@ $ pulsar-admin namespaces remove-message-ttl my-tenant/my-ns
 <TabItem value="Java">
 
 ```java
-
 admin.namespaces().removeNamespaceMessageTTL(namespace)
-
 ```
 
 </TabItem>
@@ -499,21 +455,21 @@ admin.namespaces().removeNamespaceMessageTTL(namespace)
 ## Delete messages from namespaces
 
 When it comes to the physical storage size, message expiry and retention are just like two sides of the same coin.
-* The backlog quota and TTL parameters prevent disk size from growing indefinitely, as Pulsar’s default behaviour is to persist unacknowledged messages. 
+* The backlog quota and TTL parameters prevent disk size from growing indefinitely, as Pulsar’s default behavior is to persist unacknowledged messages. 
 * The retention policy allocates storage space to accommodate the messages that are supposed to be deleted by Pulsar by default.
 
-As a conclusion, the size of your physical storage should accommodate the sum of the backlog quota and the retention size. 
+In conclusion, the size of your physical storage should accommodate the sum of the backlog quota and the retention size. 
 
 The message deletion rate (releasing rate of disk space) can be determined by multiple factors. 
 
 - **Segment rollover period**: basically, the segment rollover period is how often a new segment is created. Once a new segment is created, the old segment will be deleted. By default, this happens either when you have written 50,000 entries (messages) or have waited 240 minutes. You can tune this in your broker.
 
 - **Entry log rollover period**: multiple ledgers in BookKeeper are interleaved into an [entry log](https://bookkeeper.apache.org/docs/4.11.1/getting-started/concepts/#entry-logs). In order for a ledger that has been deleted, the entry log must all be rolled over.
-The entry log rollover period is configurable, but is purely based on the entry log size. For details, see [here](https://bookkeeper.apache.org/docs/4.11.1/reference/config/#entry-log-settings). Once the entry log is rolled over, the entry log can be garbage collected.
+The entry log rollover period is configurable but is purely based on the entry log size. For details, see [here](https://bookkeeper.apache.org/docs/4.11.1/reference/config/#entry-log-settings). Once the entry log is rolled over, the entry log can be garbage collected.
 
 - **Garbage collection interval**: because entry logs have interleaved ledgers, to free up space, the entry logs need to be rewritten. The garbage collection interval is how often BookKeeper performs garbage collection. which is related to minor compaction and major compaction of entry logs. For details, see [here](https://bookkeeper.apache.org/docs/4.11.1/reference/config/#entry-log-compaction-settings).
 
 The diagram below illustrates one of the cases that the consumed storage size is larger than the given limits for backlog and retention. Messages over the retention limit are kept because other messages in the same segment are still within retention period.
 ![](/assets/retention-storage-size.svg)
 
-If you do not have any retention period and that you never have much of a backlog, the upper limit for retained messages, which are acknowledged, equals to the Pulsar segment rollover period + entry log rollover period + (garbage collection interval * garbage collection ratios).
+If you do not have any retention period and you never have much of a backlog, the upper limit for retained messages, which are acknowledged, equals the Pulsar segment rollover period + entry log rollover period + (garbage collection interval * garbage collection ratios).

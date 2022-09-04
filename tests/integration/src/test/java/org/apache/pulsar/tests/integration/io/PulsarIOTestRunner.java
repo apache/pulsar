@@ -42,8 +42,7 @@ public abstract class PulsarIOTestRunner {
     final Duration ONE_MINUTE = Duration.ofMinutes(1);
     final Duration TEN_SECONDS = Duration.ofSeconds(10);
 
-    @SuppressWarnings({ "unchecked", "rawtypes" })
-	protected final RetryPolicy statusRetryPolicy = new RetryPolicy()
+	protected final RetryPolicy<Void> statusRetryPolicy = new RetryPolicy<Void>()
             .withMaxDuration(ONE_MINUTE)
             .withDelay(TEN_SECONDS)
             .onRetry(e -> log.error("Retry ... "));
@@ -56,8 +55,7 @@ public abstract class PulsarIOTestRunner {
       this.functionRuntimeType = functionRuntimeType;
     }
 
-    @SuppressWarnings("rawtypes")
-	protected Schema getSchema(boolean jsonWithEnvelope) {
+	protected Schema<?> getSchema(boolean jsonWithEnvelope) {
         if (jsonWithEnvelope) {
             return KeyValueSchemaImpl.kvBytes();
         } else {
@@ -65,6 +63,7 @@ public abstract class PulsarIOTestRunner {
         }
     }
 
+    @SuppressWarnings("try")
     protected <T> void ensureSubscriptionCreated(String inputTopicName,
                                                       String subscriptionName,
                                                       Schema<T> inputTopicSchema)

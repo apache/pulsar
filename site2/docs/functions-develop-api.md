@@ -20,7 +20,7 @@ The following table outlines the APIs that you can use to develop Pulsar Functio
 
 ## Use language-native interface for Java/Python
 
-The language-native interface provides a simple and clean approach to write Java/Python functions, by adding an exclamation point to all incoming strings and publishing the output string to a topic. It has no external dependencies. 
+The language-native interface provides a simple and clean approach to writing Java/Python functions, by adding an exclamation point to all incoming strings and publishing the output string to a topic. It has no external dependencies. 
 
 The following examples are language-native functions.
 
@@ -30,10 +30,9 @@ The following examples are language-native functions.
   values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"}]}>
 <TabItem value="Java">
 
-To use a piece of Java code as a “language-native” function, you need to implement the `java.util.Function` interface. You can include any sort of complex logic inside the `apply` method to provide more processing capabilities.
+To use a piece of Java code as a "language-native" function, you need to implement the `java.util.Function` interface. You can include any sort of complex logic inside the `apply` method to provide more processing capabilities.
 
 ```java
-
 import java.util.function.Function;
 
 public class JavaNativeExclamationFunction implements Function<String, String> {
@@ -42,7 +41,6 @@ public class JavaNativeExclamationFunction implements Function<String, String> {
         return String.format("%s!", input);
     }
 }
-
 ```
 
 For more details, see [code example](https://github.com/apache/pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/JavaNativeExclamationFunction.java).
@@ -50,13 +48,11 @@ For more details, see [code example](https://github.com/apache/pulsar/blob/maste
 </TabItem>
 <TabItem value="Python">
 
-To use a piece of Python code as a “language-native” function, you must have a method named `process` as follows. It appends an exclamation point to any string value it receives.
+To use a piece of Python code as a "language-native" function, you must have a method named `process` as follows. It appends an exclamation point to any string value it receives.
 
 ```python
-
 def process(input):
     return "{}!".format(input)
-
 ```
 
 For more details, see [code example](https://github.com/apache/pulsar/blob/master/pulsar-functions/python-examples/native_exclamation_function.py).
@@ -87,7 +83,6 @@ The following examples use Pulsar Functions SDK for different languages.
 When developing a function using the Java SDK, you need to implement the `org.apache.pulsar.functions.api.Function` interface. It specifies only one method that you need to implement called `process`.
 
 ```java
-
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 
@@ -97,10 +92,37 @@ public class ExclamationFunction implements Function<String, String> {
         return String.format("%s!", input);
     }
 }
-
 ```
 
 For more details, see [code example](https://github.com/apache/pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/ExclamationFunction.java).
+
+The return type of the function can be wrapped in a `Record` generic which gives you more control over the output messages, such as topics, schemas, properties, and so on.
+Use the `Context::newOutputRecordBuilder` method to build this `Record` output.
+
+```java
+import java.util.HashMap;
+import java.util.Map;
+import org.apache.pulsar.functions.api.Context;
+import org.apache.pulsar.functions.api.Function;
+import org.apache.pulsar.functions.api.Record;
+
+public class RecordFunction implements Function<String, Record<String>> {
+
+    @Override
+    public Record<String> process(String input, Context context) throws Exception {
+        String output = String.format("%s!", input);
+        Map<String, String> properties = new HashMap<>(context.getCurrentRecord().getProperties());
+        context.getCurrentRecord().getTopicName().ifPresent(topic -> properties.put("input_topic", topic));
+
+        return context.newOutputRecordBuilder(Schema.STRING)
+                .value(output)
+                .properties(properties)
+                .build();
+    }
+}
+```
+
+For more details, see [code example](https://github.com/apache/pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/RecordFunction.java).
 
 </TabItem>
 <TabItem value="Python">
@@ -108,7 +130,6 @@ For more details, see [code example](https://github.com/apache/pulsar/blob/maste
 To develop a function using the Python SDK, you need to add the pulsar client dependency to your Python installation. 
 
 ```python
-
 from pulsar import Function
 
 class ExclamationFunction(Function):
@@ -117,7 +138,6 @@ class ExclamationFunction(Function):
 
   def process(self, input, context):
     return input + '!'
-
 ```
 
 For more details, see [code example](https://github.com/apache/pulsar/blob/master/pulsar-functions/python-examples/exclamation_function.py).
@@ -128,7 +148,6 @@ For more details, see [code example](https://github.com/apache/pulsar/blob/maste
 To develop a function using the Go SDK, you need to add the pulsar client dependency to your Go installation and provide the name of the function to the `pf.Start()` method inside the `main()` method. This registers the function with the Pulsar Functions framework and ensures that the specified function can be invoked when a new message arrives. 
 
 ```go
-
 package main
 
 import (
@@ -146,7 +165,6 @@ func HandleRequest(ctx context.Context, in []byte) error{
 func main() {
 	pf.Start(HandleRequest)
 }
-
 ```
 
 For more details, see [code example](https://github.com/apache/pulsar/blob/77cf09eafa4f1626a53a1fe2e65dd25f377c1127/pulsar-function-go/examples/inputFunc/inputFunc.go#L20-L36).
@@ -177,7 +195,6 @@ The following example uses the extended interface of Pulsar Functions SDK for Ja
 <TabItem value="Java">
 
 ```java
-
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 import io.lettuce.core.RedisClient;
@@ -206,7 +223,6 @@ public class InitializableFunction implements Function<String, String> {
         redisClient.close();
     }
 }
-
 ```
 
 </TabItem>

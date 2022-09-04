@@ -13,23 +13,19 @@ If you have not installed Docker, download the [Community edition](https://www.d
 For macOS, Linux, and Windows, run the following command to start Pulsar within a Docker container.
 
 ```shell
-  
-$ docker run -it -p 6650:6650  -p 8080:8080 --mount source=pulsardata,target=/pulsar/data --mount source=pulsarconf,target=/pulsar/conf apachepulsar/pulsar:@pulsar:version@ bin/pulsar standalone
-  
+docker run -it -p 6650:6650  -p 8080:8080 --mount source=pulsardata,target=/pulsar/data --mount source=pulsarconf,target=/pulsar/conf apachepulsar/pulsar:@pulsar:version@ bin/pulsar standalone
 ```
 
 If you want to change Pulsar configurations and start Pulsar, run the following command by passing environment variables with the `PULSAR_PREFIX_` prefix. See [default configuration file](https://github.com/apache/pulsar/blob/e6b12c64b043903eb5ff2dc5186fe8030f157cfc/conf/standalone.conf) for more details.
 
 ```shell
-
-$ docker run -it -e PULSAR_PREFIX_xxx=yyy -p 6650:6650  -p 8080:8080 --mount source=pulsardata,target=/pulsar/data --mount source=pulsarconf,target=/pulsar/conf apachepulsar/pulsar:2.10.0 sh -c "bin/apply-config-from-env.py conf/standalone.conf && bin/pulsar standalone"
-
+docker run -it -e PULSAR_PREFIX_xxx=yyy -p 6650:6650  -p 8080:8080 --mount source=pulsardata,target=/pulsar/data --mount source=pulsarconf,target=/pulsar/conf apachepulsar/pulsar:2.10.0 sh -c "bin/apply-config-from-env.py conf/standalone.conf && bin/pulsar standalone"
 ```
 
 :::tip
 
 * The docker container runs as UID 10000 and GID 0 by default. You need to ensure the mounted volumes give write permission to either UID 10000 or GID 0. Note that UID 10000 is arbitrary, so it is recommended to make these mounts writable for the root group (GID 0).
-* The data, metadata, and configuration are persisted on Docker volumes in order to not start "fresh" every time the container is restarted. For details on the volumes, you can use `docker volume inspect <sourcename>`.
+* The data, metadata, and configuration are persisted on Docker volumes to not start "fresh" every time the container is restarted. For details on the volumes, you can use `docker volume inspect <sourcename>`.
 * For Docker on Windows, make sure to configure it to use Linux containers.
 
 :::
@@ -37,17 +33,16 @@ $ docker run -it -e PULSAR_PREFIX_xxx=yyy -p 6650:6650  -p 8080:8080 --mount sou
 After starting Pulsar successfully, you can see `INFO`-level log messages like this:
 
 ```
-
 08:18:30.970 [main] INFO  org.apache.pulsar.broker.web.WebService - HTTP Service started at http://0.0.0.0:8080
 ...
 07:53:37.322 [main] INFO  org.apache.pulsar.broker.PulsarService - messaging service is ready, bootstrap service port = 8080, broker url= pulsar://localhost:6650, cluster=standalone, configs=org.apache.pulsar.broker.ServiceConfiguration@98b63c1
 ...
-
 ```
 
 :::tip
 
-When you start a local standalone cluster, a `public/default` namespace is created automatically. The namespace is used for development purposes. All Pulsar topics are managed within namespaces. For more information, see [Topics](concepts-messaging.md#topics).
+* To perform a health check, you can use the `bin/pulsar-admin brokers healthcheck` command. For more information, see [Pulsar-admin docs](/tools/pulsar-admin/).
+* When you start a local standalone cluster, a `public/default` namespace is created automatically. The namespace is used for development purposes. All Pulsar topics are managed within namespaces. For more information, see [Topics](concepts-messaging.md#topics).
 
 :::
 
@@ -59,14 +54,12 @@ If you're running a local standalone cluster, you can use one of these root URLs
 * `pulsar://localhost:6650`
 * `http://localhost:8080`
 
-The following example guides you to get started with Pulsar by using the [Python client API](client-libraries-python.md) client API.
+The following example guides you to get started with Pulsar by using the [Python client API](client-libraries-python.md).
 
 Install the Pulsar Python client library directly from [PyPI](https://pypi.org/project/pulsar-client/):
 
 ```shell
-
-$ pip install pulsar-client
-
+pip install pulsar-client
 ```
 
 ### Consume a message
@@ -74,7 +67,6 @@ $ pip install pulsar-client
 Create a consumer and subscribe to the topic:
 
 ```python
-
 import pulsar
 
 client = pulsar.Client('pulsar://localhost:6650')
@@ -87,7 +79,6 @@ while True:
     consumer.acknowledge(msg)
 
 client.close()
-
 ```
 
 ### Produce a message
@@ -95,7 +86,6 @@ client.close()
 Start a producer to send some test messages:
 
 ```python
-
 import pulsar
 
 client = pulsar.Client('pulsar://localhost:6650')
@@ -105,7 +95,6 @@ for i in range(10):
     producer.send(('hello-pulsar-%d' % i).encode('utf-8'))
 
 client.close()
-
 ```
 
 ## Get the topic statistics
@@ -115,15 +104,12 @@ In Pulsar, you can use REST API, Java, or command-line tools to control every as
 In the simplest example, you can use curl to probe the stats for a particular topic:
 
 ```shell
-
-$ curl http://localhost:8080/admin/v2/persistent/public/default/my-topic/stats | python -m json.tool
-
+curl http://localhost:8080/admin/v2/persistent/public/default/my-topic/stats | python -m json.tool
 ```
 
 The output is something like this:
 
 ```json
-
 {
     "msgRateIn": 0.0,
     "msgThroughputIn": 0.0,
@@ -213,6 +199,5 @@ The output is something like this:
     "nonContiguousDeletedMessagesRanges": 0,
     "nonContiguousDeletedMessagesRangesSerializedSize": 0
 }
-
 ```
 
