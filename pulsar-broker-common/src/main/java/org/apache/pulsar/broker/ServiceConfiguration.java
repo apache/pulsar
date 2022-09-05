@@ -2808,6 +2808,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int transactionPendingAckBatchedWriteMaxDelayInMillis = 1;
 
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Whether auto select available URL when get redirection URL."
+    )
+    private boolean selectConnectableRedirectionURL = false;
+
     /**** --- KeyStore TLS config variables. --- ****/
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,

@@ -502,7 +502,15 @@ public abstract class PulsarWebResource {
             } else {
                 serviceNameResolver.updateServiceUrl(differentClusterData.getServiceUrl());
             }
-            return getConnectableURI(serviceNameResolver);
+            if (config().isSelectConnectableRedirectionURL()) {
+                return getConnectableURI(serviceNameResolver);
+            } else {
+                String hostUri = serviceNameResolver.resolveHostUri().toString();
+                URL webUrl = new URL(hostUri);
+                URI redirectionUrl =
+                        UriBuilder.fromUri(uri.getRequestUri()).host(webUrl.getHost()).port(webUrl.getPort()).build();
+                return CompletableFuture.completedFuture(redirectionUrl);
+            }
         } catch (PulsarClientException.InvalidServiceURL exception) {
             throw new MalformedURLException(exception.getMessage());
         }
