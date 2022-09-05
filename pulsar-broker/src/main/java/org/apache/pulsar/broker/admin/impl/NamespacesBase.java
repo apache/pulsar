@@ -83,6 +83,7 @@ import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
+import org.apache.pulsar.common.policies.data.EntryFilters;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
@@ -1157,6 +1158,10 @@ public abstract class NamespacesBase extends AdminResource {
                 .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
                 .thenCompose(policies->{
                     String bundleRange = getBundleRange(bundleName);
+                    if (bundleRange == null) {
+                        throw new RestException(Status.NOT_FOUND,
+                                String.format("Bundle range %s not found", bundleName));
+                    }
                     return validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles, bundleRange,
                             authoritative, false)
                             .thenCompose(nsBundle -> pulsar().getNamespaceService().splitAndOwnBundle(nsBundle, unload,
@@ -1215,13 +1220,18 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     private String getBundleRange(String bundleName) {
+        NamespaceBundle nsBundle;
         if (BundleType.LARGEST.toString().equals(bundleName)) {
-            return findLargestBundleWithTopics(namespaceName).getBundleRange();
+            nsBundle = findLargestBundleWithTopics(namespaceName);
         } else if (BundleType.HOT.toString().equals(bundleName)) {
-            return findHotBundle(namespaceName).getBundleRange();
+            nsBundle = findHotBundle(namespaceName);
         } else {
             return bundleName;
         }
+        if (nsBundle == null) {
+            return null;
+        }
+        return nsBundle.getBundleRange();
     }
 
     private NamespaceBundle findLargestBundleWithTopics(NamespaceName namespaceName) {
@@ -1421,46 +1431,6 @@ public abstract class NamespacesBase extends AdminResource {
                 .thenApply(policies -> policies.clusterSubscribeRate.get(pulsar().getConfiguration().getClusterName()));
     }
 
-    protected void internalRemoveReplicatorDispatchRate() {
-        validateSuperUserAccess();
-        try {
-            updatePolicies(namespaceName, policies -> {
-                policies.replicatorDispatchRate.remove(pulsar().getConfiguration().getClusterName());
-                return policies;
-            });
-            log.info("[{}] Successfully delete the replicatorDispatchRate for cluster on namespace {}", clientAppId(),
-                    namespaceName);
-        } catch (Exception e) {
-            log.error("[{}] Failed to delete the replicatorDispatchRate for cluster on namespace {}", clientAppId(),
-                    namespaceName, e);
-            throw new RestException(e);
-        }
-    }
-
-    protected void internalSetReplicatorDispatchRate(DispatchRateImpl dispatchRate) {
-        validateSuperUserAccess();
-        log.info("[{}] Set namespace replicator dispatch-rate {}/{}", clientAppId(), namespaceName, dispatchRate);
-        try {
-            updatePolicies(namespaceName, policies -> {
-                policies.replicatorDispatchRate.put(pulsar().getConfiguration().getClusterName(), dispatchRate);
-                return policies;
-            });
-            log.info("[{}] Successfully updated the replicatorDispatchRate for cluster on namespace {}", clientAppId(),
-                    namespaceName);
-        } catch (Exception e) {
-            log.error("[{}] Failed to update the replicatorDispatchRate for cluster on namespace {}", clientAppId(),
-                    namespaceName, e);
-            throw new RestException(e);
-        }
-    }
-
-    protected CompletableFuture<DispatchRate> internalGetReplicatorDispatchRateAsync() {
-        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.REPLICATION_RATE, PolicyOperation.READ)
-                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
-                .thenApply(
-                        policies -> policies.replicatorDispatchRate.get(pulsar().getConfiguration().getClusterName()));
-    }
-
     protected void internalSetBacklogQuota(BacklogQuotaType backlogQuotaType, BacklogQuota backlogQuota) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.BACKLOG, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
@@ -1543,10 +1513,10 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected void internalDeletePersistence() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.PERSISTENCE, PolicyOperation.WRITE);
-        validatePoliciesReadOnlyAccess();
-        doUpdatePersistence(null);
+    protected CompletableFuture<Void> internalDeletePersistenceAsync() {
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.PERSISTENCE, PolicyOperation.WRITE)
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenCompose(__ -> doUpdatePersistenceAsync(null));
     }
 
     protected void internalSetPersistence(PersistencePolicies persistence) {
@@ -1570,6 +1540,15 @@ public abstract class NamespacesBase extends AdminResource {
                     e);
             throw new RestException(e);
         }
+    }
+
+    private CompletableFuture<Void> doUpdatePersistenceAsync(PersistencePolicies persistence) {
+        return updatePoliciesAsync(namespaceName, policies -> {
+            policies.persistence = persistence;
+            return policies;
+        }).thenAccept(__ -> log.info("[{}] Successfully updated persistence configuration: namespace={}, map={}",
+                clientAppId(), namespaceName, persistence)
+        );
     }
 
     protected void internalClearNamespaceBacklog(AsyncResponse asyncResponse, boolean authoritative) {
@@ -2713,5 +2692,80 @@ public abstract class NamespacesBase extends AdminResource {
 
     }
 
+    protected CompletableFuture<Void> internalSetEntryFiltersPerTopicAsync(EntryFilters entryFilters) {
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.ENTRY_FILTERS, PolicyOperation.WRITE)
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
+                    policies.entryFilters = entryFilters;
+                    return policies;
+                }));
+    }
+
+    /**
+     * Base method for setReplicatorDispatchRate v1 and v2.
+     * Notion: don't re-use this logic.
+     */
+    protected void internalSetReplicatorDispatchRate(AsyncResponse asyncResponse, DispatchRateImpl dispatchRate) {
+        validateSuperUserAccessAsync()
+                .thenAccept(__ -> {
+                    log.info("[{}] Set namespace replicator dispatch-rate {}/{}",
+                            clientAppId(), namespaceName, dispatchRate);
+                }).thenCompose(__ -> namespaceResources().setPoliciesAsync(namespaceName, policies -> {
+                    String clusterName = pulsar().getConfiguration().getClusterName();
+                    policies.replicatorDispatchRate.put(clusterName, dispatchRate);
+                    return policies;
+                })).thenAccept(__ -> {
+                    asyncResponse.resume(Response.noContent().build());
+                    log.info("[{}] Successfully updated the replicatorDispatchRate for cluster on namespace {}",
+                            clientAppId(), namespaceName);
+                }).exceptionally(ex -> {
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    log.error("[{}] Failed to update the replicatorDispatchRate for cluster on namespace {}",
+                            clientAppId(), namespaceName, ex);
+                    return null;
+                });
+    }
+    /**
+     * Base method for getReplicatorDispatchRate v1 and v2.
+     * Notion: don't re-use this logic.
+     */
+    protected void internalGetReplicatorDispatchRate(AsyncResponse asyncResponse) {
+        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.REPLICATION_RATE, PolicyOperation.READ)
+                .thenCompose(__ -> namespaceResources().getPoliciesAsync(namespaceName))
+                .thenApply(policiesOpt -> {
+                    if (!policiesOpt.isPresent()) {
+                        throw new RestException(Response.Status.NOT_FOUND, "Namespace policies does not exist");
+                    }
+                    String clusterName = pulsar().getConfiguration().getClusterName();
+                    return policiesOpt.get().replicatorDispatchRate.get(clusterName);
+                }).thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    log.error("[{}] Failed to get replicator dispatch-rate configured for the namespace {}",
+                            clientAppId(), namespaceName, ex);
+                    return null;
+                });
+    }
+    /**
+     * Base method for removeReplicatorDispatchRate v1 and v2.
+     * Notion: don't re-use this logic.
+     */
+    protected void internalRemoveReplicatorDispatchRate(AsyncResponse asyncResponse) {
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> namespaceResources().setPoliciesAsync(namespaceName, policies -> {
+                    String clusterName = pulsar().getConfiguration().getClusterName();
+                    policies.replicatorDispatchRate.remove(clusterName);
+                    return policies;
+                })).thenAccept(__ -> {
+                    asyncResponse.resume(Response.noContent().build());
+                    log.info("[{}] Successfully delete the replicatorDispatchRate for cluster on namespace {}",
+                            clientAppId(), namespaceName);
+                }).exceptionally(ex -> {
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    log.error("[{}] Failed to delete the replicatorDispatchRate for cluster on namespace {}",
+                            clientAppId(), namespaceName, ex);
+                    return null;
+                });
+    }
     private static final Logger log = LoggerFactory.getLogger(NamespacesBase.class);
 }

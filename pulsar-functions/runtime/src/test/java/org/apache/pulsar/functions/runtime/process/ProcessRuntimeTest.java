@@ -289,16 +289,16 @@ public class ProcessRuntimeTest {
         List<String> args;
         try (MockedStatic<SystemUtils> systemUtils = Mockito.mockStatic(SystemUtils.class, Mockito.CALLS_REAL_METHODS)) {
             systemUtils.when(() -> SystemUtils.isJavaVersionAtLeast(JavaVersion.JAVA_9)).thenReturn(true);
-            ProcessRuntime container = factory.createContainer(config, userJarFile, userJarFile, 30L);
+            ProcessRuntime container = factory.createContainer(config, userJarFile, userJarFile,
+                    userJarFile, userJarFile,30L);
             args = container.getProcessArgs();
         }
-
 
         String classpath = javaInstanceJarFile;
         String extraDepsEnv;
         int portArg;
         int metricsPortArg;
-        int totalArgCount = 44;
+        int totalArgCount = 48;
         if (webServiceUrl != null && config.isExposePulsarAdminClientEnabled()) {
             totalArgCount += 3;
         }
@@ -306,13 +306,13 @@ public class ProcessRuntimeTest {
             assertEquals(args.size(), totalArgCount);
             extraDepsEnv = " -Dpulsar.functions.extra.dependencies.dir=" + depsDir;
             classpath = classpath + ":" + depsDir + "/*";
-            portArg = 27;
-            metricsPortArg = 29;
+            portArg = 31;
+            metricsPortArg = 33;
         } else {
             assertEquals(args.size(), totalArgCount-1);
             extraDepsEnv = "";
-            portArg = 26;
-            metricsPortArg = 28;
+            portArg = 30;
+            metricsPortArg = 32;
         }
         if (webServiceUrl != null && config.isExposePulsarAdminClientEnabled()) {
             portArg += 3;
@@ -331,8 +331,11 @@ public class ProcessRuntimeTest {
                 + " -Dio.netty.tryReflectionSetAccessible=true"
                 + " --add-opens java.base/sun.net=ALL-UNNAMED"
                 + " org.apache.pulsar.functions.instance.JavaInstanceMain"
-                + " --jar " + userJarFile + " --instance_id "
-                + config.getInstanceId() + " --function_id " + config.getFunctionId()
+                + " --jar " + userJarFile
+                + " --transform_function_jar " + userJarFile
+                + " --transform_function_id " +  config.getTransformFunctionId()
+                + " --instance_id " + config.getInstanceId()
+                + " --function_id " + config.getFunctionId()
                 + " --function_version " + config.getFunctionVersion()
                 + " --function_details '" + JsonFormat.printer().omittingInsignificantWhitespace().print(config.getFunctionDetails())
                 + "' --pulsar_serviceurl " + pulsarServiceUrl
@@ -368,7 +371,7 @@ public class ProcessRuntimeTest {
     }
 
     private void verifyPythonInstance(InstanceConfig config, String extraDepsDir) throws Exception {
-        ProcessRuntime container = factory.createContainer(config, userJarFile, null, 30l);
+        ProcessRuntime container = factory.createContainer(config, userJarFile, null, null, null,30l);
         List<String> args = container.getProcessArgs();
 
         int totalArgs = 36;

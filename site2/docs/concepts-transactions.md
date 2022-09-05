@@ -11,9 +11,9 @@ The following concepts help you understand Pulsar transactions.
 ## Transaction coordinator and transaction log
 The transaction coordinator maintains the topics and subscriptions that interact in a transaction. When a transaction is committed, the transaction coordinator interacts with the topic owner broker to complete the transaction.
 
-The transaction coordinator maintains the entire life cycle of transactions, and prevents a transaction from incorrect status.
+The transaction coordinator maintains the entire life cycle of transactions and prevents a transaction from incorrect status.
 
-The transaction coordinator handles transaction timeout, and ensures that the transaction is aborted after a transaction timeout.
+The transaction coordinator handles transaction timeout and ensures that the transaction is aborted after a transaction timeout.
 
 All the transaction metadata is persisted in the transaction log. The transaction log is backed by a Pulsar topic. After the transaction coordinator crashes, it can restore the transaction metadata from the transaction log.
 
@@ -26,4 +26,4 @@ Messages produced within a transaction are stored in the transaction buffer. The
 ## Pending acknowledge state
 Message acknowledges within a transaction are maintained by the pending acknowledge state before the transaction completes. If a message is in the pending acknowledge state, the message cannot be acknowledged by other transactions until the message is removed from the pending acknowledge state.
 
-The pending acknowledge state is persisted to the pending acknowledge log. The pending acknowledge log is backed by a Pulsar topic. A new broker can restore the state from the pending acknowledge log to ensure the acknowledgement is not lost.
+The pending acknowledge state is persisted in the pending acknowledge log. The pending acknowledge log is backed by a Pulsar topic. A new broker can restore the state from the pending acknowledge log to ensure the acknowledgment is not lost.

@@ -4,8 +4,7 @@ title: HDFS3 sink connector
 sidebar_label: "HDFS3 sink connector"
 ---
 
-The HDFS3 sink connector pulls the messages from Pulsar topics 
-and persists the messages to HDFS files.
+The HDFS3 sink connector pulls the messages from Pulsar topics and persists the messages to HDFS files.
 
 ## Configuration
 
@@ -34,7 +33,6 @@ Before using the HDFS3 sink connector, you need to create a configuration file t
 * JSON 
 
   ```json
-  
   {
      "configs": {
         "hdfsConfigResources": "core-site.xml",
@@ -43,18 +41,15 @@ Before using the HDFS3 sink connector, you need to create a configuration file t
         "compression": "SNAPPY"
      }
   }
-  
   ```
 
 * YAML
 
   ```yaml
-  
   configs:
       hdfsConfigResources: "core-site.xml"
       directory: "/foo/bar"
       filenamePrefix: "prefix"
       compression: "SNAPPY"
-  
   ```
 
