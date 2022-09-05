@@ -65,7 +65,7 @@ pulsar+ssl://pulsar.us-west.example.com:6651
 
 ## Create a client
 
-To interact with Pulsar, you need a `Client` object first. You can create a client object using the `NewClient` function, passing in a `ClientOptions` object (more on configuration [below](#client-configuration)). Here's an example:
+To interact with Pulsar, you need a [`Client`](https://pkg.go.dev/github.com/apache/pulsar-client-go/pulsar#Client) object first. You can create a client object using the [`NewClient`](https://pkg.go.dev/github.com/apache/pulsar-client-go/pulsar#NewClient) function, passing in a [`ClientOptions`](https://pkg.go.dev/github.com/apache/pulsar-client-go/pulsar#ClientOptions) object (more on configuration [below](#client-configuration)). Here's an example:
 
 ```go
 import (
@@ -112,7 +112,7 @@ func main() {
 }
 ```
 
-The following configurable parameters are available for Pulsar clients:
+The following configurable parameters are available for [`ClientOptions`](https://pkg.go.dev/github.com/apache/pulsar-client-go/pulsar#ClientOptions):
 
 | Name                       | Description                                                                                                                                                                                        | Default               |
 |:---------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:----------------------|
@@ -155,7 +155,7 @@ fmt.Println("Published message")
 
 ### Producer operations
 
-Pulsar Go producers have the following methods available:
+Pulsar [`Producer`](https://pkg.go.dev/github.com/apache/pulsar-client-go/pulsar#Producer) have the following methods available:
 
 | Method                                                                                   | Description                                                                                                                                                                                                                                                                                          | Return type        |
 |:-----------------------------------------------------------------------------------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:-------------------|
@@ -375,6 +375,8 @@ Now you can query Pulsar client metrics on Prometheus.
 
 ### Producer configuration
 
+You can configure a producer with [`ProducerOptions`](https://pkg.go.dev/github.com/apache/pulsar-client-go/pulsar#ProducerOptions):
+
 | Name                    | Description                                                                                                                                                              | Default             |
 |:------------------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:--------------------|
 | Topic                   | Topic specify the topic this consumer will subscribe to. This argument is required when constructing the reader.                                                         | None                |
@@ -431,7 +433,7 @@ if err := consumer.Unsubscribe(); err != nil {
 
 ### Consumer operations
 
-Pulsar Go consumers have the following methods available:
+Pulsar [`Consumer`](https://pkg.go.dev/github.com/apache/pulsar-client-go/pulsar#Consumer) interface have the following methods available:
 
 | Method                                             | Description                                                                                                                                                                          | Return type              |
 |:---------------------------------------------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:-------------------------|
@@ -745,6 +747,8 @@ Now you can query Pulsar client metrics on Prometheus.
 
 ### Consumer configuration
 
+You can configure a consumer with [`ConsumerOptions`](https://pkg.go.dev/github.com/apache/pulsar-client-go/pulsar#ConsumerOptions):
+
 | Name                        | Description                                                                                                                                                               | Default   |
 |:----------------------------|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:----------|
 | Topic                       | Topic specify the topic this consumer will subscribe to. This argument is required when constructing the reader.                                                          |           |
@@ -785,7 +789,7 @@ defer reader.Close()
 
 ### Reader operations
 
-Pulsar Go readers have the following methods available:
+Pulsar [`Reader`](https://pkg.go.dev/github.com/apache/pulsar-client-go/pulsar#Reader) interface have the following methods available:
 
 | Method                       | Description                                                                                                                                                        | Return type        |
 |:-----------------------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------|:-------------------|
@@ -920,6 +924,9 @@ defer readerInclusive.Close()
 
 ### Reader configuration
 
+You can configure a reader with [`ReaderOptions`](https://pkg.go.dev/github.com/apache/pulsar-client-go/pulsar#ReaderOptions):
+
+
 | Name                    | Description                                                                                                                                                                                            | Default  |
 |:------------------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:---------|
 | Topic                   | Topic specify the topic this consumer will subscribe to. This argument is required when constructing the reader.                                                                                       |          |
@@ -952,7 +959,7 @@ if _, err := producer.send(msg); err != nil {
 }
 ```
 
-The following methods parameters are available for `ProducerMessage` objects:
+The following methods parameters are available for [`ProducerMessage`](https://pkg.go.dev/github.com/apache/pulsar-client-go/pulsar#ProducerMessage) objects:
 
 | Parameter             | Description                                                                                                                                                                                     |
 |:----------------------|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
