@@ -154,20 +154,6 @@ TEST(ConsumerConfigurationTest, testCustomConfig) {
     ASSERT_TRUE(conf.isAutoAckOldestChunkedMessageOnQueueFull());
 }
 
-TEST(ConsumerConfigurationTest, testCApiConfig) {
-    pulsar_consumer_configuration_t* consumer_conf = pulsar_consumer_configuration_create();
-
-    ASSERT_EQ(pulsar_consumer_configuration_get_max_pending_chunked_message(consumer_conf), 10);
-    pulsar_consumer_configuration_set_max_pending_chunked_message(consumer_conf, 100);
-    ASSERT_EQ(pulsar_consumer_configuration_get_max_pending_chunked_message(consumer_conf), 100);
-
-    ASSERT_EQ(pulsar_consumer_configuration_get_auto_ack_oldest_chunked_message_on_queue_full(consumer_conf),
-              false);
-    pulsar_consumer_configuration_set_auto_ack_oldest_chunked_message_on_queue_full(consumer_conf, true);
-    ASSERT_EQ(pulsar_consumer_configuration_get_auto_ack_oldest_chunked_message_on_queue_full(consumer_conf),
-              true);
-}
-
 TEST(ConsumerConfigurationTest, testReadCompactPersistentExclusive) {
     std::string lookupUrl = "pulsar://localhost:6650";
     std::string topicName = "persist-topic";

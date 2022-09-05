@@ -294,7 +294,7 @@ PULSAR_PUBLIC void pulsar_consumer_configuration_set_auto_ack_oldest_chunked_mes
     pulsar_consumer_configuration_t *consumer_configuration,
     int auto_ack_oldest_chunked_message_on_queue_full);
 
-PULSAR_PUBLIC int pulsar_consumer_configuration_get_auto_ack_oldest_chunked_message_on_queue_full(
+PULSAR_PUBLIC int pulsar_consumer_configuration_is_auto_ack_oldest_chunked_message_on_queue_full(
     pulsar_consumer_configuration_t *consumer_configuration);
 
 // const CryptoKeyReaderPtr getCryptoKeyReader()

@@ -52,7 +52,7 @@ if (NOT GTESTD_LIBRARY_PATH)
     set(GTESTD_LIBRARY_PATH ${GTEST_LIBRARY_PATH})
 endif()
 
-file(GLOB TEST_SOURCES *.cc)
+file(GLOB TEST_SOURCES *.cc c/*.cc)
 
 add_executable(main ${TEST_SOURCES} ${PROTO_SOURCES})
 

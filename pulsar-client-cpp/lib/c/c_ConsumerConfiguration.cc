@@ -213,7 +213,7 @@ void pulsar_consumer_configuration_set_auto_ack_oldest_chunked_message_on_queue_
         auto_ack_oldest_chunked_message_on_queue_full);
 }
 
-int pulsar_consumer_configuration_get_auto_ack_oldest_chunked_message_on_queue_full(
+int pulsar_consumer_configuration_is_auto_ack_oldest_chunked_message_on_queue_full(
     pulsar_consumer_configuration_t *consumer_configuration) {
     return consumer_configuration->consumerConfiguration.isAutoAckOldestChunkedMessageOnQueueFull();
 }

@@ -229,6 +229,6 @@ void pulsar_producer_configuration_set_chunking_enabled(pulsar_producer_configur
     conf->conf.setChunkingEnabled(chunkingEnabled);
 }
 
-int pulsar_producer_configuration_get_chunking_enabled(pulsar_producer_configuration_t *conf) {
+int pulsar_producer_configuration_is_chunking_enabled(pulsar_producer_configuration_t *conf) {
     return conf->conf.isChunkingEnabled();
 }
