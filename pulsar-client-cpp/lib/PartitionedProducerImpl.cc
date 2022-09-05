@@ -106,7 +106,7 @@ void PartitionedProducerImpl::start() {
     // Here we don't need `producersMutex` to protect `producers_`, because `producers_` can only be increased
     // when `state_` is Ready
 
-    if (conf_.getLazyStartPartitionedProducers()) {
+    if (conf_.isLazyStartPartitionedProducers()) {
         // start one producer now, to ensure authz errors occur now
         // if the SinglePartition router is used, then this producer will serve
         // all non-keyed messages in the future
@@ -398,9 +398,9 @@ void PartitionedProducerImpl::handleGetPartitions(Result result,
             topicMetadata_.reset(new TopicMetadataImpl(newNumPartitions));
 
             for (unsigned int i = currentNumPartitions; i < newNumPartitions; i++) {
-                auto producer = newInternalProducer(i, conf_.getLazyStartPartitionedProducers());
+                auto producer = newInternalProducer(i, conf_.isLazyStartPartitionedProducers());
 
-                if (!conf_.getLazyStartPartitionedProducers()) {
+                if (!conf_.isLazyStartPartitionedProducers()) {
                     producer->start();
                 }
                 producers_.push_back(producer);

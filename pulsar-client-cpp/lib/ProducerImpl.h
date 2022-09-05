@@ -187,6 +187,7 @@ class ProducerImpl : public HandlerBase,
 
     MemoryLimitController& memoryLimitController_;
     const bool chunkingEnabled_;
+    Optional<uint64_t> topicEpoch{Optional<uint64_t>::empty()};
 };
 
 struct ProducerImplCmp {

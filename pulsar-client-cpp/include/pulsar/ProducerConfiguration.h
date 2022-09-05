@@ -510,6 +510,8 @@ class PULSAR_PUBLIC ProducerConfiguration {
 
     ProducerAccessMode getAccessMode() const;
 
+    bool isLazyStartPartitionedProducers() const;
+
     friend class PulsarWrapper;
 
    private:

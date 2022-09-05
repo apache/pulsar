@@ -266,4 +266,8 @@ ProducerConfiguration::ProducerAccessMode ProducerConfiguration::getAccessMode()
     return impl_->accessMode;
 }
 
+bool ProducerConfiguration::isLazyStartPartitionedProducers() const {
+    return impl_->useLazyStartPartitionedProducers && impl_->accessMode == Shared;
+}
+
 }  // namespace pulsar
