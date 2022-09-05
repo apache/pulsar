@@ -206,16 +206,16 @@ public class ServerCnxTest {
         doReturn(store).when(pulsar).getLocalMetadataStore();
         doReturn(store).when(pulsar).getConfigurationMetadataStore();
 
-        PulsarResources pulsarResources = spyWithClassAndConstructorArgs(PulsarResources.class, store, store);
-        namespaceResources = spyWithClassAndConstructorArgs(NamespaceResources.class, store, store, 30);
-        doReturn(namespaceResources).when(pulsarResources).getNamespaceResources();
-        doReturn(pulsarResources).when(pulsar).getPulsarResources();
-
         brokerService = spyWithClassAndConstructorArgs(BrokerService.class, pulsar, eventLoopGroup);
         BrokerInterceptor interceptor = mock(BrokerInterceptor.class);
         doReturn(interceptor).when(brokerService).getInterceptor();
         doReturn(brokerService).when(pulsar).getBrokerService();
         doReturn(executor).when(pulsar).getOrderedExecutor();
+
+        PulsarResources pulsarResources = spyWithClassAndConstructorArgs(PulsarResources.class, store, store);
+        namespaceResources = spyWithClassAndConstructorArgs(NamespaceResources.class, store, store, 30);
+        doReturn(namespaceResources).when(pulsarResources).getNamespaceResources();
+        doReturn(pulsarResources).when(pulsar).getPulsarResources();
 
         namespaceService = mock(NamespaceService.class);
         doReturn(CompletableFuture.completedFuture(null)).when(namespaceService).getBundleAsync(any());
