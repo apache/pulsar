@@ -16,7 +16,7 @@ If you're looking to run a full production Pulsar installation, see the [Deployi
 
 Download the official Apache Pulsar distribution:
 
-```http
+```bash
 wget https://archive.apache.org/dist/pulsar/pulsar-@pulsar:version@/apache-pulsar-@pulsar:version@-bin.tar.gz
 ```
 
