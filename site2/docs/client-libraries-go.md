@@ -6,7 +6,7 @@ sidebar_label: "Go"
 
 You can use Pulsar [Go client](https://github.com/apache/pulsar-client-go) to create Pulsar [producers](#producers), [consumers](#consumers), and [readers](#readers) in Golang.
 
-API docs are available on the [Godoc](https://godoc.org/github.com/apache/pulsar-client-go/pulsar) page
+API docs are available on the [Godoc](https://pkg.go.dev/github.com/apache/pulsar-client-go/pulsar) page
 
 ## Installation
 
@@ -244,58 +244,58 @@ producer.Close()
 #### How to use delay relative in producer
 
 ```go
-client, err := NewClient(pulsar.ClientOptions{
-	URL: "pulsar://localhost:6650",
+client, err := pulsar.NewClient(pulsar.ClientOptions{
+    URL: "pulsar://localhost:6650",
 })
 if err != nil {
-	log.Fatal(err)
+    log.Fatal(err)
 }
 defer client.Close()
 
-topicName := newTopicName()
+topicName := "topic-1"
 producer, err := client.CreateProducer(pulsar.ProducerOptions{
     Topic:           topicName,
     DisableBatching: true,
 })
 if err != nil {
-	log.Fatal(err)
+    log.Fatal(err)
 }
 defer producer.Close()
 
 consumer, err := client.Subscribe(pulsar.ConsumerOptions{
-	Topic:            topicName,
-	SubscriptionName: "subName",
-	Type:             Shared,
+    Topic:            topicName,
+    SubscriptionName: "subName",
+    Type:             pulsar.Shared,
 })
 if err != nil {
-	log.Fatal(err)
+    log.Fatal(err)
 }
 defer consumer.Close()
 
 ID, err := producer.Send(context.Background(), &pulsar.ProducerMessage{
-	Payload:      []byte(fmt.Sprintf("test")),
-	DeliverAfter: 3 * time.Second,
+    Payload:      []byte(fmt.Sprintf("test")),
+    DeliverAfter: 3 * time.Second,
 })
 if err != nil {
-	log.Fatal(err)
+    log.Fatal(err)
 }
 fmt.Println(ID)
 
-ctx, canc := context.WithTimeout(context.Background(), 1*time.Second)
+ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 msg, err := consumer.Receive(ctx)
 if err != nil {
-	log.Fatal(err)
+    log.Fatal(err)
 }
 fmt.Println(msg.Payload())
-canc()
+cancel()
 
-ctx, canc = context.WithTimeout(context.Background(), 5*time.Second)
+ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
 msg, err = consumer.Receive(ctx)
 if err != nil {
-	log.Fatal(err)
+    log.Fatal(err)
 }
 fmt.Println(msg.Payload())
-canc()
+cancel()
 ```
 
 #### How to use Prometheus metrics in producer
@@ -592,10 +592,10 @@ func main() {
 
 ```go
 client, err := pulsar.NewClient(pulsar.ClientOptions{
-	URL: "pulsar://localhost:6650",
+    URL: "pulsar://localhost:6650",
 })
 if err != nil {
-	log.Fatal(err)
+    log.Fatal(err)
 }
 defer client.Close()
 
@@ -605,19 +605,19 @@ defer cancel()
 
 // create consumer
 consumer, err := client.Subscribe(pulsar.ConsumerOptions{
-	Topic:            topic,
-	SubscriptionName: "my-sub1",
-	Type:             Shared,
+    Topic:            topic,
+    SubscriptionName: "my-sub1",
+    Type:             pulsar.Shared,
 })
 if err != nil {
-	log.Fatal(err)
+    log.Fatal(err)
 }
 defer consumer.Close()
 
 // receive message with a timeout
 msg, err := consumer.Receive(ctx)
 if err != nil {
-	log.Fatal(err)
+    log.Fatal(err)
 }
 fmt.Println(msg.Payload())
 ```
@@ -626,44 +626,44 @@ fmt.Println(msg.Payload())
 
 ```go
 type testJSON struct {
-	ID   int    `json:"id"`
-	Name string `json:"name"`
+    ID   int    `json:"id"`
+    Name string `json:"name"`
 }
 
 var (
-	exampleSchemaDef = "{\"type\":\"record\",\"name\":\"Example\",\"namespace\":\"test\"," +
-		"\"fields\":[{\"name\":\"ID\",\"type\":\"int\"},{\"name\":\"Name\",\"type\":\"string\"}]}"
+    exampleSchemaDef = "{\"type\":\"record\",\"name\":\"Example\",\"namespace\":\"test\"," +
+        "\"fields\":[{\"name\":\"ID\",\"type\":\"int\"},{\"name\":\"Name\",\"type\":\"string\"}]}"
 )
 
 client, err := pulsar.NewClient(pulsar.ClientOptions{
-	URL: "pulsar://localhost:6650",
+    URL: "pulsar://localhost:6650",
 })
 if err != nil {
-	log.Fatal(err)
+    log.Fatal(err)
 }
 defer client.Close()
 
 var s testJSON
 
-consumerJS := NewJSONSchema(exampleSchemaDef, nil)
-consumer, err := client.Subscribe(ConsumerOptions{
-	Topic:                       "jsonTopic",
-	SubscriptionName:            "sub-1",
-	Schema:                      consumerJS,
-	SubscriptionInitialPosition: SubscriptionPositionEarliest,
+consumerJS := pulsar.NewJSONSchema(exampleSchemaDef, nil)
+consumer, err := client.Subscribe(pulsar.ConsumerOptions{
+    Topic:                       "jsonTopic",
+    SubscriptionName:            "sub-1",
+    Schema:                      consumerJS,
+    SubscriptionInitialPosition: pulsar.SubscriptionPositionEarliest,
 })
 if err != nil {
-	log.Fatal(err)
+    log.Fatal(err)
 }
 
 msg, err := consumer.Receive(context.Background())
 if err != nil {
-	log.Fatal(err)
+    log.Fatal(err)
 }
 
 err = msg.GetSchemaValue(&s)
 if err != nil {
-	log.Fatal(err)
+    log.Fatal(err)
 }
 defer consumer.Close()
 ```
@@ -981,7 +981,7 @@ Here's an example:
 opts := pulsar.ClientOptions{
     URL: "pulsar+ssl://my-cluster.com:6651",
     TLSTrustCertsFilePath: "/path/to/certs/my-cert.csr",
-    Authentication: NewAuthenticationTLS("my-cert.pem", "my-key.pem"),
+    Authentication: pulsar.NewAuthenticationTLS("my-cert.pem", "my-key.pem"),
 }
 ```
 
