@@ -1,12 +1,12 @@
 ---
 id: getting-started-standalone
-title: Set up a standalone Pulsar locally
+title: Run a standalone Pulsar cluster locally
 sidebar_label: "Run Pulsar locally"
 ---
 
 For local development and testing, you can run Pulsar in standalone mode on your machine. The standalone mode includes a Pulsar broker, the necessary [RocksDB](http://rocksdb.org/) and BookKeeper components running inside of a single Java Virtual Machine (JVM) process.
 
-> **Pulsar in production?**  
+> **Pulsar in production?**
 > If you're looking to run a full production Pulsar installation, see the [Deploying a Pulsar instance](deploy-bare-metal.md) guide.
 
 ## Install Pulsar standalone
@@ -20,7 +20,7 @@ For the runtime Java version, see [Pulsar Runtime Java Version Recommendation](h
 
 :::tip
 
-By default, Pulsar allocates 2G JVM heap memory to start. It can be changed in `conf/pulsar_env.sh` file under `PULSAR_MEM`. This is an extra option passed into JVM. 
+By default, Pulsar allocates 2G JVM heap memory to start. It can be changed in `conf/pulsar_env.sh` file under `PULSAR_MEM`. This is an extra option passed into JVM.
 
 :::
 
@@ -72,10 +72,10 @@ To get started with Pulsar, download a binary tarball release in one of the foll
 
 * download from the Apache mirror (<a href="pulsar:binary_release_url" download>Pulsar @pulsar:version@ binary release</a>)
 
-* download from the Pulsar [downloads page](pulsar:download_page_url)  
-  
+* download from the Pulsar [downloads page](pulsar:download_page_url)
+
 * download from the Pulsar [releases page](https://github.com/apache/pulsar/releases/latest)
-  
+
 * use [wget](https://www.gnu.org/software/wget):
 
   ```shell
@@ -135,7 +135,7 @@ To enable those `built-in` connectors, you can download the connectors tarball r
   wget pulsar:connector_release_url/{connector}-@pulsar:version@.nar
   ```
 
-After you download the NAR file, copy the file to the `connectors` directory in the pulsar directory. 
+After you download the NAR file, copy the file to the `connectors` directory in the pulsar directory.
 For example, if you download the `pulsar-io-aerospike-@pulsar:version@.nar` connector file, enter the following commands:
 
 ```bash
@@ -219,17 +219,17 @@ If you have started Pulsar successfully, you will see `INFO`-level log messages 
 
 :::tip
 
-* The service is running on your terminal, which is under your direct control. If you need to run other commands, open a new terminal window. 
+* The service is running on your terminal, which is under your direct control. If you need to run other commands, open a new terminal window.
 * To run the service as a background process, you can use the `bin/pulsar-daemon start standalone` command. For more information, see [pulsar-daemon](/docs/en/reference-cli-tools/#pulsar-daemon).
 * To perform a health check, you can use the `bin/pulsar-admin brokers healthcheck` command. For more information, see [Pulsar-admin docs](/tools/pulsar-admin/).
 * When you start a local standalone cluster, a `public/default` [namespace](concepts-messaging.md#namespaces) is created automatically. The namespace is used for development purposes. All Pulsar topics are managed within namespaces. For more information, see [Topics](concepts-messaging.md#topics).
-* By default, there is no encryption, authentication, or authorization configured. Apache Pulsar can be accessed from a remote server without any authorization. See [Security Overview](security-overview.md) for how to secure your deployment. 
+* By default, there is no encryption, authentication, or authorization configured. Apache Pulsar can be accessed from a remote server without any authorization. See [Security Overview](security-overview.md) for how to secure your deployment.
 
 :::
 
 ## Use Pulsar standalone
 
-Pulsar provides a CLI tool called [`pulsar-client`](reference-cli-tools.md#pulsar-client). The pulsar-client tool enables you to consume and produce messages to a Pulsar topic in a running cluster. 
+Pulsar provides a CLI tool called [`pulsar-client`](reference-cli-tools.md#pulsar-client). The pulsar-client tool enables you to consume and produce messages to a Pulsar topic in a running cluster.
 
 ### Consume a message
 
