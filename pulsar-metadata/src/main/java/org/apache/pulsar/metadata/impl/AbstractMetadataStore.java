@@ -245,14 +245,14 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     public CompletableFuture<Optional<GetResult>> get(String path) {
         long start = System.currentTimeMillis();
         if (!isValidPath(path)) {
-            metadataStoreStats.recordGetOpsFailed();
+            metadataStoreStats.recordGetOpsFailed(System.currentTimeMillis() - start);
             return FutureUtil
                     .failedFuture(new MetadataStoreException.InvalidPathException(path));
         }
         return storeGet(path)
                 .whenComplete((v, t) -> {
                     if (t != null) {
-                        metadataStoreStats.recordGetOpsFailed();
+                        metadataStoreStats.recordGetOpsFailed(System.currentTimeMillis() - start);
                     } else {
                         metadataStoreStats.recordGetOpsLatency(System.currentTimeMillis() - start);
                     }
@@ -333,7 +333,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     public final CompletableFuture<Void> delete(String path, Optional<Long> expectedVersion) {
         long start = System.currentTimeMillis();
         if (!isValidPath(path)) {
-            metadataStoreStats.recordDelOpsFailed();
+            metadataStoreStats.recordDelOpsFailed(System.currentTimeMillis() - start);
             return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
         }
         if (getMetadataEventSynchronizer().isPresent()) {
@@ -344,7 +344,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                     .thenCompose(__ -> deleteInternal(path, expectedVersion))
                     .whenComplete((v, t) -> {
                         if (null != t) {
-                            metadataStoreStats.recordDelOpsFailed();
+                            metadataStoreStats.recordDelOpsFailed(System.currentTimeMillis() - start);
                         } else {
                             metadataStoreStats.recordDelOpsLatency(System.currentTimeMillis() - start);
                         }
@@ -353,7 +353,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
             return deleteInternal(path, expectedVersion)
                     .whenComplete((v, t) -> {
                         if (null != t) {
-                            metadataStoreStats.recordDelOpsFailed();
+                            metadataStoreStats.recordDelOpsFailed(System.currentTimeMillis() - start);
                         } else {
                             metadataStoreStats.recordDelOpsLatency(System.currentTimeMillis() - start);
                         }
@@ -399,7 +399,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
             EnumSet<CreateOption> options) {
         long start = System.currentTimeMillis();
         if (!isValidPath(path)) {
-            metadataStoreStats.recordPutOpsFailed();
+            metadataStoreStats.recordPutOpsFailed(System.currentTimeMillis() - start);
             return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
         }
         HashSet<CreateOption> ops = new HashSet<>(options);
@@ -413,7 +413,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                     .thenCompose(__ -> putInternal(path, data, optExpectedVersion, options))
                     .whenComplete((v, t) -> {
                         if (t != null) {
-                            metadataStoreStats.recordPutOpsFailed();
+                            metadataStoreStats.recordPutOpsFailed(System.currentTimeMillis() - start);
                         } else {
                             int len = data == null ? 0 : data.length;
                             metadataStoreStats.recordPutOpsLatency(System.currentTimeMillis() - start, len);
@@ -423,7 +423,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
             return putInternal(path, data, optExpectedVersion, options)
                     .whenComplete((v, t) -> {
                         if (t != null) {
-                            metadataStoreStats.recordPutOpsFailed();
+                            metadataStoreStats.recordPutOpsFailed(System.currentTimeMillis() - start);
                         } else {
                             int len = data == null ? 0 : data.length;
                             metadataStoreStats.recordPutOpsLatency(System.currentTimeMillis() - start, len);

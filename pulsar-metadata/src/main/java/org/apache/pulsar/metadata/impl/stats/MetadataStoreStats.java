@@ -26,20 +26,21 @@ public final class MetadataStoreStats implements AutoCloseable {
     private static final double[] BUCKETS = new double[]{1, 3, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000};
     private static final String OPS_TYPE_LABEL_NAME = "type";
     private static final String METADATA_STORE_LABEL_NAME = "name";
+    private static final String STATUS = "status";
+
     private static final String OPS_TYPE_GET = "get";
     private static final String OPS_TYPE_DEL = "del";
     private static final String OPS_TYPE_PUT = "put";
+    private static final String STATUS_SUCCESS = "success";
+    private static final String STATUS_FAIL = "fail";
+
     protected static final String PREFIX = "pulsar_metadata_store_";
 
-    private static final Histogram OPS_SUCCEED = Histogram
+    private static final Histogram OPS_LATENCY = Histogram
             .build(PREFIX + "ops_latency", "-")
             .unit("ms")
             .buckets(BUCKETS)
-            .labelNames(METADATA_STORE_LABEL_NAME, OPS_TYPE_LABEL_NAME)
-            .register();
-    private static final Counter OPS_FAILED = Counter
-            .build(PREFIX + "ops_failed", "-")
-            .labelNames(METADATA_STORE_LABEL_NAME, OPS_TYPE_LABEL_NAME)
+            .labelNames(METADATA_STORE_LABEL_NAME, OPS_TYPE_LABEL_NAME, STATUS)
             .register();
     private static final Counter PUT_BYTES = Counter
             .build(PREFIX + "put_", "-")
@@ -50,9 +51,9 @@ public final class MetadataStoreStats implements AutoCloseable {
     private final Histogram.Child getOpsSucceedChild;
     private final Histogram.Child delOpsSucceedChild;
     private final Histogram.Child putOpsSucceedChild;
-    private final Counter.Child getOpsFailedChild;
-    private final Counter.Child delOpsFailedChild;
-    private final Counter.Child putOpsFailedChild;
+    private final Histogram.Child getOpsFailedChild;
+    private final Histogram.Child delOpsFailedChild;
+    private final Histogram.Child putOpsFailedChild;
     private final Counter.Child putBytesChild;
     private final String metadataStoreName;
     private final AtomicBoolean closed = new AtomicBoolean(false);
@@ -60,12 +61,12 @@ public final class MetadataStoreStats implements AutoCloseable {
     public MetadataStoreStats(String metadataStoreName) {
         this.metadataStoreName = metadataStoreName;
 
-        this.getOpsSucceedChild = OPS_SUCCEED.labels(metadataStoreName, OPS_TYPE_GET);
-        this.delOpsSucceedChild = OPS_SUCCEED.labels(metadataStoreName, OPS_TYPE_DEL);
-        this.putOpsSucceedChild = OPS_SUCCEED.labels(metadataStoreName, OPS_TYPE_PUT);
-        this.getOpsFailedChild = OPS_FAILED.labels(metadataStoreName, OPS_TYPE_GET);
-        this.delOpsFailedChild = OPS_FAILED.labels(metadataStoreName, OPS_TYPE_DEL);
-        this.putOpsFailedChild = OPS_FAILED.labels(metadataStoreName, OPS_TYPE_PUT);
+        this.getOpsSucceedChild = OPS_LATENCY.labels(metadataStoreName, OPS_TYPE_GET, STATUS_SUCCESS);
+        this.delOpsSucceedChild = OPS_LATENCY.labels(metadataStoreName, OPS_TYPE_DEL, STATUS_SUCCESS);
+        this.putOpsSucceedChild = OPS_LATENCY.labels(metadataStoreName, OPS_TYPE_PUT, STATUS_SUCCESS);
+        this.getOpsFailedChild = OPS_LATENCY.labels(metadataStoreName, OPS_TYPE_GET, STATUS_FAIL);
+        this.delOpsFailedChild = OPS_LATENCY.labels(metadataStoreName, OPS_TYPE_DEL, STATUS_FAIL);
+        this.putOpsFailedChild = OPS_LATENCY.labels(metadataStoreName, OPS_TYPE_PUT, STATUS_FAIL);
         this.putBytesChild = PUT_BYTES.labels(metadataStoreName);
     }
 
@@ -82,27 +83,27 @@ public final class MetadataStoreStats implements AutoCloseable {
         this.putBytesChild.inc(bytes);
     }
 
-    public void recordGetOpsFailed() {
-        this.getOpsFailedChild.inc();
+    public void recordGetOpsFailed(long millis) {
+        this.getOpsFailedChild.observe(millis);
     }
 
-    public void recordDelOpsFailed() {
-        this.delOpsFailedChild.inc();
+    public void recordDelOpsFailed(long millis) {
+        this.delOpsFailedChild.observe(millis);
     }
 
-    public void recordPutOpsFailed() {
-        this.putOpsFailedChild.inc();
+    public void recordPutOpsFailed(long millis) {
+        this.putOpsFailedChild.observe(millis);
     }
 
     @Override
     public void close() throws Exception {
         if (this.closed.compareAndSet(false, true)) {
-            OPS_SUCCEED.remove(this.metadataStoreName, OPS_TYPE_GET);
-            OPS_SUCCEED.remove(this.metadataStoreName, OPS_TYPE_DEL);
-            OPS_SUCCEED.remove(this.metadataStoreName, OPS_TYPE_PUT);
-            OPS_FAILED.remove(this.metadataStoreName, OPS_TYPE_GET);
-            OPS_FAILED.remove(this.metadataStoreName, OPS_TYPE_DEL);
-            OPS_FAILED.remove(this.metadataStoreName, OPS_TYPE_PUT);
+            OPS_LATENCY.remove(this.metadataStoreName, OPS_TYPE_GET, STATUS_SUCCESS);
+            OPS_LATENCY.remove(this.metadataStoreName, OPS_TYPE_DEL, STATUS_SUCCESS);
+            OPS_LATENCY.remove(this.metadataStoreName, OPS_TYPE_PUT, STATUS_SUCCESS);
+            OPS_LATENCY.remove(this.metadataStoreName, OPS_TYPE_GET, STATUS_FAIL);
+            OPS_LATENCY.remove(this.metadataStoreName, OPS_TYPE_DEL, STATUS_FAIL);
+            OPS_LATENCY.remove(this.metadataStoreName, OPS_TYPE_PUT, STATUS_FAIL);
             PUT_BYTES.remove(this.metadataStoreName);
         }
     }

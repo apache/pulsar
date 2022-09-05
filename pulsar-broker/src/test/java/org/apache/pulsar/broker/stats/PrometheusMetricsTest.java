@@ -1557,39 +1557,37 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         String metricsStr = output.toString();
         Multimap<String, Metric> metricsMap = parseMetrics(metricsStr);
 
-        Collection<Metric> opsFailed = metricsMap.get("pulsar_metadata_store_ops_failed" + "_total");
         Collection<Metric> opsLatency = metricsMap.get("pulsar_metadata_store_ops_latency_ms" + "_sum");
         Collection<Metric> putBytes = metricsMap.get("pulsar_metadata_store_put_bytes" + "_total");
 
-        Assert.assertTrue(opsFailed.size() > 1);
         Assert.assertTrue(opsLatency.size() > 1);
         Assert.assertTrue(putBytes.size() > 1);
-
-        for (Metric m : opsFailed) {
-            Assert.assertEquals(m.tags.get("cluster"), "test");
-            Assert.assertTrue(m.tags.get("name").startsWith("metadata-store"));
-            if (m.tags.get("type").equals("get")) {
-                Assert.assertTrue(m.value >= 0);
-            } else if (m.tags.get("type").equals("del")) {
-                Assert.assertTrue(m.value >= 0);
-            } else if (m.tags.get("type").equals("put")) {
-                Assert.assertTrue(m.value >= 0);
-            } else {
-                Assert.fail();
-            }
-        }
 
         for (Metric m : opsLatency) {
             Assert.assertEquals(m.tags.get("cluster"), "test");
             Assert.assertTrue(m.tags.get("name").startsWith("metadata-store"));
-            if (m.tags.get("type").equals("get")) {
-                Assert.assertTrue(m.value > 0);
-            } else if (m.tags.get("type").equals("del")) {
-                Assert.assertTrue(m.value > 0);
-            } else if (m.tags.get("type").equals("put")) {
-                Assert.assertTrue(m.value > 0);
+            Assert.assertNotNull(m.tags.get("status"));
+
+            if (m.tags.get("staus").equals("success")) {
+                if (m.tags.get("type").equals("get")) {
+                    Assert.assertTrue(m.value >= 0);
+                } else if (m.tags.get("type").equals("del")) {
+                    Assert.assertTrue(m.value >= 0);
+                } else if (m.tags.get("type").equals("put")) {
+                    Assert.assertTrue(m.value >= 0);
+                } else {
+                    Assert.fail();
+                }
             } else {
-                Assert.fail();
+                if (m.tags.get("type").equals("get")) {
+                    Assert.assertTrue(m.value > 0);
+                } else if (m.tags.get("type").equals("del")) {
+                    Assert.assertTrue(m.value > 0);
+                } else if (m.tags.get("type").equals("put")) {
+                    Assert.assertTrue(m.value > 0);
+                } else {
+                    Assert.fail();
+                }
             }
         }
         for (Metric m : putBytes) {
