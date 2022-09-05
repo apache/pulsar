@@ -172,36 +172,26 @@ Pulsar Go producers have the following methods available:
 #### How to use message router in producer
 
 ```go
-client, err := NewClient(pulsar.ClientOptions{
-	URL: serviceURL,
+client, err := pulsar.NewClient(pulsar.ClientOptions{
+    URL: "pulsar://localhost:6650",
 })
 
 if err != nil {
-	log.Fatal(err)
+    log.Fatal(err)
 }
 defer client.Close()
 
-// Only subscribe on the specific partition
-consumer, err := client.Subscribe(pulsar.ConsumerOptions{
-	Topic:            "my-partitioned-topic-partition-2",
-	SubscriptionName: "my-sub",
-})
-
-if err != nil {
-	log.Fatal(err)
-}
-defer consumer.Close()
-
 producer, err := client.CreateProducer(pulsar.ProducerOptions{
-	Topic: "my-partitioned-topic",
-	MessageRouter: func(msg *ProducerMessage, tm TopicMetadata) int {
-		fmt.Println("Routing message ", msg, " -- Partitions: ", tm.NumPartitions())
-		return 2
-	},
+    Topic: "my-partitioned-topic",
+    MessageRouter: func(msg *pulsar.ProducerMessage, tm pulsar.TopicMetadata) int {
+        fmt.Println("Top has", tm.NumPartitions(), "partitions. Routing message ", msg, " to partition 2.")
+        // always push msg to partition 2
+        return 2
+    },
 })
 
 if err != nil {
-	log.Fatal(err)
+    log.Fatal(err)
 }
 defer producer.Close()
 ```
@@ -210,45 +200,43 @@ defer producer.Close()
 
 ```go
 type testJSON struct {
-	ID   int    `json:"id"`
-	Name string `json:"name"`
+    ID   int    `json:"id"`
+    Name string `json:"name"`
 }
-```
-
-```go
 
 var (
-	exampleSchemaDef = "{\"type\":\"record\",\"name\":\"Example\",\"namespace\":\"test\"," +
-		"\"fields\":[{\"name\":\"ID\",\"type\":\"int\"},{\"name\":\"Name\",\"type\":\"string\"}]}"
+    exampleSchemaDef = "{\"type\":\"record\",\"name\":\"Example\",\"namespace\":\"test\"," +
+        "\"fields\":[{\"name\":\"ID\",\"type\":\"int\"},{\"name\":\"Name\",\"type\":\"string\"}]}"
 )
-```
 
-```go
-client, err := NewClient(pulsar.ClientOptions{
-	URL: "pulsar://localhost:6650",
+client, err := pulsar.NewClient(pulsar.ClientOptions{
+    URL: "pulsar://localhost:6650",
 })
 if err != nil {
-	log.Fatal(err)
+    log.Fatal(err)
 }
 defer client.Close()
 
 properties := make(map[string]string)
 properties["pulsar"] = "hello"
-jsonSchemaWithProperties := NewJSONSchema(exampleSchemaDef, properties)
-producer, err := client.CreateProducer(ProducerOptions{
-	Topic:  "jsonTopic",
-	Schema: jsonSchemaWithProperties,
+jsonSchemaWithProperties := pulsar.NewJSONSchema(exampleSchemaDef, properties)
+producer, err := client.CreateProducer(pulsar.ProducerOptions{
+    Topic:  "jsonTopic",
+    Schema: jsonSchemaWithProperties,
 })
-assert.Nil(t, err)
 
-_, err = producer.Send(context.Background(), &ProducerMessage{
-	Value: &testJSON{
-		ID:   100,
-		Name: "pulsar",
-	},
+if err != nil {
+    log.Fatal(err)
+}
+
+_, err = producer.Send(context.Background(), &pulsar.ProducerMessage{
+    Value: &testJSON{
+        ID:   100,
+        Name: "pulsar",
+    },
 })
 if err != nil {
-	log.Fatal(err)
+    log.Fatal(err)
 }
 producer.Close()
 ```
@@ -474,6 +462,29 @@ defer client.Close()
 consumer, err := client.Subscribe(pulsar.ConsumerOptions{
     // fill `Topic` field will create a single-topic consumer
     Topic:            "topic-1",
+    SubscriptionName: "my-sub",
+    Type:             pulsar.Shared,
+})
+if err != nil {
+    log.Fatal(err)
+}
+defer consumer.Close()
+```
+
+#### Create specific-partition consumer
+
+```go
+client, err := pulsar.NewClient(pulsar.ClientOptions{URL: "pulsar://localhost:6650"})
+if err != nil {
+    log.Fatal(err)
+}
+
+defer client.Close()
+
+// subscribe a specific partition of a topic
+consumer, err := client.Subscribe(pulsar.ConsumerOptions{
+    // pulsar partition is a special topic has the suffix '-partition-xx'
+    Topic:            "my-partitioned-topic-partition-2",
     SubscriptionName: "my-sub",
     Type:             pulsar.Shared,
 })
