@@ -25,6 +25,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import lombok.extern.slf4j.Slf4j;
@@ -53,6 +54,7 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
     private final MetadataStoreExtended store;
     private final MetadataCache<T> cache;
     private final Consumer<LeaderElectionState> stateChangesListener;
+    private final ScheduledFuture<?> updateCachedValueFuture;
 
     private LeaderElectionState leaderElectionState;
     private Optional<Long> version = Optional.empty();
@@ -74,9 +76,10 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
         this.path = path;
         this.serde = new JSONMetadataSerdeSimpleType<>(TypeFactory.defaultInstance().constructSimpleType(clazz, null));
         this.store = store;
-        this.cache = store.getMetadataCache(clazz, MetadataCacheConfig.builder()
+        MetadataCacheConfig metadataCacheConfig = MetadataCacheConfig.builder()
                 .expireAfterWriteMillis(-1L)
-                .build());
+                .build();
+        this.cache = store.getMetadataCache(clazz, metadataCacheConfig);
         this.leaderElectionState = LeaderElectionState.NoLeader;
         this.internalState = InternalState.Init;
         this.stateChangesListener = stateChangesListener;
@@ -84,6 +87,9 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
 
         store.registerListener(this::handlePathNotification);
         store.registerSessionListener(this::handleSessionNotification);
+        updateCachedValueFuture = executor.scheduleWithFixedDelay(SafeRunnable.safeRun(this::getLeaderValue),
+                metadataCacheConfig.getRefreshAfterWriteMillis() / 2,
+                metadataCacheConfig.getRefreshAfterWriteMillis(), TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -230,6 +236,7 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
 
     @Override
     public void close() throws Exception {
+        updateCachedValueFuture.cancel(true);
         try {
             asyncClose().join();
         } catch (CompletionException e) {
