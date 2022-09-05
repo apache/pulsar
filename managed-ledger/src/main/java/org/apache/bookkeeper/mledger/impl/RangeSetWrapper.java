@@ -24,7 +24,6 @@ import com.google.common.collect.Range;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenLongPairRangeSet;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet;
@@ -135,7 +134,7 @@ public class RangeSetWrapper<T extends Comparable<T>> implements LongPairRangeSe
     }
 
     @Override
-    public Map<Long, Integer> cardinality(long lowerKey, long lowerValue, long upperKey, long upperValue) {
+    public int cardinality(long lowerKey, long lowerValue, long upperKey, long upperValue) {
         return rangeSet.cardinality(lowerKey, lowerValue, upperKey, upperValue);
     }
 

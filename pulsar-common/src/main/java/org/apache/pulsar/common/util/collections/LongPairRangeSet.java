@@ -25,7 +25,6 @@ import com.google.common.collect.TreeRangeSet;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import lombok.EqualsAndHashCode;
@@ -127,9 +126,9 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
     Range<T> lastRange();
 
     /**
-     * Return the number bit sets to true for each key from lower to upper.
+     * Return the number bit sets to true from lower to upper.
      */
-    Map<Long, Integer> cardinality(long lowerKey, long lowerValue, long upperKey, long upperValue);
+    int cardinality(long lowerKey, long lowerValue, long upperKey, long upperValue);
 
     /**
      * Represents a function that accepts two long arguments and produces a result.
@@ -303,7 +302,7 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
         }
 
         @Override
-        public Map<Long, Integer> cardinality(long lowerKey, long lowerValue, long upperKey, long upperValue) {
+        public int cardinality(long lowerKey, long lowerValue, long upperKey, long upperValue) {
             throw new UnsupportedOperationException();
         }
 
