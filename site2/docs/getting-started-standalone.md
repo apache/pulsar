@@ -137,3 +137,10 @@ Note how they are displayed almost instantaneously in the consumer terminal.
 ## Stop the Pulsar cluster
 
 Once you've finished you can shut down the Pulsar cluster. Press **Ctrl-C** in the terminal window in which you started the cluster.
+
+## Further readings
+
+* Read [Pulsar Concepts and Architecture](concepts-architecture-overview.md) to learn more about Pulsar fundamentals.
+* Read [Pulsar Client Libraries](client-libraries.md) to connect Pulsar with your application.
+* Read [Pulsar Connectors](io-overview.md) to connect Pulsar with your existing data pipelines.
+* Read [Pulsar Functions](functions-overview.md) to run serverless computations against Pulsar.
