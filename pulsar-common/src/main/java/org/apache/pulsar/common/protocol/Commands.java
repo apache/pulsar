@@ -498,11 +498,19 @@ public class Commands {
     }
 
     public static ByteBufPair newSend(long producerId, long sequenceId, int numMessaegs, ChecksumType checksumType,
+                                      long ledgerId, long entryId, MessageMetadata messageMetadata, ByteBuf payload) {
+        return newSend(producerId, sequenceId, -1 /* highestSequenceId */, numMessaegs,
+                messageMetadata.hasTxnidLeastBits() ? messageMetadata.getTxnidLeastBits() : -1,
+                messageMetadata.hasTxnidMostBits() ? messageMetadata.getTxnidMostBits() : -1,
+                checksumType, ledgerId, entryId, messageMetadata, payload);
+    }
+
+    public static ByteBufPair newSend(long producerId, long sequenceId, int numMessaegs, ChecksumType checksumType,
                                       MessageMetadata messageMetadata, ByteBuf payload) {
         return newSend(producerId, sequenceId, -1 /* highestSequenceId */, numMessaegs,
                 messageMetadata.hasTxnidLeastBits() ? messageMetadata.getTxnidLeastBits() : -1,
                 messageMetadata.hasTxnidMostBits() ? messageMetadata.getTxnidMostBits() : -1,
-                checksumType, messageMetadata, payload);
+                checksumType, -1, -1, messageMetadata, payload);
     }
 
     public static ByteBufPair newSend(long producerId, long lowestSequenceId, long highestSequenceId, int numMessaegs,
@@ -510,12 +518,12 @@ public class Commands {
         return newSend(producerId, lowestSequenceId, highestSequenceId, numMessaegs,
                 messageMetadata.hasTxnidLeastBits() ? messageMetadata.getTxnidLeastBits() : -1,
                 messageMetadata.hasTxnidMostBits() ? messageMetadata.getTxnidMostBits() : -1,
-                checksumType, messageMetadata, payload);
+                checksumType, -1, -1, messageMetadata, payload);
     }
 
     public static ByteBufPair newSend(long producerId, long sequenceId, long highestSequenceId, int numMessages,
                                       long txnIdLeastBits, long txnIdMostBits, ChecksumType checksumType,
-            MessageMetadata messageData, ByteBuf payload) {
+                                      long ledgerId, long entryId, MessageMetadata messageData, ByteBuf payload) {
         BaseCommand cmd = localCmd(Type.SEND);
         CommandSend send = cmd.setSend()
                 .setProducerId(producerId)
@@ -538,6 +546,10 @@ public class Commands {
 
         if (messageData.hasMarkerType()) {
             send.setMarker(true);
+        }
+
+        if (ledgerId >= 0 && entryId >= 0) {
+            send.setMessageId().setLedgerId(ledgerId).setEntryId(entryId);
         }
 
         return serializeCommandSendWithSize(cmd, checksumType, messageData, payload);

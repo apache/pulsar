@@ -227,19 +227,12 @@ jobs:
         if: ${{ always() && needs.changed_files_job.outputs.docs_only != 'true' && needs.changed_files_job.outputs.cpp_only != 'true' }}
         uses: ./.github/actions/copy-test-reports
 
-      - name: Report test summary as warning
-        if: ${{ always() && needs.changed_files_job.outputs.docs_only != 'true' && needs.changed_files_job.outputs.cpp_only != 'true' }}
-        uses: ./.github/actions/merge-test-reports
-        with:
-          summary_title: 'Test Summary for Unit - ${{ matrix.name }}:'
-
-      - name: Publish the Test reports in Junit xml format
-        uses: actions/upload-artifact@v3
+      - name: Publish Test Report
+        uses: apache/pulsar-test-infra/action-junit-report@master
         if: ${{ always() && needs.changed_files_job.outputs.docs_only != 'true' && needs.changed_files_job.outputs.cpp_only != 'true' }}
         with:
-          name: Unit-${{ matrix.group }}-test-report
-          path: test-reports
-          retention-days: 7
+          report_paths: 'test-reports/TEST-*.xml'
+          annotate_only: 'true'
 
       - name: Upload Surefire reports
         uses: actions/upload-artifact@v3
@@ -322,7 +315,7 @@ jobs:
         run: |
           # build docker image
           mvn -B -am -pl tests/docker-images/java-test-image install -Pcore-modules,-main,integrationTests,docker \
-          -Dmaven.test.skip=true -Ddockerfile.build.squash=true -DskipSourceReleaseAssembly=true \
+          -Dmaven.test.skip=true -Ddocker.squash=true -DskipSourceReleaseAssembly=true \
           -Dspotbugs.skip=true  -Dlicense.skip=true -Dcheckstyle.skip=true -Drat.skip=true
 
       - name: save docker image apachepulsar/java-test-image:latest to Github artifact cache
@@ -452,19 +445,12 @@ jobs:
         if: ${{ always() && needs.changed_files_job.outputs.docs_only != 'true' && needs.changed_files_job.outputs.cpp_only != 'true' }}
         uses: ./.github/actions/copy-test-reports
 
-      - name: Report test summary as warning
-        if: ${{ always() && needs.changed_files_job.outputs.docs_only != 'true' && needs.changed_files_job.outputs.cpp_only != 'true' }}
-        uses: ./.github/actions/merge-test-reports
-        with:
-          summary_title: 'Test Summary for Integration - ${{ matrix.name }}:'
-
-      - name: Publish the Test reports in Junit xml format
-        uses: actions/upload-artifact@v3
+      - name: Publish Test Report
+        uses: apache/pulsar-test-infra/action-junit-report@master
         if: ${{ always() && needs.changed_files_job.outputs.docs_only != 'true' && needs.changed_files_job.outputs.cpp_only != 'true' }}
         with:
-          name: Integration-${{ matrix.group }}-test-report
-          path: test-reports
-          retention-days: 7
+          report_paths: 'test-reports/TEST-*.xml'
+          annotate_only: 'true'
 
       - name: Upload Surefire reports
         uses: actions/upload-artifact@v3
@@ -576,7 +562,7 @@ jobs:
           # build docker image
           # include building of Pulsar SQL, Connectors, Offloaders and server distros
           mvn -B -am -pl pulsar-sql/presto-distribution,distribution/io,distribution/offloaders,distribution/server,tests/docker-images/latest-version-image install \
-          -Pmain,docker -Dmaven.test.skip=true -Ddockerfile.build.squash=true \
+          -Pmain,docker -Dmaven.test.skip=true -Ddocker.squash=true \
           -Dspotbugs.skip=true -Dlicense.skip=true -Dcheckstyle.skip=true -Drat.skip=true
 
       - name: save docker image apachepulsar/pulsar-test-latest-version:latest to Github artifact cache
@@ -614,6 +600,9 @@ jobs:
 
           - name: Schema
             group: SCHEMA
+
+          - name: Plugin
+            group: PLUGIN
 
           - name: Pulsar Connectors - Thread
             group: PULSAR_CONNECTORS_THREAD
@@ -695,26 +684,19 @@ jobs:
         run: $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh print_thread_dumps
 
       - name: Aggregates all test reports to ./test-reports and ./surefire-reports directories
-        if: ${{ always() && needs.changed_files_job.outputs.docs_only != 'true' }}
+        if: ${{ always() && needs.changed_files_job.outputs.docs_only != 'true' && needs.changed_files_job.outputs.cpp_only != 'true' }}
         uses: ./.github/actions/copy-test-reports
 
-      - name: Report test summary as warning
-        if: ${{ always() && needs.changed_files_job.outputs.docs_only != 'true' }}
-        uses: ./.github/actions/merge-test-reports
+      - name: Publish Test Report
+        uses: apache/pulsar-test-infra/action-junit-report@master
+        if: ${{ always() && needs.changed_files_job.outputs.docs_only != 'true' && needs.changed_files_job.outputs.cpp_only != 'true' }}
         with:
-          summary_title: 'Test Summary for System - ${{ matrix.name }}:'
-
-      - name: Publish the Test reports in Junit xml format
-        uses: actions/upload-artifact@v3
-        if: ${{ always() && needs.changed_files_job.outputs.docs_only != 'true' }}
-        with:
-          name: System-${{ matrix.group }}-test-report
-          path: test-reports
-          retention-days: 7
+          report_paths: 'test-reports/TEST-*.xml'
+          annotate_only: 'true'
 
       - name: Upload container logs
         uses: actions/upload-artifact@v3
-        if: ${{ !success() && needs.changed_files_job.outputs.docs_only != 'true' }}
+        if: ${{ !success() && needs.changed_files_job.outputs.docs_only != 'true'  && needs.changed_files_job.outputs.cpp_only != 'true' }}
         continue-on-error: true
         with:
           name: System-${{ matrix.group }}-container-logs
