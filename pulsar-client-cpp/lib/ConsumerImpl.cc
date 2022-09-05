@@ -1383,10 +1383,11 @@ void ConsumerImpl::seekAsyncInternal(long requestId, SharedBuffer seek, const Me
         LOG_INFO(getName() << " Seeking subscription to " << seekId);
     }
 
-    auto self = shared_from_this();
+    std::weak_ptr<ConsumerImpl> weakSelf{shared_from_this()};
+
     cnx->sendRequestWithId(seek, requestId)
         .addListener(
-            [this, self, callback, originalSeekMessageId](Result result, const ResponseData& responseData) {
+            [this, weakSelf, callback, originalSeekMessageId](Result result, const ResponseData& responseData) {
                 if (result == ResultOk) {
                     LOG_INFO(getName() << "Seek successfully");
                     ackGroupingTrackerPtr_->flushAndClean();
