@@ -738,6 +738,42 @@ public interface Topics {
     CompletableFuture<Map<String, String>> getPropertiesAsync(String topic);
 
     /**
+     * Update Topic Properties on a topic.
+     * The new properties will override the existing values, old properties in the topic will be keep if not override.
+     * @param topic
+     * @param properties
+     * @throws PulsarAdminException
+     */
+    void updateProperties(String topic, Map<String, String> properties) throws PulsarAdminException;
+
+    /**
+     * Update Topic Properties on a topic.
+     * The new properties will override the existing values, old properties in the topic will be keep if not override.
+     * @param topic
+     * @param properties
+     * @return
+     */
+    CompletableFuture<Void> updatePropertiesAsync(String topic, Map<String, String> properties);
+
+    /**
+     * Remove the key in properties on a topic.
+     *
+     * @param topic
+     * @param key
+     * @throws PulsarAdminException
+     */
+    void removeProperties(String topic, String key) throws PulsarAdminException;
+
+    /**
+     * Remove the key in properties on a topic asynchronously.
+     *
+     * @param topic
+     * @param key
+     * @return
+     */
+    CompletableFuture<Void> removePropertiesAsync(String topic, String key);
+
+    /**
      * Delete a partitioned topic and its schemas.
      * <p/>
      * It will also delete all the partitions of the topic if it exists.
@@ -4322,4 +4358,48 @@ public interface Topics {
      * @param topic topic name
      */
     CompletableFuture<Void> setSchemaValidationEnforcedAsync(String topic, boolean enable);
+
+    /**
+     * Set shadow topic list for a source topic.
+     *
+     * @param sourceTopic  source topic name
+     * @param shadowTopics list of shadow topic name
+     */
+    void setShadowTopics(String sourceTopic, List<String> shadowTopics) throws PulsarAdminException;
+
+    /**
+     * Remove all shadow topics for a source topic.
+     *
+     * @param sourceTopic source topic name
+     */
+    void removeShadowTopics(String sourceTopic) throws PulsarAdminException;
+
+    /**
+     * Get shadow topic list of the source topic.
+     *
+     * @param sourceTopic source topic name
+     * @return shadow topic list
+     */
+    List<String> getShadowTopics(String sourceTopic) throws PulsarAdminException;
+
+    /**
+     * Set shadow topic list for a source topic asynchronously.
+     *
+     * @param sourceTopic source topic name
+     */
+    CompletableFuture<Void> setShadowTopicsAsync(String sourceTopic, List<String> shadowTopics);
+
+    /**
+     * Remove all shadow topics for a source topic asynchronously.
+     *
+     * @param sourceTopic source topic name
+     */
+    CompletableFuture<Void> removeShadowTopicsAsync(String sourceTopic);
+
+    /**
+     * Get shadow topic list of the source topic asynchronously.
+     *
+     * @param sourceTopic source topic name
+     */
+    CompletableFuture<List<String>> getShadowTopicsAsync(String sourceTopic);
 }

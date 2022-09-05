@@ -13,17 +13,13 @@ To connect to Pulsar, you need to specify a URL.
 - Produce messages to non-partitioned or partitioned topics
 
   ```
-  
   brokerUrl:{8080/8081}/topics/{persistent/non-persistent}/{my-tenant}/{my-namespace}/{my-topic}
-  
   ```
 
 - Produce messages to specific partitions of partitioned topics
 
   ```
-  
   brokerUrl:{8080/8081}/topics/{persistent/non-persistent}/{my-tenant}/{my-namespace}/{my-topic}/partitions/{partition-number}
-  
   ```
 
 ## Producer
@@ -82,7 +78,6 @@ Below is an example of sending messages to topics using JSON schema via REST.
 Assume that you send messages representing the following class.
 
 ```java
-
    class Seller {
         public String state;
         public String street;
@@ -96,13 +91,11 @@ Assume that you send messages representing the following class.
         public GPU gpu;
         public Seller seller;
     }
-
 ```
 
 Send messages to topics with JSON schema using the command below.
 
 ```shell
-
 curl --location --request POST 'brokerUrl:{8080/8081}/topics/{persistent/non-persistent}/{my-tenant}/{my-namespace}/{my-topic}' \
 --header 'Content-Type: application/json' \
 --data-raw '{
@@ -128,6 +121,5 @@ curl --location --request POST 'brokerUrl:{8080/8081}/topics/{persistent/non-per
 }
 `  
 // Sample message
-
 ```
 

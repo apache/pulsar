@@ -458,8 +458,36 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
+    public void updateProperties(String topic, Map<String, String> properties) throws PulsarAdminException {
+        sync(() -> updatePropertiesAsync(topic, properties));
+    }
+
+    @Override
+    public CompletableFuture<Void> updatePropertiesAsync(String topic, Map<String, String> properties) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "properties");
+        if (properties == null) {
+            properties = new HashMap<>();
+        }
+        return asyncPutRequest(path, Entity.entity(properties, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
     public void deletePartitionedTopic(String topic) throws PulsarAdminException {
         deletePartitionedTopic(topic, false);
+    }
+
+    @Override
+    public void removeProperties(String topic, String key) throws PulsarAdminException {
+        sync(() -> removePropertiesAsync(topic, key));
+    }
+
+    @Override
+    public CompletableFuture<Void> removePropertiesAsync(String topic, String key) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "properties")
+                .queryParam("key", key);
+        return asyncDeleteRequest(path);
     }
 
     @Override
@@ -2711,6 +2739,42 @@ public class TopicsImpl extends BaseResource implements Topics {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "replication");
         return asyncDeleteRequest(path);
+    }
+
+    @Override
+    public void setShadowTopics(String sourceTopic, List<String> shadowTopics) throws PulsarAdminException {
+        sync(() -> setShadowTopicsAsync(sourceTopic, shadowTopics));
+    }
+
+    @Override
+    public void removeShadowTopics(String sourceTopic) throws PulsarAdminException {
+        sync(() -> removeShadowTopicsAsync(sourceTopic));
+    }
+
+    @Override
+    public List<String> getShadowTopics(String sourceTopic) throws PulsarAdminException {
+        return sync(() -> getShadowTopicsAsync(sourceTopic));
+    }
+
+    @Override
+    public CompletableFuture<Void> setShadowTopicsAsync(String sourceTopic, List<String> shadowTopics) {
+        TopicName tn = validateTopic(sourceTopic);
+        WebTarget path = topicPath(tn, "shadowTopics");
+        return asyncPutRequest(path, Entity.entity(shadowTopics, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public CompletableFuture<Void> removeShadowTopicsAsync(String sourceTopic) {
+        TopicName tn = validateTopic(sourceTopic);
+        WebTarget path = topicPath(tn, "shadowTopics");
+        return asyncDeleteRequest(path);
+    }
+
+    @Override
+    public CompletableFuture<List<String>> getShadowTopicsAsync(String sourceTopic) {
+        TopicName tn = validateTopic(sourceTopic);
+        WebTarget path = topicPath(tn, "shadowTopics");
+        return asyncGetRequest(path, new FutureCallback<List<String>>(){});
     }
 
     private static final Logger log = LoggerFactory.getLogger(TopicsImpl.class);
