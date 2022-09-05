@@ -49,7 +49,7 @@
    * [17. Announce the release](#17-announce-the-release)
    * [18. Write a blog post for the release (optional)](#18-write-a-blog-post-for-the-release-optional)
    * [19. Remove old releases](#19-remove-old-releases)
-   * [20. Move branch to next version](#20-move-branch-to-next-version)
+   * [20. Move release branch to next version](#20-move-release-branch-to-next-version)
 
 <!-- Created by https://github.com/ekalinin/github-markdown-toc -->
 
@@ -309,9 +309,11 @@ If the release is approved here, we can then proceed to next step.
 
 ## 7. Move master branch to next version
 
-We need to move master version to next iteration `X + 1`.
+NOTE: This is for major releases only.
 
-```
+We need to move master version to the next iteration `Y` (`X + 1`).
+
+```shell
 git checkout master
 ./src/set-project-version.sh 2.Y.0-SNAPSHOT
 
@@ -462,14 +464,7 @@ Send out a PR request for review.
 
 ## 15. Write release notes
 
-Check the milestone in Github associated with the release.
-https://github.com/apache/pulsar/milestones?closed=1
-
-In the release item, add the list of most important changes that happened in the
-release and a link to the associated milestone, with the complete list of all the
-changes.
-
-Steps and examples see [Pulsar Release Notes Guide](https://docs.google.com/document/d/1cwNkBefKyV6OPbEXnUrcCdVZi0i2BezqL6vAL7VqVC0/edit#).
+See [Pulsar Release Notes Guide](https://docs.google.com/document/d/1cwNkBefKyV6OPbEXnUrcCdVZi0i2BezqL6vAL7VqVC0/edit#).
 
 ## 16. Update the site
 
@@ -592,14 +587,13 @@ svn ls https://dist.apache.org/repos/dist/release/pulsar
 svn rm https://dist.apache.org/repos/dist/release/pulsar/pulsar-2.Y.0
 ```
 
-## 20. Move branch to next version
+## 20. Move release branch to next version
 
 Run the following commands in release branches.
 
 ```shell
 ./src/set-project-version.sh 2.X.Y-SNAPSHOT
 
-git commit -m 'Bumped version to 2.Y.0-SNAPSHOT' -a
+git commit -m 'Bumped version to 2.X.Y-SNAPSHOT' -a
+git push origin branch-2.X
 ```
-
-For major releases, we need to create a Pull Request on GitHub. For patch releases, we can push the commit directly to the release branch.
