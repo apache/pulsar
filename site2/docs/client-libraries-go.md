@@ -635,7 +635,7 @@ var (
 		"\"fields\":[{\"name\":\"ID\",\"type\":\"int\"},{\"name\":\"Name\",\"type\":\"string\"}]}"
 )
 
-client, err := NewClient(pulsar.ClientOptions{
+client, err := pulsar.NewClient(pulsar.ClientOptions{
 	URL: "pulsar://localhost:6650",
 })
 if err != nil {
