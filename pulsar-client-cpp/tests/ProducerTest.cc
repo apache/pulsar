@@ -219,14 +219,14 @@ TEST(ProducerTest, testExclusiveProducer) {
     Producer producer1;
     ProducerConfiguration producerConfiguration1;
     producerConfiguration1.setProducerName("p-name-1");
-    producerConfiguration1.setAccessMode(ProducerAccessMode::Exclusive);
+    producerConfiguration1.setAccessMode(ProducerConfiguration::Exclusive);
 
     ASSERT_EQ(ResultOk, client.createProducer(topicName, producerConfiguration1, producer1));
 
     Producer producer2;
     ProducerConfiguration producerConfiguration2;
     producerConfiguration2.setProducerName("p-name-2");
-    producerConfiguration2.setAccessMode(ProducerAccessMode::Exclusive);
+    producerConfiguration2.setAccessMode(ProducerConfiguration::Exclusive);
     ASSERT_EQ(ResultProducerFenced, client.createProducer(topicName, producerConfiguration2, producer2));
 
     Producer producer3;

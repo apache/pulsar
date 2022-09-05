@@ -19,8 +19,6 @@
 #include <lib/ProducerConfigurationImpl.h>
 
 #include <stdexcept>
-#include "pulsar/ProducerConfiguration.h"
-#include "PulsarApi.pb.h"
 
 namespace pulsar {
 
@@ -264,6 +262,8 @@ ProducerConfiguration& ProducerConfiguration::setAccessMode(const ProducerAccess
     impl_->accessMode = mode;
     return *this;
 }
-ProducerAccessMode ProducerConfiguration::getAccessMode() const { return impl_->accessMode; }
+ProducerConfiguration::ProducerAccessMode ProducerConfiguration::getAccessMode() const {
+    return impl_->accessMode;
+}
 
 }  // namespace pulsar

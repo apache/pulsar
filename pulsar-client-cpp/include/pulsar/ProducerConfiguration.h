@@ -27,7 +27,6 @@
 #include <pulsar/ProducerCryptoFailureAction.h>
 #include <pulsar/CryptoKeyReader.h>
 #include <pulsar/Schema.h>
-#include <lib/PulsarApi.pb.h>
 
 #include <set>
 
@@ -35,8 +34,6 @@ namespace pulsar {
 
 typedef std::function<void(Result, const MessageId& messageId)> SendCallback;
 typedef std::function<void(Result)> CloseCallback;
-
-typedef proto::ProducerAccessMode ProducerAccessMode;
 
 struct ProducerConfigurationImpl;
 class PulsarWrapper;
@@ -81,6 +78,11 @@ class PULSAR_PUBLIC ProducerConfiguration {
          * [(k1, v1), (k1, v2), (k1, v3)], [(k2, v1), (k2, v2), (k2, v3)], [(k3, v1), (k3, v2), (k3, v3)]
          */
         KeyBasedBatching
+    };
+    enum ProducerAccessMode
+    {
+        Shared = 0,
+        Exclusive = 1
     };
 
     ProducerConfiguration();
