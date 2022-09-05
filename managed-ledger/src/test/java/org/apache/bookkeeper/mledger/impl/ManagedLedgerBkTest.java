@@ -341,8 +341,6 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         }
     }
 
-
-
     /**
      * When auto-replication is triggered, if there were no writes on the ML during the grace period, auto-replication
      * will close the ledger an re-replicate it. After that, the next write will get a FencedException. We should
