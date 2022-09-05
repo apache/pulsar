@@ -240,6 +240,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
             throw new MetadataStoreException("Fail to create RocksDB file directory", e);
         }
 
+        // improve this configuration of readonly to config file would be great
         readonly = "true".equalsIgnoreCase(
                 System.getProperty(ROCKSDB_READONLY, "false"));
         db = openDB(dataPath.toString(), metadataStoreConfig.getConfigFilePath());
