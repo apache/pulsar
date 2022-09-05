@@ -60,6 +60,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.locks.StampedLock;
 import org.apache.bookkeeper.client.AsyncCallback.CloseCallback;
 import org.apache.bookkeeper.client.AsyncCallback.OpenCallback;
 import org.apache.bookkeeper.client.BKException;
@@ -95,7 +96,6 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.Ledge
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.MessageRange;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.StringProperty;
-import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet;
@@ -122,12 +122,10 @@ public class ManagedCursorImpl implements ManagedCursor {
     protected final ManagedLedgerImpl ledger;
     private final String name;
 
-    protected static final AtomicReferenceFieldUpdater<ManagedCursorImpl, Map>
-            CURSOR_PROPERTIES_UPDATER =
-            AtomicReferenceFieldUpdater.newUpdater(ManagedCursorImpl.class, Map.class,
-                    "cursorProperties");
-
     public static final String CURSOR_INTERNAL_PROPERTY_PREFIX = "#pulsar.";
+
+    private final StampedLock cursorPropertiesUpdateLock = new StampedLock();
+
     private volatile Map<String, String> cursorProperties;
     private final BookKeeper.DigestType digestType;
 
@@ -374,46 +372,51 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public CompletableFuture<Void> setCursorProperties(Map<String, String> cursorProperties) {
-        MutableObject<CompletableFuture<Void>> updateCursorPropertiesResultRef = new MutableObject<>();
-        CURSOR_PROPERTIES_UPDATER.updateAndGet(this, map -> {
-            Map<String, String> newProperties =
-                    cursorProperties == null ? new TreeMap<>() : new TreeMap<>(cursorProperties);
-            if (map != null) {
-                map.forEach((k, v) -> {
-                    if (((String) k).startsWith(CURSOR_INTERNAL_PROPERTY_PREFIX)) {
-                        newProperties.put((String) k, (String) v);
-                    }
-                });
-
-                updateCursorPropertiesResultRef.setValue(asyncUpdateCursorProperties(newProperties));
+        Map<String, String> newProperties =
+                cursorProperties == null ? new TreeMap<>() : new TreeMap<>(cursorProperties);
+        long stamp = cursorPropertiesUpdateLock.writeLock();
+        if (this.cursorProperties != null) {
+            this.cursorProperties.forEach((k, v) -> {
+                if (k.startsWith(CURSOR_INTERNAL_PROPERTY_PREFIX)) {
+                    newProperties.put(k, v);
+                }
+            });
+        }
+        return asyncUpdateCursorProperties(newProperties).whenComplete((__, ex) -> {
+            if (ex == null) {
+                this.cursorProperties = newProperties;
             }
-            return newProperties;
+
+            cursorPropertiesUpdateLock.unlockWrite(stamp);
         });
-        return updateCursorPropertiesResultRef.getValue();
     }
 
     @Override
     public CompletableFuture<Void> putCursorProperty(String key, String value) {
-        MutableObject<CompletableFuture<Void>> updateCursorPropertiesResultRef = new MutableObject<>();
-        CURSOR_PROPERTIES_UPDATER.updateAndGet(this, map -> {
-            Map<String, String> newProperties = map == null ? new TreeMap<>() : new TreeMap<>(map);
-            newProperties.put(key, value);
-            updateCursorPropertiesResultRef.setValue(asyncUpdateCursorProperties(newProperties));
-            return newProperties;
+        long stamp = cursorPropertiesUpdateLock.writeLock();
+        Map<String, String> newProperties =
+                this.cursorProperties == null ? new TreeMap<>() : new TreeMap<>(this.cursorProperties);
+        newProperties.put(key, value);
+        return asyncUpdateCursorProperties(newProperties).whenComplete((__, ex) -> {
+            if (ex == null) {
+                this.cursorProperties = newProperties;
+            }
+            cursorPropertiesUpdateLock.unlockWrite(stamp);
         });
-        return updateCursorPropertiesResultRef.getValue();
     }
 
     @Override
     public CompletableFuture<Void> removeCursorProperty(String key) {
-        MutableObject<CompletableFuture<Void>> updateCursorPropertiesResultRef = new MutableObject<>();
-        CURSOR_PROPERTIES_UPDATER.updateAndGet(this, map -> {
-            Map<String, String> newProperties = map == null ? new TreeMap<>() : new TreeMap<>(map);
-            newProperties.remove(key);
-            updateCursorPropertiesResultRef.setValue(asyncUpdateCursorProperties(newProperties));
-            return newProperties;
+        long stamp = cursorPropertiesUpdateLock.writeLock();
+        Map<String, String> newProperties =
+                this.cursorProperties == null ? new TreeMap<>() : new TreeMap<>(this.cursorProperties);
+        newProperties.remove(key);
+        return asyncUpdateCursorProperties(newProperties).whenComplete((__, ex) -> {
+            if (ex == null) {
+                this.cursorProperties = newProperties;
+            }
+            cursorPropertiesUpdateLock.unlockWrite(stamp);
         });
-        return updateCursorPropertiesResultRef.getValue();
     }
 
     @Override
