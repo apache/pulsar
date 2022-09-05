@@ -53,7 +53,7 @@ public class ThresholdShedder implements LoadSheddingStrategy {
     private final Multimap<String, String> selectedBundlesCache = ArrayListMultimap.create();
     private static final double ADDITIONAL_THRESHOLD_PERCENT_MARGIN = 0.05;
 
-    private static final double LOWER_THRESHOLD_MARGIN = 0.5;
+    private static final double LOWER_BOUNDARY_THRESHOLD_MARGIN = 0.5;
 
     private static final double MB = 1024 * 1024;
 
@@ -141,7 +141,7 @@ public class ThresholdShedder implements LoadSheddingStrategy {
         return selectedBundlesCache;
     }
 
-    protected void filterAndSelectBundle(LoadData loadData, Map<String, Long> recentlyUnloadedBundles, String broker,
+    private void filterAndSelectBundle(LoadData loadData, Map<String, Long> recentlyUnloadedBundles, String broker,
                                        LocalBrokerData localData, double minimumThroughputToOffload) {
         MutableDouble trafficMarkedToOffload = new MutableDouble(0);
         MutableBoolean atLeastOneBundleSelected = new MutableBoolean(false);
@@ -168,7 +168,7 @@ public class ThresholdShedder implements LoadSheddingStrategy {
                 });
     }
 
-    protected double getBrokerAvgUsage(final LoadData loadData,
+    private double getBrokerAvgUsage(final LoadData loadData,
                                      final ServiceConfiguration conf, boolean sampleLog) {
         double historyPercentage = conf.getLoadBalancerHistoryResourcePercentage();
         double totalUsage = 0.0;
@@ -258,7 +258,7 @@ public class ThresholdShedder implements LoadSheddingStrategy {
         }
         LocalBrokerData localData = brokerData.getLocalData();
         double brokerCurrentThroughput = localData.getMsgThroughputIn() + localData.getMsgThroughputOut();
-        double minimumThroughputToOffload = brokerCurrentThroughput * threshold * LOWER_THRESHOLD_MARGIN;
+        double minimumThroughputToOffload = brokerCurrentThroughput * threshold * LOWER_BOUNDARY_THRESHOLD_MARGIN;
         double minThroughputThreshold = conf.getLoadBalancerBundleUnloadMinThroughputThreshold() * MB;
         if (minThroughputThreshold > minimumThroughputToOffload) {
             log.info("broker {} in RangeThresholdShedder is planning to shed throughput {} MByte/s less than "
