@@ -543,8 +543,6 @@ The Apache Software License, Version 2.0
     - io.etcd-jetcd-core-0.5.11.jar
   * IPAddress
     - com.github.seancfoley-ipaddress-5.3.3.jar
-  * LMAX Disruptor
-    - com.lmax-disruptor-3.4.3.jar
   * RxJava
     - io.reactivex.rxjava3-rxjava-3.0.1.jar
   * RabbitMQ Java Client
