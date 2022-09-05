@@ -347,7 +347,7 @@ public class PersistentTopicsBase extends AdminResource {
                 });
     }
 
-    private CompletableFuture<Void> revokePermissionsAsync(String topicUri, String role) {
+    private CompletableFuture<Void> revokePermissionsAsync(String topicUri, String role, boolean force) {
         return namespaceResources().getPoliciesAsync(namespaceName).thenCompose(
                 policiesOptional -> {
                     Policies policies = policiesOptional.orElseThrow(() ->
@@ -356,8 +356,12 @@ public class PersistentTopicsBase extends AdminResource {
                             || !policies.auth_policies.getTopicAuthentication().get(topicUri).containsKey(role)) {
                         log.warn("[{}] Failed to revoke permission from role {} on topic: Not set at topic level {}",
                                 clientAppId(), role, topicUri);
-                        return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
-                                "Permissions are not set at the topic level"));
+                        if (force) {
+                            return CompletableFuture.completedFuture(null);
+                        } else {
+                            return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
+                                    "Permissions are not set at the topic level"));
+                        }
                     }
                     // Write the new policies to metadata store
                     return namespaceResources().setPoliciesAsync(namespaceName, p -> {
@@ -389,10 +393,10 @@ public class PersistentTopicsBase extends AdminResource {
                         for (int i = 0; i < numPartitions; i++) {
                             TopicName topicNamePartition = topicName.getPartition(i);
                             future = future.thenComposeAsync(unused ->
-                                    revokePermissionsAsync(topicNamePartition.toString(), role));
+                                    revokePermissionsAsync(topicNamePartition.toString(), role, true));
                         }
                     }
-                    return future.thenComposeAsync(unused -> revokePermissionsAsync(topicName.toString(), role))
+                    return future.thenComposeAsync(unused -> revokePermissionsAsync(topicName.toString(), role, false))
                             .thenAccept(unused -> asyncResponse.resume(Response.noContent().build()));
                 }))
             ).exceptionally(ex -> {
