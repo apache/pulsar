@@ -1386,21 +1386,21 @@ void ConsumerImpl::seekAsyncInternal(long requestId, SharedBuffer seek, const Me
     std::weak_ptr<ConsumerImpl> weakSelf{shared_from_this()};
 
     cnx->sendRequestWithId(seek, requestId)
-        .addListener(
-            [this, weakSelf, callback, originalSeekMessageId](Result result, const ResponseData& responseData) {
-                if (result == ResultOk) {
-                    LOG_INFO(getName() << "Seek successfully");
-                    ackGroupingTrackerPtr_->flushAndClean();
-                    Lock lock(mutexForMessageId_);
-                    lastDequedMessageId_ = MessageId::earliest();
-                    lock.unlock();
-                } else {
-                    LOG_ERROR(getName() << "Failed to seek: " << result);
-                    seekMessageId_ = originalSeekMessageId;
-                    duringSeek_ = false;
-                }
-                callback(result);
-            });
+        .addListener([this, weakSelf, callback, originalSeekMessageId](Result result,
+                                                                       const ResponseData& responseData) {
+            if (result == ResultOk) {
+                LOG_INFO(getName() << "Seek successfully");
+                ackGroupingTrackerPtr_->flushAndClean();
+                Lock lock(mutexForMessageId_);
+                lastDequedMessageId_ = MessageId::earliest();
+                lock.unlock();
+            } else {
+                LOG_ERROR(getName() << "Failed to seek: " << result);
+                seekMessageId_ = originalSeekMessageId;
+                duringSeek_ = false;
+            }
+            callback(result);
+        });
 }
 
 bool ConsumerImpl::isPriorBatchIndex(long idx) {
