@@ -23,10 +23,7 @@ import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import java.util.ArrayList;
 import java.util.BitSet;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -246,33 +243,24 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
     }
 
     @Override
-    public Map<Long, Integer> cardinality(long lowerKey, long lowerValue, long upperKey, long upperValue) {
+    public int cardinality(long lowerKey, long lowerValue, long upperKey, long upperValue) {
         NavigableMap<Long, BitSet> subMap = rangeBitSetMap.subMap(lowerKey, true, upperKey, true);
-        if (subMap.isEmpty()) {
-            return Collections.emptyMap();
-        }
-        Map<Long, Integer> v = new HashMap<>();
+        MutableInt v = new MutableInt(0);
         subMap.forEach((ledgerId, bitset) -> {
-            boolean isLowerOrUpper = false;
-            BitSet lowerBitSet = null;
-            if (ledgerId == lowerKey) {
-                isLowerOrUpper = true;
+            if (ledgerId == lowerKey || ledgerId == upperKey) {
                 BitSet temp = (BitSet) bitset.clone();
-                temp.clear(0, (int) Math.max(0, lowerValue));
-                lowerBitSet = temp;
-                v.put(ledgerId, temp.cardinality());
-            }
-            if (ledgerId == upperKey) {
-                isLowerOrUpper = true;
-                BitSet temp = lowerBitSet == null ? (BitSet) bitset.clone() : lowerBitSet;
-                temp.clear((int) Math.min(upperValue + 1, temp.length()), temp.length());
-                v.put(ledgerId, temp.cardinality());
-            }
-            if (!isLowerOrUpper) {
-                v.put(ledgerId, bitset.cardinality());
+                if (ledgerId == lowerKey) {
+                    temp.clear(0, (int) Math.max(0, lowerValue));
+                }
+                if (ledgerId == upperKey) {
+                    temp.clear((int) Math.min(upperValue + 1, temp.length()), temp.length());
+                }
+                v.add(temp.cardinality());
+            } else {
+                v.add(bitset.cardinality());
             }
         });
-        return v;
+        return v.intValue();
     }
 
     @Override

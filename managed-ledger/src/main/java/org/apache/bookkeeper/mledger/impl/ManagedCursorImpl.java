@@ -1456,20 +1456,10 @@ public class ManagedCursorImpl implements ManagedCursor {
         lock.readLock().lock();
         try {
             if (config.isUnackedRangesOpenCacheSetEnabled()) {
-                Map<Long, Integer> cardinalityMap = individualDeletedMessages.cardinality(
+                int cardinality = individualDeletedMessages.cardinality(
                         range.lowerEndpoint().ledgerId, range.lowerEndpoint().entryId,
                         range.upperEndpoint().ledgerId, range.upperEndpoint().entryId);
-                if (!cardinalityMap.isEmpty()) {
-                    deletedEntries.addAndGet(cardinalityMap.values().stream().mapToInt(v -> v).sum());
-                    deletedEntries.addAndGet(
-                            ledger.ledgers.subMap(range.lowerEndpoint().ledgerId, true,
-                                            range.upperEndpoint().ledgerId, true)
-                                    .values()
-                                    .stream()
-                                    .filter(ledgerInfo -> !cardinalityMap.containsKey(ledgerInfo.getLedgerId()))
-                                    .mapToLong(LedgerInfo::getEntries).sum()
-                    );
-                }
+                deletedEntries.addAndGet(cardinality);
             } else {
                 individualDeletedMessages.forEach((r) -> {
                     try {
