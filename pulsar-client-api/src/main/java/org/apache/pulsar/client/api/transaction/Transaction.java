@@ -34,7 +34,7 @@ public interface Transaction {
         /**
          * When a transaction is in the `OPEN` state, messages can be produced and acked with this transaction.
          *
-         * When the transaction is in the `OPEN` state, it can commit or abort.
+         * When a transaction is in the `OPEN` state, it can commit or abort.
          */
         OPEN,
 
