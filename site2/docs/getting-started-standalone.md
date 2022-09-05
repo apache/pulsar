@@ -32,6 +32,36 @@ For the rest of this quickstart we'll run commands from the root of the distribu
 cd apache-pulsar-@pulsar:version@
 ```
 
+## Browse Pulsar distribution
+
+List the contents by executing:
+
+```bash
+ls -1F
+```
+
+You will see it layouts as:
+
+```text
+LICENSE
+NOTICE
+README
+bin/
+conf/
+examples/
+instances/
+lib/
+licenses/
+```
+
+You may want to note that:
+
+* `bin` directory contains the [`pulsar`](reference-cli-tools.md#pulsar) entry point script, and many other command-line tools.
+* `conf` directory contains configuration files, including `broker.conf`.
+* `lib` directory contains JARs used by Pulsar.
+* `examples` directory contains [Pulsar Functions](functions-overview.md) examples.
+* `instances` directory artifacts for [Pulsar Functions](functions-overview.md).
+
 ## Start the Pulsar standalone cluster
 
 Run this command to start a standalone Pulsar cluster:
@@ -45,6 +75,11 @@ By default, the standalone mode runs a RocksDB instance for metadat storage. If 
 ```bash
 PULSAR_STANDALONE_USE_ZOOKEEPER=1 bin/pulsar standalone
 ```
+
+These directories are created once you started the Pulsar cluster.
+
+* `data` directory stores all data created by BookKeeper and RocksDB.
+* `logs` directory contains all server-side logs.
 
 ## Create a topic
 
