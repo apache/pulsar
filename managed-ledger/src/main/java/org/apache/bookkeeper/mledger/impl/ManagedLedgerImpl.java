@@ -2663,7 +2663,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             CompletableFuture<?> appendDeleteLedgerFuture =
                     appendPendingDeleteLedger(deletableLedgers, deletableOffloadedLedgers);
             appendDeleteLedgerFuture.thenAccept(ignore -> {
-                believedDeleteIds.addAll(deletableLedgers);
+                if (ledgerDeletionService.isTopicTwoPhaseDeletionEnabled()) {
+                    believedDeleteIds.addAll(deletableLedgers);
+                }
                 for (LedgerInfo ls : ledgersToDelete) {
                     if (currentLastConfirmedEntry != null
                             && ls.getLedgerId() == currentLastConfirmedEntry.getLedgerId()) {

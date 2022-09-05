@@ -1073,25 +1073,8 @@ public class PersistentTopicsBase extends AdminResource {
                         ManagedLedger managedLedger = ((PersistentTopic) topic).getManagedLedger();
                         DeleteLedgerPayload.OffloadContext context = deleteLedgerPayload.getOffloadContext();
                         LedgerType ledgerType = LedgerType.valueOf(deleteLedgerPayload.getLedgerType());
-                        if (LedgerType.LEDGER == ledgerType) {
-                            managedLedger.asyncDeleteLedger(topicName.getPersistenceNamingEncoding(), ledgerId,
-                                    ledgerType, null).whenComplete((res, ex) -> {
-                                        if (ex != null) {
-                                            if (ex instanceof PendingDeleteLedgerInvalidException) {
-                                                if (log.isDebugEnabled()) {
-                                                    log.debug("[{}][{}] Received invalid pending delete ledger {},"
-                                                                    + " invalid reason: {}", clientAppId(), topicName,
-                                                            ledgerId, ex.getMessage());
-                                                }
-                                                future.complete(null);
-                                                return;
-                                            }
-                                            future.completeExceptionally(ex);
-                                            return;
-                                        }
-                                        future.complete(null);
-                                    });
-                        } else if (LedgerType.OFFLOAD_LEDGER == ledgerType) {
+                        MLDataFormats.OffloadContext offloadContext = null;
+                        if (LedgerType.OFFLOAD_LEDGER == ledgerType) {
                             long lsb = context.getLsb();
                             long msb = context.getMsb();
                             String driverName = context.getDriverName();
@@ -1104,23 +1087,25 @@ public class PersistentTopicsBase extends AdminResource {
                                 builder.getDriverMetadataBuilder().addProperties(
                                         MLDataFormats.KeyValue.newBuilder().setKey(k).setValue(v).build());
                             });
-                            MLDataFormats.OffloadContext offloadContext = builder.build();
-                            managedLedger.asyncDeleteLedger(topicName.getPersistenceNamingEncoding(), ledgerId,
-                                            ledgerType, offloadContext).whenComplete((res, ex) -> {
-                                        if (ex != null) {
-                                            future.completeExceptionally(ex);
+                            offloadContext = builder.build();
+                        }
+                        managedLedger.asyncDeleteLedger(topicName.getPersistenceNamingEncoding(), ledgerId,
+                                ledgerType, offloadContext).whenComplete((res, ex) -> {
+                                    if (ex != null) {
+                                        if (ex instanceof PendingDeleteLedgerInvalidException) {
+                                            if (log.isDebugEnabled()) {
+                                                log.debug("[{}][{}] Received invalid pending delete ledger {},"
+                                                                + " invalid reason: {}", clientAppId(), topicName,
+                                                        ledgerId, ex.getMessage());
+                                            }
+                                            future.complete(null);
                                             return;
                                         }
-                                        future.complete(null);
-                                    });
-                        } else {
-                            if (log.isDebugEnabled()) {
-                                log.debug("[{}][{}] Received invalid pending delete ledger {},"
-                                                + " invalid reason: {}", clientAppId(), topicName,
-                                        ledgerId, "Unknown ledger type");
-                            }
-                            future.complete(null);
-                        }
+                                        future.completeExceptionally(ex);
+                                        return;
+                                    }
+                                    future.complete(null);
+                                });
                         return future;
                     }).thenRun(() -> {
                         asyncResponse.resume(asyncResponse.resume(Response.ok().build()));

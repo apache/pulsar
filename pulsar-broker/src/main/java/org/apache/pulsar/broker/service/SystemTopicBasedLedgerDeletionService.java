@@ -257,6 +257,7 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
 
     @Override
     public CompletableFuture<?> asyncClose() {
+        statsProvider.stop();
         if (readerFuture != null && !readerFuture.isCompletedExceptionally()) {
             return readerFuture.thenCompose(SystemTopicClient.Reader::closeAsync);
         }
@@ -298,8 +299,6 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
                     }
                     reader.ackMessageAsync(message);
                     future.complete(null);
-                } else if (ex instanceof PulsarAdminException.ServerSideErrorException) {
-
                 } else {
                     reader.reconsumeLaterAsync(message);
                     future.completeExceptionally(ex);
@@ -335,15 +334,16 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
                     future.complete(null);
                 });
             } else if (LedgerComponent.MANAGED_CURSOR == pendingDeleteLedger.getLedgerComponent()) {
+                // TODO: 2022/9/6 The managed_cursor delete operation will implement in the future.
                 future.complete(null);
             } else if (LedgerComponent.SCHEMA_STORAGE == pendingDeleteLedger.getLedgerComponent()) {
+                // TODO: 2022/9/6 The schema_storage delete operation will implement in the future.
                 future.complete(null);
             } else {
                 future.completeExceptionally(new PendingDeleteLedgerInvalidException("Unknown ledger component"));
             }
         } catch (PendingDeleteLedgerInvalidException ex) {
             future.completeExceptionally(ex);
-            return future;
         }
         return future;
     }

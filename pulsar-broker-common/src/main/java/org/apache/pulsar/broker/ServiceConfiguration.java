@@ -245,7 +245,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(category = CATEGORY_SERVER,
             doc = "Enable or disable the proxy protocol.")
-    private boolean haProxyProtocolEnabled;
+    private boolean haProxyProtocolEnabled = false;
 
     @FieldContext(
             category = CATEGORY_SERVER,
@@ -2672,7 +2672,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Using two phase deletion when delete ledger. if true, "
                     + "LedgerDeletionService will take over ledger deletion. (Default false)"
     )
-    private boolean topicTwoPhaseDeletionEnabled;
+    private boolean topicTwoPhaseDeletionEnabled = false;
 
     @FieldContext(
             category = CATEGORY_SERVER,
