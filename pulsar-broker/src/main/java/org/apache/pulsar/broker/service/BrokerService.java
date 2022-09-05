@@ -953,13 +953,18 @@ public class BrokerService implements Closeable {
 
     public CompletableFuture<Optional<Topic>> getTopic(final String topic, boolean createIfMissing,
                                                        Map<String, String> properties) {
+        return getTopic(TopicName.get(topic), createIfMissing, properties);
+    }
+
+    public CompletableFuture<Optional<Topic>> getTopic(final TopicName topicName, boolean createIfMissing,
+                                                       Map<String, String> properties) {
         try {
-            CompletableFuture<Optional<Topic>> topicFuture = topics.get(topic);
+            CompletableFuture<Optional<Topic>> topicFuture = topics.get(topicName.toString());
             if (topicFuture != null) {
                 if (topicFuture.isCompletedExceptionally()
                         || (topicFuture.isDone() && !topicFuture.getNow(Optional.empty()).isPresent())) {
                     // Exceptional topics should be recreated.
-                    topics.remove(topic, topicFuture);
+                    topics.remove(topicName.toString(), topicFuture);
                 } else {
                     // a non-existing topic in the cache shouldn't prevent creating a topic
                     if (createIfMissing) {
@@ -969,7 +974,7 @@ public class BrokerService implements Closeable {
                             return topicFuture.thenCompose(value -> {
                                 if (!value.isPresent()) {
                                     // retry and create topic
-                                    return getTopic(topic, createIfMissing, properties);
+                                    return getTopic(topicName, createIfMissing, properties);
                                 } else {
                                     // in-progress future completed successfully
                                     return CompletableFuture.completedFuture(value);
@@ -981,14 +986,13 @@ public class BrokerService implements Closeable {
                     }
                 }
             }
-            final boolean isPersistentTopic = TopicName.get(topic).getDomain().equals(TopicDomain.persistent);
+            final boolean isPersistentTopic = topicName.getDomain().equals(TopicDomain.persistent);
             if (isPersistentTopic) {
-                return topics.computeIfAbsent(topic, (topicName) -> {
-                    return this.loadOrCreatePersistentTopic(topicName, createIfMissing, properties);
+                return topics.computeIfAbsent(topicName.toString(), (k) -> {
+                    return this.loadOrCreatePersistentTopic(k, createIfMissing, properties);
                 });
             } else {
-                return topics.computeIfAbsent(topic, (name) -> {
-                    final TopicName topicName = TopicName.get(name);
+                return topics.computeIfAbsent(topicName.toString(), (name) -> {
                     if (topicName.isPartitioned()) {
                         final TopicName partitionedTopicName = TopicName.get(topicName.getPartitionedTopicName());
                         return this.fetchPartitionedTopicMetadataAsync(partitionedTopicName).thenCompose((metadata) -> {
@@ -1005,14 +1009,14 @@ public class BrokerService implements Closeable {
                 });
             }
         } catch (IllegalArgumentException e) {
-            log.warn("[{}] Illegalargument exception when loading topic", topic, e);
+            log.warn("[{}] Illegalargument exception when loading topic", topicName, e);
             return FutureUtil.failedFuture(e);
         } catch (RuntimeException e) {
             Throwable cause = e.getCause();
             if (cause instanceof ServiceUnitNotReadyException) {
-                log.warn("[{}] Service unit is not ready when loading the topic", topic);
+                log.warn("[{}] Service unit is not ready when loading the topic", topicName);
             } else {
-                log.warn("[{}] Unexpected exception when loading topic: {}", topic, e.getMessage(), e);
+                log.warn("[{}] Unexpected exception when loading topic: {}", topicName, e.getMessage(), e);
             }
 
             return FutureUtil.failedFuture(cause);
