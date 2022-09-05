@@ -23,7 +23,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
+import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -31,10 +31,8 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-
+import java.util.concurrent.atomic.LongAdder;
 import org.testng.annotations.Test;
-
-import com.google.common.collect.Lists;
 
 public class GrowableArrayBlockingQueueTest {
 
@@ -279,5 +277,74 @@ public class GrowableArrayBlockingQueueTest {
         assertTrue(queue.remove(7));
         assertEquals(queue.size(), 1);
         assertEquals(queue.toString(), "[3]");
+    }
+
+    @Test
+    public void testConcurrencyDrainTo() throws InterruptedException {
+        BlockingQueue<Integer> queue = new GrowableArrayBlockingQueue<>(4);
+
+        LongAdder counter = new LongAdder();
+
+        queue.offer(10);
+        assertEquals(queue.size(), 1);
+
+        Thread thread1 = new Thread(() -> {
+            try {
+                Thread.sleep(1);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+            Integer poll = queue.poll();
+            if (poll != null) {
+                counter.increment();
+            }
+        });
+
+        Thread thread2 = new Thread(() -> {
+            ArrayList<Object> objects = new ArrayList<>(1);
+            queue.drainTo(objects);
+            if (!objects.isEmpty()) {
+                counter.increment();
+            }
+        });
+
+        thread1.start();
+        thread2.start();
+
+        thread1.join();
+        thread2.join();
+        assertEquals(counter.intValue(), 1);
+        assertEquals(queue.size(), 0);
+    }
+
+    @Test
+    public void testConcurrencyClear() throws InterruptedException {
+        BlockingQueue<Integer> queue = new GrowableArrayBlockingQueue<>(4);
+
+        LongAdder counter = new LongAdder();
+
+        queue.offer(10);
+        assertEquals(queue.size(), 1);
+
+        Thread thread1 = new Thread(() -> {
+            try {
+                Thread.sleep(1);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+            Integer poll = queue.poll();
+            if (poll != null) {
+                counter.increment();
+            }
+        });
+
+        Thread thread2 = new Thread(queue::clear);
+
+        thread1.start();
+        thread2.start();
+
+        thread1.join();
+        thread2.join();
+        assertEquals(queue.size(), 0);
     }
 }

@@ -229,6 +229,7 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
 
     @Override
     public int drainTo(Collection<? super T> c, int maxElements) {
+        long stamp = tailLock.writeLock();
         headLock.lock();
 
         try {
@@ -253,11 +254,13 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
             return drainedItems;
         } finally {
             headLock.unlock();
+            tailLock.unlockWrite(stamp);
         }
     }
 
     @Override
     public void clear() {
+        long stamp = tailLock.writeLock();
         headLock.lock();
 
         try {
@@ -274,6 +277,7 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
             }
         } finally {
             headLock.unlock();
+            tailLock.unlockWrite(stamp);
         }
     }
 
