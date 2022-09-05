@@ -854,12 +854,12 @@ reader, err := client.CreateReader(pulsar.ReaderOptions{
 #### How to use reader to read specific message
 
 ```go
-client, err := NewClient(pulsar.ClientOptions{
-	URL: lookupURL,
+client, err := pulsar.NewClient(pulsar.ClientOptions{
+    URL: "pulsar://localhost:6650",
 })
 
 if err != nil {
-	log.Fatal(err)
+    log.Fatal(err)
 }
 defer client.Close()
 
@@ -868,43 +868,43 @@ ctx := context.Background()
 
 // create producer
 producer, err := client.CreateProducer(pulsar.ProducerOptions{
-	Topic:           topic,
-	DisableBatching: true,
+    Topic:           topic,
+    DisableBatching: true,
 })
 if err != nil {
-	log.Fatal(err)
+    log.Fatal(err)
 }
 defer producer.Close()
 
 // send 10 messages
-msgIDs := [10]MessageID{}
+msgIDs := [10]pulsar.MessageID{}
 for i := 0; i < 10; i++ {
-	msgID, err := producer.Send(ctx, &pulsar.ProducerMessage{
-		Payload: []byte(fmt.Sprintf("hello-%d", i)),
-	})
-	assert.NoError(t, err)
-	assert.NotNil(t, msgID)
-	msgIDs[i] = msgID
+    msgID, _ := producer.Send(ctx, &pulsar.ProducerMessage{
+        Payload: []byte(fmt.Sprintf("hello-%d", i)),
+    })
+    msgIDs[i] = msgID
 }
 
 // create reader on 5th message (not included)
 reader, err := client.CreateReader(pulsar.ReaderOptions{
-	Topic:          topic,
-	StartMessageID: msgIDs[4],
+    Topic:                   topic,
+    StartMessageID:          msgIDs[4],
+    StartMessageIDInclusive: false,
 })
 
 if err != nil {
-	log.Fatal(err)
+    log.Fatal(err)
 }
 defer reader.Close()
 
 // receive the remaining 5 messages
 for i := 5; i < 10; i++ {
-	msg, err := reader.Next(context.Background())
-	if err != nil {
-	log.Fatal(err)
+    msg, err := reader.Next(context.Background())
+    if err != nil {
+        log.Fatal(err)
+    }
+    fmt.Printf("Read %d-th msg: %s\n", i, string(msg.Payload()))
 }
-
 // create reader on 5th message (included)
 readerInclusive, err := client.CreateReader(pulsar.ReaderOptions{
 	Topic:                   topic,
