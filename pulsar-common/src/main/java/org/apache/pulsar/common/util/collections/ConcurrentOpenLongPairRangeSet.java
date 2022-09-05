@@ -23,6 +23,7 @@ import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -247,6 +248,9 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
     @Override
     public Map<Long, Integer> cardinality(long lowerKey, long lowerValue, long upperKey, long upperValue) {
         NavigableMap<Long, BitSet> subMap = rangeBitSetMap.subMap(lowerKey, true, upperKey, true);
+        if (subMap.isEmpty()) {
+            return Collections.emptyMap();
+        }
         Map<Long, Integer> v = new HashMap<>();
         subMap.forEach((ledgerId, bitset) -> {
             boolean isLowerOrUpper = false;

@@ -1459,10 +1459,8 @@ public class ManagedCursorImpl implements ManagedCursor {
                 Map<Long, Integer> cardinalityMap = individualDeletedMessages.cardinality(
                         range.lowerEndpoint().ledgerId, range.lowerEndpoint().entryId,
                         range.upperEndpoint().ledgerId, range.upperEndpoint().entryId);
-                deletedEntries.addAndGet(cardinalityMap.values().stream().mapToInt(v -> v).sum());
-                if (cardinalityMap.isEmpty()) {
-                    deletedEntries.addAndGet(ledger.getNumberOfEntries(range));
-                } else {
+                if (!cardinalityMap.isEmpty()) {
+                    deletedEntries.addAndGet(cardinalityMap.values().stream().mapToInt(v -> v).sum());
                     deletedEntries.addAndGet(
                             ledger.ledgers.subMap(range.lowerEndpoint().ledgerId, true,
                                             range.upperEndpoint().ledgerId, true)
