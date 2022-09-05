@@ -591,7 +591,7 @@ func main() {
 #### Receive message with timeout
 
 ```go
-client, err := NewClient(pulsar.ClientOptions{
+client, err := pulsar.NewClient(pulsar.ClientOptions{
 	URL: "pulsar://localhost:6650",
 })
 if err != nil {
