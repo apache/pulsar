@@ -50,12 +50,15 @@ import org.slf4j.LoggerFactory;
  */
 public class ThresholdShedder implements LoadSheddingStrategy {
     private static final Logger log = LoggerFactory.getLogger(ThresholdShedder.class);
-    protected final Multimap<String, String> selectedBundlesCache = ArrayListMultimap.create();
-    public static final double ADDITIONAL_THRESHOLD_PERCENT_MARGIN = 0.05;
-    public static final double MB = 1024 * 1024;
+    private final Multimap<String, String> selectedBundlesCache = ArrayListMultimap.create();
+    private static final double ADDITIONAL_THRESHOLD_PERCENT_MARGIN = 0.05;
+
+    private static final double LOWER_THRESHOLD_MARGIN = 0.5;
+
+    private static final double MB = 1024 * 1024;
 
     private static final long LOAD_LOG_SAMPLE_DELAY_IN_SEC = 5 * 60; // 5 mins
-    protected final Map<String, Double> brokerAvgResourceUsage = new HashMap<>();
+    private final Map<String, Double> brokerAvgResourceUsage = new HashMap<>();
     private long lastSampledLoadLogTS = 0;
 
 
@@ -63,7 +66,7 @@ public class ThresholdShedder implements LoadSheddingStrategy {
         return (int) (usage * 100);
     }
 
-    protected boolean canSampleLog() {
+    private boolean canSampleLog() {
         long now = System.currentTimeMillis() / 1000;
         boolean sampleLog = now - lastSampledLoadLogTS >= LOAD_LOG_SAMPLE_DELAY_IN_SEC;
         if (sampleLog) {
@@ -132,7 +135,9 @@ public class ThresholdShedder implements LoadSheddingStrategy {
                 log.warn("Broker {} is overloaded despite having no bundles", broker);
             }
         });
-
+        if (selectedBundlesCache.isEmpty() && conf.isEnableLowerBoundaryShedding()) {
+            tryLowerBoundaryShedding(loadData, conf);
+        }
         return selectedBundlesCache;
     }
 
@@ -229,6 +234,61 @@ public class ThresholdShedder implements LoadSheddingStrategy {
 
         brokerAvgResourceUsage.put(broker, historyUsage);
         return historyUsage;
+    }
+
+    private void tryLowerBoundaryShedding(LoadData loadData, ServiceConfiguration conf) {
+        // Select the broker with the most resource usage.
+        final double threshold = conf.getLoadBalancerBrokerThresholdShedderPercentage() / 100.0;
+        final double avgUsage = getBrokerAvgUsage(loadData, conf, canSampleLog());
+        Pair<Boolean, String> result = getMaxUsageBroker(loadData, threshold, avgUsage);
+        boolean hasBrokerBelowLowerBound = result.getLeft();
+        String maxUsageBroker = result.getRight();
+        BrokerData brokerData = loadData.getBrokerData().get(maxUsageBroker);
+        if (brokerData == null || brokerData.getLocalData() == null
+                || brokerData.getLocalData().getBundles().size() <= 1) {
+            log.info("Load data is null or bundle <=1, broker name is {}, skipping bundle unload.", maxUsageBroker);
+            return;
+        }
+        if (!hasBrokerBelowLowerBound) {
+            log.info("No broker is below the lower bound, threshold is {}, "
+                            + "avgUsage usage is {}, max usage of Broker {} is {}",
+                    threshold, avgUsage, maxUsageBroker,
+                    brokerAvgResourceUsage.getOrDefault(maxUsageBroker, 0.0));
+            return;
+        }
+        LocalBrokerData localData = brokerData.getLocalData();
+        double brokerCurrentThroughput = localData.getMsgThroughputIn() + localData.getMsgThroughputOut();
+        double minimumThroughputToOffload = brokerCurrentThroughput * threshold * LOWER_THRESHOLD_MARGIN;
+        double minThroughputThreshold = conf.getLoadBalancerBundleUnloadMinThroughputThreshold() * MB;
+        if (minThroughputThreshold > minimumThroughputToOffload) {
+            log.info("broker {} in RangeThresholdShedder is planning to shed throughput {} MByte/s less than "
+                            + "minimumThroughputThreshold {} MByte/s, skipping bundle unload.",
+                    maxUsageBroker, minimumThroughputToOffload / MB, minThroughputThreshold / MB);
+            return;
+        }
+        filterAndSelectBundle(loadData, loadData.getRecentlyUnloadedBundles(), maxUsageBroker, localData,
+                minimumThroughputToOffload);
+    }
+
+    private Pair<Boolean, String> getMaxUsageBroker(
+            LoadData loadData, double threshold, double avgUsage) {
+        String maxUsageBrokerName = "";
+        double maxUsage = -1;
+        boolean hasBrokerBelowLowerBound = false;
+        for (Map.Entry<String, BrokerData> entry : loadData.getBrokerData().entrySet()) {
+            String broker = entry.getKey();
+            double currentUsage = brokerAvgResourceUsage.getOrDefault(broker, 0.0);
+            // Select the broker with the most resource usage.
+            if (currentUsage > maxUsage) {
+                maxUsage = currentUsage;
+                maxUsageBrokerName = broker;
+            }
+            // Whether any brokers with low usage in the cluster.
+            if (currentUsage < avgUsage - threshold) {
+                hasBrokerBelowLowerBound = true;
+            }
+        }
+        return Pair.of(hasBrokerBelowLowerBound, maxUsageBrokerName);
     }
 
 }
