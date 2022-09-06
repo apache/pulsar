@@ -69,7 +69,7 @@ public interface DelayedDeliveryTracker extends AutoCloseable {
     /**
      * Tells whether message index already exist the DelayedDeliveryTracker.
      */
-    boolean existDelayedMessage(long ledgerId, long entryId);
+    boolean containsMessage(long ledgerId, long entryId);
 
     /**
      *  Reset tick time use zk policies cache.
