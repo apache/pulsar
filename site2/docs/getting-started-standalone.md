@@ -87,7 +87,7 @@ These directories are created once you started the Pulsar cluster.
 
 ## Create a topic
 
-Pulsar stores messages in topics. It's good practice to explicitly create them before using them, even if Pulsar can automagically create them when referenced.
+Pulsar stores messages in topics. It's a good practice to explicitly create topics before using them, even if Pulsar can automatically create topics when they are referenced.
 
 Run this command to create a new topic into which we'll write and read some test messages:
 
