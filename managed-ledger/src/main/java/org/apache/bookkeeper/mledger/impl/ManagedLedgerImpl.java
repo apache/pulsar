@@ -220,8 +220,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private long lastOffloadLedgerId = 0;
     private long lastOffloadSuccessTimestamp = 0;
     private long lastOffloadFailureTimestamp = 0;
-    private boolean lastOffloadCompleteFailed = false;
-    private boolean refreshedIfOffloadCompleteFailed = false;
 
     private int minBacklogCursorsForCaching = 0;
     private int minBacklogEntriesForCaching = 1000;
@@ -2359,34 +2357,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
-    // Although we have caught the connection loss exception on the meta store, to avoid other exceptions cause
-    // the mismatch between meta store and in memory, we refresh the ledger info list when the offload execute
-    // failed.
-    private CompletableFuture<Void> refreshLedgersInfo() {
-        CompletableFuture<Void> future = new CompletableFuture<>();
-        store.getManagedLedgerInfo(name, false, new MetaStoreCallback<>() {
-            @Override
-            public void operationComplete(ManagedLedgerInfo mlInfo, Stat stat) {
-                for (LedgerInfo li : mlInfo.getLedgerInfoList()) {
-                    if (li != null) {
-                        long ledgerId = li.getLedgerId();
-                        if (!li.equals(ledgers.get(ledgerId))) {
-                            ledgers.put(ledgerId, li);
-                        }
-                    }
-                }
-                refreshedIfOffloadCompleteFailed = true;
-                future.complete(null);
-            }
-
-            @Override
-            public void operationFailed(MetaStoreException e) {
-                future.completeExceptionally(e);
-            }
-        });
-        return future;
-    }
-
     private void maybeOffload(CompletableFuture<PositionImpl> finalPromise) {
         if (!offloadMutex.tryLock()) {
             scheduledExecutor.schedule(safeRun(() -> maybeOffloadInBackground(finalPromise)),
@@ -2407,50 +2377,41 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     && config.getLedgerOffloader().getOffloadPolicies() != null
                     && config.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes()
                     != null) {
-                ConcurrentLinkedDeque<LedgerInfo> toOffload = new ConcurrentLinkedDeque<>();
-                CompletableFuture<Void> refreshFuture = new CompletableFuture<>();
-                if (lastOffloadCompleteFailed && !refreshedIfOffloadCompleteFailed) {
-                    refreshFuture = refreshLedgersInfo();
-                } else {
-                    refreshFuture.complete(null);
-                }
-                refreshFuture.whenComplete((unused, throwable) -> {
-                    if (throwable != null) {
-                        log.error("Failed to refresh the ledger info list", throwable);
-                        unlockingPromise.completeExceptionally(throwable);
-                    }
-                    long threshold = config.getLedgerOffloader().getOffloadPolicies()
+                long threshold = config.getLedgerOffloader().getOffloadPolicies()
                         .getManagedLedgerOffloadThresholdInBytes();
-                    long sizeSummed = 0;
-                    long alreadyOffloadedSize = 0;
-                    long toOffloadSize = 0;
-                    // go through ledger list from newest to oldest and build a list to offload in oldest to newest order
-                    for (Map.Entry<Long, LedgerInfo> e : ledgers.descendingMap().entrySet()) {
-                        long size = e.getValue().getSize();
-                        sizeSummed += size;
-                        boolean alreadyOffloaded = e.getValue().hasOffloadContext()
-                            && e.getValue().getOffloadContext().getComplete();
-                        if (alreadyOffloaded) {
-                            alreadyOffloadedSize += size;
-                        } else if (sizeSummed > threshold) {
-                            toOffloadSize += size;
-                            toOffload.addFirst(e.getValue());
-                        }
-                    }
 
-                    if (toOffload.size() > 0) {
-                        log.info("[{}] Going to automatically offload ledgers {}"
-                                + ", total size = {}, already offloaded = {}, to offload = {}",
+                long sizeSummed = 0;
+                long alreadyOffloadedSize = 0;
+                long toOffloadSize = 0;
+
+                ConcurrentLinkedDeque<LedgerInfo> toOffload = new ConcurrentLinkedDeque<>();
+
+                // go through ledger list from newest to oldest and build a list to offload in oldest to newest order
+                for (Map.Entry<Long, LedgerInfo> e : ledgers.descendingMap().entrySet()) {
+                    long size = e.getValue().getSize();
+                    sizeSummed += size;
+                    boolean alreadyOffloaded = e.getValue().hasOffloadContext()
+                            && e.getValue().getOffloadContext().getComplete();
+                    if (alreadyOffloaded) {
+                        alreadyOffloadedSize += size;
+                    } else if (sizeSummed > threshold) {
+                        toOffloadSize += size;
+                        toOffload.addFirst(e.getValue());
+                    }
+                }
+
+                if (toOffload.size() > 0) {
+                    log.info("[{}] Going to automatically offload ledgers {}"
+                                    + ", total size = {}, already offloaded = {}, to offload = {}",
                             name, toOffload.stream().map(LedgerInfo::getLedgerId).collect(Collectors.toList()),
                             sizeSummed, alreadyOffloadedSize, toOffloadSize);
-                        offloadLoop(unlockingPromise, toOffload, PositionImpl.LATEST, Optional.empty());
-                    } else {
-                        // offloadLoop will complete immediately with an empty list to offload
-                        log.debug("[{}] Nothing to offload, total size = {}, already offloaded = {}, threshold = {}",
+                    offloadLoop(unlockingPromise, toOffload, PositionImpl.LATEST, Optional.empty());
+                } else {
+                    // offloadLoop will complete immediately with an empty list to offload
+                    log.debug("[{}] Nothing to offload, total size = {}, already offloaded = {}, threshold = {}",
                             name, sizeSummed, alreadyOffloadedSize, threshold);
-                        unlockingPromise.complete(PositionImpl.LATEST);
-                    }
-                });
+                    unlockingPromise.complete(PositionImpl.LATEST);
+                }
             }
         }
     }
@@ -2944,6 +2905,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return;
         }
 
+        PositionImpl firstUnoffloaded;
+
         Queue<LedgerInfo> ledgersToOffload = new ConcurrentLinkedQueue<>();
         synchronized (this) {
             log.info("[{}] Start ledgersOffload. ledgers={} totalSize={}", name, ledgers.keySet(),
@@ -2963,9 +2926,37 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         "Can't offload managed ledger (" + name + ") with no ledgers"), ctx);
                 return;
             }
+
+            long current = ledgers.lastKey();
+
+            // the first ledger which will not be offloaded. Defaults to current,
+            // in the case that the whole headmap is offloaded. Otherwise it will
+            // be set as we iterate through the headmap values
+            long firstLedgerRetained = current;
+            for (LedgerInfo ls : ledgers.headMap(current).values()) {
+                if (requestOffloadTo.getLedgerId() > ls.getLedgerId()) {
+                    // don't offload if ledger has already been offloaded, or is empty
+                    if (!ls.getOffloadContext().getComplete() && ls.getSize() > 0) {
+                        ledgersToOffload.add(ls);
+                    }
+                } else {
+                    firstLedgerRetained = ls.getLedgerId();
+                    break;
+                }
+            }
+            firstUnoffloaded = PositionImpl.get(firstLedgerRetained, 0);
+        }
+
+        if (ledgersToOffload.isEmpty()) {
+            log.info("[{}] No ledgers to offload", name);
+            callback.offloadComplete(firstUnoffloaded, ctx);
+            return;
         }
 
         if (offloadMutex.tryLock()) {
+            log.info("[{}] Going to offload ledgers {}", name,
+                    ledgersToOffload.stream().map(LedgerInfo::getLedgerId).collect(Collectors.toList()));
+
             CompletableFuture<PositionImpl> promise = new CompletableFuture<>();
             promise.whenComplete((result, exception) -> {
                 offloadMutex.unlock();
@@ -2975,50 +2966,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     callback.offloadComplete(result, ctx);
                 }
             });
-
-            CompletableFuture<Void> refreshFuture = new CompletableFuture<>();
-            if (lastOffloadCompleteFailed && !refreshedIfOffloadCompleteFailed) {
-                refreshFuture = refreshLedgersInfo();
-            } else {
-                refreshFuture.complete(null);
-            }
-            refreshFuture.whenComplete((unused, throwable) -> {
-                if (throwable != null) {
-                    log.error("Failed to refresh the ledger info list", throwable);
-                    promise.completeExceptionally(throwable);
-                    return;
-                }
-                PositionImpl firstUnoffloaded;
-                long current = ledgers.lastKey();
-
-                // the first ledger which will not be offloaded. Defaults to current,
-                // in the case that the whole headmap is offloaded. Otherwise it will
-                // be set as we iterate through the headmap values
-                long firstLedgerRetained = current;
-                for (LedgerInfo ls : ledgers.headMap(current).values()) {
-                    if (requestOffloadTo.getLedgerId() > ls.getLedgerId()) {
-                        // don't offload if ledger has already been offloaded, or is empty
-                        if (!ls.getOffloadContext().getComplete() && ls.getSize() > 0) {
-                            ledgersToOffload.add(ls);
-                        }
-                    } else {
-                        firstLedgerRetained = ls.getLedgerId();
-                        break;
-                    }
-                }
-                firstUnoffloaded = PositionImpl.get(firstLedgerRetained, 0);
-
-                if (ledgersToOffload.isEmpty()) {
-                    log.info("[{}] No ledgers to offload", name);
-                    callback.offloadComplete(firstUnoffloaded, ctx);
-                    return;
-                }
-
-                log.info("[{}] Going to offload ledgers {}", name,
-                    ledgersToOffload.stream().map(LedgerInfo::getLedgerId).collect(Collectors.toList()));
-
-                offloadLoop(promise, ledgersToOffload, firstUnoffloaded, Optional.empty());
-            });
+            offloadLoop(promise, ledgersToOffload, firstUnoffloaded, Optional.empty());
         } else {
             callback.offloadFailed(
                     new ManagedLedgerException.OffloadInProgressException("Offload operation already running"), ctx);
@@ -3088,9 +3036,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                         newFirstUnoffloaded,
                                         errorToReport);
                         } else {
-                            if (firstError.isEmpty()) {
-                                lastOffloadCompleteFailed = false;
-                            }
                             lastOffloadSuccessTimestamp = System.currentTimeMillis();
                             log.info("[{}] offload for ledgerId {} timestamp {} succeed", name, ledgerId,
                                     lastOffloadSuccessTimestamp);
@@ -3247,8 +3192,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     if (exception == null) {
                         log.info("[{}] End Offload. ledger={}, uuid={}", name, ledgerId, uuid);
                     } else {
-                        lastOffloadCompleteFailed = true;
-                        refreshedIfOffloadCompleteFailed = false;
                         log.warn("[{}] Failed to complete offload of ledger {}, uuid {}",
                                  name, ledgerId, uuid, exception);
                     }
