@@ -1216,6 +1216,52 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         Assert.assertEquals(admin.schemas().getSchemaInfo(topic2).getType(), SchemaType.STRING);
     }
 
+    @Test(dataProvider = "topicDomain")
+    public void testSubscribeWithSchemaAfterAutoConsumeNewTopic(String domain) throws Exception {
+        final String topic = domain + "my-property/my-ns/testSubscribeWithSchemaAfterAutoConsume-1";
+
+        Consumer autoConsumer1 = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName("sub0")
+                .consumerName("autoConsumer1")
+                .subscribe();
+
+        Consumer autoConsumer2 = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName("sub0")
+                .consumerName("autoConsumer2")
+                .subscribe();
+        try {
+            log.info("The autoConsumer1 isConnected: " + autoConsumer1.isConnected());
+            log.info("The autoConsumer2 isConnected: " + autoConsumer2.isConnected());
+            admin.schemas().getSchemaInfo(topic);
+            fail("The schema of topic should not exist");
+        } catch (PulsarAdminException e) {
+            assertEquals(e.getStatusCode(), 404);
+        }
+
+        Consumer<V1Data> consumerWithSchema = pulsarClient.newConsumer(Schema.AVRO(V1Data.class))
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName("sub0")
+                .consumerName("consumerWithSchema")
+                .subscribe();
+        try {
+            log.info(admin.schemas().getSchemaInfo(topic).toString());
+            log.info("The autoConsumer1 isConnected: " + autoConsumer1.isConnected());
+            log.info("The autoConsumer2 isConnected: " + autoConsumer2.isConnected());
+            log.info("The consumerWithSchema isConnected: " + consumerWithSchema.isConnected());
+        } catch (PulsarAdminException e) {
+            assertEquals(e.getStatusCode(), 404);
+        }
+
+        autoConsumer1.close();
+        autoConsumer2.close();
+        consumerWithSchema.close();
+    }
+
     @DataProvider(name = "keyEncodingType")
     public static Object[] keyEncodingType() {
         return new Object[] { KeyValueEncodingType.SEPARATED, KeyValueEncodingType.INLINE };
