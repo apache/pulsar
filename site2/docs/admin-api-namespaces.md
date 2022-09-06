@@ -262,9 +262,9 @@ admin.namespaces().getNamespaceReplicationClusters(namespace)
 
 Backlog quota helps the broker to restrict bandwidth/storage of a namespace once it reaches a certain threshold limit. Admin can set the limit and take the corresponding action after the limit is reached.
 
-  1.  producer_request_hold: broker holds but does not persist produce request payload
+  1.  producer_request_hold: the producer holds the message and retries until client configuration `sendTimeoutMs` is exceeded
 
-  2.  producer_exception: broker disconnects with the client by giving an exception
+  2.  producer_exception: the producer throws an exception when trying to send a message
 
   3.  consumer_backlog_eviction: broker starts discarding backlog messages
 
