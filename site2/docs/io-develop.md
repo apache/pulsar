@@ -35,7 +35,6 @@ interface, which means you need to implement the {@inject: github:open:/pulsar-i
 1. Implement the {@inject: github:open:/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java} method. 
 
    ```java
-   
    /**
    * Open connector with configuration
    *
@@ -44,22 +43,19 @@ interface, which means you need to implement the {@inject: github:open:/pulsar-i
    * @throws Exception IO type exceptions when opening a connector
    */
    void open(final Map<String, Object> config, SourceContext sourceContext) throws Exception;
-   
    ```
 
    This method is called when the source connector is initialized. 
 
-   In this method, you can retrieve all connector specific settings through the passed-in `config` parameter and initialize all necessary resources. 
+   In this method, you can retrieve all connector-specific settings through the passed-in `config` parameter and initialize all necessary resources. 
    
    For example, a Kafka connector can create a Kafka client in this `open` method.
 
-   Besides, Pulsar runtime also provides a `SourceContext` for the 
-   connector to access runtime resources for tasks like collecting metrics. The implementation can save the `SourceContext` for future use.
+   Besides, Pulsar runtime also provides a `SourceContext` for the connector to access runtime resources for tasks like collecting metrics. The implementation can save the `SourceContext` for future use.
 
 2. Implement the {@inject: github:read:/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java} method.
 
    ```java
-   
        /**
        * Reads the next message from source.
        * If source does not have any new messages, this call should block.
@@ -67,12 +63,11 @@ interface, which means you need to implement the {@inject: github:open:/pulsar-i
        * @throws Exception
        */
        Record<T> read() throws Exception;
-   
    ```
 
    If there is nothing to return, the implementation should be blocking rather than returning `null`.
 
-   The returned {@inject: github:Record:/pulsar-functions/api-java/src/main/java/org/apache/pulsar/functions/api/Record.java} should encapsulate the following information, which is needed by Pulsar IO runtime. 
+   The returned {@inject: github:Record:/pulsar-functions/api-java/src/main/java/org/apache/pulsar/functions/api/Record.java} should encapsulate the following information, which is needed by the Pulsar IO runtime. 
 
    * {@inject: github:Record:/pulsar-functions/api-java/src/main/java/org/apache/pulsar/functions/api/Record.java} should provide the following variables:
 
@@ -100,18 +95,16 @@ interface, which means you need to implement the {@inject: github:open:/pulsar-i
 Pulsar IO automatically handles the schema and provides a strongly typed API based on Java generics.
 If you know the schema type that you are producing, you can declare the Java class relative to that type in your source declaration.
 
-```
-
+```java
 public class MySource implements Source<String> {
     public Record<String> read() {}
 }
 
 ```
 
-If you want to implement a source that works with any schema, you can go with `byte[]` (of `ByteBuffer`) and use Schema.AUTO_PRODUCE_BYTES().
+If you want to implement a source that works with any schema, you can go with `byte[]` (of `ByteBuffer`) and use `Schema.AUTO_PRODUCE_BYTES()`.
 
-```
-
+```java
 public class MySource implements Source<byte[]> {
     public Record<byte[]> read() {
         
@@ -128,7 +121,6 @@ public class MySource implements Source<byte[]> {
          }
     }
 }
-
 ```
 
 To handle the `KeyValue` type properly, follow the guidelines for your record implementation:
@@ -153,7 +145,6 @@ Developing a sink connector **is similar to** developing a source connector, tha
 1. Implement the {@inject: github:open:/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java} method.
 
    ```java
-   
        /**
        * Open connector with configuration
        *
@@ -162,20 +153,17 @@ Developing a sink connector **is similar to** developing a source connector, tha
        * @throws Exception IO type exceptions when opening a connector
        */
        void open(final Map<String, Object> config, SinkContext sinkContext) throws Exception;
-   
    ```
 
 2. Implement the {@inject: github:write:/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java} method.
 
    ```java
-   
        /**
        * Write a message to Sink
        * @param record record to write to sink
        * @throws Exception
        */
        void write(Record<T> record) throws Exception;
-   
    ```
 
    During the implementation, you can decide how to write the `Value` and
@@ -189,18 +177,15 @@ Developing a sink connector **is similar to** developing a source connector, tha
 Pulsar IO automatically handles the Schema and provides a strongly typed API based on Java generics.
 If you know the Schema type that you are consuming from you can declare the Java class relative to that type in your Sink declaration.
 
-```
-
+```java
 public class MySink implements Sink<String> {
     public void write(Record<String> record) {}
 }
-
 ```
 
 If you want to implement a sink that works with any schema, you can you go with the special GenericObject interface.
 
-```
-
+```java
 public class MySink implements Sink<GenericObject> {
     public void write(Record<GenericObject> record) {
         Schema schema = record.getSchema();
@@ -213,17 +198,15 @@ public class MySink implements Sink<GenericObject> {
         ....
     }
 }
-
 ```
 
 In the case of AVRO, JSON, and Protobuf records (schemaType=AVRO,JSON,PROTOBUF_NATIVE), you can cast the
 `genericObject` variable to `GenericRecord` and use `getFields()` and `getField()` API.
-You are able to access the native AVRO record using  `genericObject.getNativeObject()`.
+You can access the native AVRO record using `genericObject.getNativeObject()`.
 
 In the case of KeyValue type, you can access both the schema for the key and the schema for the value using this code.
 
-```
-
+```java
 public class MySink implements Sink<GenericObject> {
     public void write(Record<GenericObject> record) {
         Schema schema = record.getSchema();
@@ -239,10 +222,9 @@ public class MySink implements Sink<GenericObject> {
             Schema keySchema = keyValueSchema.getKeySchema();
             Schema valueSchema = keyValueSchema.getValueSchema();
         }
-        ....
+        ...
     }
 }
-
 ```
 
 ## Test
@@ -250,8 +232,7 @@ public class MySink implements Sink<GenericObject> {
 Testing connectors can be challenging because Pulsar IO connectors interact with two systems
 that may be difficult to mock—Pulsar and the system to which the connector is connecting. 
 
-It is
-recommended writing special tests to test the connector functionalities as below
+It is recommended to write special tests to test the connector functionalities as below
 while mocking the external service. 
 
 ### Unit test
@@ -287,7 +268,6 @@ all libraries your code uses and to your distribution.
 
 :::
 
->
 > If you use the [NAR](#nar) method, the NAR plugin 
 automatically creates a `DEPENDENCIES` file in the generated NAR package, including the proper
 licensing and copyrights of all libraries of your connector.
@@ -312,7 +292,6 @@ The easiest approach to package a Pulsar connector is to create a NAR package us
 Include this [nifi-nar-maven-plugin](https://mvnrepository.com/artifact/org.apache.nifi/nifi-nar-maven-plugin) in your maven project for your connector as below. 
 
 ```xml
-
 <plugins>
   <plugin>
     <groupId>org.apache.nifi</groupId>
@@ -320,25 +299,22 @@ Include this [nifi-nar-maven-plugin](https://mvnrepository.com/artifact/org.apac
     <version>1.2.0</version>
   </plugin>
 </plugins>
-
 ```
 
 You must also create a `resources/META-INF/services/pulsar-io.yaml` file with the following contents:
 
 ```yaml
-
 name: connector name
 description: connector description
 sourceClass: fully qualified class name (only if source connector)
 sinkClass: fully qualified class name (only if sink connector)
-
 ```
 
 For Gradle users, there is a [Gradle Nar plugin available on the Gradle Plugin Portal](https://plugins.gradle.org/plugin/io.github.lhotari.gradle-nar-plugin).
 
 :::tip
 
-For more information about an **how to use NAR for Pulsar connectors**, see {@inject: github:TwitterFirehose:/pulsar-io/twitter/pom.xml}.
+For more information about **how to use NAR for Pulsar connectors**, see {@inject: github:TwitterFirehose:/pulsar-io/twitter/pom.xml}.
 
 :::
 
@@ -350,7 +326,6 @@ and other resource files. No directory internal structure is necessary.
 You can use [maven-shade-plugin](https://maven.apache.org/plugins/maven-shade-plugin/examples/includes-excludes.html) to create a uber JAR as below:
 
 ```xml
-
 <plugin>
   <groupId>org.apache.maven.plugins</groupId>
   <artifactId>maven-shade-plugin</artifactId>
@@ -371,7 +346,6 @@ You can use [maven-shade-plugin](https://maven.apache.org/plugins/maven-shade-pl
     </execution>
   </executions>
 </plugin>
-
 ```
 
 ## Monitor
@@ -394,8 +368,7 @@ Here is an example of how to customize metrics for a Java connector.
   values={[{"label":"Java","value":"Java"}]}>
 <TabItem value="Java">
 
-```
-
+```java
 public class TestMetricSink implements Sink<String> {
 
         @Override
@@ -413,7 +386,6 @@ public class TestMetricSink implements Sink<String> {
 
         }
     }
-
 ```
 
 </TabItem>

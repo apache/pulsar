@@ -134,7 +134,7 @@ await producer.close();
 
 > #### Promise operation
 > When you create a new Pulsar producer, the operation returns `Promise` object and get producer instance or an error through executor function.  
-> In this example, using await operator instead of executor function.
+> In this example, use await operator instead of executor function.
 
 ### Producer operations
 
@@ -225,7 +225,7 @@ await consumer.close();
 
 > #### Promise operation
 > When you create a new Pulsar consumer, the operation returns `Promise` object and get consumer instance or an error through executor function.  
-> In this example, using await operator instead of executor function.
+> In this example, use await operator instead of executor function.
 
 ### Consumer operations
 
@@ -430,9 +430,9 @@ The following keys are available for producer message objects:
 
 ### Message object operations
 
-In Pulsar Node.js client, you can receive (or read) message object as consumer (or reader).
+In Pulsar Node.js client, you can receive (or read) message objects as consumers (or readers).
 
-The message object have the following methods available:
+The message object has the following methods available:
 
 | Method | Description | Return type |
 | :----- | :---------- | :---------- |
@@ -447,16 +447,16 @@ The message object have the following methods available:
 
 ### Message ID object operations
 
-In Pulsar Node.js client, you can get message id object from message object.
+In Pulsar Node.js client, you can get message id objects from message objects.
 
-The message id object have the following methods available:
+The message id object has the following methods available:
 
 | Method | Description | Return type |
 | :----- | :---------- | :---------- |
 | `serialize()` | Serialize the message id into a Buffer for storing. | `Buffer` |
 | `toString()` | Get message id as String. | `String` |
 
-The client has static method of message id object. You can access it as `Pulsar.MessageId.someStaticMethod` too.
+The client has a static method of message id object. You can access it as `Pulsar.MessageId.someStaticMethod` too.
 
 The following static methods are available for the message id object:
 

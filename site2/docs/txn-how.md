@@ -38,7 +38,7 @@ Transaction ID (TxnID) identifies a unique transaction in Pulsar. The transactio
 
 Pending acknowledge state maintains message acknowledgments within a transaction before a transaction completes. If a message is in the pending acknowledge state, the message cannot be acknowledged by other transactions until the message is removed from the pending acknowledge state.
 
-The pending acknowledge state is persisted to the pending acknowledge log (cursor ledger). A new broker can restore the state from the pending acknowledge log to ensure the acknowledgement is not lost.    
+The pending acknowledge state is persisted in the pending acknowledge log (cursor ledger). A new broker can restore the state from the pending acknowledge log to ensure the acknowledgment is not lost.    
 
 ## Data flow
 
@@ -71,7 +71,7 @@ Let’s walk through the steps for _beginning a transaction_.
 
 ### 2. Publish messages with a transaction
 
-In this stage, the Pulsar client enters a transaction loop, repeating the `consume-process-produce` operation for all the messages that comprise the transaction. This is a long phase and is potentially composed of multiple produce and acknowledgement requests. 
+In this stage, the Pulsar client enters a transaction loop, repeating the `consume-process-produce` operation for all the messages that comprise the transaction. This is a long phase and is potentially composed of multiple produce and acknowledgment requests. 
 
 ![](/assets/txn-4.png)
 
@@ -101,11 +101,11 @@ Let’s walk through the steps for _acknowledging messages with a transaction_.
 | 3.1.3 |  The transaction log sends the result of logging the new partition (used for acknowledging messages) to the transaction coordinator.  | 
 | 3.1.4 |  The transaction coordinator sends the result of adding the new acknowledged partition to the transaction.  | 
 | 3.2 |  The Pulsar client acknowledges messages on the subscription. The flow of this part is the same as the normal flow of acknowledging messages except that the acknowledged request carries a transaction ID.  | 
-| 3.3 |  The broker receiving the acknowledgement request checks if the acknowledgment belongs to a transaction or not. | 
+| 3.3 |  The broker receiving the acknowledgment request checks if the acknowledgment belongs to a transaction or not. | 
 
 ### 4. End a transaction
 
-At the end of a transaction, the Pulsar client decides to commit or abort the transaction. The transaction can be aborted when a conflict is detected on acknowledging messages. 
+At the end of a transaction, the Pulsar client decides to commit or abort the transaction. The transaction can be aborted when a conflict is detected in acknowledging messages. 
 
 #### 4.1 End transaction request
 
@@ -145,6 +145,6 @@ Let’s walk through the steps for _marking a transaction as COMMITTED or ABORTE
 
 | Step  |  Description  | 
 | --- | --- |
-| 4.3.1 |  After all produced messages and acknowledgements to all partitions involved in this transaction have been successfully committed or aborted, the transaction coordinator writes the final COMMITTED or ABORTED transaction status messages to its transaction log, indicating that the transaction is complete. All the messages associated with the transaction in its transaction log can be safely removed.  | 
+| 4.3.1 |  After all produced messages and acknowledgments to all partitions involved in this transaction have been successfully committed or aborted, the transaction coordinator writes the final COMMITTED or ABORTED transaction status messages to its transaction log, indicating that the transaction is complete. All the messages associated with the transaction in its transaction log can be safely removed.  | 
 | 4.3.2 |  The transaction log sends the result of the committed transaction to the transaction coordinator.  | 
 | 4.3.3 |  The transaction coordinator sends the result of the committed transaction to the Pulsar client.  | 

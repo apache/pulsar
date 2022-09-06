@@ -1520,6 +1520,10 @@ public class PulsarAdminToolTest {
         verify(mockTopics).updateProperties("persistent://myprop/clust/ns1/ds1", props);
 
         cmdTopics = new CmdTopics(() -> admin);
+        cmdTopics.run(split("remove-properties persistent://myprop/clust/ns1/ds1 --key a"));
+        verify(mockTopics).removeProperties("persistent://myprop/clust/ns1/ds1", "a");
+
+        cmdTopics = new CmdTopics(() -> admin);
         cmdTopics.run(split("get-subscription-properties persistent://myprop/clust/ns1/ds1 -s sub1"));
         verify(mockTopics).getSubscriptionProperties("persistent://myprop/clust/ns1/ds1", "sub1");
 
@@ -2331,7 +2335,7 @@ public class PulsarAdminToolTest {
 
     private static String runCustomCommand(String[] args) throws Exception {
         File narFile = new File(PulsarAdminTool.class.getClassLoader()
-                .getResource("cliExtensions/customCommands-nar.nar").getFile());
+                .getResource("cliextensions/customCommands-nar.nar").getFile());
         log.info("NAR FILE is {}", narFile);
 
         PulsarAdminBuilder builder = mock(PulsarAdminBuilder.class);
