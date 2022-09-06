@@ -112,21 +112,7 @@ func main() {
 }
 ```
 
-The following configurable parameters are available for [`ClientOptions`](https://pkg.go.dev/github.com/apache/pulsar-client-go/pulsar#ClientOptions):
-
-| Name                       | Description                                                                                                                                                                                        | Default               |
-|:---------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:----------------------|
-| URL                        | Configure the service URL for the Pulsar service.<br /><br />If you have multiple brokers, you can set multiple Pulsar cluster addresses for a client. <br /><br />This parameter is **required**. | None                  |
-| ConnectionTimeout          | Timeout for the establishment of a TCP connection                                                                                                                                                  | 30s                   |
-| OperationTimeout           | Set the operation timeout. Producer-create, subscribe and unsubscribe operations will be retried until this interval, after which the operation will be marked as failed                           | 30s                   |
-| Authentication             | Configure the authentication provider. Example: `Authentication: NewAuthenticationTLS("my-cert.pem", "my-key.pem")`                                                                                | no authentication     |
-| TLSTrustCertsFilePath      | Set the path to the trusted TLS certificate file                                                                                                                                                   | None                  |
-| TLSAllowInsecureConnection | Configure whether the Pulsar client accept untrusted TLS certificate from broker                                                                                                                   | false                 |
-| TLSValidateHostname        | Configure whether the Pulsar client verify the validity of the host name from broker                                                                                                               | false                 |
-| ListenerName               | Configure the net model for VPC users to connect to the Pulsar broker                                                                                                                              | None                  |
-| MaxConnectionsPerBroker    | Max number of connections to a single broker that is kept in the pool                                                                                                                              | 1                     |
-| CustomMetricsLabels        | Add custom labels to all the metrics reported by this client instance                                                                                                                              | None                  |
-| Logger                     | Configure the logger used by the client                                                                                                                                                            | logrus.StandardLogger |
+All configurable parameters for `ClientOptions` are [here](https://pkg.go.dev/github.com/apache/pulsar-client-go/pulsar#ClientOptions).
 
 ## Producers
 
@@ -155,17 +141,7 @@ fmt.Println("Published message")
 
 ### Producer operations
 
-Pulsar [`Producer`](https://pkg.go.dev/github.com/apache/pulsar-client-go/pulsar#Producer) have the following methods available:
-
-| Method                                                                                   | Description                                                                                                                                                                                                                                                                                          | Return type        |
-|:-----------------------------------------------------------------------------------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:-------------------|
-| `Topic()`                                                                                | Fetches the producer's [topic](reference-terminology.md#topic)                                                                                                                                                                                                                                       | `string`           |
-| `Name()`                                                                                 | Fetches the producer's name                                                                                                                                                                                                                                                                          | `string`           |
-| `Send(context.Context, *ProducerMessage)`                                                | Publishes a [message](#messages) to the producer's topic. This call will block until the message is successfully acknowledged by the Pulsar broker, or an error will be thrown if the timeout set using the `SendTimeout` in the producer's [configuration](#producer-configuration) is exceeded.    | (MessageID, error) |
-| `SendAsync(context.Context, *ProducerMessage, func(MessageID, *ProducerMessage, error))` | Send a message in asynchronous mode. This call may block when the `event channel` becomes full (default: 10) or the `maxPendingMessages` becomes full (default: 1000).                                                                                                                               | None               |
-| `LastSequenceID()`                                                                       | Get the last sequence id that was published by this producer. his represent either the automatically assigned or custom sequence id (set on the ProducerMessage) that was published and acknowledged by the broker.                                                                                  | int64              |
-| `Flush()`                                                                                | Flush all the messages buffered in the client and wait until all messages have been successfully persisted.                                                                                                                                                                                          | error              |
-| `Close()`                                                                                | Closes the producer and releases all resources allocated to it. If `Close()` is called then no more messages will be accepted from the publisher. This method will block until all pending publish requests have been persisted by Pulsar. If an error is thrown, no pending writes will be retried. | None               |
+All available methods of `Producer` interface are [here](https://pkg.go.dev/github.com/apache/pulsar-client-go/pulsar#Producer).
 
 ### Producer Example
 
@@ -407,28 +383,7 @@ Now you can query Pulsar client metrics on Prometheus.
 
 ### Producer configuration
 
-You can configure a producer with [`ProducerOptions`](https://pkg.go.dev/github.com/apache/pulsar-client-go/pulsar#ProducerOptions):
-
-| Name                    | Description                                                                                                                                                              | Default             |
-|:------------------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:--------------------|
-| Topic                   | Topic specify the topic this consumer will subscribe to. This argument is required when constructing the reader.                                                         | None                |
-| Name                    | Name specify a name for the producer. If not assigned, the system will generate a globally unique name which can be access with Producer.ProducerName().                 | None                |
-| Properties              | Properties attach a set of application defined properties to the producer This properties will be visible in the topic stats                                             | None                |
-| SendTimeout             | SendTimeout set the timeout for a message that is not acknowledged by the server                                                                                         | 30s                 |
-| DisableBlockIfQueueFull | DisableBlockIfQueueFull control whether Send and SendAsync block if producer's message queue is full                                                                     | false               |
-| MaxPendingMessages      | MaxPendingMessages set the max size of the queue holding the messages pending to receive an acknowledgment from the broker.                                              | None                |
-| HashingScheme           | HashingScheme change the `HashingScheme` used to chose the partition on where to publish a particular message.                                                           | JavaStringHash      |
-| CompressionType         | CompressionType set the compression type for the producer.                                                                                                               | not compressed      |
-| CompressionLevel        | Define the desired compression level. Options: Default, Faster and Better                                                                                                | Default             |
-| MessageRouter           | MessageRouter set a custom message routing policy by passing an implementation of MessageRouter                                                                          | None                |
-| DisableBatching         | DisableBatching control whether automatic batching of messages is enabled for the producer.                                                                              | false               |
-| BatchingMaxPublishDelay | BatchingMaxPublishDelay set the time period within which the messages sent will be batched                                                                               | 1ms                 |
-| BatchingMaxMessages     | BatchingMaxMessages set the maximum number of messages permitted in a batch.                                                                                             | 1000                |
-| BatchingMaxSize         | BatchingMaxSize sets the maximum number of bytes permitted in a batch.                                                                                                   | 128KB               |
-| Schema                  | Schema set a custom schema type by passing an implementation of `Schema`                                                                                                 | bytes[]             |
-| Interceptors            | A chain of interceptors. These interceptors are called at some points defined in the `ProducerInterceptor` interface.                                                    | None                |
-| MaxReconnectToBroker    | MaxReconnectToBroker set the maximum retry number of reconnectToBroker                                                                                                   | ultimate            |
-| BatcherBuilderType      | BatcherBuilderType sets the batch builder type. This is used to create a batch container when batching is enabled. Options: DefaultBatchBuilder and KeyBasedBatchBuilder | DefaultBatchBuilder |
+All available options of `ProducerOptions` are [here](https://pkg.go.dev/github.com/apache/pulsar-client-go/pulsar#ProducerOptions).
 
 ## Consumers
 
@@ -465,23 +420,7 @@ if err := consumer.Unsubscribe(); err != nil {
 
 ### Consumer operations
 
-Pulsar [`Consumer`](https://pkg.go.dev/github.com/apache/pulsar-client-go/pulsar#Consumer) interface have the following methods available:
-
-| Method                                             | Description                                                                                                                                                                          | Return type              |
-|:---------------------------------------------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:-------------------------|
-| `Subscription()`                                   | Returns the consumer's subscription name                                                                                                                                             | `string`                 |
-| `Unsubcribe()`                                     | Unsubscribes the consumer from the assigned topic. Throws an error if the unsubscribe operation is somehow unsuccessful.                                                             | `error`                  |
-| `Receive(context.Context)`                         | Receives a single message from the topic. This method blocks until a message is available.                                                                                           | `(Message, error)`       |
-| `Chan()`                                           | Chan returns a channel from which to consume messages.                                                                                                                               | `<-chan ConsumerMessage` |
-| `Ack(Message)`                                     | [Acknowledges](reference-terminology.md#acknowledgment-ack) a message to the Pulsar [broker](reference-terminology.md#broker)                                                        | `error`                  |
-| `AckID(MessageID)`                                 | [Acknowledges](reference-terminology.md#acknowledgment-ack) a message to the Pulsar [broker](reference-terminology.md#broker) by message ID                                          | `error`                  |
-| `ReconsumeLater(msg Message, delay time.Duration)` | ReconsumeLater mark a message for redelivery after custom delay.                                                                                                                     | None                     |
-| `Nack(Message)`                                    | Acknowledge the failure to process a single message (not blocking).                                                                                                                  | None                     |
-| `NackID(MessageID)`                                | Acknowledge the failure to process a single message (not blocking).                                                                                                                  | None                     |
-| `Seek(MessageID)`                                  | Reset the subscription associated with this consumer to a specific message id. The message id can either be a specific message or represent the first or last messages in the topic. | `error`                  |
-| `SeekByTime(time.Time)`                            | Reset the subscription associated with this consumer to a specific message publish time.                                                                                             | `error`                  |
-| `Close()`                                          | Closes the consumer, disabling its ability to receive messages from the broker                                                                                                       | None                     |
-| `Name()`                                           | Name returns the name of consumer                                                                                                                                                    | `string`                 |
+All available methods of `Consumer` interface are [here](https://pkg.go.dev/github.com/apache/pulsar-client-go/pulsar#Consumer).
 
 #### Create single-topic consumer
 
@@ -756,30 +695,7 @@ Now you can query Pulsar client metrics on Prometheus.
 
 ### Consumer configuration
 
-You can configure a consumer with [`ConsumerOptions`](https://pkg.go.dev/github.com/apache/pulsar-client-go/pulsar#ConsumerOptions):
-
-| Name                        | Description                                                                                                                                                               | Default   |
-|:----------------------------|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:----------|
-| Topic                       | Topic specify the topic this consumer will subscribe to. This argument is required when constructing the reader.                                                          |           |
-| Topics                      | Specify a list of topics this consumer will subscribe on. Either a topic, a list of topics or a topics pattern are required when subscribing                              |           |
-| TopicsPattern               | Specify a regular expression to subscribe to multiple topics under the same namespace. Either a topic, a list of topics or a topics pattern are required when subscribing |           |
-| AutoDiscoveryPeriod         | Specify the interval in which to poll for new partitions or new topics if using a TopicsPattern.                                                                          |           |
-| SubscriptionName            | Specify the subscription name for this consumer. This argument is required when subscribing                                                                               |           |
-| Name                        | Set the consumer name                                                                                                                                                     |           |
-| Properties                  | Properties attach a set of application defined properties to the producer This properties will be visible in the topic stats                                              |           |
-| Type                        | Select the subscription type to be used when subscribing to the topic.                                                                                                    | Exclusive |
-| SubscriptionInitialPosition | InitialPosition at which the cursor will be set when subscribe                                                                                                            | Latest    |
-| DLQ                         | Configuration for Dead Letter Queue consumer policy.                                                                                                                      | no DLQ    |
-| MessageChannel              | Sets a `MessageChannel` for the consumer. When a message is received, it will be pushed to the channel for consumption                                                    |           |
-| ReceiverQueueSize           | Sets the size of the consumer receive queue.                                                                                                                              | 1000      |
-| NackRedeliveryDelay         | The delay after which to redeliver the messages that failed to be processed                                                                                               | 1min      |
-| ReadCompacted               | If enabled, the consumer will read messages from the compacted topic rather than reading the full message backlog of the topic                                            | false     |
-| ReplicateSubscriptionState  | Mark the subscription as replicated to keep it in sync across clusters                                                                                                    | false     |
-| KeySharedPolicy             | Configuration for Key Shared consumer policy.                                                                                                                             |           |
-| RetryEnable                 | Auto retry send messages to default filled DLQPolicy topics                                                                                                               | false     |
-| Interceptors                | A chain of interceptors. These interceptors are called at some points defined in the `ConsumerInterceptor` interface.                                                     |           |
-| MaxReconnectToBroker        | MaxReconnectToBroker set the maximum retry number of reconnectToBroker.                                                                                                   | ultimate  |
-| Schema                      | Schema set a custom schema type by passing an implementation of `Schema`                                                                                                  | bytes[]   |
+All available options of `ConsumerOptions` are [here](https://pkg.go.dev/github.com/apache/pulsar-client-go/pulsar#ConsumerOptions).
 
 ## Readers
 
@@ -798,16 +714,7 @@ defer reader.Close()
 
 ### Reader operations
 
-Pulsar [`Reader`](https://pkg.go.dev/github.com/apache/pulsar-client-go/pulsar#Reader) interface have the following methods available:
-
-| Method                       | Description                                                                                                                                                        | Return type        |
-|:-----------------------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------|:-------------------|
-| `Topic()`                    | Returns the reader's [topic](reference-terminology.md#topic)                                                                                                       | `string`           |
-| `Next(context.Context)`      | Receives the next message on the topic (analogous to the `Receive` method for [consumers](#consumer-operations)). This method blocks until a message is available. | `(Message, error)` |
-| `HasNext()`                  | Check if there is any message available to read from the current position                                                                                          | (bool, error)      |
-| `Close()`                    | Closes the reader, disabling its ability to receive messages from the broker                                                                                       | `error`            |
-| `Seek(MessageID)`            | Reset the subscription associated with this reader to a specific message ID                                                                                        | `error`            |
-| `SeekByTime(time time.Time)` | Reset the subscription associated with this reader to a specific message publish time                                                                              | `error`            |
+All available method of `Reader` interface are [here](https://pkg.go.dev/github.com/apache/pulsar-client-go/pulsar#Reader).
 
 ### Reader example
 
@@ -933,20 +840,7 @@ defer readerInclusive.Close()
 
 ### Reader configuration
 
-You can configure a reader with [`ReaderOptions`](https://pkg.go.dev/github.com/apache/pulsar-client-go/pulsar#ReaderOptions):
-
-
-| Name                    | Description                                                                                                                                                                                            | Default  |
-|:------------------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:---------|
-| Topic                   | Topic specify the topic this consumer will subscribe to. This argument is required when constructing the reader.                                                                                       |          |
-| Name                    | Name set the reader name.                                                                                                                                                                              |          |
-| Properties              | Attach a set of application defined properties to the reader. This properties will be visible in the topic stats                                                                                       |          |
-| StartMessageID          | StartMessageID initial reader positioning is done by specifying a message id.                                                                                                                          |          |
-| StartMessageIDInclusive | If true, the reader will start at the `StartMessageID`, included. Default is `false` and the reader will start from the "next" message                                                                 | false    |
-| MessageChannel          | MessageChannel sets a `MessageChannel` for the consumer When a message is received, it will be pushed to the channel for consumption                                                                   |          |
-| ReceiverQueueSize       | ReceiverQueueSize sets the size of the consumer receive queue.                                                                                                                                         | 1000     |
-| SubscriptionRolePrefix  | SubscriptionRolePrefix set the subscription role prefix.                                                                                                                                               | "reader" |
-| ReadCompacted           | If enabled, the reader will read messages from the compacted topic rather than reading the full message backlog of the topic.  ReadCompacted can only be enabled when reading from a persistent topic. | false    |
+All available options of `ReaderOptions` are [here](https://pkg.go.dev/github.com/apache/pulsar-client-go/pulsar#ReaderOptions).
 
 ## Messages
 
@@ -968,20 +862,7 @@ if _, err := producer.send(msg); err != nil {
 }
 ```
 
-The following methods parameters are available for [`ProducerMessage`](https://pkg.go.dev/github.com/apache/pulsar-client-go/pulsar#ProducerMessage) objects:
-
-| Parameter             | Description                                                                                                                                                                                     |
-|:----------------------|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `Payload`             | The actual data payload of the message                                                                                                                                                          |
-| `Value`               | Value and payload is mutually exclusive, `Value interface{}` for schema message.                                                                                                                |
-| `Key`                 | The optional key associated with the message (particularly useful for things like topic compaction)                                                                                             |
-| `OrderingKey`         | OrderingKey sets the ordering key of the message.                                                                                                                                               |
-| `Properties`          | A key-value map (both keys and values must be strings) for any application-specific metadata attached to the message                                                                            |
-| `EventTime`           | The timestamp associated with the message                                                                                                                                                       |
-| `ReplicationClusters` | The clusters to which this message will be replicated. Pulsar brokers handle message replication automatically; you should only change this setting if you want to override the broker default. |
-| `SequenceID`          | Set the sequence id to assign to the current message                                                                                                                                            |
-| `DeliverAfter`        | Request to deliver the message only after the specified relative delay                                                                                                                          |
-| `DeliverAt`           | Deliver the message only at or after the specified absolute timestamp                                                                                                                           |
+All methods of `ProducerMessage` object are [here](https://pkg.go.dev/github.com/apache/pulsar-client-go/pulsar#ProducerMessage).
 
 ## TLS encryption and authentication
 
