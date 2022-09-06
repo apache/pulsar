@@ -67,6 +67,13 @@ These directories are created once you started the Pulsar cluster:
 | data      | all data created by BookKeeper and RocksDB |
 | logs      | all server-side logs.                      |
 
+:::tip
+
+* To run the service as a background process, you can use the `bin/pulsar-daemon start standalone` command. For more information, see [pulsar-daemon](reference-cli-tools.md#pulsar-daemon).
+* The `public/default` namespace is created when you start a Pulsar cluster. This namespace is for development purposes. All Pulsar topics are managed within namespaces. For more information, see [Namespaces](concepts-messaging.md#namespaces) and [Topics](concepts-messaging.md#topics).
+
+:::
+
 ## Step 3. Create a topic
 
 Pulsar stores messages in topics. It's a good practice to explicitly create topics before using them, even if Pulsar can automatically create topics when they are referenced.
