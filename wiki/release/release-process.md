@@ -502,30 +502,26 @@ After you run this command, a new folder `version-<release-version>` is added in
   versioned_sidebars/version-<release-version>-sidebars.json 
   ```
 
-:::note
+> **Note**
+> You can move the latest version under the old version in the `versions.json` file. Make sure the Algolia index works before moving 2.X.0 as the current stable.
 
-You can move the latest version under the old version in the `versions.json` file. Make sure the Algolia index works before moving 2.X.0 as the current stable.
-
-:::
-
-4. Update `releases.json` file by adding `<release-version>` to the second of the list(this is to make search could work. After your PR is merged, the Pulsar website is built and tagged for search, you can change it to the first list).
+4. Update the `releases.json` file by adding `<release-version>` to the second of the list (this is to make the search work. After your PR is merged, the Pulsar website is built and tagged for search, you can change it to the first list).
 
 5. Send out a PR request for review.
 
-   After your PR is approved and merged to master, the website is published automatically after new website build. The website is built every 6 hours.
+   After your PR is approved and merged to master, the website is published automatically after the new website is built. The website is built every 6 hours.
 
-6. Check the new website after website build.  
-   Open https://pulsar.apache.org in your browsers to verify all the changes are alive. If the website build succeeds but the website is not updated, you can try to Sync git repository. Navigate to https://selfserve.apache.org/ and click the "Synchronize Git Repositories" and then select apache/pulsar.
+6. Check the new website after the website is built.  
+   Open https://pulsar.apache.org in your browsers to verify all the changes are alive. If the website build succeeds but the website is not updated, you can try to sync the git repository. Navigate to https://selfserve.apache.org/ and click the "Synchronize Git Repositories" and then select apache/pulsar.
 
-7. Publish the release on GitHub, and copy the same release notes: https://github.com/apache/pulsar/releases
+7. Publish the release on GitHub, and copy the same release notes: https://github.com/apache/pulsar/releases.
 
-8. Update the deploy version to the current release version in deployment/terraform-ansible/deploy-pulsar.yaml
+8. Update the deploy version to the current release version in `deployment/terraform-ansible/deploy-pulsar.yaml`.
 
-9. Generate the doc set and sidebar file for the next minor release `2.X.1` based on the `site2/docs` folder. You can follow step 1, 2, 3 and submit those files to apache/pulsar repository. This step is a preparation for `2.X.1` release.
+9. Generate the doc set and sidebar file for the next minor release `2.X.x` based on the `site2/docs` folder. You can follow steps 1, 2, and 3, and submit those files to the `apache/pulsar` repository. This step is a preparation for the `2.X.x` release.
 
-:::note
-
-Starting from 2.8, you don't need to generate the doc set or update the Pulsar site for bug-fix releases, such as 2.8.1, 2.8.2 and so on. The generic doc set 2.8.x is used.
+> **Note**
+> Starting from 2.8, you don't need to generate an independent doc set or update the Pulsar site for bug-fix releases, such as 2.8.1, 2.8.2, and so on. Instead, the generic doc set 2.8.x is used.
 
 :::
 
