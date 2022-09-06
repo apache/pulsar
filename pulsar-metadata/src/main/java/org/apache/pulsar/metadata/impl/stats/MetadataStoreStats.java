@@ -43,7 +43,7 @@ public final class MetadataStoreStats implements AutoCloseable {
             .labelNames(METADATA_STORE_LABEL_NAME, OPS_TYPE_LABEL_NAME, STATUS)
             .register();
     private static final Counter PUT_BYTES = Counter
-            .build(PREFIX + "put_", "-")
+            .build(PREFIX + "put", "-")
             .unit("bytes")
             .labelNames(METADATA_STORE_LABEL_NAME)
             .register();

@@ -1568,7 +1568,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
             Assert.assertTrue(m.tags.get("name").startsWith("metadata-store"));
             Assert.assertNotNull(m.tags.get("status"));
 
-            if (m.tags.get("staus").equals("success")) {
+            if (m.tags.get("status").equals("success")) {
                 if (m.tags.get("type").equals("get")) {
                     Assert.assertTrue(m.value >= 0);
                 } else if (m.tags.get("type").equals("del")) {
