@@ -577,7 +577,7 @@ void MultiTopicsConsumerImpl::negativeAcknowledge(const MessageId& msgId) {
     }
 }
 
-MultiTopicsConsumerImpl::~MultiTopicsConsumerImpl() { LOG_DEBUG(getName() << "~MultiTopicsConsumerImpl"); }
+MultiTopicsConsumerImpl::~MultiTopicsConsumerImpl() {}
 
 Future<Result, ConsumerImplBaseWeakPtr> MultiTopicsConsumerImpl::getConsumerCreatedFuture() {
     return multiTopicsConsumerCreatedPromise_.getFuture();
