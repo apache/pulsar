@@ -89,7 +89,7 @@ These directories are created once you started the Pulsar cluster.
 
 Pulsar stores messages in topics. It's a good practice to explicitly create topics before using them, even if Pulsar can automatically create topics when they are referenced.
 
-Run this command to create a new topic into which we'll write and read some test messages:
+To create a new topic, run this command:
 
 ```bash
 bin/pulsar-admin topics create persistent://public/default/quickstart
