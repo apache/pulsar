@@ -84,7 +84,7 @@ Enable or disable entry logger preallocation
 
 Max file size of the entry logger, in bytes. A new entry log file will be created when the old one reaches the file size limitation.
 
-**Default**: 2147483648
+**Default**: 1073741824
 
 ### minorCompactionThreshold
 
@@ -376,7 +376,7 @@ How many index pages provided in ledger cache If number of index pages reaches t
 
 ### readOnlyModeEnabled
 
-If all ledger directories configured are full, then support only read requests for clients. If “readOnlyModeEnabled=true” then on all ledger disks full, bookie will be converted to read-only mode and serve only read requests. Otherwise the bookie will be shutdown. By default this will be disabled.
+If all ledger directories configured are full, then support only read requests for clients. If "readOnlyModeEnabled=true" then on all ledger disks full, bookie will be converted to read-only mode and serve only read requests. Otherwise the bookie will be shutdown. By default this will be disabled.
 
 **Default**: true
 

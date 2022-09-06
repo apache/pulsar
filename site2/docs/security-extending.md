@@ -17,19 +17,17 @@ You can use a custom authentication mechanism by providing the implementation in
 For the client library, you need to implement `org.apache.pulsar.client.api.Authentication`. By entering the command below, you can pass this class when you create a Pulsar client.
 
 ```java
-
 PulsarClient client = PulsarClient.builder()
     .serviceUrl("pulsar://localhost:6650")
     .authentication(new MyAuthentication())
     .build();
-
 ```
 
 You can implement 2 interfaces on the client side:
  * [`Authentication`](/api/client/org/apache/pulsar/client/api/Authentication.html)
  * [`AuthenticationDataProvider`](/api/client/org/apache/pulsar/client/api/AuthenticationDataProvider.html)
 
-This in turn requires you to provide the client credentials in the form of `org.apache.pulsar.client.api.AuthenticationDataProvider` and also leaves the chance to return different kinds of authentication token for different types of connection or by passing a certificate chain to use for TLS.
+This in turn requires you to provide the client credentials in the form of `org.apache.pulsar.client.api.AuthenticationDataProvider` and also leaves the chance to return different kinds of authentication tokens for different types of connections or by passing a certificate chain to use for TLS.
 
 You can find the following examples for different client authentication plugins:
  * [Mutual TLS](https://github.com/apache/pulsar/blob/master/pulsar-client/src/main/java/org/apache/pulsar/client/impl/auth/AuthenticationTls.java)
@@ -46,10 +44,8 @@ On the proxy/broker side, you need to configure the corresponding plugin to vali
 In `conf/broker.conf`, you can choose to specify a list of valid providers:
 
 ```properties
-
 # Authentication provider name list, which is comma separated list of class names
 authenticationProviders=
-
 ```
 
 :::tip
@@ -62,7 +58,7 @@ For example, your Pulsar cluster uses JSON Web Token (JWT) authentication (with 
 authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderToken,org.apache.pulsar.broker.authentication.AuthenticationProviderOAuth2
 ```
 
-As a result, brokers look up the authentication providers with the `token` authentication method (JWT and OAuth2.0 authentication) when receiving the requests to use the `token` authentication method. If a client cannot be authenticated via JWT authentication, OAuth2.0 authentication is used.
+As a result, brokers look up the authentication providers with the `token` authentication method (JWT and OAuth2.0 authentication) when receiving requests to use the `token` authentication method. If a client cannot be authenticated via JWT authentication, OAuth2.0 authentication is used.
 
 :::
 
@@ -87,10 +83,8 @@ By default, you can use the embedded authorization provider provided by Pulsar. 
 To provide a custom authorization provider, you need to implement the `org.apache.pulsar.broker.authorization.AuthorizationProvider` interface, put this class in the Pulsar broker classpath and configure the class in `conf/broker.conf`:
 
  ```properties
- 
  # Authorization provider fully qualified class-name
  authorizationProvider=org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider
- 
  ```
 
 For the implementation of the `org.apache.pulsar.broker.authorization.AuthorizationProvider` interface, refer to [code](https://github.com/apache/pulsar/blob/master/pulsar-broker-common/src/main/java/org/apache/pulsar/broker/authorization/AuthorizationProvider.java).

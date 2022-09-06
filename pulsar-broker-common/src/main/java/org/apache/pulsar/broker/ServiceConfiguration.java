@@ -216,7 +216,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = "Hostname or IP address the service advertises to the outside world."
-            + " If not set, the value of `InetAddress.getLocalHost().getHostname()` is used."
+            + " If not set, the value of `InetAddress.getLocalHost().getCanonicalHostName()` is used."
     )
     private String advertisedAddress;
 
@@ -1102,6 +1102,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
          doc = " The directory for all the entry filter implementations."
     )
     private String entryFiltersDirectory = "";
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            dynamic = true,
+            doc = "Whether allow topic level entry filters policies overrides broker configuration."
+    )
+    private boolean allowOverrideEntryFilters = false;
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -2153,6 +2160,19 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int loadBalancerAverageResourceUsageDifferenceThresholdPercentage = 10;
 
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "In FlowOrQpsEquallyDivideBundleSplitAlgorithm,"
+                    + " if msgRate >= loadBalancerNamespaceBundleMaxMsgRate * "
+                    + " (100 + flowOrQpsDifferenceThresholdPercentage)/100.0 "
+                    + " or throughput >=  loadBalancerNamespaceBundleMaxBandwidthMbytes * "
+                    + " (100 + flowOrQpsDifferenceThresholdPercentage)/100.0, "
+                    + " execute split bundle"
+    )
+    private int flowOrQpsDifferenceThresholdPercentage = 10;
+
     @FieldContext(
             dynamic = true,
             category = CATEGORY_LOAD_BALANCER,
@@ -2318,7 +2338,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Supported algorithms name for namespace bundle split"
     )
     private List<String> supportedNamespaceBundleSplitAlgorithms = Lists.newArrayList("range_equally_divide",
-            "topic_count_equally_divide", "specified_positions_divide");
+            "topic_count_equally_divide", "specified_positions_divide", "flow_or_qps_equally_divide");
     @FieldContext(
         dynamic = true,
         category = CATEGORY_LOAD_BALANCER,
@@ -2378,14 +2398,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean replicationTlsEnabled = false;
     @FieldContext(
         category = CATEGORY_POLICIES,
-        doc = "Default message retention time. The default value is 0, which means the data is removed after all the "
-                + "subscriptions are consumed. Value less than 0 means messages never expire."
+        doc = "Default message retention time."
+            + " 0 means retention is disabled. -1 means data is not removed by time quota"
     )
     private int defaultRetentionTimeInMinutes = 0;
     @FieldContext(
         category = CATEGORY_POLICIES,
-        doc = "Default retention size. The default value is 0, which means the data is removed after all the "
-                + "subscriptions are consumed. Value less than 0 means no infinite size quota."
+        doc = "Default retention size."
+            + " 0 means retention is disabled. -1 means data is not removed by size quota"
     )
     private int defaultRetentionSizeInMB = 0;
     @FieldContext(

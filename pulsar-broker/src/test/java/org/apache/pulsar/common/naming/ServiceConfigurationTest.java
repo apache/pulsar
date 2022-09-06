@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.common.naming;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -114,7 +113,7 @@ public class ServiceConfigurationTest {
 
     private InputStream updateProp(String zookeeperServer, String brokerServicePort, String namespace, double backlogQuotaGB)
             throws IOException {
-        checkNotNull(fileName);
+        Objects.requireNonNull(fileName);
         Properties properties = new Properties();
         InputStream stream = this.getClass().getClassLoader().getResourceAsStream(fileName);
         properties.load(stream);

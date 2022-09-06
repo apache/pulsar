@@ -59,6 +59,7 @@ import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.PulsarClient;
 
@@ -595,6 +596,26 @@ public class NamespaceServiceTest extends BrokerTestBase {
         }
     }
 
+    public void testSplitBUndleWithNoBundle() throws  Exception {
+        conf.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
+        restartBroker();
+        String namespace = "prop/test/ns-abc2";
+
+        BundlesData bundleData = BundlesData.builder().numBundles(10).build();
+        admin.namespaces().createNamespace(namespace, bundleData);
+
+        NamespaceService namespaceService = pulsar.getNamespaceService();
+        NamespaceName nsname = NamespaceName.get(namespace);
+        NamespaceBundles bundles = namespaceService.getNamespaceBundleFactory().getBundles(nsname);
+
+        try {
+            admin.namespaces().splitNamespaceBundle(namespace, Policies.BundleType.HOT.toString(), false, null);
+            fail("should have failed.");
+        } catch (Exception ex) {
+            Assert.assertEquals(404, ((PulsarAdminException) ex).getStatusCode());
+            Assert.assertEquals("Bundle range HOT not found", ex.getMessage());
+        }
+    }
     /**
      * Test bundle split with hot bundle which is serving highest load.
      *
@@ -719,6 +740,64 @@ public class NamespaceServiceTest extends BrokerTestBase {
             assertNull(loadData.getBundleData().get(oldBundle.toString()));
             assertFalse(bundlesCache.exists(BUNDLE_DATA_PATH + "/" + oldBundle.toString()).get());
         });
+    }
+
+    @Test
+    public void testModularLoadManagerRemoveBundleAndLoad() throws Exception {
+        final String BUNDLE_DATA_PATH = "/loadbalance/bundle-data";
+        final String namespace = "prop/ns-abc";
+        final String topic1 = "persistent://" + namespace + "/topic1";
+        final String topic2 = "persistent://" + namespace + "/topic2";
+
+        // configure broker with ModularLoadManager
+        conf.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
+        conf.setForceDeleteNamespaceAllowed(true);
+        restartBroker();
+
+        LoadManager loadManager = spy(pulsar.getLoadManager().get());
+        Field loadManagerField = NamespaceService.class.getDeclaredField("loadManager");
+        loadManagerField.setAccessible(true);
+        doReturn(true).when(loadManager).isCentralized();
+        loadManagerField.set(pulsar.getNamespaceService(), new AtomicReference<>(loadManager));
+        NamespaceName nsname = NamespaceName.get(namespace);
+
+        @Cleanup
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build();
+        @Cleanup
+        Consumer<byte[]> consumer1 = pulsarClient.newConsumer().topic(topic1)
+                .subscriptionName("my-subscriber-name1").subscribe();
+        @Cleanup
+        Consumer<byte[]> consumer2 = pulsarClient.newConsumer().topic(topic2)
+                .subscriptionName("my-subscriber-name2").subscribe();
+
+
+        NamespaceBundle bundle =
+                pulsar.getNamespaceService().getNamespaceBundleFactory().getBundle(TopicName.get(topic1));
+
+        loadManager.getLeastLoaded(bundle);
+
+        //create znode for bundle-data
+        pulsar.getBrokerService().updateRates();
+        loadManager.writeLoadReportOnZookeeper();
+        loadManager.writeResourceQuotasToZooKeeper();
+
+        String path = BUNDLE_DATA_PATH + "/" + nsname.toString() + "/0x00000000_0xffffffff";
+
+        Optional<GetResult> getResult = pulsar.getLocalMetadataStore().get(path).get();
+        assertTrue(getResult.isPresent());
+
+        //delete namespace which will remove bundle and load
+        pulsar.getAdminClient().namespaces().deleteNamespace(nsname.toString(),true);
+
+        TimeUnit.SECONDS.sleep(5);
+
+        // update broker bundle report to zk
+        loadManager.writeLoadReportOnZookeeper();
+        loadManager.writeResourceQuotasToZooKeeper();
+
+        getResult = pulsar.getLocalMetadataStore().get(path).get();
+        assertFalse(getResult.isPresent());
+
     }
 
     @SuppressWarnings("unchecked")
