@@ -28,6 +28,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.events.ActionType;
 import org.apache.pulsar.common.events.PulsarEvent;
 import org.apache.pulsar.common.naming.TopicName;
@@ -165,6 +166,23 @@ public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase<Pulsar
         @Override
         public Message<PulsarEvent> readNext() throws PulsarClientException {
             return reader.readNext();
+        }
+
+        @Override
+        public Message<PulsarEvent> readByMessageId(MessageId messageId) throws PulsarClientException {
+            MessageIdImpl messageIdImpl = (MessageIdImpl) messageId;
+            reader.seek(new MessageIdImpl(messageIdImpl.getLedgerId(), messageIdImpl.getEntryId() - 1,
+                    messageIdImpl.getPartitionIndex()));
+            return reader.readNext();
+        }
+
+        @Override
+        public CompletableFuture<Message<PulsarEvent>> readByMessageIdAsync(MessageId messageId) {
+            MessageIdImpl messageIdImpl = (MessageIdImpl) messageId;
+            return reader.seekAsync(new MessageIdImpl(messageIdImpl.getLedgerId(), messageIdImpl.getEntryId() - 1,
+                    messageIdImpl.getPartitionIndex())).thenCompose((ignore) -> {
+                return reader.readNextAsync();
+            });
         }
 
         @Override

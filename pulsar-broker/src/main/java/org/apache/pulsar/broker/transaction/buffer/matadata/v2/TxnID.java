@@ -16,30 +16,36 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.events;
+package org.apache.pulsar.broker.transaction.buffer.matadata.v2;
 
-/**
- * Pulsar system event type.
- */
-public enum EventType {
+import java.util.Objects;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
-    /**
-     * Topic policy events.
-     */
-    TOPIC_POLICY,
+@AllArgsConstructor
+@NoArgsConstructor
+@Getter
+@Setter
+public class TxnID {
+    long txnIdMostBits;
+    long txnIdLeastBits;
 
-    /**
-     * Transaction buffer snapshot events.
-     */
-    TRANSACTION_BUFFER_SNAPSHOT,
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        TxnID txnID = (TxnID) o;
+        return txnIdMostBits == txnID.txnIdMostBits && txnIdLeastBits == txnID.txnIdLeastBits;
+    }
 
-    /**
-     * Transaction buffer snapshot segment events.
-     */
-    TRANSACTION_BUFFER_SNAPSHOT_SEGMENT,
-
-    /**
-     * Transaction buffer snapshot indexes events.
-     */
-    TRANSACTION_BUFFER_SNAPSHOT_INDEXES
+    @Override
+    public int hashCode() {
+        return Objects.hash(txnIdMostBits, txnIdLeastBits);
+    }
 }

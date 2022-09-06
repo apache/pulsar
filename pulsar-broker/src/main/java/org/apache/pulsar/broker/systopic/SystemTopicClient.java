@@ -157,6 +157,22 @@ public interface SystemTopicClient<T> {
         CompletableFuture<Message<T>> readNextAsync();
 
         /**
+         * Read the specified event according to messageId.
+         * @param messageId the message id of the event that needs to be read.
+         * @return pulsar event
+         * @throws PulsarClientException
+         */
+
+        Message<T> readByMessageId(MessageId messageId) throws PulsarClientException;
+
+        /**
+         * Async read the specified event according to messageId.
+         * @param messageId the message id of the event that needs to be read.
+         * @return pulsar event future
+         */
+        CompletableFuture<Message<T>> readByMessageIdAsync(MessageId messageId);
+
+        /**
          * Check has more events available for the reader.
          * @return true if has remaining events, otherwise false
          */

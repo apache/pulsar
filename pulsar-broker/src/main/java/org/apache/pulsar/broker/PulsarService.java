@@ -102,10 +102,14 @@ import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.rest.Topics;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.PulsarMetadataEventSynchronizer;
+import org.apache.pulsar.broker.service.SystemTopicBaseTxnBufferSnapshotIndexService;
+import org.apache.pulsar.broker.service.SystemTopicBaseTxnBufferSnapshotSegmentService;
 import org.apache.pulsar.broker.service.SystemTopicBaseTxnBufferSnapshotService;
 import org.apache.pulsar.broker.service.SystemTopicBasedTopicPoliciesService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TopicPoliciesService;
+import org.apache.pulsar.broker.service.TransactionBufferSnapshotIndexService;
+import org.apache.pulsar.broker.service.TransactionBufferSnapshotSegmentService;
 import org.apache.pulsar.broker.service.TransactionBufferSnapshotService;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.stats.MetricsGenerator;
@@ -260,6 +264,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private PulsarMetadataEventSynchronizer localMetadataSynchronizer;
     private CoordinationService coordinationService;
     private TransactionBufferSnapshotService transactionBufferSnapshotService;
+    private TransactionBufferSnapshotIndexService transactionBufferSnapshotIndexService;
+    private TransactionBufferSnapshotSegmentService transactionBufferSnapshotSegmentService;
 
     private MetadataStore configurationMetadataStore;
     private PulsarMetadataEventSynchronizer configMetadataSynchronizer;
@@ -822,6 +828,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             // Register pulsar system namespaces and start transaction meta store service
             if (config.isTransactionCoordinatorEnabled()) {
                 this.transactionBufferSnapshotService = new SystemTopicBaseTxnBufferSnapshotService(getClient());
+                this.transactionBufferSnapshotIndexService =
+                        new SystemTopicBaseTxnBufferSnapshotIndexService(getClient());
+                this.transactionBufferSnapshotSegmentService =
+                        new SystemTopicBaseTxnBufferSnapshotSegmentService(getClient());
                 this.transactionTimer =
                         new HashedWheelTimer(new DefaultThreadFactory("pulsar-transaction-timer"));
                 transactionBufferClient = TransactionBufferClientImpl.create(this, transactionTimer,

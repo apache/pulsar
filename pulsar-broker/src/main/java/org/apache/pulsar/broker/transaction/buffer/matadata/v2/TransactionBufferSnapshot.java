@@ -16,30 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.events;
+package org.apache.pulsar.broker.transaction.buffer.matadata.v2;
 
-/**
- * Pulsar system event type.
- */
-public enum EventType {
+import java.util.List;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-    /**
-     * Topic policy events.
-     */
-    TOPIC_POLICY,
-
-    /**
-     * Transaction buffer snapshot events.
-     */
-    TRANSACTION_BUFFER_SNAPSHOT,
-
-    /**
-     * Transaction buffer snapshot segment events.
-     */
-    TRANSACTION_BUFFER_SNAPSHOT_SEGMENT,
-
-    /**
-     * Transaction buffer snapshot indexes events.
-     */
-    TRANSACTION_BUFFER_SNAPSHOT_INDEXES
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+public class TransactionBufferSnapshot {
+    private String topicName;
+    private long sequenceId;
+    private long maxReadPositionLedgerId;
+    private long maxReadPositionEntryId;
+    private List<TxnID> aborts;
 }

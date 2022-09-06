@@ -31,6 +31,9 @@ import static org.testng.Assert.assertTrue;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.Collections;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.NavigableMap;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -47,12 +50,15 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.AbstractTopic;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.TransactionBufferSnapshotIndexService;
+import org.apache.pulsar.broker.service.TransactionBufferSnapshotSegmentService;
 import org.apache.pulsar.broker.service.TransactionBufferSnapshotService;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.matadata.TransactionBufferSnapshot;
+import org.apache.pulsar.broker.transaction.buffer.matadata.v2.TransactionBufferSnapshotIndexes;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -82,6 +88,8 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
 
     private static final String RECOVER_COMMIT = NAMESPACE1 + "/recover-commit";
     private static final String RECOVER_ABORT = NAMESPACE1 + "/recover-abort";
+    private static final String SNAPSHOT_INDEX = NAMESPACE1 + "/snapshot-index";
+    private static final String SNAPSHOT_SEGMENT = NAMESPACE1 + "/snapshot-segment";
     private static final String SUBSCRIPTION_NAME = "test-recover";
     private static final String TAKE_SNAPSHOT = NAMESPACE1 + "/take-snapshot";
     private static final String ABORT_DELETE = NAMESPACE1 + "/abort-delete";
@@ -563,6 +571,84 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         // except for the compaction sub
         assertEquals(stats.getSubscriptions().size(), 1);
         assertTrue(stats.getSubscriptions().keySet().contains("__compaction"));
+    }
+
+    @Test
+    public void testTransactionBufferIndexSystemTopic() throws Exception {
+        TransactionBufferSnapshotIndexService transactionBufferSnapshotIndexService =
+                getPulsarServiceList().get(0).getTransactionBufferSnapshotIndexService();
+
+        SystemTopicClient.Writer<TransactionBufferSnapshotIndexes> indexesWriter =
+                transactionBufferSnapshotIndexService.createWriter(TopicName.get(SNAPSHOT_INDEX)).get();
+
+        SystemTopicClient.Reader<TransactionBufferSnapshotIndexes> indexesReader =
+                transactionBufferSnapshotIndexService.createReader(TopicName.get(SNAPSHOT_INDEX)).get();
+
+
+        List<TransactionBufferSnapshotIndexes.TransactionBufferSnapshotIndex> indexList = new LinkedList<>();
+
+        for (long i = 0; i < 5; i++) {
+            indexList.add(new TransactionBufferSnapshotIndexes.TransactionBufferSnapshotIndex(i, i, i, i, i));
+        }
+
+        TransactionBufferSnapshotIndexes transactionBufferTransactionBufferSnapshotIndexes =
+                new TransactionBufferSnapshotIndexes(SNAPSHOT_INDEX, TransactionBufferSnapshotIndexes.Type.Indexes,
+                        indexList, null);
+
+        indexesWriter.write(transactionBufferTransactionBufferSnapshotIndexes);
+
+        assertTrue(indexesReader.hasMoreEvents());
+        transactionBufferTransactionBufferSnapshotIndexes = indexesReader.readNext().getValue();
+        assertEquals(transactionBufferTransactionBufferSnapshotIndexes.getTopicName(), SNAPSHOT_INDEX);
+        assertEquals(
+                transactionBufferTransactionBufferSnapshotIndexes.getType(),
+                TransactionBufferSnapshotIndexes.Type.Indexes);
+        assertEquals(transactionBufferTransactionBufferSnapshotIndexes.getIndexList().size(), 5);
+        assertNull(transactionBufferTransactionBufferSnapshotIndexes.getSnapshot());
+
+        TransactionBufferSnapshotIndexes.TransactionBufferSnapshotIndex transactionBufferSnapshotIndex =
+                transactionBufferTransactionBufferSnapshotIndexes.getIndexList().get(1);
+        assertEquals(transactionBufferSnapshotIndex.getMaxReadPositionLedgerID(), 1L);
+        assertEquals(transactionBufferSnapshotIndex.getMaxReadPositionEntryID(), 1L);
+        assertEquals(transactionBufferSnapshotIndex.getPersistentPositionLedgerID(), 1L);
+        assertEquals(transactionBufferSnapshotIndex.getPersistentPositionEntryID(), 1L);
+        assertEquals(transactionBufferSnapshotIndex.getSequenceID(), 1L);
+    }
+
+    @Test
+    public void testTransactionBufferSegmentSystemTopic() throws Exception {
+        TransactionBufferSnapshotSegmentService transactionBufferSnapshotSegmentService =
+                getPulsarServiceList().get(0).getTransactionBufferSnapshotSegmentService();
+
+        SystemTopicClient.Writer<org.apache.pulsar.broker.transaction.buffer.matadata.v2.TransactionBufferSnapshot>
+                segmentWriter =
+                transactionBufferSnapshotSegmentService.createWriter(TopicName.get(SNAPSHOT_SEGMENT)).get();
+
+        SystemTopicClient.Reader<org.apache.pulsar.broker.transaction.buffer.matadata.v2.TransactionBufferSnapshot>
+                segmentReader =
+                transactionBufferSnapshotSegmentService.createReader(TopicName.get(SNAPSHOT_SEGMENT)).get();
+
+        org.apache.pulsar.broker.transaction.buffer.matadata.v2.TransactionBufferSnapshot snapshot =
+                new org.apache.pulsar.broker.transaction.buffer.matadata.v2.TransactionBufferSnapshot();
+
+        snapshot.setTopicName(SNAPSHOT_SEGMENT);
+        snapshot.setSequenceId(1L);
+        snapshot.setMaxReadPositionLedgerId(2L);
+        snapshot.setMaxReadPositionEntryId(3L);
+        snapshot.setAborts(Collections.singletonList(
+                new org.apache.pulsar.broker.transaction.buffer.matadata.v2.TxnID(1, 1)));
+
+        MessageId messageId = segmentWriter.write(snapshot);
+        segmentWriter.write(snapshot);
+
+        snapshot = segmentReader.readByMessageId(messageId).getValue();
+        assertEquals(snapshot.getTopicName(), SNAPSHOT_SEGMENT);
+        assertEquals(snapshot.getSequenceId(), 1L);
+        assertEquals(snapshot.getMaxReadPositionLedgerId(), 2L);
+        assertEquals(snapshot.getMaxReadPositionEntryId(), 3L);
+        assertEquals(snapshot.getAborts().get(0),
+                new org.apache.pulsar.broker.transaction.buffer.matadata.v2.TxnID(1, 1));
+
     }
 
 }

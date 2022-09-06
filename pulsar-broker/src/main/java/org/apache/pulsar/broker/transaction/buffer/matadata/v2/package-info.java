@@ -16,30 +16,4 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.events;
-
-/**
- * Pulsar system event type.
- */
-public enum EventType {
-
-    /**
-     * Topic policy events.
-     */
-    TOPIC_POLICY,
-
-    /**
-     * Transaction buffer snapshot events.
-     */
-    TRANSACTION_BUFFER_SNAPSHOT,
-
-    /**
-     * Transaction buffer snapshot segment events.
-     */
-    TRANSACTION_BUFFER_SNAPSHOT_SEGMENT,
-
-    /**
-     * Transaction buffer snapshot indexes events.
-     */
-    TRANSACTION_BUFFER_SNAPSHOT_INDEXES
-}
+package org.apache.pulsar.broker.transaction.buffer.matadata.v2;
