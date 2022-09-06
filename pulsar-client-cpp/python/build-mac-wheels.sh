@@ -24,8 +24,8 @@ PYTHON_VERSIONS=(
   '3.7  3.7.13 x86_64'
   '3.7  3.7.13 arm64'
   '3.8  3.8.13 x86_64;arm64'
-  '3.9  3.9.10 x86_64;arm64'
-  '3.10 3.10.2 x86_64;arm64'
+#  '3.9  3.9.10 x86_64;arm64'
+#  '3.10 3.10.2 x86_64;arm64'
 )
 
 export MACOSX_DEPLOYMENT_TARGET=10.15
@@ -174,7 +174,7 @@ for line in "${PYTHON_VERSIONS[@]}"; do
     PYTHON_VERSION=${PY[0]}
     PYTHON_VERSION_LONG=${PY[1]}
     ARCHS=${PY[2]}
-
+    PY_CFLAGS=""
     ARCHCMD=""
     if [ "$ARCHS" = "x86_64;arm64" ]; then
       PYTHON_CONFIGURE_OPTS="--enable-universalsdk --with-universal-archs=universal2"
@@ -184,16 +184,10 @@ for line in "${PYTHON_VERSIONS[@]}"; do
       PYTHON_CONFIGURE_OPTS=""
       if [ "$(arch)" != $ARCHS ]; then
         ARCHCMD="arch -$ARCHS"
+        PY_CFLAGS=" -arch $ARCHS"
       fi
     fi
 
-    if [ $PYTHON_VERSION = '3.7' ]; then
-        UNIVERSAL_ARCHS='intel-64'
-        PY_CFLAGS=" -arch x86_64"
-    else
-        UNIVERSAL_ARCHS='universal2'
-        PY_CFLAGS=""
-    fi
     PY_INCLUDE_DIR=${PY_PREFIX}/include/python${PYTHON_VERSION}
     if [ $PYTHON_VERSION = '3.7' ]; then
       PY_INCLUDE_DIR=${PY_INCLUDE_DIR}m
@@ -204,8 +198,14 @@ for line in "${PYTHON_VERSIONS[@]}"; do
       curl -O -L https://www.python.org/ftp/python/${PYTHON_VERSION_LONG}/Python-${PYTHON_VERSION_LONG}.tgz
       tar xfz Python-${PYTHON_VERSION_LONG}.tgz
       pushd Python-${PYTHON_VERSION_LONG}
+      if [ $PYTHON_VERSION = '3.7' ]; then
+        # Apply pyenv patches so that Python 3.7 can cleanly build on multiple architectures.
+        curl https://raw.githubusercontent.com/pyenv/pyenv/master/plugins/python-build/share/python-build/patches/3.7.13/Python-3.7.13/0001-Port-ctypes-and-system-libffi-patches-for-arm64-macO.patch | git apply -v
+        curl https://raw.githubusercontent.com/pyenv/pyenv/master/plugins/python-build/share/python-build/patches/3.7.13/Python-3.7.13/0002-bpo-41100-fix-_decimal-for-arm64-Mac-OS-GH-21228.patch | git apply -v
+        curl https://raw.githubusercontent.com/pyenv/pyenv/master/plugins/python-build/share/python-build/patches/3.7.13/Python-3.7.13/0003-bpo-42351-Avoid-error-when-opening-header-with-non-U.patch | git apply -v
+      fi
 
-      CFLAGS="$CFLAGS $PY_CFLAGS" LDFLAGS="$LDFLAGS $PY_CFLAGS" $ARCHCMD ./configure --with-openssl=$PREFIX --prefix=$PY_PREFIX --enable-shared $PYTHON_CONFIGURE_OPTS
+      CFLAGS="$CFLAGS $PY_CFLAGS" LDFLAGS="$LDFLAGS $PY_CFLAGS" $ARCHCMD ./configure --with-system-ffi --with-openssl=$PREFIX --prefix=$PY_PREFIX --enable-shared $PYTHON_CONFIGURE_OPTS
       make
       make install
       popd
@@ -268,7 +268,7 @@ EOF
 
     echo "Building wheel for python $PYTHON_VERSION at $ARCHS"
     pushd python
-    $PY_PREFIX/bin/python3 setup.py bdist_wheel
+    $ARCHCMD $PY_PREFIX/bin/python3 setup.py bdist_wheel
     popd
     popd
 done
