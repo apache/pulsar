@@ -220,9 +220,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private long lastOffloadLedgerId = 0;
     private long lastOffloadSuccessTimestamp = 0;
     private long lastOffloadFailureTimestamp = 0;
-    @Getter
     private boolean lastOffloadCompleteFailed = false;
-    @Getter
     private boolean refreshedIfOffloadCompleteFailed = false;
 
     private int minBacklogCursorsForCaching = 0;
@@ -2426,8 +2424,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     long sizeSummed = 0;
                     long alreadyOffloadedSize = 0;
                     long toOffloadSize = 0;
-                    // go through ledger list from newest to oldest and build a list to offload
-                    // in oldest to newest order
+                    // go through ledger list from newest to oldest and build a list to offload in oldest to newest order
                     for (Map.Entry<Long, LedgerInfo> e : ledgers.descendingMap().entrySet()) {
                         long size = e.getValue().getSize();
                         sizeSummed += size;
@@ -3247,12 +3244,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                        }
                                    })
             .whenComplete((result, exception) -> {
-                if (injection != null) {
-                    lastOffloadCompleteFailed = true;
-                    refreshedIfOffloadCompleteFailed = false;
-                    injection.throwException(ledgerId);
-                }
-                if (exception == null) {
+                    if (exception == null) {
                         log.info("[{}] End Offload. ledger={}, uuid={}", name, ledgerId, uuid);
                     } else {
                         lastOffloadCompleteFailed = true;
@@ -3261,16 +3253,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                  name, ledgerId, uuid, exception);
                     }
                 });
-    }
-
-    private Injection injection;
-
-    void setInjection(Injection injection) {
-        this.injection = injection;
-    }
-
-    interface Injection {
-        void throwException(long ledgerId) throws CompletionException;
     }
 
     private void cleanupOffloaded(long ledgerId, UUID uuid, String offloadDriverName, /*
