@@ -341,9 +341,9 @@ The Apache Software License, Version 2.0
     - leveldb-0.12.jar
     - leveldb-api-0.12.jar
   * Log4j
-    - log4j-api-2.17.1.jar
-    - log4j-core-2.17.1.jar
-    - log4j-slf4j-impl-2.17.1.jar
+    - log4j-api-2.18.0.jar
+    - log4j-core-2.18.0.jar
+    - log4j-slf4j-impl-2.18.0.jar
   * Log4j implemented over SLF4J
     - log4j-over-slf4j-1.7.32.jar
   * Lucene Common Analyzers
@@ -450,7 +450,7 @@ The Apache Software License, Version 2.0
   * Java Assist
     - javassist-3.25.0-GA.jar
   * Java Native Access
-    - jna-4.2.0.jar
+    - jna-5.12.1.jar
   * Java Object Layout: Core
     - jol-core-0.2.jar
   * Yahoo Datasketches
