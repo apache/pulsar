@@ -1473,7 +1473,7 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected CompletableFuture<Void> internalSetRetentionAsync(RetentionPolicies retentionPolicies) {
+    private CompletableFuture<Void> setRetentionAsync(RetentionPolicies retentionPolicies) {
         return namespaceResources().setPoliciesAsync(namespaceName, policies -> {
             Map<BacklogQuota.BacklogQuotaType, BacklogQuota> backlogQuotaMap = policies.backlog_quota_map;
             if (backlogQuotaMap.isEmpty()) {
@@ -1490,35 +1490,6 @@ public abstract class NamespacesBase extends AdminResource {
             policies.retention_policies = retentionPolicies;
             return policies;
         });
-    }
-
-    protected void internalSetRetention(RetentionPolicies retention) {
-        validateRetentionPolicies(retention);
-        validateNamespacePolicyOperation(namespaceName, PolicyName.RETENTION, PolicyOperation.WRITE);
-        validatePoliciesReadOnlyAccess();
-
-        try {
-            Policies policies = namespaceResources().getPolicies(namespaceName)
-                    .orElseThrow(() -> new RestException(Status.NOT_FOUND,
-                    "Namespace policies does not exist"));
-            if (!checkQuotas(policies, retention)) {
-                log.warn("[{}] Failed to update retention configuration"
-                                + " for namespace {}: conflicts with backlog quota",
-                        clientAppId(), namespaceName);
-                throw new RestException(Status.PRECONDITION_FAILED,
-                        "Retention Quota must exceed configured backlog quota for namespace.");
-            }
-            policies.retention_policies = retention;
-            namespaceResources().setPolicies(namespaceName, p -> policies);
-            log.info("[{}] Successfully updated retention configuration: namespace={}, map={}", clientAppId(),
-                    namespaceName, jsonMapper().writeValueAsString(retention));
-        } catch (RestException pfe) {
-            throw pfe;
-        } catch (Exception e) {
-            log.error("[{}] Failed to update retention configuration for namespace {}", clientAppId(), namespaceName,
-                    e);
-            throw new RestException(e);
-        }
     }
 
     protected CompletableFuture<Void> internalDeletePersistenceAsync() {
@@ -2800,6 +2771,45 @@ public abstract class NamespacesBase extends AdminResource {
                 }).exceptionally(ex -> {
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     log.error("[{}] Failed to update backlog quota map for namespace {}",
+                            clientAppId(), namespaceName, ex);
+                    return null;
+                });
+    }
+    /**
+     * Base method for setRetention v1 and v2.
+     * Notion: don't re-use this logic.
+     */
+    protected void internalSetRetention(AsyncResponse asyncResponse, RetentionPolicies retention) {
+        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.RETENTION, PolicyOperation.WRITE)
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenCompose(__ -> setRetentionAsync(retention))
+                .thenAccept(__ -> {
+                    asyncResponse.resume(Response.noContent().build());
+                    log.info("[{}] Successfully updated retention configuration: namespace={}, map={}", clientAppId(),
+                            namespaceName, retention);
+                }).exceptionally(ex -> {
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    log.error("[{}] Failed to update retention configuration for namespace {}",
+                            clientAppId(), namespaceName, ex);
+                    return null;
+                });
+    }
+
+    /**
+     * Base method for getRetention v1 and v2.
+     * Notion: don't re-use this logic.
+     */
+    protected void internalGetRetention(AsyncResponse asyncResponse) {
+        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.RETENTION, PolicyOperation.READ)
+                .thenCompose(__ -> namespaceResources().getPoliciesAsync(namespaceName))
+                .thenApply(policiesOpt -> {
+                    Policies policies = policiesOpt.orElseThrow(() -> new RestException(Response.Status.NOT_FOUND,
+                            "Namespace policies does not exist"));
+                    return policies.retention_policies;
+                }).thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    log.error("[{}] Failed to get retention config on a namespace {}",
                             clientAppId(), namespaceName, ex);
                     return null;
                 });

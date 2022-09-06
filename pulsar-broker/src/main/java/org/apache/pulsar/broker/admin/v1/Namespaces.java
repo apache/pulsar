@@ -1182,15 +1182,7 @@ public class Namespaces extends NamespacesBase {
                              @PathParam("cluster") String cluster,
                              @PathParam("namespace") String namespace) {
         validateNamespaceName(property, cluster, namespace);
-        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.RETENTION, PolicyOperation.READ)
-                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
-                .thenAccept(policies -> asyncResponse.resume(policies.retention_policies))
-                .exceptionally(ex -> {
-                    log.error("[{}] Failed to get retention config on a namespace {}", clientAppId(), namespaceName,
-                            ex);
-                    resumeAsyncResponseExceptionally(asyncResponse, ex);
-                    return null;
-                });
+        internalGetRetention(asyncResponse);
     }
 
     @POST
@@ -1200,10 +1192,15 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 404, message = "Namespace does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification"),
             @ApiResponse(code = 412, message = "Retention Quota must exceed backlog quota") })
-    public void setRetention(@PathParam("property") String property, @PathParam("cluster") String cluster,
+    public void setRetention(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, RetentionPolicies retention) {
         validateNamespaceName(property, cluster, namespace);
-        internalSetRetention(retention);
+        if (retention != null) {
+            validateRetentionPolicies(retention);
+        }
+        internalSetRetention(asyncResponse, retention);
     }
 
     @POST
