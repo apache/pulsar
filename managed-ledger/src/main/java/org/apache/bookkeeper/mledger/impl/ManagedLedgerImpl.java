@@ -2357,6 +2357,39 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
+    // Although we have caught the connection loss exception on the meta store, to avoid other exceptions cause
+    // the mismatch between meta store and in memory, we refresh the ledger info list when the offload execute
+    // failed by badversion
+    private void asyncRefreshLedgersInfoOnBadVersion(ManagedLedgerException exception) {
+        if (!(exception instanceof BadVersionException)) {
+            return;
+        }
+        if (!metadataMutex.tryLock()) {
+            scheduledExecutor.schedule(
+                () -> asyncRefreshLedgersInfoOnBadVersion(exception), 100, TimeUnit.MILLISECONDS);
+            return;
+        }
+        store.getManagedLedgerInfo(name, false, new MetaStoreCallback<>() {
+            @Override
+            public void operationComplete(ManagedLedgerInfo mlInfo, Stat stat) {
+                ledgersStat = stat;
+                for (LedgerInfo li : mlInfo.getLedgerInfoList()) {
+                    long ledgerId = li.getLedgerId();
+                    if (!li.equals(ledgers.get(ledgerId))) {
+                        ledgers.put(ledgerId, li);
+                    }
+                }
+                metadataMutex.unlock();
+            }
+
+            @Override
+            public void operationFailed(MetaStoreException e) {
+                log.warn("[{}] Failed to refresh the list of ledgers after updating failed", name, e);
+                metadataMutex.unlock();
+            }
+        });
+    }
+
     private void maybeOffload(CompletableFuture<PositionImpl> finalPromise) {
         if (!offloadMutex.tryLock()) {
             scheduledExecutor.schedule(safeRun(() -> maybeOffloadInBackground(finalPromise)),
@@ -2366,6 +2399,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             unlockingPromise.whenComplete((res, ex) -> {
                     offloadMutex.unlock();
                     if (ex != null) {
+                        if (ex instanceof ManagedLedgerException) {
+                            asyncRefreshLedgersInfoOnBadVersion((ManagedLedgerException) ex);
+                        }
                         finalPromise.completeExceptionally(ex);
                     } else {
                         finalPromise.complete(res);
@@ -2871,6 +2907,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
             @Override
             public void offloadFailed(ManagedLedgerException e, Object ctx) {
+                asyncRefreshLedgersInfoOnBadVersion(e);
                 promise.completeExceptionally(e);
             }
         }, null);
