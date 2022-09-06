@@ -688,7 +688,7 @@ scrape_configs:
   scrape_interval: 10s
   static_configs:
   - targets:
-  - localhost:2112
+  - localhost: 2112
 ```
 
 Now you can query Pulsar client metrics on Prometheus.
@@ -890,15 +890,15 @@ This example shows how to configure OAuth2 authentication.
 
 ```go
 oauth := pulsar.NewAuthenticationOAuth2(map[string]string{
-        "type":       "client_credentials",
-        "issuerUrl":  "https://dev-kt-aa9ne.us.auth0.com",
-        "audience":   "https://dev-kt-aa9ne.us.auth0.com/api/v2/",
-        "privateKey": "/path/to/privateKey",
-        "clientId":   "0Xx...Yyxeny",
-    })
+    "type":       "client_credentials",
+    "issuerUrl":  "https://dev-kt-aa9ne.us.auth0.com",
+    "audience":   "https://dev-kt-aa9ne.us.auth0.com/api/v2/",
+    "privateKey": "/path/to/privateKey",
+    "clientId":   "0Xx...Yyxeny",
+})
 client, err := pulsar.NewClient(pulsar.ClientOptions{
-        URL:              "pulsar://my-cluster:6650",
-        Authentication:   oauth,
+    URL:              "pulsar://my-cluster:6650",
+    Authentication:   oauth,
 })
 ```
 
