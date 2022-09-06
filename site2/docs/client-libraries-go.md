@@ -69,23 +69,23 @@ To interact with Pulsar, you need a [`Client`](https://pkg.go.dev/github.com/apa
 
 ```go
 import (
-	"log"
-	"time"
+    "log"
+    "time"
 
-	"github.com/apache/pulsar-client-go/pulsar"
+    "github.com/apache/pulsar-client-go/pulsar"
 )
 
 func main() {
-	client, err := pulsar.NewClient(pulsar.ClientOptions{
-		URL:               "pulsar://localhost:6650",
-		OperationTimeout:  30 * time.Second,
-		ConnectionTimeout: 30 * time.Second,
-	})
-	if err != nil {
-		log.Fatalf("Could not instantiate Pulsar client: %v", err)
-	}
+    client, err := pulsar.NewClient(pulsar.ClientOptions{
+        URL:               "pulsar://localhost:6650",
+        OperationTimeout:  30 * time.Second,
+        ConnectionTimeout: 30 * time.Second,
+    })
+    if err != nil {
+        log.Fatalf("Could not instantiate Pulsar client: %v", err)
+    }
 
-	defer client.Close()
+    defer client.Close()
 }
 ```
 
@@ -120,21 +120,21 @@ Pulsar producers publish messages to Pulsar topics. You can [configure](#produce
 
 ```go
 producer, err := client.CreateProducer(pulsar.ProducerOptions{
-	Topic: "my-topic",
+    Topic: "my-topic",
 })
 
 if err != nil {
-	log.Fatal(err)
+    log.Fatal(err)
 }
 
 _, err = producer.Send(context.Background(), &pulsar.ProducerMessage{
-	Payload: []byte("hello"),
+    Payload: []byte("hello"),
 })
 
 defer producer.Close()
 
 if err != nil {
-	fmt.Println("Failed to publish message", err)
+    fmt.Println("Failed to publish message", err)
 }
 fmt.Println("Published message")
 ```
@@ -315,7 +315,7 @@ Pulsar Go client registers client metrics using Prometheus. This section demonst
 ```go
 // Create a Pulsar client
 client, err := pulsar.NewClient(pulsar.ClientOptions{
-	URL: "pulsar://localhost:6650",
+    URL: "pulsar://localhost:6650",
 })
 if err != nil {
     log.Fatal(err)
@@ -448,7 +448,7 @@ defer consumer.Close()
 
 ```go
 client, err := pulsar.NewClient(pulsar.ClientOptions{
-		URL: "pulsar://localhost:6650",
+    URL: "pulsar://localhost:6650",
 })
 defer client.Close()
 
@@ -492,49 +492,49 @@ defer consumer.Close()
 
 ```go
 import (
-	"fmt"
-	"log"
+    "fmt"
+    "log"
 
-	"github.com/apache/pulsar-client-go/pulsar"
+    "github.com/apache/pulsar-client-go/pulsar"
 )
 
 func main() {
-	client, err := pulsar.NewClient(pulsar.ClientOptions{URL: "pulsar://localhost:6650"})
-	if err != nil {
-		log.Fatal(err)
-	}
+    client, err := pulsar.NewClient(pulsar.ClientOptions{URL: "pulsar://localhost:6650"})
+    if err != nil {
+        log.Fatal(err)
+    }
 
-	defer client.Close()
+    defer client.Close()
 
-	// we can listen this channel
-	channel := make(chan pulsar.ConsumerMessage, 100)
+    // we can listen this channel
+    channel := make(chan pulsar.ConsumerMessage, 100)
 
-	options := pulsar.ConsumerOptions{
-		Topic:            "topic-1",
-		SubscriptionName: "my-subscription",
-		Type:             pulsar.Shared,
-		// fill `MessageChannel` field will create a listener
-		MessageChannel: channel,
-	}
+    options := pulsar.ConsumerOptions{
+        Topic:            "topic-1",
+        SubscriptionName: "my-subscription",
+        Type:             pulsar.Shared,
+        // fill `MessageChannel` field will create a listener
+        MessageChannel: channel,
+    }
 
-	consumer, err := client.Subscribe(options)
-	if err != nil {
-		log.Fatal(err)
-	}
+    consumer, err := client.Subscribe(options)
+    if err != nil {
+        log.Fatal(err)
+    }
 
-	defer consumer.Close()
+    defer consumer.Close()
 
-	// Receive messages from channel. The channel returns a struct `ConsumerMessage` which contains message and the consumer from where
-	// the message was received. It's not necessary here since we have 1 single consumer, but the channel could be
-	// shared across multiple consumers as well
-	for cm := range channel {
-		consumer := cm.Consumer
-		msg := cm.Message
-		fmt.Printf("Consumer %s received a message, msgId: %v, content: '%s'\n",
-			consumer.Name(), msg.ID(), string(msg.Payload()))
+    // Receive messages from channel. The channel returns a struct `ConsumerMessage` which contains message and the consumer from where
+    // the message was received. It's not necessary here since we have 1 single consumer, but the channel could be
+    // shared across multiple consumers as well
+    for cm := range channel {
+        consumer := cm.Consumer
+        msg := cm.Message
+        fmt.Printf("Consumer %s received a message, msgId: %v, content: '%s'\n",
+            consumer.Name(), msg.ID(), string(msg.Payload()))
 
-		consumer.Ack(msg)
-	}
+        consumer.Ack(msg)
+    }
 }
 ```
 
@@ -703,11 +703,11 @@ Pulsar readers process messages from Pulsar topics. Readers are different from c
 
 ```go
 reader, err := client.CreateReader(pulsar.ReaderOptions{
-	Topic:          "topic-1",
-	StartMessageID: pulsar.EarliestMessageID(),
+    Topic:          "topic-1",
+    StartMessageID: pulsar.EarliestMessageID(),
 })
 if err != nil {
-	log.Fatal(err)
+    log.Fatal(err)
 }
 defer reader.Close()
 ```
@@ -724,39 +724,39 @@ Here's an example usage of a Go reader that uses the `Next()` method to process 
 
 ```go
 import (
-	"context"
-	"fmt"
-	"log"
+    "context"
+    "fmt"
+    "log"
 
-	"github.com/apache/pulsar-client-go/pulsar"
+    "github.com/apache/pulsar-client-go/pulsar"
 )
 
 func main() {
-	client, err := pulsar.NewClient(pulsar.ClientOptions{URL: "pulsar://localhost:6650"})
-	if err != nil {
-		log.Fatal(err)
-	}
+    client, err := pulsar.NewClient(pulsar.ClientOptions{URL: "pulsar://localhost:6650"})
+    if err != nil {
+        log.Fatal(err)
+    }
 
-	defer client.Close()
+    defer client.Close()
 
-	reader, err := client.CreateReader(pulsar.ReaderOptions{
-		Topic:          "topic-1",
-		StartMessageID: pulsar.EarliestMessageID(),
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer reader.Close()
+    reader, err := client.CreateReader(pulsar.ReaderOptions{
+        Topic:          "topic-1",
+        StartMessageID: pulsar.EarliestMessageID(),
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer reader.Close()
 
-	for reader.HasNext() {
-		msg, err := reader.Next(context.Background())
-		if err != nil {
-			log.Fatal(err)
-		}
+    for reader.HasNext() {
+        msg, err := reader.Next(context.Background())
+        if err != nil {
+            log.Fatal(err)
+        }
 
-		fmt.Printf("Received message msgId: %#v -- content: '%s'\n",
-			msg.ID(), string(msg.Payload()))
-	}
+        fmt.Printf("Received message msgId: %#v -- content: '%s'\n",
+            msg.ID(), string(msg.Payload()))
+    }
 }
 ```
 
@@ -827,13 +827,13 @@ for i := 5; i < 10; i++ {
 }
 // create reader on 5th message (included)
 readerInclusive, err := client.CreateReader(pulsar.ReaderOptions{
-	Topic:                   topic,
-	StartMessageID:          msgIDs[4],
-	StartMessageIDInclusive: true,
+    Topic:                   topic,
+    StartMessageID:          msgIDs[4],
+    StartMessageIDInclusive: true,
 })
 
 if err != nil {
-	log.Fatal(err)
+    log.Fatal(err)
 }
 defer readerInclusive.Close()
 ```
@@ -890,15 +890,15 @@ This example shows how to configure OAuth2 authentication.
 
 ```go
 oauth := pulsar.NewAuthenticationOAuth2(map[string]string{
-		"type":       "client_credentials",
-		"issuerUrl":  "https://dev-kt-aa9ne.us.auth0.com",
-		"audience":   "https://dev-kt-aa9ne.us.auth0.com/api/v2/",
-		"privateKey": "/path/to/privateKey",
-		"clientId":   "0Xx...Yyxeny",
-	})
+        "type":       "client_credentials",
+        "issuerUrl":  "https://dev-kt-aa9ne.us.auth0.com",
+        "audience":   "https://dev-kt-aa9ne.us.auth0.com/api/v2/",
+        "privateKey": "/path/to/privateKey",
+        "clientId":   "0Xx...Yyxeny",
+    })
 client, err := pulsar.NewClient(pulsar.ClientOptions{
-		URL:              "pulsar://my-cluster:6650",
-		Authentication:   oauth,
+        URL:              "pulsar://my-cluster:6650",
+        Authentication:   oauth,
 })
 ```
 
