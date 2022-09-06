@@ -1273,7 +1273,7 @@ class PulsarTest(TestCase):
             self.assertEqual(threading.active_count(), 1, "Explicit close: {}; synchronous connect doesn't leak threads".format(should_close))
             threads = []
             for _ in range(10):
-                threads.append(threading.Thread(target=_do_connect))
+                threads.append(threading.Thread(target=_do_connect, args=(should_close)))
                 threads[-1].start()
             for thread in threads:
                 thread.join()
