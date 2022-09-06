@@ -47,14 +47,14 @@ class PULSAR_PUBLIC TopicName : public ServiceUnitId {
     int partition_ = -1;
 
    public:
-    bool isV2Topic();
+    bool isV2Topic() const;
     std::string getLookupName();
-    std::string getDomain();
-    std::string getProperty();
-    std::string getCluster();
-    std::string getNamespacePortion();
+    std::string getDomain() const;
+    std::string getProperty() const;
+    std::string getCluster() const;
+    std::string getNamespacePortion() const;
     std::string getLocalName();
-    std::string getEncodedLocalName();
+    std::string getEncodedLocalName() const;
     std::string toString() const;
     bool isPersistent() const;
     NamespaceNamePtr getNamespaceName();

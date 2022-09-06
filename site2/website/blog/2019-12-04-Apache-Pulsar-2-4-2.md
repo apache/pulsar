@@ -26,7 +26,7 @@ In Pulsar 2.4.2, we can start Broker with Functions worker when broker client is
 In Pulsar Functions, BookKeeper is supported to store the state of Functions. When users attempt to fetch a key that does not exist from function state, an NPE(NullPointerException) error occurs. In Pulsar 2.4.2, we add error code and error message for the case when a key does not exist.
 
 ## Deduplication
-Deduplication removes messages based on the the largest sequence ID that pre-persisted. If an error is persisted to BookKeeper, a retry attempt is “deduplicated” with no message ever getting persisted. In version 2.4.2, we fix the issue from the following two aspects:                                                                                              
+Deduplication removes messages based on the the largest sequence ID that pre-persisted. If an error is persisted to BookKeeper, a retry attempt is "deduplicated" with no message ever getting persisted. In version 2.4.2, we fix the issue from the following two aspects:                                                                                              
 - Double check the pending messages and return error to the producer when the duplication status is uncertain. For example, when a message is still pending.
 - Sync back the lastPushed map with the lastStored map after failures.
 
