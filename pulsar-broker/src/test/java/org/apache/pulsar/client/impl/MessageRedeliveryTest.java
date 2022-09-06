@@ -306,8 +306,6 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         message = consumer.receive(3, TimeUnit.SECONDS);
         assertNull(message);
 
-        Field field = consumer.getClass().getDeclaredField("connectionHandler");
-        field.setAccessible(true);
         ConnectionHandler connectionHandler = consumer.getConnectionHandler();
         connectionHandler.cnx().channel().close();
 
