@@ -94,8 +94,6 @@ class CaptivePythonObjectMixin {
         PyGILState_Release(state);
     }
 
-    CaptivePythonObjectMixin(py::object captive) : CaptivePythonObjectMixin(captive.ptr()) {}
-
     ~CaptivePythonObjectMixin() {
         if (Py_IsInitialized()) {
             PyGILState_STATE state = PyGILState_Ensure();
