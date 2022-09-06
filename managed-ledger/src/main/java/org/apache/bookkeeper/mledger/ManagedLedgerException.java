@@ -194,4 +194,11 @@ public class ManagedLedgerException extends Exception {
         // Disable stack traces to be filled in
         return null;
     }
+
+    public static class OffloadReadHandleClosedException extends ManagedLedgerException {
+
+        public OffloadReadHandleClosedException() {
+            super("Offload read handle already closed");
+        }
+    }
 }

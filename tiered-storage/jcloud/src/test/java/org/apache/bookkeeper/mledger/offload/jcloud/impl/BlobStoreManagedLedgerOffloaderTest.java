@@ -44,6 +44,7 @@ import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.LedgerOffloaderStatsImpl;
 import org.apache.bookkeeper.mledger.OffloadedLedgerMetadata;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.JCloudBlobStoreProvider;
@@ -582,7 +583,7 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
         try {
             toTest.readAsync(0, lac).get();
         } catch (Exception e) {
-            if (e.getCause() instanceof BKException.BKUnexpectedConditionException) {
+            if (e.getCause() instanceof ManagedLedgerException.OffloadReadHandleClosedException) {
                 // expected exception
                 return;
             }
