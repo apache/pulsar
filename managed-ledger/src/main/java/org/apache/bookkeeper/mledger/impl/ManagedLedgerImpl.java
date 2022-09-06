@@ -2500,7 +2500,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     if (ls.getLedgerId() < getTheSlowestNonDurationReadPosition().getLedgerId()) {
                         // once retention constraint has been met, skip check
                         if (log.isDebugEnabled()) {
-                            log.debug("[{}] Ledger {} not deleted. Neither expired nor over-quota", name, ls.getLedgerId());
+                            log.debug("[{}] Ledger {} not deleted. Neither expired nor over-quota", name,
+                                    ls.getLedgerId());
                         }
                         invalidateReadHandle(ls.getLedgerId());
                     }
