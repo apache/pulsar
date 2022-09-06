@@ -44,7 +44,7 @@ ls -1F
 
 You may want to note that:
 
-| Directory     | Contains                                                                                            |
+| Directory     | Description                                                                                         |
 | ------------- | --------------------------------------------------------------------------------------------------- |
 | **bin**       | The [`pulsar`](reference-cli-tools.md#pulsar) entry point script, and many other command-line tools |
 | **conf**      | Configuration files, including `broker.conf`                                                        |
@@ -62,7 +62,7 @@ bin/pulsar standalone
 
 These directories are created once you started the Pulsar cluster:
 
-| Directory | Contains                                   |
+| Directory | Description                                |
 | --------- | ------------------------------------------ |
 | **data**  | All data created by BookKeeper and RocksDB |
 | **logs**  | All server-side logs                       |
