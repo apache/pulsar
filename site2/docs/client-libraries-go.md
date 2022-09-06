@@ -391,30 +391,30 @@ Pulsar consumers subscribe to one or more Pulsar topics and listen for incoming 
 
 ```go
 consumer, err := client.Subscribe(pulsar.ConsumerOptions{
-	Topic:            "topic-1",
-	SubscriptionName: "my-sub",
-	Type:             pulsar.Shared,
+    Topic:            "topic-1",
+    SubscriptionName: "my-sub",
+    Type:             pulsar.Shared,
 })
 if err != nil {
-	log.Fatal(err)
+    log.Fatal(err)
 }
 defer consumer.Close()
 
 for i := 0; i < 10; i++ {
     // may block here
-	msg, err := consumer.Receive(context.Background())
-	if err != nil {
-		log.Fatal(err)
-	}
+    msg, err := consumer.Receive(context.Background())
+    if err != nil {
+        log.Fatal(err)
+    }
 
-	fmt.Printf("Received message msgId: %#v -- content: '%s'\n",
-		msg.ID(), string(msg.Payload()))
+    fmt.Printf("Received message msgId: %#v -- content: '%s'\n",
+        msg.ID(), string(msg.Payload()))
 
-	consumer.Ack(msg)
+    consumer.Ack(msg)
 }
 
 if err := consumer.Unsubscribe(); err != nil {
-	log.Fatal(err)
+    log.Fatal(err)
 }
 ```
 
