@@ -1298,5 +1298,13 @@ class PulsarTest(TestCase):
         self.assertEqual(msg.data(), b"hello")
         client.close()
 
+    def test_invalid_basic_auth(self):
+        username = "invalid"
+        password = "123456"
+        client = Client(self.adminUrl, authentication=AuthenticationBasic(username, password))
+        topic = "persistent://private/auth/my-python-topic-invalid-basic-auth"
+        with self.assertRaises(pulsar.ConnectError):
+            client.subscribe(topic, "my-sub", consumer_type=ConsumerType.Shared)
+
 if __name__ == "__main__":
     main()
