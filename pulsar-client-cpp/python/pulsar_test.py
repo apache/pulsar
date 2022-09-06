@@ -1268,9 +1268,9 @@ class PulsarTest(TestCase):
                 client.close()
 
         for should_close in (True, False):
-            assert threading.active_count() == 1, "Explicit close: {}; baseline is 1 thread".format(should_close)
+            self.assertEqual(threading.active_count(), 1, "Explicit close: {}; baseline is 1 thread".format(should_close))
             _do_connect(should_close)
-            assert threading.active_count() == 1, "Explicit close: {}; synchronous connect doesn't leak threads".format(should_close)
+            self.assertEqual(threading.active_count(), 1, "Explicit close: {}; synchronous connect doesn't leak threads".format(should_close))
             threads = []
             for _ in range(10):
                 threads.append(threading.Thread(target=_do_connect))
