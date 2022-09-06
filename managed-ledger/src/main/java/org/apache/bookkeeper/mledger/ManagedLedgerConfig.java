@@ -84,6 +84,7 @@ public class ManagedLedgerConfig {
     private int minimumBacklogCursorsForCaching = 0;
     private int minimumBacklogEntriesForCaching = 1000;
     private int maxBacklogBetweenCursorsForCaching = 1000;
+    private long globalOffloadingPermitBytesPerSecond = 0;
 
     public boolean isCreateIfMissing() {
         return createIfMissing;
@@ -741,5 +742,23 @@ public class ManagedLedgerConfig {
      */
     public void setMaxBacklogBetweenCursorsForCaching(int maxBacklogBetweenCursorsForCaching) {
         this.maxBacklogBetweenCursorsForCaching = maxBacklogBetweenCursorsForCaching;
+    }
+
+    /**
+     * Set permitted size to offload on the broker.
+     *
+     * @param globalOffloadingPermitBytesPerSecond
+     */
+    public void setGlobalOffloadingPermitBytesPerSecond(long globalOffloadingPermitBytesPerSecond) {
+        this.globalOffloadingPermitBytesPerSecond = globalOffloadingPermitBytesPerSecond;
+    }
+
+    /**
+     * Get permitted size to offload on the broker.
+     *
+     * @return
+     */
+    public long getGlobalOffloadingPermitBytesPerSecond() {
+        return globalOffloadingPermitBytesPerSecond;
     }
 }
