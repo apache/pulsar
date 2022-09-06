@@ -74,7 +74,7 @@ Pulsar stores messages in topics. It's a good practice to explicitly create topi
 To create a new topic, run this command:
 
 ```bash
-bin/pulsar-admin topics create persistent://public/default/quickstart
+bin/pulsar-admin topics create persistent://public/default/my-topic
 ```
 
 ## Step 4. Write messages to the topic
@@ -84,7 +84,7 @@ You can use the `pulsar` command line tool to write messages to a topic. This is
 Run this command to produce a message:
 
 ```bash
-bin/pulsar-client produce quickstart --messages 'Hello Pulsar!'
+bin/pulsar-client produce my-topic --messages 'Hello Pulsar!'
 ```
 
 ## Step 5. Read messages from the topic
@@ -94,7 +94,7 @@ Now that we've written message to the topic, we'll read those messages back.
 Run this command to launch the consumer:
 
 ```bash
-bin/pulsar-client consume quickstart -s 'first-subscription' -p Earliest -n 0
+bin/pulsar-client consume my-topic -s 'my-subscription' -p Earliest -n 0
 ```
 
 Earliest means consuming from the earliest **unconsumed** message. `-n` configures the number of messages to consume, 0 means to consume forever.
@@ -115,7 +115,7 @@ Leave the consume command from the previous step running. If you've already clos
 Now open a new terminal window and produce more messages, the default message separator is `,`:
 
 ```bash
-bin/pulsar-client produce quickstart --messages "$(seq -s, -f 'Message NO.%g' -t '\n' 1 10)"
+bin/pulsar-client produce my-topic --messages "$(seq -s, -f 'Message NO.%g' -t '\n' 1 10)"
 ```
 
 Note how they are displayed almost instantaneously in the consumer terminal.
