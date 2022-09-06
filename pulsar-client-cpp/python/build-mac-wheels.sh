@@ -22,7 +22,7 @@ set -exuo pipefail
 
 PYTHON_VERSIONS=(
   '3.7  3.7.13 x86_64'
-#  '3.7  3.7.13 arm64'
+  '3.7  3.7.13 arm64'
   '3.8  3.8.13 x86_64;arm64'
   '3.9  3.9.10 x86_64;arm64'
   '3.10 3.10.2 x86_64;arm64'
@@ -30,7 +30,6 @@ PYTHON_VERSIONS=(
 
 export MACOSX_DEPLOYMENT_TARGET=10.15
 export USE_FULL_POM_NAME=True
-
 ZLIB_VERSION=1.2.12
 OPENSSL_VERSION=1_1_1n
 BOOST_VERSION=1.78.0
@@ -44,14 +43,9 @@ cd "${ROOT_DIR}/pulsar-client-cpp"
 
 # Compile and cache dependencies
 CACHE_DIR=~/.pulsar-mac-wheels-cache
-PYENV=$CACHE_DIR/pyenv/bin/pyenv
 PREFIX=$CACHE_DIR/install
 mkdir -p $PREFIX
 cd $CACHE_DIR
-
-if [ ! -x "$PYENV" ]; then
-  git clone https://github.com/pyenv/pyenv.git pyenv
-fi
 
 if [ ! -d boost-src ]; then
   curl -O -L https://boostorg.jfrog.io/artifactory/main/release/${BOOST_VERSION}/source/boost_${BOOST_VERSION//./_}.tar.gz
@@ -65,12 +59,15 @@ export SDKROOT=$(xcrun --show-sdk-path)
 # minimal standard resource locations in hopes of increasing reproducibility so that this packaging can be run reliably
 # from different Macs.
 export PKG_CONFIG_PATH=
+export ARCHFLAGS=
 # OPENSSL_NO_SSL3: The presence of Homebrew-installed openssl@3 can cause things to accumulate unexpected linker
 # dependencies, so ensure that it is not used.
 export CFLAGS="-fPIC -O3 -DOPENSSL_NO_SSL3 -I${SDKROOT}/usr/include -I${PREFIX}/include -mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}"
 export CXXFLAGS="$CFLAGS"
 export CPPFLAGS="$CFLAGS"
 export LDFLAGS="-L${SDKROOT}/usr/lib -L${PREFIX}/lib"
+
+
 
 ###############################################################################
 if [ ! -f openssl-OpenSSL_${OPENSSL_VERSION}.done ]; then
@@ -170,7 +167,7 @@ else
 fi
 
 ###############################################################################
-# For each python/arch tuple, build Python at that version via Pyenv, then install pip/setuptools/wheel in that pyenv,
+# For each python/arch tuple, build Python at that version, then install pip/setuptools/wheel,
 # then install boost-python linked to the pyenv's python, then build the pulsar client in that directory.
 for line in "${PYTHON_VERSIONS[@]}"; do
     read -r -a PY <<< "$line"
@@ -178,38 +175,45 @@ for line in "${PYTHON_VERSIONS[@]}"; do
     PYTHON_VERSION_LONG=${PY[1]}
     ARCHS=${PY[2]}
 
-    echo "Building Python $PYTHON_VERSION_LONG for $ARCHS"
     ARCHCMD=""
     if [ "$ARCHS" = "x86_64;arm64" ]; then
-      # PYENV_ROOT is exported rather than set since it is a variable used by pyenv itself to determine where it should
-      # place its built python versions. Since we are building Python with nonstandard flags, we set PYENV_ROOT to
-      # pulsar-wheel-build-specific locations so we neither pollute nor accidentally use pyenv-managed Pythons provided
-      # by system-level pyenv. Without this, for example, a user who did `brew install pyenv; pyenv install 3.8.13`
-      # would cause the pulsar client build to use a non-universal-architecture-supporting Python 3.8.
-      export PYENV_ROOT=$CACHE_DIR/python-$PYTHON_VERSION_LONG-universal
       PYTHON_CONFIGURE_OPTS="--enable-universalsdk --with-universal-archs=universal2"
+      PY_PREFIX=$CACHE_DIR/python/$PYTHON_VERSION-universal
     else
-      export PYENV_ROOT=$CACHE_DIR/Python-$PYTHON_VERSION_LONG-$ARCHS
+      PY_PREFIX=$CACHE_DIR/python/$PYTHON_VERSION-$ARCHS
       PYTHON_CONFIGURE_OPTS=""
-      # Check if we need to use rosetta; this will cause failures on Intel macs as they can't crossbuild for ARM; it
-      # only goes the other direction.
       if [ "$(arch)" != $ARCHS ]; then
         ARCHCMD="arch -$ARCHS"
       fi
     fi
-    PY_PREFIX=$PYENV_ROOT/versions/$PYTHON_VERSION_LONG
+
+    if [ $PYTHON_VERSION = '3.7' ]; then
+        UNIVERSAL_ARCHS='intel-64'
+        PY_CFLAGS=" -arch x86_64"
+    else
+        UNIVERSAL_ARCHS='universal2'
+        PY_CFLAGS=""
+    fi
     PY_INCLUDE_DIR=${PY_PREFIX}/include/python${PYTHON_VERSION}
     if [ $PYTHON_VERSION = '3.7' ]; then
       PY_INCLUDE_DIR=${PY_INCLUDE_DIR}m
     fi
+    if [ ! -f $PY_PREFIX/.done ]; then
+      mkdir -p $PY_PREFIX
+      pushd $PY_PREFIX
+      curl -O -L https://www.python.org/ftp/python/${PYTHON_VERSION_LONG}/Python-${PYTHON_VERSION_LONG}.tgz
+      tar xfz Python-${PYTHON_VERSION_LONG}.tgz
+      pushd Python-${PYTHON_VERSION_LONG}
 
-    PYTHON_CONFIGURE_OPTS="--without-readline --with-openssl=$PREFIX --enable-shared $PYTHON_CONFIGURE_OPTS" \
-      $ARCHCMD $PYENV install -s $PYTHON_VERSION_LONG
-
-    pushd $PYENV_ROOT
-    $PYENV local $PYTHON_VERSION_LONG
-    $PYENV exec python -mpip install --upgrade pip
-    $PYENV exec python -mpip install --upgrade setuptools wheel
+      CFLAGS="$CFLAGS $PY_CFLAGS" LDFLAGS="$LDFLAGS $PY_CFLAGS" $ARCHCMD ./configure --with-openssl=$PREFIX --prefix=$PY_PREFIX --enable-shared $PYTHON_CONFIGURE_OPTS
+      make
+      make install
+      popd
+      bin/python3 -mpip install --upgrade pip
+      bin/python3 -mpip install --upgrade setuptools wheel
+      touch .done
+      popd
+    fi
 
     DIR=boost-src-${BOOST_VERSION}-python-${PYTHON_VERSION}
 
@@ -238,11 +242,9 @@ EOF
     else
         echo "Using cached Boost for Py $PYTHON_VERSION at $ARCHS"
     fi
-    popd
 
     echo "Building pulsar-client-cpp for python $PYTHON_VERSION at $ARCHS"
     pushd "${ROOT_DIR}/pulsar-client-cpp"
-    $PYENV local $PYTHON_VERSION_LONG
     find . -name CMakeCache.txt | xargs -r rm
     find . -name CMakeFiles | xargs -r rm -rf
     cmake . \
@@ -266,7 +268,7 @@ EOF
 
     echo "Building wheel for python $PYTHON_VERSION at $ARCHS"
     pushd python
-    $PYENV exec python setup.py bdist_wheel
+    $PY_PREFIX/bin/python3 setup.py bdist_wheel
     popd
     popd
 done
