@@ -16,7 +16,7 @@ If you're looking to run a full production Pulsar installation, see the [Deployi
 
 - JRE (64-bit). Different Pulsar versions rely on different JRE versions. For how to choose the JRE version, see [Pulsar Runtime Java Version Recommendation](https://github.com/apache/pulsar/blob/master/README.md#pulsar-runtime-java-version-recommendation).
 
-## Download Pulsar distribution
+## Step 1. Download Pulsar distribution
 
 Download the official Apache Pulsar distribution:
 
@@ -36,37 +36,23 @@ For the rest of this quickstart we'll run commands from the root of the distribu
 cd apache-pulsar-@pulsar:version@
 ```
 
-## Browse Pulsar distribution
-
 List the contents by executing:
 
 ```bash
 ls -1F
 ```
 
-You will see it layouts as:
-
-```text
-LICENSE
-NOTICE
-README
-bin/
-conf/
-examples/
-instances/
-lib/
-licenses/
-```
-
 You may want to note that:
 
-* `bin` directory contains the [`pulsar`](reference-cli-tools.md#pulsar) entry point script, and many other command-line tools.
-* `conf` directory contains configuration files, including `broker.conf`.
-* `lib` directory contains JARs used by Pulsar.
-* `examples` directory contains [Pulsar Functions](functions-overview.md) examples.
-* `instances` directory artifacts for [Pulsar Functions](functions-overview.md).
+| Directory | Contains                                                                                            |
+| --------- | --------------------------------------------------------------------------------------------------- |
+| bin       | the [`pulsar`](reference-cli-tools.md#pulsar) entry point script, and many other command-line tools |
+| conf      | configuration files, including `broker.conf`                                                        |
+| lib       | JARs used by Pulsar                                                                                 |
+| examples  | [Pulsar Functions](functions-overview.md) examples                                                  |
+| instances | artifacts for [Pulsar Functions](functions-overview.md)                                             |
 
-## Start the Pulsar standalone cluster
+## Step 2. Start a Pulsar standalone cluster
 
 Run this command to start a standalone Pulsar cluster:
 
@@ -80,12 +66,14 @@ By default, the standalone mode runs a RocksDB instance for metadat storage. If 
 PULSAR_STANDALONE_USE_ZOOKEEPER=1 bin/pulsar standalone
 ```
 
-These directories are created once you started the Pulsar cluster.
+These directories are created once you started the Pulsar cluster:
 
-* `data` directory stores all data created by BookKeeper and RocksDB.
-* `logs` directory contains all server-side logs.
+| Directory | Contains                                   |
+| --------- | ------------------------------------------ |
+| data      | all data created by BookKeeper and RocksDB |
+| logs      | all server-side logs.                      |
 
-## Create a topic
+## Step 3. Create a topic
 
 Pulsar stores messages in topics. It's a good practice to explicitly create topics before using them, even if Pulsar can automatically create topics when they are referenced.
 
@@ -95,7 +83,7 @@ To create a new topic, run this command:
 bin/pulsar-admin topics create persistent://public/default/quickstart
 ```
 
-## Write messages to the topic
+## Step 4. Write messages to the topic
 
 You can use the `pulsar` command line tool to write messages to a topic. This is useful for experimentation, but in practice you'll use the Producer API in your application code, or Pulsar IO connectors for pulling data in from other systems to Pulsar.
 
@@ -105,7 +93,7 @@ Run this command to produce a message:
 bin/pulsar-client produce quickstart --messages 'Hello Pulsar!'
 ```
 
-## Read messages from the topic
+## Step 5. Read messages from the topic
 
 Now that we've written message to the topic, we'll read those messages back.
 
@@ -126,7 +114,7 @@ You'll see the messages that you produce in the previous step:
 key:[null], properties:[], content:Hello Pulsar!
 ```
 
-## Write some more messages
+## Step 6. Write some more messages
 
 Leave the consume command from the previous step running. If you've already closed it, just re-run it.
 
@@ -138,7 +126,7 @@ bin/pulsar-client produce quickstart --messages "$(seq -s, -f 'Message NO.%g' -t
 
 Note how they are displayed almost instantaneously in the consumer terminal.
 
-## Stop the Pulsar cluster
+## Step 7. Stop the Pulsar cluster
 
 Once you've finished you can shut down the Pulsar cluster. Press **Ctrl-C** in the terminal window in which you started the cluster.
 
