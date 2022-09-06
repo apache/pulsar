@@ -56,7 +56,9 @@ ProducerImpl::ProducerImpl(ClientImplPtr client, const std::string& topic, const
       producerStr_("[" + topic_ + ", " + producerName_ + "] "),
       producerId_(client->newProducerId()),
       msgSequenceGenerator_(0),
-      dataKeyGenIntervalSec_(4 * 60 * 60),
+      batchTimer_(executor_->getIOService()),
+      sendTimer_(executor_->getIOService()),
+      dataKeyRefreshTask_(executor_->getIOService(), 4 * 60 * 60 * 1000),
       memoryLimitController_(client->getMemoryLimitController()) {
     LOG_DEBUG("ProducerName - " << producerName_ << " Created producer on topic " << topic_
                                 << " id: " << producerId_);
@@ -101,7 +103,6 @@ ProducerImpl::ProducerImpl(ClientImplPtr client, const std::string& topic, const
                 LOG_ERROR("Unknown batching type: " << conf_.getBatchingType());
                 return;
         }
-        batchTimer_ = executor_->createDeadlineTimer();
     }
 }
 
@@ -121,19 +122,6 @@ const std::string& ProducerImpl::getProducerName() const { return producerName_;
 int64_t ProducerImpl::getLastSequenceId() const { return lastSequenceIdPublished_; }
 
 const std::string& ProducerImpl::getSchemaVersion() const { return schemaVersion_; }
-
-void ProducerImpl::refreshEncryptionKey(const boost::system::error_code& ec) {
-    if (ec) {
-        LOG_DEBUG("Ignoring timer cancelled event, code[" << ec << "]");
-        return;
-    }
-
-    msgCrypto_->addPublicKeyCipher(conf_.getEncryptionKeys(), conf_.getCryptoKeyReader());
-
-    dataKeyGenTImer_->expires_from_now(boost::posix_time::seconds(dataKeyGenIntervalSec_));
-    dataKeyGenTImer_->async_wait(
-        std::bind(&pulsar::ProducerImpl::refreshEncryptionKey, shared_from_this(), std::placeholders::_1));
-}
 
 void ProducerImpl::connectionOpened(const ClientConnectionPtr& cnx) {
     if (state_ == Closed) {
@@ -199,11 +187,19 @@ void ProducerImpl::handleCreateProducer(const ClientConnectionPtr& cnx, Result r
         backoff_.reset();
         lock.unlock();
 
-        if (!dataKeyGenTImer_ && conf_.isEncryptionEnabled()) {
-            dataKeyGenTImer_ = executor_->createDeadlineTimer();
-            dataKeyGenTImer_->expires_from_now(boost::posix_time::seconds(dataKeyGenIntervalSec_));
-            dataKeyGenTImer_->async_wait(std::bind(&pulsar::ProducerImpl::refreshEncryptionKey,
-                                                   shared_from_this(), std::placeholders::_1));
+        if (conf_.isEncryptionEnabled()) {
+            auto weakSelf = weak_from_this();
+            dataKeyRefreshTask_.setCallback([this, weakSelf](const PeriodicTask::ErrorCode& ec) {
+                auto self = weakSelf.lock();
+                if (!self) {
+                    return;
+                }
+                if (ec) {
+                    LOG_ERROR("DataKeyRefresh timer failed: " << ec.message());
+                    return;
+                }
+                msgCrypto_->addPublicKeyCipher(conf_.getEncryptionKeys(), conf_.getCryptoKeyReader());
+            });
         }
 
         // if the producer is lazy the send timeout timer is already running
@@ -437,10 +433,29 @@ void ProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
         bool isFirstMessage = batchMessageContainer_->isFirstMessageToAdd(msg);
         bool isFull = batchMessageContainer_->add(msg, cb);
         if (isFirstMessage) {
-            batchTimer_->expires_from_now(
+            batchTimer_.expires_from_now(
                 boost::posix_time::milliseconds(conf_.getBatchingMaxPublishDelayMs()));
-            batchTimer_->async_wait(std::bind(&ProducerImpl::batchMessageTimeoutHandler, shared_from_this(),
-                                              std::placeholders::_1));
+            auto weakSelf = weak_from_this();
+            batchTimer_.async_wait([this, weakSelf](const boost::system::error_code& ec) {
+                auto self = weakSelf.lock();
+                if (!self) {
+                    return;
+                }
+                if (ec) {
+                    LOG_DEBUG(getName() << " Ignoring timer cancelled event, code[" << ec << "]");
+                    return;
+                }
+                LOG_DEBUG(getName() << " - Batch Message Timer expired");
+
+                // ignore if the producer is already closing/closed
+                const auto state = state_.load();
+                if (state == Pending || state == Ready) {
+                    Lock lock(mutex_);
+                    auto failures = batchMessageAndSend();
+                    lock.unlock();
+                    failures.complete();
+                }
+            });
         }
 
         if (isFull) {
@@ -499,7 +514,7 @@ void ProducerImpl::releaseSemaphoreForSendOp(const OpSendMsg& op) {
 PendingFailures ProducerImpl::batchMessageAndSend(const FlushCallback& flushCallback) {
     PendingFailures failures;
     LOG_DEBUG("batchMessageAndSend " << *batchMessageContainer_);
-    batchTimer_->cancel();
+    batchTimer_.cancel();
 
     batchMessageContainer_->processAndClear(
         [this, &failures](Result result, const OpSendMsg& opSendMsg) {
@@ -533,23 +548,6 @@ void ProducerImpl::sendMessage(const OpSendMsg& op) {
         cnx->sendMessage(op);
     } else {
         LOG_DEBUG(getName() << "Connection is not ready - seq: " << sequenceId);
-    }
-}
-
-void ProducerImpl::batchMessageTimeoutHandler(const boost::system::error_code& ec) {
-    if (ec) {
-        LOG_DEBUG(getName() << " Ignoring timer cancelled event, code[" << ec << "]");
-        return;
-    }
-    LOG_DEBUG(getName() << " - Batch Message Timer expired");
-
-    // ignore if the producer is already closing/closed
-    const auto state = state_.load();
-    if (state == Pending || state == Ready) {
-        Lock lock(mutex_);
-        auto failures = batchMessageAndSend();
-        lock.unlock();
-        failures.complete();
     }
 }
 
@@ -809,20 +807,9 @@ void ProducerImpl::shutdown() {
 }
 
 void ProducerImpl::cancelTimers() {
-    if (dataKeyGenTImer_) {
-        dataKeyGenTImer_->cancel();
-        dataKeyGenTImer_.reset();
-    }
-
-    if (batchTimer_) {
-        batchTimer_->cancel();
-        batchTimer_.reset();
-    }
-
-    if (sendTimer_) {
-        sendTimer_->cancel();
-        sendTimer_.reset();
-    }
+    dataKeyRefreshTask_.stop();
+    batchTimer_.cancel();
+    sendTimer_.cancel();
 }
 
 bool ProducerImplCmp::operator()(const ProducerImplPtr& a, const ProducerImplPtr& b) const {
@@ -837,26 +824,24 @@ uint64_t ProducerImpl::getNumberOfConnectedProducer() { return isConnected() ? 1
 
 bool ProducerImpl::isStarted() const { return state_ != NotStarted; }
 void ProducerImpl::startSendTimeoutTimer() {
-    // Initialize the sendTimer only once per producer and only when producer timeout is
-    // configured. Set the timeout as configured value and asynchronously wait for the
-    // timeout to happen.
-    if (!sendTimer_ && conf_.getSendTimeout() > 0) {
-        sendTimer_ = executor_->createDeadlineTimer();
+    if (conf_.getSendTimeout() > 0) {
         asyncWaitSendTimeout(milliseconds(conf_.getSendTimeout()));
     }
 }
 
 void ProducerImpl::asyncWaitSendTimeout(DurationType expiryTime) {
-    sendTimer_->expires_from_now(expiryTime);
+    sendTimer_.expires_from_now(expiryTime);
 
-    ProducerImplBaseWeakPtr weakSelf = shared_from_this();
-    sendTimer_->async_wait([weakSelf](const boost::system::error_code& err) {
+    auto weakSelf = weak_from_this();
+    sendTimer_.async_wait([weakSelf](const boost::system::error_code& err) {
         auto self = weakSelf.lock();
         if (self) {
             std::static_pointer_cast<ProducerImpl>(self)->handleSendTimeout(err);
         }
     });
 }
+
+ProducerImplWeakPtr ProducerImpl::weak_from_this() noexcept { return shared_from_this(); }
 
 }  // namespace pulsar
 /* namespace pulsar */
