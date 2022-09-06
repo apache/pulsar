@@ -572,7 +572,7 @@ if err != nil {
 fmt.Println(msg.Payload())
 ```
 
-#### How to use schema in consumer
+#### Use schema in consumer
 
 ```go
 type testJSON struct {
