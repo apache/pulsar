@@ -16,26 +16,21 @@ With [Pulsar Functions CLI](/tools/pulsar-admin/), you can debug Pulsar Function
 To get information about a function, you can specify `--fqfn` as follows.
 
 ```bash
-
  ./bin/pulsar-admin functions get public/default/ExclamationFunctio6
-
 ```
 
 Alternatively, you can specify `--name`, `--namespace` and `--tenant` as follows.
 
 ```bash
-
  ./bin/pulsar-admin functions get \
     --tenant public \
     --namespace default \
     --name ExclamationFunctio6
-
 ```
 
 As shown below, the `get` command shows input, output, runtime, and other information about the `_ExclamationFunctio6_` function.
 
 ```json
-
 {
   "tenant": "public",
   "namespace": "default",
@@ -54,7 +49,6 @@ As shown below, the `get` command shows input, output, runtime, and other inform
   "autoAck": true,
   "parallelism": 1
 }
-
 ```
 
 ## `list`
@@ -62,21 +56,17 @@ As shown below, the `get` command shows input, output, runtime, and other inform
 To list all Pulsar Functions running under a specific tenant and namespace:
 
 ```bash
-
 bin/pulsar-admin functions list \
     --tenant public \
     --namespace default
-
 ```
 
 As shown below, the `list` command returns three functions running under the `public` tenant and the `default` namespace.
 
 ```text
-
 ExclamationFunctio1
 ExclamationFunctio2
 ExclamationFunctio3
-
 ```
 
 ## `status`
@@ -84,18 +74,15 @@ ExclamationFunctio3
 To check the current status of a function:
 
 ```bash
-
  ./bin/pulsar-admin functions status \
     --tenant public \
     --namespace default \
     --name ExclamationFunctio6 \
-
 ```
 
 As shown below, the `status` command shows the number of instances, running instances, the instance running under the `_ExclamationFunctio6_` function, received messages, successfully processed messages, system exceptions, the average latency and so on.
 
 ```json
-
 {
   "numInstances" : 1,
   "numRunning" : 1,
@@ -117,7 +104,6 @@ As shown below, the `status` command shows the number of instances, running inst
     }
   } ]
 }
-
 ```
 
 ## `stats`
@@ -125,18 +111,15 @@ As shown below, the `status` command shows the number of instances, running inst
 To get the current stats of a function:
 
 ```bash
-
 bin/pulsar-admin functions stats \
     --tenant public \
     --namespace default \
     --name ExclamationFunctio6 \
-
 ```
 
 The output is shown as follows:
 
 ```json
-
 {
   "receivedTotal" : 1,
   "processedSuccessfullyTotal" : 1,
@@ -171,7 +154,6 @@ The output is shown as follows:
     }
   } ]
 }
-
 ```
 
 ## `trigger`
@@ -179,22 +161,18 @@ The output is shown as follows:
 To trigger a specified function with a supplied value:
 
 ```bash
-
  ./bin/pulsar-admin functions trigger \
     --tenant public \
     --namespace default \
     --name ExclamationFunctio6 \
     --topic persistent://public/default/my-topic-1 \
     --trigger-value "hello pulsar functions"
-
 ```
 
 This command simulates the execution process of a function and verifies it. As shown below, the `trigger` command returns the following result:
 
 ```text
-
 This is my function!
-
 ```
 
 :::note
@@ -202,11 +180,8 @@ This is my function!
 When using the `--topic` option, you must specify the [entire topic name](getting-started-pulsar.md#topic-names). Otherwise, the following error occurs.
 
   ```text
-
   Function in trigger function has unidentified topic
-
   Reason: Function in trigger function has unidentified topic
-
   ```
 
 :::

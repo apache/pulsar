@@ -22,6 +22,7 @@ package org.apache.pulsar.functions.runtime.kubernetes;
 import static java.net.HttpURLConnection.HTTP_CONFLICT;
 import static java.net.HttpURLConnection.HTTP_NOT_FOUND;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.commons.lang3.StringUtils.isNotEmpty;
 import static org.apache.commons.lang3.StringUtils.left;
 import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuthData;
 import static org.apache.pulsar.functions.utils.FunctionCommon.roundDecimal;
@@ -74,7 +75,6 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.Response;
 import org.apache.commons.codec.digest.DigestUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.functions.auth.KubernetesFunctionAuthProvider;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
@@ -139,6 +139,7 @@ public class KubernetesRuntime implements Runtime {
     private final String configAdminCLI;
     private final String userCodePkgUrl;
     private final String originalCodeFileName;
+    private final String originalTransformFunctionFileName;
     private final String pulsarAdminUrl;
     private final SecretsProviderConfigurator secretsProviderConfigurator;
     private int percentMemoryPadding;
@@ -173,6 +174,7 @@ public class KubernetesRuntime implements Runtime {
                       String configAdminCLI,
                       String userCodePkgUrl,
                       String originalCodeFileName,
+                      String originalTransformFunctionFileName,
                       String pulsarServiceUrl,
                       String pulsarAdminUrl,
                       String stateStorageServiceUrl,
@@ -203,8 +205,11 @@ public class KubernetesRuntime implements Runtime {
         this.configAdminCLI = configAdminCLI;
         this.userCodePkgUrl = userCodePkgUrl;
         this.downloadDirectory =
-                StringUtils.isNotEmpty(downloadDirectory) ? downloadDirectory : this.pulsarRootDir; // for backward comp
+                isNotEmpty(downloadDirectory) ? downloadDirectory : this.pulsarRootDir; // for backward comp
         this.originalCodeFileName = this.downloadDirectory + "/" + originalCodeFileName;
+        this.originalTransformFunctionFileName = isNotEmpty(originalTransformFunctionFileName)
+                ? this.downloadDirectory + "/" + originalTransformFunctionFileName
+                : originalTransformFunctionFileName;
         this.pulsarAdminUrl = pulsarAdminUrl;
         this.secretsProviderConfigurator = secretsProviderConfigurator;
         this.percentMemoryPadding = percentMemoryPadding;
@@ -263,6 +268,7 @@ public class KubernetesRuntime implements Runtime {
                         extraDependenciesDir,
                         logDirectory,
                         this.originalCodeFileName,
+                        this.originalTransformFunctionFileName,
                         pulsarServiceUrl,
                         stateStorageServiceUrl,
                         authConfig,
@@ -844,49 +850,29 @@ public class KubernetesRuntime implements Runtime {
     }
 
     protected List<String> getExecutorCommand() {
-        return Arrays.asList(
-                "sh",
-                "-c",
-                String.join(" ", getDownloadCommand(instanceConfig.getFunctionDetails(), originalCodeFileName))
-                        + " && " + setShardIdEnvironmentVariableCommand()
-                        + " && " + String.join(" ", processArgs)
-        );
-    }
-
-    private List<String> getDownloadCommand(Function.FunctionDetails functionDetails, String userCodeFilePath) {
-        return getDownloadCommand(functionDetails.getTenant(), functionDetails.getNamespace(),
-                functionDetails.getName(), userCodeFilePath);
-    }
-
-    private List<String> getDownloadCommand(String tenant, String namespace, String name, String userCodeFilePath) {
-
-        // add auth plugin and parameters if necessary
-        if (authenticationEnabled && authConfig != null) {
-            if (isNotBlank(authConfig.getClientAuthenticationPlugin())
-                    && isNotBlank(authConfig.getClientAuthenticationParameters())
-                    && instanceConfig.getFunctionAuthenticationSpec() != null) {
-                return Arrays.asList(
-                        pulsarRootDir + configAdminCLI,
-                        "--auth-plugin",
-                        authConfig.getClientAuthenticationPlugin(),
-                        "--auth-params",
-                        authConfig.getClientAuthenticationParameters(),
-                        "--admin-url",
-                        pulsarAdminUrl,
-                        "functions",
-                        "download",
-                        "--tenant",
-                        tenant,
-                        "--namespace",
-                        namespace,
-                        "--name",
-                        name,
-                        "--destination-file",
-                        userCodeFilePath);
-            }
+        List<String> cmds =
+                new ArrayList<>(getDownloadCommand(instanceConfig.getFunctionDetails(), originalCodeFileName, false));
+        if (isNotEmpty(originalTransformFunctionFileName)) {
+            cmds.add("&&");
+            cmds.addAll(getDownloadCommand(instanceConfig.getFunctionDetails(),
+                originalTransformFunctionFileName, true));
         }
+        cmds.add("&&");
+        cmds.add(setShardIdEnvironmentVariableCommand());
+        cmds.add("&&");
+        cmds.addAll(processArgs);
+        return Arrays.asList("sh", "-c", String.join(" ", cmds));
+    }
 
-        return Arrays.asList(
+    private List<String> getDownloadCommand(Function.FunctionDetails functionDetails, String userCodeFilePath,
+                                            boolean transformFunction) {
+        return getDownloadCommand(functionDetails.getTenant(), functionDetails.getNamespace(),
+                functionDetails.getName(), userCodeFilePath, transformFunction);
+    }
+
+    private List<String> getDownloadCommand(String tenant, String namespace, String name, String userCodeFilePath,
+                                            boolean transformFunction) {
+        ArrayList<String> cmd = new ArrayList<>(Arrays.asList(
                 pulsarRootDir + configAdminCLI,
                 "--admin-url",
                 pulsarAdminUrl,
@@ -899,7 +885,26 @@ public class KubernetesRuntime implements Runtime {
                 "--name",
                 name,
                 "--destination-file",
-                userCodeFilePath);
+                userCodeFilePath));
+
+        // add auth plugin and parameters if necessary
+        if (authenticationEnabled && authConfig != null) {
+            if (isNotBlank(authConfig.getClientAuthenticationPlugin())
+                    && isNotBlank(authConfig.getClientAuthenticationParameters())
+                    && instanceConfig.getFunctionAuthenticationSpec() != null) {
+                cmd.addAll(Arrays.asList(
+                        "--auth-plugin",
+                        authConfig.getClientAuthenticationPlugin(),
+                        "--auth-params",
+                        authConfig.getClientAuthenticationParameters()));
+            }
+        }
+
+        if (transformFunction) {
+            cmd.add("--transform-function");
+        }
+
+        return cmd;
     }
 
     private static String setShardIdEnvironmentVariableCommand() {

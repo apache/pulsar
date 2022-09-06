@@ -4,8 +4,7 @@ title: Solr sink connector
 sidebar_label: "Solr sink connector"
 ---
 
-The Solr sink connector pulls messages from Pulsar topics 
-and persists the messages to Solr collections.
+The Solr sink connector pulls messages from Pulsar topics and persists the messages to Solr collections.
 
 
 
@@ -35,7 +34,6 @@ Before using the Solr sink connector, you need to create a configuration file th
 * JSON
 
   ```json
-  
   {
      "configs": {
         "solrUrl": "localhost:2181,localhost:2182/chroot",
@@ -46,13 +44,11 @@ Before using the Solr sink connector, you need to create a configuration file th
         "password": "fake@123"
      }
   }
-  
   ```
 
 * YAML
 
   ```yaml
-  
   {
       solrUrl: "localhost:2181,localhost:2182/chroot"
       solrMode: "SolrCloud"
@@ -61,6 +57,5 @@ Before using the Solr sink connector, you need to create a configuration file th
       username: "fakeuser"
       password: "fake@123"
   }
-  
   ```
 

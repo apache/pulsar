@@ -18,6 +18,11 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import io.netty.buffer.ByteBufAllocator;
+import java.lang.reflect.Field;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -123,6 +128,41 @@ public class ProducerMemoryLimitTest extends ProducerConsumerBase {
             final MemoryLimitController memoryLimitController = clientImpl.getMemoryLimitController();
             Assert.assertEquals(memoryLimitController.currentUsage(), 0);
         }
+    }
+
+    @Test(timeOut = 10_000)
+    public void testBatchMessageOOMMemoryRelease() throws Exception {
+        initClientWithMemoryLimit();
+        @Cleanup
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
+                .topic("testProducerMemoryLimit")
+                .sendTimeout(5, TimeUnit.SECONDS)
+                .maxPendingMessages(0)
+                .enableBatching(true)
+                .batchingMaxPublishDelay(100, TimeUnit.MILLISECONDS)
+                .batchingMaxBytes(12)
+                .create();
+        this.stopBroker();
+
+        try {
+            ProducerImpl<byte[]> spyProducer = Mockito.spy(producer);
+            final ByteBufAllocator mockAllocator = mock(ByteBufAllocator.class);
+            doAnswer((ignore) -> {
+                throw new OutOfMemoryError("memory-test");
+            }).when(mockAllocator).buffer(anyInt());
+
+            final BatchMessageContainerImpl batchMessageContainer = new BatchMessageContainerImpl(mockAllocator);
+            Field batchMessageContainerField = ProducerImpl.class.getDeclaredField("batchMessageContainer");
+            batchMessageContainerField.setAccessible(true);
+            batchMessageContainerField.set(spyProducer, batchMessageContainer);
+
+            spyProducer.send("memory-test".getBytes(StandardCharsets.UTF_8));
+            Assert.fail("can not reach here");
+    } catch (PulsarClientException ex) {
+        PulsarClientImpl clientImpl = (PulsarClientImpl) this.pulsarClient;
+        final MemoryLimitController memoryLimitController = clientImpl.getMemoryLimitController();
+        Assert.assertEquals(memoryLimitController.currentUsage(), 0);
+    }
     }
 
     @Test(timeOut = 10_000)
