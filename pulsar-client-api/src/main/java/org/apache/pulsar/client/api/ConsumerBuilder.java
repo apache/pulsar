@@ -105,7 +105,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
      *
      * @return a future that yields a {@link Consumer} instance
      * @throws PulsarClientException
-     *             if the the subscribe operation fails
+     *             if the subscribe operation fails
      */
     CompletableFuture<Consumer<T>> subscribeAsync();
 
@@ -181,9 +181,11 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * Set the timeout for unacked messages, truncated to the nearest millisecond. The timeout needs to be greater than
      * 1 second.
      *
-     * <p>By default, the acknowledge timeout is disabled and that means that messages delivered to a
-     * consumer is not re-delivered unless the consumer crashes. Since 2.3.0, when a dead letter policy
-     * is specified, and no ackTimeoutMillis is specified, the ack timeout is set to 30 seconds.
+     * <p>By default, the acknowledge timeout is disabled (set to `0`, which means infinite).
+     * When a consumer with an infinite acknowledgment timeout terminates, any unacknowledged
+     * messages that it receives are re-delivered to another consumer.
+     * Since 2.3.0, when a dead letter policy is specified and no ackTimeoutMillis is specified,
+     * the ack timeout is set to 30 seconds.
      *
      * <p>When enabling ack timeout, if a message is not acknowledged within the specified timeout
      * it is re-delivered to the consumer (possibly to a different consumer in case of
@@ -813,4 +815,38 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * @param enabled whether to enable AutoScaledReceiverQueueSize.
      */
     ConsumerBuilder<T> autoScaledReceiverQueueSizeEnabled(boolean enabled);
+
+    /**
+     * Configure topic specific options to override those set at the {@link ConsumerBuilder} level.
+     *
+     * @param topicName a topic name
+     * @return a {@link TopicConsumerBuilder} instance
+     */
+    TopicConsumerBuilder<T> topicConfiguration(String topicName);
+
+    /**
+     * Configure topic specific options to override those set at the {@link ConsumerBuilder} level.
+     *
+     * @param topicName a topic name
+     * @param builderConsumer a consumer to allow the configuration of the {@link TopicConsumerBuilder} instance
+     */
+    ConsumerBuilder<T> topicConfiguration(String topicName,
+                                          java.util.function.Consumer<TopicConsumerBuilder<T>> builderConsumer);
+
+    /**
+     * Configure topic specific options to override those set at the {@link ConsumerBuilder} level.
+     *
+     * @param topicsPattern a regular expression to match a topic name
+     * @return a {@link TopicConsumerBuilder} instance
+     */
+    TopicConsumerBuilder<T> topicConfiguration(Pattern topicsPattern);
+
+    /**
+     * Configure topic specific options to override those set at the {@link ConsumerBuilder} level.
+     *
+     * @param topicsPattern a regular expression to match a topic name
+     * @param builderConsumer a consumer to allow the configuration of the {@link TopicConsumerBuilder} instance
+     */
+    ConsumerBuilder<T> topicConfiguration(Pattern topicsPattern,
+                                          java.util.function.Consumer<TopicConsumerBuilder<T>> builderConsumer);
 }

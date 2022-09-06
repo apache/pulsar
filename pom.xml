@@ -95,7 +95,8 @@ flexible messaging model and an intuitive client API.</description>
     <test.additional.args>
       --add-opens java.base/jdk.internal.loader=ALL-UNNAMED
       --add-opens java.base/java.lang=ALL-UNNAMED <!--Mockito-->
-      --add-opens java.base/java.io=ALL-UNNAMED <!--Bookkeeper NativeIO -->
+      --add-opens java.base/java.io=ALL-UNNAMED <!--Bookkeeper NativeIO-->
+      --add-opens java.base/java.util=ALL-UNNAMED <!--System Lambda-->
       --add-opens java.base/sun.net=ALL-UNNAMED <!--netty.DnsResolverUtil-->
       --add-opens java.management/sun.management=ALL-UNNAMED <!--JvmDefaultGCMetricsLogger-->
     </test.additional.args>
@@ -114,7 +115,7 @@ flexible messaging model and an intuitive client API.</description>
     <!-- apache commons -->
     <commons-compress.version>1.21</commons-compress.version>
 
-    <bookkeeper.version>4.15.0</bookkeeper.version>
+    <bookkeeper.version>4.15.1</bookkeeper.version>
     <zookeeper.version>3.8.0</zookeeper.version>
     <commons-cli.version>1.5.0</commons-cli.version>
     <commons-text.version>1.9</commons-text.version>
@@ -132,14 +133,15 @@ flexible messaging model and an intuitive client API.</description>
     <rocksdb.version>6.29.4.1</rocksdb.version>
     <slf4j.version>1.7.32</slf4j.version>
     <commons.collections4.version>4.4</commons.collections4.version>
-    <log4j2.version>2.17.1</log4j2.version>
+    <log4j2.version>2.18.0</log4j2.version>
     <bouncycastle.version>1.69</bouncycastle.version>
     <bouncycastlefips.version>1.0.2</bouncycastlefips.version>
     <jackson.version>2.13.3</jackson.version>
     <reflections.version>0.9.11</reflections.version>
     <swagger.version>1.6.2</swagger.version>
     <puppycrawl.checkstyle.version>8.37</puppycrawl.checkstyle.version>
-    <dockerfile-maven.version>1.4.13</dockerfile-maven.version>
+    <docker-maven.version>0.40.2</docker-maven.version>
+    <docker.verbose>true</docker.verbose>
     <typetools.version>0.5.0</typetools.version>
     <protobuf3.version>3.19.2</protobuf3.version>
     <protoc3.version>${protobuf3.version}</protoc3.version>
@@ -148,6 +150,7 @@ flexible messaging model and an intuitive client API.</description>
     <perfmark.version>0.19.0</perfmark.version>
     <protoc-gen-grpc-java.version>${grpc.version}</protoc-gen-grpc-java.version>
     <gson.version>2.8.9</gson.version>
+    <system-lambda.version>1.2.1</system-lambda.version>
     <sketches.version>0.8.3</sketches.version>
     <hbc-core.version>2.2.0</hbc-core.version>
     <cassandra.version>3.11.2</cassandra.version>
@@ -156,12 +159,12 @@ flexible messaging model and an intuitive client API.</description>
     <rabbitmq-client.version>5.5.3</rabbitmq-client.version>
     <aws-sdk.version>1.12.262</aws-sdk.version>
     <avro.version>1.10.2</avro.version>
-    <joda.version>2.10.5</joda.version>
+    <joda.version>2.10.10</joda.version>
     <jclouds.version>2.5.0</jclouds.version>
     <guice.version>5.1.0</guice.version>
     <sqlite-jdbc.version>3.36.0.3</sqlite-jdbc.version>
     <mysql-jdbc.version>8.0.11</mysql-jdbc.version>
-    <postgresql-jdbc.version>42.3.3</postgresql-jdbc.version>
+    <postgresql-jdbc.version>42.4.1</postgresql-jdbc.version>
     <clickhouse-jdbc.version>0.3.2</clickhouse-jdbc.version>
     <mariadb-jdbc.version>2.7.5</mariadb-jdbc.version>
     <openmldb-jdbc.version>0.4.4-hotfix1</openmldb-jdbc.version>
@@ -169,12 +172,12 @@ flexible messaging model and an intuitive client API.</description>
     <json-smart.version>2.4.7</json-smart.version>
     <opensearch.version>1.2.4</opensearch.version>
     <elasticsearch-java.version>8.1.0</elasticsearch-java.version>
-    <presto.version>334</presto.version>
+    <trino.version>363</trino.version>
     <scala.binary.version>2.13</scala.binary.version>
     <scala-library.version>2.13.6</scala-library.version>
-    <debezium.version>1.7.2.Final</debezium.version>
-    <debezium.postgresql.version>42.3.3</debezium.postgresql.version>
-    <debezium.mysql.version>8.0.28</debezium.mysql.version>
+    <debezium.version>1.9.5.Final</debezium.version>
+    <debezium.postgresql.version>42.5.0</debezium.postgresql.version>
+    <debezium.mysql.version>8.0.30</debezium.mysql.version>
     <jsonwebtoken.version>0.11.1</jsonwebtoken.version>
     <opencensus.version>0.28.0</opencensus.version>
     <hbase.version>2.4.9</hbase.version>
@@ -208,7 +211,7 @@ flexible messaging model and an intuitive client API.</description>
     <jakarta.activation.version>1.2.2</jakarta.activation.version>
     <jakarta.xml.bind.version>2.3.3</jakarta.xml.bind.version>
     <jakarta.validation.version>2.0.2</jakarta.validation.version>
-    <jna.version>4.2.0</jna.version>
+    <jna.version>5.12.1</jna.version>
     <kubernetesclient.version>12.0.1</kubernetesclient.version>
     <okhttp3.version>4.9.3</okhttp3.version>
     <!-- use okio version that matches the okhttp3 version -->
@@ -221,7 +224,7 @@ flexible messaging model and an intuitive client API.</description>
     <apache-http-client.version>4.5.13</apache-http-client.version>
     <apache-httpcomponents.version>4.4.15</apache-httpcomponents.version>
     <jetcd.version>0.5.11</jetcd.version>
-    <snakeyaml.version>1.30</snakeyaml.version>
+    <snakeyaml.version>1.31</snakeyaml.version>
     <ant.version>1.10.12</ant.version>
     <seancfoley.ipaddress.version>5.3.3</seancfoley.ipaddress.version>
     <disruptor.version>3.4.3</disruptor.version>
@@ -1321,6 +1324,13 @@ flexible messaging model and an intuitive client API.</description>
     </dependency>
 
     <dependency>
+      <groupId>com.github.stefanbirkner</groupId>
+      <artifactId>system-lambda</artifactId>
+      <version>${system-lambda.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
       <groupId>org.powermock</groupId>
       <artifactId>powermock-reflect</artifactId>
       <scope>test</scope>
@@ -1527,7 +1537,7 @@ flexible messaging model and an intuitive client API.</description>
                 <exclude>**/django/stats/migrations/*.py</exclude>
                 <exclude>site2/**</exclude>
                 <exclude>generated-site/**</exclude>
-                <exclude>.github/*.md</exclude>
+                <exclude>**/*.md</exclude>
                 <exclude>**/.idea/**</exclude>
                 <exclude>**/.mvn/**</exclude>
                 <exclude>**/generated/**</exclude>
@@ -1627,7 +1637,7 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>pulsar-client-cpp/generated/**</exclude>
             <!-- This is a text property file that contains just a class name -->
             <exclude>**/META-INF/services/com.scurrilous.circe.HashProvider</exclude>
-            <exclude>**/META-INF/services/io.prestosql.spi.Plugin</exclude>
+            <exclude>**/META-INF/services/io.trino.spi.Plugin</exclude>
 
             <!-- Django generated code -->
             <exclude>**/django/stats/migrations/*.py</exclude>
@@ -1661,7 +1671,7 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>**/_helpers.tpl</exclude>
 
             <!-- project ignored files -->
-            <exclude>*.md</exclude>
+            <exclude>**/*.md</exclude>
             <exclude>.github/**</exclude>
             <exclude>**/*.nar</exclude>
             <exclude>**/.terraform/**</exclude>
@@ -1883,6 +1893,11 @@ flexible messaging model and an intuitive client API.</description>
           <artifactId>properties-maven-plugin</artifactId>
           <version>${properties-maven-plugin.version}</version>
         </plugin>
+        <plugin>
+          <groupId>io.fabric8</groupId>
+          <artifactId>docker-maven-plugin</artifactId>
+          <version>${docker-maven.version}</version>
+        </plugin>
       </plugins>
     </pluginManagement>
     <extensions>
@@ -2074,7 +2089,9 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-client-admin-api</module>
         <module>pulsar-client-admin</module>
         <module>pulsar-client-admin-shaded</module>
+        <module>pulsar-client-tools-api</module>
         <module>pulsar-client-tools</module>
+        <module>pulsar-client-tools-customcommand-example</module>
         <module>pulsar-client-tools-test</module>
         <module>pulsar-client-all</module>
         <module>pulsar-websocket</module>
@@ -2137,7 +2154,9 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-client</module>
         <module>pulsar-client-admin-api</module>
         <module>pulsar-client-admin</module>
+        <module>pulsar-client-tools-api</module>
         <module>pulsar-client-tools</module>
+        <module>pulsar-client-tools-customcommand-example</module>
         <module>pulsar-client-tools-test</module>
         <module>pulsar-websocket</module>
         <module>pulsar-proxy</module>

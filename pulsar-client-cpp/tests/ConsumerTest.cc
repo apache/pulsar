@@ -30,7 +30,6 @@
 #include "lib/Future.h"
 #include "lib/Utils.h"
 #include "lib/LogUtils.h"
-#include "lib/PartitionedConsumerImpl.h"
 #include "lib/MultiTopicsConsumerImpl.h"
 #include "HttpHelper.h"
 
@@ -406,8 +405,9 @@ TEST(ConsumerTest, testPartitionedConsumerUnAckedMessageRedelivery) {
     consumerConfig.setUnAckedMessagesTimeoutMs(unAckedMessagesTimeoutMs);
     consumerConfig.setTickDurationInMs(tickDurationInMs);
     ASSERT_EQ(ResultOk, client.subscribe(partitionedTopic, subName, consumerConfig, consumer));
-    PartitionedConsumerImplPtr partitionedConsumerImplPtr =
-        PulsarFriend::getPartitionedConsumerImplPtr(consumer);
+
+    MultiTopicsConsumerImplPtr partitionedConsumerImplPtr =
+        PulsarFriend::getMultiTopicsConsumerImplPtr(consumer);
     ASSERT_EQ(numPartitions, partitionedConsumerImplPtr->consumers_.size());
 
     // send messages
@@ -442,8 +442,10 @@ TEST(ConsumerTest, testPartitionedConsumerUnAckedMessageRedelivery) {
     ASSERT_EQ(numOfMessages, partitionedTracker->size());
     ASSERT_FALSE(partitionedTracker->isEmpty());
     for (auto i = 0; i < numPartitions; i++) {
+        auto topicName =
+            "persistent://public/default/" + partitionedTopic + "-partition-" + std::to_string(i);
         ASSERT_EQ(numOfMessages / numPartitions, messageIds[i].size());
-        auto subConsumerPtr = partitionedConsumerImplPtr->consumers_[i];
+        auto subConsumerPtr = partitionedConsumerImplPtr->consumers_.find(topicName).value();
         auto tracker =
             static_cast<UnAckedMessageTrackerEnabled*>(subConsumerPtr->unAckedMessageTrackerPtr_.get());
         ASSERT_EQ(0, tracker->size());
@@ -718,6 +720,81 @@ TEST(ConsumerTest, testIsConnected) {
     ASSERT_TRUE(consumer.isConnected());
     ASSERT_EQ(ResultOk, consumer.close());
     ASSERT_FALSE(consumer.isConnected());
+}
+
+TEST(ConsumerTest, testPartitionsWithCloseUnblock) {
+    Client client(lookupUrl);
+    const std::string partitionedTopic = "testPartitionsWithCloseUnblock" + std::to_string(time(nullptr));
+    constexpr int numPartitions = 2;
+
+    int res =
+        makePutRequest(adminUrl + "admin/v2/persistent/public/default/" + partitionedTopic + "/partitions",
+                       std::to_string(numPartitions));
+    ASSERT_TRUE(res == 204 || res == 409) << "res: " << res;
+
+    Consumer consumer;
+    ConsumerConfiguration consumerConfig;
+    ASSERT_EQ(ResultOk, client.subscribe(partitionedTopic, "SubscriptionName", consumerConfig, consumer));
+
+    // send messages
+    ProducerConfiguration producerConfig;
+    Producer producer;
+    ASSERT_EQ(ResultOk, client.createProducer(partitionedTopic, producerConfig, producer));
+    Message msg = MessageBuilder().setContent("message").build();
+    ASSERT_EQ(ResultOk, producer.send(msg));
+
+    producer.close();
+
+    // receive message on another thread
+    pulsar::Latch latch(1);
+    auto thread = std::thread([&]() {
+        Message msg;
+        ASSERT_EQ(ResultOk, consumer.receive(msg, 10 * 1000));
+        consumer.acknowledge(msg.getMessageId());
+        ASSERT_EQ(ResultAlreadyClosed, consumer.receive(msg, 10 * 1000));
+        latch.countdown();
+    });
+
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+
+    consumer.close();
+
+    bool wasUnblocked = latch.wait(std::chrono::milliseconds(100));
+
+    ASSERT_TRUE(wasUnblocked);
+    thread.join();
+}
+
+TEST(ConsumerTest, testGetLastMessageIdBlockWhenConnectionDisconnected) {
+    int operationTimeout = 5;
+    ClientConfiguration clientConfiguration;
+    clientConfiguration.setOperationTimeoutSeconds(operationTimeout);
+
+    Client client(lookupUrl, clientConfiguration);
+    const std::string topic =
+        "testGetLastMessageIdBlockWhenConnectionDisconnected-" + std::to_string(time(nullptr));
+
+    Consumer consumer;
+    ASSERT_EQ(ResultOk, client.subscribe(topic, "test-sub", consumer));
+
+    ConsumerImpl& consumerImpl = PulsarFriend::getConsumerImpl(consumer);
+    ClientConnectionWeakPtr conn = PulsarFriend::getClientConnection(consumerImpl);
+
+    PulsarFriend::setClientConnection(consumerImpl, std::weak_ptr<ClientConnection>());
+
+    pulsar::Latch latch(1);
+    auto start = TimeUtils::now();
+
+    consumerImpl.getLastMessageIdAsync([&latch](Result r, const GetLastMessageIdResponse&) -> void {
+        ASSERT_EQ(r, ResultNotConnected);
+        latch.countdown();
+    });
+
+    ASSERT_TRUE(latch.wait(std::chrono::seconds(20)));
+    auto elapsed = TimeUtils::now() - start;
+
+    // getLastMessageIdAsync should be blocked until operationTimeout when the connection is disconnected.
+    ASSERT_GE(elapsed.seconds(), operationTimeout);
 }
 
 }  // namespace pulsar

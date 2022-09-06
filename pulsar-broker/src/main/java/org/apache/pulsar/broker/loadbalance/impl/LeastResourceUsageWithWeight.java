@@ -39,6 +39,7 @@ import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
  */
 @Slf4j
 public class LeastResourceUsageWithWeight implements ModularLoadManagerStrategy {
+    private static final double MAX_RESOURCE_USAGE = 1.0d;
     // Maintain this list to reduce object creation.
     private final ArrayList<String> bestBrokers;
     private final Map<String, Double> brokerAvgResourceUsageWithWeight;
@@ -90,7 +91,7 @@ public class LeastResourceUsageWithWeight implements ModularLoadManagerStrategy 
                                                           ServiceConfiguration conf) {
         final double historyPercentage = conf.getLoadBalancerHistoryResourcePercentage();
         Double historyUsage = brokerAvgResourceUsageWithWeight.get(broker);
-        double resourceUsage = brokerData.getLocalData().getMaxResourceUsageWithWeight(
+        double resourceUsage = brokerData.getLocalData().getMaxResourceUsageWithWeightWithinLimit(
                 conf.getLoadBalancerCPUResourceWeight(),
                 conf.getLoadBalancerMemoryResourceWeight(),
                 conf.getLoadBalancerDirectMemoryResourceWeight(),
@@ -144,7 +145,7 @@ public class LeastResourceUsageWithWeight implements ModularLoadManagerStrategy 
         final double diffThreshold =
                 conf.getLoadBalancerAverageResourceUsageDifferenceThresholdPercentage() / 100.0;
         candidates.forEach(broker -> {
-            Double avgResUsage = brokerAvgResourceUsageWithWeight.getOrDefault(broker, Double.MAX_VALUE);
+            Double avgResUsage = brokerAvgResourceUsageWithWeight.getOrDefault(broker, MAX_RESOURCE_USAGE);
             if ((avgResUsage + diffThreshold <= avgUsage)) {
                 bestBrokers.add(broker);
             }
