@@ -263,7 +263,7 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
     public void testRedeliveryAddEpoch(boolean enableBatch) throws Exception{
         final String topic = "testRedeliveryAddEpoch";
         final String subName = "my-sub";
-        ConsumerBase<String> consumer = ((ConsumerBase<String>) pulsarClient.newConsumer(Schema.STRING)
+        ConsumerImpl<String> consumer = ((ConsumerImpl<String>) pulsarClient.newConsumer(Schema.STRING)
                 .topic(topic)
                 .subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Failover)
@@ -278,11 +278,6 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         String test2 = "Pulsar2";
         String test3 = "Pulsar3";
         producer.send(test1);
-
-        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopics()
-                .get(TopicName.get("persistent://public/default/" + topic).toString()).get().get();
-        PersistentDispatcherSingleActiveConsumer persistentDispatcherSingleActiveConsumer =
-                (PersistentDispatcherSingleActiveConsumer) persistentTopic.getSubscription(subName).getDispatcher();
 
         consumer.setConsumerEpoch(1);
         Message<String> message = consumer.receive(3, TimeUnit.SECONDS);
@@ -313,14 +308,11 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
 
         Field field = consumer.getClass().getDeclaredField("connectionHandler");
         field.setAccessible(true);
-        ConnectionHandler connectionHandler = (ConnectionHandler) field.get(consumer);
-
-        field = connectionHandler.getClass().getDeclaredField("CLIENT_CNX_UPDATER");
-        field.setAccessible(true);
-
+        ConnectionHandler connectionHandler = consumer.getConnectionHandler();
         connectionHandler.cnx().channel().close();
 
-        ((ConsumerImpl<String>) consumer).grabCnx();
+        consumer.grabCnx();
+
         message = consumer.receive(3, TimeUnit.SECONDS);
         assertNotNull(message);
         assertEquals(message.getValue(), test3);
@@ -330,7 +322,7 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
     public void testBatchReceiveRedeliveryAddEpoch(boolean enableBatch) throws Exception{
         final String topic = "testBatchReceiveRedeliveryAddEpoch";
         final String subName = "my-sub";
-        ConsumerBase<String> consumer = ((ConsumerBase<String>) pulsarClient.newConsumer(Schema.STRING)
+        ConsumerImpl<String> consumer = ((ConsumerImpl<String>) pulsarClient.newConsumer(Schema.STRING)
                 .topic(topic)
                 .subscriptionName(subName)
                 .batchReceivePolicy(BatchReceivePolicy.builder().timeout(1000, TimeUnit.MILLISECONDS).build())
@@ -346,11 +338,6 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         String test2 = "Pulsar2";
         String test3 = "Pulsar3";
         producer.send(test1);
-
-        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopics()
-                .get(TopicName.get("persistent://public/default/" + topic).toString()).get().get();
-        PersistentDispatcherSingleActiveConsumer persistentDispatcherSingleActiveConsumer =
-                (PersistentDispatcherSingleActiveConsumer) persistentTopic.getSubscription(subName).getDispatcher();
 
         Messages<String> messages;
         Message<String> message;
@@ -381,16 +368,10 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         messages = consumer.batchReceive();
         assertEquals(messages.size(), 0);
 
-        Field field = consumer.getClass().getDeclaredField("connectionHandler");
-        field.setAccessible(true);
-        ConnectionHandler connectionHandler = (ConnectionHandler) field.get(consumer);
-
-        field = connectionHandler.getClass().getDeclaredField("CLIENT_CNX_UPDATER");
-        field.setAccessible(true);
-
+        ConnectionHandler connectionHandler = consumer.getConnectionHandler();
         connectionHandler.cnx().channel().close();
 
-        ((ConsumerImpl<String>) consumer).grabCnx();
+        consumer.grabCnx();
         messages = consumer.batchReceive();
         assertEquals(messages.size(), 1);
         message = messages.iterator().next();
