@@ -60,12 +60,6 @@ Run this command to start a standalone Pulsar cluster:
 bin/pulsar standalone
 ```
 
-By default, the standalone mode runs a RocksDB instance for metadat storage. If you'd prefer to start a cluster with standalone ZooKeeper server, set `PULSAR_STANDALONE_USE_ZOOKEEPER` to 1:
-
-```bash
-PULSAR_STANDALONE_USE_ZOOKEEPER=1 bin/pulsar standalone
-```
-
 These directories are created once you started the Pulsar cluster:
 
 | Directory | Contains                                   |
