@@ -714,7 +714,7 @@ defer reader.Close()
 
 ### Reader operations
 
-All available method of `Reader` interface are [here](https://pkg.go.dev/github.com/apache/pulsar-client-go/pulsar#Reader).
+All available methods of the `Reader` interface are [here](https://pkg.go.dev/github.com/apache/pulsar-client-go/pulsar#Reader).
 
 ### Reader example
 
