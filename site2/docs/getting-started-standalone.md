@@ -44,13 +44,13 @@ ls -1F
 
 You may want to note that:
 
-| Directory | Contains                                                                                            |
-| --------- | --------------------------------------------------------------------------------------------------- |
-| bin       | the [`pulsar`](reference-cli-tools.md#pulsar) entry point script, and many other command-line tools |
-| conf      | configuration files, including `broker.conf`                                                        |
-| lib       | JARs used by Pulsar                                                                                 |
-| examples  | [Pulsar Functions](functions-overview.md) examples                                                  |
-| instances | artifacts for [Pulsar Functions](functions-overview.md)                                             |
+| Directory     | Contains                                                                                            |
+| ------------- | --------------------------------------------------------------------------------------------------- |
+| **bin**       | The [`pulsar`](reference-cli-tools.md#pulsar) entry point script, and many other command-line tools |
+| **conf**      | Configuration files, including `broker.conf`                                                        |
+| **lib**       | JARs used by Pulsar                                                                                 |
+| **examples**  | [Pulsar Functions](functions-overview.md) examples                                                  |
+| **instances** | Artifacts for [Pulsar Functions](functions-overview.md)                                             |
 
 ## Step 2. Start a Pulsar standalone cluster
 
@@ -64,8 +64,8 @@ These directories are created once you started the Pulsar cluster:
 
 | Directory | Contains                                   |
 | --------- | ------------------------------------------ |
-| data      | all data created by BookKeeper and RocksDB |
-| logs      | all server-side logs.                      |
+| **data**  | All data created by BookKeeper and RocksDB |
+| **logs**  | All server-side logs                       |
 
 :::tip
 
