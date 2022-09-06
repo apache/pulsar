@@ -49,6 +49,7 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.commons.collections4.ListUtils;
 import org.apache.commons.lang.mutable.MutableObject;
@@ -110,9 +111,8 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@Slf4j
 public abstract class NamespacesBase extends AdminResource {
 
     protected CompletableFuture<List<String>> internalGetTenantNamespaces(String tenant) {
@@ -1430,40 +1430,29 @@ public abstract class NamespacesBase extends AdminResource {
                 .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
                 .thenApply(policies -> policies.clusterSubscribeRate.get(pulsar().getConfiguration().getClusterName()));
     }
-
-    protected void internalSetBacklogQuota(BacklogQuotaType backlogQuotaType, BacklogQuota backlogQuota) {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.BACKLOG, PolicyOperation.WRITE);
-        validatePoliciesReadOnlyAccess();
-        final BacklogQuotaType quotaType = backlogQuotaType != null ? backlogQuotaType
-                : BacklogQuotaType.destination_storage;
-        try {
-            Policies policies = namespaceResources().getPolicies(namespaceName)
-                    .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Namespace policies does not exist"));
-            RetentionPolicies r = policies.retention_policies;
-            if (r != null) {
-                Policies p = new Policies();
-                p.backlog_quota_map.put(quotaType, backlogQuota);
-                if (!checkQuotas(p, r)) {
-                    log.warn(
-                            "[{}] Failed to update backlog configuration"
-                                    + " for namespace {}: conflicts with retention quota",
-                            clientAppId(), namespaceName);
-                    throw new RestException(Status.PRECONDITION_FAILED,
-                            "Backlog Quota exceeds configured retention quota for namespace."
-                                    + " Please increase retention quota and retry");
-                }
+    protected CompletableFuture<Void> setBacklogQuotaAsync(BacklogQuotaType backlogQuotaType,
+                                                           BacklogQuota quota) {
+        return namespaceResources().setPoliciesAsync(namespaceName, policies -> {
+            RetentionPolicies retentionPolicies = policies.retention_policies;
+            final BacklogQuotaType quotaType = backlogQuotaType != null ? backlogQuotaType
+                    : BacklogQuotaType.destination_storage;
+            if (retentionPolicies == null) {
+                policies.backlog_quota_map.put(quotaType, quota);
+                return policies;
             }
-            policies.backlog_quota_map.put(quotaType, backlogQuota);
-            namespaceResources().setPolicies(namespaceName, p -> policies);
-            log.info("[{}] Successfully updated backlog quota map: namespace={}, map={}", clientAppId(), namespaceName,
-                    jsonMapper().writeValueAsString(backlogQuota));
-
-        } catch (RestException pfe) {
-            throw pfe;
-        } catch (Exception e) {
-            log.error("[{}] Failed to update backlog quota map for namespace {}", clientAppId(), namespaceName, e);
-            throw new RestException(e);
-        }
+            // If we have retention policies, we have to check the conflict.
+            BacklogQuota needCheckQuota = null;
+            if (quotaType == BacklogQuotaType.destination_storage) {
+                needCheckQuota = quota;
+            }
+            boolean passCheck = checkBacklogQuota(needCheckQuota, retentionPolicies);
+            if (!passCheck) {
+                throw new RestException(Response.Status.PRECONDITION_FAILED,
+                        "Backlog Quota exceeds configured retention quota for namespace."
+                                + " Please increase retention quota and retry");
+            }
+            return policies;
+        });
     }
 
     protected void internalRemoveBacklogQuota(BacklogQuotaType backlogQuotaType) {
@@ -2767,5 +2756,69 @@ public abstract class NamespacesBase extends AdminResource {
                     return null;
                 });
     }
-    private static final Logger log = LoggerFactory.getLogger(NamespacesBase.class);
+
+    /**
+     * Base method for getBackLogQuotaMap v1 and v2.
+     * Notion: don't re-use this logic.
+     */
+    protected void internalGetBacklogQuotaMap(AsyncResponse asyncResponse) {
+        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.BACKLOG, PolicyOperation.READ)
+                .thenCompose(__ -> namespaceResources().getPoliciesAsync(namespaceName))
+                .thenAccept(policiesOpt -> {
+                    Map<BacklogQuotaType, BacklogQuota> backlogQuotaMap = policiesOpt.orElseThrow(() ->
+                            new RestException(Response.Status.NOT_FOUND, "Namespace does not exist"))
+                            .backlog_quota_map;
+                    asyncResponse.resume(backlogQuotaMap);
+                })
+                .exceptionally(ex -> {
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    log.error("[{}] Failed to get backlog quota map on namespace {}", clientAppId(), namespaceName, ex);
+                    return null;
+                });
+    }
+
+    /**
+     * Base method for setBacklogQuota v1 and v2.
+     * Notion: don't re-use this logic.
+     */
+    protected void internalSetBacklogQuota(AsyncResponse asyncResponse,
+                                           BacklogQuotaType backlogQuotaType, BacklogQuota backlogQuota) {
+        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.BACKLOG, PolicyOperation.WRITE)
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenCompose(__ -> setBacklogQuotaAsync(backlogQuotaType, backlogQuota))
+                .thenAccept(__ -> {
+                    asyncResponse.resume(Response.noContent().build());
+                    log.info("[{}] Successfully updated backlog quota map: namespace={}, map={}", clientAppId(),
+                            namespaceName, backlogQuota);
+                }).exceptionally(ex -> {
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    log.error("[{}] Failed to update backlog quota map for namespace {}",
+                            clientAppId(), namespaceName, ex);
+                    return null;
+                });
+    }
+
+    /**
+     * Base method for removeBacklogQuota v1 and v2.
+     * Notion: don't re-use this logic.
+     */
+    protected void internalRemoveBacklogQuota(AsyncResponse asyncResponse, BacklogQuotaType backlogQuotaType) {
+        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.BACKLOG, PolicyOperation.WRITE)
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenCompose(__ -> namespaceResources().setPoliciesAsync(namespaceName, policies -> {
+                    final BacklogQuotaType quotaType = backlogQuotaType != null ? backlogQuotaType
+                            : BacklogQuotaType.destination_storage;
+                    policies.backlog_quota_map.remove(quotaType);
+                    return policies;
+                })).thenAccept(__ -> {
+                    asyncResponse.resume(Response.noContent().build());
+                    log.info("[{}] Successfully removed backlog namespace={}, quota={}", clientAppId(), namespaceName,
+                            backlogQuotaType);
+                }).exceptionally(ex -> {
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    log.error("[{}] Failed to update backlog quota map for namespace {}",
+                            clientAppId(), namespaceName, ex);
+                    return null;
+                });
+    }
 }
