@@ -466,7 +466,7 @@ if err != nil {
 defer consumer.Close()
 ```
 
-#### Create multi-topic Consumer
+#### Create multi-topic consumer
 
 ```go
 client, err := pulsar.NewClient(pulsar.ClientOptions{
