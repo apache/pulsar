@@ -108,6 +108,8 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
                 }
             } catch (Throwable e) {
                 log.error("construct first message failed, exception is ", e);
+                producer.semaphoreRelease(getNumMessagesInBatch());
+                producer.client.getMemoryLimitController().releaseMemory(msg.getUncompressedSize());
                 discard(new PulsarClientException(e));
                 return false;
             }

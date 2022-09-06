@@ -345,6 +345,13 @@
         <sha1>a7e89bd278fa8be9fa604dda66d1606de5530797</sha1>
         <cve>CVE-2020-12692</cve>
     </suppress>
+    <suppress>
+        <notes><![CDATA[
+       file name: openstack-keystone-2.5.0.jar
+       ]]></notes>
+        <sha1>a7e89bd278fa8be9fa604dda66d1606de5530797</sha1>
+        <cve>CVE-2021-3563</cve>
+    </suppress>
 
     <!-- Solr misdetection.
     Cannot be tied to a sha1,

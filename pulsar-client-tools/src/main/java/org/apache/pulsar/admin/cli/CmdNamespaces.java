@@ -906,7 +906,8 @@ public class CmdNamespaces extends CmdBase {
 
         @Parameter(names = { "--split-algorithm-name", "-san" }, description = "Algorithm name for split "
                 + "namespace bundle. Valid options are: [range_equally_divide, topic_count_equally_divide, "
-                + "specified_positions_divide]. Use broker side config if absent", required = false)
+                + "specified_positions_divide, flow_or_qps_equally_divide]. Use broker side config if absent"
+                , required = false)
         private String splitAlgorithmName;
 
         @Parameter(names = { "--split-boundaries",
