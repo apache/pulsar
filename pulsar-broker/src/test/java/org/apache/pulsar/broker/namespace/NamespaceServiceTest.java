@@ -42,9 +42,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import java.util.function.Predicate;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.commons.collections4.CollectionUtils;
@@ -85,6 +87,7 @@ import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.policies.data.loadbalancer.BundleData;
 import org.awaitility.Awaitility;
 import org.mockito.stubbing.Answer;
+import org.powermock.reflect.Whitebox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -746,19 +749,18 @@ public class NamespaceServiceTest extends BrokerTestBase {
     public void testModularLoadManagerRemoveBundleAndLoad() throws Exception {
         final String BUNDLE_DATA_PATH = "/loadbalance/bundle-data";
         final String namespace = "prop/ns-abc";
+        final String bundleName = namespace + "/0x00000000_0xffffffff";
         final String topic1 = "persistent://" + namespace + "/topic1";
         final String topic2 = "persistent://" + namespace + "/topic2";
 
         // configure broker with ModularLoadManager
         conf.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
         conf.setForceDeleteNamespaceAllowed(true);
+        // Make sure LoadReportUpdaterTask has a 100% chance to write ZK.
+        conf.setLoadBalancerReportUpdateMaxIntervalMinutes(-1);
         restartBroker();
 
-        LoadManager loadManager = spy(pulsar.getLoadManager().get());
-        Field loadManagerField = NamespaceService.class.getDeclaredField("loadManager");
-        loadManagerField.setAccessible(true);
-        doReturn(true).when(loadManager).isCentralized();
-        loadManagerField.set(pulsar.getNamespaceService(), new AtomicReference<>(loadManager));
+        LoadManager loadManager = pulsar.getLoadManager().get();
         NamespaceName nsname = NamespaceName.get(namespace);
 
         @Cleanup
@@ -778,10 +780,10 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
         //create znode for bundle-data
         pulsar.getBrokerService().updateRates();
-        loadManager.writeLoadReportOnZookeeper();
-        loadManager.writeResourceQuotasToZooKeeper();
 
-        String path = BUNDLE_DATA_PATH + "/" + nsname.toString() + "/0x00000000_0xffffffff";
+        waitResourceDataUpdateToZK(loadManager,
+                loadData -> loadData.getBundleData().containsKey(bundleName));
+        String path = BUNDLE_DATA_PATH + "/" + bundleName;
 
         Optional<GetResult> getResult = pulsar.getLocalMetadataStore().get(path).get();
         assertTrue(getResult.isPresent());
@@ -792,12 +794,46 @@ public class NamespaceServiceTest extends BrokerTestBase {
         TimeUnit.SECONDS.sleep(5);
 
         // update broker bundle report to zk
-        loadManager.writeLoadReportOnZookeeper();
-        loadManager.writeResourceQuotasToZooKeeper();
+        waitResourceDataUpdateToZK(loadManager,
+                loadData -> !loadData.getBundleData().containsKey(bundleName));
 
         getResult = pulsar.getLocalMetadataStore().get(path).get();
         assertFalse(getResult.isPresent());
+    }
 
+    private void waitResourceDataUpdateToZK(
+            LoadManager loadManager, Predicate<LoadData> utilChecker) throws Exception {
+        CompletableFuture<Void> waitForBrokerChangeNotice = registryBrokerDataChangeNotice();
+        // Manually trigger "LoadReportUpdaterTask"
+        loadManager.writeLoadReportOnZookeeper();
+        waitForBrokerChangeNotice.join();
+        // Wait until "ModularLoadManager" completes processing the ZK notification.
+        ModularLoadManagerWrapper modularLoadManagerWrapper = (ModularLoadManagerWrapper) loadManager;
+        ModularLoadManagerImpl modularLoadManager = (ModularLoadManagerImpl) modularLoadManagerWrapper.getLoadManager();
+        ScheduledExecutorService scheduler = Whitebox.getInternalState(modularLoadManager, "scheduler");
+        CompletableFuture<Void> waitForNoticeHandleFinishByLoadManager = new CompletableFuture<>();
+        scheduler.execute(() -> {
+            waitForNoticeHandleFinishByLoadManager.complete(null);
+        });
+        waitForNoticeHandleFinishByLoadManager.join();
+        // Manually trigger "LoadResourceQuotaUpdaterTask"
+        loadManager.writeResourceQuotasToZooKeeper();
+    }
+
+    public CompletableFuture<Void> registryBrokerDataChangeNotice() {
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        String lookupServiceAddress = pulsar.getAdvertisedAddress() + ":"
+                + (conf.getWebServicePort().isPresent() ? conf.getWebServicePort().get()
+                : conf.getWebServicePortTls().get());
+        String brokerDataPath = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + lookupServiceAddress;
+        pulsar.getLocalMetadataStore().registerListener(notice -> {
+            if (brokerDataPath.equals(notice.getPath())){
+                if (!completableFuture.isDone()) {
+                    completableFuture.complete(null);
+                }
+            }
+        });
+        return completableFuture;
     }
 
     @SuppressWarnings("unchecked")
