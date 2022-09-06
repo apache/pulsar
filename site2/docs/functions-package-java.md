@@ -15,7 +15,6 @@ To package a Java function, complete the following steps.
 1. Create a new maven project with a pom file. In the following code sample, the value of `mainClass` is your package name.
 
    ```java
-
     <?xml version="1.0" encoding="UTF-8"?>
     <project xmlns="http://maven.apache.org/POM/4.0.0"
             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -70,15 +69,12 @@ To package a Java function, complete the following steps.
         </build>
 
     </project>
-
    ```
 
 2. Package your Java function.
 
    ```bash
-
     mvn package
-
    ```
 
    After the Java function is packaged, a `target` directory is created automatically. Open the `target` directory to check if there is a JAR package similar to `java-function-1.0-SNAPSHOT.jar`.
@@ -86,16 +82,13 @@ To package a Java function, complete the following steps.
 3. Copy the packaged jar file to the Pulsar image.
 
    ```bash
-
     docker exec -it [CONTAINER ID] /bin/bash
     docker cp <path of java-function-1.0-SNAPSHOT.jar>  CONTAINER ID:/pulsar
-
    ```
 
 4. Run the Java function using the following command.
 
    ```bash
-
     ./bin/pulsar-admin functions localrun \
     --classname org.example.test.ExclamationFunction \
     --jar java-function-1.0-SNAPSHOT.jar \
@@ -104,7 +97,6 @@ To package a Java function, complete the following steps.
     --tenant public \
     --namespace default \
     --name JavaFunction
-
    ```
 
    The following log indicates that the Java function starts successfully.

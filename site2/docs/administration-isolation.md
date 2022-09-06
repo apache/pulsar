@@ -5,7 +5,7 @@ sidebar_label: "Pulsar isolation"
 ---
 
 
-In an organization, a Pulsar instance provides services to multiple teams. When organizing the resources across multiple teams, you want to make a suitable isolation plan to avoid the resource competition between different teams and applications and provide high-quality messaging service. In this case, you need to take resource isolation into consideration and weigh your intended actions against expected and unexpected consequences.
+In an organization, a Pulsar instance provides services to multiple teams. When organizing the resources across multiple teams, you want to make a suitable isolation plan to avoid resource competition between different teams and applications and provide high-quality messaging service. In this case, you need to consider resource isolation and weigh your intended actions against expected and unexpected consequences.
 
 The multi-layer and segment-centric architecture and hierarchical resource management of Pulsar provide a solid foundation for isolation, which allows you to isolate resources in your desired manner, prevent resource competition, and attain stability.
 
@@ -13,7 +13,7 @@ The multi-layer and segment-centric architecture and hierarchical resource manag
 ## Isolation levels
 
 Pulsar supports isolation at either of the following two levels or both. 
-* [Broker-level isolation](administration-isolation-broker.md) divides brokers into different groups and assigns broker groups to different namespaces. In this way, you can bind topics in a namespace to a set of brokers that belong to the specific groups.
+* [Broker-level isolation](administration-isolation-broker.md) divides brokers into different groups and assigns broker groups to different namespaces. In this way, you can bind topics in a namespace to a set of brokers that belong to specific groups.
 * [Bookie-level isolation](administration-isolation-bookie.md) divides bookies into different racks/regions and assigns data replicas to bookies based on a specified data placement policy for disaster tolerance.
 
 ![Isolation levels](/assets/admin-isolation.svg)
@@ -57,7 +57,7 @@ Here are some key points for understanding how it works:
 - Each Pulsar cluster has one or multiple brokers.
 - Each Pulsar cluster has one metadata store. 
 
-As illustrated below, all bookie groups use a shared BookKeeper cluster and a metadata store, and each [bookie affinity group](administration-isolation-bookie.md#configure-bookie-affinity-groups) has one or several bookies. You can specify one or multiple primary/secondary groups for a namespace. Topics under the namespace are created on the bookies in the primary group firstly and then created on the bookies in the secondary group.
+As illustrated below, all bookie groups use a shared BookKeeper cluster and a metadata store, and each [bookie affinity group](administration-isolation-bookie.md#configure-bookie-affinity-groups) has one or several bookies. You can specify one or multiple primary/secondary groups for a namespace. Topics under the namespace are created on the bookies in the primary group first and then created on the bookies in the secondary group.
 
 ![Storage isolation achieved by bookie affinity groups](/assets/isolation-3.png)
 
@@ -69,5 +69,5 @@ The following illustration demonstrates how to achieve isolation inside a single
 
 Here are some key points for understanding how it works:
 - Each cluster exposes its service through a DNS entry point and makes sure a client can access the cluster through the DNS entry point. Clients can use one or multiple Pulsar URLs that the Pulsar cluster exposes as the service URL.
-- Broker isolation is achieved by setting [namespace isolation policy](administration-isolation-broker.md).
+- Broker isolation is achieved by setting a [namespace isolation policy](administration-isolation-broker.md).
 
