@@ -1252,7 +1252,7 @@ class PulsarTest(TestCase):
 
     def test_logger_thread_leaks(self):
         def _do_connect(close):
-            logger = logging.getLogger(str(threading.currentThread().ident))
+            logger = logging.getLogger(str(threading.current_thread().ident))
             logger.setLevel(logging.INFO)
             client = pulsar.Client(
                 service_url="pulsar://localhost:6650",
