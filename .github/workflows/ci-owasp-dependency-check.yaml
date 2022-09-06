@@ -37,6 +37,8 @@ jobs:
         include:
           - name: master
             checkout_branch: 'master'
+          - name: branch-2.11
+            checkout_branch: 'branch-2.11'
           - name: branch-2.10
             checkout_branch: 'branch-2.10'
           - name: branch-2.9
