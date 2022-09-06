@@ -246,13 +246,15 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
     public int cardinality(long lowerKey, long lowerValue, long upperKey, long upperValue) {
         NavigableMap<Long, BitSet> subMap = rangeBitSetMap.subMap(lowerKey, true, upperKey, true);
         MutableInt v = new MutableInt(0);
-        subMap.forEach((ledgerId, bitset) -> {
-            if (ledgerId == lowerKey || ledgerId == upperKey) {
+        subMap.forEach((key, bitset) -> {
+            if (key == lowerKey || key == upperKey) {
                 BitSet temp = (BitSet) bitset.clone();
-                if (ledgerId == lowerKey) {
+                // Trim the bitset index which < lowerValue
+                if (key == lowerKey) {
                     temp.clear(0, (int) Math.max(0, lowerValue));
                 }
-                if (ledgerId == upperKey) {
+                // Trim the bitset index which > upperValue
+                if (key == upperKey) {
                     temp.clear((int) Math.min(upperValue + 1, temp.length()), temp.length());
                 }
                 v.add(temp.cardinality());

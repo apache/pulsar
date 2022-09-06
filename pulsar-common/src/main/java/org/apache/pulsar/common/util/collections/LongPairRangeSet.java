@@ -126,7 +126,7 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
     Range<T> lastRange();
 
     /**
-     * Return the number bit sets to true from lower to upper.
+     * Return the number bit sets to true from lower (inclusive) to upper (inclusive).
      */
     int cardinality(long lowerKey, long lowerValue, long upperKey, long upperValue);
 
