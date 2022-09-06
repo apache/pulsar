@@ -30,7 +30,7 @@ Once downloaded, unpack the tar file:
 tar xvfz apache-pulsar-@pulsar:version@-bin.tar.gz
 ```
 
-For the rest of this quickstart we'll run commands from the root of the distribution folder, so switch to it:
+For the rest of this quickstart all commands are run from the root of the distribution folder, so switch to it:
 
 ```bash
 cd apache-pulsar-@pulsar:version@
@@ -96,9 +96,7 @@ bin/pulsar-client produce my-topic --messages 'Hello Pulsar!'
 
 ## Step 5. Read messages from the topic
 
-Now that we've written message to the topic, we'll read those messages back.
-
-Run this command to launch the consumer:
+Now that some messages have been written to the topic, run this command to launch the consumer and read those messages back:
 
 ```bash
 bin/pulsar-client consume my-topic -s 'my-subscription' -p Earliest -n 0
