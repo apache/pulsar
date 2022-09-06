@@ -14,7 +14,7 @@ If you're looking to run a full production Pulsar installation, see the [Deployi
 
 ## Prerequisites
 
-Nothing more than a 64-bit JRE is required to run a standalone Pulsar cluster. For the required JRE version, see [Pulsar Runtime Java Version Recommendation](https://github.com/apache/pulsar/blob/master/README.md#pulsar-runtime-java-version-recommendation) according to your target Pulsar version.
+- JRE (64-bit). Different Pulsar versions rely on different JRE versions. For how to choose the JRE version, see [Pulsar Runtime Java Version Recommendation](https://github.com/apache/pulsar/blob/master/README.md#pulsar-runtime-java-version-recommendation).
 
 ## Download Pulsar distribution
 
