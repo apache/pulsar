@@ -88,6 +88,9 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
                             conf.getTlsTrustStoreType(),
                             conf.getTlsTrustStorePath(),
                             conf.getTlsTrustStorePassword(),
+                            conf.getTlsKeyStoreType(),
+                            conf.getTlsKeyStorePath(),
+                            conf.getTlsKeyStorePassword(),
                             conf.getTlsCiphers(),
                             conf.getTlsProtocols(),
                             TLS_CERTIFICATE_CACHE_MILLIS,
@@ -124,6 +127,8 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
                                 sslProvider,
                                 conf.isTlsAllowInsecureConnection(),
                                 conf.getTlsTrustCertsFilePath(),
+                                conf.getTlsCertificateFilePath(),
+                                conf.getTlsKeyFilePath(),
                                 conf.getTlsCiphers(),
                                 conf.getTlsProtocols());
                     }

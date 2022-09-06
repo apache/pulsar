@@ -17,8 +17,7 @@ To deploy an Elasticsearch sink connector, the following are required:
 
 ### Handle data
 		
-Since Pulsar 2.9.0, the Elasticsearch sink connector has the following ways of
-working. You can choose one of them.
+Since Pulsar 2.9.0, the Elasticsearch sink connector has the following ways of working. You can choose one of them.
 
 Name | Description
 ---|---|
@@ -32,7 +31,7 @@ instance), and then you write to Elasticsearch.<br /><br /> You configure the
 mapping of the primary key using the `primaryFields` configuration
 entry.<br /><br />The `DELETE` operation can be performed when the primary key is
 not empty and the remaining value is empty. Use the `nullValueAction` to
-configure this behaviour. The default configuration simply ignores such empty
+configure this behavior. The default configuration simply ignores such empty
 values.
 		
 ### Map multiple indexes
@@ -83,12 +82,13 @@ The configuration of the Elasticsearch sink connector has the following properti
 | `username` | String| false |" " (empty string)| The username used by the connector to connect to the elastic search cluster. <br /><br />If `username` is set, then `password` should also be provided. |
 | `password` | String| false | " " (empty string)|The password used by the connector to connect to the elastic search cluster. <br /><br />If `username` is set, then `password` should also be provided.  |
 | `ssl` | ElasticSearchSslConfig | false |  | Configuration for TLS encrypted communication |
-| `compatibilityMode` | enum (AUTO,ELASTICSEARCH,ELASTICSEARCH_7,OPENSEARCH) | AUTO |  | Specify compatibility mode with the ElasticSearch cluster. `AUTO` value will try to auto detect the correct compatibility mode to use. Use `ELASTICSEARCH_7` if the target cluster is running ElasticSearch 7 or prior. Use `ELASTICSEARCH` if the target cluster is running ElasticSearch 8 or higher. Use `OPENSEARCH` if the target cluster is running OpenSearch. |
+| `compatibilityMode` | enum (AUTO,ELASTICSEARCH,ELASTICSEARCH_7,OPENSEARCH) | false | AUTO | Specify compatibility mode with the ElasticSearch cluster. `AUTO` value will try to auto detect the correct compatibility mode to use. Use `ELASTICSEARCH_7` if the target cluster is running ElasticSearch 7 or prior. Use `ELASTICSEARCH` if the target cluster is running ElasticSearch 8 or higher. Use `OPENSEARCH` if the target cluster is running OpenSearch. |
 | `token` | String| false | " " (empty string)|The token used by the connector to connect to the ElasticSearch cluster. Only one between basic/token/apiKey authentication mode must be configured. |
 | `apiKey` | String| false | " " (empty string)|The apiKey used by the connector to connect to the ElasticSearch cluster. Only one between basic/token/apiKey authentication mode must be configured. |
 | `canonicalKeyFields` | Boolean | false | false | Whether to sort the key fields for JSON and Avro or not. If it is set to `true` and the record key schema is `JSON` or `AVRO`, the serialized object does not consider the order of properties. |
 | `stripNonPrintableCharacters` | Boolean| false | true| Whether to remove all non-printable characters from the document or not. If it is set to true, all non-printable characters are removed from the document. |
 | `idHashingAlgorithm` | enum(NONE,SHA256,SHA512)| false | NONE|Hashing algorithm to use for the document id. This is useful in order to be compliant with the ElasticSearch _id hard limit of 512 bytes. |
+| `copyKeyFields` | Boolean | false | false |If the message key schema is AVRO or JSON, the message key fields are copied into the ElasticSearch document. |
 
 ### Definition of ElasticSearchSslConfig structure:
 
@@ -115,7 +115,6 @@ Before using the Elasticsearch sink connector, you need to create a configuratio
 * JSON 
 
   ```json
-  
   {
      "configs": {
         "elasticSearchUrl": "http://localhost:9200",
@@ -124,19 +123,16 @@ Before using the Elasticsearch sink connector, you need to create a configuratio
         "password": "doobie"
      }
   }
-  
   ```
 
 * YAML
 
   ```yaml
-  
   configs:
       elasticSearchUrl: "http://localhost:9200"
       indexName: "my_index"
       username: "scooby"
       password: "doobie"
-  
   ```
 
 #### For Elasticsearch Before 6.2
@@ -144,7 +140,6 @@ Before using the Elasticsearch sink connector, you need to create a configuratio
 * JSON 
 
   ```json
-  
   {
       "elasticSearchUrl": "http://localhost:9200",
       "indexName": "my_index",
@@ -152,20 +147,17 @@ Before using the Elasticsearch sink connector, you need to create a configuratio
       "username": "scooby",
       "password": "doobie"
   }
-  
   ```
 
 * YAML
 
   ```yaml
-  
   configs:
       elasticSearchUrl: "http://localhost:9200"
       indexName: "my_index"
       typeName: "doc"
       username: "scooby"
       password: "doobie"
-  
   ```
 
 ### Usage
@@ -173,19 +165,15 @@ Before using the Elasticsearch sink connector, you need to create a configuratio
 1. Start a single node Elasticsearch cluster.
 
    ```bash
-   
-   $ docker run -p 9200:9200 -p 9300:9300 \
+   docker run -p 9200:9200 -p 9300:9300 \
        -e "discovery.type=single-node" \
        docker.elastic.co/elasticsearch/elasticsearch:7.13.3
-   
    ```
 
 2. Start a Pulsar service locally in standalone mode.
 
    ```bash
-   
-   $ bin/pulsar standalone
-   
+   bin/pulsar standalone
    ```
 
    Make sure the NAR file is available at `connectors/pulsar-io-elastic-search-@pulsar:version@.nar`.
@@ -194,37 +182,31 @@ Before using the Elasticsearch sink connector, you need to create a configuratio
    * Use the **JSON** configuration as shown previously. 
 
        ```bash
-       
-       $ bin/pulsar-admin sinks localrun \
+       bin/pulsar-admin sinks localrun \
            --archive connectors/pulsar-io-elastic-search-@pulsar:version@.nar \
            --tenant public \
            --namespace default \
            --name elasticsearch-test-sink \
            --sink-config '{"elasticSearchUrl":"http://localhost:9200","indexName": "my_index","username": "scooby","password": "doobie"}' \
            --inputs elasticsearch_test
-       
        ```
 
    * Use the **YAML** configuration file as shown previously.
 
        ```bash
-       
-       $ bin/pulsar-admin sinks localrun \
+       bin/pulsar-admin sinks localrun \
            --archive connectors/pulsar-io-elastic-search-@pulsar:version@.nar \
            --tenant public \
            --namespace default \
            --name elasticsearch-test-sink \
            --sink-config-file elasticsearch-sink.yml \
            --inputs elasticsearch_test
-       
        ```
 
 4. Publish records to the topic.
 
    ```bash
-   
-   $ bin/pulsar-client produce elasticsearch_test --messages "{\"a\":1}"
-   
+   bin/pulsar-client produce elasticsearch_test --messages "{\"a\":1}"
    ```
 
 5. Check documents in Elasticsearch.
@@ -232,25 +214,18 @@ Before using the Elasticsearch sink connector, you need to create a configuratio
    * refresh the index
 
        ```bash
-       
-           $ curl -s http://localhost:9200/my_index/_refresh
-       
+       curl -s http://localhost:9200/my_index/_refresh
        ```
-
  
    * search documents
 
        ```bash
-       
-           $ curl -s http://localhost:9200/my_index/_search
-       
+       curl -s http://localhost:9200/my_index/_search
        ```
 
        You can see the record that published earlier has been successfully written into Elasticsearch.
 
        ```json
-       
        {"took":2,"timed_out":false,"_shards":{"total":1,"successful":1,"skipped":0,"failed":0},"hits":{"total":{"value":1,"relation":"eq"},"max_score":1.0,"hits":[{"_index":"my_index","_type":"_doc","_id":"FSxemm8BLjG_iC0EeTYJ","_score":1.0,"_source":{"a":1}}]}}
-       
        ```
 

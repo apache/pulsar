@@ -25,8 +25,10 @@ import com.beust.jcommander.Parameter;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.FileInputStream;
 import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
@@ -34,6 +36,10 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import lombok.Getter;
 import org.apache.pulsar.PulsarVersion;
+import org.apache.pulsar.admin.cli.extensions.CommandExecutionContext;
+import org.apache.pulsar.admin.cli.extensions.CustomCommandFactory;
+import org.apache.pulsar.admin.cli.extensions.CustomCommandGroup;
+import org.apache.pulsar.admin.cli.utils.CustomCommandFactoryProvider;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.internal.PulsarAdminImpl;
@@ -44,10 +50,12 @@ public class PulsarAdminTool {
 
     private static int lastExitCode = Integer.MIN_VALUE;
 
+    protected List<CustomCommandFactory> customCommandFactories = new ArrayList();
     protected Map<String, Class<?>> commandMap;
     protected JCommander jcommander;
     protected final PulsarAdminBuilder adminBuilder;
     protected RootParams rootParams;
+    private final Properties properties;
 
     @Getter
     public static class RootParams {
@@ -79,6 +87,12 @@ public class PulsarAdminTool {
                 description = "Enable TLS common name verification")
         Boolean tlsEnableHostnameVerification;
 
+        @Parameter(names = {"--tls-provider"}, description = "Set up TLS provider. "
+                + "When TLS authentication with CACert is used, the valid value is either OPENSSL or JDK. "
+                + "When TLS authentication with KeyStore is used, available options can be SunJSSE, Conscrypt "
+                + "and so on.")
+        String tlsProvider;
+
         @Parameter(names = { "-v", "--version" }, description = "Get version of pulsar admin client")
         boolean version;
 
@@ -87,6 +101,7 @@ public class PulsarAdminTool {
     }
 
     public PulsarAdminTool(Properties properties) throws Exception {
+        this.properties = properties;
         rootParams = new RootParams();
         // fallback to previous-version serviceUrl property to maintain backward-compatibility
         initRootParamsFromProperties(properties);
@@ -100,6 +115,12 @@ public class PulsarAdminTool {
         String tlsTrustStoreType = properties.getProperty("tlsTrustStoreType", "JKS");
         String tlsTrustStorePath = properties.getProperty("tlsTrustStorePath");
         String tlsTrustStorePassword = properties.getProperty("tlsTrustStorePassword");
+        String tlsKeyStoreType = properties.getProperty("tlsKeyStoreType", "JKS");
+        String tlsKeyStorePath = properties.getProperty("tlsKeyStorePath");
+        String tlsKeyStorePassword = properties.getProperty("tlsKeyStorePassword");
+        String tlsKeyFilePath = properties.getProperty("tlsKeyFilePath");
+        String tlsCertificateFilePath = properties.getProperty("tlsCertificateFilePath");
+
         boolean tlsAllowInsecureConnection = this.rootParams.tlsAllowInsecureConnection != null
                 ? this.rootParams.tlsAllowInsecureConnection
                 : Boolean.parseBoolean(properties.getProperty("tlsAllowInsecureConnection", "false"));
@@ -117,7 +138,12 @@ public class PulsarAdminTool {
                 .useKeyStoreTls(useKeyStoreTls)
                 .tlsTrustStoreType(tlsTrustStoreType)
                 .tlsTrustStorePath(tlsTrustStorePath)
-                .tlsTrustStorePassword(tlsTrustStorePassword);
+                .tlsTrustStorePassword(tlsTrustStorePassword)
+                .tlsKeyStoreType(tlsKeyStoreType)
+                .tlsKeyStorePath(tlsKeyStorePath)
+                .tlsKeyStorePassword(tlsKeyStorePassword)
+                .tlsKeyFilePath(tlsKeyFilePath)
+                .tlsCertificateFilePath(tlsCertificateFilePath);
     }
 
     protected void initRootParamsFromProperties(Properties properties) {
@@ -148,14 +174,33 @@ public class PulsarAdminTool {
         }
     }
 
-    protected void setupCommands(Function<PulsarAdminBuilder, ? extends PulsarAdmin> adminFactory) {
+    public void setupCommands(Function<PulsarAdminBuilder, ? extends PulsarAdmin> adminFactory) {
         try {
-            adminBuilder.serviceHttpUrl(rootParams.serviceUrl);
-            adminBuilder.authentication(rootParams.authPluginClassName, rootParams.authParams);
-            adminBuilder.requestTimeout(rootParams.requestTimeout, TimeUnit.SECONDS);
             Supplier<PulsarAdmin> admin = new PulsarAdminSupplier(adminBuilder, adminFactory);
             for (Map.Entry<String, Class<?>> c : commandMap.entrySet()) {
                 addCommand(c, admin);
+            }
+
+            CommandExecutionContext context = new CommandExecutionContext() {
+                @Override
+                public PulsarAdmin getPulsarAdmin() {
+                    return admin.get();
+                }
+
+                @Override
+                public Properties getConfiguration() {
+                    return properties;
+                }
+            };
+            loadCustomCommandFactories();
+
+            for (CustomCommandFactory factory : customCommandFactories) {
+                List<CustomCommandGroup> customCommandGroups = factory.commandGroups(context);
+                for (CustomCommandGroup group : customCommandGroups) {
+                    Object generated = CustomCommandsUtils.generateCliCommand(group, context, admin);
+                    jcommander.addCommand(group.name(), generated);
+                    commandMap.put(group.name(), null);
+                }
             }
         } catch (Exception e) {
             Throwable cause;
@@ -168,6 +213,11 @@ public class PulsarAdminTool {
             System.exit(1);
         }
     }
+
+    private void loadCustomCommandFactories() throws Exception {
+        customCommandFactories.addAll(CustomCommandFactoryProvider.createCustomCommandFactories(properties));
+    }
+
 
     private void addCommand(Map.Entry<String, Class<?>> c, Supplier<PulsarAdmin> admin) throws Exception {
         // To remain backwards compatibility for "source" and "sink" commands
@@ -190,8 +240,8 @@ public class PulsarAdminTool {
     }
 
     boolean run(String[] args, Function<PulsarAdminBuilder, ? extends PulsarAdmin> adminFactory) {
+        setupCommands(adminFactory);
         if (args.length == 0) {
-            setupCommands(adminFactory);
             jcommander.usage();
             return false;
         }
@@ -205,10 +255,20 @@ public class PulsarAdminTool {
 
         try {
             jcommander.parse(Arrays.copyOfRange(args, 0, Math.min(cmdPos, args.length)));
+
+            //rootParams are populated by jcommander.parse
+            adminBuilder.serviceHttpUrl(rootParams.serviceUrl);
+            adminBuilder.authentication(rootParams.authPluginClassName, rootParams.authParams);
+            adminBuilder.requestTimeout(rootParams.requestTimeout, TimeUnit.SECONDS);
+            if (isBlank(rootParams.tlsProvider)) {
+                rootParams.tlsProvider = properties.getProperty("webserviceTlsProvider");
+            }
+            if (isNotBlank(rootParams.tlsProvider)) {
+                adminBuilder.sslProvider(rootParams.tlsProvider);
+            }
         } catch (Exception e) {
             System.err.println(e.getMessage());
             System.err.println();
-            setupCommands(adminFactory);
             jcommander.usage();
             return false;
         }
@@ -225,17 +285,14 @@ public class PulsarAdminTool {
         }
 
         if (rootParams.help) {
-            setupCommands(adminFactory);
             jcommander.usage();
             return true;
         }
 
         if (cmdPos == args.length) {
-            setupCommands(adminFactory);
             jcommander.usage();
             return false;
         } else {
-            setupCommands(adminFactory);
             String cmd = args[cmdPos];
 
             // To remain backwards compatibility for "source" and "sink" commands
@@ -366,7 +423,6 @@ public class PulsarAdminTool {
 
         // Automatically generate documents for pulsar-admin
         commandMap.put("documents", CmdGenerateDocument.class);
-
         // To remain backwards compatibility for "source" and "sink" commands
         // TODO eventually remove this
         commandMap.put("source", CmdSources.class);

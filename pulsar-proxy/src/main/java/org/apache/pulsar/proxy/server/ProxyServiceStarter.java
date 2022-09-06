@@ -136,14 +136,13 @@ public class ProxyServiceStarter {
             // load config file
             config = PulsarConfigurationLoader.create(configFile, ProxyConfiguration.class);
 
+            if (!isBlank(zookeeperServers)) {
+                // Use zookeeperServers from command line
+                config.setMetadataStoreUrl(zookeeperServers);
+            }
             if (!isBlank(metadataStoreUrl)) {
                 // Use metadataStoreUrl from command line
                 config.setMetadataStoreUrl(metadataStoreUrl);
-            } else if (!isBlank(zookeeperServers)){
-                // Use zookeeperServers from command line if metadataStoreUrl is empty;
-                config.setMetadataStoreUrl(zookeeperServers);
-            } else {
-                // use "metadataStoreUrl" property in "proxy.conf".
             }
 
             if (!isBlank(globalZookeeperServers)) {
@@ -260,7 +259,6 @@ public class ProxyServiceStarter {
 
         AdminProxyHandler adminProxyHandler = new AdminProxyHandler(config, discoveryProvider);
         ServletHolder servletHolder = new ServletHolder(adminProxyHandler);
-        servletHolder.setInitParameter("preserveHost", "true");
         server.addServlet("/admin", servletHolder);
         server.addServlet("/lookup", servletHolder);
 

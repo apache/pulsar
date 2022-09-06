@@ -8,11 +8,11 @@ Pulsar encryption allows applications to encrypt messages at the producer and de
 
 ## Asymmetric and symmetric encryption
 
-Pulsar uses dynamically generated symmetric AES key to encrypt messages(data). The AES key(data key) is encrypted using application provided ECDSA/RSA key pair, as a result there is no need to share the secret with everyone.
+Pulsar uses a dynamically generated symmetric AES key to encrypt messages(data). The AES key(data key) is encrypted using the application-provided ECDSA/RSA key pair. As a result, there is no need to share the secret with everyone.
 
 Key is a public/private key pair used for encryption/decryption. The producer key is the public key, and the consumer key is the private key of the key pair.
 
-The application configures the producer with the public  key. This key is used to encrypt the AES data key. The encrypted data key is sent as part of message header. Only entities with the private key(in this case the consumer) will be able to decrypt the data key which is used to decrypt the message.
+The application configures the producer with the public key. This key is used to encrypt the AES data key. The encrypted data key is sent as part of the message header. Only entities with the private key(in this case the consumer) will be able to decrypt the data key which is used to decrypt the message.
 
 A message can be encrypted with more than one key.  Any one of the keys used for encrypting the message is sufficient to decrypt the message
 
@@ -29,10 +29,8 @@ Pulsar does not store the encryption key anywhere in the pulsar service. If you 
 1. Create your ECDSA or RSA public/private key pair.
 
 ```shell
-
 openssl ecparam -name secp521r1 -genkey -param_enc explicit -out test_ecdsa_privkey.pem
 openssl ec -in test_ecdsa_privkey.pem -pubout -outform pkcs8 -out test_ecdsa_pubkey.pem
-
 ```
 
 2. Add the public and private key to the key management and configure your producers to retrieve public keys and consumers clients to retrieve private keys.
@@ -42,7 +40,6 @@ openssl ec -in test_ecdsa_privkey.pem -pubout -outform pkcs8 -out test_ecdsa_pub
 6. Sample producer application:
 
 ```java
-
 class RawFileKeyReader implements CryptoKeyReader {
 
     String publicKeyFile = "";
@@ -90,13 +87,11 @@ for (int i = 0; i < 10; i++) {
 }
 
 pulsarClient.close();
-
 ```
 
 7. Sample Consumer Application:
 
 ```java
-
 class RawFileKeyReader implements CryptoKeyReader {
 
     String publicKeyFile = "";
@@ -147,20 +142,19 @@ for (int i = 0; i < 10; i++) {
 // Acknowledge the consumption of all messages at once
 consumer.acknowledgeCumulative(msg);
 pulsarClient.close();
-
 ```
 
 ## Key rotation
-Pulsar generates new AES data key every 4 hours or after a certain number of messages are published. The asymmetric public key is automatically fetched by producer every 4 hours by calling CryptoKeyReader::getPublicKey() to retrieve the latest version.
+Pulsar generates a new AES data key every 4 hours or after a certain number of messages are published. The asymmetric public key is automatically fetched by producers every 4 hours by calling CryptoKeyReader::getPublicKey() to retrieve the latest version.
 
 ## Enabling encryption at the producer application:
 If you produce messages that are consumed across application boundaries, you need to ensure that consumers in other applications have access to one of the private keys that can decrypt the messages.  This can be done in two ways:
 1. The consumer application provides you access to their public key, which you add to your producer keys
-1. You grant access to one of the private keys from the pairs used by producer 
+1. You grant access to one of the private keys from the pairs used by producers
 
-In some cases, the producer may want to encrypt the messages with multiple keys. For this, add all such keys to the config. Consumer will be able to decrypt the message, as long as it has access to at least one of the keys.
+In some cases, the producer may want to encrypt the messages with multiple keys. For this, add all such keys to the config. Consumers will be able to decrypt the message, as long as it has access to at least one of the keys.
 
-E.g: If messages needs to be encrypted using 2 keys myapp.messagekey1 and myapp.messagekey2,
+For example, to encrypt messages using 2 keys `myapp.messagekey1` and `myapp.messagekey2`, do the following:
 
 ```java
 
@@ -170,14 +164,13 @@ conf.addEncryptionKey("myapp.messagekey2");
 ```
 
 ## Decrypting encrypted messages at the consumer application:
-Consumers require access one of the private keys to decrypt messages produced by the producer. If you would like to receive encrypted messages, create a public/private key and give your public key to the producer application to encrypt messages using your public key.
+Consumers require to access one of the private keys to decrypt messages produced by the producer. If you would like to receive encrypted messages, create a public/private key and give your public key to the producer application to encrypt messages using your public key.
 
 ## Handling Failures:
 * Producer/ Consumer loses access to the key
-  * Producer action will fail indicating the cause of the failure. Application has the option to proceed with sending unencrypted message in such cases. Call conf.setCryptoFailureAction(ProducerCryptoFailureAction) to control the producer behavior. The default behavior is to fail the request.
-  * If consumption failed due to decryption failure or missing keys in consumer, application has the option to consume the encrypted message or discard it. Call conf.setCryptoFailureAction(ConsumerCryptoFailureAction) to control the consumer behavior. The default behavior is to fail the request.
-Application will never be able to decrypt the messages if the private key is permanently lost.
+  * Producer action will fail to indicate the cause of the failure. The application has the option to proceed with sending unencrypted messages in such cases. Call `conf.setCryptoFailureAction`(ProducerCryptoFailureAction) to control the producer behavior. The default behavior is to fail the request.
+  * If consumption failed due to decryption failure or missing keys in consumers, the application has the option to consume the encrypted message or discard it. Call conf.setCryptoFailureAction(ConsumerCryptoFailureAction) to control the consumer behavior. The default behavior is to fail the request. The application will never be able to decrypt the messages if the private key is permanently lost.
 * Batch messaging
-  * If decryption fails and the message contain batch messages, client will not be able to retrieve individual messages in the batch, hence message consumption fails even if conf.setCryptoFailureAction() is set to CONSUME.
-* If decryption fails, the message consumption stops and application will notice backlog growth in addition to decryption failure messages in the client log. If application does not have access to the private key to decrypt the message, the only option is to skip/discard backlogged messages. 
+  * If decryption fails and the message contains batch messages, the client will not be able to retrieve individual messages in the batch, hence message consumption fails even if conf.setCryptoFailureAction() is set to CONSUME.
+* If decryption fails, the message consumption stops and the application will notice backlog growth in addition to decryption failure messages in the client log. If the application does not have access to the private key to decrypt the message, the only option is to skip/discard backlogged messages. 
 

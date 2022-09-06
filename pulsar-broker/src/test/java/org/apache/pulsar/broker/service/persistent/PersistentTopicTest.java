@@ -29,28 +29,33 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
+import java.io.ByteArrayOutputStream;
 import java.lang.reflect.Field;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
+import lombok.Cleanup;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.pulsar.broker.service.BrokerTestBase;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageRoutingMode;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.broker.stats.PrometheusMetricsTest;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
+import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.awaitility.Awaitility;
+import org.junit.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
@@ -267,6 +272,79 @@ public class PersistentTopicTest extends BrokerTestBase {
 
         for (Producer producer : producerSet) {
             producer.close();
+        }
+    }
+
+
+    @DataProvider(name = "topicAndMetricsLevel")
+    public Object[][] indexPatternTestData() {
+        return new Object[][]{
+                new Object[] {"persistent://prop/autoNs/test_delayed_message_metric", true},
+                new Object[] {"persistent://prop/autoNs/test_delayed_message_metric", false},
+        };
+    }
+
+
+    @Test(dataProvider = "topicAndMetricsLevel")
+    public void testDelayedDeliveryTrackerMemoryUsageMetric(String topic, boolean exposeTopicLevelMetrics) throws Exception {
+        PulsarClient client = pulsar.getClient();
+        String namespace = TopicName.get(topic).getNamespace();
+        admin.namespaces().createNamespace(namespace);
+
+        final int messages = 100;
+        CountDownLatch latch = new CountDownLatch(messages);
+
+        @Cleanup
+        Producer<String> producer = client.newProducer(Schema.STRING).topic(topic).enableBatching(false).create();
+        @Cleanup
+        Consumer<String> consumer = client.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("test_sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .messageListener((MessageListener<String>) (consumer1, msg) -> {
+                    try {
+                        latch.countDown();
+                        consumer1.acknowledge(msg);
+                    } catch (PulsarClientException e) {
+                        e.printStackTrace();
+                    }
+                })
+                .subscribe();
+        for (int a = 0; a < messages; a++) {
+            producer.newMessage()
+                    .value(UUID.randomUUID().toString())
+                    .deliverAfter(30, TimeUnit.SECONDS)
+                    .sendAsync();
+        }
+        producer.flush();
+
+        latch.await(10, TimeUnit.SECONDS);
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, exposeTopicLevelMetrics, true, true, output);
+        String metricsStr = output.toString(StandardCharsets.UTF_8);
+
+        Multimap<String, PrometheusMetricsTest.Metric> metricsMap = PrometheusMetricsTest.parseMetrics(metricsStr);
+        Collection<PrometheusMetricsTest.Metric> metrics = metricsMap.get("pulsar_delayed_message_index_size_bytes");
+        Assert.assertTrue(metrics.size() > 0);
+
+        int topicLevelNum = 0;
+        int namespaceLevelNum = 0;
+        for (PrometheusMetricsTest.Metric metric : metrics) {
+            if (exposeTopicLevelMetrics && metric.tags.get("topic").equals(topic)) {
+                Assert.assertTrue(metric.value > 0);
+                topicLevelNum++;
+            } else if (!exposeTopicLevelMetrics && metric.tags.get("namespace").equals(namespace)) {
+                Assert.assertTrue(metric.value > 0);
+                namespaceLevelNum++;
+            }
+        }
+
+        if (exposeTopicLevelMetrics) {
+            Assert.assertTrue(topicLevelNum > 0);
+            Assert.assertEquals(0, namespaceLevelNum);
+        } else {
+            Assert.assertTrue(namespaceLevelNum > 0);
+            Assert.assertEquals(topicLevelNum, 0);
         }
     }
 }

@@ -22,13 +22,13 @@ To use the secret APIs from the context, you need to set the following two param
 
 Pulsar Functions provided two types of `SecretsProviderConfigurator` implementation and both can be used as the value of `secretsProviderConfiguratorClassName` directly:
 * `org.apache.pulsar.functions.secretsproviderconfigurator.DefaultSecretsProviderConfigurator`: This is a barebones version of a secrets provider which wires in `ClearTextSecretsProvider` to the function instances.
-* `org.apache.pulsar.functions.secretsproviderconfigurator.KubernetesSecretsProviderConfigurator`: This is used by default for running in Kubernetes and it uses kubernetes built-in secrets and bind them as environment variables (via `EnvironmentBasedSecretsProvider`) within the function container to ensure that the secrets are available to the function at runtime. 
+* `org.apache.pulsar.functions.secretsproviderconfigurator.KubernetesSecretsProviderConfigurator`: This is used by default for running in Kubernetes and it uses Kubernetes built-in secrets and binds them as environment variables (via `EnvironmentBasedSecretsProvider`) within the function container to ensure that the secrets are available to the function at runtime. 
 
 Function workers use the `org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator` interface to choose the `SecretsProvider` class name and its associated configurations at the time of starting the function instances.
 
 Function instances use the `org.apache.pulsar.functions.secretsprovider.SecretsProvider` interface to fetch the secrets. The implementation that `SecretsProvider` uses is determined by `SecretsProviderConfigurator`.
 
-You can also implemet your own `SecretsProviderConfigurator` if you want to use different `SecretsProvider` for function instances.
+You can also implement your own `SecretsProviderConfigurator` if you want to use different `SecretsProvider` for function instances.
 
 :::note
 
@@ -49,7 +49,6 @@ Once `SecretsProviderConfigurator` is set, you can get the secret using the [`Co
 <TabItem value="Java">
 
 ```java
-
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 import org.slf4j.Logger;
@@ -70,14 +69,12 @@ public class GetSecretValueFunction implements Function<String, Void> {
         return null;
     }
 }
-
 ```
 
 </TabItem>
 <TabItem value="Python">
 
 ```python
-
 from pulsar import Function
 
 class GetSecretValueFunction(Function):
@@ -88,7 +85,6 @@ class GetSecretValueFunction(Function):
             logger.warn('No secret with key {0} '.format(input))
         else:
             logger.info("The secret {0} has value {1}".format(input, secret_value))
-
 ```
 
 </TabItem>

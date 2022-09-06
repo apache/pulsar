@@ -14,6 +14,7 @@ All Pulsar command-line tools can be run from the `bin` directory of your [insta
 * [`pulsar-perf`](#pulsar-perf)
 * [`bookkeeper`](#bookkeeper)
 * [`broker-tool`](#broker-tool)
+* [`pulsar-shell`](#pulsar-shell)
 
 :::tip
 
@@ -24,10 +25,7 @@ All Pulsar command-line tools can be run from the `bin` directory of your [insta
 :::
 
 > ```shell
-> 
-> $ bin/pulsar broker --help
->
-> 
+> bin/pulsar broker --help
 > ```
 
 
@@ -40,9 +38,7 @@ These processes can also be started in the background, using nohup, using the pu
 Usage:
 
 ```bash
-
-$ pulsar command
-
+pulsar command
 ```
 
 Commands:
@@ -61,10 +57,10 @@ Commands:
 Example:
 
 ```bash
-
-$ PULSAR_BROKER_CONF=/path/to/broker.conf pulsar broker
-
+PULSAR_BROKER_CONF=/path/to/broker.conf pulsar broker
 ```
+
+Environment variables
 
 The table below lists the environment variables that you can use to configure the `pulsar` tool.
 
@@ -91,9 +87,7 @@ Starts up a bookie server
 Usage:
 
 ```bash
-
-$ pulsar bookie options
-
+pulsar bookie options
 ```
 
 Options
@@ -107,11 +101,9 @@ Options
 Example
 
 ```bash
-
-$ PULSAR_BOOKKEEPER_CONF=/path/to/bookkeeper.conf pulsar bookie \
-  -readOnly \
-  -withAutoRecovery
-
+PULSAR_BOOKKEEPER_CONF=/path/to/bookkeeper.conf pulsar bookie \
+-readOnly \
+-withAutoRecovery
 ```
 
 ### `broker`
@@ -121,9 +113,7 @@ Starts up a Pulsar broker
 Usage
 
 ```bash
-
-$ pulsar broker options
-
+pulsar broker options
 ```
 
 Options
@@ -137,9 +127,7 @@ Options
 Example
 
 ```bash
-
-$ PULSAR_BROKER_CONF=/path/to/broker.conf pulsar broker
-
+PULSAR_BROKER_CONF=/path/to/broker.conf pulsar broker
 ```
 
 ### `compact-topic`
@@ -149,9 +137,7 @@ Run compaction against a Pulsar topic (in a new process)
 Usage
 
 ```bash
-
-$ pulsar compact-topic options
-
+pulsar compact-topic options
 ```
 
 Options
@@ -163,9 +149,7 @@ Options
 Example
 
 ```bash
-
-$ pulsar compact-topic --topic topic-to-compact
-
+pulsar compact-topic --topic topic-to-compact
 ```
 
 ### `configuration-store`
@@ -175,17 +159,13 @@ Starts up the Pulsar configuration store
 Usage
 
 ```bash
-
-$ pulsar configuration-store
-
+pulsar configuration-store
 ```
 
 Example
 
 ```bash
-
-$ PULSAR_CONFIGURATION_STORE_CONF=/path/to/configuration_store.conf pulsar configuration-store
-
+PULSAR_CONFIGURATION_STORE_CONF=/path/to/configuration_store.conf pulsar configuration-store
 ```
 
 ### `initialize-cluster-metadata`
@@ -195,9 +175,7 @@ One-time cluster metadata initialization
 Usage
 
 ```bash
-
-$ pulsar initialize-cluster-metadata options
-
+pulsar initialize-cluster-metadata options
 ```
 
 Options
@@ -225,9 +203,7 @@ Manages the Pulsar proxy
 Usage
 
 ```bash
-
-$ pulsar proxy options
-
+pulsar proxy options
 ```
 
 Options
@@ -240,11 +216,9 @@ Options
 Example
 
 ```bash
-
-$ PULSAR_PROXY_CONF=/path/to/proxy.conf pulsar proxy \
-  --metadata-store zk:my-zk-1:2181,my-zk-2:2181,my-zk-3:2181 \
-  --configuration-metadata-store zk:my-zk-1:2181,my-zk-2:2181,my-zk-3:2181
-
+PULSAR_PROXY_CONF=/path/to/proxy.conf pulsar proxy \
+--metadata-store zk:my-zk-1:2181,my-zk-2:2181,my-zk-3:2181 \
+--configuration-metadata-store zk:my-zk-1:2181,my-zk-2:2181,my-zk-3:2181
 ```
 
 ### `standalone`
@@ -254,9 +228,7 @@ Run a broker service with local bookies and local ZooKeeper
 Usage
 
 ```bash
-
-$ pulsar standalone options
-
+pulsar standalone options
 ```
 
 Options
@@ -276,9 +248,7 @@ Options
 Example
 
 ```bash
-
-$ PULSAR_STANDALONE_CONF=/path/to/standalone.conf pulsar standalone
-
+PULSAR_STANDALONE_CONF=/path/to/standalone.conf pulsar standalone
 ```
 
 ### `websocket`
@@ -286,17 +256,13 @@ $ PULSAR_STANDALONE_CONF=/path/to/standalone.conf pulsar standalone
 Usage
 
 ```bash
-
-$ pulsar websocket
-
+pulsar websocket
 ```
 
 Example
 
 ```bash
-
-$ PULSAR_WEBSOCKET_CONF=/path/to/websocket.conf pulsar websocket
-
+PULSAR_WEBSOCKET_CONF=/path/to/websocket.conf pulsar websocket
 ```
 
 ### `zookeeper`
@@ -306,17 +272,13 @@ Starts up a ZooKeeper cluster
 Usage
 
 ```bash
-
-$ pulsar zookeeper
-
+pulsar zookeeper
 ```
 
 Example
 
 ```bash
-
-$ PULSAR_ZK_CONF=/path/to/zookeeper.conf pulsar zookeeper
-
+PULSAR_ZK_CONF=/path/to/zookeeper.conf pulsar zookeeper
 ```
 
 ### `zookeeper-shell`
@@ -326,9 +288,7 @@ Connects to a running ZooKeeper cluster using the ZooKeeper shell
 Usage
 
 ```bash
-
-$ pulsar zookeeper-shell options
-
+pulsar zookeeper-shell options
 ```
 
 Options
@@ -345,9 +305,7 @@ Runs an auto-recovery service.
 Usage
 
 ```bash
-
-$ pulsar autorecovery options
-
+pulsar autorecovery options
 ```
 
 Options
@@ -364,9 +322,7 @@ The pulsar-client tool
 Usage
 
 ```bash
-
-$ pulsar-client command
-
+pulsar-client command
 ```
 
 Commands
@@ -394,9 +350,7 @@ Send a message or messages to a specific broker and topic
 Usage
 
 ```bash
-
-$ pulsar-client produce topic options
-
+pulsar-client produce topic options
 ```
 
 Options
@@ -422,9 +376,7 @@ Consume messages from a specific broker and topic
 Usage
 
 ```bash
-
-$ pulsar-client consume topic options
-
+pulsar-client consume topic options
 ```
 
 Options
@@ -455,9 +407,7 @@ pulsar-daemon has a similar interface to the pulsar command but adds start and s
 Usage
 
 ```bash
-
-$ pulsar-daemon command
-
+pulsar-daemon command
 ```
 
 Commands
@@ -472,9 +422,7 @@ Start a service in the background using nohup.
 Usage
 
 ```bash
-
-$ pulsar-daemon start service
-
+pulsar-daemon start service
 ```
 
 ### `stop`
@@ -483,9 +431,7 @@ Stop a service that’s already been started using start.
 Usage
 
 ```bash
-
-$ pulsar-daemon stop service options
-
+pulsar-daemon stop service options
 ```
 
 Options
@@ -498,9 +444,7 @@ Options
 Restart a service that has already been started.
 
 ```bash
-
-$ pulsar-daemon restart service
-
+pulsar-daemon restart service
 ```
 
 ## `pulsar-perf`
@@ -509,9 +453,7 @@ A tool for performance testing a Pulsar broker.
 Usage
 
 ```bash
-
-$ pulsar-perf command
-
+pulsar-perf command
 ```
 
 Commands
@@ -563,9 +505,7 @@ Run a consumer
 Usage
 
 ```
-
-$ pulsar-perf consume options
-
+pulsar-perf consume options
 ```
 
 Options
@@ -573,7 +513,7 @@ Options
 |Flag|Description|Default|
 |---|---|---|
 |`-ac`, `--auto_ack_chunk_q_full`|Auto ack for the oldest message in consumer's receiver queue if the queue full|false|
-|`--acks-delay-millis`|Acknowledgements grouping delay in millis|100|
+|`--acks-delay-millis`|Acknowledgments grouping delay in millis|100|
 |`--batch-index-ack`|Enable or disable the batch index acknowledgment|false|
 |`-v`, `--encryption-key-value-file`|The file which contains the private key to decrypt payload||
 |`-m`, `--num-messages`|Number of messages to consume in total. If the value is equal to or smaller than 0, it keeps consuming messages.|0|
@@ -612,9 +552,7 @@ Run a producer
 Usage
 
 ```bash
-
-$ pulsar-perf produce options
-
+pulsar-perf produce options
 ```
 
 Options
@@ -670,9 +608,7 @@ Run a topic reader
 Usage
 
 ```bash
-
-$ pulsar-perf read options
-
+pulsar-perf read options
 ```
 
 Options
@@ -694,9 +630,7 @@ Run a websocket producer
 Usage
 
 ```bash
-
-$ pulsar-perf websocket-producer options
-
+pulsar-perf websocket-producer options
 ```
 
 Options
@@ -725,9 +659,7 @@ Write directly on managed-ledgers
 Usage
 
 ```bash
-
-$ pulsar-perf managed-ledger options
-
+pulsar-perf managed-ledger options
 ```
 
 Options
@@ -756,9 +688,7 @@ Continuously receive broker data and/or load reports
 Usage
 
 ```bash
-
-$ pulsar-perf monitor-brokers options
-
+pulsar-perf monitor-brokers options
 ```
 
 Options
@@ -775,9 +705,7 @@ Run a simulation server acting as a Pulsar client. Uses the client configuration
 Usage
 
 ```bash
-
-$ pulsar-perf simulation-client options
-
+pulsar-perf simulation-client options
 ```
 
 Options
@@ -794,9 +722,7 @@ Run a simulation controller to give commands to servers
 Usage
 
 ```bash
-
-$ pulsar-perf simulation-controller options
-
+pulsar-perf simulation-controller options
 ```
 
 Options
@@ -815,9 +741,7 @@ Run a transaction. For more information, see [Pulsar transactions](txn-why.md).
 **Usage**
 
 ```bash
-
-$ pulsar-perf transaction options
-
+pulsar-perf transaction options
 ```
 
 **Options**
@@ -850,9 +774,7 @@ This help message
 Usage
 
 ```bash
-
-$ pulsar-perf help
-
+pulsar-perf help
 ```
 
 ## `bookkeeper`
@@ -861,9 +783,7 @@ A tool for managing BookKeeper.
 Usage
 
 ```bash
-
-$ bookkeeper command
-
+bookkeeper command
 ```
 
 Commands
@@ -896,9 +816,7 @@ Runs an auto-recovery service
 Usage
 
 ```bash
-
-$ bookkeeper autorecovery options
-
+bookkeeper autorecovery options
 ```
 
 Options
@@ -914,9 +832,7 @@ Starts up a BookKeeper server (aka bookie)
 Usage
 
 ```bash
-
-$ bookkeeper bookie options
-
+bookkeeper bookie options
 ```
 
 Options
@@ -934,9 +850,7 @@ Runs a test ensemble of N bookies locally
 Usage
 
 ```bash
-
-$ bookkeeper localbookie N
-
+bookkeeper localbookie N
 ```
 
 ### `upgrade`
@@ -945,9 +859,7 @@ Upgrade the bookie’s filesystem
 Usage
 
 ```bash
-
-$ bookkeeper upgrade options
-
+bookkeeper upgrade options
 ```
 
 Options
@@ -964,17 +876,13 @@ Run shell for admin commands. To see a full listing of those commands, run bookk
 Usage
 
 ```bash
-
-$ bookkeeper shell
-
+bookkeeper shell
 ```
 
 Example
 
 ```bash
-
-$ bookkeeper shell bookiesanity
-
+bookkeeper shell bookiesanity
 ```
 
 ## `broker-tool`
@@ -984,9 +892,7 @@ The `broker- tool` is used for operations on a specific broker.
 Usage
 
 ```bash
-
-$ broker-tool command
-
+broker-tool command
 ```
 
 Commands
@@ -997,10 +903,8 @@ Example
 Two ways to get more information about a command as below:
 
 ```bash
-
-$ broker-tool help command
-$ broker-tool command --help
-
+broker-tool help command
+broker-tool command --help
 ```
 
 ### `load-report`
@@ -1015,3 +919,123 @@ Options
 |`-i`, `--interval`| Interval to collect load report, in milliseconds ||
 |`-h`, `--help`| Display help information ||
 
+
+## `pulsar-shell`
+
+[Pulsar shell](administration-pulsar-shell.md) tool.
+
+### Interactive mode
+
+Usage
+
+```bash
+pulsar-shell
+```
+
+Options
+
+| Flag               | Description                                                               | Default          |
+|--------------------|---------------------------------------------------------------------------|------------------|
+| `-c`, `--config`   | Client configuration file. It is used as a `default` config.           | conf/client.conf | 
+| `--fail-on-error` | If true, the shell is interrupted when a command throws an exception.  | false            | 
+| `-h`, `--help`     | Show this help.                                                            | |
+
+
+### Non interactive mode
+
+Usage
+
+```bash
+pulsar-shell -f [FILE]
+pulsar-shell -e [COMMAND]
+echo "[COMMAND]" | pulsar-shell -
+```
+
+Options
+
+| Flag                      | Description                                                                                         | Default         |
+|---------------------------|-----------------------------------------------------------------------------------------------------|-----------------|
+| `-c`, `--config`          | Client configuration file. It is used as a `default` config.                                     | conf/client.conf | 
+| `--fail-on-error`         | If true, the shell is interrupted when a command throws an exception.                            | false           | 
+| `-np`, `--no-progress`    | Display raw output of the commands without the fancy progress visualization.                        | false           | 
+| `-f`, `--filename`        | Input filename with a list of commands to be executed. Each command must be separated by a newline. |                 |
+| `-e`, `--execute-command` | Execute this command and exit.                                                                      | |
+| `-` | Read commands from the standard input.                                                              | |
+| `-h`, `--help`     | Show this help.                                                                                      | |
+
+
+Commands
+* `admin` - See [Admin API](admin-api-overview.md)
+* `client` - See [pulsar-client](#pulsar-client)
+* `config`
+
+
+### `config`
+
+Manage shell configurations.
+
+#### `use`
+
+Use a specific configuration for next commands.
+
+```bash
+default(localhost)> config use mycluster
+```
+
+#### `create`
+
+Create a new configuration.
+
+```bash
+default(localhost)> config create --file ./conf/client.conf mycluster
+```
+
+Options
+
+| Flag     | Description              | Default         |
+|----------|--------------------------|-----------------|
+| `--file` | File path of the config. |  | 
+| `--url`  | URL of the config.       |  |
+| `--value`  | Inline value of the config. Base64-encoded value is supported with the prefix `base64:`. |  |
+
+#### `update`
+
+Update an existing configuration.
+
+```bash
+default(localhost)> config update --file ./conf/client.conf mycluster
+```
+
+Options
+
+| Flag     | Description              | Default         |
+|----------|--------------------------|-----------------|
+| `--file` | File path of the config. |  | 
+| `--url`  | URL of the config.       |  |
+| `--value`  | Inline value of the config. Base64-encoded value is supported with the prefix `base64:`. |  |
+
+
+#### `view`
+
+View details of a config.
+
+```bash
+default(localhost)> config view mycluster
+```
+
+#### `delete`
+
+Delete a config. You can't delete a config if it's currently used.
+
+```bash
+default(localhost)> config delete mycluster
+```
+
+
+#### `list`
+
+List all the configuration names.
+
+```bash
+default(localhost)> config list
+```

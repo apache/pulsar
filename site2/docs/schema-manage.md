@@ -96,9 +96,7 @@ You can use the `pulsar-admin` command to manage the `AutoUpdate` strategy as be
 To enable `AutoUpdate` on a namespace, you can use the `pulsar-admin` command.
 
 ```bash
-
 bin/pulsar-admin namespaces set-is-allow-auto-update-schema --enable tenant/namespace
-
 ```
 
 #### Disable AutoUpdate 
@@ -106,9 +104,7 @@ bin/pulsar-admin namespaces set-is-allow-auto-update-schema --enable tenant/name
 To disable `AutoUpdate` on a namespace, you can use the `pulsar-admin` command.
 
 ```bash
-
 bin/pulsar-admin namespaces set-is-allow-auto-update-schema --disable tenant/namespace
-
 ```
 
 Once the `AutoUpdate` is disabled, you can only register a new schema using the `pulsar-admin` command.
@@ -118,9 +114,7 @@ Once the `AutoUpdate` is disabled, you can only register a new schema using the 
 To adjust the schema compatibility level on a namespace, you can use the `pulsar-admin` command.
 
 ```bash
-
 bin/pulsar-admin namespaces set-schema-compatibility-strategy --compatibility <compatibility-level> tenant/namespace
-
 ```
 
 ### Schema validation
@@ -138,9 +132,7 @@ However, if you want a stronger guarantee on the topics with schemas, you can en
 To enable `schemaValidationEnforced` on a namespace, you can use the `pulsar-admin` command.
 
 ```bash
-
 bin/pulsar-admin namespaces set-schema-validation-enforce --enable tenant/namespace
-
 ```
 
 #### Disable schema validation
@@ -148,9 +140,7 @@ bin/pulsar-admin namespaces set-schema-validation-enforce --enable tenant/namesp
 To disable `schemaValidationEnforced` on a namespace, you can use the `pulsar-admin` command.
 
 ```bash
-
 bin/pulsar-admin namespaces set-schema-validation-enforce --disable tenant/namespace
-
 ```
 
 ## Schema manual management
@@ -177,21 +167,17 @@ To upload (register) a new schema for a topic, you can use one of the following 
 Use the `upload` subcommand.
 
 ```bash
-
-$ pulsar-admin schemas upload --filename <schema-definition-file> <topic-name>
-
+pulsar-admin schemas upload --filename <schema-definition-file> <topic-name>
 ```
 
 The `schema-definition-file` is in JSON format. 
 
 ```json
-
 {
     "type": "<schema-type>",
     "schema": "<an-utf8-encoded-string-of-schema-definition-data>",
     "properties": {} // the properties associated with the schema
 }
-
 ```
 
 The `schema-definition-file` includes the following fields:
@@ -207,19 +193,16 @@ Here are examples of the `schema-definition-file` for a JSON schema.
 **Example 1**
 
 ```json
-
 {
     "type": "JSON",
     "schema": "{\"type\":\"record\",\"name\":\"User\",\"namespace\":\"com.foo\",\"fields\":[{\"name\":\"file1\",\"type\":[\"null\",\"string\"],\"default\":null},{\"name\":\"file2\",\"type\":[\"null\",\"string\"],\"default\":null},{\"name\":\"file3\",\"type\":[\"string\",\"null\"],\"default\":\"dfdf\"}]}",
     "properties": {}
 }
-
 ```
 
 **Example 2**
 
 ```json
-
 {
     "type": "STRING",
     "schema": "",
@@ -227,7 +210,6 @@ Here are examples of the `schema-definition-file` for a JSON schema.
         "key1": "value1"
     }
 }
-
 ```
 
 </TabItem>
@@ -238,13 +220,11 @@ Send a `POST` request to this endpoint: {@inject: endpoint|POST|/admin/v2/schema
 The post payload is in JSON format.
 
 ```json
-
 {
     "type": "<schema-type>",
     "schema": "<an-utf8-encoded-string-of-schema-definition-data>",
     "properties": {} // the properties associated with the schema
 }
-
 ```
 
 The post payload includes the following fields:
@@ -259,9 +239,7 @@ The post payload includes the following fields:
 <TabItem value="Java Admin API">
 
 ```java
-
 void createSchema(String topic, PostSchemaPayload schemaPayload)
-
 ```
 
 The `PostSchemaPayload` includes the following fields:
@@ -275,7 +253,6 @@ The `PostSchemaPayload` includes the following fields:
 Here is an example of `PostSchemaPayload`:
 
 ```java
-
 PulsarAdmin admin = …;
 
 PostSchemaPayload payload = new PostSchemaPayload();
@@ -283,7 +260,6 @@ payload.setType("INT8");
 payload.setSchema("");
 
 admin.createSchema("my-tenant/my-ns/my-topic", payload);
-
 ```
 
 </TabItem>
@@ -305,8 +281,7 @@ To get the latest schema for a topic, you can use one of the following methods.
 Use the `get` subcommand.
 
 ```bash
-
-$ pulsar-admin schemas get <topic-name>
+pulsar-admin schemas get <topic-name>
 
 {
     "version": 0,
@@ -318,7 +293,6 @@ $ pulsar-admin schemas get <topic-name>
         "property2": "string"
     }
 }
-
 ```
 
 </TabItem>
@@ -329,7 +303,6 @@ Send a `GET` request to this endpoint: {@inject: endpoint|GET|/admin/v2/schemas/
 Here is an example of a response, which is returned in JSON format.
 
 ```json
-
 {
     "version": "<the-version-number-of-the-schema>",
     "type": "<the-schema-type>",
@@ -337,7 +310,6 @@ Here is an example of a response, which is returned in JSON format.
     "data": "<an-utf8-encoded-string-of-schema-definition-data>",
     "properties": {} // the properties associated with the schema
 }
-
 ```
 
 The response includes the following fields:
@@ -354,9 +326,7 @@ The response includes the following fields:
 <TabItem value="Java Admin API">
 
 ```java
-
 SchemaInfo createSchema(String topic)
-
 ```
 
 The `SchemaInfo` includes the following fields:
@@ -371,11 +341,9 @@ The `SchemaInfo` includes the following fields:
 Here is an example of `SchemaInfo`:
 
 ```java
-
 PulsarAdmin admin = …;
 
 SchemaInfo si = admin.getSchema("my-tenant/my-ns/my-topic");
-
 ```
 
 </TabItem>
@@ -397,9 +365,7 @@ To get a specific version of a schema, you can use one of the following methods.
 Use the `get` subcommand.
 
 ```bash
-
-$ pulsar-admin schemas get <topic-name> --version=<version>
-
+pulsar-admin schemas get <topic-name> --version=<version>
 ```
 
 </TabItem>
@@ -410,7 +376,6 @@ Send a `GET` request to a schema endpoint: {@inject: endpoint|GET|/admin/v2/sche
 Here is an example of a response, which is returned in JSON format.
 
 ```json
-
 {
     "version": "<the-version-number-of-the-schema>",
     "type": "<the-schema-type>",
@@ -418,7 +383,6 @@ Here is an example of a response, which is returned in JSON format.
     "data": "<an-utf8-encoded-string-of-schema-definition-data>",
     "properties": {} // the properties associated with the schema
 }
-
 ```
 
 The response includes the following fields:
@@ -435,9 +399,7 @@ The response includes the following fields:
 <TabItem value="Java Admin API">
 
 ```java
-
 SchemaInfo createSchema(String topic, long version)
-
 ```
 
 The `SchemaInfo` includes the following fields:
@@ -452,11 +414,9 @@ The `SchemaInfo` includes the following fields:
 Here is an example of `SchemaInfo`:
 
 ```java
-
 PulsarAdmin admin = …;
 
 SchemaInfo si = admin.getSchema("my-tenant/my-ns/my-topic", 1L);
-
 ```
 
 </TabItem>
@@ -478,9 +438,7 @@ To provide a schema via a topic, you can use the following method.
 Use the `extract` subcommand.
 
 ```bash
-
-$ pulsar-admin schemas extract --classname <class-name> --jar <jar-path> --type <type-name>
-
+pulsar-admin schemas extract --classname <class-name> --jar <jar-path> --type <type-name>
 ```
 
 </TabItem>
@@ -508,9 +466,7 @@ In any case, the **delete** action deletes **all versions** of a schema register
 Use the `delete` subcommand.
 
 ```bash
-
-$ pulsar-admin schemas delete <topic-name>
-
+pulsar-admin schemas delete <topic-name>
 ```
 
 </TabItem>
@@ -521,11 +477,9 @@ Send a `DELETE` request to a schema endpoint: {@inject: endpoint|DELETE|/admin/v
 Here is an example of a response, which is returned in JSON format.
 
 ```json
-
 {
     "version": "<the-latest-version-number-of-the-schema>",
 }
-
 ```
 
 The response includes the following field:
@@ -538,19 +492,15 @@ Field | Description |
 <TabItem value="Java Admin API">
 
 ```java
-
 void deleteSchema(String topic)
-
 ```
 
 Here is an example of deleting a schema.
 
 ```java
-
 PulsarAdmin admin = …;
 
 admin.deleteSchema("my-tenant/my-ns/my-topic");
-
 ```
 
 </TabItem>
@@ -577,7 +527,6 @@ To use a non-default (non-BookKeeper) storage system for Pulsar schemas, you nee
 The `SchemaStorage` interface has the following methods:
 
 ```java
-
 public interface SchemaStorage {
     // How schemas are updated
     CompletableFuture<SchemaVersion> put(String key, byte[] value, byte[] hash);
@@ -597,7 +546,6 @@ public interface SchemaStorage {
     // Shutdown behavior for the schema storage client
     void close() throws Exception;
 }
-
 ```
 
 :::tip
@@ -611,12 +559,10 @@ For a complete example of **schema storage** implementation, see [BookKeeperSche
 The `SchemaStorageFactory` interface has the following method:
 
 ```java
-
 public interface SchemaStorageFactory {
     @NotNull
     SchemaStorage create(PulsarService pulsar) throws Exception;
 }
-
 ```
 
 :::tip
@@ -664,9 +610,7 @@ To set a schema compatibility check strategy at the topic level, use one of the 
 Use the [`pulsar-admin topicPolicies set-schema-compatibility-strategy`](/tools/pulsar-admin/) command. 
 
 ```shell
-
 pulsar-admin topicPolicies set-schema-compatibility-strategy <strategy> <topicName>
-
 ```
 
 </TabItem>
@@ -678,19 +622,15 @@ Send a `PUT` request to this endpoint: {@inject: endpoint|PUT|/admin/v2/topics/:
 <TabItem value="Java Admin API">
 
 ```java
-
 void setSchemaCompatibilityStrategy(String topic, SchemaCompatibilityStrategy strategy)
-
 ```
 
 Here is an example of setting a schema compatibility check strategy at the topic level.
 
 ```java
-
 PulsarAdmin admin = …;
 
 admin.topicPolicies().setSchemaCompatibilityStrategy("my-tenant/my-ns/my-topic", SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE);
-
 ```
 
 </TabItem>
@@ -710,9 +650,7 @@ To get the topic-level schema compatibility check strategy, use one of the follo
 Use the [`pulsar-admin topicPolicies get-schema-compatibility-strategy`](/tools/pulsar-admin/) command. 
 
 ```shell
-
 pulsar-admin topicPolicies get-schema-compatibility-strategy <topicName>
-
 ```
 
 </TabItem>
@@ -724,15 +662,12 @@ Send a `GET` request to this endpoint: {@inject: endpoint|GET|/admin/v2/topics/:
 <TabItem value="Java Admin API">
 
 ```java
-
 SchemaCompatibilityStrategy getSchemaCompatibilityStrategy(String topic, boolean applied)
-
 ```
 
 Here is an example of getting the topic-level schema compatibility check strategy.
 
 ```java
-
 PulsarAdmin admin = …;
 
 // get the current applied schema compatibility strategy
@@ -740,7 +675,6 @@ admin.topicPolicies().getSchemaCompatibilityStrategy("my-tenant/my-ns/my-topic",
 
 // only get the schema compatibility strategy from topic policies
 admin.topicPolicies().getSchemaCompatibilityStrategy("my-tenant/my-ns/my-topic", false);
-
 ```
 
 </TabItem>
@@ -760,9 +694,7 @@ To remove the topic-level schema compatibility check strategy, use one of the fo
 Use the [`pulsar-admin topicPolicies remove-schema-compatibility-strategy`](/tools/pulsar-admin/) command. 
 
 ```shell
-
 pulsar-admin topicPolicies remove-schema-compatibility-strategy <topicName>
-
 ```
 
 </TabItem>
@@ -774,19 +706,15 @@ Send a `DELETE` request to this endpoint: {@inject: endpoint|DELETE|/admin/v2/to
 <TabItem value="Java Admin API">
 
 ```java
-
 void removeSchemaCompatibilityStrategy(String topic)
-
 ```
 
 Here is an example of removing the topic-level schema compatibility check strategy.
 
 ```java
-
 PulsarAdmin admin = …;
 
 admin.removeSchemaCompatibilityStrategy("my-tenant/my-ns/my-topic");
-
 ```
 
 </TabItem>
@@ -809,9 +737,7 @@ You can set schema compatibility check strategy at namespace level using one of 
 Use the [`pulsar-admin namespaces set-schema-compatibility-strategy`](/tools/pulsar-admin/) command. 
 
 ```shell
-
 pulsar-admin namespaces set-schema-compatibility-strategy options
-
 ```
 
 </TabItem>
@@ -825,9 +751,7 @@ Send a `PUT` request to this endpoint: {@inject: endpoint|PUT|/admin/v2/namespac
 Use the [`setSchemaCompatibilityStrategy`](/api/admin/)method.
 
 ```java
-
 admin.namespaces().setSchemaCompatibilityStrategy("test", SchemaCompatibilityStrategy.FULL);
-
 ```
 
 </TabItem>
@@ -841,9 +765,7 @@ You can set schema compatibility check strategy at broker level by setting `sche
 
 **Example**
 
-```
-
+```conf
 schemaCompatibilityStrategy=ALWAYS_INCOMPATIBLE
-
 ```
 

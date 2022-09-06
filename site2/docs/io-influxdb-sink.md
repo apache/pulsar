@@ -4,8 +4,7 @@ title: InfluxDB sink connector
 sidebar_label: "InfluxDB sink connector"
 ---
 
-The InfluxDB sink connector pulls messages from Pulsar topics 
-and persists the messages to InfluxDB.
+The InfluxDB sink connector pulls messages from Pulsar topics and persists the messages to InfluxDB.
 
 The InfluxDB sink provides different configurations for InfluxDBv1 and v2 respectively.
 
@@ -48,7 +47,6 @@ Before using the InfluxDB sink connector, you need to create a configuration fil
 * JSON
 
   ```json
-  
   {
      "configs": {
         "influxdbUrl": "http://localhost:9999",
@@ -62,13 +60,11 @@ Before using the InfluxDB sink connector, you need to create a configuration fil
         "batchSize": 100
      }
   }
-  
   ```
 
 * YAML
 
   ```yaml
-  
   configs:
       influxdbUrl: "http://localhost:9999"
       organization: "example-org"
@@ -79,7 +75,6 @@ Before using the InfluxDB sink connector, you need to create a configuration fil
       gzipEnable: false
       batchTimeMs: 1000
       batchSize: 100
-  
   ```
 
 #### InfluxDBv1
@@ -87,7 +82,6 @@ Before using the InfluxDB sink connector, you need to create a configuration fil
 * JSON 
 
   ```json
-  
   {
      "configs": {
         "influxdbUrl": "http://localhost:8086",
@@ -100,13 +94,11 @@ Before using the InfluxDB sink connector, you need to create a configuration fil
         "batchSize": 100
      }
   }
-  
   ```
 
 * YAML
 
   ```yaml
-  
   configs:
       influxdbUrl: "http://localhost:8086"
       database: "test_db"
@@ -116,6 +108,5 @@ Before using the InfluxDB sink connector, you need to create a configuration fil
       gzipEnable: false
       batchTimeMs: 1000
       batchSize: 100
-  
   ```
 

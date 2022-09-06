@@ -708,6 +708,7 @@ public interface Consumer<T> extends Closeable {
      *
      * @param timestamp
      *            the message publish time where to reposition the subscription
+     *            The timestamp format should be Unix time in milliseconds.
      */
     void seek(long timestamp) throws PulsarClientException;
 
@@ -765,6 +766,7 @@ public interface Consumer<T> extends Closeable {
      *
      * @param timestamp
      *            the message publish time where to reposition the subscription
+     *            The timestamp format should be Unix time in milliseconds.
      * @return a future to track the completion of the seek operation
      */
     CompletableFuture<Void> seekAsync(long timestamp);

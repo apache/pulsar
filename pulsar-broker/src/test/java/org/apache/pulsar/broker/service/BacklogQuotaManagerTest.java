@@ -94,7 +94,7 @@ public class BacklogQuotaManagerTest {
 
             // start pulsar service
             config = new ServiceConfiguration();
-            config.setMetadataStoreUrl("zk:127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+            config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
             config.setAdvertisedAddress("localhost");
             config.setWebServicePort(Optional.of(0));
             config.setClusterName("usc");
@@ -541,30 +541,27 @@ public class BacklogQuotaManagerTest {
         consumer.receive();
 
         admin.topics().unload(topic);
-        Awaitility.await().until(consumer::isConnected);
-        PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(topic);
-        assertEquals(internalStats.ledgers.size(), 2);
-        assertEquals(internalStats.ledgers.get(1).entries, 0);
+
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(topic);
+            assertEquals(internalStats.ledgers.size(), 2);
+            assertEquals(internalStats.ledgers.get(1).entries, 0);
+        });
 
         TopicStats stats = getTopicStats(topic);
         assertEquals(stats.getSubscriptions().get(subName).getMsgBacklog(), 1);
 
-        TimeUnit.SECONDS.sleep(TIME_TO_CHECK_BACKLOG_QUOTA);
+        rolloverStats();
 
-        Awaitility.await()
-                .pollInterval(Duration.ofSeconds(1))
-                .atMost(Duration.ofSeconds(TIME_TO_CHECK_BACKLOG_QUOTA))
-                .untilAsserted(() -> {
-                    rolloverStats();
-
-                    // Cause the last ledger is empty, it is not possible to skip first ledger,
-                    // so the number of ledgers will keep unchanged, and backlog is clear
-                    PersistentTopicInternalStats latestInternalStats = admin.topics().getInternalStats(topic);
-                    assertEquals(latestInternalStats.ledgers.size(), 2);
-                    assertEquals(latestInternalStats.ledgers.get(1).entries, 0);
-                    TopicStats latestStats = getTopicStats(topic);
-                    assertEquals(latestStats.getSubscriptions().get(subName).getMsgBacklog(), 0);
-                });
+        Awaitility.await().untilAsserted(() -> {
+            // Cause the last ledger is empty, it is not possible to skip first ledger,
+            // so the number of ledgers will keep unchanged, and backlog is clear
+            PersistentTopicInternalStats latestInternalStats = admin.topics().getInternalStats(topic);
+            assertEquals(latestInternalStats.ledgers.size(), 2);
+            assertEquals(latestInternalStats.ledgers.get(1).entries, 0);
+            TopicStats latestStats = getTopicStats(topic);
+            assertEquals(latestStats.getSubscriptions().get(subName).getMsgBacklog(), 0);
+        });
 
         client.close();
     }

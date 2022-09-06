@@ -42,19 +42,14 @@ To upgrade an Apache Pulsar cluster, follow the upgrade sequence.
      - a. Disable `autorecovery` with the following command.
 
      ```shell
-     
      bin/bookkeeper shell autorecovery -disable
-     
      ```
 
-  
      - b. Roll out the upgraded version to all bookies in the cluster after you determine that a version is safe after canary.  
      - c. After you upgrade all bookies, re-enable `autorecovery` with the following command.
 
      ```shell
-     
      bin/bookkeeper shell autorecovery -enable
-     
      ```
 
 3. Upgrade brokers.
@@ -107,17 +102,13 @@ To upgrade a bookie to a new version, complete the following steps:
 3. Start the bookie in `ReadOnly` mode to verify if the bookie of this new version runs well for reading workload.
 
    ```shell
-   
    bin/pulsar bookie --readOnly
-   
    ```
 
 4. When the bookie runs successfully in `ReadOnly` mode, stop the bookie and restart it in `Write/Read` mode.
 
    ```shell
-   
    bin/pulsar bookie
-   
    ```
 
 5. Observe and make sure the cluster serves both write and read traffic.
@@ -196,9 +187,7 @@ To check the health of the broker, you can use the following command or API.
 <TabItem value="Admin CLI">
 
 ```bash
-
-$ pulsar-admin brokers healthcheck
-
+pulsar-admin brokers healthcheck
 ```
 
 </TabItem>
