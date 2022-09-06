@@ -781,8 +781,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         //create znode for bundle-data
         pulsar.getBrokerService().updateRates();
 
-        waitResourceDataUpdateToZK(loadManager,
-                loadData -> loadData.getBundleData().containsKey(bundleName));
+        waitResourceDataUpdateToZK(loadManager);
         String path = BUNDLE_DATA_PATH + "/" + bundleName;
 
         Optional<GetResult> getResult = pulsar.getLocalMetadataStore().get(path).get();
@@ -794,15 +793,13 @@ public class NamespaceServiceTest extends BrokerTestBase {
         TimeUnit.SECONDS.sleep(5);
 
         // update broker bundle report to zk
-        waitResourceDataUpdateToZK(loadManager,
-                loadData -> !loadData.getBundleData().containsKey(bundleName));
+        waitResourceDataUpdateToZK(loadManager);
 
         getResult = pulsar.getLocalMetadataStore().get(path).get();
         assertFalse(getResult.isPresent());
     }
 
-    private void waitResourceDataUpdateToZK(
-            LoadManager loadManager, Predicate<LoadData> utilChecker) throws Exception {
+    private void waitResourceDataUpdateToZK(LoadManager loadManager) throws Exception {
         CompletableFuture<Void> waitForBrokerChangeNotice = registryBrokerDataChangeNotice();
         // Manually trigger "LoadReportUpdaterTask"
         loadManager.writeLoadReportOnZookeeper();
