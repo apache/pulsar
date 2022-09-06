@@ -771,7 +771,7 @@ reader, err := client.CreateReader(pulsar.ReaderOptions{
 })
 ```
 
-#### How to use reader to read specific message
+#### Use reader to read specific message
 
 ```go
 client, err := pulsar.NewClient(pulsar.ClientOptions{
