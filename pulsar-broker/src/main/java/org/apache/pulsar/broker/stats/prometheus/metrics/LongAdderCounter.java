@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.stats.prometheus.metrics;
 
+import java.util.Map;
 import java.util.concurrent.atomic.LongAdder;
 import org.apache.bookkeeper.stats.Counter;
 
@@ -30,8 +31,13 @@ import org.apache.bookkeeper.stats.Counter;
 public class LongAdderCounter implements Counter {
     private final LongAdder counter = new LongAdder();
 
-    public LongAdderCounter() {
+    private Map<String, String> labels;
 
+    // used for lazy registration for thread scoped metric
+    private boolean threadInitialized;
+
+    public LongAdderCounter(Map<String, String> labels) {
+        this.labels = labels;
     }
 
     @Override
@@ -57,5 +63,18 @@ public class LongAdderCounter implements Counter {
     @Override
     public Long get() {
         return counter.sum();
+    }
+
+    public Map<String, String> getLabels() {
+        return labels;
+    }
+
+    public boolean isThreadInitialized() {
+        return threadInitialized;
+    }
+
+    public void initializeThread(Map<String, String> labels) {
+        this.labels = labels;
+        this.threadInitialized = true;
     }
 }

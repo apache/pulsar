@@ -54,9 +54,15 @@ public class DataSketchesOpStatsLogger implements OpStatsLogger {
     private final LongAdder successSumAdder = new LongAdder();
     private final LongAdder failSumAdder = new LongAdder();
 
-    public DataSketchesOpStatsLogger() {
+    private Map<String, String> labels;
+
+    // used for lazy registration for thread scoped metrics
+    private boolean threadInitialized;
+
+    public DataSketchesOpStatsLogger(Map<String, String> labels) {
         this.current = new ThreadLocalAccessor();
         this.replacement = new ThreadLocalAccessor();
+        this.labels = labels;
     }
 
     @Override
@@ -170,6 +176,19 @@ public class DataSketchesOpStatsLogger implements OpStatsLogger {
     public double getQuantileValue(boolean success, double quantile) {
         DoublesSketch s = success ? successResult : failResult;
         return s != null ? s.getQuantile(quantile) : Double.NaN;
+    }
+
+    public Map<String, String> getLabels() {
+        return labels;
+    }
+
+    public boolean isThreadInitialized() {
+        return threadInitialized;
+    }
+
+    public void initializeThread(Map<String, String> labels) {
+        this.labels = labels;
+        this.threadInitialized = true;
     }
 
     private static class LocalData {

@@ -18,121 +18,174 @@
  */
 package org.apache.pulsar.broker.stats.prometheus.metrics;
 
-import java.io.IOException;
-import java.io.Writer;
-import org.apache.bookkeeper.stats.Counter;
+import io.prometheus.client.Collector;
+import io.prometheus.client.Collector.MetricFamilySamples;
+import io.prometheus.client.Collector.MetricFamilySamples.Sample;
+import io.prometheus.client.CollectorRegistry;
+import java.util.Enumeration;
+import java.util.Map;
+import org.apache.pulsar.common.util.SimpleTextOutputStream;
 
 /**
  * Logic to write metrics in Prometheus text format.
  */
 public class PrometheusTextFormatUtil {
-    static void writeGauge(Writer w, String name, String cluster, SimpleGauge<? extends Number> gauge) {
+    public static void writeGauge(SimpleTextOutputStream w, String name, SimpleGauge<? extends Number> gauge) {
         // Example:
-        // # TYPE bookie_client_bookkeeper_ml_scheduler_completed_tasks_0 gauge
-        // pulsar_bookie_client_bookkeeper_ml_scheduler_completed_tasks_0{cluster="pulsar"} 1044057
-        try {
-            w.append("# TYPE ").append(name).append(" gauge\n");
-            w.append(name).append("{cluster=\"").append(cluster).append("\"}")
-                    .append(' ').append(gauge.getSample().toString()).append('\n');
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        // # TYPE bookie_storage_entries_count gauge
+        // bookie_storage_entries_count 519
+        w.write("# TYPE ").write(name).write(" gauge\n");
+        w.write(name);
+        writeLabels(w, gauge.getLabels());
+        w.write(' ').write(gauge.getSample().toString()).write('\n');
+
     }
 
-    static void writeCounter(Writer w, String name, String cluster, Counter counter) {
+    public static void writeCounter(SimpleTextOutputStream w, String name, LongAdderCounter counter) {
         // Example:
         // # TYPE jvm_threads_started_total counter
-        // jvm_threads_started_total{cluster="test"} 59
-        try {
-            w.append("# TYPE ").append(name).append(" counter\n");
-            w.append(name).append("{cluster=\"").append(cluster).append("\"}")
-                    .append(' ').append(counter.get().toString()).append('\n');
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        // jvm_threads_started_total 59
+        w.write("# TYPE ").write(name).write(" counter\n");
+        w.write(name);
+        writeLabels(w, counter.getLabels());
+        w.write(' ').write(counter.get().toString()).write('\n');
     }
 
-    static void writeOpStat(Writer w, String name, String cluster, DataSketchesOpStatsLogger opStat) {
+    public static void writeOpStat(SimpleTextOutputStream w, String name, DataSketchesOpStatsLogger opStat) {
         // Example:
-        // # TYPE pulsar_bookie_client_bookkeeper_ml_scheduler_task_queued summary
-        // pulsar_bookie_client_bookkeeper_ml_scheduler_task_queued{cluster="pulsar", success="false",
-        // quantile="0.5"} NaN
-        // pulsar_bookie_client_bookkeeper_ml_scheduler_task_queued{cluster="pulsar", success="false",
-        // quantile="0.75"} NaN
-        // pulsar_bookie_client_bookkeeper_ml_scheduler_task_queued{cluster="pulsar", success="false",
-        // quantile="0.95"} NaN
-        // pulsar_bookie_client_bookkeeper_ml_scheduler_task_queued{cluster="pulsar", success="false",
-        // quantile="0.99"} NaN
-        // pulsar_bookie_client_bookkeeper_ml_scheduler_task_queued{cluster="pulsar", success="false",
-        // quantile="0.999"} NaN
-        // pulsar_bookie_client_bookkeeper_ml_scheduler_task_queued{cluster="pulsar", success="false",
-        // quantile="0.9999"} NaN
-        // pulsar_bookie_client_bookkeeper_ml_scheduler_task_queued{cluster="pulsar", success="false",
-        // quantile="1.0"} -Infinity
-        // pulsar_bookie_client_bookkeeper_ml_scheduler_task_queued_count{cluster="pulsar", success="false"} 0
-        // pulsar_bookie_client_bookkeeper_ml_scheduler_task_queued_sum{cluster="pulsar", success="false"} 0.0
-        // pulsar_bookie_client_bookkeeper_ml_scheduler_task_queued{cluster="pulsar", success="true",
-        // quantile="0.5"} 0.031
-        // pulsar_bookie_client_bookkeeper_ml_scheduler_task_queued{cluster="pulsar", success="true",
-        // quantile="0.75"} 0.043
-        // pulsar_bookie_client_bookkeeper_ml_scheduler_task_queued{cluster="pulsar", success="true",
-        // quantile="0.95"} 0.061
-        // pulsar_bookie_client_bookkeeper_ml_scheduler_task_queued{cluster="pulsar", success="true",
-        // quantile="0.99"} 0.064
-        // pulsar_bookie_client_bookkeeper_ml_scheduler_task_queued{cluster="pulsar", success="true",
-        // quantile="0.999"} 0.073
-        // pulsar_bookie_client_bookkeeper_ml_scheduler_task_queued{cluster="pulsar", success="true",
-        // quantile="0.9999"} 0.073
-        // pulsar_bookie_client_bookkeeper_ml_scheduler_task_queued{cluster="pulsar", success="true",
-        // quantile="1.0"} 0.552
-        // pulsar_bookie_client_bookkeeper_ml_scheduler_task_queued_count{cluster="pulsar", success="true"} 40911432
-        // pulsar_bookie_client_bookkeeper_ml_scheduler_task_queued_sum{cluster="pulsar", success="true"} 527.0
-        try {
-            w.append("# TYPE ").append(name).append(" summary\n");
-            writeQuantile(w, opStat, name, cluster, false, 0.5);
-            writeQuantile(w, opStat, name, cluster, false, 0.75);
-            writeQuantile(w, opStat, name, cluster, false, 0.95);
-            writeQuantile(w, opStat, name, cluster, false, 0.99);
-            writeQuantile(w, opStat, name, cluster, false, 0.999);
-            writeQuantile(w, opStat, name, cluster, false, 0.9999);
-            writeQuantile(w, opStat, name, cluster, false, 1.0);
-            writeCount(w, opStat, name, cluster, false);
-            writeSum(w, opStat, name, cluster, false);
+        // # TYPE bookie_journal_JOURNAL_ADD_ENTRY summary
+        // bookie_journal_JOURNAL_ADD_ENTRY{success="false",quantile="0.5",} NaN
+        // bookie_journal_JOURNAL_ADD_ENTRY{success="false",quantile="0.75",} NaN
+        // bookie_journal_JOURNAL_ADD_ENTRY{success="false",quantile="0.95",} NaN
+        // bookie_journal_JOURNAL_ADD_ENTRY{success="false",quantile="0.99",} NaN
+        // bookie_journal_JOURNAL_ADD_ENTRY{success="false",quantile="0.999",} NaN
+        // bookie_journal_JOURNAL_ADD_ENTRY{success="false",quantile="0.9999",} NaN
+        // bookie_journal_JOURNAL_ADD_ENTRY{success="false",quantile="1.0",} NaN
+        // bookie_journal_JOURNAL_ADD_ENTRY_count{success="false",} 0.0
+        // bookie_journal_JOURNAL_ADD_ENTRY_sum{success="false",} 0.0
+        // bookie_journal_JOURNAL_ADD_ENTRY{success="true",quantile="0.5",} 1.706
+        // bookie_journal_JOURNAL_ADD_ENTRY{success="true",quantile="0.75",} 1.89
+        // bookie_journal_JOURNAL_ADD_ENTRY{success="true",quantile="0.95",} 2.121
+        // bookie_journal_JOURNAL_ADD_ENTRY{success="true",quantile="0.99",} 10.708
+        // bookie_journal_JOURNAL_ADD_ENTRY{success="true",quantile="0.999",} 10.902
+        // bookie_journal_JOURNAL_ADD_ENTRY{success="true",quantile="0.9999",} 10.902
+        // bookie_journal_JOURNAL_ADD_ENTRY{success="true",quantile="1.0",} 10.902
+        // bookie_journal_JOURNAL_ADD_ENTRY_count{success="true",} 658.0
+        // bookie_journal_JOURNAL_ADD_ENTRY_sum{success="true",} 1265.0800000000002
+        w.write("# TYPE ").write(name).write(" summary\n");
+        writeQuantile(w, opStat, name, false, 0.5);
+        writeQuantile(w, opStat, name, false, 0.75);
+        writeQuantile(w, opStat, name, false, 0.95);
+        writeQuantile(w, opStat, name, false, 0.99);
+        writeQuantile(w, opStat, name, false, 0.999);
+        writeQuantile(w, opStat, name, false, 0.9999);
+        writeQuantile(w, opStat, name, false, 1.0);
+        writeCount(w, opStat, name, false);
+        writeSum(w, opStat, name, false);
 
-            writeQuantile(w, opStat, name, cluster, true, 0.5);
-            writeQuantile(w, opStat, name, cluster, true, 0.75);
-            writeQuantile(w, opStat, name, cluster, true, 0.95);
-            writeQuantile(w, opStat, name, cluster, true, 0.99);
-            writeQuantile(w, opStat, name, cluster, true, 0.999);
-            writeQuantile(w, opStat, name, cluster, true, 0.9999);
-            writeQuantile(w, opStat, name, cluster, true, 1.0);
-            writeCount(w, opStat, name, cluster, true);
-            writeSum(w, opStat, name, cluster, true);
+        writeQuantile(w, opStat, name, true, 0.5);
+        writeQuantile(w, opStat, name, true, 0.75);
+        writeQuantile(w, opStat, name, true, 0.95);
+        writeQuantile(w, opStat, name, true, 0.99);
+        writeQuantile(w, opStat, name, true, 0.999);
+        writeQuantile(w, opStat, name, true, 0.9999);
+        writeQuantile(w, opStat, name, true, 1.0);
+        writeCount(w, opStat, name, true);
+        writeSum(w, opStat, name, true);
+    }
 
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+    private static void writeQuantile(SimpleTextOutputStream w, DataSketchesOpStatsLogger opStat, String name,
+                                      Boolean success, double quantile) {
+        w.write(name)
+                .write("{success=\"").write(success.toString())
+                .write("\",quantile=\"").write(Double.toString(quantile));
+        if (!opStat.getLabels().isEmpty()) {
+            w.write("\", ");
+            writeLabelsNoBraces(w, opStat.getLabels());
+        } else {
+            w.write("\"");
+        }
+        w.write("} ")
+                .write(Double.toString(opStat.getQuantileValue(success, quantile))).write('\n');
+    }
+
+    private static void writeCount(SimpleTextOutputStream w, DataSketchesOpStatsLogger opStat, String name,
+                                   Boolean success) {
+        w.write(name).write("_count{success=\"").write(success.toString());
+        if (!opStat.getLabels().isEmpty()) {
+            w.write("\", ");
+            writeLabelsNoBraces(w, opStat.getLabels());
+        } else {
+            w.write("\"");
+        }
+        w.write("} ")
+                .write(Long.toString(opStat.getCount(success))).write('\n');
+    }
+
+    private static void writeSum(SimpleTextOutputStream w, DataSketchesOpStatsLogger opStat, String name,
+                                 Boolean success) {
+        w.write(name).write("_sum{success=\"").write(success.toString());
+        if (!opStat.getLabels().isEmpty()) {
+            w.write("\", ");
+            writeLabelsNoBraces(w, opStat.getLabels());
+        } else {
+            w.write("\"");
+        }
+        w.write("} ")
+                .write(Double.toString(opStat.getSum(success))).write('\n');
+    }
+
+    public static void writeMetricsCollectedByPrometheusClient(SimpleTextOutputStream w, CollectorRegistry registry) {
+        Enumeration<MetricFamilySamples> metricFamilySamples = registry.metricFamilySamples();
+        while (metricFamilySamples.hasMoreElements()) {
+            MetricFamilySamples metricFamily = metricFamilySamples.nextElement();
+
+            for (int i = 0; i < metricFamily.samples.size(); i++) {
+                Sample sample = metricFamily.samples.get(i);
+                w.write(sample.name);
+                w.write('{');
+                for (int j = 0; j < sample.labelNames.size(); j++) {
+                    if (j != 0) {
+                        w.write(", ");
+                    }
+                    w.write(sample.labelNames.get(j));
+                    w.write("=\"");
+                    w.write(sample.labelValues.get(j));
+                    w.write('"');
+                }
+
+                w.write("} ");
+                w.write(Collector.doubleToGoString(sample.value));
+                w.write('\n');
+            }
         }
     }
 
-    private static void writeQuantile(Writer w, DataSketchesOpStatsLogger opStat, String name, String cluster,
-                                      Boolean success, double quantile) throws IOException {
-        w.append(name).append("{cluster=\"").append(cluster).append("\", success=\"")
-                .append(success.toString()).append("\", quantile=\"")
-                .append(Double.toString(quantile)).append("\"} ")
-                .append(Double.toString(opStat.getQuantileValue(success, quantile))).append('\n');
+    private static void writeLabels(SimpleTextOutputStream w, Map<String, String> labels) {
+        if (labels.isEmpty()) {
+            return;
+        }
+
+        w.write('{');
+        writeLabelsNoBraces(w, labels);
+        w.write('}');
     }
 
-    private static void writeCount(Writer w, DataSketchesOpStatsLogger opStat, String name, String cluster,
-                                   Boolean success) throws IOException {
-        w.append(name).append("_count{cluster=\"").append(cluster).append("\", success=\"")
-                .append(success.toString()).append("\"} ")
-                .append(Long.toString(opStat.getCount(success))).append('\n');
-    }
+    private static void writeLabelsNoBraces(SimpleTextOutputStream w, Map<String, String> labels) {
+        if (labels.isEmpty()) {
+            return;
+        }
 
-    private static void writeSum(Writer w, DataSketchesOpStatsLogger opStat, String name, String cluster,
-                                 Boolean success) throws IOException {
-        w.append(name).append("_sum{cluster=\"").append(cluster).append("\", success=\"")
-                .append(success.toString()).append("\"} ")
-                .append(Double.toString(opStat.getSum(success))).append('\n');
+        boolean isFirst = true;
+        for (Map.Entry<String, String> e : labels.entrySet()) {
+            if (!isFirst) {
+                w.write(',');
+            }
+            isFirst = false;
+            w.write(e.getKey())
+                    .write("=\"")
+                    .write(e.getValue())
+                    .write('"');
+        }
     }
 }
