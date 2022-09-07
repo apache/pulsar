@@ -52,6 +52,7 @@
     <ant.version>1.10.12</ant.version>
     <snakeyaml.version>1.31</snakeyaml.version>
     <mockito.version>3.12.4</mockito.version>
+    <license-maven-plugin.version>4.0.rc2</license-maven-plugin.version>
     <!-- required for running tests on JDK11+ -->
     <test.additional.args>
       --add-opens java.base/jdk.internal.loader=ALL-UNNAMED
@@ -151,7 +152,7 @@
       <plugin>
         <groupId>com.mycila</groupId>
         <artifactId>license-maven-plugin</artifactId>
-        <version>4.0.rc2</version>
+        <version>${license-maven-plugin.version}</version>
         <configuration>
           <licenseSets>
             <licenseSet>
@@ -159,7 +160,7 @@
             </licenseSet>
           </licenseSets>
           <mapping>
-            <java>JAVADOC_STYLE</java>
+            <java>SLASHSTAR_STYLE</java>
           </mapping>
         </configuration>
       </plugin>
