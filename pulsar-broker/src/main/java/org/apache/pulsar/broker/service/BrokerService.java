@@ -1997,7 +1997,7 @@ public class BrokerService implements Closeable {
             TopicName topicName = TopicName.get(topic);
             if (serviceUnit.includes(topicName) && getTopicReference(topic).isPresent()) {
                 log.info("[{}][{}] Clean unloaded topic from cache.", serviceUnit.toString(), topic);
-                pulsar.getBrokerService().removeTopicFromCache(topicName.toString(), serviceUnit);
+                pulsar.getBrokerService().removeTopicFromCache(topicName.toString(), serviceUnit, null);
             }
         }
     }
@@ -2006,15 +2006,43 @@ public class BrokerService implements Closeable {
         return authorizationService;
     }
 
-    public CompletableFuture<Void> removeTopicFromCache(String topic) {
+    public CompletableFuture<Void> removeTopicFromCache(String topicNameString, Topic topic) {
+        if (topic == null){
+            return removeTopicFutureFromCache(topicNameString, null);
+        }
+        final CompletableFuture<Optional<Topic>> createTopicFuture = topics.get(topicNameString);
+        // If not exists in cache, do nothing.
+        if (createTopicFuture == null){
+            return CompletableFuture.completedFuture(null);
+        }
+        // If the future in cache is not yet complete, the topic instance in the cache is not the same with the topic
+        // in the argument. Do nothing.
+        if (!createTopicFuture.isDone()){
+            return CompletableFuture.completedFuture(null);
+        }
+        return createTopicFuture.thenCompose(topicOptional -> {
+            Topic topicInCache = topicOptional.orElse(null);
+            // If @param topic is not equals with cached, do nothing.
+            if (topicInCache == null || topicInCache != topic){
+                return CompletableFuture.completedFuture(null);
+            } else {
+                // Do remove.
+                return removeTopicFutureFromCache(topicNameString, createTopicFuture);
+            }
+        });
+    }
+
+    private CompletableFuture<Void> removeTopicFutureFromCache(String topic,
+                                                        CompletableFuture<Optional<Topic>> createTopicFuture) {
         TopicName topicName = TopicName.get(topic);
         return pulsar.getNamespaceService().getBundleAsync(topicName)
                 .thenAccept(namespaceBundle -> {
-                    removeTopicFromCache(topic, namespaceBundle);
+                    removeTopicFromCache(topic, namespaceBundle, createTopicFuture);
                 });
     }
 
-    public void removeTopicFromCache(String topic, NamespaceBundle namespaceBundle) {
+    public void removeTopicFromCache(String topic, NamespaceBundle namespaceBundle,
+                                     CompletableFuture<Optional<Topic>> createTopicFuture) {
         String bundleName = namespaceBundle.toString();
         String namespaceName = TopicName.get(topic).getNamespaceObject().toString();
 
@@ -2041,7 +2069,12 @@ public class BrokerService implements Closeable {
                 }
             }
         }
-        topics.remove(topic);
+
+        if (createTopicFuture == null) {
+            topics.remove(topic);
+        } else {
+            topics.remove(topic, createTopicFuture);
+        }
 
         Compactor compactor = pulsar.getNullableCompactor();
         if (compactor != null) {
