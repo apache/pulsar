@@ -875,7 +875,7 @@ public class PulsarClientImpl implements PulsarClient {
         PulsarClientException pulsarClientException = null;
         if (createdExecutorProviders) {
 
-            if (externalExecutorProvider != null && !externalExecutorProvider.isShutdown()) {
+            if (!externalExecutorProvider.isShutdown()) {
                 try {
                     externalExecutorProvider.shutdownNow();
                 } catch (Throwable t) {
@@ -883,7 +883,7 @@ public class PulsarClientImpl implements PulsarClient {
                     pulsarClientException = PulsarClientException.unwrap(t);
                 }
             }
-            if (internalExecutorProvider != null && !internalExecutorProvider.isShutdown()) {
+            if (!internalExecutorProvider.isShutdown()) {
                 try {
                     internalExecutorProvider.shutdownNow();
                 } catch (Throwable t) {
