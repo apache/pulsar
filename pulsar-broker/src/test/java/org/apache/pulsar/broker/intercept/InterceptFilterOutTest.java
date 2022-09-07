@@ -71,7 +71,7 @@ public class InterceptFilterOutTest {
         Mockito.doNothing().when(chain).doFilter(Mockito.any(), Mockito.any());
         HttpServletRequestWrapper mockInputStream = new MockRequestWrapper(request);
         Mockito.doReturn(mockInputStream.getInputStream()).when(request).getInputStream();
-        Mockito.doReturn(new StringBuilder("http://127.0.0.1:8080")).when(request).getRequestURL();
+        Mockito.doReturn(new StringBuffer("http://127.0.0.1:8080")).when(request).getRequestURL();
 
         // "application/json" should be intercepted
         Mockito.doReturn("application/json").when(request).getContentType();
@@ -103,7 +103,7 @@ public class InterceptFilterOutTest {
         Mockito.doNothing().when(chain).doFilter(Mockito.any(), Mockito.any());
         HttpServletRequestWrapper mockInputStream = new MockRequestWrapper(request);
         Mockito.doReturn(mockInputStream.getInputStream()).when(request).getInputStream();
-        Mockito.doReturn(new StringBuilder("http://127.0.0.1:8080")).when(request).getRequestURL();
+        Mockito.doReturn(new StringBuffer("http://127.0.0.1:8080")).when(request).getRequestURL();
         // "application/json" should be intercepted
         Mockito.doReturn("application/json").when(request).getContentType();
 
@@ -129,7 +129,7 @@ public class InterceptFilterOutTest {
         Mockito.doNothing().when(chain).doFilter(Mockito.any(), Mockito.any());
         HttpServletRequestWrapper mockInputStream = new MockRequestWrapper(request);
         Mockito.doReturn(mockInputStream.getInputStream()).when(request).getInputStream();
-        Mockito.doReturn(new StringBuilder("http://127.0.0.1:8080")).when(request).getRequestURL();
+        Mockito.doReturn(new StringBuffer("http://127.0.0.1:8080")).when(request).getRequestURL();
 
         // "application/json" should be intercepted
         Mockito.doReturn("application/json").when(request).getContentType();
@@ -161,7 +161,7 @@ public class InterceptFilterOutTest {
         Mockito.doNothing().when(chain).doFilter(Mockito.any(), Mockito.any());
         HttpServletRequestWrapper mockInputStream = new MockRequestWrapper(request);
         Mockito.doReturn(mockInputStream.getInputStream()).when(request).getInputStream();
-        Mockito.doReturn(new StringBuilder("http://127.0.0.1:8080")).when(request).getRequestURL();
+        Mockito.doReturn(new StringBuffer("http://127.0.0.1:8080")).when(request).getRequestURL();
 
         // Should not be intercepted since the broker interceptor disabled.
         Mockito.doReturn("application/json").when(request).getContentType();

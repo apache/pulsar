@@ -438,6 +438,9 @@
             <ignorePackage>org.apache.pulsar.broker.stats</ignorePackage>
             <ignorePackage>org.apache.pulsar.client</ignorePackage>
           </ignorePackages>
+          <exclusionPatterns>
+            <exclusionPattern>java/lang/StringBuffer."&lt;init&gt;":.*</exclusionPattern>
+          </exclusionPatterns>
         </configuration>
         <executions>
           <execution>
