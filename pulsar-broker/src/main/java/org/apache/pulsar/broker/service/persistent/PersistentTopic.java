@@ -2970,8 +2970,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     private void unfenceTopicToResume() {
-        isFenced = false;
-        isClosingOrDeleting = false;
+        lock.writeLock().lock();
+        try {
+            isFenced = false;
+            isClosingOrDeleting = false;
+        } finally {
+            lock.writeLock().unlock();
+        }
     }
 
     @Override
