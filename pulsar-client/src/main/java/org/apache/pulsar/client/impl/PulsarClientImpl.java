@@ -892,9 +892,9 @@ public class PulsarClientImpl implements PulsarClient {
                 }
             }
         }
-        if (createdScheduledProviders && scheduledExecutorProvider != null && !scheduledExecutorProvider.isShutdown()) {
+        if (createdScheduledProviders && !scheduledExecutorProvider.isShutdown()) {
             try {
-                externalExecutorProvider.shutdownNow();
+                scheduledExecutorProvider.shutdownNow();
             } catch (Throwable t) {
                 log.warn("Failed to shutdown scheduledExecutorProvider", t);
                 pulsarClientException = PulsarClientException.unwrap(t);
