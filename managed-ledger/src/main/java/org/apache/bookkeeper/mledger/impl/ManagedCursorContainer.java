@@ -286,7 +286,7 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
     // //////////////////////
 
     /**
-     * Push the item up towards the the root of the tree (lowest reading position).
+     * Push the item up towards the root of the tree (the lowest reading position).
      */
     private void siftUp(Item item) {
         Item parent = getParent(item);
@@ -297,7 +297,7 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
     }
 
     /**
-     * Push the item down towards the bottom of the tree (highest reading position).
+     * Push the item down towards the bottom of the tree (the highest reading position).
      */
     private void siftDown(final Item item) {
         while (true) {
