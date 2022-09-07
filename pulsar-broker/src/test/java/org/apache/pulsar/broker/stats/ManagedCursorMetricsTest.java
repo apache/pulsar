@@ -113,6 +113,7 @@ public class ManagedCursorMetricsTest extends MockedPulsarServiceBaseTest {
         metricsList = metrics.generate();
         Assert.assertFalse(metricsList.isEmpty());
         /*
+          see: https://github.com/apache/pulsar/pull/17504
           "createNewMetadataLedger" triggers once BK write, and "initialize" triggers the execution of
           "createNewMetadataLedger". The logic of the branch master has been changed, so this line is different.
          */
