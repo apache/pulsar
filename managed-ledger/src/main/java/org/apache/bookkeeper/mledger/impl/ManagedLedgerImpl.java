@@ -35,7 +35,6 @@ import io.netty.util.Recycler.Handle;
 import io.netty.util.ReferenceCountUtil;
 import java.io.IOException;
 import java.time.Clock;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -132,6 +131,7 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.OffloadedReadPriority;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.protocol.Commands;
@@ -2375,50 +2375,33 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         if (config.getLedgerOffloader() == null || config.getLedgerOffloader() == NullLedgerOffloader.INSTANCE
                 || config.getLedgerOffloader().getOffloadPolicies() == null) {
+            finalPromise.complete(PositionImpl.LATEST);
             return;
         }
 
-        String threshold = null;
         long sizeSummed = 0;
         long toOffloadSize = 0;
         long alreadyOffloadedSize = 0;
         ConcurrentLinkedDeque<LedgerInfo> toOffload = new ConcurrentLinkedDeque<>();
-        if (config.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes() != null) {
-            long threshold0 = config.getLedgerOffloader().getOffloadPolicies()
-                    .getManagedLedgerOffloadThresholdInBytes();
-            threshold = threshold0 + "bytes";
-            // go through ledger list from newest to oldest and build a list to offload in oldest to newest order
-            for (Map.Entry<Long, LedgerInfo> e : ledgers.descendingMap().entrySet()) {
-                final LedgerInfo info = e.getValue();
-                final long size = info.getSize();
-                sizeSummed += size;
-                boolean alreadyOffloaded = info.hasOffloadContext() && info.getOffloadContext().getComplete();
-                if (alreadyOffloaded) {
-                    alreadyOffloadedSize += size;
-                } else if (sizeSummed > threshold0) {
-                    toOffloadSize += size;
-                    toOffload.addFirst(e.getValue());
-                }
-            }
-        } else if (config.getLedgerOffloader().getOffloadPolicies()
-                .getManagedLedgerOffloadTimeThresholdInSeconds() != null) {
+
+        final OffloadPoliciesImpl policies = config.getLedgerOffloader().getOffloadPolicies();
+        final Long offloadThresholdInBytes = policies.getManagedLedgerOffloadThresholdInBytes();
+        final Long offloadTimeThreshold = policies.getManagedLedgerOffloadTimeThresholdInSeconds();
+        for (Map.Entry<Long, LedgerInfo> e : ledgers.descendingMap().entrySet()) {
+            final LedgerInfo info = e.getValue();
+            final long size = info.getSize();
+            final long timestamp = info.getTimestamp();
             final long now = System.currentTimeMillis();
-            final long threshold0 = config.getLedgerOffloader().getOffloadPolicies()
-                    .getManagedLedgerOffloadTimeThresholdInSeconds();
-            threshold = threshold0 + "seconds";
-            final long thresholdInMillis = Duration.ofSeconds(threshold0).toMillis();
-            // go through ledger list from newest to oldest and build a list to offload in oldest to newest order
-            for (Map.Entry<Long, LedgerInfo> e : ledgers.descendingMap().entrySet()) {
-                final LedgerInfo info = e.getValue();
-                final long size = info.getSize();
-                final long timestamp = info.getTimestamp();
-                sizeSummed += size;
-                final boolean alreadyOffloaded = info.hasOffloadContext() && info.getOffloadContext().getComplete();
-                if (alreadyOffloaded) {
-                    alreadyOffloadedSize += size;
-                } else if (now - timestamp > thresholdInMillis) {
+            sizeSummed += size;
+
+            final boolean alreadyOffloaded = info.hasOffloadContext() && info.getOffloadContext().getComplete();
+            if (alreadyOffloaded) {
+                alreadyOffloadedSize += size;
+            } else {
+                if ((offloadThresholdInBytes != null && sizeSummed > offloadThresholdInBytes)
+                        || (offloadTimeThreshold != null && now - timestamp > offloadTimeThreshold)) {
                     toOffloadSize += size;
-                    toOffload.addFirst(e.getValue());
+                    toOffload.addFirst(info);
                 }
             }
         }
@@ -2431,8 +2414,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             offloadLoop(unlockingPromise, toOffload, PositionImpl.LATEST, Optional.empty());
         } else {
             // offloadLoop will complete immediately with an empty list to offload
-            log.debug("[{}] Nothing to offload, total size = {}, already offloaded = {}, threshold = {}",
-                    name, sizeSummed, alreadyOffloadedSize, threshold);
+            log.debug("[{}] Nothing to offload, total size = {}, already offloaded = {}, "
+                            + "threshold = [managedLedgerOffloadThresholdInBytes:{}, "
+                            + "managedLedgerOffloadTimeThresholdInSeconds:{}]",
+                    name, sizeSummed, alreadyOffloadedSize, offloadThresholdInBytes, offloadTimeThreshold);
             unlockingPromise.complete(PositionImpl.LATEST);
         }
     }
