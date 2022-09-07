@@ -31,6 +31,7 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TransactionBufferStats;
+import org.apache.pulsar.common.policies.data.TransactionCoordinatorInfo;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorInternalStats;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStats;
 import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
@@ -46,6 +47,17 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     public TransactionsImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
         super(auth, readTimeoutMs);
         adminV3Transactions = web.path("/admin/v3/transactions");
+    }
+
+    @Override
+    public Map<Integer, TransactionCoordinatorInfo> listTransactionCoordinators() throws PulsarAdminException {
+        return sync(() -> listTransactionCoordinatorsAsync());
+    }
+
+    @Override
+    public CompletableFuture<Map<Integer, TransactionCoordinatorInfo>> listTransactionCoordinatorsAsync() {
+        WebTarget path = adminV3Transactions.path("coordinators");
+        return asyncGetRequest(path, new FutureCallback<Map<Integer, TransactionCoordinatorInfo>>(){});
     }
 
     @Override

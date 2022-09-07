@@ -23,6 +23,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.policies.data.TransactionBufferStats;
+import org.apache.pulsar.common.policies.data.TransactionCoordinatorInfo;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorInternalStats;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStats;
 import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
@@ -33,6 +34,21 @@ import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
 import org.apache.pulsar.common.stats.PositionInPendingAckStats;
 
 public interface Transactions {
+
+    /**
+     * List transaction coordinators.
+     *
+     * @return the transaction coordinators list.
+     */
+    Map<Integer, TransactionCoordinatorInfo> listTransactionCoordinators() throws PulsarAdminException;
+
+    /**
+     * List transaction coordinators.
+     *
+     * @return the future of the transaction coordinators list.
+     */
+    CompletableFuture<Map<Integer, TransactionCoordinatorInfo>> listTransactionCoordinatorsAsync();
+
 
     /**
      * Get transaction metadataStore stats.

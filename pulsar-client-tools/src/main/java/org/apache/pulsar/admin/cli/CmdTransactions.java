@@ -219,6 +219,14 @@ public class CmdTransactions extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "List transaction coordinators")
+    private class ListTransactionCoordinators extends CliCommand {
+        @Override
+        void run() throws Exception {
+            print(getAdmin().transactions().listTransactionCoordinators());
+        }
+    }
+
 
     public CmdTransactions(Supplier<PulsarAdmin> admin) {
         super("transactions", admin);
@@ -233,6 +241,7 @@ public class CmdTransactions extends CmdBase {
         jcommander.addCommand("slow-transactions", new GetSlowTransactions());
         jcommander.addCommand("scale-transactionCoordinators", new ScaleTransactionCoordinators());
         jcommander.addCommand("position-stats-in-pending-ack", new GetPositionStatsInPendingAck());
+        jcommander.addCommand("coordinators-list", new ListTransactionCoordinators());
 
     }
 }
