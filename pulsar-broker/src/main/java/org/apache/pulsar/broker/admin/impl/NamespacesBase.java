@@ -1473,7 +1473,7 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected CompletableFuture<Void> setRetentionAsync(RetentionPolicies retentionPolicies) {
+    protected CompletableFuture<Void> internalSetRetentionAsync(RetentionPolicies retentionPolicies) {
         return namespaceResources().setPoliciesAsync(namespaceName, policies -> {
             Map<BacklogQuota.BacklogQuotaType, BacklogQuota> backlogQuotaMap = policies.backlog_quota_map;
             if (backlogQuotaMap.isEmpty()) {

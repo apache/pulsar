@@ -1222,7 +1222,7 @@ public class Namespaces extends NamespacesBase {
         validateRetentionPolicies(retention);
         validateNamespacePolicyOperationAsync(namespaceName, PolicyName.RETENTION, PolicyOperation.WRITE)
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
-                .thenCompose(__ -> setRetentionAsync(retention))
+                .thenCompose(__ -> internalSetRetentionAsync(retention))
                 .thenAccept(__ -> {
                     asyncResponse.resume(Response.noContent().build());
                     log.info("[{}] Successfully updated retention configuration: namespace={}, map={}", clientAppId(),
@@ -1248,7 +1248,7 @@ public class Namespaces extends NamespacesBase {
         validateNamespaceName(tenant, namespace);
         validateNamespacePolicyOperationAsync(namespaceName, PolicyName.RETENTION, PolicyOperation.WRITE)
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
-                .thenCompose(__ -> setRetentionAsync(null))
+                .thenCompose(__ -> internalSetRetentionAsync(null))
                 .thenAccept(__ -> {
                     asyncResponse.resume(Response.noContent().build());
                     log.info("[{}] Successfully updated retention configuration: namespace={}, map={}", clientAppId(),

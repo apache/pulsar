@@ -1214,7 +1214,7 @@ public class Namespaces extends NamespacesBase {
         }
         validateNamespacePolicyOperationAsync(namespaceName, PolicyName.RETENTION, PolicyOperation.WRITE)
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
-                .thenCompose(__ -> setRetentionAsync(retention))
+                .thenCompose(__ -> internalSetRetentionAsync(retention))
                 .thenAccept(__ -> {
                     asyncResponse.resume(Response.noContent().build());
                     log.info("[{}] Successfully updated retention configuration: namespace={}, map={}", clientAppId(),
