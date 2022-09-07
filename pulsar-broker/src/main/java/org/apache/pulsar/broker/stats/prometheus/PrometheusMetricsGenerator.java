@@ -217,8 +217,7 @@ public class PrometheusMetricsGenerator {
                         stream.write(", ").write("quantile=\"").write(value).write('"');
                     }
                 }
-                stream.write("} ").write(String.valueOf(entry.getValue()))
-                        .write(' ').write(System.currentTimeMillis()).write("\n");
+                stream.write("} ").write(String.valueOf(entry.getValue())).write("\n");
             }
         }
     }
