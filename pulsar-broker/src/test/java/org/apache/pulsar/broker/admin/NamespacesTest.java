@@ -1037,7 +1037,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             ownership.setAccessible(true);
             ownership.set(pulsar.getNamespaceService(), MockOwnershipCache);
             RetentionPolicies retention = new RetentionPolicies(10, 10);
-            namespaces.setRetention(this.testTenant, this.testLocalCluster, bundledNsLocal, retention);
+            asyncRequests(ctx ->
+                    namespaces.setRetention(ctx, this.testTenant, this.testLocalCluster, bundledNsLocal, retention));
             AsyncResponse response = mock(AsyncResponse.class);
             namespaces.getRetention(response, this.testTenant, this.testLocalCluster, bundledNsLocal);
             ArgumentCaptor<RetentionPolicies> captor = ArgumentCaptor.forClass(RetentionPolicies.class);
@@ -1054,7 +1055,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         try {
             NamespaceName testNs = this.testLocalNamespaces.get(3);
             RetentionPolicies retention = new RetentionPolicies(10, 10);
-            namespaces.setRetention(testNs.getTenant(), testNs.getCluster(), testNs.getLocalName(), retention);
+            asyncRequests(ctx -> namespaces.setRetention(ctx, testNs.getTenant(),
+                    testNs.getCluster(), testNs.getLocalName(), retention));
             fail("Should fail");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.UNAUTHORIZED.getStatusCode());
