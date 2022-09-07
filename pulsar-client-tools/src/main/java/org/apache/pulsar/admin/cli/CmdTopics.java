@@ -123,6 +123,7 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("get-partitioned-topic-metadata", new GetPartitionedTopicMetadataCmd());
         jcommander.addCommand("get-properties", new GetPropertiesCmd());
         jcommander.addCommand("update-properties", new UpdateProperties());
+        jcommander.addCommand("remove-properties", new RemoveProperties());
 
         jcommander.addCommand("delete-partitioned-topic", new DeletePartitionedCmd());
         jcommander.addCommand("peek-messages", new PeekMessages());
@@ -646,6 +647,21 @@ public class CmdTopics extends CmdBase {
                 map = Collections.emptyMap();
             }
             getTopics().updateProperties(topic, map);
+        }
+    }
+
+    @Parameters(commandDescription = "Remove the key in properties of a topic")
+    private class RemoveProperties extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = {"--key", "-k"}, description = "The key to remove in the properties of topic")
+        private String key;
+
+        @Override
+        void run() throws Exception {
+            String topic = validateTopicName(params);
+            getTopics().removeProperties(topic, key);
         }
     }
 
@@ -1886,11 +1902,16 @@ public class CmdTopics extends CmdBase {
         private java.util.List<String> params;
 
         @Parameter(names = { "--time",
-                "-t" }, description = "Retention time in minutes (or minutes, hours,days,weeks eg: 100m, 3h, 2d, 5w). "
-                + "0 means no retention and -1 means infinite time retention", required = true)
+                "-t" }, description = "Retention time with optional time unit suffix. "
+                + "For example, 100m, 3h, 2d, 5w. "
+                + "If the time unit is not specified, the default unit is seconds. For example, "
+                + "-t 120 will set retention to 2 minutes. "
+                + "0 means no retention and -1 means infinite time retention.", required = true)
         private String retentionTimeStr;
 
-        @Parameter(names = { "--size", "-s" }, description = "Retention size limit (eg: 10M, 16G, 3T). "
+        @Parameter(names = { "--size", "-s" }, description = "Retention size limit with optional size unit suffix. "
+                + "For example, 4096, 10M, 16G, 3T.  The size unit suffix character can be k/K, m/M, g/G, or t/T.  "
+                + "If the size unit suffix is not specified, the default unit is bytes. "
                 + "0 or less than 1MB means no retention and -1 means infinite size retention", required = true)
         private String limitStr;
 

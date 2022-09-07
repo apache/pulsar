@@ -126,8 +126,8 @@
             <configuration>
               <target>
                 <echo>copy filters</echo>
-                <mkdir dir="${project.build.outputDirectory}/cliExtensions" />
-                <copy verbose="true" file="${basedir}/../pulsar-client-tools-customcommand-example/target/customCommands-nar.nar" tofile="${project.build.outputDirectory}/cliExtensions/customCommands-nar.nar" />
+                <mkdir dir="${project.build.outputDirectory}/cliextensions" />
+                <copy verbose="true" file="${basedir}/../pulsar-client-tools-customcommand-example/target/customCommands-nar.nar" tofile="${project.build.outputDirectory}/cliextensions/customCommands-nar.nar" />
               </target>
             </configuration>
           </execution>

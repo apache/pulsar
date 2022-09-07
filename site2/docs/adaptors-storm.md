@@ -13,13 +13,11 @@ An application can inject data into a Storm topology via a generic Pulsar spout,
 Include dependency for Pulsar Storm Adaptor:
 
 ```xml
-
 <dependency>
   <groupId>org.apache.pulsar</groupId>
   <artifactId>pulsar-storm</artifactId>
   <version>${pulsar.version}</version>
 </dependency>
-
 ```
 
 ## Pulsar Spout
@@ -29,7 +27,6 @@ The Pulsar Spout allows for the data published on a topic to be consumed by a St
 The tuples that fail to be processed by the downstream bolts will be re-injected by the spout with an exponential backoff, within a configurable timeout (the default is 60 seconds) or a configurable number of retries, whichever comes first, after which it is acknowledged by the consumer. Here's an example construction of a spout:
 
 ```java
-
 MessageToValuesMapper messageToValuesMapper = new MessageToValuesMapper() {
 
     @Override
@@ -53,7 +50,6 @@ spoutConf.setMessageToValuesMapper(messageToValuesMapper);
 
 // Create a Pulsar Spout
 PulsarSpout spout = new PulsarSpout(spoutConf);
-
 ```
 
 For a complete example, click [here](https://github.com/apache/pulsar-adapters/blob/master/pulsar-storm/src/test/java/org/apache/pulsar/storm/PulsarSpoutTest.java).
@@ -65,7 +61,6 @@ The Pulsar bolt allows data in a Storm topology to be published on a topic. It p
 A partitioned topic can also be used to publish messages on different topics. In the implementation of the `TupleToMessageMapper`, a "key" will need to be provided in the message which will send the messages with the same key to the same topic. Here's an example bolt:
 
 ```java
-
 TupleToMessageMapper tupleToMessageMapper = new TupleToMessageMapper() {
 
     @Override
@@ -90,6 +85,5 @@ boltConf.setTupleToMessageMapper(tupleToMessageMapper);
 
 // Create a Pulsar Bolt
 PulsarBolt bolt = new PulsarBolt(boltConf);
-
 ```
 

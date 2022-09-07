@@ -186,6 +186,9 @@ public class PulsarCluster {
                     if (spec.brokerMountFiles != null) {
                         spec.brokerMountFiles.forEach(brokerContainer::withFileSystemBind);
                     }
+                    if (spec.brokerAdditionalPorts() != null) {
+                        spec.brokerAdditionalPorts().forEach(brokerContainer::addExposedPort);
+                    }
                     return brokerContainer;
                 }
             ));

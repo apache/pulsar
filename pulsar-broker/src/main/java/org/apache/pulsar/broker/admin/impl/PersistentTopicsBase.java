@@ -347,7 +347,7 @@ public class PersistentTopicsBase extends AdminResource {
                 });
     }
 
-    private CompletableFuture<Void> revokePermissionsAsync(String topicUri, String role) {
+    private CompletableFuture<Void> revokePermissionsAsync(String topicUri, String role, boolean force) {
         return namespaceResources().getPoliciesAsync(namespaceName).thenCompose(
                 policiesOptional -> {
                     Policies policies = policiesOptional.orElseThrow(() ->
@@ -356,12 +356,22 @@ public class PersistentTopicsBase extends AdminResource {
                             || !policies.auth_policies.getTopicAuthentication().get(topicUri).containsKey(role)) {
                         log.warn("[{}] Failed to revoke permission from role {} on topic: Not set at topic level {}",
                                 clientAppId(), role, topicUri);
-                        return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
-                                "Permissions are not set at the topic level"));
+                        if (force) {
+                            return CompletableFuture.completedFuture(null);
+                        } else {
+                            return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
+                                    "Permissions are not set at the topic level"));
+                        }
                     }
                     // Write the new policies to metadata store
                     return namespaceResources().setPoliciesAsync(namespaceName, p -> {
-                        p.auth_policies.getTopicAuthentication().get(topicUri).remove(role);
+                        p.auth_policies.getTopicAuthentication().computeIfPresent(topicUri, (k, roles) -> {
+                            roles.remove(role);
+                            if (roles.isEmpty()) {
+                                return null;
+                            }
+                            return roles;
+                        });
                         return p;
                     }).thenAccept(__ ->
                             log.info("[{}] Successfully revoke access for role {} - topic {}", clientAppId(), role,
@@ -383,10 +393,10 @@ public class PersistentTopicsBase extends AdminResource {
                         for (int i = 0; i < numPartitions; i++) {
                             TopicName topicNamePartition = topicName.getPartition(i);
                             future = future.thenComposeAsync(unused ->
-                                    revokePermissionsAsync(topicNamePartition.toString(), role));
+                                    revokePermissionsAsync(topicNamePartition.toString(), role, true));
                         }
                     }
-                    return future.thenComposeAsync(unused -> revokePermissionsAsync(topicName.toString(), role))
+                    return future.thenComposeAsync(unused -> revokePermissionsAsync(topicName.toString(), role, false))
                             .thenAccept(unused -> asyncResponse.resume(Response.noContent().build()));
                 }))
             ).exceptionally(ex -> {
@@ -655,6 +665,58 @@ public class PersistentTopicsBase extends AdminResource {
                     }
                 }, null);
             });
+        return future;
+    }
+
+    protected CompletableFuture<Void> internalRemovePropertiesAsync(boolean authoritative, String key) {
+        return validateTopicOwnershipAsync(topicName, authoritative)
+                .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.DELETE_METADATA))
+                .thenCompose(__ -> {
+                    if (topicName.isPartitioned()) {
+                        return internalRemoveNonPartitionedTopicProperties(key);
+                    } else {
+                        return pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName)
+                                .thenCompose(metadata -> {
+                                    if (metadata.partitions == 0) {
+                                        return internalRemoveNonPartitionedTopicProperties(key);
+                                    }
+                                    return namespaceResources()
+                                            .getPartitionedTopicResources().updatePartitionedTopicAsync(topicName,
+                                                    p -> {
+                                                        if (p.properties != null) {
+                                                            p.properties.remove(key);
+                                                        }
+                                                        return new PartitionedTopicMetadata(p.partitions, p.properties);
+                                                    });
+                                });
+                    }
+                }).thenAccept(__ ->
+                        log.info("[{}] remove [{}] properties success with key {}",
+                                clientAppId(), topicName, key));
+    }
+
+    private CompletableFuture<Void> internalRemoveNonPartitionedTopicProperties(String key) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        pulsar().getBrokerService().getTopicIfExists(topicName.toString())
+                .thenAccept(opt -> {
+                    if (!opt.isPresent()) {
+                        throw new RestException(Status.NOT_FOUND,
+                                getTopicNotFoundErrorMessage(topicName.toString()));
+                    }
+                    ManagedLedger managedLedger = ((PersistentTopic) opt.get()).getManagedLedger();
+                    managedLedger.asyncDeleteProperty(key, new AsyncCallbacks.UpdatePropertiesCallback() {
+
+                        @Override
+                        public void updatePropertiesComplete(Map<String, String> properties, Object ctx) {
+                            future.complete(null);
+                        }
+
+                        @Override
+                        public void updatePropertiesFailed(ManagedLedgerException exception, Object ctx) {
+                            future.completeExceptionally(exception);
+                        }
+                    }, null);
+                });
         return future;
     }
 
