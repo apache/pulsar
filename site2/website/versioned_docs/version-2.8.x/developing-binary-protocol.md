@@ -302,7 +302,8 @@ subscription is not already there, a new one will be created.
 
 :::note
 
-In 2.8.4 and later versions, if the client does not receive a response indicating the success or failure of consumer creation, it first sends a command to close the original consumer before sending a command to re-attempt consumer creation.
+* Before creating or connecting a consumer, you need to perform [topic lookup](#topic-lookup) first.
+* In 2.8.4 and later versions, if the client does not receive a response indicating the success or failure of consumer creation, it first sends a command to close the original consumer before sending a command to re-attempt consumer creation.
 
 :::
 

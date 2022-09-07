@@ -473,18 +473,16 @@ Steps and examples see [Pulsar Release Notes Guide](https://docs.google.com/docu
 
 ## 17. Update the site
 
-The workflow for updating the site is slightly different for major and minor releases.
+### Update the site for minor releases
+For minor releases, such as 2.10, the website is updated based on the `master` branch.
 
-### Update the site for major releases
-For major release, the website is updated based on the `master` branch.
-
-1. Create a new branch off master
+1. Create a new branch off master.
 
 ```shell
 git checkout -b doc_release_<release-version>
 ```
 
-2. Go to the website directory
+2. Go to the website directory.
 
 ```shell
 cd site2/website
@@ -504,38 +502,28 @@ After you run this command, a new folder `version-<release-version>` is added in
   versioned_sidebars/version-<release-version>-sidebars.json 
   ```
 
-> Note: You can move the latest version under the old version in the `versions.json` file. Make sure the Algolia index works before moving 2.X.0 as the current stable.
+> **Note**
+> You can move the latest version under the old version in the `versions.json` file. Make sure the Algolia index works before moving 2.X.0 as the current stable.
 
-4. Update `releases.json` file by adding `<release-version>` to the second of the list(this is to make search could work. After your PR is merged, the Pulsar website is built and tagged for search, you can change it to the first list).
+4. Update the `releases.json` file by adding `<release-version>` to the second of the list (this is to make the search work. After your PR is merged, the Pulsar website is built and tagged for search, you can change it to the first list).
 
 5. Send out a PR request for review.
 
-   After your PR is approved and merged to master, the website is published automatically after new website build. The website is built every 6 hours.
+   After your PR is approved and merged to master, the website is published automatically after the new website is built. The website is built every 6 hours.
 
-6. Check the new website after website build.  
-   Open https://pulsar.apache.org in your browsers to verify all the changes are alive. If the website build succeeds but the website is not updated, you can try to Sync git repository. Navigate to https://selfserve.apache.org/ and click the "Synchronize Git Repositories" and then select apache/pulsar.
+6. Check the new website after the website is built.  
+   Open https://pulsar.apache.org in your browsers to verify all the changes are alive. If the website build succeeds but the website is not updated, you can try to sync the git repository. Navigate to https://selfserve.apache.org/ and click the "Synchronize Git Repositories" and then select apache/pulsar.
 
-7. Publish the release on GitHub, and copy the same release notes: https://github.com/apache/pulsar/releases
+7. Publish the release on GitHub, and copy the same release notes: https://github.com/apache/pulsar/releases.
 
-8. Update the deploy version to the current release version in deployment/terraform-ansible/deploy-pulsar.yaml
+8. Update the deploy version to the current release version in `deployment/terraform-ansible/deploy-pulsar.yaml`.
 
-9. Generate the doc set and sidebar file for the next minor release `2.X.1` based on the `site2/docs` folder. You can follow step 1, 2, 3 and submit those files to apache/pulsar repository. This step is a preparation for `2.X.1` release.
-
-### Update the site for minor releases
-
-The new updates for the minor release docs are processed in its doc set and sidebar file directly before release. You can follow step 4~8 (in major release) to update the site. You'll also need to add this new version to `versions.json`.
-
-To make preparation for the next minor release, you need to generate the doc set and sidebar file based on the previous release. Take `2.X.2` as example, `2.X.2` doc set and sidebar.json file are generated based on `2.X.1`. You can make it with the following steps:
-
-1. Copy the `version-2.X.1` doc set and `version-2.X.1-sidebars.json` file and rename them as `version-2.X.2` doc set and `version-2.X.2-sidebars.json` file.
-
-2. Update the "id" from `version-2.X.1` to `version-2.X.2` for the md files in the `version-2.X.2` doc set and `version-2.X.2-sidebars.json` file.
-
-3. Submit the new doc set and sidebar.json file to the apache/pulsar repository.
+9. Generate the doc set and sidebar file for the next minor release `2.X.x` based on the `site2/docs` folder. You can follow steps 1, 2, and 3, and submit those files to the `apache/pulsar` repository. This step is a preparation for the `2.X.x` release.
 
 > **Note**
-> - The `yarn run version <release-version>` command generates the new doc set and sidebar.json file based on the `site2/docs` folder.
-> - The minor release doc is generated based on the previous minor release (e.g.: `2.X.2` doc is generated based on `2.X.1`, and `2.X.3`doc is generated based on `2.X.2`), so you cannot use the `yarn run version <release-version>` command directly.
+> Starting from 2.8, you don't need to generate an independent doc set or update the Pulsar site for bug-fix releases, such as 2.8.1, 2.8.2, and so on. Instead, the generic doc set 2.8.x is used.
+
+:::
 
 ## 18. Announce the release
 
