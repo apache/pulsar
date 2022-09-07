@@ -2375,6 +2375,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         if (config.getLedgerOffloader() == null || config.getLedgerOffloader() == NullLedgerOffloader.INSTANCE
                 || config.getLedgerOffloader().getOffloadPolicies() == null) {
+            log.debug("[{}] Nothing to offload due to offloader or offloadPolicies is NULL", name);
             finalPromise.complete(PositionImpl.LATEST);
             return;
         }
