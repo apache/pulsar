@@ -17,17 +17,50 @@
  * under the License.
  */
 
+#include <future>
+#include <stdlib.h>
+#include <string.h>
+
 #include <gtest/gtest.h>
 #include <pulsar/c/client.h>
-#include <pulsar/c/producer.h>
-#include <pulsar/c/consumer.h>
-#include <pulsar/c/client_configuration.h>
-#include <pulsar/c/consumer_configuration.h>
-#include <pulsar/c/message.h>
-#include <pulsar/c/message_id.h>
-#include <pulsar/c/result.h>
 
-#include "../lib/Future.h"
+struct send_ctx {
+    pulsar_result result;
+    char *msg_id;
+    std::promise<void> *promise;
+};
+
+struct receive_ctx {
+    pulsar_result result;
+    pulsar_consumer_t *consumer;
+    char *data;
+    std::promise<void> *promise;
+};
+
+static void send_callback(pulsar_result async_result, pulsar_message_id_t *msg_id, void *ctx) {
+    struct send_ctx *send_ctx = (struct send_ctx *)ctx;
+    send_ctx->result = async_result;
+    if (async_result == pulsar_result_Ok) {
+        const char *msg_id_str = pulsar_message_id_str(msg_id);
+        send_ctx->msg_id = (char *)malloc(strlen(msg_id_str) * sizeof(char));
+        strcpy(send_ctx->msg_id, msg_id_str);
+    }
+    send_ctx->promise->set_value();
+    pulsar_message_id_free(msg_id);
+}
+
+static void receive_callback(pulsar_result async_result, pulsar_message_t *msg, void *ctx) {
+    struct receive_ctx *receive_ctx = (struct receive_ctx *)ctx;
+    receive_ctx->result = async_result;
+    if (async_result == pulsar_result_Ok &&
+        pulsar_consumer_acknowledge(receive_ctx->consumer, msg) == pulsar_result_Ok) {
+        const char *data = (const char *)pulsar_message_get_data(msg);
+        receive_ctx->data = (char *)malloc(strlen(data) * sizeof(char));
+        strcpy(receive_ctx->data, data);
+    }
+    receive_ctx->promise->set_value();
+    pulsar_message_free(msg);
+}
 
 TEST(c_BasicEndToEndTest, testAsyncProduceConsume) {
     const char *lookup_url = "pulsar://localhost:6650";
@@ -52,41 +85,28 @@ TEST(c_BasicEndToEndTest, testAsyncProduceConsume) {
     ASSERT_STREQ(sub_name, pulsar_consumer_get_subscription_name(consumer));
 
     // send asynchronously
-    pulsar::Promise<pulsar_result, pulsar_message_id_t *> send_promise;
+    std::promise<void> send_promise;
+    std::future<void> send_future = send_promise.get_future();
+    struct send_ctx send_ctx = {pulsar_result_UnknownError, NULL, &send_promise};
     const char *content = "msg-1-content";
     pulsar_message_t *msg = pulsar_message_create();
     pulsar_message_set_content(msg, content, strlen(content));
     ASSERT_STREQ("(-1,-1,-1,-1)", pulsar_message_id_str(pulsar_message_get_message_id(msg)));
-    pulsar_producer_send_async(
-        producer, msg,
-        [](pulsar_result async_result, pulsar_message_id_t *msg_id, void *ctx) {
-            auto ctx_promise = static_cast<pulsar::Promise<pulsar_result, pulsar_message_id_t *> *>(ctx);
-            ASSERT_EQ(pulsar_result_Ok, async_result);
-            ctx_promise->setValue(msg_id);
-        },
-        &send_promise);
+    pulsar_producer_send_async(producer, msg, send_callback, &send_ctx);
+    send_future.get();
+    ASSERT_EQ(pulsar_result_Ok, send_ctx.result);
+    ASSERT_STRNE("(-1,-1,-1,-1)", send_ctx.msg_id);
+    delete send_ctx.msg_id;
 
-    pulsar_message_id_t *msg_id;
-    send_promise.getFuture().get(msg_id);
-    ASSERT_STRNE("(-1,-1,-1,-1)", pulsar_message_id_str(msg_id));
-    pulsar_message_id_free(msg_id);
-    pulsar_message_free(msg);
-
-    pulsar::Promise<pulsar_result, pulsar_message_t *> receive_promise;
     // receive asynchronously
-    pulsar_consumer_receive_async(
-        consumer,
-        [](pulsar_result async_result, pulsar_message_t *received_msg, void *ctx) {
-            auto ctx_promise = static_cast<pulsar::Promise<pulsar_result, pulsar_message_t *> *>(ctx);
-            ASSERT_EQ(pulsar_result_Ok, async_result);
-            ctx_promise->setValue(received_msg);
-        },
-        &receive_promise);
-
-    pulsar_message_t *received_msg;
-    receive_promise.getFuture().get(received_msg);
-    ASSERT_STREQ(content, static_cast<const char *>(pulsar_message_get_data(received_msg)));
-    pulsar_message_free(received_msg);
+    std::promise<void> receive_promise;
+    std::future<void> receive_future = receive_promise.get_future();
+    struct receive_ctx receive_ctx = {pulsar_result_UnknownError, consumer, NULL, &receive_promise};
+    pulsar_consumer_receive_async(consumer, receive_callback, &receive_ctx);
+    receive_future.get();
+    ASSERT_EQ(pulsar_result_Ok, receive_ctx.result);
+    ASSERT_STREQ(content, receive_ctx.data);
+    delete receive_ctx.data;
 
     ASSERT_EQ(pulsar_result_Ok, pulsar_consumer_unsubscribe(consumer));
     ASSERT_EQ(pulsar_result_AlreadyClosed, pulsar_consumer_close(consumer));
