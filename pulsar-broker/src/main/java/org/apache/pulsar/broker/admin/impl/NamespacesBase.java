@@ -1475,24 +1475,24 @@ public abstract class NamespacesBase extends AdminResource {
 
     protected CompletableFuture<Void> internalSetRetentionAsync(RetentionPolicies retentionPolicies) {
         validateRetentionPolicies(retentionPolicies);
-        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.RETENTION, PolicyOperation.WRITE)
-                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync());
-        return namespaceResources().setPoliciesAsync(namespaceName, policies -> {
-            Map<BacklogQuota.BacklogQuotaType, BacklogQuota> backlogQuotaMap = policies.backlog_quota_map;
-            if (backlogQuotaMap.isEmpty()) {
-                policies.retention_policies = retentionPolicies;
-                return policies;
-            }
-            // If we have backlog quota, we have to check the conflict
-            BacklogQuota backlogQuota = backlogQuotaMap.get(BacklogQuotaType.destination_storage);
-            boolean passCheck = checkBacklogQuota(backlogQuota, retentionPolicies);
-            if (!passCheck) {
-                throw new RestException(Response.Status.PRECONDITION_FAILED,
-                        "Retention Quota must exceed configured backlog quota for namespace.");
-            }
-            policies.retention_policies = retentionPolicies;
-            return policies;
-        });
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.RETENTION, PolicyOperation.WRITE)
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenCompose(__ -> namespaceResources().setPoliciesAsync(namespaceName, policies -> {
+                    Map<BacklogQuota.BacklogQuotaType, BacklogQuota> backlogQuotaMap = policies.backlog_quota_map;
+                    if (backlogQuotaMap.isEmpty()) {
+                        policies.retention_policies = retentionPolicies;
+                        return policies;
+                    }
+                    // If we have backlog quota, we have to check the conflict
+                    BacklogQuota backlogQuota = backlogQuotaMap.get(BacklogQuotaType.destination_storage);
+                    boolean passCheck = checkBacklogQuota(backlogQuota, retentionPolicies);
+                    if (!passCheck) {
+                        throw new RestException(Response.Status.PRECONDITION_FAILED,
+                                "Retention Quota must exceed configured backlog quota for namespace.");
+                    }
+                    policies.retention_policies = retentionPolicies;
+                    return policies;
+                }));
     }
 
     protected CompletableFuture<Void> internalDeletePersistenceAsync() {
