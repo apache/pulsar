@@ -67,7 +67,7 @@ public interface DelayedDeliveryTracker extends AutoCloseable {
     boolean shouldPauseAllDeliveries();
 
     /**
-     * Tells whether message index already exist the DelayedDeliveryTracker.
+     * Tells whether this DelayedDeliveryTracker contains this message index.
      */
     boolean containsMessage(long ledgerId, long entryId);
 

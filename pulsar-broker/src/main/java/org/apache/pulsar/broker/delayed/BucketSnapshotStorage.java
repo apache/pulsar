@@ -27,6 +27,7 @@ public interface BucketSnapshotStorage {
 
     /**
      * Create a delayed message index bucket snapshot with metadata and bucketSnapshotSegments.
+     *
      * @param snapshotMetadata the metadata of snapshot
      * @param bucketSnapshotSegments the list of snapshot segments
      * @return the future with bucketId(ledgerId).
@@ -44,6 +45,7 @@ public interface BucketSnapshotStorage {
 
     /**
      * Get a sequence of delayed message index bucket snapshot segments.
+     *
      * @param bucketId the bucketId of snapshot
      * @param firstSegmentEntryId  entryId of first segment of sequence
      * @param lastSegmentEntryId  entryId of last segment of sequence
@@ -54,6 +56,7 @@ public interface BucketSnapshotStorage {
 
     /**
      * Get total byte length of delayed message index bucket snapshot.
+     *
      * @param bucketId the bucketId of snapshot
      * @return the future with byte length of snapshot
      */
@@ -61,19 +64,18 @@ public interface BucketSnapshotStorage {
 
     /**
      * Delete delayed message index bucket snapshot by bucketId.
+     *
      * @param bucketId the bucketId of snapshot
      */
     CompletableFuture<Void> deleteBucketSnapshot(long bucketId);
 
     /**
      * Start the bucket snapshot storage service.
-     * @throws Exception
      */
     void start() throws Exception;
 
     /**
      * Close the bucket snapshot storage service.
-     * @throws Exception
      */
     void close() throws Exception;
 }
