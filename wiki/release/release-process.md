@@ -525,8 +525,6 @@ After you run this command, a new folder `version-<release-version>` is added in
 >
 > Starting from 2.8, you don't need to generate an independent doc set or update the Pulsar site for bug-fix releases, such as 2.8.1, 2.8.2, and so on. Instead, the generic doc set 2.8.x is used.
 
-:::
-
 ## 18. Announce the release
 
 Once the release artifacts are available in the Apache Mirrors and the website is updated,
