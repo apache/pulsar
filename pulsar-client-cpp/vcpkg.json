@@ -22,6 +22,8 @@
     "zlib",
     "zstd",
     "log4cxx",
+    "python3",
+    "boost-python",
     {
       "name": "dlfcn-win32",
       "platform": "windows"
