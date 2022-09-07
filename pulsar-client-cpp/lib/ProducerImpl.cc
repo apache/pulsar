@@ -504,28 +504,27 @@ void ProducerImpl::sendAsyncWithStatsUpdate(const Message& msg, const SendCallba
             if (!encryptMessage(msgMetadata, chunkedPayload, encryptedPayload)) {
                 handleFailedResult(ResultCryptoError);
                 return;
-            }
 
-            OpSendMsg op =
-                OpSendMsg{msgMetadata, encryptedPayload, (chunkId == totalChunks - 1) ? callback : nullptr,
-                          producerId_, sequenceId,       conf_.getSendTimeout(),
-                          1,           uncompressedSize};
+                OpSendMsg op{msgMetadata, encryptedPayload, (chunkId == totalChunks - 1) ? callback : nullptr,
+                             producerId_, sequenceId,       conf_.getSendTimeout(),
+                             1,           uncompressedSize};
 
-            if (!chunkingEnabled_) {
-                const uint32_t msgMetadataSize = op.metadata_.ByteSize();
-                const uint32_t payloadSize = op.payload_.readableBytes();
-                const uint32_t msgHeadersAndPayloadSize = msgMetadataSize + payloadSize;
-                if (msgHeadersAndPayloadSize > maxMessageSize) {
-                    releaseSemaphoreForSendOp(op);
-                    LOG_WARN(getName()
-                             << " - compressed Message size " << msgHeadersAndPayloadSize << " cannot exceed "
-                             << maxMessageSize << " bytes unless chunking is enabled");
-                    handleFailedResult(ResultMessageTooBig);
-                    return;
+                if (!chunkingEnabled_) {
+                    const uint32_t msgMetadataSize = op.metadata_.ByteSize();
+                    const uint32_t payloadSize = op.payload_.readableBytes();
+                    const uint32_t msgHeadersAndPayloadSize = msgMetadataSize + payloadSize;
+                    if (msgHeadersAndPayloadSize > maxMessageSize) {
+                        lock.unlock();
+                        releaseSemaphoreForSendOp(op);
+                        LOG_WARN(getName() << " - compressed Message size " << msgHeadersAndPayloadSize
+                                           << " cannot exceed " << maxMessageSize
+                                           << " bytes unless chunking is enabled");
+                        handleFailedResult(ResultMessageTooBig);
+                        return;
+                    }
                 }
-            }
 
-            sendMessage(op);
+                sendMessage(op);
         }
     }
 }

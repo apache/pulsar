@@ -214,33 +214,9 @@ TEST(ProducerTest, testBacklogQuotasExceeded) {
     client.close();
 }
 
-TEST(ProducerTest, testMaxMessageSize) {
-    Client client(serviceUrl);
+class ProducerTest : public ::testing::TestWithParam<bool> {};
 
-    const std::string topic = "ProducerTest-MaxMessageSize-" + std::to_string(time(nullptr));
-
-    Consumer consumer;
-    ASSERT_EQ(ResultOk, client.subscribe(topic, "sub", consumer));
-
-    Producer producer;
-    ASSERT_EQ(ResultOk, client.createProducer(topic, producer));
-
-    std::string msg = std::string(maxMessageSize / 2, 'a');
-    ASSERT_EQ(ResultOk, producer.send(MessageBuilder().setContent(msg).build()));
-    Message message;
-    ASSERT_EQ(ResultOk, consumer.receive(message));
-    ASSERT_EQ(msg, message.getDataAsString());
-
-    std::string orderKey = std::string(maxMessageSize, 'a');
-    ASSERT_EQ(ResultMessageTooBig, producer.send(MessageBuilder().setOrderingKey(orderKey).build()));
-
-    ASSERT_EQ(ResultMessageTooBig,
-              producer.send(MessageBuilder().setContent(std::string(maxMessageSize, 'b')).build()));
-
-    client.close();
-}
-
-TEST(ProducerTest, testNoBatchMaxMessageSize) {
+TEST_P(ProducerTest, testMaxMessageSize) {
     Client client(serviceUrl);
 
     const std::string topic = "ProducerTest-NoBatchMaxMessageSize-" + std::to_string(time(nullptr));
@@ -250,7 +226,7 @@ TEST(ProducerTest, testNoBatchMaxMessageSize) {
 
     Producer producer;
     ProducerConfiguration conf;
-    conf.setBatchingEnabled(false);
+    conf.setBatchingEnabled(GetParam());
     ASSERT_EQ(ResultOk, client.createProducer(topic, conf, producer));
 
     std::string msg = std::string(maxMessageSize / 2, 'a');
@@ -268,7 +244,7 @@ TEST(ProducerTest, testNoBatchMaxMessageSize) {
     client.close();
 }
 
-TEST(ProducerTest, testChunkingMaxMessageSize) {
+TEST_P(ProducerTest, testChunkingMaxMessageSize) {
     Client client(serviceUrl);
 
     const std::string topic = "ProducerTest-ChunkingMaxMessageSize-" + std::to_string(time(nullptr));
@@ -294,3 +270,5 @@ TEST(ProducerTest, testChunkingMaxMessageSize) {
 
     client.close();
 }
+
+INSTANTIATE_TEST_CASE_P(Pulsar, ProducerTest, ::testing::Values(true, false));
