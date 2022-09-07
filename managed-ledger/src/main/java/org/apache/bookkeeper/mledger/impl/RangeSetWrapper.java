@@ -133,6 +133,11 @@ public class RangeSetWrapper<T extends Comparable<T>> implements LongPairRangeSe
         return rangeSet.lastRange();
     }
 
+    @Override
+    public int cardinality(long lowerKey, long lowerValue, long upperKey, long upperValue) {
+        return rangeSet.cardinality(lowerKey, lowerValue, upperKey, upperValue);
+    }
+
     @VisibleForTesting
     void add(Range<LongPair> range) {
         if (!(rangeSet instanceof ConcurrentOpenLongPairRangeSet)) {
