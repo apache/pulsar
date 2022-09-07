@@ -46,7 +46,7 @@ public class PrometheusMetricStreams {
                 stream.write(',');
             }
         }
-        stream.write("} ").write(value).write(' ').write(System.currentTimeMillis()).write('\n');
+        stream.write("} ").write(value).write('\n');
     }
 
     /**
