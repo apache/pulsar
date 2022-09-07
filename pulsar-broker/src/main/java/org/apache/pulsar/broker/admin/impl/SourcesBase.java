@@ -212,16 +212,18 @@ public class SourcesBase extends AdminResource {
                     examples = @Example(
                             value = @ExampleProperty(
                                     mediaType = MediaType.APPLICATION_JSON,
-                                    value = "{\n"
-                                            + "  \"tenant\": public\n"
-                                            + "  \"namespace\": default\n"
-                                            + "  \"name\": pulsar-io-mysql\n"
-                                            + "  \"className\": TestSourceMysql\n"
-                                            + "  \"topicName\": pulsar-io-mysql\n"
-                                            + "  \"parallelism\": 1\n"
-                                            + "  \"archive\": /connectors/pulsar-io-mysql-0.0.1.nar\n"
-                                            + "  \"schemaType\": avro\n"
-                                            + "}\n"
+                                    value = """
+                                            {
+                                              "tenant": public
+                                              "namespace": default
+                                              "name": pulsar-io-mysql
+                                              "className": TestSourceMysql
+                                              "topicName": pulsar-io-mysql
+                                              "parallelism": 1
+                                              "archive": /connectors/pulsar-io-mysql-0.0.1.nar
+                                              "schemaType": avro
+                                            }
+                                            """
                             )
                     )
             )

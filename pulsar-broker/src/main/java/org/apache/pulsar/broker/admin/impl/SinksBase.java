@@ -260,13 +260,14 @@ public class SinksBase extends AdminResource {
                                    examples = @Example(
                                            value = @ExampleProperty(
                                                    mediaType = MediaType.APPLICATION_JSON,
-                                                   value = "{\n"
-                                                           + "\t\"classname\": \"org.example.SinkStressTest\",\n"
-                                                           + "\t\"inputs\": ["
-                                                           + "\"persistent://public/default/sink-input\"],\n"
-                                                           + "\t\"processingGuarantees\": \"EFFECTIVELY_ONCE\",\n"
-                                                           + "\t\"parallelism\": 5\n"
-                                                           + "}"
+                                                   value = """
+                                                           {
+                                                           "classname": "org.example.SinkStressTest",
+                                                           "inputs": ["persistent://public/default/sink-input"],
+                                                           "processingGuarantees": "EFFECTIVELY_ONCE",
+                                                           "parallelism": 5
+                                                           }
+                                                           """
                                            )
                                )
                            )
