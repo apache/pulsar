@@ -29,6 +29,7 @@ import java.util.NavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.apache.commons.lang3.mutable.MutableInt;
 
 /**
  * A Concurrent set comprising zero or more ranges of type {@link LongPair}. This can be alternative of
@@ -240,6 +241,29 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
         int upper = lastSet.getValue().previousSetBit(lastSet.getValue().size());
         int lower = Math.min(lastSet.getValue().previousClearBit(upper), upper);
         return Range.openClosed(consumer.apply(lastSet.getKey(), lower), consumer.apply(lastSet.getKey(), upper));
+    }
+
+    @Override
+    public int cardinality(long lowerKey, long lowerValue, long upperKey, long upperValue) {
+        NavigableMap<Long, BitSet> subMap = rangeBitSetMap.subMap(lowerKey, true, upperKey, true);
+        MutableInt v = new MutableInt(0);
+        subMap.forEach((key, bitset) -> {
+            if (key == lowerKey || key == upperKey) {
+                BitSet temp = (BitSet) bitset.clone();
+                // Trim the bitset index which < lowerValue
+                if (key == lowerKey) {
+                    temp.clear(0, (int) Math.max(0, lowerValue));
+                }
+                // Trim the bitset index which > upperValue
+                if (key == upperKey) {
+                    temp.clear((int) Math.min(upperValue + 1, temp.length()), temp.length());
+                }
+                v.add(temp.cardinality());
+            } else {
+                v.add(bitset.cardinality());
+            }
+        });
+        return v.intValue();
     }
 
     @Override
