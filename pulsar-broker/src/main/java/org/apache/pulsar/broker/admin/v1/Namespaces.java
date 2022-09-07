@@ -1209,9 +1209,7 @@ public class Namespaces extends NamespacesBase {
             @PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, RetentionPolicies retention) {
         validateNamespaceName(property, cluster, namespace);
-        if (retention != null) {
-            validateRetentionPolicies(retention);
-        }
+        validateRetentionPolicies(retention);
         validateNamespacePolicyOperationAsync(namespaceName, PolicyName.RETENTION, PolicyOperation.WRITE)
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenCompose(__ -> internalSetRetentionAsync(retention))
