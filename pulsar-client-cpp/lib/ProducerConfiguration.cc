@@ -211,7 +211,7 @@ ProducerConfiguration& ProducerConfiguration::setLazyStartPartitionedProducers(
 }
 
 bool ProducerConfiguration::getLazyStartPartitionedProducers() const {
-    return impl_->useLazyStartPartitionedProducers;
+    return impl_->useLazyStartPartitionedProducers && impl_->accessMode == Shared;
 }
 
 ProducerConfiguration& ProducerConfiguration::setSchema(const SchemaInfo& schemaInfo) {
@@ -258,16 +258,12 @@ ProducerConfiguration& ProducerConfiguration::setChunkingEnabled(bool chunkingEn
 
 bool ProducerConfiguration::isChunkingEnabled() const { return impl_->chunkingEnabled; }
 
-ProducerConfiguration& ProducerConfiguration::setAccessMode(const ProducerAccessMode& mode) {
-    impl_->accessMode = mode;
+ProducerConfiguration& ProducerConfiguration::setAccessMode(const ProducerAccessMode& accessMode) {
+    impl_->accessMode = accessMode;
     return *this;
 }
 ProducerConfiguration::ProducerAccessMode ProducerConfiguration::getAccessMode() const {
     return impl_->accessMode;
-}
-
-bool ProducerConfiguration::isLazyStartPartitionedProducers() const {
-    return impl_->useLazyStartPartitionedProducers && impl_->accessMode == Shared;
 }
 
 }  // namespace pulsar

@@ -158,7 +158,7 @@ void ProducerImpl::connectionFailed(Result result) {
     // Keep a reference to ensure object is kept alive
     ProducerImplPtr ptr = shared_from_this();
 
-    if (conf_.isLazyStartPartitionedProducers()) {
+    if (conf_.getLazyStartPartitionedProducers()) {
         // if producers are lazy, then they should always try to restart
         // so don't change the state and allow reconnections
         return;
@@ -210,7 +210,7 @@ void ProducerImpl::handleCreateProducer(const ClientConnectionPtr& cnx, Result r
         }
 
         // if the producer is lazy the send timeout timer is already running
-        if (!conf_.isLazyStartPartitionedProducers()) {
+        if (!conf_.getLazyStartPartitionedProducers()) {
             startSendTimeoutTimer();
         }
 
@@ -856,7 +856,7 @@ void ProducerImpl::disconnectProducer() {
 void ProducerImpl::start() {
     HandlerBase::start();
 
-    if (conf_.isLazyStartPartitionedProducers()) {
+    if (conf_.getLazyStartPartitionedProducers()) {
         // we need to kick it off now as it is possible that the connection may take
         // longer than sendTimeout to connect
         startSendTimeoutTimer();

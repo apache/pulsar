@@ -81,7 +81,14 @@ class PULSAR_PUBLIC ProducerConfiguration {
     };
     enum ProducerAccessMode
     {
+        /**
+         * By default multiple producers can publish on a topic.
+         */
         Shared = 0,
+
+        /**
+         * Require exclusive access for producer. Fail immediately if there's already a producer connected.
+         */
         Exclusive = 1
     };
 
@@ -506,11 +513,19 @@ class PULSAR_PUBLIC ProducerConfiguration {
      */
     bool isChunkingEnabled() const;
 
-    ProducerConfiguration& setAccessMode(const ProducerAccessMode& mode);
+    /**
+     * Set the type of access mode that the producer requires on the topic.
+     *
+     * @see ProducerAccessMode
+     * @param accessMode
+     *            The type of access to the topic that the producer requires
+     */
+    ProducerConfiguration& setAccessMode(const ProducerAccessMode& accessMode);
 
+    /**
+     * Get the type of access mode that the producer requires on the topic.
+     */
     ProducerAccessMode getAccessMode() const;
-
-    bool isLazyStartPartitionedProducers() const;
 
     friend class PulsarWrapper;
 
