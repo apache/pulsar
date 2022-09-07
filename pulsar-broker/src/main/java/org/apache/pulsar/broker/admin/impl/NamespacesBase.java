@@ -1474,6 +1474,9 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalSetRetentionAsync(RetentionPolicies retentionPolicies) {
+        validateRetentionPolicies(retentionPolicies);
+        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.RETENTION, PolicyOperation.WRITE)
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync());
         return namespaceResources().setPoliciesAsync(namespaceName, policies -> {
             Map<BacklogQuota.BacklogQuotaType, BacklogQuota> backlogQuotaMap = policies.backlog_quota_map;
             if (backlogQuotaMap.isEmpty()) {

@@ -1219,10 +1219,7 @@ public class Namespaces extends NamespacesBase {
                              @ApiParam(value = "Retention policies for the specified namespace")
                                  RetentionPolicies retention) {
         validateNamespaceName(tenant, namespace);
-        validateRetentionPolicies(retention);
-        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.RETENTION, PolicyOperation.WRITE)
-                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
-                .thenCompose(__ -> internalSetRetentionAsync(retention))
+        internalSetRetentionAsync(retention)
                 .thenAccept(__ -> {
                     asyncResponse.resume(Response.noContent().build());
                     log.info("[{}] Successfully updated retention configuration: namespace={}, map={}", clientAppId(),
@@ -1246,16 +1243,14 @@ public class Namespaces extends NamespacesBase {
                                 @PathParam("tenant") String tenant,
                                 @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.RETENTION, PolicyOperation.WRITE)
-                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
-                .thenCompose(__ -> internalSetRetentionAsync(null))
+        internalSetRetentionAsync(null)
                 .thenAccept(__ -> {
                     asyncResponse.resume(Response.noContent().build());
-                    log.info("[{}] Successfully updated retention configuration: namespace={}, map={}", clientAppId(),
+                    log.info("[{}] Successfully deleted retention configuration: namespace={}, map={}", clientAppId(),
                             namespaceName, null);
                 }).exceptionally(ex -> {
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
-                    log.error("[{}] Failed to update retention configuration for namespace {}",
+                    log.error("[{}] Failed to delete retention configuration for namespace {}",
                             clientAppId(), namespaceName, ex);
                     return null;
                 });

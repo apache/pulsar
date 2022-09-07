@@ -1209,10 +1209,7 @@ public class Namespaces extends NamespacesBase {
             @PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, RetentionPolicies retention) {
         validateNamespaceName(property, cluster, namespace);
-        validateRetentionPolicies(retention);
-        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.RETENTION, PolicyOperation.WRITE)
-                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
-                .thenCompose(__ -> internalSetRetentionAsync(retention))
+        internalSetRetentionAsync(retention)
                 .thenAccept(__ -> {
                     asyncResponse.resume(Response.noContent().build());
                     log.info("[{}] Successfully updated retention configuration: namespace={}, map={}", clientAppId(),
