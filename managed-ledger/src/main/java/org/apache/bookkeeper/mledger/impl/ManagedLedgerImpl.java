@@ -2401,7 +2401,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             unlockingPromise.whenComplete((res, ex) -> {
                     offloadMutex.unlock();
                     if (ex != null) {
-                        if (ex instanceof ManagedLedgerException) {
+                        if (FutureUtil.unwrapCompletionException(ex) instanceof ManagedLedgerException) {
                             asyncRefreshLedgersInfoOnBadVersion((ManagedLedgerException) ex);
                         }
                         finalPromise.completeExceptionally(ex);
@@ -3000,7 +3000,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             promise.whenComplete((result, exception) -> {
                 offloadMutex.unlock();
                 if (exception != null) {
-                    callback.offloadFailed(new ManagedLedgerException(exception), ctx);
+                    Throwable t = FutureUtil.unwrapCompletionException(exception);
+                    if (t instanceof ManagedLedgerException) {
+                        callback.offloadFailed((ManagedLedgerException) t, ctx);
+                    } else {
+                        callback.offloadFailed(new ManagedLedgerException(t), ctx);
+                    }
                 } else {
                     callback.offloadComplete(result, ctx);
                 }
