@@ -9,7 +9,7 @@ Before querying data in Pulsar, you need to install Pulsar and built-in connecto
 ## Requirements
 
 1. Install [Pulsar](getting-started-standalone.md).
-2. Install Pulsar [built-in connectors](getting-started-standalone.md#install-built-in-connectors-optional).
+2. Install Pulsar [built-in connectors](io-quickstart.md#install-pulsar-and-built-in-connector).
 
 ## Query data in Pulsar
 
