@@ -87,6 +87,7 @@ import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.path.PolicyPath;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1278,6 +1279,10 @@ public abstract class PulsarWebResource {
             asyncResponse.resume(realCause);
         } else if (realCause instanceof BrokerServiceException.NotAllowedException) {
             asyncResponse.resume(new RestException(Status.CONFLICT, realCause));
+        } else if (realCause instanceof MetadataStoreException.NotFoundException) {
+            asyncResponse.resume(new RestException(Status.NOT_FOUND, realCause));
+        } else if (realCause instanceof MetadataStoreException.BadVersionException) {
+            asyncResponse.resume(new RestException(Status.CONFLICT, "Concurrent modification"));
         } else if (realCause instanceof PulsarAdminException) {
             asyncResponse.resume(new RestException(((PulsarAdminException) realCause)));
         } else {
