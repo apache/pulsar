@@ -78,6 +78,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataCache;
+import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 import org.apache.pulsar.policies.data.loadbalancer.LoadReport;
@@ -798,6 +799,21 @@ public class NamespaceServiceTest extends BrokerTestBase {
         assertFalse(getResult.isPresent());
     }
 
+    /**
+     * 1. Manually trigger "LoadReportUpdaterTask"
+     * 2. Registry another new zk-node-listener "waitForBrokerChangeNotice".
+     * 3. Wait "waitForBrokerChangeNotice" is done, this task will be executed after
+     *    {@link ModularLoadManagerImpl#handleDataNotification(Notification)}, because it is registry later than
+     *    {@link ModularLoadManagerImpl#handleDataNotification(Notification)}. So if "waitForBrokerChangeNotice" is done
+     *    we can guarantee {@link ModularLoadManagerImpl#handleDataNotification(Notification)} is done. At this time
+     *    we still could not guarantee {@link ModularLoadManagerImpl#handleDataNotification(Notification)} has
+     *    finished all things, because there has a async task be submitted to "ModularLoadManagerImpl.scheduler" by
+     *    {@link ModularLoadManagerImpl#handleDataNotification(Notification)}.
+     * 4. Submit a new task to "scheduler"(it is a singleton thread executor).
+     * 5. Wait the new task done, if the new task done, we can guarantee
+     *    {@link ModularLoadManagerImpl#handleDataNotification(Notification)} has finished all things.
+     * 6. Manually trigger "LoadResourceQuotaUpdaterTask".
+     */
     private void waitResourceDataUpdateToZK(LoadManager loadManager) throws Exception {
         CompletableFuture<Void> waitForBrokerChangeNotice = registryBrokerDataChangeNotice();
         // Manually trigger "LoadReportUpdaterTask"
