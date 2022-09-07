@@ -2992,29 +2992,27 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             Map<String, String> extraMetadata = Map.of("ManagedLedgerName", name);
 
             String driverName = config.getLedgerOffloader().getOffloadDriverName();
-            long permittedBytesToOffload = config.getGlobalOffloadingPermitBytesPerSecond();
+            final long flowPermits = config.getGlobalOffloadingPermitBytesPerSecond();
             Map<String, String> driverMetadata = config.getLedgerOffloader().getOffloadDriverMetadata();
 
             prepareLedgerInfoForOffloaded(ledgerId, uuid, driverName, driverMetadata)
                     .thenCompose((ignore) -> getLedgerHandle(ledgerId))
-                    .thenCompose(handle -> FlowControllableReadHandle.create(handle, permittedBytesToOffload))
+                    .thenCompose(handle -> FlowControllableReadHandle.create(handle, flowPermits))
                     .thenCompose(readHandle -> config.getLedgerOffloader().offload(readHandle, uuid, extraMetadata))
-                    .thenCompose((ignore) ->
-                            Retries.run(
-                                    Backoff.exponentialJittered(TimeUnit.SECONDS.toMillis(1),
-                                            TimeUnit.SECONDS.toHours(1)).limit(10), FAIL_ON_CONFLICT,
-                                    () -> completeLedgerInfoForOffloaded(ledgerId, uuid),
-                                    scheduledExecutor, name)
-                                    .whenComplete((ignore2, exception) -> {
-                                        if (exception != null) {
-                                            log.error("[{}] Failed to offload data for the ledgerId {}",
-                                                    name, ledgerId, exception);
-                                            cleanupOffloaded(
-                                                    ledgerId, uuid,
-                                                    driverName, driverMetadata,
-                                                    "Metastore failure");
-                                        }
-                                    }))
+                    .thenCompose((ignore) -> {
+                        return Retries.run(Backoff.exponentialJittered(TimeUnit.SECONDS.toMillis(1),
+                                TimeUnit.SECONDS.toHours(1)).limit(10),
+                                FAIL_ON_CONFLICT,
+                                () -> completeLedgerInfoForOffloaded(ledgerId, uuid),
+                                scheduledExecutor, name)
+                                .whenComplete((ignore2, exception) -> {
+                                    if (exception != null) {
+                                        log.error("[{}] Failed to offload data for the ledgerId {}",
+                                                name, ledgerId, exception);
+                                        cleanupOffloaded(ledgerId, uuid, driverName, driverMetadata, "Metastore failure");
+                                    }
+                                });
+                    })
                     .whenComplete((ignore, exception) -> {
                         if (exception != null) {
                             lastOffloadFailureTimestamp = System.currentTimeMillis();
