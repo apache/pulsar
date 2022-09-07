@@ -1191,7 +1191,19 @@ public class Namespaces extends NamespacesBase {
                              @PathParam("tenant") String tenant,
                              @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        internalGetRetention(asyncResponse);
+        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.RETENTION, PolicyOperation.READ)
+                .thenCompose(__ -> namespaceResources().getPoliciesAsync(namespaceName))
+                .thenApply(policiesOpt -> {
+                    Policies policies = policiesOpt.orElseThrow(() -> new RestException(Response.Status.NOT_FOUND,
+                            "Namespace policies does not exist"));
+                    return policies.retention_policies;
+                }).thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    log.error("[{}] Failed to get retention config on a namespace {}",
+                            clientAppId(), namespaceName, ex);
+                    return null;
+                });
     }
 
     @POST
@@ -1208,7 +1220,19 @@ public class Namespaces extends NamespacesBase {
                                  RetentionPolicies retention) {
         validateNamespaceName(tenant, namespace);
         validateRetentionPolicies(retention);
-        internalSetRetention(asyncResponse, retention);
+        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.RETENTION, PolicyOperation.WRITE)
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenCompose(__ -> setRetentionAsync(retention))
+                .thenAccept(__ -> {
+                    asyncResponse.resume(Response.noContent().build());
+                    log.info("[{}] Successfully updated retention configuration: namespace={}, map={}", clientAppId(),
+                            namespaceName, retention);
+                }).exceptionally(ex -> {
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    log.error("[{}] Failed to update retention configuration for namespace {}",
+                            clientAppId(), namespaceName, ex);
+                    return null;
+                });
     }
 
     @DELETE
@@ -1222,7 +1246,19 @@ public class Namespaces extends NamespacesBase {
                                 @PathParam("tenant") String tenant,
                                 @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        internalSetRetention(asyncResponse, null);
+        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.RETENTION, PolicyOperation.WRITE)
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenCompose(__ -> setRetentionAsync(null))
+                .thenAccept(__ -> {
+                    asyncResponse.resume(Response.noContent().build());
+                    log.info("[{}] Successfully updated retention configuration: namespace={}, map={}", clientAppId(),
+                            namespaceName, null);
+                }).exceptionally(ex -> {
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    log.error("[{}] Failed to update retention configuration for namespace {}",
+                            clientAppId(), namespaceName, ex);
+                    return null;
+                });
     }
 
     @POST
