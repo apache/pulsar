@@ -22,7 +22,7 @@ When using a non-built-in connector, you need to specify the path of an archive 
 
 :::
 
-To set up a built-in connector, follow the instructions [here](io-quickstart.md#install-pulsar-and-built-in-connector).
+To set up a built-in connector, follow the [instructions](io-quickstart.md#install-pulsar-and-built-in-connector).
 
 After the setup, the built-in connector is automatically discovered by Pulsar brokers (or function-workers), so no additional installation steps are required.
 

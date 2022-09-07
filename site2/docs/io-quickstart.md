@@ -24,7 +24,7 @@ At the end of this tutorial, you can:
 
 Before connecting Pulsar to a database, you need to install Pulsar and the desired built-in connector.
 
-Read the [Run a standalone Pulsar cluster locally](getting-started-standalone.md) for downloading the Pulsar distribution.
+Read [Run a standalone Pulsar cluster locally](getting-started-standalone.md) for downloading the Pulsar distribution.
 
 Pulsar releases a separate binary distribution to contain all the built-in connectors. To enable those connectors, you need to download the connectors tarball release:
 
@@ -46,7 +46,7 @@ ls connectors
 :::note
 
 * If you are running Pulsar in a bare metal cluster, make sure `connectors` tarball is unzipped in every pulsar directory of the broker (or in every pulsar directory of function-worker if you are running a separate worker cluster for Pulsar Functions).
-* If you are [running Pulsar in Docker](getting-started-docker.md) or deploying Pulsar using a docker image (e.g. [K8S](deploy-kubernetes.md)), you can use the `apachepulsar/pulsar-all` image instead of the `apachepulsar/pulsar` image. `apachepulsar/pulsar-all` image has already bundled all built-in connectors.
+* If you are [running Pulsar in Docker](getting-started-docker.md) or deploying Pulsar using a docker image (e.g. [K8S](deploy-kubernetes.md)), you can use the `apachepulsar/pulsar-all` image instead of the `apachepulsar/pulsar` image. The `apachepulsar/pulsar-all` image has already bundled all built-in connectors.
 
 :::
 
