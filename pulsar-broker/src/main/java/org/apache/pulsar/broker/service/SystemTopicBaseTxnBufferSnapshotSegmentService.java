@@ -24,7 +24,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.systopic.TransactionBufferSnapshotSegmentSystemTopicClient;
-import org.apache.pulsar.broker.transaction.buffer.matadata.v2.TransactionBufferSnapshot;
+import org.apache.pulsar.broker.transaction.buffer.matadata.v2.TransactionBufferSnapshotIndexes;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.events.EventType;
@@ -33,7 +33,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 
 public class SystemTopicBaseTxnBufferSnapshotSegmentService implements TransactionBufferSnapshotSegmentService {
 
-    private final Map<TopicName, SystemTopicClient<TransactionBufferSnapshot>> clients;
+    private final Map<TopicName, SystemTopicClient<TransactionBufferSnapshotIndexes.TransactionBufferSnapshot>> clients;
 
     private final NamespaceEventsSystemTopicFactory namespaceEventsSystemTopicFactory;
 
@@ -43,11 +43,11 @@ public class SystemTopicBaseTxnBufferSnapshotSegmentService implements Transacti
     }
 
     @Override
-    public CompletableFuture<SystemTopicClient.Writer<TransactionBufferSnapshot>> createWriter(TopicName topicName) {
+    public CompletableFuture<SystemTopicClient.Writer<TransactionBufferSnapshotIndexes.TransactionBufferSnapshot>> createWriter(TopicName topicName) {
         return getTransactionBufferSystemTopicClient(topicName).thenCompose(SystemTopicClient::newWriterAsync);
     }
 
-    private CompletableFuture<SystemTopicClient<TransactionBufferSnapshot>>
+    private CompletableFuture<SystemTopicClient<TransactionBufferSnapshotIndexes.TransactionBufferSnapshot>>
     getTransactionBufferSystemTopicClient(
             TopicName topicName) {
         TopicName systemTopicName = NamespaceEventsSystemTopicFactory
@@ -65,7 +65,7 @@ public class SystemTopicBaseTxnBufferSnapshotSegmentService implements Transacti
     }
 
     @Override
-    public CompletableFuture<SystemTopicClient.Reader<TransactionBufferSnapshot>> createReader(TopicName topicName) {
+    public CompletableFuture<SystemTopicClient.Reader<TransactionBufferSnapshotIndexes.TransactionBufferSnapshot>> createReader(TopicName topicName) {
         return getTransactionBufferSystemTopicClient(topicName).thenCompose(SystemTopicClient::newReaderAsync);
     }
 
@@ -81,7 +81,7 @@ public class SystemTopicBaseTxnBufferSnapshotSegmentService implements Transacti
 
     @Override
     public void close() throws Exception {
-        for (Map.Entry<TopicName, SystemTopicClient<TransactionBufferSnapshot>> entry : clients.entrySet()) {
+        for (Map.Entry<TopicName, SystemTopicClient<TransactionBufferSnapshotIndexes.TransactionBufferSnapshot>> entry : clients.entrySet()) {
             entry.getValue().close();
         }
     }

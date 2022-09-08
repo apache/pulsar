@@ -22,7 +22,7 @@ import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.service.TransactionBufferSnapshotSegmentService;
-import org.apache.pulsar.broker.transaction.buffer.matadata.v2.TransactionBufferSnapshot;
+import org.apache.pulsar.broker.transaction.buffer.matadata.v2.TransactionBufferSnapshotIndexes;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -35,7 +35,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 
 @Slf4j
 public class TransactionBufferSnapshotSegmentSystemTopicClient extends
-        SystemTopicClientBase<TransactionBufferSnapshot> {
+        SystemTopicClientBase<TransactionBufferSnapshotIndexes.TransactionBufferSnapshot> {
 
     private final TransactionBufferSnapshotSegmentService transactionBufferSnapshotSegmentService;
     public TransactionBufferSnapshotSegmentSystemTopicClient(PulsarClient client, TopicName topicName,
@@ -46,8 +46,8 @@ public class TransactionBufferSnapshotSegmentSystemTopicClient extends
     }
 
     @Override
-    protected CompletableFuture<Writer<TransactionBufferSnapshot>> newWriterAsyncInternal() {
-        return client.newProducer(Schema.AVRO(TransactionBufferSnapshot.class))
+    protected CompletableFuture<Writer<TransactionBufferSnapshotIndexes.TransactionBufferSnapshot>> newWriterAsyncInternal() {
+        return client.newProducer(Schema.AVRO(TransactionBufferSnapshotIndexes.TransactionBufferSnapshot.class))
                 .topic(topicName.toString())
                 .createAsync().thenCompose(producer -> {
                     if (log.isDebugEnabled()) {
@@ -59,8 +59,8 @@ public class TransactionBufferSnapshotSegmentSystemTopicClient extends
     }
 
     @Override
-    protected CompletableFuture<Reader<TransactionBufferSnapshot>> newReaderAsyncInternal() {
-        return client.newReader(Schema.AVRO(TransactionBufferSnapshot.class))
+    protected CompletableFuture<Reader<TransactionBufferSnapshotIndexes.TransactionBufferSnapshot>> newReaderAsyncInternal() {
+        return client.newReader(Schema.AVRO(TransactionBufferSnapshotIndexes.TransactionBufferSnapshot.class))
                 .topic(topicName.toString())
                 .startMessageId(MessageId.earliest)
                 .readCompacted(true)
@@ -75,7 +75,7 @@ public class TransactionBufferSnapshotSegmentSystemTopicClient extends
                 });
     }
 
-    protected static String buildKey(TransactionBufferSnapshot snapshot) {
+    protected static String buildKey(TransactionBufferSnapshotIndexes.TransactionBufferSnapshot snapshot) {
         return "multiple-" + snapshot.getSequenceId() + "-" + snapshot.getTopicName();
     }
 
@@ -90,13 +90,13 @@ public class TransactionBufferSnapshotSegmentSystemTopicClient extends
     }
 
 
-    private static class TransactionBufferSnapshotSegmentWriter implements Writer<TransactionBufferSnapshot> {
+    private static class TransactionBufferSnapshotSegmentWriter implements Writer<TransactionBufferSnapshotIndexes.TransactionBufferSnapshot> {
 
-        private final Producer<TransactionBufferSnapshot> producer;
+        private final Producer<TransactionBufferSnapshotIndexes.TransactionBufferSnapshot> producer;
         private final TransactionBufferSnapshotSegmentSystemTopicClient
                 transactionBufferSnapshotSegmentSystemTopicClient;
 
-        private TransactionBufferSnapshotSegmentWriter(Producer<TransactionBufferSnapshot> producer,
+        private TransactionBufferSnapshotSegmentWriter(Producer<TransactionBufferSnapshotIndexes.TransactionBufferSnapshot> producer,
                                                      TransactionBufferSnapshotSegmentSystemTopicClient
                                                              transactionBufferSnapshotSegmentSystemTopicClient) {
             this.producer = producer;
@@ -104,7 +104,7 @@ public class TransactionBufferSnapshotSegmentSystemTopicClient extends
         }
 
         @Override
-        public MessageId write(TransactionBufferSnapshot transactionBufferSnapshot)
+        public MessageId write(TransactionBufferSnapshotIndexes.TransactionBufferSnapshot transactionBufferSnapshot)
                 throws PulsarClientException {
             return producer.newMessage()
                     .key(buildKey(transactionBufferSnapshot))
@@ -112,7 +112,7 @@ public class TransactionBufferSnapshotSegmentSystemTopicClient extends
         }
 
         @Override
-        public CompletableFuture<MessageId> writeAsync(TransactionBufferSnapshot
+        public CompletableFuture<MessageId> writeAsync(TransactionBufferSnapshotIndexes.TransactionBufferSnapshot
                                                                        transactionBufferSnapshot) {
             return producer.newMessage()
                     .key(buildKey(transactionBufferSnapshot))
@@ -120,7 +120,7 @@ public class TransactionBufferSnapshotSegmentSystemTopicClient extends
         }
 
         @Override
-        public MessageId delete(TransactionBufferSnapshot transactionBufferSnapshot)
+        public MessageId delete(TransactionBufferSnapshotIndexes.TransactionBufferSnapshot transactionBufferSnapshot)
                 throws PulsarClientException {
             return producer.newMessage()
                     .key(buildKey(transactionBufferSnapshot))
@@ -129,7 +129,7 @@ public class TransactionBufferSnapshotSegmentSystemTopicClient extends
         }
 
         @Override
-        public CompletableFuture<MessageId> deleteAsync(TransactionBufferSnapshot
+        public CompletableFuture<MessageId> deleteAsync(TransactionBufferSnapshotIndexes.TransactionBufferSnapshot
                                                                 transactionBufferSnapshot) {
             return producer.newMessage()
                     .key(buildKey(transactionBufferSnapshot))
@@ -159,39 +159,39 @@ public class TransactionBufferSnapshotSegmentSystemTopicClient extends
         }
 
         @Override
-        public SystemTopicClient<TransactionBufferSnapshot> getSystemTopicClient() {
+        public SystemTopicClient<TransactionBufferSnapshotIndexes.TransactionBufferSnapshot> getSystemTopicClient() {
             return transactionBufferSnapshotSegmentSystemTopicClient;
         }
     }
 
-    private static class TransactionBufferSnapshotSegmentReader implements Reader<TransactionBufferSnapshot> {
+    private static class TransactionBufferSnapshotSegmentReader implements Reader<TransactionBufferSnapshotIndexes.TransactionBufferSnapshot> {
 
-        private final org.apache.pulsar.client.api.Reader<TransactionBufferSnapshot> reader;
+        private final org.apache.pulsar.client.api.Reader<TransactionBufferSnapshotIndexes.TransactionBufferSnapshot> reader;
         private final TransactionBufferSnapshotSegmentSystemTopicClient
                 transactionBufferSnapshotSegmentSystemTopicClient;
 
         private TransactionBufferSnapshotSegmentReader(
-                org.apache.pulsar.client.api.Reader<TransactionBufferSnapshot> reader,
+                org.apache.pulsar.client.api.Reader<TransactionBufferSnapshotIndexes.TransactionBufferSnapshot> reader,
                 TransactionBufferSnapshotSegmentSystemTopicClient transactionBufferSnapshotSegmentSystemTopicClient) {
             this.reader = reader;
             this.transactionBufferSnapshotSegmentSystemTopicClient = transactionBufferSnapshotSegmentSystemTopicClient;
         }
 
         @Override
-        public Message<TransactionBufferSnapshot> readNext() throws PulsarClientException {
+        public Message<TransactionBufferSnapshotIndexes.TransactionBufferSnapshot> readNext() throws PulsarClientException {
             throw new UnsupportedOperationException(
                     "Transaction buffer snapshot segment does not support sequential reads.");
         }
 
         @Override
-        public CompletableFuture<Message<TransactionBufferSnapshot>> readNextAsync() {
+        public CompletableFuture<Message<TransactionBufferSnapshotIndexes.TransactionBufferSnapshot>> readNextAsync() {
             return FutureUtil.failedFuture(
                     new UnsupportedOperationException(
                             "Transaction buffer snapshot segment does not support sequential reads."));
         }
 
         @Override
-        public Message<TransactionBufferSnapshot> readByMessageId(MessageId messageId) throws PulsarClientException {
+        public Message<TransactionBufferSnapshotIndexes.TransactionBufferSnapshot> readByMessageId(MessageId messageId) throws PulsarClientException {
             MessageIdImpl messageIdImpl = (MessageIdImpl) messageId;
             reader.seek(new MessageIdImpl(messageIdImpl.getLedgerId(), messageIdImpl.getEntryId() - 1,
                     messageIdImpl.getPartitionIndex()));
@@ -199,7 +199,7 @@ public class TransactionBufferSnapshotSegmentSystemTopicClient extends
         }
 
         @Override
-        public CompletableFuture<Message<TransactionBufferSnapshot>> readByMessageIdAsync(MessageId messageId) {
+        public CompletableFuture<Message<TransactionBufferSnapshotIndexes.TransactionBufferSnapshot>> readByMessageIdAsync(MessageId messageId) {
             MessageIdImpl messageIdImpl = (MessageIdImpl) messageId;
             return reader.seekAsync(new MessageIdImpl(messageIdImpl.getLedgerId(),
                     messageIdImpl.getEntryId() - 1, messageIdImpl.getPartitionIndex()))
@@ -238,7 +238,7 @@ public class TransactionBufferSnapshotSegmentSystemTopicClient extends
         }
 
         @Override
-        public SystemTopicClient<TransactionBufferSnapshot> getSystemTopic() {
+        public SystemTopicClient<TransactionBufferSnapshotIndexes.TransactionBufferSnapshot> getSystemTopic() {
             return transactionBufferSnapshotSegmentSystemTopicClient;
         }
     }

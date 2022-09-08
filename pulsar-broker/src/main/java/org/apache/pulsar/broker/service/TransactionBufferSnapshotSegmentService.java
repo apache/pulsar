@@ -21,7 +21,7 @@ package org.apache.pulsar.broker.service;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.systopic.TransactionBufferSnapshotSegmentSystemTopicClient;
-import org.apache.pulsar.broker.transaction.buffer.matadata.v2.TransactionBufferSnapshot;
+import org.apache.pulsar.broker.transaction.buffer.matadata.v2.TransactionBufferSnapshotIndexes;
 import org.apache.pulsar.common.naming.TopicName;
 
 public interface TransactionBufferSnapshotSegmentService {
@@ -32,7 +32,7 @@ public interface TransactionBufferSnapshotSegmentService {
      *
      * @return {@link CompletableFuture< SystemTopicClient.Writer >} return the future of writer
      */
-    CompletableFuture<SystemTopicClient.Writer<TransactionBufferSnapshot>> createWriter(TopicName topicName);
+    CompletableFuture<SystemTopicClient.Writer<TransactionBufferSnapshotIndexes.TransactionBufferSnapshot>> createWriter(TopicName topicName);
 
     /**
      * Create a transaction buffer snapshot segment reader.
@@ -41,7 +41,7 @@ public interface TransactionBufferSnapshotSegmentService {
      *
      * @return {@link CompletableFuture< SystemTopicClient.Reader >} return the future of reader
      */
-    CompletableFuture<SystemTopicClient.Reader<TransactionBufferSnapshot>> createReader(TopicName topicName);
+    CompletableFuture<SystemTopicClient.Reader<TransactionBufferSnapshotIndexes.TransactionBufferSnapshot>> createReader(TopicName topicName);
 
     /**
      * Remove a topic client from cache.

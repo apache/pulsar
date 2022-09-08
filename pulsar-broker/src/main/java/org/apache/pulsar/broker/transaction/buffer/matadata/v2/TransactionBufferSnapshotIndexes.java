@@ -56,4 +56,15 @@ public class TransactionBufferSnapshotIndexes {
         public long persistentPositionLedgerID;
         public long persistentPositionEntryID;
     }
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class TransactionBufferSnapshot {
+        private String topicName;
+        private long sequenceId;
+        private long maxReadPositionLedgerId;
+        private long maxReadPositionEntryId;
+        private List<TxnID> aborts;
+    }
 }

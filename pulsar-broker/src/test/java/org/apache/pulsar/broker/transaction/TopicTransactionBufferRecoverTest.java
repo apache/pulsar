@@ -620,16 +620,16 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         TransactionBufferSnapshotSegmentService transactionBufferSnapshotSegmentService =
                 getPulsarServiceList().get(0).getTransactionBufferSnapshotSegmentService();
 
-        SystemTopicClient.Writer<org.apache.pulsar.broker.transaction.buffer.matadata.v2.TransactionBufferSnapshot>
+        SystemTopicClient.Writer<TransactionBufferSnapshotIndexes.TransactionBufferSnapshot>
                 segmentWriter =
                 transactionBufferSnapshotSegmentService.createWriter(TopicName.get(SNAPSHOT_SEGMENT)).get();
 
-        SystemTopicClient.Reader<org.apache.pulsar.broker.transaction.buffer.matadata.v2.TransactionBufferSnapshot>
+        SystemTopicClient.Reader<TransactionBufferSnapshotIndexes.TransactionBufferSnapshot>
                 segmentReader =
                 transactionBufferSnapshotSegmentService.createReader(TopicName.get(SNAPSHOT_SEGMENT)).get();
 
-        org.apache.pulsar.broker.transaction.buffer.matadata.v2.TransactionBufferSnapshot snapshot =
-                new org.apache.pulsar.broker.transaction.buffer.matadata.v2.TransactionBufferSnapshot();
+        TransactionBufferSnapshotIndexes.TransactionBufferSnapshot snapshot =
+                new TransactionBufferSnapshotIndexes.TransactionBufferSnapshot();
 
         snapshot.setTopicName(SNAPSHOT_SEGMENT);
         snapshot.setSequenceId(1L);
