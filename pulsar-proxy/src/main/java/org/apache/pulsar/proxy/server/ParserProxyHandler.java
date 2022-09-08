@@ -118,7 +118,11 @@ public class ParserProxyHandler extends ChannelInboundHandlerAdapter {
                     ParserProxyHandler.producerHashMap.put(cmd.getProducer().getProducerId() + "," + ctx.channel().id(),
                             cmd.getProducer().getTopic());
 
-                    logging(ctx.channel(), cmd.getType(), "{producer:" + cmd.getProducer().getProducerName()
+                    String producerName = "";
+                    if (cmd.getProducer().hasProducerName()){
+                        producerName = cmd.getProducer().getProducerName();
+                    }
+                    logging(ctx.channel(), cmd.getType(), "{producer:" + producerName
                             + ",topic:" + cmd.getProducer().getTopic() + "}", null);
                     break;
 

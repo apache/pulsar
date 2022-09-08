@@ -213,7 +213,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private volatile double lastUpdatedAvgPublishRateInMsg = 0;
     private volatile double lastUpdatedAvgPublishRateInByte = 0;
 
-    private volatile int maxUnackedMessagesOnSubscriptionApplied;
     private volatile boolean isClosingOrDeleting = false;
 
     private ScheduledFuture<?> fencedTopicMonitoringTask = null;
@@ -1130,9 +1129,22 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 log.warn("[{}] Topic is already being closed or deleted", topic);
                 return FutureUtil.failedFuture(new TopicFencedException("Topic is already fenced"));
             } else if (failIfHasSubscriptions && !subscriptions.isEmpty()) {
-                return FutureUtil.failedFuture(new TopicBusyException("Topic has subscriptions"));
+                return FutureUtil.failedFuture(
+                        new TopicBusyException("Topic has subscriptions: " + subscriptions.keys()));
             } else if (failIfHasBacklogs && hasBacklogs()) {
-                return FutureUtil.failedFuture(new TopicBusyException("Topic has subscriptions did not catch up"));
+                List<String> backlogSubs =
+                        subscriptions.values().stream()
+                                .filter(sub -> sub.getNumberOfEntriesInBacklog(false) > 0)
+                                .map(PersistentSubscription::getName).toList();
+                return FutureUtil.failedFuture(
+                        new TopicBusyException("Topic has subscriptions did not catch up: " + backlogSubs));
+            } else if (TopicName.get(topic).isPartitioned()
+                    && (getProducers().size() > 0 || getNumberOfConsumers() > 0)
+                    && getBrokerService().isAllowAutoTopicCreation(topic)) {
+                // to avoid inconsistent metadata as a result
+                return FutureUtil.failedFuture(
+                        new TopicBusyException("Partitioned topic has active consumers or producers and "
+                                + "auto-creation of topic is allowed"));
             }
 
             fenceTopicToCloseOrDelete(); // Avoid clients reconnections while deleting
@@ -1164,7 +1176,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     brokerService.deleteTopicAuthenticationWithRetry(topic, deleteTopicAuthenticationFuture, 5);
 
                     deleteTopicAuthenticationFuture.thenCompose(__ -> deleteSchema())
-                            .thenAccept(__ -> deleteTopicPolicies())
+                            .thenCompose(__ -> deleteTopicPolicies())
                             .thenCompose(__ -> transactionBufferCleanupAndClose())
                             .whenComplete((v, ex) -> {
                         if (ex != null) {
@@ -1272,6 +1284,17 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         subscriptions.forEach((s, sub) -> futures.add(sub.disconnect()));
         if (this.resourceGroupPublishLimiter != null) {
             this.resourceGroupPublishLimiter.unregisterRateLimitFunction(this.getName());
+        }
+
+        //close entry filters
+        if (entryFilters != null) {
+            entryFilters.forEach((name, filter) -> {
+                try {
+                    filter.close();
+                } catch (Exception e) {
+                    log.warn("Error shutting down entry filter {}", name, e);
+                }
+            });
         }
 
         CompletableFuture<Void> clientCloseFuture = closeWithoutWaitingClientDisconnect
@@ -1516,7 +1539,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 .thenAccept(replicationClient -> {
                     Replicator replicator = replicators.computeIfAbsent(remoteCluster, r -> {
                         try {
-                            return new PersistentReplicator(PersistentTopic.this, cursor, localCluster,
+                            return new GeoPersistentReplicator(PersistentTopic.this, cursor, localCluster,
                                     remoteCluster, brokerService, (PulsarClientImpl) replicationClient);
                         } catch (PulsarServerException e) {
                             log.error("[{}] Replicator startup failed {}", topic, remoteCluster, e);
@@ -1756,6 +1779,19 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 topicStatsStream.writePair("totalNonContiguousDeletedMessagesRange",
                         subscription.getTotalNonContiguousDeletedMessagesRange());
                 topicStatsStream.writePair("type", subscription.getTypeString());
+
+                Dispatcher dispatcher0 = subscription.getDispatcher();
+                if (null != dispatcher0) {
+                    topicStatsStream.writePair("filterProcessedMsgCount",
+                            dispatcher0.getFilterProcessedMsgCount());
+                    topicStatsStream.writePair("filterAcceptedMsgCount",
+                            dispatcher0.getFilterAcceptedMsgCount());
+                    topicStatsStream.writePair("filterRejectedMsgCount",
+                            dispatcher0.getFilterRejectedMsgCount());
+                    topicStatsStream.writePair("filterRescheduledMsgCount",
+                            dispatcher0.getFilterRescheduledMsgCount());
+                }
+
                 if (Subscription.isIndividualAckMode(subscription.getType())) {
                     if (subscription.getDispatcher() instanceof PersistentDispatcherMultipleConsumers) {
                         PersistentDispatcherMultipleConsumers dispatcher =
@@ -1873,6 +1909,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         stats.bytesOutCounter = bytesOutFromRemovedSubscriptions.longValue();
         stats.msgOutCounter = msgOutFromRemovedSubscriptions.longValue();
         stats.publishRateLimitedTimes = publishRateLimitedTimes;
+        TransactionBuffer txnBuffer = getTransactionBuffer();
+        stats.ongoingTxnCount = txnBuffer.getOngoingTxnCount();
+        stats.abortedTxnCount = txnBuffer.getAbortedTxnCount();
+        stats.committedTxnCount = txnBuffer.getCommittedTxnCount();
 
         subscriptions.forEach((name, subscription) -> {
             SubscriptionStatsImpl subStats =
@@ -1886,6 +1926,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             stats.nonContiguousDeletedMessagesRanges += subStats.nonContiguousDeletedMessagesRanges;
             stats.nonContiguousDeletedMessagesRangesSerializedSize +=
                     subStats.nonContiguousDeletedMessagesRangesSerializedSize;
+            stats.delayedMessageIndexSizeInBytes += subStats.delayedTrackerMemoryUsage;
         });
 
         replicators.forEach((cluster, replicator) -> {
@@ -1910,6 +1951,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         stats.backlogSize = ledger.getEstimatedBacklogSize();
         stats.deduplicationStatus = messageDeduplication.getStatus().toString();
         stats.topicEpoch = topicEpoch.orElse(null);
+        stats.ownerBroker = brokerService.pulsar().getLookupServiceAddress();
         stats.offloadedStorageSize = ledger.getOffloadedSize();
         stats.lastOffloadLedgerId = ledger.getLastOffloadedLedgerId();
         stats.lastOffloadSuccessTimeStamp = ledger.getLastOffloadedSuccessTimestamp();
@@ -1944,12 +1986,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     private Optional<CompactorMXBean> getCompactorMXBean() {
-        Compactor compactor = null;
-        try {
-            compactor = brokerService.pulsar().getCompactor(false);
-        } catch (PulsarServerException ex) {
-            log.warn("get compactor error", ex);
-        }
+        Compactor compactor = brokerService.pulsar().getNullableCompactor();
         return Optional.ofNullable(compactor).map(c -> c.getStats());
     }
 

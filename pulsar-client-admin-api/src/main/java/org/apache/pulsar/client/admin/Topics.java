@@ -20,6 +20,7 @@ package org.apache.pulsar.client.admin;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
@@ -46,6 +47,8 @@ import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.stats.AnalyzeSubscriptionBacklogResult;
+
 /**
  * Admin interface for Topics management.
  */
@@ -732,6 +735,42 @@ public interface Topics {
      * @return a future that can be used to track when the topic properties is returned
      */
     CompletableFuture<Map<String, String>> getPropertiesAsync(String topic);
+
+    /**
+     * Update Topic Properties on a topic.
+     * The new properties will override the existing values, old properties in the topic will be keep if not override.
+     * @param topic
+     * @param properties
+     * @throws PulsarAdminException
+     */
+    void updateProperties(String topic, Map<String, String> properties) throws PulsarAdminException;
+
+    /**
+     * Update Topic Properties on a topic.
+     * The new properties will override the existing values, old properties in the topic will be keep if not override.
+     * @param topic
+     * @param properties
+     * @return
+     */
+    CompletableFuture<Void> updatePropertiesAsync(String topic, Map<String, String> properties);
+
+    /**
+     * Remove the key in properties on a topic.
+     *
+     * @param topic
+     * @param key
+     * @throws PulsarAdminException
+     */
+    void removeProperties(String topic, String key) throws PulsarAdminException;
+
+    /**
+     * Remove the key in properties on a topic asynchronously.
+     *
+     * @param topic
+     * @param key
+     * @return
+     */
+    CompletableFuture<Void> removePropertiesAsync(String topic, String key);
 
     /**
      * Delete a partitioned topic and its schemas.
@@ -2048,6 +2087,46 @@ public interface Topics {
     @Deprecated
     Map<BacklogQuota.BacklogQuotaType, BacklogQuota> getBacklogQuotaMap(String topic, boolean applied)
             throws PulsarAdminException;
+
+    /**
+     * Analyze subscription backlog.
+     * This is a potentially expensive operation, as it requires
+     * to read the messages from storage.
+     * This function takes into consideration batch messages
+     * and also Subscription filters.
+     * @param topic
+     *            Topic name
+     * @param subscriptionName
+     *            the subscription
+     * @param startPosition
+     *           the position to start the scan from (empty means the last processed message)
+     * @return an accurate analysis of the backlog
+     * @throws PulsarAdminException
+     *            Unexpected error
+     */
+    AnalyzeSubscriptionBacklogResult analyzeSubscriptionBacklog(String topic, String subscriptionName,
+                                                                Optional<MessageId> startPosition)
+            throws PulsarAdminException;
+
+    /**
+     * Analyze subscription backlog.
+     * This is a potentially expensive operation, as it requires
+     * to read the messages from storage.
+     * This function takes into consideration batch messages
+     * and also Subscription filters.
+     * @param topic
+     *            Topic name
+     * @param subscriptionName
+     *            the subscription
+     * @param startPosition
+     *           the position to start the scan from (empty means the last processed message)
+     * @return an accurate analysis of the backlog
+     * @throws PulsarAdminException
+     *            Unexpected error
+     */
+    CompletableFuture<AnalyzeSubscriptionBacklogResult> analyzeSubscriptionBacklogAsync(String topic,
+                                                                           String subscriptionName,
+                                                                           Optional<MessageId> startPosition);
 
     /**
      * Get backlog size by a message ID.
@@ -4274,4 +4353,48 @@ public interface Topics {
      * @param topic topic name
      */
     CompletableFuture<Void> setSchemaValidationEnforcedAsync(String topic, boolean enable);
+
+    /**
+     * Set shadow topic list for a source topic.
+     *
+     * @param sourceTopic  source topic name
+     * @param shadowTopics list of shadow topic name
+     */
+    void setShadowTopics(String sourceTopic, List<String> shadowTopics) throws PulsarAdminException;
+
+    /**
+     * Remove all shadow topics for a source topic.
+     *
+     * @param sourceTopic source topic name
+     */
+    void removeShadowTopics(String sourceTopic) throws PulsarAdminException;
+
+    /**
+     * Get shadow topic list of the source topic.
+     *
+     * @param sourceTopic source topic name
+     * @return shadow topic list
+     */
+    List<String> getShadowTopics(String sourceTopic) throws PulsarAdminException;
+
+    /**
+     * Set shadow topic list for a source topic asynchronously.
+     *
+     * @param sourceTopic source topic name
+     */
+    CompletableFuture<Void> setShadowTopicsAsync(String sourceTopic, List<String> shadowTopics);
+
+    /**
+     * Remove all shadow topics for a source topic asynchronously.
+     *
+     * @param sourceTopic source topic name
+     */
+    CompletableFuture<Void> removeShadowTopicsAsync(String sourceTopic);
+
+    /**
+     * Get shadow topic list of the source topic asynchronously.
+     *
+     * @param sourceTopic source topic name
+     */
+    CompletableFuture<List<String>> getShadowTopicsAsync(String sourceTopic);
 }

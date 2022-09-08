@@ -140,7 +140,7 @@ If you create a client, you can use the `loadConf` configuration. The following 
 `numIoThreads`| int| The number of threads used for handling connections to brokers | 1 
 `numListenerThreads`|int|The number of threads used for handling message listeners. The listener thread pool is shared across all the consumers and readers using the "listener" model to get messages. For a given consumer, the listener is always invoked from the same thread to ensure ordering. If you want multiple threads to process a single topic, you need to create a [`shared`](https://pulsar.apache.org/docs/en/next/concepts-messaging/#shared) subscription and multiple consumers for this subscription. This does not ensure ordering.| 1 
 `useTcpNoDelay`| boolean| Whether to use TCP no-delay flag on the connection to disable Nagle algorithm |true
-`useTls` |boolean |Whether to use TLS encryption on the connection| false
+`enableTls` |boolean | Whether to use TLS encryption on the connection. Note that this parameter is **deprecated**. If you want to enable TLS, use `pulsar+ssl://` in `serviceUrl` instead. | false
  `tlsTrustCertsFilePath` |string |Path to the trusted TLS certificate file|None
 `tlsAllowInsecureConnection`|boolean|Whether the Pulsar client accepts untrusted TLS certificate from broker | false
 `tlsHostnameVerificationEnable` |boolean |  Whether to enable TLS hostname verification|false
@@ -159,27 +159,6 @@ If you create a client, you can use the `loadConf` configuration. The following 
 Check out the Javadoc for the {@inject: javadoc:PulsarClient:/client/org/apache/pulsar/client/api/PulsarClient} class for a full list of configurable parameters.
 
 > In addition to client-level configuration, you can also apply [producer](#configure-producer) and [consumer](#configure-consumer) specific configuration as described in sections below.
-
-### Client memory allocator configuration
-You can set the client memory allocator configurations through Java properties.<br />
-
-| Property | Type |  <div>Description</div> | Default | Available values
-|---|---|---|---|---
-`pulsar.allocator.pooled` | String | If set to `true`, the client uses a direct memory pool. <br /> If set to `false`, the client uses a heap memory without pool | true | <li> true </li> <li> false </li> 
-`pulsar.allocator.exit_on_oom` | String | Whether to exit the JVM when OOM happens | false |  <li> true </li> <li> false </li>
-`pulsar.allocator.leak_detection` | String | Service URL provider for Pulsar service | Disabled | <li> Disabled </li> <li> Simple </li> <li> Advanced </li> <li> Paranoid </li>
-`pulsar.allocator.out_of_memory_policy` | String | When an OOM occurs, the client throws an exception or fallbacks to heap | FallbackToHeap | <li> ThrowException </li> <li> FallbackToHeap </li>
-
-**Example**:
-
-```
-
--Dpulsar.allocator.pooled=true
--Dpulsar.allocator.exit_on_oom=false
--Dpulsar.allocator.leak_detection=Disabled
--Dpulsar.allocator.out_of_memory_policy=ThrowException
-
-```
 
 ### Cluster-level failover
 
@@ -240,7 +219,7 @@ The cluster-level failover provides fault tolerance, continuous availability, an
 
 * Reduced cost: services can be switched and recovered automatically with no data loss.
 
-* Simplified management: businesses can operate on an “always-on” basis since no immediate user intervention is required.
+* Simplified management: businesses can operate on an "always-on" basis since no immediate user intervention is required.
 
 * Improved stability and robustness: it ensures continuous performance and minimizes service downtime. 
 
@@ -388,10 +367,10 @@ This is an example of how to construct a Java Pulsar client to use controlled cl
 
  public PulsarClient getControlledFailoverClient() throws IOException {
 Map<String, String> header = new HashMap(); 
-  header.put(“service_user_id”, “my-user”);
-  header.put(“service_password”, “tiger”);
-  header.put(“clusterA”, “tokenA”);
-  header.put(“clusterB”, “tokenB”);
+  header.put("service_user_id", "my-user");
+  header.put("service_password", "tiger");
+  header.put("clusterA", "tokenA");
+  header.put("clusterB", "tokenB");
 
   ServiceUrlProvider provider = 
       ControlledClusterFailover.builder()
@@ -1316,7 +1295,7 @@ To perceive triggered events and perform customized processing, you can add `Rea
 
 PulsarClient pulsarClient = PulsarClient.builder().serviceUrl("pulsar://localhost:6650").build();
 Reader<byte[]> reader = pulsarClient.newReader()
-        .topic(“t1”)
+        .topic("t1")
         .autoUpdatePartitionsInterval(5, TimeUnit.SECONDS)
         .intercept(new ReaderInterceptor<byte[]>() {
             @Override
@@ -1513,7 +1492,7 @@ Pulsar currently supports three authentication schemes: [TLS](security-tls-authe
 
 ### TLS Authentication
 
-To use [TLS](security-tls-authentication), you need to set TLS to `true` using the `setUseTls` method, point your Pulsar client to a TLS cert path, and provide paths to cert and key files.
+To use [TLS](security-tls-authentication.md), `enableTls` method is deprecated and you need to use "pulsar+ssl://" in serviceUrl to enable, point your Pulsar client to a TLS cert path, and provide paths to cert and key files.
 
 The following is an example.
 
@@ -1528,7 +1507,6 @@ Authentication tlsAuth = AuthenticationFactory
 
 PulsarClient client = PulsarClient.builder()
         .serviceUrl("pulsar+ssl://my-broker.com:6651")
-        .enableTls(true)
         .tlsTrustCertsFilePath("/path/to/cacert.pem")
         .authentication(tlsAuth)
         .build();
@@ -1560,7 +1538,6 @@ Authentication athenzAuth = AuthenticationFactory
 
 PulsarClient client = PulsarClient.builder()
         .serviceUrl("pulsar+ssl://my-broker.com:6651")
-        .enableTls(true)
         .tlsTrustCertsFilePath("/path/to/cacert.pem")
         .authentication(athenzAuth)
         .build();

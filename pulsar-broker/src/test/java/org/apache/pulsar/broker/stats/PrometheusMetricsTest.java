@@ -47,6 +47,7 @@ import java.util.Random;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.crypto.SecretKey;
@@ -765,10 +766,10 @@ public class PrometheusMetricsTest extends BrokerTestBase {
      This can happen when including topic metrics, since the same metric is reported multiple times with different labels. For example:
 
      # TYPE pulsar_subscriptions_count gauge
-     pulsar_subscriptions_count{cluster="standalone"} 0 1556372982118
-     pulsar_subscriptions_count{cluster="standalone",namespace="public/functions",topic="persistent://public/functions/metadata"} 1.0 1556372982118
-     pulsar_subscriptions_count{cluster="standalone",namespace="public/functions",topic="persistent://public/functions/coordinate"} 1.0 1556372982118
-     pulsar_subscriptions_count{cluster="standalone",namespace="public/functions",topic="persistent://public/functions/assignments"} 1.0 1556372982118
+     pulsar_subscriptions_count{cluster="standalone"} 0
+     pulsar_subscriptions_count{cluster="standalone",namespace="public/functions",topic="persistent://public/functions/metadata"} 1.0
+     pulsar_subscriptions_count{cluster="standalone",namespace="public/functions",topic="persistent://public/functions/coordinate"} 1.0
+     pulsar_subscriptions_count{cluster="standalone",namespace="public/functions",topic="persistent://public/functions/assignments"} 1.0
 
      **/
     // Running the test twice to make sure types are present when generated multiple times
@@ -1417,7 +1418,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                     .value(data)
                     .send();
         }
-        Compactor compactor = pulsar.getCompactor(true);
+        Compactor compactor = pulsar.getCompactor();
         compactor.compact(topicName).get();
         statsOut = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
@@ -1456,6 +1457,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         ServiceConfiguration configuration = Mockito.mock(ServiceConfiguration.class);
         Mockito.when(configuration.getManagedLedgerStatsPeriodSeconds()).thenReturn(2);
         Mockito.when(configuration.isMetricsBufferResponse()).thenReturn(true);
+        Mockito.when(configuration.getClusterName()).thenReturn(configClusterName);
         Mockito.when(pulsar.getConfiguration()).thenReturn(configuration);
 
         int period = pulsar.getConfiguration().getManagedLedgerStatsPeriodSeconds();
@@ -1529,6 +1531,63 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertEquals(cm.get(0).value, count);
     }
 
+    @Test
+    public void testMetricsGroupedByTypeDefinitions() throws Exception {
+        Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1").create();
+        Producer<byte[]> p2 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic2").create();
+        for (int i = 0; i < 10; i++) {
+            String message = "my-message-" + i;
+            p1.send(message.getBytes());
+            p2.send(message.getBytes());
+        }
+
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, false, false, false, statsOut);
+        String metricsStr = statsOut.toString();
+
+        Pattern typePattern = Pattern.compile("^#\\s+TYPE\\s+(\\w+)\\s+(\\w+)");
+        Pattern metricNamePattern = Pattern.compile("^(\\w+)\\{.+");
+
+        AtomicReference<String> currentMetric = new AtomicReference<>();
+        Splitter.on("\n").split(metricsStr).forEach(line -> {
+            if (line.isEmpty()) {
+                return;
+            }
+            if (line.startsWith("#")) {
+                // Get the current type definition
+                Matcher typeMatcher = typePattern.matcher(line);
+                checkArgument(typeMatcher.matches());
+                String metricName = typeMatcher.group(1);
+                currentMetric.set(metricName);
+            } else {
+                Matcher metricMatcher = metricNamePattern.matcher(line);
+                checkArgument(metricMatcher.matches());
+                String metricName = metricMatcher.group(1);
+
+                if (metricName.endsWith("_bucket")) {
+                    metricName = metricName.substring(0, metricName.indexOf("_bucket"));
+                } else if (metricName.endsWith("_count") && !currentMetric.get().endsWith("_count")) {
+                    metricName = metricName.substring(0, metricName.indexOf("_count"));
+                } else if (metricName.endsWith("_sum") && !currentMetric.get().endsWith("_sum")) {
+                    metricName = metricName.substring(0, metricName.indexOf("_sum"));
+                } else if (metricName.endsWith("_total") && !currentMetric.get().endsWith("_total")) {
+                    metricName = metricName.substring(0, metricName.indexOf("_total"));
+                } else if (metricName.endsWith("_created") && !currentMetric.get().endsWith("_created")) {
+                    metricName = metricName.substring(0, metricName.indexOf("_created"));
+                }
+
+                if (!metricName.equals(currentMetric.get())) {
+                    System.out.println(metricsStr);
+                    fail("Metric not grouped under its type definition: " + line);
+                }
+
+            }
+        });
+
+        p1.close();
+        p2.close();
+    }
+
     /**
      * Hacky parsing of Prometheus text format. Should be good enough for unit tests
      */
@@ -1539,8 +1598,8 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         // jvm_threads_current{cluster="standalone",} 203.0
         // or
         // pulsar_subscriptions_count{cluster="standalone", namespace="public/default",
-        // topic="persistent://public/default/test-2"} 0.0 1517945780897
-        Pattern pattern = Pattern.compile("^(\\w+)\\{([^\\}]+)\\}\\s([+-]?[\\d\\w\\.-]+)(\\s(\\d+))?$");
+        // topic="persistent://public/default/test-2"} 0.0
+        Pattern pattern = Pattern.compile("^(\\w+)\\{([^\\}]+)\\}\\s([+-]?[\\d\\w\\.-]+)$");
         Pattern tagsPattern = Pattern.compile("(\\w+)=\"([^\"]+)\"(,\\s?)?");
 
         Splitter.on("\n").split(metrics).forEach(line -> {

@@ -7,6 +7,10 @@
     {
       "type": "category",
       "label": "Get Started",
+      "link": {
+        "type": "doc",
+        "id": "getting-started-home"
+      },
       "items": [
         "getting-started-standalone",
         "getting-started-docker",
@@ -232,7 +236,6 @@
         "administration-stats",
         "administration-load-balance",
         "administration-proxy",
-        "administration-isolation",
         "administration-upgrade",
         {
           "type": "category",
@@ -340,7 +343,12 @@
         "reference-cli-tools",
         "reference-configuration",
         "reference-metrics",
-        "reference-rest-api-overview"
+        "reference-rest-api-overview",
+        {
+          "type": "link",
+          "href": "/release-notes/",
+          "label": "Release notes"
+        }
       ]
     }
   ]

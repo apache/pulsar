@@ -31,17 +31,19 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
-import com.google.common.collect.Sets;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import java.lang.reflect.Field;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -50,6 +52,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
@@ -62,8 +65,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
 import lombok.Cleanup;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
@@ -84,18 +85,19 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.ScanOutcome;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.VoidCallback;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
+import org.apache.pulsar.common.api.proto.IntRange;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet;
-import org.apache.pulsar.metadata.api.extended.SessionEvent;
-import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Stat;
-import org.apache.pulsar.common.api.proto.IntRange;
+import org.apache.pulsar.metadata.api.extended.SessionEvent;
+import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
 import org.awaitility.Awaitility;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
@@ -109,13 +111,39 @@ import org.testng.annotations.Test;
 
 public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
-    private static final Charset Encoding = Charsets.UTF_8;
+    private static final Charset Encoding = StandardCharsets.UTF_8;
 
     @DataProvider(name = "useOpenRangeSet")
     public static Object[][] useOpenRangeSet() {
         return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
     }
 
+
+    @Test
+    public void testCloseCursor() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxUnackedRangesToPersistInMetadataStore(0);
+        config.setThrottleMarkDelete(0);
+        ManagedLedger ledger = factory.open("my_test_ledger", config);
+        ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
+        // Write some data.
+        ledger.addEntry(new byte[]{1});
+        ledger.addEntry(new byte[]{2});
+        ledger.addEntry(new byte[]{3});
+        ledger.addEntry(new byte[]{4});
+        ledger.addEntry(new byte[]{5});
+        // Persistent cursor info to ledger.
+        c1.delete(PositionImpl.get(c1.getReadPosition().getLedgerId(), c1.getReadPosition().getEntryId()));
+        Awaitility.await().until(() ->c1.getStats().getPersistLedgerSucceed() > 0);
+        // Make cursor ledger can not work.
+        closeCursorLedger(c1);
+        c1.delete(PositionImpl.get(c1.getReadPosition().getLedgerId(), c1.getReadPosition().getEntryId() + 2));
+        ledger.close();
+    }
+
+    private static void closeCursorLedger(ManagedCursorImpl managedCursor) {
+        Awaitility.await().until(managedCursor::closeCursorLedger);
+    }
 
     @Test(timeOut = 20000)
     void readFromEmptyLedger() throws Exception {
@@ -720,7 +748,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         final int Messages = 100;
         final int Consumers = 5;
 
-        List<Future<AtomicBoolean>> futures = Lists.newArrayList();
+        List<Future<AtomicBoolean>> futures = new ArrayList();
         @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
         final CyclicBarrier barrier = new CyclicBarrier(Consumers + 1);
@@ -1127,7 +1155,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         final ManagedCursor c1 = ledger.openCursor("c1");
 
         final int N = 100;
-        List<Position> positions = Lists.newArrayList();
+        List<Position> positions = new ArrayList();
         for (int i = 0; i < N; i++) {
             Position p = ledger.addEntry("dummy-entry".getBytes(Encoding));
             positions.add(p);
@@ -1780,7 +1808,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         final int Messages = 100;
         final int Consumers = 10;
 
-        List<Future<Void>> futures = Lists.newArrayList();
+        List<Future<Void>> futures = new ArrayList();
         @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
         final CyclicBarrier barrier = new CyclicBarrier(Consumers + 1);
@@ -1830,6 +1858,125 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         assertNull(
                 c1.findNewestMatching(entry -> Arrays.equals(entry.getDataAndRelease(), "expired".getBytes(Encoding))));
+    }
+
+    @DataProvider(name = "testScanValues")
+    public static Object[][] testScanValues() {
+        return new Object[][] {
+                { 10, 1 }, // single entry
+                { 10, 3 }, // batches with remainder
+                { 10, 5 }, // batches, half
+                { 10, 1000 }, // big batch size, scan whole ledger in one round
+                { 0, 10 } // empty ledger
+        };
+    }
+
+    @Test(dataProvider = "testScanValues", timeOut = 30000)
+    void testScan(int numEntries, int batchSize) throws Exception {
+        ManagedLedger ledger = factory.open("my_test_ledger_scan_" + numEntries
+                + "_" +batchSize);
+
+        ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
+        List<Position> positions = new ArrayList<>();
+        for (int i = 0; i < numEntries; i++) {
+            positions.add(ledger.addEntry(("a" + i).getBytes(Encoding)));
+        }
+
+        List<String> contents = new CopyOnWriteArrayList<>();
+
+        assertEquals(ScanOutcome.COMPLETED, c1.scan(Optional.empty(), (entry -> {
+            contents.add(new String(entry.getData(), StandardCharsets.UTF_8));
+            return true;
+        }), batchSize, Long.MAX_VALUE, Long.MAX_VALUE).get());
+
+        for (int i = 0; i < numEntries; i++) {
+            assertEquals(contents.get(i), ("a" + i));
+        }
+        assertEquals(contents.size(), numEntries);
+
+        if (numEntries <= 0) {
+            return;
+        }
+
+        List<String> contentsFromHalf = new CopyOnWriteArrayList<>();
+        int half = numEntries / 2;
+        Position halfPosition = positions.get(half);
+        assertEquals(ScanOutcome.COMPLETED, c1.scan(Optional.of(halfPosition), (entry -> {
+            contentsFromHalf.add(new String(entry.getData(), StandardCharsets.UTF_8));
+            return true;
+        }), batchSize, Long.MAX_VALUE, Long.MAX_VALUE).get());
+
+        for (int i = half; i < numEntries; i++) {
+            assertEquals(contentsFromHalf.get(i - half), ("a" + i));
+        }
+        assertEquals(contentsFromHalf.size(), numEntries - half);
+
+        assertEquals(ScanOutcome.USER_INTERRUPTED, c1.scan(Optional.empty(), (entry -> {
+            return false;
+        }), batchSize, Long.MAX_VALUE, Long.MAX_VALUE).get());
+
+        // max entries
+        assertEquals(ScanOutcome.ABORTED, c1.scan(Optional.empty(), (entry -> {
+            return true;
+        }), batchSize, 1, Long.MAX_VALUE).get());
+
+        // timeout
+        // please note that the timeout is verified
+        // between the reads
+        // so with a big batchSize this test would take too much
+        // we are skipping this check if batchSize is too big
+        if (batchSize <= 5) {
+            assertEquals(ScanOutcome.ABORTED, c1.scan(Optional.empty(), (entry -> {
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException ie) {
+                }
+                return true;
+            }), batchSize, Long.MAX_VALUE, 1000).get());
+        }
+        // user code exception
+        AtomicReference<Throwable> error = new AtomicReference<>();
+        c1.scan(Optional.empty(), (entry -> {
+            throw new RuntimeException("dummy!");
+        }), batchSize, Long.MAX_VALUE, Long.MAX_VALUE).handle((___, err) -> {
+            error.set(err);
+            return null;
+        }).get();
+        assertTrue(error.get() instanceof ManagedLedgerException);
+        assertTrue(error.get().getCause() instanceof RuntimeException);
+        assertEquals(error.get().getCause().getMessage(), "dummy!");
+
+
+        // test deleted entries
+        positions.clear();
+        assertEquals(ScanOutcome.COMPLETED, c1.scan(Optional.empty(), (entry -> {
+            positions.add(entry.getPosition());
+            return true;
+        }), batchSize, Long.MAX_VALUE, Long.MAX_VALUE).get());
+        assertEquals(numEntries, positions.size());
+
+        // delete one entry in the middle
+        c1.delete(positions.get(2));
+
+        List<Position> positionsAfterDelete = new ArrayList<>();
+        assertEquals(ScanOutcome.COMPLETED, c1.scan(Optional.empty(), (entry -> {
+            positionsAfterDelete.add(entry.getPosition());
+            return true;
+        }), batchSize, Long.MAX_VALUE, Long.MAX_VALUE).get());
+        assertEquals(numEntries - 1, positionsAfterDelete.size());
+
+        // delete all the entries
+        for (Position p : positionsAfterDelete) {
+            c1.delete(p);
+        }
+
+        List<Position> positionsFinal = new ArrayList<>();
+        assertEquals(ScanOutcome.COMPLETED, c1.scan(Optional.empty(), (entry -> {
+            positionsFinal.add(entry.getPosition());
+            return true;
+        }), batchSize, Long.MAX_VALUE, Long.MAX_VALUE).get());
+        assertEquals(0,positionsFinal.size());
+
     }
 
     @Test(timeOut = 20000)
@@ -2245,13 +2392,15 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ledger.addEntry("fourth".getBytes(Encoding));
         Position last = ledger.addEntry("last-expired".getBytes(Encoding));
 
-        ledger.getConfig().setMaxEntriesPerLedger(1);
         // roll a new ledger
+        int numLedgersBefore = ledger.getLedgersInfo().size();
+        ledger.getConfig().setMaxEntriesPerLedger(1);
+        Field stateUpdater = ManagedLedgerImpl.class.getDeclaredField("state");
+        stateUpdater.setAccessible(true);
+        stateUpdater.set(ledger, ManagedLedgerImpl.State.LedgerOpened);
         ledger.rollCurrentLedgerIfFull();
-        Awaitility.await().untilAsserted(() -> {
-            Assert.assertEquals(ledger.getLedgersInfo().size(), 1);
-            Assert.assertEquals(ledger.getState(), ManagedLedgerImpl.State.ClosedLedger);
-        });
+        Awaitility.await().atMost(20, TimeUnit.SECONDS)
+                .until(() -> ledger.getLedgersInfo().size() > numLedgersBefore);
 
         // the algorithm looks for "expired" messages
         // starting from the first, then it moves to the last message
@@ -2402,7 +2551,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ledger.addEntry("entry4".getBytes(Encoding));
 
         // 1. Replay empty position set should return empty entry set
-        Set<PositionImpl> positions = Sets.newHashSet();
+        Set<PositionImpl> positions = new HashSet();
         assertTrue(c1.replayEntries(positions).isEmpty());
 
         positions.add(p1);

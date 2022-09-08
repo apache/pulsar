@@ -105,6 +105,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @Category
     private static final String CATEGORY_PLUGIN = "Broker Plugin";
 
+    private static final double MIN_ML_CACHE_EVICTION_FREQUENCY = 0.001;
+    private static final double MAX_ML_CACHE_EVICTION_FREQUENCY = 1000.0;
+    private static final long MAX_ML_CACHE_EVICTION_INTERVAL_MS = 1000000L;
+
     /***** --- pulsar configuration. --- ****/
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -212,7 +216,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = "Hostname or IP address the service advertises to the outside world."
-            + " If not set, the value of `InetAddress.getLocalHost().getHostname()` is used."
+            + " If not set, the value of `InetAddress.getLocalHost().getCanonicalHostName()` is used."
     )
     private String advertisedAddress;
 
@@ -479,6 +483,23 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private String metadataStoreConfigPath = null;
 
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_SERVER,
+            doc = "Event topic to sync metadata between separate pulsar "
+                    + "clusters on different cloud platforms."
+    )
+    private String metadataSyncEventTopic = null;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_SERVER,
+            doc = "Event topic to sync configuration-metadata between separate pulsar "
+                    + "clusters on different cloud platforms."
+    )
+    private String configurationMetadataSyncEventTopic = null;
+
     @FieldContext(
             dynamic = true,
             doc = "Factory class-name to create topic with custom workflow"
@@ -621,6 +642,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "How long to delay rewinding cursor and dispatching messages when active consumer is changed"
     )
     private int activeConsumerFailoverDelayTimeMillis = 1000;
+    @FieldContext(
+            category = CATEGORY_POLICIES,
+            doc = "Maximum time to spend while scanning a subscription to calculate the accurate backlog"
+    )
+    private long subscriptionBacklogScanMaxTimeMs = 1000 * 60 * 2L;
+    @FieldContext(
+            category = CATEGORY_POLICIES,
+            doc = "Maximum number of entries to process while scanning a subscription to calculate the accurate backlog"
+    )
+    private long subscriptionBacklogScanMaxEntries = 10_000;
     @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "How long to delete inactive subscriptions from last consuming."
@@ -1073,6 +1104,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String entryFiltersDirectory = "";
 
     @FieldContext(
+            category = CATEGORY_SERVER,
+            dynamic = true,
+            doc = "Whether allow topic level entry filters policies overrides broker configuration."
+    )
+    private boolean allowOverrideEntryFilters = false;
+
+    @FieldContext(
         category = CATEGORY_SERVER,
         doc = "Whether to use streaming read dispatcher. Currently is in preview and can be changed "
                 + "in subsequent release."
@@ -1444,24 +1482,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean authorizationAllowWildcardsMatching = false;
 
     @FieldContext(
-        category = CATEGORY_AUTHENTICATION,
-        dynamic = true,
-        doc = "Authentication settings of the broker itself. \n\nUsed when the broker connects"
-            + " to other brokers, either in same or other clusters. Default uses plugin which disables authentication"
-    )
-    private String brokerClientAuthenticationPlugin = "org.apache.pulsar.client.impl.auth.AuthenticationDisabled";
-    @FieldContext(
-        category = CATEGORY_AUTHENTICATION,
-        dynamic = true,
-        doc = "Authentication parameters of the authentication plugin the broker is using to connect to other brokers"
-    )
-    private String brokerClientAuthenticationParameters = "";
-    @FieldContext(
-        category = CATEGORY_AUTHENTICATION,
-        doc = "Path for the trusted TLS certificate file for outgoing connection to a server (broker)")
-    private String brokerClientTrustCertsFilePath = "";
-
-    @FieldContext(
         category = CATEGORY_AUTHORIZATION,
         doc = "When this parameter is not empty, unauthenticated users perform as anonymousUserRole"
     )
@@ -1807,8 +1827,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private double managedLedgerCacheEvictionWatermark = 0.9;
     @FieldContext(category = CATEGORY_STORAGE_ML,
-            doc = "Configure the cache eviction frequency for the managed ledger cache. Default is 100/s")
-    private double managedLedgerCacheEvictionFrequency = 100.0;
+            doc = "Configure the cache eviction frequency for the managed ledger cache.")
+    @Deprecated
+    private double managedLedgerCacheEvictionFrequency = 0;
+
+    @FieldContext(category = CATEGORY_STORAGE_ML,
+            doc = "Configure the cache eviction interval in milliseconds for the managed ledger cache, default is 10ms")
+    private long managedLedgerCacheEvictionIntervalMs = 10;
+
     @FieldContext(category = CATEGORY_STORAGE_ML,
             dynamic = true,
             doc = "All entries that have stayed in cache for more than the configured time, will be evicted")
@@ -2134,6 +2160,40 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int loadBalancerAverageResourceUsageDifferenceThresholdPercentage = 10;
 
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "In FlowOrQpsEquallyDivideBundleSplitAlgorithm,"
+                    + " if msgRate >= loadBalancerNamespaceBundleMaxMsgRate * "
+                    + " (100 + flowOrQpsDifferenceThresholdPercentage)/100.0 "
+                    + " or throughput >=  loadBalancerNamespaceBundleMaxBandwidthMbytes * "
+                    + " (100 + flowOrQpsDifferenceThresholdPercentage)/100.0, "
+                    + " execute split bundle"
+    )
+    private int flowOrQpsDifferenceThresholdPercentage = 10;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "In the UniformLoadShedder strategy, the minimum message that triggers unload."
+    )
+    private int minUnloadMessage = 1000;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "In the UniformLoadShedder strategy, the minimum throughput that triggers unload."
+    )
+    private int minUnloadMessageThroughput = 1 * 1024 * 1024;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "In the UniformLoadShedder strategy, the maximum unload ratio."
+    )
+    private double maxUnloadPercentage = 0.2;
+
     @FieldContext(
         dynamic = true,
         category = CATEGORY_LOAD_BALANCER,
@@ -2152,6 +2212,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
                 + "from broker-1 to broker-2)"
     )
     private double loadBalancerMsgThroughputMultiplierDifferenceShedderThreshold = 4;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "For each uniform balanced unload, the maximum number of bundles that can be unloaded."
+                    + " The default value is -1, which means no limit"
+    )
+    private int maxUnloadBundleNumPerShedding = -1;
 
     @FieldContext(
             dynamic = true,
@@ -2270,7 +2338,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Supported algorithms name for namespace bundle split"
     )
     private List<String> supportedNamespaceBundleSplitAlgorithms = Lists.newArrayList("range_equally_divide",
-            "topic_count_equally_divide", "specified_positions_divide");
+            "topic_count_equally_divide", "specified_positions_divide", "flow_or_qps_equally_divide");
     @FieldContext(
         dynamic = true,
         category = CATEGORY_LOAD_BALANCER,
@@ -2329,21 +2397,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private boolean replicationTlsEnabled = false;
     @FieldContext(
-        category = CATEGORY_REPLICATION,
-        dynamic = true,
-        doc = "Enable TLS when talking with other brokers in the same cluster (admin operation)"
-            + " or different clusters (replication)"
-    )
-    private boolean brokerClientTlsEnabled = false;
-
-    @FieldContext(
         category = CATEGORY_POLICIES,
-        doc = "Default message retention time"
+        doc = "Default message retention time."
+            + " 0 means retention is disabled. -1 means data is not removed by time quota"
     )
     private int defaultRetentionTimeInMinutes = 0;
     @FieldContext(
         category = CATEGORY_POLICIES,
-        doc = "Default retention size"
+        doc = "Default retention size."
+            + " 0 means retention is disabled. -1 means data is not removed by size quota"
     )
     private int defaultRetentionSizeInMB = 0;
     @FieldContext(
@@ -2819,7 +2881,29 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @ToString.Exclude
     private String tlsTrustStorePassword = null;
 
-    /**** --- KeyStore TLS config variables used for internal client/admin to auth with other broker. --- ****/
+    /**** --- Config variables used for internal client/admin to auth with other broker. --- ****/
+    @FieldContext(
+            category = CATEGORY_AUTHENTICATION,
+            dynamic = true,
+            doc = "Authentication settings of the broker itself. \n\nUsed when the broker connects"
+                    + " to other brokers, either in same or other clusters. "
+                    + "Default uses plugin which disables authentication"
+    )
+    private String brokerClientAuthenticationPlugin = "org.apache.pulsar.client.impl.auth.AuthenticationDisabled";
+    @FieldContext(
+            category = CATEGORY_AUTHENTICATION,
+            dynamic = true,
+            doc = "Authentication parameters of the authentication plugin the broker is using to connect "
+                    + "to other brokers"
+    )
+    private String brokerClientAuthenticationParameters = "";
+    @FieldContext(
+            category = CATEGORY_REPLICATION,
+            dynamic = true,
+            doc = "Enable TLS when talking with other brokers in the same cluster (admin operation) "
+                    + "or different clusters (replication)"
+    )
+    private boolean brokerClientTlsEnabled = false;
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
             doc = "Whether internal client use KeyStore type to authenticate with other Pulsar brokers"
@@ -2830,17 +2914,32 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "The TLS Provider used by internal client to authenticate with other Pulsar brokers"
     )
     private String brokerClientSslProvider = null;
-    // needed when client auth is required
+    @FieldContext(
+            category = CATEGORY_AUTHENTICATION,
+            doc = "TLS trusted certificate file for internal client, "
+                    + "used by the internal client to authenticate with Pulsar brokers")
+    private String brokerClientTrustCertsFilePath = "";
+    @FieldContext(
+            category = CATEGORY_AUTHENTICATION,
+            doc = "TLS private key file for internal client, "
+                    + "used by the internal client to authenticate with Pulsar brokers")
+    private String brokerClientKeyFilePath = "";
+    @FieldContext(
+            category = CATEGORY_AUTHENTICATION,
+            doc = "TLS certificate file for internal client, "
+                    + "used by the internal client to authenticate with Pulsar brokers"
+    )
+    private String brokerClientCertificateFilePath = "";
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
             doc = "TLS TrustStore type configuration for internal client: JKS, PKCS12 "
-                  + " used by the internal client to authenticate with Pulsar brokers"
+                    + " used by the internal client to authenticate with Pulsar brokers"
     )
     private String brokerClientTlsTrustStoreType = "JKS";
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
             doc = "TLS TrustStore path for internal client, "
-                  + " used by the internal client to authenticate with Pulsar brokers"
+                    + " used by the internal client to authenticate with Pulsar brokers"
     )
     private String brokerClientTlsTrustStore = null;
     @FieldContext(
@@ -2850,6 +2949,25 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     @ToString.Exclude
     private String brokerClientTlsTrustStorePassword = null;
+    @FieldContext(
+            category = CATEGORY_KEYSTORE_TLS,
+            doc = "TLS KeyStore type configuration for internal client: JKS, PKCS12,"
+                  + " used by the internal client to authenticate with Pulsar brokers"
+    )
+    private String brokerClientTlsKeyStoreType = "JKS";
+    @FieldContext(
+            category = CATEGORY_KEYSTORE_TLS,
+            doc = "TLS KeyStore path for internal client, "
+                  + " used by the internal client to authenticate with Pulsar brokers"
+    )
+    private String brokerClientTlsKeyStore = null;
+    @FieldContext(
+            category = CATEGORY_KEYSTORE_TLS,
+            doc = "TLS KeyStore password for internal client, "
+                  + " used by the internal client to authenticate with Pulsar brokers"
+    )
+    @ToString.Exclude
+    private String brokerClientTlsKeyStorePassword = null;
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
             doc = "Specify the tls cipher the internal client will use to negotiate during TLS Handshake"
@@ -3017,5 +3135,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public int getMetadataStoreCacheExpirySeconds() {
         return zooKeeperCacheExpirySeconds > 0 ? zooKeeperCacheExpirySeconds : metadataStoreCacheExpirySeconds;
+    }
+
+    public long getManagedLedgerCacheEvictionIntervalMs() {
+        return managedLedgerCacheEvictionFrequency > 0
+                ? (long) (1000 / Math.max(
+                        Math.min(managedLedgerCacheEvictionFrequency, MAX_ML_CACHE_EVICTION_FREQUENCY),
+                                   MIN_ML_CACHE_EVICTION_FREQUENCY))
+                : Math.min(MAX_ML_CACHE_EVICTION_INTERVAL_MS, managedLedgerCacheEvictionIntervalMs);
     }
 }
