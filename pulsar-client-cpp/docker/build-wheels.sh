@@ -27,6 +27,8 @@ BUILD_IMAGE_NAME="${BUILD_IMAGE_NAME:-apachepulsar/pulsar-build}"
 ROOT_DIR=`cd $(dirname $0)/../..; pwd`
 cd $ROOT_DIR
 
+./pulsar-client-cpp/docker/create-images.sh
+
 source ./pulsar-client-cpp/docker/python-versions.sh
 
 function contains_build_version {
