@@ -22,9 +22,13 @@ on:
   pull_request:
     branches:
       - master
+    paths-ignore:
+      - 'pulsar-client-cpp/**'
   push:
     branches:
       - branch-*
+    paths-ignore:
+      - 'pulsar-client-cpp/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
