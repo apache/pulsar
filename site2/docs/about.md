@@ -28,7 +28,7 @@ Select one of the content blocks below to begin your Pulsar journey. If you ...
     <BlockLink title="About Pulsar" url="/docs/next/concepts-overview/" />
     <BlockLink title="Get Started" url="/docs/next/getting-started-home/" />
     <BlockLink title="Install, Deploy, Upgrade" url="/docs/next/deploy-aws/" />
-    <BlockLink title="Pulsar for Developers" url="/docs/next/develop-tools/" />
+    <BlockLink title="Pulsar for Developers" url="/docs/next/developers-landing/" />
     <BlockLink title="How To" url="/docs/next/functions-develop/" />
     <BlockLink title="Reference" url="/docs/next/reference-terminology/" />
 </BlockLinks>
