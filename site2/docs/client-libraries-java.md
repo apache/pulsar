@@ -1343,6 +1343,8 @@ PulsarClient client = PulsarClient.builder()
 
 ## Cluster-level failover
 
+More introduction for cluster-level failover please look at [Cluster-level failover](concepts-cluster-level-failover.md) chapter. 
+
 :::tip
 
 - You should configure cluster-level failover only when the cluster contains sufficient resources to handle all possible consequences. Workload intensity on the backup cluster may increase significantly.
