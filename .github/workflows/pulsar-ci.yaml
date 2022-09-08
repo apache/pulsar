@@ -157,9 +157,6 @@ jobs:
             group: BROKER_CLIENT_API
           - name: Brokers - Client Impl
             group: BROKER_CLIENT_IMPL
-          - name: Brokers - Flaky
-            group: BROKER_FLAKY
-            timeout: 75
           - name: Proxy
             group: PROXY
           - name: Pulsar IO
