@@ -726,8 +726,11 @@ jobs:
         run: |
           gh-actions-artifact-client.js delete pulsar-test-latest-version-image.zst
 
-  delete-pulsar-build-binaries-artifact:
-    name: "Delete pulsar-maven-repository-binaries.tar.zst artifact"
+  # This job is required for pulls to be merged.
+  # It depends on all other jobs in this workflow.
+  # It cleans up the binaries in the same job in order to not spin up another runner for basically doing nothing.
+  pulsar-ci-checks-completed:
+    name: "Pulsar CI checks completed"
     runs-on: ubuntu-20.04
     timeout-minutes: 10
     needs: [
@@ -736,7 +739,6 @@ jobs:
       'integration-tests',
       'system-tests'
     ]
-    if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
     steps:
       - name: checkout
         uses: actions/checkout@v2
@@ -750,8 +752,3 @@ jobs:
       - name: Delete maven repository binaries from GitHub Actions Artifacts
         run: |
           gh-actions-artifact-client.js delete pulsar-maven-repository-binaries.tar.zst
-
-  pulsar-ci-checks-completed:
-    name: CI - Checks completed
-    # If 'delete-pulsar-build-binaries-artifact' completes successfully it means that all the jobs of Pulsar CI are completed.
-    needs: ['delete-pulsar-build-binaries-artifact']
