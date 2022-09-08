@@ -104,3 +104,7 @@ jobs:
         with:
           name: test-logs
           path: test-logs
+
+  cpp-tests-checks-completed:
+    name: CPP Tests - Checks completed
+    needs: [ 'cpp-tests' ]
