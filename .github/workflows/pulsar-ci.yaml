@@ -848,14 +848,18 @@ jobs:
     if: always()
     steps:
       - name: checkout
+        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
         uses: actions/checkout@v2
 
       - name: Tune Runner VM
+        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
         uses: ./.github/actions/tune-runner-vm
 
       - name: Install gh-actions-artifact-client.js
+        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
         uses: apache/pulsar-test-infra/gh-actions-artifact-client/dist@master
 
       - name: Delete maven repository binaries from GitHub Actions Artifacts
+        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
         run: |
           gh-actions-artifact-client.js delete pulsar-maven-repository-binaries.tar.zst
