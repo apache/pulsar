@@ -49,7 +49,7 @@ github:
         # Contexts are the names of checks that must pass.
         # See ./github/workflows/README.md for more documentation on this list.
         contexts:
-           - pulsar-ci-checks-completed
+           - Pulsar CI checks completed
            - cpp-tests
 
       required_pull_request_reviews:
