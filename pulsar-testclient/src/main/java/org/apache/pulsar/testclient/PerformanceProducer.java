@@ -178,6 +178,10 @@ public class PerformanceProducer {
                 "--batch-time-window" }, description = "Batch messages in 'x' ms window (Default: 1ms)")
         public double batchTimeMillis = 1.0;
 
+        @Parameter(names = { "-db",
+                "--disable-batching" }, description = "Disable batching if true")
+        public boolean disableBatching;
+
         @Parameter(names = {
             "-bm", "--batch-max-messages"
         }, description = "Maximum number of messages per batch")
@@ -478,6 +482,47 @@ public class PerformanceProducer {
         }
     }
 
+    static ProducerBuilder<byte[]> createProducerBuilder(PulsarClient client, Arguments arguments, int producerId) {
+        ProducerBuilder<byte[]> producerBuilder = client.newProducer() //
+                .sendTimeout(arguments.sendTimeout, TimeUnit.SECONDS) //
+                .compressionType(arguments.compression) //
+                .maxPendingMessages(arguments.maxOutstanding) //
+                .accessMode(arguments.producerAccessMode)
+                // enable round robin message routing if it is a partitioned topic
+                .messageRoutingMode(MessageRoutingMode.RoundRobinPartition);
+        if (arguments.maxPendingMessagesAcrossPartitions > 0) {
+            producerBuilder.maxPendingMessagesAcrossPartitions(arguments.maxPendingMessagesAcrossPartitions);
+        }
+
+        if (arguments.producerName != null) {
+            String producerName = String.format("%s%s%d", arguments.producerName, arguments.separator, producerId);
+            producerBuilder.producerName(producerName);
+        }
+
+        if (arguments.disableBatching || (arguments.batchTimeMillis <= 0.0 && arguments.batchMaxMessages <= 0)) {
+            producerBuilder.enableBatching(false);
+        } else {
+            long batchTimeUsec = (long) (arguments.batchTimeMillis * 1000);
+            producerBuilder.batchingMaxPublishDelay(batchTimeUsec, TimeUnit.MICROSECONDS).enableBatching(true);
+        }
+        if (arguments.batchMaxMessages > 0) {
+            producerBuilder.batchingMaxMessages(arguments.batchMaxMessages);
+        }
+        if (arguments.batchMaxBytes > 0) {
+            producerBuilder.batchingMaxBytes(arguments.batchMaxBytes);
+        }
+
+        // Block if queue is full else we will start seeing errors in sendAsync
+        producerBuilder.blockIfQueueFull(true);
+
+        if (isNotBlank(arguments.encKeyName) && isNotBlank(arguments.encKeyFile)) {
+            producerBuilder.addEncryptionKey(arguments.encKeyName);
+            producerBuilder.defaultCryptoKeyReader(arguments.encKeyFile);
+        }
+
+        return producerBuilder;
+    }
+
     private static void runProducer(int producerId,
                                     Arguments arguments,
                                     long numMessages,
@@ -496,16 +541,8 @@ public class PerformanceProducer {
                     .enableTransaction(arguments.isEnableTransaction);
 
             client = clientBuilder.build();
-            ProducerBuilder<byte[]> producerBuilder = client.newProducer() //
-                    .sendTimeout(arguments.sendTimeout, TimeUnit.SECONDS) //
-                    .compressionType(arguments.compression) //
-                    .maxPendingMessages(arguments.maxOutstanding) //
-                    .accessMode(arguments.producerAccessMode)
-                    // enable round robin message routing if it is a partitioned topic
-                    .messageRoutingMode(MessageRoutingMode.RoundRobinPartition);
-            if (arguments.maxPendingMessagesAcrossPartitions > 0) {
-                producerBuilder.maxPendingMessagesAcrossPartitions(arguments.maxPendingMessagesAcrossPartitions);
-            }
+
+            ProducerBuilder<byte[]> producerBuilder = createProducerBuilder(client, arguments, producerId);
 
             AtomicReference<Transaction> transactionAtomicReference;
             if (arguments.isEnableTransaction) {
@@ -516,31 +553,6 @@ public class PerformanceProducer {
                         .get());
             } else {
                 transactionAtomicReference = new AtomicReference<>(null);
-            }
-            if (arguments.producerName != null) {
-                String producerName = String.format("%s%s%d", arguments.producerName, arguments.separator, producerId);
-                producerBuilder.producerName(producerName);
-            }
-
-            if (arguments.batchTimeMillis <= 0.0 && arguments.batchMaxMessages <= 0) {
-                producerBuilder.enableBatching(false);
-            } else {
-                long batchTimeUsec = (long) (arguments.batchTimeMillis * 1000);
-                producerBuilder.batchingMaxPublishDelay(batchTimeUsec, TimeUnit.MICROSECONDS).enableBatching(true);
-            }
-            if (arguments.batchMaxMessages > 0) {
-                producerBuilder.batchingMaxMessages(arguments.batchMaxMessages);
-            }
-            if (arguments.batchMaxBytes > 0) {
-                producerBuilder.batchingMaxBytes(arguments.batchMaxBytes);
-            }
-
-            // Block if queue is full else we will start seeing errors in sendAsync
-            producerBuilder.blockIfQueueFull(true);
-
-            if (isNotBlank(arguments.encKeyName) && isNotBlank(arguments.encKeyFile)) {
-                producerBuilder.addEncryptionKey(arguments.encKeyName);
-                producerBuilder.defaultCryptoKeyReader(arguments.encKeyFile);
             }
 
             for (int i = 0; i < arguments.numTopics; i++) {

@@ -91,4 +91,7 @@ public interface TopicStats {
 
     /** The compaction stats. */
     CompactionStats getCompaction();
+
+    /** The broker that owns this topic. **/
+    String getOwnerBroker();
 }
