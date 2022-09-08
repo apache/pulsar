@@ -1661,6 +1661,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
             sb.append(str);
         }
         Assert.assertTrue(sb.toString().contains("test_metrics"));
+        rawMetricsProvider.stop();
     }
 
     public static class Metric {
