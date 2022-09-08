@@ -813,6 +813,7 @@ public abstract class NamespacesBase extends AdminResource {
             pulsar().getNamespaceService().removeOwnedServiceUnit(bundle);
             pulsar().getBrokerService().getBundleStats().remove(bundle.toString());
         } catch (WebApplicationException wae) {
+            log.error("validateNamespaceBundleOwnership failed with exception", wae);
             throw wae;
         } catch (Exception e) {
             log.error("[{}] Failed to remove namespace bundle {}/{}", clientAppId(), namespaceName.toString(),
