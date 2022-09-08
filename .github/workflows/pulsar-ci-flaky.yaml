@@ -1,0 +1,139 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+name: Pulsar CI Flaky
+on:
+  pull_request:
+    branches:
+      - master
+  push:
+    branches:
+      - branch-*
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  MAVEN_OPTS: -Xmx1024m -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.class=standard -Dmaven.wagon.http.retryHandler.count=3
+  # defines the retention period for the intermediate build artifacts needed for rerunning a failed build job
+  # it's possible to rerun individual failed jobs when the build artifacts are available
+  # if the artifacts have already been expired, the complete workflow can be rerun by closing and reopening the PR or by rebasing the PR
+  ARTIFACT_RETENTION_DAYS: 3
+
+jobs:
+  changed_files_job:
+    name: 'Changed files check'
+    runs-on: ubuntu-20.04
+    outputs:
+      docs_only: ${{ steps.check_changes.outputs.docs_only }}
+      cpp_only: ${{ steps.check_changes.outputs.cpp_only }}
+      changed_tests: ${{ steps.changes.outputs.tests_files }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+
+      - name: Detect changed files
+        id:   changes
+        uses: apache/pulsar-test-infra/paths-filter@master
+        with:
+          filters: .github/changes-filter.yaml
+          list-files: csv
+
+      - name: Check changed files
+        id: check_changes
+        run: |
+          echo "::set-output name=docs_only::${{ fromJSON(steps.changes.outputs.all_count) == fromJSON(steps.changes.outputs.docs_count) && fromJSON(steps.changes.outputs.docs_count) > 0 }}"
+          echo "::set-output name=cpp_only::${{ fromJSON(steps.changes.outputs.all_count) == fromJSON(steps.changes.outputs.cpp_count) && fromJSON(steps.changes.outputs.cpp_count) > 0 }}"
+
+  build-and-test:
+    needs: changed_files_job
+    name: Flaky tests suite
+    runs-on: ubuntu-20.04
+    timeout-minutes: 100
+    if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+
+      - name: Tune Runner VM
+        uses: ./.github/actions/tune-runner-vm
+
+      - name: Setup ssh access to build runner VM
+        # ssh access is enabled for builds in own forks
+        if: ${{ github.repository != 'apache/pulsar' }}
+        uses: ./.github/actions/ssh-access
+        with:
+          limit-access-to-actor: true
+
+      - name: Cache local Maven repository
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.m2/repository/*/*/*
+            !~/.m2/repository/org/apache/pulsar
+          key: ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-m2-dependencies-core-modules-
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v2
+        with:
+          distribution: 'temurin'
+          java-version: 17
+
+      - name: Build core-modules
+        run: |
+          mvn -B -T 1C -ntp -Pcore-modules,-main clean install -DskipTests -Dlicense.skip=true -Drat.skip=true
+
+      - name: Run unit test group BROKER_FLAKY
+        run: |
+          CHANGED_TESTS="${{ needs.changed_files_job.outputs.tests_files }}" ./build/run_unit_group.sh BROKER_FLAKY
+
+      - name: print JVM thread dumps when cancelled
+        if: cancelled()
+        run: $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh print_thread_dumps
+
+      - name: Aggregates all test reports to ./test-reports and ./surefire-reports directories
+        if: ${{ always() }}
+        uses: ./.github/actions/copy-test-reports
+
+      - name: Publish Test Report
+        uses: apache/pulsar-test-infra/action-junit-report@master
+        if: ${{ always() }}
+        with:
+          report_paths: 'test-reports/TEST-*.xml'
+          annotate_only: 'true'
+
+      - name: Upload Surefire reports
+        uses: actions/upload-artifact@v3
+        if: ${{ !success() }}
+        with:
+          name: Unit-BROKER_FLAKY-surefire-reports
+          path: surefire-reports
+          retention-days: 7
+
+      - name: Upload possible heap dump
+        uses: actions/upload-artifact@v3
+        if: ${{ always() }}
+        with:
+          name: Unit-BROKER_FLAKY-heapdump
+          path: /tmp/*.hprof
+          retention-days: 7
+          if-no-files-found: ignore

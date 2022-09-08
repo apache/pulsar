@@ -664,8 +664,8 @@ public class NamespaceServiceTest extends BrokerTestBase {
             assertEquals(targetBundleData.getTopics(), 10);
         });
         
-        String hotBundle = namespaceService.getNamespaceBundleFactory().getBundleWithHighestThroughput(nsname)
-                .getBundleRange();
+        String hotBundle = namespaceService.getNamespaceBundleFactory().getBundleWithHighestThroughputAsync(nsname)
+                .get().getBundleRange();
 
         assertEquals(bundle, hotBundle);
         
