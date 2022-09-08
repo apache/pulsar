@@ -810,10 +810,9 @@ class ConsumerSeekTest : public ::testing::TestWithParam<bool> {
 
 TEST_P(ConsumerSeekTest, testSeekForMessageId) {
     Client client(lookupUrl);
-    auto n = std::chrono::system_clock::now();
-    auto now = std::chrono::duration_cast<std::chrono::nanoseconds>(n.time_since_epoch());
 
-    const std::string topic = "test-seek-for-message-id-" + std::to_string(now.count());
+    const std::string topic = "test-seek-for-message-id-" + std::string((GetParam() ? "batch-" : "")) +
+                              std::to_string(time(nullptr));
 
     Producer producer;
     ASSERT_EQ(ResultOk, client.createProducer(topic, producerConf_, producer));

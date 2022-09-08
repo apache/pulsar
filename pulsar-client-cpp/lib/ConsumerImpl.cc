@@ -171,12 +171,17 @@ void ConsumerImpl::connectionOpened(const ClientConnectionPtr& cnx) {
     // sending the subscribe request.
     cnx->registerConsumer(consumerId_, shared_from_this());
 
+    if (duringSeek_) {
+        ackGroupingTrackerPtr_->flushAndClean();
+    }
+
     Lock lockForMessageId(mutexForMessageId_);
     // Update startMessageId so that we can discard messages after delivery restarts
-    startMessageId_ = clearReceiveQueue();
+    const auto startMessageId = clearReceiveQueue();
     const auto subscribeMessageId = (subscriptionMode_ == Commands::SubscriptionModeNonDurable)
-                                        ? startMessageId_.get()
+                                        ? startMessageId
                                         : Optional<MessageId>::empty();
+    startMessageId_ = startMessageId;
     lockForMessageId.unlock();
 
     unAckedMessageTrackerPtr_->clear();
@@ -184,10 +189,6 @@ void ConsumerImpl::connectionOpened(const ClientConnectionPtr& cnx) {
 
     ClientImplPtr client = client_.lock();
     uint64_t requestId = client->newRequestId();
-    if (duringSeek_) {
-        ackGroupingTrackerPtr_->flushAndClean();
-    }
-
     SharedBuffer cmd = Commands::newSubscribe(
         topic_, subscription_, consumerId_, requestId, getSubType(), consumerName_, subscriptionMode_,
         subscribeMessageId, readCompacted_, config_.getProperties(), config_.getSubscriptionProperties(),
@@ -1403,12 +1404,12 @@ void ConsumerImpl::seekAsyncInternal(long requestId, SharedBuffer seek, const Me
         });
 }
 
-bool ConsumerImpl::isPriorBatchIndex(long idx) {
+bool ConsumerImpl::isPriorBatchIndex(int32_t idx) {
     return config_.isStartMessageIdInclusive() ? idx < startMessageId_.get().value().batchIndex()
                                                : idx <= startMessageId_.get().value().batchIndex();
 }
 
-bool ConsumerImpl::isPriorEntryIndex(long idx) {
+bool ConsumerImpl::isPriorEntryIndex(int64_t idx) {
     return config_.isStartMessageIdInclusive() ? idx < startMessageId_.get().value().entryId()
                                                : idx <= startMessageId_.get().value().entryId();
 }

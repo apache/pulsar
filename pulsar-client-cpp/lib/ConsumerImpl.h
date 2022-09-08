@@ -46,7 +46,6 @@
 #include <lib/stats/ConsumerStatsDisabled.h>
 #include <queue>
 #include <atomic>
-#include "SharedBuffer.h"
 #include "Synchronized.h"
 
 using namespace pulsar;
@@ -170,8 +169,8 @@ class ConsumerImpl : public ConsumerImplBase,
     void drainIncomingMessageQueue(size_t count);
     uint32_t receiveIndividualMessagesFromBatch(const ClientConnectionPtr& cnx, Message& batchedMessage,
                                                 int redeliveryCount);
-    bool isPriorBatchIndex(long idx);
-    bool isPriorEntryIndex(long idx);
+    bool isPriorBatchIndex(int32_t idx);
+    bool isPriorEntryIndex(int64_t idx);
     void brokerConsumerStatsListener(Result, BrokerConsumerStatsImpl, BrokerConsumerStatsCallback);
 
     bool decryptMessageIfNeeded(const ClientConnectionPtr& cnx, const proto::CommandMessage& msg,
