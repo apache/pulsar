@@ -152,9 +152,9 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
         // Wait for all consumers can not read more messages. the consumers are stuck by max unacked messages.
         Awaitility.await()
-                .atMost(1, TimeUnit.MINUTES)
+                .pollDelay(5, TimeUnit.SECONDS)
                 .until(() ->
-                        (System.currentTimeMillis() - lastActiveTime.get()) > TimeUnit.SECONDS.toMillis(20));
+                        (System.currentTimeMillis() - lastActiveTime.get()) > TimeUnit.SECONDS.toMillis(5));
 
         // All consumers can acknowledge messages as they continue to receive messages.
         canAcknowledgement.set(true);
@@ -169,9 +169,9 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
         // Wait for all consumers to continue receiving messages.
         Awaitility.await()
-                .atMost(1, TimeUnit.MINUTES)
+                .pollDelay(5, TimeUnit.SECONDS)
                 .until(() ->
-                        (System.currentTimeMillis() - lastActiveTime.get()) > TimeUnit.SECONDS.toMillis(20));
+                        (System.currentTimeMillis() - lastActiveTime.get()) > TimeUnit.SECONDS.toMillis(5));
 
         //Determine if all messages have been received.
         //If the dispatcher is stuck, we can not receive enough messages.
