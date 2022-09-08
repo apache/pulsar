@@ -211,7 +211,7 @@ ProducerConfiguration& ProducerConfiguration::setLazyStartPartitionedProducers(
 }
 
 bool ProducerConfiguration::getLazyStartPartitionedProducers() const {
-    return impl_->useLazyStartPartitionedProducers && impl_->accessMode == Shared;
+    return impl_->useLazyStartPartitionedProducers;
 }
 
 ProducerConfiguration& ProducerConfiguration::setSchema(const SchemaInfo& schemaInfo) {
