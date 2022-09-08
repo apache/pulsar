@@ -81,7 +81,7 @@ All exchanges via the WebSocket API use JSON.
 
 #### Browser javascript WebSocket client
 
-Use the query param `token` transport the authentication token.
+Use the query param `token` to transport the authentication token.
 
 ```http
 
@@ -296,7 +296,7 @@ Key | Type | Required? | Explanation
 ##### Push Mode
 
 By default (`pullMode=false`), the consumer endpoint will use the `receiverQueueSize` parameter both to size its
-internal receive queue and to limit the number of unacknowledged messages that are passed to the WebSocket client.
+internal receive queue and limit the number of unacknowledged messages that are passed to the WebSocket client.
 In this mode, if you don't send acknowledgements, the Pulsar WebSocket service will stop sending messages after reaching
 `receiverQueueSize` unacked messages sent to the WebSocket client.
 
@@ -321,9 +321,9 @@ Key | Type | Required? | Explanation
 
 NB: in this mode it's possible to acknowledge messages in a different connection.
 
-#### Check if reach end of topic
+#### Check if reach end of a topic
 
-Consumer can check if it has reached end of topic by sending `isEndOfTopic` request.
+Consumers can check if it has reached the end of topic by sending the `isEndOfTopic` request.
 
 **Request**
 

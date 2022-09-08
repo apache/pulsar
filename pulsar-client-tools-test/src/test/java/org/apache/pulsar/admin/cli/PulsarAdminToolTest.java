@@ -18,23 +18,30 @@
  */
 package org.apache.pulsar.admin.cli;
 
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.longThat;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.PrintStream;
 import java.lang.reflect.Field;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -44,6 +51,8 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.admin.cli.utils.SchemaExtractor;
 import org.apache.pulsar.client.admin.Bookies;
 import org.apache.pulsar.client.admin.BrokerStats;
@@ -57,6 +66,7 @@ import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.NonPersistentTopics;
 import org.apache.pulsar.client.admin.ProxyStats;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.ResourceQuotas;
 import org.apache.pulsar.client.admin.Schemas;
 import org.apache.pulsar.client.admin.Tenants;
@@ -100,6 +110,7 @@ import org.apache.pulsar.common.policies.data.ResourceQuota;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.protocol.schema.PostSchemaPayload;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -107,6 +118,7 @@ import org.mockito.ArgumentMatcher;
 import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
+@Slf4j
 public class PulsarAdminToolTest {
 
     @Test
@@ -579,6 +591,34 @@ public class PulsarAdminToolTest {
         verify(mockNamespaces).setRetention("myprop/clust/ns1",
                 new RetentionPolicies(60, 1));
 
+        // Test with default time unit (seconds)
+        namespaces = new CmdNamespaces(() -> admin);
+        reset(mockNamespaces);
+        namespaces.run(split("set-retention myprop/clust/ns1 -t 120 -s 20M"));
+        verify(mockNamespaces).setRetention("myprop/clust/ns1",
+                new RetentionPolicies(2, 20));
+
+        // Test with explicit time unit (seconds)
+        namespaces = new CmdNamespaces(() -> admin);
+        reset(mockNamespaces);
+        namespaces.run(split("set-retention myprop/clust/ns1 -t 120s -s 20M"));
+        verify(mockNamespaces).setRetention("myprop/clust/ns1",
+                new RetentionPolicies(2, 20));
+
+        // Test size with default size less than 1 mb
+        namespaces = new CmdNamespaces(() -> admin);
+        reset(mockNamespaces);
+        namespaces.run(split("set-retention myprop/clust/ns1 -t 120s -s 4096"));
+        verify(mockNamespaces).setRetention("myprop/clust/ns1",
+                new RetentionPolicies(2, 0));
+
+        // Test size with default size greater than 1mb
+        namespaces = new CmdNamespaces(() -> admin);
+        reset(mockNamespaces);
+        namespaces.run(split("set-retention myprop/clust/ns1 -t 180 -s " + (2 * 1024 * 1024)));
+        verify(mockNamespaces).setRetention("myprop/clust/ns1",
+                new RetentionPolicies(3, 2));
+
         namespaces.run(split("get-retention myprop/clust/ns1"));
         verify(mockNamespaces).getRetention("myprop/clust/ns1");
 
@@ -937,6 +977,35 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("set-retention persistent://myprop/clust/ns1/ds1 -t 10m -s 20M"));
         verify(mockTopicsPolicies).setRetention("persistent://myprop/clust/ns1/ds1",
                 new RetentionPolicies(10, 20));
+
+        // Test with default time unit (seconds)
+        cmdTopics = new CmdTopicPolicies(() -> admin);
+        reset(mockTopicsPolicies);
+        cmdTopics.run(split("set-retention persistent://myprop/clust/ns1/ds1 -t 180 -s 20M"));
+        verify(mockTopicsPolicies).setRetention("persistent://myprop/clust/ns1/ds1",
+                new RetentionPolicies(3, 20));
+
+        // Test with explicit time unit (seconds)
+        cmdTopics = new CmdTopicPolicies(() -> admin);
+        reset(mockTopicsPolicies);
+        cmdTopics.run(split("set-retention persistent://myprop/clust/ns1/ds1 -t 180s -s 20M"));
+        verify(mockTopicsPolicies).setRetention("persistent://myprop/clust/ns1/ds1",
+                new RetentionPolicies(3, 20));
+
+        // Test size with default size less than 1 mb
+        cmdTopics = new CmdTopicPolicies(() -> admin);
+        reset(mockTopicsPolicies);
+        cmdTopics.run(split("set-retention persistent://myprop/clust/ns1/ds1 -t 180 -s 4096"));
+        verify(mockTopicsPolicies).setRetention("persistent://myprop/clust/ns1/ds1",
+                new RetentionPolicies(3, 0));
+
+        // Test size with default size greater than 1mb
+        cmdTopics = new CmdTopicPolicies(() -> admin);
+        reset(mockTopicsPolicies);
+        cmdTopics.run(split("set-retention persistent://myprop/clust/ns1/ds1 -t 180 -s " + (2 * 1024 * 1024)));
+        verify(mockTopicsPolicies).setRetention("persistent://myprop/clust/ns1/ds1",
+                new RetentionPolicies(3, 2));
+
         cmdTopics.run(split("remove-retention persistent://myprop/clust/ns1/ds1"));
         verify(mockTopicsPolicies).removeRetention("persistent://myprop/clust/ns1/ds1");
 
@@ -1111,6 +1180,18 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("set-retention persistent://myprop/clust/ns1/ds1 -t 10m -s 20M -g"));
         verify(mockGlobalTopicsPolicies).setRetention("persistent://myprop/clust/ns1/ds1",
                 new RetentionPolicies(10, 20));
+
+        cmdTopics = new CmdTopicPolicies(() -> admin);
+        cmdTopics.run(split("set-retention persistent://myprop/clust/ns1/ds1 -t 1440s -s 20M -g"));
+        verify(mockGlobalTopicsPolicies).setRetention("persistent://myprop/clust/ns1/ds1",
+                new RetentionPolicies(24, 20));
+
+        cmdTopics = new CmdTopicPolicies(() -> admin);
+        reset(mockGlobalTopicsPolicies);
+        cmdTopics.run(split("set-retention persistent://myprop/clust/ns1/ds1 -t 1440 -s 20M -g"));
+        verify(mockGlobalTopicsPolicies).setRetention("persistent://myprop/clust/ns1/ds1",
+                new RetentionPolicies(24, 20));
+
         cmdTopics.run(split("remove-retention persistent://myprop/clust/ns1/ds1 -g"));
         verify(mockGlobalTopicsPolicies).removeRetention("persistent://myprop/clust/ns1/ds1");
 
@@ -1509,6 +1590,10 @@ public class PulsarAdminToolTest {
         verify(mockTopics).updateProperties("persistent://myprop/clust/ns1/ds1", props);
 
         cmdTopics = new CmdTopics(() -> admin);
+        cmdTopics.run(split("remove-properties persistent://myprop/clust/ns1/ds1 --key a"));
+        verify(mockTopics).removeProperties("persistent://myprop/clust/ns1/ds1", "a");
+
+        cmdTopics = new CmdTopics(() -> admin);
         cmdTopics.run(split("get-subscription-properties persistent://myprop/clust/ns1/ds1 -s sub1"));
         verify(mockTopics).getSubscriptionProperties("persistent://myprop/clust/ns1/ds1", "sub1");
 
@@ -1850,6 +1935,16 @@ public class PulsarAdminToolTest {
 
         cmdTopics.run(split("remove-replication-clusters persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).removeReplicationClusters("persistent://myprop/clust/ns1/ds1");
+
+        cmdTopics.run(split("get-shadow-topics persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).getShadowTopics("persistent://myprop/clust/ns1/ds1");
+
+        cmdTopics.run(split("set-shadow-topics persistent://myprop/clust/ns1/ds1 -t test"));
+        verify(mockTopics).setShadowTopics("persistent://myprop/clust/ns1/ds1", Lists.newArrayList("test"));
+
+        cmdTopics.run(split("remove-shadow-topics persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).removeShadowTopics("persistent://myprop/clust/ns1/ds1");
+
     }
 
     private static LedgerInfo newLedger(long id, long entries, long size) {
@@ -2243,6 +2338,122 @@ public class PulsarAdminToolTest {
         postSchemaPayload.setSchema(SchemaExtractor.getJsonSchemaInfo(schemaDefinition));
         postSchemaPayload.setProperties(schemaDefinition.getProperties());
         verify(schemas).createSchema("persistent://tn1/ns1/tp1", postSchemaPayload);
+    }
+
+    @Test
+    public void customCommands() throws Exception {
+
+        // see the custom command help in the main help
+        String logs = runCustomCommand(new String[]{"-h"});
+        assertTrue(logs.contains("customgroup"));
+        assertTrue(logs.contains("Custom group 1 description"));
+
+        logs = runCustomCommand(new String[]{"customgroup"});
+        assertTrue(logs.contains("command1"));
+        assertTrue(logs.contains("Command 1 description"));
+        assertTrue(logs.contains("command2"));
+        assertTrue(logs.contains("Command 2 description"));
+
+        logs = runCustomCommand(new String[]{"customgroup", "command1"});
+        assertTrue(logs.contains("Command 1 description"));
+        assertTrue(logs.contains("Usage: command1 [options] Topic"));
+
+        // missing required parameter
+        logs = runCustomCommand(new String[]{"customgroup", "command1", "mytopic"});
+        assertTrue(logs.contains("Command 1 description"));
+        assertTrue(logs.contains("Usage: command1 [options] Topic"));
+        assertTrue(logs.contains("The following option is required"));
+
+        // run a comand that uses PulsarAdmin API
+        logs = runCustomCommand(new String[]{"customgroup", "command1", "--type", "stats", "mytopic"});
+        assertTrue(logs.contains("Execute:"));
+        // parameters
+        assertTrue(logs.contains("--type=stats"));
+        // configuration
+        assertTrue(logs.contains("webServiceUrl=http://localhost:2181"));
+        // execution of the PulsarAdmin command
+        assertTrue(logs.contains("Topic stats: MOCK-TOPIC-STATS"));
+
+
+        // run a command that uses all parameter types
+        logs = runCustomCommand(new String[]{"customgroup", "command2",
+                "-s", "mystring",
+                "-i", "123",
+                "-b", "true", // boolean variable, true|false
+                "-bf", // boolean flag, no arguments
+                "mainParameterValue"});
+        assertTrue(logs.contains("Execute:"));
+        // parameters
+        assertTrue(logs.contains("-s=mystring"));
+        assertTrue(logs.contains("-i=123"));
+        assertTrue(logs.contains("-b=true"));
+        assertTrue(logs.contains("-bf=true")); // boolean flag, passed = true
+        assertTrue(logs.contains("main=mainParameterValue"));
+
+
+        // run a command that uses all parameter types, see the default value
+        logs = runCustomCommand(new String[]{"customgroup", "command2"});
+        assertTrue(logs.contains("Execute:"));
+        // parameters
+        assertTrue(logs.contains("-s=null"));
+        assertTrue(logs.contains("-i=0"));
+        assertTrue(logs.contains("-b=null"));
+        assertTrue(logs.contains("-bf=false")); // boolean flag, not passed = false
+        assertTrue(logs.contains("main=null"));
+
+    }
+
+    private static String runCustomCommand(String[] args) throws Exception {
+        File narFile = new File(PulsarAdminTool.class.getClassLoader()
+                .getResource("cliextensions/customCommands-nar.nar").getFile());
+        log.info("NAR FILE is {}", narFile);
+
+        PulsarAdminBuilder builder = mock(PulsarAdminBuilder.class);
+        PulsarAdmin admin = mock(PulsarAdmin.class);
+        when(builder.build()).thenReturn(admin);
+        Topics topics = mock(Topics.class);
+        when(admin.topics()).thenReturn(topics);
+        TopicStats topicStats = mock(TopicStats.class);
+        when(topics.getStats(anyString())).thenReturn(topicStats);
+        when(topicStats.toString()).thenReturn("MOCK-TOPIC-STATS");
+
+        Properties properties = new Properties();
+        properties.put("webServiceUrl", "http://localhost:2181");
+        properties.put("cliExtensionsDirectory", narFile.getParentFile().getAbsolutePath());
+        properties.put("customCommandFactories", "dummy");
+        PulsarAdminTool tool = new PulsarAdminTool(properties) {
+            @Override
+            protected PulsarAdminBuilder createAdminBuilder(Properties properties) {
+                return builder;
+            }
+        };
+
+        // see the custom command help in the main help
+        StringBuilder logs = new StringBuilder();
+        try (CaptureStdOut capture = new CaptureStdOut(logs)){
+            tool.run(args);
+        }
+        log.info("Captured out: {}", logs);
+        return logs.toString();
+    }
+
+    private static class CaptureStdOut implements AutoCloseable {
+        final PrintStream currentOut = System.out;
+        final PrintStream currentErr = System.err;
+        final ByteArrayOutputStream logs = new ByteArrayOutputStream();
+        final PrintStream capturedOut = new PrintStream(logs, true);
+        final StringBuilder receiver;
+        public CaptureStdOut(StringBuilder receiver) {
+            this.receiver = receiver;
+            System.setOut(capturedOut);
+            System.setErr(capturedOut);
+        }
+        public void close() {
+            capturedOut.flush();
+            System.setOut(currentOut);
+            System.setErr(currentErr);
+            receiver.append(logs.toString(StandardCharsets.UTF_8));
+        }
     }
 
     public static class SchemaDemo {

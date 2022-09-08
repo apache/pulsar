@@ -9,7 +9,6 @@ Pulsar Functions that use the Java SDK have access to the Pulsar admin client, w
 Below is an example of how to use the Pulsar admin client exposed from the function `context`.
 
 ```java
-
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
@@ -37,17 +36,14 @@ public class CursorManagementFunction implements Function<String, String> {
         return null;
     }
 }
-
 ```
 
 To enable your function to get access to the Pulsar admin client, you need to set `exposeAdminClientEnabled=true` in the `conf/functions_worker.yml` file. To test whether it is enabled or not, you can use the command `pulsar-admin functions localrun` with the flag `--web-service-url` as follows.
 
 ```bash
-
 bin/pulsar-admin functions localrun \
  --jar my-functions.jar \
  --classname my.package.CursorManagementFunction \
  --web-service-url http://pulsar-web-service:8080 \
  # Other function configs
-
 ```

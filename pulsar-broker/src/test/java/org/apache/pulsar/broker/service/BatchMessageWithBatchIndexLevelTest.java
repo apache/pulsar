@@ -101,11 +101,15 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
         Awaitility.await().untilAsserted(() -> {
             assertEquals(dispatcher.getConsumers().get(0).getUnackedMessages(), 16);
         });
+        // Block cmd-flow send until verify finish. see: https://github.com/apache/pulsar/pull/17436.
+        consumer.pause();
         Message<byte[]> receive5 = consumer.receive();
         consumer.negativeAcknowledge(receive5);
         Awaitility.await().pollInterval(1, TimeUnit.MILLISECONDS).untilAsserted(() -> {
             assertEquals(dispatcher.getConsumers().get(0).getUnackedMessages(), 0);
         });
+        // Unblock cmd-flow.
+        consumer.resume();
         consumer.receive();
         Awaitility.await().untilAsserted(() -> {
             assertEquals(dispatcher.getConsumers().get(0).getUnackedMessages(), 16);

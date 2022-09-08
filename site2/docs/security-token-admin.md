@@ -16,13 +16,11 @@ A user will typically be given a token string by an administrator (or some autom
 The compact representation of a signed JWT is a string that looks like:
 
 ```
-
- eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL62SY
-
+eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL62SY
 ```
 
-Application will specify the token when creating the client instance. An alternative is to pass
-a "token supplier", that is to say a function that returns the token when the client library
+The application specifies the token when creating the client instance. An alternative is to pass
+a "token supplier", that is to say, a function that returns the token when the client library
 will need one.
 
 > #### Always use TLS transport encryption
@@ -32,9 +30,9 @@ will need one.
 
 ## Secret vs Public/Private keys
 
-JWT support two different kind of keys in order to generate and validate the tokens:
+JWT supports two different kinds of keys to generate and validate the tokens:
 
- * Symmetric :
+ * Symmetric:
     - there is a single ***Secret*** key that is used both to generate and validate
  * Asymmetric: there is a pair of keys.
     - ***Private*** key is used to generate tokens
@@ -51,17 +49,13 @@ the brokers to allow them to validate the clients.
 > Output file will be generated in the root of your pulsar installation directory. You can also provide absolute path for the output file.
 
 ```shell
-
-$ bin/pulsar tokens create-secret-key --output my-secret.key
-
+bin/pulsar tokens create-secret-key --output my-secret.key
 ```
 
 To generate base64 encoded private key
 
 ```shell
-
-$ bin/pulsar tokens create-secret-key --output  /opt/my-secret.key --base64
-
+bin/pulsar tokens create-secret-key --output  /opt/my-secret.key --base64
 ```
 
 ### Public/Private keys
@@ -73,29 +67,25 @@ With public/private, we need to create a pair of keys. Pulsar supports all algor
 > Output file will be generated in the root of your pulsar installation directory. You can also provide absolute path for the output file.
 
 ```shell
-
-$ bin/pulsar tokens create-key-pair --output-private-key my-private.key --output-public-key my-public.key
-
+bin/pulsar tokens create-key-pair --output-private-key my-private.key --output-public-key my-public.key
 ```
 
- * `my-private.key` will be stored in a safe location and only used by administrator to generate
+ * `my-private.key` will be stored in a safe location and only used by administrators to generate
    new tokens.
  * `my-public.key` will be distributed to all Pulsar brokers. This file can be publicly shared without
-   any security concern.
+   any security concerns.
 
 ## Generating tokens
 
-A token is the credential associated with a user. The association is done through the "principal",
-or "role". In case of JWT tokens, this field it's typically referred to as **subject**, though
+A token is a credential associated with a user. The association is done through the "principal",
+or "role". In the case of JWT tokens, this field it's typically referred to as **subject**, though
 it's exactly the same concept.
 
-The generated token is then required to have a **subject** field set.
+The generated token is then required to have a **subject** fieldset.
 
 ```shell
-
-$ bin/pulsar tokens create --secret-key file:///path/to/my-secret.key \
-            --subject test-user
-
+bin/pulsar tokens create --secret-key file:///path/to/my-secret.key \
+         --subject test-user
 ```
 
 This will print the token string on stdout.
@@ -103,21 +93,17 @@ This will print the token string on stdout.
 Similarly, one can create a token by passing the "private" key:
 
 ```shell
-
-$ bin/pulsar tokens create --private-key file:///path/to/my-private.key \
-            --subject test-user
-
+bin/pulsar tokens create --private-key file:///path/to/my-private.key \
+         --subject test-user
 ```
 
 Finally, a token can also be created with a pre-defined TTL. After that time,
 the token will be automatically invalidated.
 
 ```shell
-
-$ bin/pulsar tokens create --secret-key file:///path/to/my-secret.key \
-            --subject test-user \
-            --expiry-time 1y
-
+bin/pulsar tokens create --secret-key file:///path/to/my-secret.key \
+         --subject test-user \
+         --expiry-time 1y
 ```
 
 ## Authorization
@@ -127,11 +113,9 @@ authorization engine. Once the token is created, one can grant permission for th
 actions. Eg. :
 
 ```shell
-
-$ bin/pulsar-admin namespaces grant-permission my-tenant/my-namespace \
-            --role test-user \
-            --actions produce,consume
-
+bin/pulsar-admin namespaces grant-permission my-tenant/my-namespace \
+         --role test-user \
+         --actions produce,consume
 ```
 
 ## Enabling Token Authentication ...
@@ -141,7 +125,6 @@ $ bin/pulsar-admin namespaces grant-permission my-tenant/my-namespace \
 To configure brokers to authenticate clients, put the following in `broker.conf`:
 
 ```properties
-
 # Configuration to enable authentication and authorization
 authenticationEnabled=true
 authorizationEnabled=true
@@ -154,7 +137,6 @@ tokenSecretKey=file:///path/to/secret.key
 
 # If using public/private (Note: key files must be DER-encoded)
 # tokenPublicKey=file:///path/to/public.key
-
 ```
 
 ### ... on Proxies
@@ -162,10 +144,9 @@ tokenSecretKey=file:///path/to/secret.key
 To configure proxies to authenticate clients, put the following in `proxy.conf`:
 
 The proxy will have its own token used when talking to brokers. The role token for this
-key pair should be configured in the ``proxyRoles`` of the brokers. See the [authorization guide](security-authorization.md) for more details.
+key pair should be configured in the `proxyRoles` of the brokers. See the [authorization guide](security-authorization.md) for more details.
 
 ```properties
-
 # For clients connecting to the proxy
 authenticationEnabled=true
 authorizationEnabled=true
@@ -177,6 +158,5 @@ brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.Authenticati
 brokerClientAuthenticationParameters={"token":"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0LXVzZXIifQ.9OHgE9ZUDeBTZs7nSMEFIuGNEX18FLR3qvy8mqxSxXw"}
 # Or, alternatively, read token from file
 # brokerClientAuthenticationParameters=file:///path/to/proxy-token.txt
-
 ```
 
