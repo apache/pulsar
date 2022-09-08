@@ -17,7 +17,6 @@
  * under the License.
  */
 #include <pulsar/Client.h>
-#include <pulsar/c/consumer_configuration.h>
 #include <gtest/gtest.h>
 #include <lib/LogUtils.h>
 #include "NoOpsCryptoKeyReader.h"

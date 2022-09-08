@@ -22,7 +22,7 @@
 TEST(C_ProducerConfigurationTest, testCApiConfig) {
     pulsar_producer_configuration_t *producer_conf = pulsar_producer_configuration_create();
 
-    ASSERT_EQ(pulsar_producer_configuration_is_chunking_enabled(producer_conf), false);
-    pulsar_producer_configuration_set_chunking_enabled(producer_conf, true);
-    ASSERT_EQ(pulsar_producer_configuration_is_chunking_enabled(producer_conf), true);
+    ASSERT_EQ(pulsar_producer_configuration_is_chunking_enabled(producer_conf), 0);
+    pulsar_producer_configuration_set_chunking_enabled(producer_conf, 1);
+    ASSERT_EQ(pulsar_producer_configuration_is_chunking_enabled(producer_conf), 1);
 }

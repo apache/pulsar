@@ -27,8 +27,8 @@ TEST(C_ConsumerConfigurationTest, testCApiConfig) {
     ASSERT_EQ(pulsar_consumer_configuration_get_max_pending_chunked_message(consumer_conf), 100);
 
     ASSERT_EQ(pulsar_consumer_configuration_is_auto_ack_oldest_chunked_message_on_queue_full(consumer_conf),
-              false);
-    pulsar_consumer_configuration_set_auto_ack_oldest_chunked_message_on_queue_full(consumer_conf, true);
+              0);
+    pulsar_consumer_configuration_set_auto_ack_oldest_chunked_message_on_queue_full(consumer_conf, 1);
     ASSERT_EQ(pulsar_consumer_configuration_is_auto_ack_oldest_chunked_message_on_queue_full(consumer_conf),
-              true);
+              1);
 }
