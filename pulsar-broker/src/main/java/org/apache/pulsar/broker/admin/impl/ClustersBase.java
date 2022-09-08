@@ -148,8 +148,8 @@ public class ClustersBase extends AdminResource {
                     mediaType = MediaType.APPLICATION_JSON,
                     value = """
                             {
-                               'serviceUrl': 'http://pulsar.example.com:8080',
-                               'brokerServiceUrl': 'pulsar://pulsar.example.com:6651',
+                               "serviceUrl": "http://pulsar.example.com:8080",
+                               "brokerServiceUrl": "pulsar://pulsar.example.com:6651",
                             }
                             """
                 )
@@ -204,8 +204,8 @@ public class ClustersBase extends AdminResource {
                     mediaType = MediaType.APPLICATION_JSON,
                     value = """
                             {
-                               'serviceUrl': 'http://pulsar.example.com:8080',
-                               'brokerServiceUrl': 'pulsar://pulsar.example.com:6651'
+                               "serviceUrl": "http://pulsar.example.com:8080",
+                               "brokerServiceUrl": "pulsar://pulsar.example.com:6651"
                             }
                             """
                 )
@@ -251,8 +251,8 @@ public class ClustersBase extends AdminResource {
                                         value = @ExampleProperty(mediaType = MediaType.APPLICATION_JSON,
                                         value = """
                                                 [
-                                                   'cluster-a',
-                                                   'cluster-b'
+                                                   "cluster-a",
+                                                   "cluster-b"
                                                 ]""")))
                                     LinkedHashSet<String> peerClusterNames) {
         validateSuperUserAccessAsync()

@@ -306,12 +306,12 @@ public class FunctionsBase extends AdminResource {
                                     mediaType = MediaType.APPLICATION_JSON,
                                     value = """
                                             {
-                                              "inputs": persistent://public/default/input-topic,
-                                              "parallelism": 4
-                                              "output": persistent://public/default/output-topic
-                                              "log-topic": persistent://public/default/log-topic
-                                              "classname": org.example.test.ExclamationFunction
-                                              "jar": java-function-1.0-SNAPSHOT.jar
+                                              "inputs": "persistent://public/default/input-topic",
+                                              "parallelism": 4,
+                                              "output": "persistent://public/default/output-topic",
+                                              "log-topic": "persistent://public/default/log-topic",
+                                              "classname": "org.example.test.ExclamationFunction",
+                                              "jar": "java-function-1.0-SNAPSHOT.jar"
                                             }
                                             """
                             )
