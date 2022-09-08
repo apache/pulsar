@@ -349,6 +349,21 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |haProxyProtocolEnabled | Enable or disable the [HAProxy](http://www.haproxy.org/) protocol. |false|
 |bookieId | If you want to custom a bookie ID or use a dynamic network address for the bookie, you can set this option. <br /><br />Bookie advertises itself using the `bookieId` rather than the `BookieSocketAddress` (`hostname:port` or `IP:port`).<br /><br /> The `bookieId` is a non-empty string that can contain ASCII digits and letters ([a-zA-Z9-0]), colons, dashes, and dots. <br /><br />For more information about `bookieId`, see [here](http://bookkeeper.apache.org/bps/BP-41-bookieid/).|N/A|
 
+#### Configuration override for clients internal to broker
+
+In 2.7.5 and later versions, you can configure some clients by using the appropriate prefix.
+
+|Prefix|Description|
+|---|---|
+|brokerClient_| Configure **all** the broker's Pulsar Clients and Pulsar Admin Clients. These configurations are applied after hard coded configuration and before the above broker client configurations named above.|
+|bookkeeper_| Configure the broker's BookKeeper clients used by managed ledgers and the BookkeeperPackagesStorage bookkeeper client. Takes precedence over most other configuration values.|
+
+:::note
+
+When running the function worker within the broker, these prefixed configurations do not apply to any of those clients. You must configure those clients using the `functions_worker.yml` file.
+
+:::
+
 ## Client
 
 The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used to publish messages to Pulsar and consume messages from Pulsar topics. This tool can be used in lieu of a client library.
@@ -686,6 +701,14 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 |tlsKeyFilePath |||
 |tlsTrustCertsFilePath|||
 
+#### Configuration Override For Clients Internal to WebSocket
+
+In 2.7.5 and later versions, you can configure some clients by using the appropriate prefix.
+
+|Prefix|Description|
+|---|---|
+|brokerClient_| Configure **all** the broker's Pulsar Clients. These configurations are applied after hard coded configuration and before the above brokerClient configurations named above.|
+
 
 ## Pulsar proxy
 
@@ -742,6 +765,14 @@ The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) can be config
 |tokenAudienceClaim| The token audience "claim" name, e.g. "aud". It is used to get the audience from token. If it is not set, the audience is not verified. ||
 | tokenAudience | The token audience stands for this broker. The field `tokenAudienceClaim` of a valid token need contains this parameter.| |
 |haProxyProtocolEnabled | Enable or disable the [HAProxy](http://www.haproxy.org/) protocol. |false|
+
+#### Configuration Override For Clients Internal to Proxy
+
+In 2.7.5 and later versions, you can configure some clients by using the appropriate prefix.
+
+|Prefix|Description|
+|---|---|
+|brokerClient_| Configure **all** the proxy's Pulsar Clients. These configurations are applied after hard coded configuration and before the above brokerClient configurations named above.|
 
 ## ZooKeeper
 
