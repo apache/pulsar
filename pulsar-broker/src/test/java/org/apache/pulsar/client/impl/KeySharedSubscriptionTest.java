@@ -29,6 +29,7 @@ import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -150,12 +151,9 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         }
 
         // Wait for all consumers can not read more messages. the consumers are stuck by max unacked messages.
-        while (true) {
-            long differentTime = System.currentTimeMillis() - lastActiveTime.get();
-            if (differentTime > TimeUnit.SECONDS.toMillis(20)) {
-                break;
-            }
-        }
+        Awaitility.await()
+                .atMost(1, TimeUnit.MINUTES)
+                .until(()-> System.currentTimeMillis() - lastActiveTime.get() > TimeUnit.SECONDS.toMillis(20));
 
         // All consumers can acknowledge messages as they continue to receive messages.
         canAcknowledgement.set(true);
@@ -169,12 +167,9 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         lastActiveTime.set(System.currentTimeMillis());
 
         // Wait for all consumers to continue receiving messages.
-        while (true) {
-            long differentTime = System.currentTimeMillis() - lastActiveTime.get();
-            if (differentTime > TimeUnit.SECONDS.toMillis(20)) {
-                break;
-            }
-        }
+        Awaitility.await()
+                .atMost(1, TimeUnit.MINUTES)
+                .until(()-> System.currentTimeMillis() - lastActiveTime.get() > TimeUnit.SECONDS.toMillis(20));
 
         //Determine if all messages have been received.
         //If the dispatcher is stuck, we can not receive enough messages.
