@@ -2373,15 +2373,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             @Override
             public void operationComplete(ManagedLedgerInfo mlInfo, Stat stat) {
                 ledgersStat = stat;
-                synchronized (this) {
-                    for (LedgerInfo li : mlInfo.getLedgerInfoList()) {
-                        long ledgerId = li.getLedgerId();
-                        if (!li.equals(ledgers.get(ledgerId))) {
+                try {
+                    synchronized (ManagedLedgerImpl.this) {
+                        for (LedgerInfo li : mlInfo.getLedgerInfoList()) {
+                            long ledgerId = li.getLedgerId();
                             ledgers.put(ledgerId, li);
                         }
                     }
+                } finally {
+                    metadataMutex.unlock();
                 }
-                metadataMutex.unlock();
             }
 
             @Override
