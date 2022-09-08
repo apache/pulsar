@@ -22,27 +22,9 @@ on:
   pull_request:
     branches:
       - master
-    paths-ignore:
-      # Doc
-      - 'site2/**'
-      - 'deployment/**'
-      - '.asf.yaml'
-      - '*.md'
-      - '**/*.md'
-      # CPP
-      - 'pulsar-client-cpp/**'
   push:
     branches:
       - branch-*
-    paths-ignore:
-      # Doc
-      - 'site2/**'
-      - 'deployment/**'
-      - '.asf.yaml'
-      - '*.md'
-      - '**/*.md'
-      # CPP
-      - 'pulsar-client-cpp/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -56,11 +38,36 @@ env:
   ARTIFACT_RETENTION_DAYS: 3
 
 jobs:
-  build-and-test-flaky:
+  changed_files_job:
+    name: 'Changed files check'
+    runs-on: ubuntu-20.04
+    outputs:
+      docs_only: ${{ steps.check_changes.outputs.docs_only }}
+      cpp_only: ${{ steps.check_changes.outputs.cpp_only }}
+      changed_tests: ${{ steps.changes.outputs.tests_files }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+
+      - name: Detect changed files
+        id:   changes
+        uses: apache/pulsar-test-infra/paths-filter@master
+        with:
+          filters: .github/changes-filter.yaml
+          list-files: csv
+
+      - name: Check changed files
+        id: check_changes
+        run: |
+          echo "::set-output name=docs_only::${{ fromJSON(steps.changes.outputs.all_count) == fromJSON(steps.changes.outputs.docs_count) && fromJSON(steps.changes.outputs.docs_count) > 0 }}"
+          echo "::set-output name=cpp_only::${{ fromJSON(steps.changes.outputs.all_count) == fromJSON(steps.changes.outputs.cpp_count) && fromJSON(steps.changes.outputs.cpp_count) > 0 }}"
+
+  build-and-test:
     needs: changed_files_job
     name: Flaky tests suite
     runs-on: ubuntu-20.04
     timeout-minutes: 100
+    if: ${{ needs.changed_files_job.outputs.docs_only != 'true' && needs.changed_files_job.outputs.cpp_only != 'true' }}
     steps:
       - name: checkout
         uses: actions/checkout@v2
