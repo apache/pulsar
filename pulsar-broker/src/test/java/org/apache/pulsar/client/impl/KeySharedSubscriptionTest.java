@@ -50,7 +50,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     @Override
     @BeforeMethod
     protected void setup() throws Exception {
-        conf.setMaxUnackedMessagesPerConsumer(1000);
+        conf.setMaxUnackedMessagesPerConsumer(10);
         super.internalSetup();
         super.producerBaseSetup();
     }
@@ -67,7 +67,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         PulsarClient pulsarClient = PulsarClient.builder().
                 serviceUrl(lookupUrl.toString())
                 .build();
-        final int totalMsg = 50000;
+        final int totalMsg = 1000;
         String topic = "broker-close-test-" + RandomStringUtils.randomAlphabetic(5);
         Map<Consumer<?>, List<MessageId>> nameToId = Maps.newConcurrentMap();
         Set<MessageId> pubMessages = Sets.newConcurrentHashSet();
@@ -140,9 +140,9 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topic)
                 .enableBatching(true)
-                .batchingMaxPublishDelay(5, TimeUnit.MILLISECONDS)
-                // We chose 999 because the maximum unacked message is 1000
-                .batchingMaxMessages(999)
+                .batchingMaxPublishDelay(1, TimeUnit.MILLISECONDS)
+                // We chose 9 because the maximum unacked message is 10
+                .batchingMaxMessages(9)
                 .create();
 
         for (int i = 0; i < totalMsg; i++) {
