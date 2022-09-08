@@ -1343,7 +1343,7 @@ PulsarClient client = PulsarClient.builder()
 
 ## Cluster-level failover
 
-For more concepts and reference information about cluster-level failover, see [Cluster-level failover](concepts-cluster-level-failover.md). 
+For more concepts and reference information about cluster-level failover, including concept, benefits, use cases, constraints, usage and working principles, see [Cluster-level failover](concepts-cluster-level-failover.md). 
 
 :::tip
 
