@@ -290,6 +290,6 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
 
     @Override
     public boolean containsMessage(long ledgerId, long entryId) {
-        throw new UnsupportedOperationException();
+        return false;
     }
 }
