@@ -160,4 +160,4 @@ In an automatic failover cluster, the primary cluster and backup cluster are awa
 
 ### How to use cluster-level failover
 
-Only Java client  support cluster-level failover so far, please look at [Java client document](client-libraries-java.md#cluster-level-failover).
+Only Java clients support cluster-level failover at this moment. See [Java client document](client-libraries-java.md#cluster-level-failover).
