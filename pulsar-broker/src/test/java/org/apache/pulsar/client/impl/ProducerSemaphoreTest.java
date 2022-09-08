@@ -19,6 +19,10 @@
 package org.apache.pulsar.client.impl;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import io.netty.buffer.ByteBufAllocator;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
@@ -272,6 +276,40 @@ public class ProducerSemaphoreTest extends ProducerConsumerBase {
             throw new IllegalStateException("can not reach here");
         } catch (PulsarClientException.TimeoutException ex) {
             Assert.assertEquals(producer.getSemaphore().get().availablePermits(), 10);
+        }
+    }
+
+    @Test(timeOut = 10_000)
+    public void testBatchMessageOOMProducerSemaphoreRelease() throws Exception {
+        final int pendingQueueSize = 10;
+        @Cleanup
+        ProducerImpl<byte[]> producer =
+                (ProducerImpl<byte[]>) pulsarClient.newProducer()
+                        .topic("testProducerSemaphoreRelease")
+                        .sendTimeout(5, TimeUnit.SECONDS)
+                        .maxPendingMessages(pendingQueueSize)
+                        .enableBatching(true)
+                        .batchingMaxPublishDelay(500, TimeUnit.MILLISECONDS)
+                        .batchingMaxBytes(12)
+                        .create();
+        this.stopBroker();
+
+        try {
+            ProducerImpl<byte[]> spyProducer = Mockito.spy(producer);
+            final ByteBufAllocator mockAllocator = mock(ByteBufAllocator.class);
+            doAnswer((ignore) -> {
+                throw new OutOfMemoryError("semaphore-test");
+            }).when(mockAllocator).buffer(anyInt());
+
+            final BatchMessageContainerImpl batchMessageContainer = new BatchMessageContainerImpl(mockAllocator);
+            Field batchMessageContainerField = ProducerImpl.class.getDeclaredField("batchMessageContainer");
+            batchMessageContainerField.setAccessible(true);
+            batchMessageContainerField.set(spyProducer, batchMessageContainer);
+
+            spyProducer.send("semaphore-test".getBytes(StandardCharsets.UTF_8));
+            Assert.fail("can not reach here");
+        } catch (PulsarClientException ex) {
+            Assert.assertEquals(producer.getSemaphore().get().availablePermits(), pendingQueueSize);
         }
     }
 }

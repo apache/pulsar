@@ -106,6 +106,7 @@ import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.resources.TopicResources;
 import org.apache.pulsar.broker.service.persistent.CompactorSubscription;
+import org.apache.pulsar.broker.service.persistent.GeoPersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherSingleActiveConsumer;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
@@ -1793,7 +1794,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         doReturn(remoteCluster).when(cursor).getName();
         brokerService.getReplicationClients().put(remoteCluster, client);
         PersistentReplicator replicator = spy(
-                new PersistentReplicator(topic, cursor, localCluster, remoteCluster, brokerService,
+                new GeoPersistentReplicator(topic, cursor, localCluster, remoteCluster, brokerService,
                         (PulsarClientImpl) brokerService.getReplicationClient(remoteCluster,
                                 brokerService.pulsar().getPulsarResources().getClusterResources()
                                 .getCluster(remoteCluster))));
@@ -1841,7 +1842,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         ManagedCursor cursor = mock(ManagedCursorImpl.class);
         doReturn(remoteCluster).when(cursor).getName();
         brokerService.getReplicationClients().put(remoteCluster, client);
-        PersistentReplicator replicator = new PersistentReplicator(topic, cursor, localCluster, remoteCluster,
+        PersistentReplicator replicator = new GeoPersistentReplicator(topic, cursor, localCluster, remoteCluster,
                 brokerService, (PulsarClientImpl) brokerService.getReplicationClient(remoteCluster,
                 brokerService.pulsar().getPulsarResources().getClusterResources()
                         .getCluster(remoteCluster)));

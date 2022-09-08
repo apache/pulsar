@@ -31,7 +31,7 @@ cd apache-pulsar-shell-@pulsar:version@-bin.tar.gz
 Now you can enter Pulsar shell's interactive mode:
 
 ```shell
-$ ./bin/pulsar-shell
+./bin/pulsar-shell
 Welcome to Pulsar shell!
   Service URL: pulsar://localhost:6650/
   Admin URL: http://localhost:8080/
@@ -48,7 +48,11 @@ default(localhost)>
 By default, the shell tries to connect to a local Pulsar instance.
 To connect to a different cluster, you have to register the cluster with Pulsar shell. You can do this in a few different ways depending on where your config file is located:
 
-> The configuration file must be a valid `client.conf` file, the same one you use for `pulsar-admin`, `pulsar-client` and other client tools.
+:::note
+
+The configuration file must be a valid `client.conf` file, the same one you use for `pulsar-admin`, `pulsar-client` and other client tools.
+
+:::
 
 ````mdx-code-block
 <Tabs groupId="shell-config-modes"
@@ -58,7 +62,6 @@ To connect to a different cluster, you have to register the cluster with Pulsar 
 
 
 The `--url` value must point to a valid remote file.
-
 
 ```
 default(localhost)> config create --url https://<url_to_my_client.conf> mycluster
@@ -162,8 +165,6 @@ admin tenants create new-tenant
 # And then it creates a new namespace inside the tenant 
 admin namespaces create new-tenant/new-namespace
 " > ./bin/pulsar-shell --fail-on-error -
-
-
 
 ```
 

@@ -53,9 +53,7 @@ import javax.ws.rs.core.StreamingOutput;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ManagedLedgerInfoCallback;
 import org.apache.bookkeeper.mledger.Entry;
-import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedLedger;
-import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.Position;
@@ -64,6 +62,8 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerOfflineBacklog;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -111,6 +111,7 @@ import org.apache.pulsar.common.policies.data.AuthPolicies;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
+import org.apache.pulsar.common.policies.data.EntryFilters;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
@@ -346,7 +347,7 @@ public class PersistentTopicsBase extends AdminResource {
                 });
     }
 
-    private CompletableFuture<Void> revokePermissionsAsync(String topicUri, String role) {
+    private CompletableFuture<Void> revokePermissionsAsync(String topicUri, String role, boolean force) {
         return namespaceResources().getPoliciesAsync(namespaceName).thenCompose(
                 policiesOptional -> {
                     Policies policies = policiesOptional.orElseThrow(() ->
@@ -355,12 +356,22 @@ public class PersistentTopicsBase extends AdminResource {
                             || !policies.auth_policies.getTopicAuthentication().get(topicUri).containsKey(role)) {
                         log.warn("[{}] Failed to revoke permission from role {} on topic: Not set at topic level {}",
                                 clientAppId(), role, topicUri);
-                        return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
-                                "Permissions are not set at the topic level"));
+                        if (force) {
+                            return CompletableFuture.completedFuture(null);
+                        } else {
+                            return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
+                                    "Permissions are not set at the topic level"));
+                        }
                     }
                     // Write the new policies to metadata store
                     return namespaceResources().setPoliciesAsync(namespaceName, p -> {
-                        p.auth_policies.getTopicAuthentication().get(topicUri).remove(role);
+                        p.auth_policies.getTopicAuthentication().computeIfPresent(topicUri, (k, roles) -> {
+                            roles.remove(role);
+                            if (roles.isEmpty()) {
+                                return null;
+                            }
+                            return roles;
+                        });
                         return p;
                     }).thenAccept(__ ->
                             log.info("[{}] Successfully revoke access for role {} - topic {}", clientAppId(), role,
@@ -382,10 +393,10 @@ public class PersistentTopicsBase extends AdminResource {
                         for (int i = 0; i < numPartitions; i++) {
                             TopicName topicNamePartition = topicName.getPartition(i);
                             future = future.thenComposeAsync(unused ->
-                                    revokePermissionsAsync(topicNamePartition.toString(), role));
+                                    revokePermissionsAsync(topicNamePartition.toString(), role, true));
                         }
                     }
-                    return future.thenComposeAsync(unused -> revokePermissionsAsync(topicName.toString(), role))
+                    return future.thenComposeAsync(unused -> revokePermissionsAsync(topicName.toString(), role, false))
                             .thenAccept(unused -> asyncResponse.resume(Response.noContent().build()));
                 }))
             ).exceptionally(ex -> {
@@ -474,14 +485,15 @@ public class PersistentTopicsBase extends AdminResource {
                             })
                             .thenCompose(clusters -> tryCreatePartitionsAsync(numPartitions).thenApply(ignore ->
                                     clusters))
-                            .thenCompose(clusters -> createSubscriptions(topicName, numPartitions).thenApply(ignore ->
-                                    clusters))
+                            .thenCompose(clusters -> createSubscriptions(topicName, numPartitions, force).thenApply(
+                                    ignore -> clusters))
                             .thenCompose(clusters -> {
                                 if (!updateLocalTopicOnly) {
                                     return updatePartitionInOtherCluster(numPartitions, clusters)
                                         .thenCompose(v -> namespaceResources().getPartitionedTopicResources()
                                                         .updatePartitionedTopicAsync(topicName, p ->
-                                                                new PartitionedTopicMetadata(numPartitions)
+                                                                new PartitionedTopicMetadata(numPartitions,
+                                                                    p.properties)
                                                         ));
                                 } else {
                                     return CompletableFuture.completedFuture(null);
@@ -599,6 +611,113 @@ public class PersistentTopicsBase extends AdminResource {
                     }
                     return ((PersistentTopic) opt.get()).getManagedLedger().getProperties();
         });
+    }
+
+    protected CompletableFuture<Void> internalUpdatePropertiesAsync(boolean authoritative,
+                                                                    Map<String, String> properties) {
+        if (properties == null || properties.isEmpty()) {
+            log.warn("[{}] [{}] properties is empty, ignore update", clientAppId(), topicName);
+            return CompletableFuture.completedFuture(null);
+        }
+        return validateTopicOwnershipAsync(topicName, authoritative)
+            .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.PRODUCE))
+            .thenCompose(__ -> {
+                if (topicName.isPartitioned()) {
+                    return internalUpdateNonPartitionedTopicProperties(properties);
+                } else {
+                    return pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName)
+                        .thenCompose(metadata -> {
+                            if (metadata.partitions == 0) {
+                                return internalUpdateNonPartitionedTopicProperties(properties);
+                            }
+                            return namespaceResources()
+                                .getPartitionedTopicResources().updatePartitionedTopicAsync(topicName,
+                                    p -> new PartitionedTopicMetadata(p.partitions,
+                                        p.properties == null ? properties
+                                            : MapUtils.putAll(p.properties, properties.entrySet().toArray())));
+                        });
+                }
+            }).thenAccept(__ ->
+                log.info("[{}] [{}] update properties success with properties {}",
+                    clientAppId(), topicName, properties));
+    }
+
+    private CompletableFuture<Void> internalUpdateNonPartitionedTopicProperties(Map<String, String> properties) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        pulsar().getBrokerService().getTopicIfExists(topicName.toString())
+            .thenAccept(opt -> {
+                if (!opt.isPresent()) {
+                    throw new RestException(Status.NOT_FOUND,
+                        getTopicNotFoundErrorMessage(topicName.toString()));
+                }
+                ManagedLedger managedLedger = ((PersistentTopic) opt.get()).getManagedLedger();
+                managedLedger.asyncSetProperties(properties, new AsyncCallbacks.UpdatePropertiesCallback() {
+
+                    @Override
+                    public void updatePropertiesComplete(Map<String, String> properties, Object ctx) {
+                        managedLedger.getConfig().getProperties().putAll(properties);
+                        future.complete(null);
+                    }
+
+                    @Override
+                    public void updatePropertiesFailed(ManagedLedgerException exception, Object ctx) {
+                        future.completeExceptionally(exception);
+                    }
+                }, null);
+            });
+        return future;
+    }
+
+    protected CompletableFuture<Void> internalRemovePropertiesAsync(boolean authoritative, String key) {
+        return validateTopicOwnershipAsync(topicName, authoritative)
+                .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.DELETE_METADATA))
+                .thenCompose(__ -> {
+                    if (topicName.isPartitioned()) {
+                        return internalRemoveNonPartitionedTopicProperties(key);
+                    } else {
+                        return pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName)
+                                .thenCompose(metadata -> {
+                                    if (metadata.partitions == 0) {
+                                        return internalRemoveNonPartitionedTopicProperties(key);
+                                    }
+                                    return namespaceResources()
+                                            .getPartitionedTopicResources().updatePartitionedTopicAsync(topicName,
+                                                    p -> {
+                                                        if (p.properties != null) {
+                                                            p.properties.remove(key);
+                                                        }
+                                                        return new PartitionedTopicMetadata(p.partitions, p.properties);
+                                                    });
+                                });
+                    }
+                }).thenAccept(__ ->
+                        log.info("[{}] remove [{}] properties success with key {}",
+                                clientAppId(), topicName, key));
+    }
+
+    private CompletableFuture<Void> internalRemoveNonPartitionedTopicProperties(String key) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        pulsar().getBrokerService().getTopicIfExists(topicName.toString())
+                .thenAccept(opt -> {
+                    if (!opt.isPresent()) {
+                        throw new RestException(Status.NOT_FOUND,
+                                getTopicNotFoundErrorMessage(topicName.toString()));
+                    }
+                    ManagedLedger managedLedger = ((PersistentTopic) opt.get()).getManagedLedger();
+                    managedLedger.asyncDeleteProperty(key, new AsyncCallbacks.UpdatePropertiesCallback() {
+
+                        @Override
+                        public void updatePropertiesComplete(Map<String, String> properties, Object ctx) {
+                            future.complete(null);
+                        }
+
+                        @Override
+                        public void updatePropertiesFailed(ManagedLedgerException exception, Object ctx) {
+                            future.completeExceptionally(exception);
+                        }
+                    }, null);
+                });
+        return future;
     }
 
     protected CompletableFuture<Void> internalCheckTopicExists(TopicName topicName) {
@@ -854,19 +973,6 @@ public class PersistentTopicsBase extends AdminResource {
                 topicPolicies.setOffloadPolicies(offloadPolicies);
                 topicPolicies.setIsGlobal(isGlobal);
                 return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
-            }).thenCompose(__ -> {
-                //The policy update is asynchronous. Cache at this step may not be updated yet.
-                //So we need to set the loader by the incoming offloadPolicies instead of topic policies cache.
-                PartitionedTopicMetadata metadata = fetchPartitionedTopicMetadata(pulsar(), topicName);
-                if (metadata.partitions > 0) {
-                    List<CompletableFuture<Void>> futures = new ArrayList<>(metadata.partitions);
-                    for (int i = 0; i < metadata.partitions; i++) {
-                        futures.add(internalUpdateOffloadPolicies(offloadPolicies, topicName.getPartition(i)));
-                    }
-                    return FutureUtil.waitForAll(futures);
-                } else {
-                    return internalUpdateOffloadPolicies(offloadPolicies, topicName);
-                }
             });
     }
 
@@ -895,35 +1001,6 @@ public class PersistentTopicsBase extends AdminResource {
                 topicPolicies.setInactiveTopicPolicies(inactiveTopicPolicies);
                 return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
             });
-    }
-
-    private CompletableFuture<Void> internalUpdateOffloadPolicies(OffloadPoliciesImpl offloadPolicies,
-                                                                  TopicName topicName) {
-        return pulsar().getBrokerService().getTopicIfExists(topicName.toString())
-                .thenAccept(optionalTopic -> {
-                    try {
-                        if (!optionalTopic.isPresent() || !topicName.isPersistent()) {
-                            return;
-                        }
-                        PersistentTopic persistentTopic = (PersistentTopic) optionalTopic.get();
-                        ManagedLedgerConfig managedLedgerConfig = persistentTopic.getManagedLedger().getConfig();
-                        if (offloadPolicies == null) {
-                            LedgerOffloader namespaceOffloader =
-                                    pulsar().getLedgerOffloaderMap().get(topicName.getNamespaceObject());
-                            LedgerOffloader topicOffloader = managedLedgerConfig.getLedgerOffloader();
-                            if (topicOffloader != null && topicOffloader != namespaceOffloader) {
-                                topicOffloader.close();
-                            }
-                            managedLedgerConfig.setLedgerOffloader(namespaceOffloader);
-                        } else {
-                            managedLedgerConfig.setLedgerOffloader(
-                                    pulsar().createManagedLedgerOffloader(offloadPolicies));
-                        }
-                        persistentTopic.getManagedLedger().setConfig(managedLedgerConfig);
-                    } catch (PulsarServerException e) {
-                        throw new RestException(e);
-                    }
-                });
     }
 
     protected CompletableFuture<Integer> internalGetMaxUnackedMessagesOnSubscription(boolean applied,
@@ -1555,7 +1632,7 @@ public class PersistentTopicsBase extends AdminResource {
     private void internalDeleteSubscriptionForNonPartitionedTopic(AsyncResponse asyncResponse,
                                                                   String subName, boolean authoritative) {
         validateTopicOwnershipAsync(topicName, authoritative)
-            .thenRun(() -> validateTopicOperation(topicName, TopicOperation.UNSUBSCRIBE))
+            .thenRun(() -> validateTopicOperation(topicName, TopicOperation.UNSUBSCRIBE, subName))
             .thenCompose(__ -> getTopicReferenceAsync(topicName))
             .thenCompose(topic -> {
                 Subscription sub = topic.getSubscription(subName);
@@ -1590,7 +1667,7 @@ public class PersistentTopicsBase extends AdminResource {
                                                                           Optional<Position> position,
                                                                           boolean authoritative) {
         validateTopicOwnershipAsync(topicName, authoritative)
-                .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.CONSUME))
+                .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.CONSUME, subName))
                 .thenCompose(__ -> getTopicReferenceAsync(topicName))
                 .thenCompose(topic -> {
                             Subscription sub = topic.getSubscription(subName);
@@ -1646,7 +1723,7 @@ public class PersistentTopicsBase extends AdminResource {
                                       String subName, Map<String, String> subscriptionProperties,
                                       boolean authoritative) {
         validateTopicOwnershipAsync(topicName, authoritative)
-                .thenRun(() -> validateTopicOperation(topicName, TopicOperation.CONSUME))
+                .thenRun(() -> validateTopicOperation(topicName, TopicOperation.CONSUME, subName))
                 .thenCompose(__ -> getTopicReferenceAsync(topicName))
                 .thenCompose(topic -> {
                     Subscription sub = topic.getSubscription(subName);
@@ -1673,7 +1750,7 @@ public class PersistentTopicsBase extends AdminResource {
                                                                             String subName,
                                                                             boolean authoritative) {
         validateTopicOwnershipAsync(topicName, authoritative)
-                .thenRun(() -> validateTopicOperation(topicName, TopicOperation.CONSUME))
+                .thenRun(() -> validateTopicOperation(topicName, TopicOperation.CONSUME, subName))
                 .thenCompose(__ -> getTopicReferenceAsync(topicName))
                 .thenApply((Topic topic) -> {
                     Subscription sub = topic.getSubscription(subName);
@@ -1776,7 +1853,7 @@ public class PersistentTopicsBase extends AdminResource {
     private void internalDeleteSubscriptionForNonPartitionedTopicForcefully(AsyncResponse asyncResponse,
                                                                             String subName, boolean authoritative) {
         validateTopicOwnershipAsync(topicName, authoritative)
-                .thenRun(() -> validateTopicOperation(topicName, TopicOperation.UNSUBSCRIBE))
+                .thenRun(() -> validateTopicOperation(topicName, TopicOperation.UNSUBSCRIBE, subName))
                 .thenCompose(__ -> getTopicReferenceAsync(topicName))
                 .thenCompose(topic -> {
                     Subscription sub = topic.getSubscription(subName);
@@ -1923,7 +2000,7 @@ public class PersistentTopicsBase extends AdminResource {
             future = CompletableFuture.completedFuture(null);
         }
         future.thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
-                .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.SKIP))
+                .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.SKIP, subName))
                 .thenCompose(__ -> getPartitionedTopicMetadataAsync(topicName, authoritative, false)
                      .thenCompose(partitionMetadata -> {
                          if (partitionMetadata.partitions > 0) {
@@ -2332,7 +2409,7 @@ public class PersistentTopicsBase extends AdminResource {
 
         validateTopicOwnershipAsync(topicName, authoritative)
                 .thenCompose(__ -> {
-                    validateTopicOperation(topicName, TopicOperation.SUBSCRIBE);
+                    validateTopicOperation(topicName, TopicOperation.SUBSCRIBE, subscriptionName);
                     return pulsar().getBrokerService().getTopic(topicName.toString(), isAllowAutoTopicCreation);
                 }).thenApply(optTopic -> {
             if (optTopic.isPresent()) {
@@ -2870,7 +2947,7 @@ public class PersistentTopicsBase extends AdminResource {
             ret = CompletableFuture.completedFuture(null);
         }
         return ret.thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
-                .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.PEEK_MESSAGES))
+                .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.PEEK_MESSAGES, subName))
                 .thenCompose(__ -> getTopicReferenceAsync(topicName))
                 .thenCompose(topic -> {
                     CompletableFuture<Entry> entry;
@@ -3675,6 +3752,11 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<MessageId> internalTerminateAsync(boolean authoritative) {
+        if (SystemTopicNames.isSystemTopic(topicName)) {
+            return FutureUtil.failedFuture(new RestException(Status.METHOD_NOT_ALLOWED,
+                    "Termination of a system topic is not allowed"));
+        }
+
         CompletableFuture<Void> ret;
         if (topicName.isGlobal()) {
             ret = validateGlobalNamespaceOwnershipAsync(namespaceName);
@@ -3688,10 +3770,6 @@ public class PersistentTopicsBase extends AdminResource {
                     if (partitionMetadata.partitions > 0) {
                         throw new RestException(Status.METHOD_NOT_ALLOWED,
                                 "Termination of a partitioned topic is not allowed");
-                    }
-                    if (SystemTopicNames.isSystemTopic(topicName)) {
-                        throw new RestException(Status.METHOD_NOT_ALLOWED,
-                                "Termination of a system topic is not allowed");
                     }
                 })
                 .thenCompose(__ -> getTopicReferenceAsync(topicName))
@@ -3790,7 +3868,7 @@ public class PersistentTopicsBase extends AdminResource {
         }
         future.thenCompose(__ ->
                 validateTopicOwnershipAsync(topicName, authoritative)
-                .thenCompose(unused -> validateTopicOperationAsync(topicName, TopicOperation.EXPIRE_MESSAGES))
+                .thenCompose(unused -> validateTopicOperationAsync(topicName, TopicOperation.EXPIRE_MESSAGES, subName))
                 .thenCompose(unused2 ->
                         // If the topic name is a partition name, no need to get partition topic metadata again
                         getPartitionedTopicMetadataAsync(topicName, authoritative, false)
@@ -3942,7 +4020,7 @@ public class PersistentTopicsBase extends AdminResource {
         }
 
         future.thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
-                .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.EXPIRE_MESSAGES))
+                .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.EXPIRE_MESSAGES, subName))
                 .thenCompose(__ -> {
                     log.info("[{}][{}] received expire messages on subscription {} to position {}", clientAppId(),
                             topicName, subName, messageId);
@@ -4355,12 +4433,12 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
-
     private CompletableFuture<Void> updatePartitionedTopic(TopicName topicName, int numPartitions, boolean force) {
         CompletableFuture<Void> result = new CompletableFuture<>();
-        createSubscriptions(topicName, numPartitions).thenCompose(__ -> {
+        createSubscriptions(topicName, numPartitions, force).thenCompose(__ -> {
             CompletableFuture<Void> future = namespaceResources().getPartitionedTopicResources()
-                    .updatePartitionedTopicAsync(topicName, p -> new PartitionedTopicMetadata(numPartitions));
+                    .updatePartitionedTopicAsync(topicName, p ->
+                        new PartitionedTopicMetadata(numPartitions, p.properties));
             future.exceptionally(ex -> {
                 // If the update operation fails, clean up the partitions that were created
                 getPartitionedTopicMetadataAsync(topicName, false, false).thenAccept(metadata -> {
@@ -4395,8 +4473,11 @@ public class PersistentTopicsBase extends AdminResource {
      *
      * @param topicName     : topic-name: persistent://prop/cluster/ns/topic
      * @param numPartitions : number partitions for the topics
+     * @param ignoreConflictException : If true, ignore ConflictException: subscription already exists for topic
+     *
      */
-    private CompletableFuture<Void> createSubscriptions(TopicName topicName, int numPartitions) {
+    private CompletableFuture<Void> createSubscriptions(TopicName topicName, int numPartitions,
+                                                       boolean ignoreConflictException) {
         CompletableFuture<Void> result = new CompletableFuture<>();
         pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName).thenAccept(partitionMetadata -> {
             if (partitionMetadata.partitions < 1) {
@@ -4431,9 +4512,21 @@ public class PersistentTopicsBase extends AdminResource {
 
                     for (int i = partitionMetadata.partitions; i < numPartitions; i++) {
                         final String topicNamePartition = topicName.getPartition(i).toString();
-
-                        subscriptionFutures.add(admin.topics().createSubscriptionAsync(topicNamePartition,
-                                subscription, MessageId.latest));
+                        CompletableFuture<Void> future = new CompletableFuture<>();
+                        admin.topics().createSubscriptionAsync(topicNamePartition,
+                                subscription, MessageId.latest).whenComplete((__, ex) -> {
+                            if (ex == null) {
+                                future.complete(null);
+                            } else {
+                                if (ignoreConflictException
+                                        && ex.getCause() instanceof PulsarAdminException.ConflictException) {
+                                    future.complete(null);
+                                } else {
+                                    future.completeExceptionally(ex);
+                                }
+                            }
+                        });
+                        subscriptionFutures.add(future);
                     }
                 });
 
@@ -5305,6 +5398,113 @@ public class PersistentTopicsBase extends AdminResource {
                     TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
                     topicPolicies.setSchemaValidationEnforced(schemaValidationEnforced);
                     return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+                });
+    }
+
+    protected CompletableFuture<EntryFilters> internalGetEntryFilters(boolean applied, boolean isGlobal) {
+        return validateTopicPolicyOperationAsync(topicName, PolicyName.ENTRY_FILTERS, PolicyOperation.READ)
+                .thenCompose(__ -> getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
+                .thenApply(op -> op.map(TopicPolicies::getEntryFilters)
+                        .orElseGet(() -> {
+                            if (applied) {
+                                EntryFilters entryFilters = getNamespacePolicies(namespaceName).entryFilters;
+                                if (entryFilters == null) {
+                                    return new EntryFilters(String.join(",",
+                                            pulsar().getConfiguration().getEntryFilterNames()));
+                                }
+                                return entryFilters;
+                            }
+                            return null;
+                        })));
+
+    }
+
+    protected CompletableFuture<Void> internalSetEntryFilters(EntryFilters entryFilters,
+                                                              boolean isGlobal) {
+
+        return validateTopicPolicyOperationAsync(topicName, PolicyName.ENTRY_FILTERS, PolicyOperation.WRITE)
+                .thenCompose(__ -> getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
+                        .thenCompose(op -> {
+                            TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
+                            topicPolicies.setEntryFilters(entryFilters);
+                            topicPolicies.setIsGlobal(isGlobal);
+                            return pulsar().getTopicPoliciesService()
+                                    .updateTopicPoliciesAsync(topicName, topicPolicies);
+                        }));
+    }
+
+    protected CompletableFuture<Void> internalRemoveEntryFilters(boolean isGlobal) {
+        return validateTopicPolicyOperationAsync(topicName, PolicyName.ENTRY_FILTERS, PolicyOperation.WRITE)
+                .thenCompose(__ ->
+                        getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
+                        .thenCompose(op -> {
+                            if (!op.isPresent()) {
+                                return CompletableFuture.completedFuture(null);
+                            }
+                            op.get().setEntryFilters(null);
+                            op.get().setIsGlobal(isGlobal);
+                            return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, op.get());
+                        }));
+    }
+
+    protected CompletableFuture<Void> validateShadowTopics(List<String> shadowTopics) {
+        List<CompletableFuture<Void>> futures = new ArrayList<>(shadowTopics.size());
+        for (String shadowTopic : shadowTopics) {
+            try {
+                TopicName shadowTopicName = TopicName.get(shadowTopic);
+                if (!shadowTopicName.isPersistent()) {
+                    return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
+                            "Only persistent topic can be set as shadow topic"));
+                }
+                futures.add(pulsar().getNamespaceService().checkTopicExists(shadowTopicName)
+                        .thenAccept(isExists -> {
+                            if (!isExists) {
+                                throw new RestException(Status.PRECONDITION_FAILED,
+                                        "Shadow topic [" + shadowTopic + "] not exists.");
+                            }
+                        }));
+            } catch (IllegalArgumentException e) {
+                return FutureUtil.failedFuture(new RestException(Status.FORBIDDEN,
+                        "Invalid shadow topic name: " + shadowTopic));
+            }
+        }
+        return FutureUtil.waitForAll(futures);
+    }
+
+    protected CompletableFuture<Void> internalSetShadowTopic(List<String> shadowTopics) {
+        if (!topicName.isPersistent()) {
+            return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
+                    "Only persistent source topic is supported with shadow topics."));
+        }
+        if (CollectionUtils.isEmpty(shadowTopics)) {
+            return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
+                    "Cannot specify empty shadow topics, please use remove command instead."));
+        }
+        return validateTopicPolicyOperationAsync(topicName, PolicyName.SHADOW_TOPIC, PolicyOperation.WRITE)
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenCompose(__ -> validateShadowTopics(shadowTopics))
+                .thenCompose(__ -> getTopicPoliciesAsyncWithRetry(topicName))
+                .thenCompose(op -> {
+                    TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
+                    topicPolicies.setShadowTopics(shadowTopics);
+                    return pulsar().getTopicPoliciesService().
+                            updateTopicPoliciesAsync(topicName, topicPolicies);
+                });
+    }
+
+    protected CompletableFuture<Void> internalDeleteShadowTopics() {
+        return validateTopicPolicyOperationAsync(topicName, PolicyName.SHADOW_TOPIC, PolicyOperation.WRITE)
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenCompose(shadowTopicName -> getTopicPoliciesAsyncWithRetry(topicName))
+                .thenCompose(op -> {
+                    TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
+                    List<String> shadowTopics = topicPolicies.getShadowTopics();
+                    if (CollectionUtils.isEmpty(shadowTopics)) {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    topicPolicies.setShadowTopics(null);
+                    return pulsar().getTopicPoliciesService().
+                            updateTopicPoliciesAsync(topicName, topicPolicies);
                 });
     }
 }

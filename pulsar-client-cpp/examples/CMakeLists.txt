@@ -49,6 +49,10 @@ set(SAMPLE_CONSUMER_C_SOURCES
     SampleConsumerCApi.c
 )
 
+set(SAMPLE_ASYNC_CONSUMER_C_SOURCES
+    SampleAsyncConsumerCApi.c
+)
+
 set(SAMPLE_CONSUMER_LISTENER_C_SOURCES
     SampleConsumerListenerCApi.c
 )
@@ -57,22 +61,24 @@ set(SAMPLE_READER_C_SOURCES
         SampleReaderCApi.c
 )
 
-add_executable(SampleAsyncProducer    ${SAMPLE_ASYNC_PRODUCER_SOURCES})
-add_executable(SampleConsumer         ${SAMPLE_CONSUMER_SOURCES})
-add_executable(SampleConsumerListener ${SAMPLE_CONSUMER_LISTENER_SOURCES})
-add_executable(SampleProducer         ${SAMPLE_PRODUCER_SOURCES})
-add_executable(SampleFileLogger       ${SAMPLE_FILE_LOGGER_SOURCES})
+add_executable(SampleAsyncProducer        ${SAMPLE_ASYNC_PRODUCER_SOURCES})
+add_executable(SampleConsumer             ${SAMPLE_CONSUMER_SOURCES})
+add_executable(SampleConsumerListener     ${SAMPLE_CONSUMER_LISTENER_SOURCES})
+add_executable(SampleProducer             ${SAMPLE_PRODUCER_SOURCES})
+add_executable(SampleFileLogger           ${SAMPLE_FILE_LOGGER_SOURCES})
 add_executable(SampleProducerCApi         ${SAMPLE_PRODUCER_C_SOURCES})
 add_executable(SampleConsumerCApi         ${SAMPLE_CONSUMER_C_SOURCES})
-add_executable(SampleConsumerListenerCApi         ${SAMPLE_CONSUMER_LISTENER_C_SOURCES})
-add_executable(SampleReaderCApi         ${SAMPLE_READER_C_SOURCES})
+add_executable(SampleAsyncConsumerCApi    ${SAMPLE_CONSUMER_LISTENER_C_SOURCES})
+add_executable(SampleConsumerListenerCApi ${SAMPLE_CONSUMER_LISTENER_C_SOURCES})
+add_executable(SampleReaderCApi           ${SAMPLE_READER_C_SOURCES})
 
-target_link_libraries(SampleAsyncProducer    ${CLIENT_LIBS} pulsarShared)
-target_link_libraries(SampleConsumer         ${CLIENT_LIBS} pulsarShared)
-target_link_libraries(SampleConsumerListener ${CLIENT_LIBS} pulsarShared)
-target_link_libraries(SampleProducer         ${CLIENT_LIBS} pulsarShared)
-target_link_libraries(SampleFileLogger       ${CLIENT_LIBS} pulsarShared)
-target_link_libraries(SampleProducerCApi     ${CLIENT_LIBS} pulsarShared)
-target_link_libraries(SampleConsumerCApi     ${CLIENT_LIBS} pulsarShared)
-target_link_libraries(SampleConsumerListenerCApi     ${CLIENT_LIBS} pulsarShared)
-target_link_libraries(SampleReaderCApi     ${CLIENT_LIBS} pulsarShared)
+target_link_libraries(SampleAsyncProducer        ${CLIENT_LIBS} pulsarShared)
+target_link_libraries(SampleConsumer             ${CLIENT_LIBS} pulsarShared)
+target_link_libraries(SampleConsumerListener     ${CLIENT_LIBS} pulsarShared)
+target_link_libraries(SampleProducer             ${CLIENT_LIBS} pulsarShared)
+target_link_libraries(SampleFileLogger           ${CLIENT_LIBS} pulsarShared)
+target_link_libraries(SampleProducerCApi         ${CLIENT_LIBS} pulsarShared)
+target_link_libraries(SampleConsumerCApi         ${CLIENT_LIBS} pulsarShared)
+target_link_libraries(SampleAsyncConsumerCApi    ${CLIENT_LIBS} pulsarShared)
+target_link_libraries(SampleConsumerListenerCApi ${CLIENT_LIBS} pulsarShared)
+target_link_libraries(SampleReaderCApi           ${CLIENT_LIBS} pulsarShared)

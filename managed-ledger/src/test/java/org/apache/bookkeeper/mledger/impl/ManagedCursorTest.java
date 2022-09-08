@@ -33,6 +33,8 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import java.lang.reflect.Field;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -63,8 +65,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
 import lombok.Cleanup;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
@@ -92,12 +92,12 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
+import org.apache.pulsar.common.api.proto.IntRange;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet;
-import org.apache.pulsar.metadata.api.extended.SessionEvent;
-import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Stat;
-import org.apache.pulsar.common.api.proto.IntRange;
+import org.apache.pulsar.metadata.api.extended.SessionEvent;
+import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
 import org.awaitility.Awaitility;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
@@ -118,6 +118,32 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
     }
 
+
+    @Test
+    public void testCloseCursor() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxUnackedRangesToPersistInMetadataStore(0);
+        config.setThrottleMarkDelete(0);
+        ManagedLedger ledger = factory.open("my_test_ledger", config);
+        ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
+        // Write some data.
+        ledger.addEntry(new byte[]{1});
+        ledger.addEntry(new byte[]{2});
+        ledger.addEntry(new byte[]{3});
+        ledger.addEntry(new byte[]{4});
+        ledger.addEntry(new byte[]{5});
+        // Persistent cursor info to ledger.
+        c1.delete(PositionImpl.get(c1.getReadPosition().getLedgerId(), c1.getReadPosition().getEntryId()));
+        Awaitility.await().until(() ->c1.getStats().getPersistLedgerSucceed() > 0);
+        // Make cursor ledger can not work.
+        closeCursorLedger(c1);
+        c1.delete(PositionImpl.get(c1.getReadPosition().getLedgerId(), c1.getReadPosition().getEntryId() + 2));
+        ledger.close();
+    }
+
+    private static void closeCursorLedger(ManagedCursorImpl managedCursor) {
+        Awaitility.await().until(managedCursor::closeCursorLedger);
+    }
 
     @Test(timeOut = 20000)
     void readFromEmptyLedger() throws Exception {
