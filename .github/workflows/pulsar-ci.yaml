@@ -843,7 +843,8 @@ jobs:
       'changed_files_job',
       'unit-tests',
       'integration-tests',
-      'system-tests'
+      'system-tests',
+      'macos-build'
     ]
     if: always()
     steps:
