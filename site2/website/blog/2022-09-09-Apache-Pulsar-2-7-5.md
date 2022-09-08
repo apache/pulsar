@@ -33,7 +33,7 @@ Change unlock before the callback in the `asyncDelete` function of `ManagedCurso
 If users config `managedLedgerMaxLedgerRolloverTimeMinutes > 0`, and the rollover happens when the ManagedLedger state is `CreatingLedger`, the messages written during that time are lost.
 
 #### Resolution
-Rollover only when the ledger state is ``LedgerOpened`. 
+Rollover only when the ledger state is `LedgerOpened`. 
  
 ### Fixed the port exhaustion and connection issues in Pulsar Proxy. [PR-14078](https://github.com/apache/pulsar/pull/14078)
 
