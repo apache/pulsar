@@ -40,12 +40,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 import java.util.stream.Collectors;
-import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataCache;
+import org.apache.pulsar.metadata.api.MetadataCacheConfig;
 import org.apache.pulsar.metadata.api.MetadataSerde;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
@@ -123,23 +122,23 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     }
 
     @Override
-    public <T> MetadataCache<T> getMetadataCache(Class<T> clazz) {
+    public <T> MetadataCache<T> getMetadataCache(Class<T> clazz, MetadataCacheConfig cacheConfig) {
         MetadataCacheImpl<T> metadataCache = new MetadataCacheImpl<T>(this,
-                TypeFactory.defaultInstance().constructSimpleType(clazz, null));
+                TypeFactory.defaultInstance().constructSimpleType(clazz, null), cacheConfig);
         metadataCaches.add(metadataCache);
         return metadataCache;
     }
 
     @Override
-    public <T> MetadataCache<T> getMetadataCache(TypeReference<T> typeRef) {
-        MetadataCacheImpl<T> metadataCache = new MetadataCacheImpl<T>(this, typeRef);
+    public <T> MetadataCache<T> getMetadataCache(TypeReference<T> typeRef, MetadataCacheConfig cacheConfig) {
+        MetadataCacheImpl<T> metadataCache = new MetadataCacheImpl<T>(this, typeRef, cacheConfig);
         metadataCaches.add(metadataCache);
         return metadataCache;
     }
 
     @Override
-    public <T> MetadataCache<T> getMetadataCache(MetadataSerde<T> serde) {
-        MetadataCacheImpl<T> metadataCache = new MetadataCacheImpl<>(this, serde);
+    public <T> MetadataCache<T> getMetadataCache(MetadataSerde<T> serde, MetadataCacheConfig cacheConfig) {
+        MetadataCacheImpl<T> metadataCache = new MetadataCacheImpl<>(this, serde, cacheConfig);
         metadataCaches.add(metadataCache);
         return metadataCache;
     }
