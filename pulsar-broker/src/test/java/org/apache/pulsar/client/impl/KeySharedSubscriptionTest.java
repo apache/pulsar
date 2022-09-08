@@ -19,9 +19,16 @@
 package org.apache.pulsar.client.impl;
 
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import lombok.Cleanup;
 import org.apache.commons.lang3.RandomStringUtils;
-import org.apache.pulsar.client.api.*;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -30,10 +37,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 @Test(groups = "broker-impl")
@@ -61,8 +68,9 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                 .build();
         String topic = "broker-close-test-" + RandomStringUtils.randomAlphabetic(5);
         Map<Consumer<?>, List<MessageId>> nameToId = Maps.newConcurrentMap();
+        Set<MessageId> pubMessages = Sets.newConcurrentHashSet();
+        Set<MessageId> recMessages = Sets.newConcurrentHashSet();
         AtomicLong lastActiveTime = new AtomicLong();
-        AtomicInteger msgCount = new AtomicInteger();
         AtomicBoolean canAcknowledgement = new AtomicBoolean(false);
 
         @Cleanup
@@ -75,7 +83,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                     lastActiveTime.set(System.currentTimeMillis());
                     nameToId.computeIfAbsent(cons1,(k) -> new ArrayList<>())
                             .add(msg.getMessageId());
-                    msgCount.incrementAndGet();
+                    recMessages.add(msg.getMessageId());
                     if (canAcknowledgement.get()) {
                         try {
                             cons1.acknowledge(msg);
@@ -94,7 +102,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                     lastActiveTime.set(System.currentTimeMillis());
                     nameToId.computeIfAbsent(cons2,(k) -> new ArrayList<>())
                             .add(msg.getMessageId());
-                    msgCount.incrementAndGet();
+                    recMessages.add(msg.getMessageId());
                     if (canAcknowledgement.get()) {
                         try {
                             cons2.acknowledge(msg);
@@ -114,7 +122,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                     lastActiveTime.set(System.currentTimeMillis());
                     nameToId.computeIfAbsent(cons3,(k) -> new ArrayList<>())
                             .add(msg.getMessageId());
-                    msgCount.incrementAndGet();
+                    recMessages.add(msg.getMessageId());
                     if (canAcknowledgement.get()) {
                         try {
                             cons3.acknowledge(msg);
@@ -130,10 +138,15 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topic)
                 .enableBatching(true)
+                .batchingMaxPublishDelay(5, TimeUnit.MILLISECONDS)
+                // We chose 999 because the maximum unacked message is 1000
+                .batchingMaxMessages(999)
                 .create();
 
         for (int i = 0; i < 50000; i++) {
-            producer.sendAsync(UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8));
+            producer.sendAsync(UUID.randomUUID().toString()
+                            .getBytes(StandardCharsets.UTF_8))
+                    .thenAccept(pubMessages::add);
         }
 
         // Wait for all consumers can not read more messages. the consumers are stuck by max unacked messages.
@@ -165,6 +178,8 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
         //Determine if all messages have been received.
         //If the dispatcher is stuck, we can not receive enough messages.
-        Assert.assertEquals(msgCount.get(), 50000);
+        Assert.assertEquals(pubMessages.size(), 50000);
+        Assert.assertEquals(pubMessages.size(), recMessages.size());
+        Assert.assertTrue(recMessages.containsAll(pubMessages));
     }
 }
