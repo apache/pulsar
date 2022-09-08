@@ -63,7 +63,6 @@ import org.testng.annotations.Test;
  * Jdbc Sink test
  */
 @Slf4j
-@Test(groups = "flaky")
 public class SqliteJdbcSinkTest {
     private final SqliteUtils sqliteUtils = new SqliteUtils(UUID.randomUUID().toString());
     private BaseJdbcAutoSchemaSink jdbcSink;
