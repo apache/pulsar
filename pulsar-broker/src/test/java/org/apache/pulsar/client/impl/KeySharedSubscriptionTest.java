@@ -54,7 +54,8 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
     @Test
-    public void testKeyShareSubscriptionWillNotStuck() throws PulsarClientException {
+    public void testCanRecoverConsumptionWhenLiftMaxUnAckedMessagesRestriction()
+            throws PulsarClientException {
         PulsarClient pulsarClient = PulsarClient.builder().
                 serviceUrl(lookupUrl.toString())
                 .build();
@@ -130,10 +131,12 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                 .topic(topic)
                 .enableBatching(true)
                 .create();
+
         for (int i = 0; i < 50000; i++) {
             producer.sendAsync(UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8));
         }
 
+        // Wait for all consumers can not read more messages. the consumers are stuck by max unacked messages.
         while (true) {
             long differentTime = System.currentTimeMillis() - lastActiveTime.get();
             if (differentTime > TimeUnit.SECONDS.toMillis(20)) {
@@ -141,15 +144,18 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
             }
         }
 
+        // All consumers can acknowledge messages as they continue to receive messages.
         canAcknowledgement.set(true);
 
+        // Acknowledgment of currently received messages to get out of stuck state due to unack message
         for (Map.Entry<Consumer<?>, List<MessageId>> entry : nameToId.entrySet()) {
             Consumer<?> consumer = entry.getKey();
             consumer.acknowledge(entry.getValue());
         }
-
+        // refresh active time
         lastActiveTime.set(System.currentTimeMillis());
 
+        // Wait for all consumers to continue receiving messages.
         while (true) {
             long differentTime = System.currentTimeMillis() - lastActiveTime.get();
             if (differentTime > TimeUnit.SECONDS.toMillis(20)) {
@@ -157,6 +163,8 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
             }
         }
 
-        Assert.assertTrue(msgCount.get() >= 50000);
+        //Determine if all messages have been received.
+        //If the dispatcher is stuck, we can not receive enough messages.
+        Assert.assertEquals(msgCount.get(), 50000);
     }
 }
