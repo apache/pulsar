@@ -67,6 +67,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         PulsarClient pulsarClient = PulsarClient.builder().
                 serviceUrl(lookupUrl.toString())
                 .build();
+        final int totalMsg = 50000;
         String topic = "broker-close-test-" + RandomStringUtils.randomAlphabetic(5);
         Map<Consumer<?>, List<MessageId>> nameToId = Maps.newConcurrentMap();
         Set<MessageId> pubMessages = Sets.newConcurrentHashSet();
@@ -144,7 +145,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                 .batchingMaxMessages(999)
                 .create();
 
-        for (int i = 0; i < 50000; i++) {
+        for (int i = 0; i < totalMsg; i++) {
             producer.sendAsync(UUID.randomUUID().toString()
                             .getBytes(StandardCharsets.UTF_8))
                     .thenAccept(pubMessages::add);
@@ -175,7 +176,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
         //Determine if all messages have been received.
         //If the dispatcher is stuck, we can not receive enough messages.
-        Assert.assertEquals(pubMessages.size(), 50000);
+        Assert.assertEquals(pubMessages.size(), totalMsg);
         Assert.assertEquals(pubMessages.size(), recMessages.size());
         Assert.assertTrue(recMessages.containsAll(pubMessages));
     }
