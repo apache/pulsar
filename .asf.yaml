@@ -51,8 +51,8 @@ github:
         contexts:
 #          - build
 #          - cpp-tests
-          - Changed files check
-          - Build and License check
+#          - Changed files check
+#          - Build and License check
 #          - CI - Unit - Brokers - Broker Group 1
 #          - CI - Unit - Brokers - Broker Group 2
 #          - CI - Unit - Brokers - Broker Group 3
