@@ -159,7 +159,7 @@ jobs:
       - name: build package
         run: mvn -B clean package -DskipTests -T 1C -ntp
 
-  unit-tests-${{ matrix.group }}:
+  unit-tests:
     name: CI - Unit - ${{ matrix.name }}
     runs-on: ubuntu-20.04
     timeout-minutes: ${{ matrix.timeout || 60 }}
