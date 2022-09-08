@@ -16,7 +16,7 @@ If you're looking to run a full production Pulsar installation, see the [Deployi
 
 - JRE (64-bit). Different Pulsar versions rely on different JRE versions. For how to choose the JRE version, see [Pulsar Runtime Java Version Recommendation](https://github.com/apache/pulsar/blob/master/README.md#pulsar-runtime-java-version-recommendation).
 
-## Step 1. Download Pulsar distribution
+## Download Pulsar distribution
 
 Download the official Apache Pulsar distribution:
 
