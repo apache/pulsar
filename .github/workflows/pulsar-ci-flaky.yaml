@@ -494,9 +494,9 @@ jobs:
     needs: [
       'changed_files_job',
       'unit-tests',
-      'integration-tests',
       'system-tests'
     ]
+    if: always()
     steps:
       - name: checkout
         uses: actions/checkout@v2

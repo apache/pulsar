@@ -739,6 +739,7 @@ jobs:
       'integration-tests',
       'system-tests'
     ]
+    if: always()
     steps:
       - name: checkout
         uses: actions/checkout@v2
