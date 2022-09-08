@@ -20,13 +20,18 @@ package org.apache.pulsar.broker.intercept;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import java.util.concurrent.CountDownLatch;
 import lombok.Cleanup;
+import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
+import org.apache.bookkeeper.mledger.impl.OpAddEntry;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
@@ -254,6 +259,65 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
         }
         cursor.close();
         ledger.close();
+    }
+
+    @Test
+    public void testBeforeAddEntryWithException() throws Exception {
+        final int MOCK_BATCH_SIZE = 2;
+        final String ledgerAndCursorName = "testBeforeAddEntryWithException";
+
+        ManagedLedgerInterceptor interceptor =
+                new MockManagedLedgerInterceptorImpl(getBrokerEntryMetadataInterceptors(), null);
+
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(2);
+        config.setManagedLedgerInterceptor(interceptor);
+
+        ByteBuf buffer = Unpooled.wrappedBuffer("message".getBytes());
+        ManagedLedger ledger = factory.open(ledgerAndCursorName, config);
+        CountDownLatch countDownLatch = new CountDownLatch(1);
+        try {
+            ledger.asyncAddEntry(buffer, MOCK_BATCH_SIZE, new AsyncCallbacks.AddEntryCallback() {
+                @Override
+                public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                    countDownLatch.countDown();
+                }
+
+                @Override
+                public void addFailed(ManagedLedgerException exception, Object ctx) {
+                    countDownLatch.countDown();
+                }
+            }, null);
+            countDownLatch.await();
+            assertEquals(buffer.refCnt(), 1);
+        } finally {
+            ledger.close();
+            factory.shutdown();
+        }
+    }
+
+    private class MockManagedLedgerInterceptorImpl extends ManagedLedgerInterceptorImpl {
+        private final Set<BrokerEntryMetadataInterceptor> brokerEntryMetadataInterceptors;
+
+        public MockManagedLedgerInterceptorImpl(
+                Set<BrokerEntryMetadataInterceptor> brokerEntryMetadataInterceptors,
+                Set<ManagedLedgerPayloadProcessor> brokerEntryPayloadProcessors) {
+            super(brokerEntryMetadataInterceptors, brokerEntryPayloadProcessors);
+            this.brokerEntryMetadataInterceptors = brokerEntryMetadataInterceptors;
+        }
+
+        @Override
+        public OpAddEntry beforeAddEntry(OpAddEntry op, int numberOfMessages) {
+            if (op == null || numberOfMessages <= 0) {
+                return op;
+            }
+            op.setData(Commands.addBrokerEntryMetadata(op.getData(), brokerEntryMetadataInterceptors,
+                    numberOfMessages));
+            if (op != null) {
+                throw new RuntimeException("throw exception before add entry for test");
+            }
+            return op;
+        }
     }
 
     public static Set<BrokerEntryMetadataInterceptor> getBrokerEntryMetadataInterceptors() {

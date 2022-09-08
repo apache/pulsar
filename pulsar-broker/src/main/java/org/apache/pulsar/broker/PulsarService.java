@@ -1652,6 +1652,12 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return brokerServiceUrl != null ? brokerServiceUrl : brokerServiceUrlTls;
     }
 
+    public String getLookupServiceAddress() {
+        return String.format("%s:%s", advertisedAddress, config.getWebServicePort().isPresent()
+                ? config.getWebServicePort().get()
+                : config.getWebServicePortTls().get());
+    }
+
     public TopicPoliciesService getTopicPoliciesService() {
         return topicPoliciesService;
     }

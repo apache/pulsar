@@ -52,7 +52,7 @@ public class NoopLoadManager implements LoadManager {
 
     @Override
     public void start() throws PulsarServerException {
-        lookupServiceAddress = getBrokerAddress();
+        lookupServiceAddress = pulsar.getLookupServiceAddress();
         localResourceUnit = new SimpleResourceUnit(String.format("http://%s", lookupServiceAddress),
                 new PulsarResourceDescription());
 
@@ -69,13 +69,6 @@ public class NoopLoadManager implements LoadManager {
         } catch (CompletionException ce) {
             throw new PulsarServerException(MetadataStoreException.unwrap(ce));
         }
-    }
-
-    private String getBrokerAddress() {
-        return String.format("%s:%s", pulsar.getAdvertisedAddress(),
-                pulsar.getConfiguration().getWebServicePort().isPresent()
-                        ? pulsar.getConfiguration().getWebServicePort().get()
-                        : pulsar.getConfiguration().getWebServicePortTls().get());
     }
 
     @Override

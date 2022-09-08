@@ -262,7 +262,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
     @Override
     public void start() throws PulsarServerException {
         // Register the brokers in metadata store
-        String lookupServiceAddress = getBrokerAddress();
+        String lookupServiceAddress = pulsar.getLookupServiceAddress();
         String brokerLockPath = LOADBALANCE_BROKERS_ROOT + "/" + lookupServiceAddress;
 
         try {
@@ -1076,7 +1076,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
                 loadReport.setProtocols(pulsar.getProtocolDataToAdvertise());
                 loadReport.setNonPersistentTopicsEnabled(pulsar.getConfiguration().isEnableNonPersistentTopics());
                 loadReport.setPersistentTopicsEnabled(pulsar.getConfiguration().isEnablePersistentTopics());
-                loadReport.setName(getBrokerAddress());
+                loadReport.setName(pulsar.getLookupServiceAddress());
                 loadReport.setBrokerVersionString(pulsar.getBrokerVersion());
 
                 SystemResourceUsage systemResourceUsage = this.getSystemResourceUsage();
@@ -1142,13 +1142,6 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
                 throw e;
             }
         }
-    }
-
-    private String getBrokerAddress() {
-        return String.format("%s:%s", pulsar.getAdvertisedAddress(),
-                pulsar.getConfiguration().getWebServicePort().isPresent()
-                        ? pulsar.getConfiguration().getWebServicePort().get()
-                        : pulsar.getConfiguration().getWebServicePortTls().get());
     }
 
     @Override
