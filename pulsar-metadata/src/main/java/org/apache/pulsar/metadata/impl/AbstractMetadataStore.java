@@ -46,6 +46,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataCache;
+import org.apache.pulsar.metadata.api.MetadataCacheConfig;
 import org.apache.pulsar.metadata.api.MetadataSerde;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
@@ -91,7 +92,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
                     @Override
                     public CompletableFuture<List<String>> asyncReload(String key, List<String> oldValue,
-                            Executor executor) {
+                                                                       Executor executor) {
                         if (isConnected) {
                             return getChildrenFromStore(key);
                         } else {
@@ -111,7 +112,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
                     @Override
                     public CompletableFuture<Boolean> asyncReload(String key, Boolean oldValue,
-                            Executor executor) {
+                                                                  Executor executor) {
                         if (isConnected) {
                             return existsFromStore(key);
                         } else {
@@ -123,23 +124,23 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     }
 
     @Override
-    public <T> MetadataCache<T> getMetadataCache(Class<T> clazz) {
+    public <T> MetadataCache<T> getMetadataCache(Class<T> clazz, MetadataCacheConfig cacheConfig) {
         MetadataCacheImpl<T> metadataCache = new MetadataCacheImpl<T>(this,
-                TypeFactory.defaultInstance().constructSimpleType(clazz, null));
+                TypeFactory.defaultInstance().constructSimpleType(clazz, null), cacheConfig);
         metadataCaches.add(metadataCache);
         return metadataCache;
     }
 
     @Override
-    public <T> MetadataCache<T> getMetadataCache(TypeReference<T> typeRef) {
-        MetadataCacheImpl<T> metadataCache = new MetadataCacheImpl<T>(this, typeRef);
+    public <T> MetadataCache<T> getMetadataCache(TypeReference<T> typeRef, MetadataCacheConfig cacheConfig) {
+        MetadataCacheImpl<T> metadataCache = new MetadataCacheImpl<T>(this, typeRef, cacheConfig);
         metadataCaches.add(metadataCache);
         return metadataCache;
     }
 
     @Override
-    public <T> MetadataCache<T> getMetadataCache(MetadataSerde<T> serde) {
-        MetadataCacheImpl<T> metadataCache = new MetadataCacheImpl<>(this, serde);
+    public <T> MetadataCache<T> getMetadataCache(MetadataSerde<T> serde, MetadataCacheConfig cacheConfig) {
+        MetadataCacheImpl<T> metadataCache = new MetadataCacheImpl<>(this, serde, cacheConfig);
         metadataCaches.add(metadataCache);
         return metadataCache;
     }
@@ -238,7 +239,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     @Override
     public final CompletableFuture<Stat> put(String path, byte[] data, Optional<Long> optExpectedVersion,
-            EnumSet<CreateOption> options) {
+                                             EnumSet<CreateOption> options) {
         // Ensure caches are invalidated before the operation is confirmed
         return storePut(path, data, optExpectedVersion, options)
                 .thenApply(stat -> {
@@ -289,7 +290,8 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     /**
      * Run the task in the executor thread and fail the future if the executor is shutting down
      */
-    protected void execute(Runnable task, CompletableFuture<?> future) {
+    @VisibleForTesting
+    public void execute(Runnable task, CompletableFuture<?> future) {
         try {
             executor.execute(task);
         } catch (Throwable t) {

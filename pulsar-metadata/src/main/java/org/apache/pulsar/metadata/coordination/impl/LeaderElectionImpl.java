@@ -31,6 +31,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
@@ -41,6 +42,7 @@ import org.apache.bookkeeper.common.util.SafeRunnable;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataCache;
+import org.apache.pulsar.metadata.api.MetadataCacheConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyClosedException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
@@ -61,6 +63,7 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
     private final MetadataStoreExtended store;
     private final MetadataCache<T> cache;
     private final Consumer<LeaderElectionState> stateChangesListener;
+    private final ScheduledFuture<?> updateCachedValueFuture;
 
     private LeaderElectionState leaderElectionState;
     private Optional<Long> version = Optional.empty();
@@ -77,12 +80,15 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
     private static final int LEADER_ELECTION_RETRY_DELAY_SECONDS = 5;
 
     LeaderElectionImpl(MetadataStoreExtended store, Class<T> clazz, String path,
-            Consumer<LeaderElectionState> stateChangesListener,
+                       Consumer<LeaderElectionState> stateChangesListener,
                        ScheduledExecutorService executor) {
         this.path = path;
         this.serde = new JSONMetadataSerdeSimpleType<>(TypeFactory.defaultInstance().constructSimpleType(clazz, null));
         this.store = store;
-        this.cache = store.getMetadataCache(clazz);
+        MetadataCacheConfig metadataCacheConfig = MetadataCacheConfig.builder()
+                .expireAfterWriteMillis(-1L)
+                .build();
+        this.cache = store.getMetadataCache(clazz, metadataCacheConfig);
         this.leaderElectionState = LeaderElectionState.NoLeader;
         this.internalState = InternalState.Init;
         this.stateChangesListener = stateChangesListener;
@@ -90,6 +96,9 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
 
         store.registerListener(this::handlePathNotification);
         store.registerSessionListener(this::handleSessionNotification);
+        updateCachedValueFuture = executor.scheduleWithFixedDelay(SafeRunnable.safeRun(this::getLeaderValue),
+                metadataCacheConfig.getRefreshAfterWriteMillis() / 2,
+                metadataCacheConfig.getRefreshAfterWriteMillis(), TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -111,10 +120,13 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
             } else {
                 return tryToBecomeLeader();
             }
-        }).thenCompose(leaderElectionState ->
-                // make sure that the cache contains the current leader
-                // so that getLeaderValueIfPresent works on all brokers
-                cache.get(path).thenApply(__ -> leaderElectionState));
+        }).thenComposeAsync(leaderElectionState -> {
+            // make sure that the cache contains the current leader
+            // so that getLeaderValueIfPresent works on all brokers
+            cache.refresh(path);
+            return cache.get(path)
+                    .thenApply(__ -> leaderElectionState);
+        }, executor);
     }
 
     private synchronized CompletableFuture<LeaderElectionState> handleExistingLeaderValue(GetResult res) {
@@ -216,17 +228,12 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
                         // There was a conflict between 2 participants trying to become leaders at same time. Retry
                         // to fetch info on new leader.
 
-                        // We force the invalidation of the cache entry. Since we received a BadVersion error, we
-                        // already know that the entry is out of date. If we don't invalidate, we'd be retrying the
-                        // leader election many times until we finally receive the notification that invalidates the
-                        // cache.
-                        cache.invalidate(path);
                         elect()
-                            .thenAccept(lse -> result.complete(lse))
-                            .exceptionally(ex2 -> {
-                                result.completeExceptionally(ex2);
-                                return null;
-                            });
+                                .thenAccept(lse -> result.complete(lse))
+                                .exceptionally(ex2 -> {
+                                    result.completeExceptionally(ex2);
+                                    return null;
+                                });
                     } else {
                         result.completeExceptionally(ex.getCause());
                     }
@@ -238,6 +245,7 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
 
     @Override
     public void close() throws Exception {
+        updateCachedValueFuture.cancel(true);
         try {
             asyncClose().join();
         } catch (CompletionException e) {
