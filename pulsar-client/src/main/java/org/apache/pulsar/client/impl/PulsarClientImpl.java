@@ -892,7 +892,7 @@ public class PulsarClientImpl implements PulsarClient {
                 }
             }
         }
-        if (createdScheduledProviders && !scheduledExecutorProvider.isShutdown()) {
+        if (createdScheduledProviders && scheduledExecutorProvider != null && !scheduledExecutorProvider.isShutdown()) {
             try {
                 scheduledExecutorProvider.shutdownNow();
             } catch (Throwable t) {
