@@ -63,7 +63,7 @@ jobs:
   cpp-build-centos7:
     needs: changed_files_job
     name:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
     timeout-minutes: 120
 
@@ -190,7 +190,7 @@ jobs:
   cpp-deb-rpm-packaging:
     needs: changed_files_job
     name:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     timeout-minutes: 120
     if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
 
@@ -239,7 +239,7 @@ jobs:
   build-python-wheel:
     needs: changed_files_job
     name:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     timeout-minutes: 120
     if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
 
