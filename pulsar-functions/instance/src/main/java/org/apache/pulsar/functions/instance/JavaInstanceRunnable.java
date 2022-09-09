@@ -306,7 +306,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     }
                 }
 
-                addLogTopicHandler();
                 JavaExecutionResult result;
 
                 // set last invocation time
@@ -326,8 +325,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
                 // register end time
                 stats.processTimeEnd();
-
-                removeLogTopicHandler();
 
                 if (result != null) {
                     // process the synchronous results
@@ -703,14 +700,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     instanceConfig.getInstanceName());
             logAppender.start();
             setupLogTopicAppender(LoggerContext.getContext());
+            setupLogTopicAppender(LoggerContext.getContext(false));
         }
-    }
-
-    private void addLogTopicHandler() {
-        if (logAppender == null) {
-            return;
-        }
-        setupLogTopicAppender(LoggerContext.getContext(false));
     }
 
     private void setupLogTopicAppender(LoggerContext context) {
@@ -721,13 +712,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
         config.getRootLogger().addAppender(logAppender, null, null);
         context.updateLoggers();
-    }
-
-    private void removeLogTopicHandler() {
-        if (logAppender == null) {
-            return;
-        }
-        removeLogTopicAppender(LoggerContext.getContext(false));
     }
 
     private void removeLogTopicAppender(LoggerContext context) {
