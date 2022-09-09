@@ -103,6 +103,7 @@ import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.intercept.ManagedLedgerInterceptorImpl;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.resources.DynamicConfigurationResources;
 import org.apache.pulsar.broker.resources.LocalPoliciesResources;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.NamespaceResources.PartitionedTopicResources;
@@ -2134,33 +2135,44 @@ public class BrokerService implements Closeable {
     }
 
     private void handleDynamicConfigurationUpdates() {
-        pulsar().getPulsarResources().getDynamicConfigResources().getDynamicConfigurationAsync()
-                .thenAccept(optMap -> {
-                    if (!optMap.isPresent()) {
-                        return;
-                    }
-                    Map<String, String> data = optMap.get();
-                    data.forEach((configKey, value) -> {
-                        Field configField = dynamicConfigurationMap.get(configKey).field;
-                        Object newValue = FieldParser.value(data.get(configKey), configField);
-                        if (configField != null) {
-                            Consumer listener = configRegisteredListeners.get(configKey);
-                            try {
-                                Object existingValue = configField.get(pulsar.getConfiguration());
-                                configField.set(pulsar.getConfiguration(), newValue);
-                                log.info("Successfully updated configuration {}/{}", configKey,
-                                        data.get(configKey));
-                                if (listener != null && !existingValue.equals(newValue)) {
-                                    listener.accept(newValue);
-                                }
-                            } catch (Exception e) {
-                                log.error("Failed to update config {}/{}", configKey, newValue);
-                            }
-                        } else {
-                            log.error("Found non-dynamic field in dynamicConfigMap {}/{}", configKey, newValue);
+        DynamicConfigurationResources dynamicConfigResources = null;
+        try {
+            dynamicConfigResources = pulsar()
+                    .getPulsarResources()
+                    .getDynamicConfigResources();
+        } catch (Exception e) {
+            log.warn("Failed to read dynamic broker configuration", e);
+        }
+
+        if (dynamicConfigResources != null) {
+            dynamicConfigResources.getDynamicConfigurationAsync()
+                    .thenAccept(optMap -> {
+                        if (!optMap.isPresent()) {
+                            return;
                         }
+                        Map<String, String> data = optMap.get();
+                        data.forEach((configKey, value) -> {
+                            Field configField = dynamicConfigurationMap.get(configKey).field;
+                            Object newValue = FieldParser.value(data.get(configKey), configField);
+                            if (configField != null) {
+                                Consumer listener = configRegisteredListeners.get(configKey);
+                                try {
+                                    Object existingValue = configField.get(pulsar.getConfiguration());
+                                    configField.set(pulsar.getConfiguration(), newValue);
+                                    log.info("Successfully updated configuration {}/{}", configKey,
+                                            data.get(configKey));
+                                    if (listener != null && !existingValue.equals(newValue)) {
+                                        listener.accept(newValue);
+                                    }
+                                } catch (Exception e) {
+                                    log.error("Failed to update config {}/{}", configKey, newValue);
+                                }
+                            } else {
+                                log.error("Found non-dynamic field in dynamicConfigMap {}/{}", configKey, newValue);
+                            }
+                        });
                     });
-                });
+        }
     }
 
     /**
@@ -2267,10 +2279,7 @@ public class BrokerService implements Closeable {
             return true;
         });
 
-        // (2) update ServiceConfiguration value by reading zk-configuration-map
-        updateDynamicServiceConfiguration();
-
-        // (3) Listener Registration
+        // (2) Listener Registration
         // add listener on "maxConcurrentLookupRequest" value change
         registerConfigurationListener("maxConcurrentLookupRequest",
                 (maxConcurrentLookupRequest) -> lookupRequestSemaphore.set(
@@ -2407,6 +2416,12 @@ public class BrokerService implements Closeable {
         });
 
         // add more listeners here
+
+        // (3) create dynamic-config if not exist.
+        createDynamicConfigPathIfNotExist();
+
+        // (4) update ServiceConfiguration value by reading zk-configuration-map and trigger corresponding listeners.
+        handleDynamicConfigurationUpdates();
     }
 
     private void updateDefaultNumPartitions(int numPartitions) {
@@ -2590,6 +2605,21 @@ public class BrokerService implements Closeable {
         } catch (Exception e) {
             log.error("ServiceConfiguration key {} not found {}", key, e.getMessage());
             throw new IllegalArgumentException("Invalid service config " + key, e);
+        }
+    }
+
+    private void createDynamicConfigPathIfNotExist() {
+        try {
+            Optional<Map<String, String>> configCache =
+                    pulsar().getPulsarResources().getDynamicConfigResources().getDynamicConfiguration();
+
+            // create dynamic-config if not exist.
+            if (!configCache.isPresent()) {
+                pulsar().getPulsarResources().getDynamicConfigResources()
+                        .setDynamicConfigurationWithCreate(n -> Maps.newHashMap());
+            }
+        } catch (Exception e) {
+            log.warn("Failed to read dynamic broker configuration", e);
         }
     }
 
