@@ -122,8 +122,6 @@ public class ManagedCursorImpl implements ManagedCursor {
     protected final ManagedLedgerImpl ledger;
     private final String name;
 
-    public static final String CURSOR_INTERNAL_PROPERTY_PREFIX = "#pulsar.";
-
     private final StampedLock cursorPropertiesUpdateLock = new StampedLock();
 
     private volatile Map<String, String> cursorProperties;
@@ -375,13 +373,6 @@ public class ManagedCursorImpl implements ManagedCursor {
         Map<String, String> newProperties =
                 cursorProperties == null ? new TreeMap<>() : new TreeMap<>(cursorProperties);
         long stamp = cursorPropertiesUpdateLock.writeLock();
-        if (this.cursorProperties != null) {
-            this.cursorProperties.forEach((k, v) -> {
-                if (k.startsWith(CURSOR_INTERNAL_PROPERTY_PREFIX)) {
-                    newProperties.put(k, v);
-                }
-            });
-        }
         return asyncUpdateCursorProperties(newProperties).whenComplete((__, ex) -> {
             if (ex == null) {
                 this.cursorProperties = newProperties;

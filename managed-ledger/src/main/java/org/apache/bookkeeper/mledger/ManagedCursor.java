@@ -94,7 +94,7 @@ public interface ManagedCursor {
     CompletableFuture<Void> putCursorProperty(String key, String value);
 
     /**
-     * Set all properties associated with the cursor, but internal properties are still preserved.
+     * Set all properties associated with the cursor.
      *
      * @return a handle to the result of the operation
      */

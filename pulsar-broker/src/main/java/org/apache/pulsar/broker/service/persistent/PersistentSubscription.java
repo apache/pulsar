@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-import static org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.CURSOR_INTERNAL_PROPERTY_PREFIX;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isEventSystemTopic;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
@@ -29,7 +28,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -1226,14 +1224,6 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
             newSubscriptionProperties = Collections.emptyMap();
         } else {
             newSubscriptionProperties = Collections.unmodifiableMap(subscriptionProperties);
-        }
-
-        Set<String> keys = newSubscriptionProperties.keySet();
-        for (String key : keys) {
-            if (key.startsWith(CURSOR_INTERNAL_PROPERTY_PREFIX)) {
-                return FutureUtil.failedFuture(new IllegalArgumentException(
-                        "The property key can't start with" + CURSOR_INTERNAL_PROPERTY_PREFIX));
-            }
         }
 
         return cursor.setCursorProperties(newSubscriptionProperties)

@@ -18,7 +18,6 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import static org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.CURSOR_INTERNAL_PROPERTY_PREFIX;
 import static org.testng.Assert.assertEquals;
 import java.util.Collections;
 import java.util.Map;
@@ -223,21 +222,6 @@ public class ManagedCursorPropertiesTest extends MockedBookKeeperTestCase {
         assertEquals(c1.getCursorProperties(), cursorPropertiesUpdated);
 
         ledger.close();
-
-        // Create a new factory to force a managed ledger close and recovery
-        ManagedLedgerFactory factory3 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
-        // Reopen the managed ledger
-        ledger = factory3.open("testUpdateCursorProperties", new ManagedLedgerConfig());
-        c1 = ledger.openCursor("c1");
-
-        c1.putCursorProperty(CURSOR_INTERNAL_PROPERTY_PREFIX + "test", "test").get();
-        c1.putCursorProperty("custom4", "custom4").get();
-        c1.setCursorProperties(cursorPropertiesUpdated).get();
-
-        cursorPropertiesUpdated.put(CURSOR_INTERNAL_PROPERTY_PREFIX + "test", "test");
-
-        assertEquals(c1.getProperties(), properties);
-        assertEquals(c1.getCursorProperties(), cursorPropertiesUpdated);
 
         factory2.shutdown();
     }
