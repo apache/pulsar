@@ -5330,9 +5330,8 @@ public class PersistentTopicsBase extends AdminResource {
                     getSubNotFoundErrorMessage(localTopicName.toString(), subName)));
             }
             if (topic instanceof PersistentTopic && sub instanceof PersistentSubscription) {
-                Map<String, Boolean> res = Maps.newHashMap();
-                res.put(localTopicName.toString(), sub.isReplicated());
-                return CompletableFuture.completedFuture(res);
+                return CompletableFuture.completedFuture(
+                        Collections.singletonMap(localTopicName.toString(), sub.isReplicated()));
             } else {
                 return FutureUtil.failedFuture(new RestException(Status.METHOD_NOT_ALLOWED,
                     "Cannot get replicated subscriptions on non-persistent topics"));
