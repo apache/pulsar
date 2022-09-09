@@ -274,10 +274,10 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
 
     @Override
     public void close() {
+        priorityQueue.close();
         if (timeout != null) {
             timeout.cancel();
         }
-        priorityQueue.close();
     }
 
     @Override
