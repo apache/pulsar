@@ -149,17 +149,17 @@ public class SinksBase extends AdminResource {
                                                              Example
                                                              1. Create a JSON object.
                                                               {
-                                                             	"classname": "org.example.MySinkTest",
-                                                             	"inputs": ["persistent://public/default/sink-input"],
-                                                             	"processingGuarantees": "EFFECTIVELY_ONCE",
-                                                             	"parallelism": "10"
+                                                               "classname": "org.example.MySinkTest",
+                                                               "inputs": ["persistent://public/default/sink-input"],
+                                                               "processingGuarantees": "EFFECTIVELY_ONCE",
+                                                               "parallelism": "10"
                                                               }
                                                              2. Encapsulate the JSON object to a multipart object \
                                                              (in Python).
                                                              from requests_toolbelt.multipart.encoder import \
                                                              MultipartEncoder
                                                              mp_encoder = MultipartEncoder(\
-                                                             	[('sinkConfig',\
+                                                              [('sinkConfig',\
                                                              (None, json.dumps(config), 'application/json'))])
                                                              """
                                                   )

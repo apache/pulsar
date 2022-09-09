@@ -123,14 +123,14 @@ public class SourcesBase extends AdminResource {
                                             Example
                                             1. Create a JSON object.
                                             {
-                                            	"tenant": "public",
-                                            	"namespace": "default",
-                                            	"name": "pulsar-io-mysql",
-                                            	"className": "TestSourceMysql",
-                                            	"topicName": "pulsar-io-mysql",
-                                            	"parallelism": "1",
-                                            	"archive": "/connectors/pulsar-io-mysql-0.0.1.nar",
-                                            	"schemaType": "avro"
+                                             "tenant": "public",
+                                             "namespace": "default",
+                                             "name": "pulsar-io-mysql",
+                                             "className": "TestSourceMysql",
+                                             "topicName": "pulsar-io-mysql",
+                                             "parallelism": "1",
+                                             "archive": "/connectors/pulsar-io-mysql-0.0.1.nar",
+                                             "schemaType": "avro"
                                             }
                                             2. Encapsulate the JSON object to a multipart object (in Python).
                                             from requests_toolbelt.multipart.encoder import MultipartEncoder
