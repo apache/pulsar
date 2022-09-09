@@ -63,7 +63,7 @@ This change added tests and can be verified as follows:
 
 ### Documentation
 
-**DO NOT REMOVE THIS SECTION. CHECK PROPER BOX ONLY.**
+<!-- DO NOT REMOVE THIS SECTION. CHECK THE PROPER BOX ONLY. -->
 
 - [ ] `doc-required` 
 (Your PR needs to update docs and you will update later)
