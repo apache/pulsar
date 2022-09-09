@@ -44,3 +44,50 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LABEL_WATCH_LIST: 'doc,doc-required,doc-not-needed,doc-complete'
           LABEL_MISSING: 'doc-label-missing'
+
+  check-pr-title:
+    if: github.event.action == 'opened' || github.event.action == 'edited'
+    name: Check PR title
+    runs-on: ubuntu-latest
+    steps:
+      - uses: amannn/action-semantic-pull-request@v4
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            improve
+            fix
+            cleanup
+            refactor
+            revert
+
+          scopes: |
+            admin
+            broker
+            cli
+            io
+            fn
+            meta
+            monitor
+            proxy
+            schema
+            sec
+            sql
+            storage
+            offload
+            txn
+            java
+            cpp
+            py
+            ws
+            test
+            ci
+            build
+            misc
+            doc
+            blog
+            site
+
+          headerPattern: '^(?:\[(\w+)\])?(?:\[(\w+)\])? (.+)$'
