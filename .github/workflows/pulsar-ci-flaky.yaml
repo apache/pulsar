@@ -67,7 +67,7 @@ jobs:
     name: Flaky tests suite
     runs-on: ubuntu-20.04
     timeout-minutes: 100
-    if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
+    if: ${{ needs.changed_files_job.outputs.docs_only != 'true' && needs.changed_files_job.outputs.cpp_only != 'true' }}
     steps:
       - name: checkout
         uses: actions/checkout@v2
