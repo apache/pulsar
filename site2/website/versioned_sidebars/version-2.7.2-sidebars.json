@@ -372,6 +372,10 @@
         },
         {
           "type": "doc",
+          "id": "version-2.7.2/security-basic-auth"
+        },
+        {
+          "type": "doc",
           "id": "version-2.7.2/security-authorization"
         },
         {
