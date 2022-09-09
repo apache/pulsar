@@ -330,8 +330,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(category = CATEGORY_SERVER, doc = "Whether to enable the delayed delivery for messages.")
     private boolean delayedDeliveryEnabled = true;
 
-    @FieldContext(category = CATEGORY_SERVER, doc = "Class name of the factory that implements the delayed deliver "
-            + "tracker")
+    @FieldContext(category = CATEGORY_SERVER, doc = """
+            Class name of the factory that implements the delayed deliver tracker.
+            If value is "org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTrackerFactory", \
+            will create bucket based delayed message index tracker.
+            """)
     private String delayedDeliveryTrackerFactoryClassName = "org.apache.pulsar.broker.delayed"
             + ".InMemoryDelayedDeliveryTrackerFactory";
 
@@ -365,6 +368,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
             The max number of delayed message index bucket, \
             after reaching the max buckets limitation, the adjacent buckets will be merged.""")
     private int delayedDeliveryMaxNumBuckets = 50;
+
+    @FieldContext(category = CATEGORY_SERVER, doc = "Enable share the delayed message index across subscriptions")
+    private boolean delayedDeliverySharedIndexEnabled = false;
 
     @FieldContext(category = CATEGORY_SERVER, doc = "Whether to enable the acknowledge of batch local index")
     private boolean acknowledgmentAtBatchIndexLevelEnabled = false;
