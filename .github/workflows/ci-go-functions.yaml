@@ -67,7 +67,7 @@ jobs:
     needs: changed_files_job
     if: ${{ needs.changed_files_job.outputs.docs_only != 'true' && needs.changed_files_job.outputs.cpp_only != 'true' }}
     name: Go ${{ matrix.go-version }} Functions style check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     strategy:
       matrix:
         go-version: [1.15, 1.16, 1.17]

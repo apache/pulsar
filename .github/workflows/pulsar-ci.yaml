@@ -128,7 +128,7 @@ jobs:
 
   macos-build:
     name:
-    runs-on: macos-latest
+    runs-on: macos-11
     timeout-minutes: 120
     needs: [ 'changed_files_job', 'build-and-license-check' ]
     if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
