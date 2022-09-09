@@ -210,7 +210,7 @@ Delete a specified package asynchronously.
 
 ### Get the metadata of a package
 
-You can use the following commands to get the metadate of a package.
+You can use the following commands to get the metadata of a package.
 
 ````mdx-code-block
 <Tabs 

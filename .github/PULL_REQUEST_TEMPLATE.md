@@ -10,26 +10,23 @@
   - Each commit in the pull request has a meaningful commit message
 
   - Once all items of the checklist are addressed, remove the above text and this checklist, leaving only the filled out template below.
-
-**(The sections below can be removed for hotfixes of typos)**
 -->
 
-*(If this PR fixes a github issue, please add `Fixes #<xyz>`.)*
+<!-- Either this PR fixes an issue, -->
 
 Fixes #<xyz>
 
-*(or if this PR is one task of a github issue, please add `Master Issue: #<xyz>` to link to the master issue.)*
+<!-- or this PR is one task of an issue -->
 
 Master Issue: #<xyz>
 
 ### Motivation
 
-
-*Explain here the context, and why you're making that change. What is the problem you're trying to solve.*
+<!-- Explain here the context, and why you're making that change. What is the problem you're trying to solve. -->
 
 ### Modifications
 
-*Describe the modifications you've done.*
+<!-- Describe the modifications you've done. -->
 
 ### Verifying this change
 
@@ -53,29 +50,27 @@ This change added tests and can be verified as follows:
 
 ### Does this pull request potentially affect one of the following parts:
 
-*If `yes` was chosen, please highlight the changes*
+*If the box was checked, please highlight the changes*
 
-  - Dependencies (does it add or upgrade a dependency): (yes / no)
-  - The public API: (yes / no)
-  - The schema: (yes / no / don't know)
-  - The default values of configurations: (yes / no)
-  - The wire protocol: (yes / no)
-  - The rest endpoints: (yes / no)
-  - The admin cli options: (yes / no)
-  - Anything that affects deployment: (yes / no / don't know)
+- [ ] Dependencies (add or upgrade a dependency)
+- [ ] The public API
+- [ ] The schema
+- [ ] The default values of configurations
+- [ ] The binary protocol
+- [ ] The REST endpoints
+- [ ] The admin CLI options
+- [ ] Anything that affects deployment
 
 ### Documentation
 
-Check the box below or label this PR directly.
-
-Need to update docs? 
+<!-- DO NOT REMOVE THIS SECTION. CHECK THE PROPER BOX ONLY. -->
 
 - [ ] `doc-required` 
 (Your PR needs to update docs and you will update later)
-  
+
 - [ ] `doc-not-needed` 
 (Please explain why)
-  
+
 - [ ] `doc` 
 (Your PR contains doc changes)
 

@@ -4,7 +4,7 @@ title: Configure function runtime
 sidebar_label: "Configure function runtime"
 ---
 
-Pulsar supports three types of [function runtime](functions-concepts.md#function-runtime) with different costs and isolation guarantees to maximize deployment flexibility of your functions.
+Pulsar supports three types of [function runtime](functions-concepts.md#function-runtime) with different costs and isolation guarantees to maximize the deployment flexibility of your functions.
 
 The following table outlines the supported programming languages for each type of function runtime.
 
