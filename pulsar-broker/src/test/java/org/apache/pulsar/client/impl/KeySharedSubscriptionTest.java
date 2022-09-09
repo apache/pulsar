@@ -33,6 +33,7 @@ import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -61,8 +62,13 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Test
-    public void testCanRecoverConsumptionWhenLiftMaxUnAckedMessagesRestriction()
+    @DataProvider
+    public Object[][] subType() {
+        return new Object[][] { { SubscriptionType.Shared }, { SubscriptionType.Key_Shared } };
+    }
+
+    @Test(dataProvider = "subType")
+    public void testCanRecoverConsumptionWhenLiftMaxUnAckedMessagesRestriction(SubscriptionType subscriptionType)
             throws PulsarClientException {
         PulsarClient pulsarClient = PulsarClient.builder().
                 serviceUrl(lookupUrl.toString())
@@ -79,7 +85,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         Consumer<byte[]> consumer1 = pulsarClient.newConsumer()
                 .topic(topic)
                 .subscriptionName("sub-1")
-                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscriptionType(subscriptionType)
                 .consumerName("con-1")
                 .messageListener((cons1, msg) -> {
                     lastActiveTime.set(System.currentTimeMillis());
@@ -99,7 +105,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         Consumer<byte[]> consumer2 = pulsarClient.newConsumer()
                 .topic(topic)
                 .subscriptionName("sub-1")
-                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscriptionType(subscriptionType)
                 .messageListener((cons2, msg) -> {
                     lastActiveTime.set(System.currentTimeMillis());
                     nameToId.computeIfAbsent(cons2,(k) -> new ArrayList<>())
@@ -119,7 +125,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         Consumer<byte[]> consumer3 = pulsarClient.newConsumer()
                 .topic(topic)
                 .subscriptionName("sub-1")
-                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscriptionType(subscriptionType)
                 .messageListener((cons3, msg) -> {
                     lastActiveTime.set(System.currentTimeMillis());
                     nameToId.computeIfAbsent(cons3,(k) -> new ArrayList<>())
