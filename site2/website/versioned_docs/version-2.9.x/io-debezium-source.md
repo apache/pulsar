@@ -25,10 +25,10 @@ The configuration of Debezium source connector has the following properties.
 | `key.converter` | true | null | The converter provided by Kafka Connect to convert record key. |
 | `value.converter` | true | null | The converter provided by Kafka Connect to convert record value.  |
 | `database.history` | true | null | The name of the database history class. |
-| `database.history.pulsar.topic` | true | null | The name of the database history topic where the connector writes and recovers DDL statements. <br /><br />**Note: this topic is for internal use only and should not be used by consumers.** |
+| `database.history.pulsar.topic` | true | null | The name of the database history topic where the connector writes and recovers DDL statements. <br /><br />**Note: This topic is for internal use only and should not be used by consumers.** |
 | `database.history.pulsar.service.url` | true | null | Pulsar cluster service URL for history topic. |
 | `offset.storage.topic` | true | null | Record the last committed offsets that the connector successfully completes. |
-| `json-with-envelope` | false | false | Present the message only consist of payload.
+| `json-with-envelope` | false | false | Present the message that only consists of payload.|
 | `database.history.pulsar.reader.config` | false | null | The configs of the reader for the database schema history topic, in the form of a JSON string with key-value pairs. <br />**Note:** This property is only available in 2.9.4 and later versions. |
 | `offset.storage.reader.config` | false | null | The configs of the reader for the kafka connector offsets topic, in the form of a JSON string with key-value pairs. <br />**Note:** This property is only available in 2.9.4 and later versions.| 
 

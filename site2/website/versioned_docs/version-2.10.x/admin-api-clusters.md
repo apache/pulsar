@@ -81,7 +81,7 @@ admin.clusters().createCluster(clusterName, clusterData);
 
 ### Initialize cluster metadata
 
-When provision a new cluster, you need to initialize that cluster's [metadata](concepts-architecture-overview.md#metadata-store). When initializing cluster metadata, you need to specify all of the following:
+When provisioning a new cluster, you need to initialize that cluster's [metadata](concepts-architecture-overview.md#metadata-store). When initializing cluster metadata, you need to specify all of the following:
 
 * The name of the cluster
 * The local metadata store connection string for the cluster
