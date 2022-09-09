@@ -42,55 +42,27 @@ github:
     # disable rebase button:
     rebase:  false
   protected_branches:
-#    master:
-#      required_status_checks:
+    master:
+      required_status_checks:
         # strict means "Require branches to be up to date before merging".
-#        strict: false
+        strict: false
         # Contexts are the names of checks that must pass.
         # See ./github/workflows/README.md for more documentation on this list.
-#        contexts:
-#          - build
-#          - cpp-tests
-#          - Changed files check
-#          - Build and License check
-#          - CI - Unit - Brokers - Broker Group 1
-#          - CI - Unit - Brokers - Broker Group 2
-#          - CI - Unit - Brokers - Broker Group 3
-#          - CI - Unit - Brokers - Client Api
-#          - CI - Unit - Brokers - Client Impl
-#          - CI - Unit - Other
-#          - CI - Unit - Proxy
-#          - Build Pulsar java-test-image docker image
-#          - CI - Integration - Backwards Compatibility
-#          - CI - Integration - Cli
-#          - CI - Integration - Messaging
-#          - CI - Integration - Shade on Java 8
-#          - CI - Integration - Shade on Java 11
-#          - CI - Integration - Shade on Java 17
-#          - CI - Integration - Standalone
-#          - CI - Integration - Transaction
-#          - Build Pulsar docker image
-#          - CI - System - Function
-#          - CI - System - Pulsar Connectors - Process
-#          - CI - System - Pulsar Connectors - Thread
-#          - CI - System - Pulsar IO
-#          - CI - System - Schema
-#          - CI - System - Tiered FileSystem
-#          - CI - System - Tiered JCloud
-#          - CI - System - Sql
+        contexts:
+           - Pulsar CI checks completed
+           - cpp-tests
 
-#      required_pull_request_reviews:
-#        dismiss_stale_reviews: false
-#        require_code_owner_reviews: true
-#        required_approving_review_count: 1
-#
-#      # squash or rebase must be allowed in the repo for this setting to be set to true.
-#      required_linear_history: true
-#
-#      required_signatures: false
+      required_pull_request_reviews:
+        dismiss_stale_reviews: false
+        require_code_owner_reviews: true
+        required_approving_review_count: 1
+
+      # squash or rebase must be allowed in the repo for this setting to be set to true.
+      required_linear_history: true
+
+      required_signatures: false
 
     # The following branch protections only ensure that force pushes are not allowed
-    master: {}
     branch-1.15: {}
     branch-1.16: {}
     branch-1.17: {}
