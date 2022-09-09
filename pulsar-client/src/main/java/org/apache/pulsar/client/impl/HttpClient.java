@@ -141,14 +141,14 @@ public class HttpClient implements Closeable {
                                 conf.getTlsProtocols());
                     }
                     confBuilder.setSslContext(sslCtx);
+                    if (!conf.isTlsHostnameVerificationEnable()) {
+                        confBuilder.setSslEngineFactory(new WithSNISslEngineFactory(serviceNameResolver
+                                .resolveHostUri().getHost()));
+                    }
                 }
 
                 confBuilder.setUseInsecureTrustManager(conf.isTlsAllowInsecureConnection());
                 confBuilder.setDisableHttpsEndpointIdentificationAlgorithm(!conf.isTlsHostnameVerificationEnable());
-                if (!conf.isTlsHostnameVerificationEnable()) {
-                    confBuilder.setSslEngineFactory(new WithSNISslEngineFactory(serviceNameResolver
-                            .resolveHostUri().getHost()));
-                }
             } catch (GeneralSecurityException e) {
                 throw new PulsarClientException.InvalidConfigurationException(e);
             } catch (Exception e) {
