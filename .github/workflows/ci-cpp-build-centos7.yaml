@@ -25,12 +25,7 @@ on:
     paths:
       - '.github/workflows/**'
       - 'pulsar-client-cpp/**'
-  push:
-    branches:
-      - branch-*
-    paths:
-      - '.github/workflows/**'
-      - 'pulsar-client-cpp/**'
+
 jobs:
 
   cpp-build-centos7:

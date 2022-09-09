@@ -25,12 +25,6 @@ on:
     paths:
       - '.github/workflows/**'
       - 'pulsar-function-go/**'
-  push:
-    branches:
-      - branch-*
-    paths:
-      - '.github/workflows/**'
-      - 'pulsar-function-go/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
