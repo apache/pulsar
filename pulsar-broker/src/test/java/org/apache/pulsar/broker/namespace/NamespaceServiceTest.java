@@ -100,7 +100,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.hash.Hashing;
 
-@Test(groups = "broker")
+@Test(groups = "flaky")
 public class NamespaceServiceTest extends BrokerTestBase {
 
     @BeforeMethod
@@ -664,8 +664,8 @@ public class NamespaceServiceTest extends BrokerTestBase {
             assertEquals(targetBundleData.getTopics(), 10);
         });
         
-        String hotBundle = namespaceService.getNamespaceBundleFactory().getBundleWithHighestThroughput(nsname)
-                .getBundleRange();
+        String hotBundle = namespaceService.getNamespaceBundleFactory().getBundleWithHighestThroughputAsync(nsname)
+                .get().getBundleRange();
 
         assertEquals(bundle, hotBundle);
         
