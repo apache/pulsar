@@ -23,13 +23,13 @@ import static org.junit.Assert.fail;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertTrue;
 
-import com.google.common.collect.ImmutableSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.pulsar.broker.MultiBrokerBaseTest;
@@ -137,9 +137,9 @@ public class AdminApiMultiBrokersTest extends MultiBrokerBaseTest {
     @Test
     public void testForceDeletePartitionedTopicWithSub() throws Exception {
         final int numPartitions = 10;
-        TenantInfoImpl tenantInfo = new TenantInfoImpl(ImmutableSet.of("role1", "role2"), ImmutableSet.of("test"));
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
         admin.tenants().createTenant("tenant-xyz", tenantInfo);
-        admin.namespaces().createNamespace("tenant-xyz/ns-abc", ImmutableSet.of("test"));
+        admin.namespaces().createNamespace("tenant-xyz/ns-abc", Set.of("test"));
 
         admin.namespaces().setAutoTopicCreation("tenant-xyz/ns-abc",
                 AutoTopicCreationOverride.builder()
