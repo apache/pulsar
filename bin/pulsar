@@ -33,7 +33,6 @@ DEFAULT_PROXY_CONF=$PULSAR_HOME/conf/proxy.conf
 DEFAULT_STANDALONE_CONF=$PULSAR_HOME/conf/standalone.conf
 DEFAULT_WEBSOCKET_CONF=$PULSAR_HOME/conf/websocket.conf
 DEFAULT_LOG_CONF=$PULSAR_HOME/conf/log4j2.yaml
-DEFAULT_PULSAR_PRESTO_CONF=${PULSAR_HOME}/conf/presto
 DEFAULT_FUNCTIONS_LOG_CONF=$PULSAR_HOME/conf/functions_log4j2.xml
 
 # functions related variables
@@ -46,7 +45,8 @@ PY_INSTANCE_FILE=${PULSAR_PY_INSTANCE_FILE:-"${DEFAULT_PY_INSTANCE_FILE}"}
 DEFAULT_FUNCTIONS_EXTRA_DEPS_DIR=$PULSAR_HOME/instances/deps
 FUNCTIONS_EXTRA_DEPS_DIR=${PULSAR_FUNCTIONS_EXTRA_DEPS_DIR:-"${DEFAULT_FUNCTIONS_EXTRA_DEPS_DIR}"}
 SQL_HOME=$PULSAR_HOME/pulsar-sql
-PRESTO_HOME=${PULSAR_HOME}/lib/presto
+TRINO_HOME=${PULSAR_HOME}/trino
+DEFAULT_PULSAR_TRINO_CONF=${TRINO_HOME}/conf
 
 pulsar_help() {
     cat <<EOF
@@ -90,7 +90,7 @@ Environment variables:
    PULSAR_PROXY_CONF             Configuration file for Pulsar proxy (default: $DEFAULT_PROXY_CONF)
    PULSAR_WORKER_CONF            Configuration file for functions worker (default: $DEFAULT_WORKER_CONF)
    PULSAR_STANDALONE_CONF        Configuration file for standalone (default: $DEFAULT_STANDALONE_CONF)
-   PULSAR_PRESTO_CONF            Configuration directory for Pulsar Presto (default: $DEFAULT_PULSAR_PRESTO_CONF)
+   PULSAR_TRINO_CONF            Configuration directory for Pulsar SQL (default: $DEFAULT_PULSAR_TRINO_CONF)
    PULSAR_EXTRA_OPTS             Extra options to be passed to the jvm
    PULSAR_EXTRA_CLASSPATH        Add extra paths to the pulsar classpath
    PULSAR_PID_DIR                Folder where the pulsar server PID file should be stored
@@ -177,17 +177,17 @@ if [ ! -f "${PY_INSTANCE_FILE}" ]; then
     PY_INSTANCE_FILE=${BUILT_PY_INSTANCE_FILE}
 fi
 
-# find pulsar sql presto distribution location
-check_presto_libraries() {
-    if [ ! -d "${PRESTO_HOME}" ]; then
-
-        BUILT_PRESTO_HOME="${SQL_HOME}/presto-distribution/target/pulsar-presto-distribution"
-        if [ ! -d "${BUILT_PRESTO_HOME}" ]; then
-            echo "\nCouldn't find presto distribution.";
+# find pulsar sql trino distribution location
+check_trino_libraries() {
+    if [ ! -d "${TRINO_HOME}" ]; then
+        BUILT_TRINO_HOME="${SQL_HOME}/presto-distribution/target/pulsar-presto-distribution"
+        if [ ! -d "${BUILT_TRINO_HOME}" ]; then
+            echo "\nCouldn't find trino distribution.";
             echo "Make sure you've run 'mvn package'\n";
             exit 1;
         fi
-        PRESTO_HOME=${BUILT_PRESTO_HOME}
+        TRINO_HOME=${BUILT_TRINO_HOME}
+        PULSAR_TRINO_CONF=${BUILT_TRINO_HOME}/conf
     fi
 }
 
@@ -257,8 +257,19 @@ if [ -z "$PULSAR_LOG_CONF" ]; then
     PULSAR_LOG_CONF=$DEFAULT_LOG_CONF
 fi
 
-if [ -z "$PULSAR_PRESTO_CONF" ]; then
-    PULSAR_PRESTO_CONF=$DEFAULT_PULSAR_PRESTO_CONF
+if [ -z "$PULSAR_TRINO_CONF" ]; then
+    # TODO: As PIP-200 accepted, this compatibility is not promised. Refactor when we drop this b/w compatibility.
+    if [ -z "$PULSAR_PRESTO_CONF" ]; then
+      PULSAR_TRINO_CONF=$DEFAULT_PULSAR_TRINO_CONF
+    else
+      PULSAR_TRINO_CONF=$PULSAR_PRESTO_CONF
+    fi
+    if [ ! -d "${PULSAR_TRINO_CONF}" ]; then
+      FALLBACK_PULSAR_PRESTO_CONF=${PULSAR_HOME}/conf/presto
+      if [ -d "${FALLBACK_PULSAR_PRESTO_CONF}" ]; then
+        PULSAR_TRINO_CONF=$FALLBACK_PULSAR_PRESTO_CONF
+      fi
+    fi
 fi
 
 if [ -z "$FUNCTIONS_LOG_CONF"]; then
@@ -387,11 +398,11 @@ elif [ $COMMAND == "broker-tool" ]; then
 elif [ $COMMAND == "compact-topic" ]; then
     exec $JAVA $OPTS org.apache.pulsar.compaction.CompactorTool --broker-conf $PULSAR_BROKER_CONF $@
 elif [ $COMMAND == "sql" ]; then
-    check_presto_libraries
-    exec $JAVA -cp "${PRESTO_HOME}/lib/*" io.trino.cli.Trino --server localhost:8081 "${@}"
+    check_trino_libraries
+    exec $JAVA -cp "${TRINO_HOME}/lib/*" io.trino.cli.Trino --server localhost:8081 "${@}"
 elif [ $COMMAND == "sql-worker" ]; then
-    check_presto_libraries
-    exec python3 ${PRESTO_HOME}/bin/launcher.py --etc-dir ${PULSAR_PRESTO_CONF} "${@}"
+    check_trino_libraries
+    exec python3 ${TRINO_HOME}/bin/launcher.py --etc-dir ${PULSAR_TRINO_CONF} "${@}"
 elif [ $COMMAND == "tokens" ]; then
     exec $JAVA $OPTS org.apache.pulsar.utils.auth.tokens.TokensCliUtils $@
 elif [ $COMMAND == "version" ]; then
