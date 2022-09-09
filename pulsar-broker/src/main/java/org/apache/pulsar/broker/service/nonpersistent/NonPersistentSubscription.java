@@ -210,7 +210,7 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
 
     @Override
     public void acknowledgeMessage(List<Position> position, AckType ackType, Map<String, Long> properties) {
-        // No-op
+        updateLastActive();
     }
 
     @Override
