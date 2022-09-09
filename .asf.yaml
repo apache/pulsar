@@ -50,7 +50,6 @@ github:
         # See ./github/workflows/README.md for more documentation on this list.
         contexts:
            - Pulsar CI checks completed
-           - cpp-tests
 
       required_pull_request_reviews:
         dismiss_stale_reviews: false
