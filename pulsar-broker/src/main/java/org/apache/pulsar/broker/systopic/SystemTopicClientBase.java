@@ -56,9 +56,9 @@ public abstract class SystemTopicClientBase<T> implements SystemTopicClient<T> {
 
     @Override
     public CompletableFuture<Reader<T>> newReaderAsync() {
-        return newReaderAsyncInternal().thenCompose(reader -> {
+        return newReaderAsyncInternal().thenApply(reader -> {
             readers.add(reader);
-            return CompletableFuture.completedFuture(reader);
+            return reader;
         });
     }
 
@@ -73,9 +73,9 @@ public abstract class SystemTopicClientBase<T> implements SystemTopicClient<T> {
 
     @Override
     public CompletableFuture<Writer<T>> newWriterAsync() {
-        return newWriterAsyncInternal().thenCompose(writer -> {
+        return newWriterAsyncInternal().thenApply(writer -> {
             writers.add(writer);
-            return CompletableFuture.completedFuture(writer);
+            return writer;
         });
     }
 
