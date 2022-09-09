@@ -21,10 +21,10 @@ name: CI - CPP build on Windows
 on:
   pull_request:
     branches:
-      - master
-  push:
-    branches:
       - branch-*
+    paths:
+      - '.github/workflows/**'
+      - 'pulsar-client-cpp/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
