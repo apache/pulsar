@@ -39,6 +39,7 @@ import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.pulsar.metadata.api.CacheGetResult;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataCache;
+import org.apache.pulsar.metadata.api.MetadataCacheConfig;
 import org.apache.pulsar.metadata.api.MetadataSerde;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsException;
@@ -50,30 +51,32 @@ import org.apache.pulsar.metadata.impl.AbstractMetadataStore;
 
 @Slf4j
 public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notification> {
-
-    private static final long CACHE_REFRESH_TIME_MILLIS = TimeUnit.MINUTES.toMillis(5);
-
     @Getter
     private final MetadataStore store;
     private final MetadataSerde<T> serde;
 
     private final AsyncLoadingCache<String, Optional<CacheGetResult<T>>> objCache;
 
-    public MetadataCacheImpl(MetadataStore store, TypeReference<T> typeRef) {
-        this(store, new JSONMetadataSerdeTypeRef<>(typeRef));
+    public MetadataCacheImpl(MetadataStore store, TypeReference<T> typeRef, MetadataCacheConfig cacheConfig) {
+        this(store, new JSONMetadataSerdeTypeRef<>(typeRef), cacheConfig);
     }
 
-    public MetadataCacheImpl(MetadataStore store, JavaType type) {
-        this(store, new JSONMetadataSerdeSimpleType<>(type));
+    public MetadataCacheImpl(MetadataStore store, JavaType type, MetadataCacheConfig cacheConfig) {
+        this(store, new JSONMetadataSerdeSimpleType<>(type), cacheConfig);
     }
 
-    public MetadataCacheImpl(MetadataStore store, MetadataSerde<T> serde) {
+    public MetadataCacheImpl(MetadataStore store, MetadataSerde<T> serde, MetadataCacheConfig cacheConfig) {
         this.store = store;
         this.serde = serde;
 
-        this.objCache = Caffeine.newBuilder()
-                .refreshAfterWrite(CACHE_REFRESH_TIME_MILLIS, TimeUnit.MILLISECONDS)
-                .expireAfterWrite(CACHE_REFRESH_TIME_MILLIS * 2, TimeUnit.MILLISECONDS)
+        Caffeine<Object, Object> cacheBuilder = Caffeine.newBuilder();
+        if (cacheConfig.getRefreshAfterWriteMillis() > 0) {
+            cacheBuilder.refreshAfterWrite(cacheConfig.getRefreshAfterWriteMillis(), TimeUnit.MILLISECONDS);
+        }
+        if (cacheConfig.getExpireAfterWriteMillis() > 0) {
+            cacheBuilder.expireAfterWrite(cacheConfig.getExpireAfterWriteMillis(), TimeUnit.MILLISECONDS);
+        }
+        this.objCache = cacheBuilder
                 .buildAsync(new AsyncCacheLoader<String, Optional<CacheGetResult<T>>>() {
                     @Override
                     public CompletableFuture<Optional<CacheGetResult<T>>> asyncLoad(String key, Executor executor) {
