@@ -1132,15 +1132,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             } else if (failIfHasSubscriptions && !subscriptions.isEmpty()) {
                 return FutureUtil.failedFuture(new TopicBusyException("Topic has subscriptions"));
             } else if (failIfHasBacklogs && hasBacklogs()) {
-                return FutureUtil.failedFuture(
-                        new TopicBusyException("Topic has subscriptions did not catch up"));
-            } else if (TopicName.get(topic).isPartitioned()
-                    && (getProducers().size() > 0 || getNumberOfConsumers() > 0)
-                    && getBrokerService().isAllowAutoTopicCreation(topic)) {
-                // to avoid inconsistent metadata as a result
-                return FutureUtil.failedFuture(
-                        new TopicBusyException("Partitioned topic has active consumers or producers and "
-                                + "auto-creation of topic is allowed"));
+                return FutureUtil.failedFuture(new TopicBusyException("Topic has subscriptions did not catch up"));
             }
 
             fenceTopicToCloseOrDelete(); // Avoid clients reconnections while deleting
