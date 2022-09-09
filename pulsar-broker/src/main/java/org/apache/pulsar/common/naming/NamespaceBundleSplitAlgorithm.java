@@ -18,8 +18,9 @@
  */
 package org.apache.pulsar.common.naming;
 
-import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -32,7 +33,7 @@ public interface NamespaceBundleSplitAlgorithm {
     String SPECIFIED_POSITIONS_DIVIDE = "specified_positions_divide";
     String FLOW_OR_QPS_EQUALLY_DIVIDE = "flow_or_qps_equally_divide";
 
-    List<String> AVAILABLE_ALGORITHMS = Lists.newArrayList(RANGE_EQUALLY_DIVIDE_NAME,
+    Set<String> AVAILABLE_ALGORITHMS = Sets.newHashSet(RANGE_EQUALLY_DIVIDE_NAME,
             TOPIC_COUNT_EQUALLY_DIVIDE, SPECIFIED_POSITIONS_DIVIDE, FLOW_OR_QPS_EQUALLY_DIVIDE);
 
     NamespaceBundleSplitAlgorithm RANGE_EQUALLY_DIVIDE_ALGO = new RangeEquallyDivideBundleSplitAlgorithm();

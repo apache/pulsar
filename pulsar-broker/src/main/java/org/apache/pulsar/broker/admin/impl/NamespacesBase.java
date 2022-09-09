@@ -1127,7 +1127,7 @@ public abstract class NamespacesBase extends AdminResource {
                 .thenAccept(__ -> {
                     checkNotNull(bundleName, "BundleRange should not be null");
                     log.info("[{}] Split namespace bundle {}/{}", clientAppId(), namespaceName, bundleName);
-                    List<String> supportedNamespaceBundleSplitAlgorithms =
+                    Set<String> supportedNamespaceBundleSplitAlgorithms =
                             pulsar().getConfig().getSupportedNamespaceBundleSplitAlgorithms();
                     if (StringUtils.isNotBlank(splitAlgorithmName)) {
                         if (!supportedNamespaceBundleSplitAlgorithms.contains(splitAlgorithmName)) {

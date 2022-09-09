@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker;
 
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -2337,7 +2336,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_LOAD_BALANCER,
         doc = "Supported algorithms name for namespace bundle split"
     )
-    private List<String> supportedNamespaceBundleSplitAlgorithms = Lists.newArrayList("range_equally_divide",
+    private Set<String> supportedNamespaceBundleSplitAlgorithms = Sets.newHashSet("range_equally_divide",
             "topic_count_equally_divide", "specified_positions_divide", "flow_or_qps_equally_divide");
     @FieldContext(
         dynamic = true,
