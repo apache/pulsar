@@ -23,9 +23,6 @@ on:
     branches:
       - master
       - branch-*
-  push:
-    branches:
-      - branch-*
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
