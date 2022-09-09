@@ -21,6 +21,8 @@ package org.apache.pulsar.broker.systopic;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -123,8 +125,14 @@ public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase<Pulsar
         public void close() throws IOException {
             try {
                 closeAsync().get();
-            } catch (Exception e) {
-                throw new IOException(e);
+            } catch (ExecutionException e) {
+                if (e.getCause() instanceof IOException) {
+                    throw (IOException) e.getCause();
+                } else {
+                    throw new PulsarServerException(e.getCause());
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
             }
         }
 
@@ -188,8 +196,14 @@ public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase<Pulsar
         public void close() throws IOException {
             try {
                 closeAsync().get();
-            } catch (Exception e) {
-                throw new IOException(e);
+            } catch (ExecutionException e) {
+                if (e.getCause() instanceof IOException) {
+                    throw (IOException) e.getCause();
+                } else {
+                    throw new PulsarServerException(e.getCause());
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
             }
         }
 
