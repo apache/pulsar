@@ -1389,6 +1389,11 @@ void ConsumerImpl::seekAsyncInternal(long requestId, SharedBuffer seek, const Me
     cnx->sendRequestWithId(seek, requestId)
         .addListener([this, weakSelf, callback, originalSeekMessageId](Result result,
                                                                        const ResponseData& responseData) {
+            auto self = weakSelf.lock();
+            if (!self) {
+                callback(result);
+                return;
+            }
             if (result == ResultOk) {
                 LOG_INFO(getName() << "Seek successfully");
                 ackGroupingTrackerPtr_->flushAndClean();
