@@ -41,7 +41,7 @@ public interface SchemaStorage {
 
 > For a full-fledged example schema storage implementation, see the [`BookKeeperSchemaStorage`](https://github.com/apache/pulsar/blob/master/pulsar-broker/src/main/java/org/apache/pulsar/broker/service/schema/BookkeeperSchemaStorage.java) class.
 
-## SchemaStorageFactory interface 
+## SchemaStorageFactory interface
 
 ```java
 public interface SchemaStorageFactory {
@@ -56,7 +56,7 @@ public interface SchemaStorageFactory {
 
 To use your custom schema storage implementation, you need to:
 
-1. Package the implementation in a [JAR](https://docs.oracle.com/javase/tutorial/deployment/jar/basicsindex.html) file.
-1. Add that jar to the `lib` folder in your Pulsar [binary or source distribution](getting-started-standalone.md#installing-pulsar).
-1. Change the `schemaRegistryStorageClassName` configuration in [`broker.conf`](reference-configuration.md#broker) to your custom factory class (i.e. the `SchemaStorageFactory` implementation, not the `SchemaStorage` implementation).
-1. Start up Pulsar.
+1. Package the implementation in a JAR file.
+2. Add that JAR file to the `lib` folder in your Pulsar distribution.
+3. Change the `schemaRegistryStorageClassName` configuration in [`broker.conf`](reference-configuration.md#broker) to your custom factory class (i.e. the `SchemaStorageFactory` implementation, not the `SchemaStorage` implementation).
+4. Start up Pulsar.

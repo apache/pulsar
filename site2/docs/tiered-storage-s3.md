@@ -20,25 +20,8 @@ Follow the steps below to install the S3 offloader.
 
 This example uses Pulsar 2.9.3.
 
-1. [Download the Pulsar tarball](getting-started-standalone.md#install-pulsar-using-binary-release).
-
-2. Download and untar the Pulsar offloaders package, then copy the Pulsar offloaders as `offloaders` in the Pulsar directory. See [Install tiered storage offloaders](getting-started-standalone.md#install-tiered-storage-offloaders-optional).
-
-   **Output**
-
-   As shown from the output, Pulsar uses [Apache jclouds](https://jclouds.apache.org) to support [AWS S3](https://aws.amazon.com/s3/), [GCS](https://cloud.google.com/storage/), [Azure](https://portal.azure.com/#home), and [Aliyun OSS](https://www.aliyun.com/product/oss) for long-term storage.
-
-   ```
-   tiered-storage-file-system-2.9.3.nar
-   tiered-storage-jcloud-2.9.3.nar
-   ```
-
-   :::note
-
-   * If you run Pulsar in a bare-metal cluster, ensure that `offloaders` tarball is unzipped in every broker's Pulsar directory.
-   * If you run Pulsar in Docker or deploy Pulsar using a Docker image (such as K8s and DCOS), you can use the `apachepulsar/pulsar-all` image. The `apachepulsar/pulsar-all` image has already bundled tiered storage offloaders.
-
-   :::
+1. [Download the Pulsar tarball](getting-started-standalone.md#step-1-download-pulsar-distribution).
+2. Download and untar the Pulsar offloaders package, then copy the Pulsar offloaders as `offloaders` in the Pulsar directory. See [Install tiered storage offloaders](tiered-storage-overview.md#how-to-install-tiered-storage-offloaders).
 
 ## Configuration
 
@@ -119,9 +102,9 @@ Namespace policy can be configured to offload data automatically once a threshol
 
 | Threshold value | Action |
 | --- | --- |
-| > 0 | It triggers the offloading operation if the topic storage reaches its threshold. |
+| &gt; 0 | It triggers the offloading operation if the topic storage reaches its threshold. |
 | = 0 | It causes a broker to offload data as soon as possible. |
-| < 0 | It disables automatic offloading operation. |
+| &lt; 0 | It disables automatic offloading operation. |
 
 Automatic offloading runs when a new segment is added to a topic log. If you set the threshold for a namespace, but few messages are being produced to the topic, the offloader does not work until the current segment is full.
 
