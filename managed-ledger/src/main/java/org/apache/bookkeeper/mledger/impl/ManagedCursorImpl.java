@@ -46,7 +46,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
@@ -371,7 +370,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     @Override
     public CompletableFuture<Void> setCursorProperties(Map<String, String> cursorProperties) {
         Map<String, String> newProperties =
-                cursorProperties == null ? new TreeMap<>() : new TreeMap<>(cursorProperties);
+                cursorProperties == null ? new HashMap<>() : new HashMap<>(cursorProperties);
         long stamp = cursorPropertiesUpdateLock.writeLock();
         return asyncUpdateCursorProperties(newProperties).whenComplete((__, ex) -> {
             if (ex == null) {
@@ -386,7 +385,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     public CompletableFuture<Void> putCursorProperty(String key, String value) {
         long stamp = cursorPropertiesUpdateLock.writeLock();
         Map<String, String> newProperties =
-                this.cursorProperties == null ? new TreeMap<>() : new TreeMap<>(this.cursorProperties);
+                this.cursorProperties == null ? new HashMap<>() : new HashMap<>(this.cursorProperties);
         newProperties.put(key, value);
         return asyncUpdateCursorProperties(newProperties).whenComplete((__, ex) -> {
             if (ex == null) {
@@ -400,7 +399,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     public CompletableFuture<Void> removeCursorProperty(String key) {
         long stamp = cursorPropertiesUpdateLock.writeLock();
         Map<String, String> newProperties =
-                this.cursorProperties == null ? new TreeMap<>() : new TreeMap<>(this.cursorProperties);
+                this.cursorProperties == null ? new HashMap<>() : new HashMap<>(this.cursorProperties);
         newProperties.remove(key);
         return asyncUpdateCursorProperties(newProperties).whenComplete((__, ex) -> {
             if (ex == null) {
