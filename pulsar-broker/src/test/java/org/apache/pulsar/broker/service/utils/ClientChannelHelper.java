@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service.utils;
 import java.util.Queue;
 
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespaceResponse;
+import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadataResponse;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
 import org.apache.pulsar.common.protocol.PulsarDecoder;
 import org.apache.pulsar.common.api.proto.CommandAck;
@@ -161,6 +162,11 @@ public class ClientChannelHelper {
         @Override
         protected void handleCommandWatchTopicListSuccess(CommandWatchTopicListSuccess commandWatchTopicListSuccess) {
             queue.offer(new CommandWatchTopicListSuccess().copyFrom(commandWatchTopicListSuccess));
+        }
+
+        @Override
+        protected void handlePartitionResponse(CommandPartitionedTopicMetadataResponse response) {
+            queue.offer(new CommandPartitionedTopicMetadataResponse().copyFrom(response));
         }
     };
 
