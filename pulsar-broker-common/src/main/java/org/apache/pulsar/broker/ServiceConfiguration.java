@@ -114,9 +114,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_SERVER,
         required = false,
         deprecated = true,
-        doc = """
-                The Zookeeper quorum connection string (as a comma-separated list). Deprecated in favour of \
-                metadataStoreUrl"""
+        doc = "The Zookeeper quorum connection string (as a comma-separated list). Deprecated in favour of "
+                + "metadataStoreUrl"
     )
     @Getter(AccessLevel.NONE)
     @Deprecated
@@ -138,9 +137,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_SERVER,
         required = false,
         deprecated = true,
-        doc = """
-             Global Zookeeper quorum connection string (as a comma-separated list).\
-             Deprecated in favor of using `configurationStoreServers`"""
+        doc = "Global Zookeeper quorum connection string (as a comma-separated list)."
+            + " Deprecated in favor of using `configurationStoreServers`"
     )
     @Getter(AccessLevel.NONE)
     @Deprecated
@@ -150,9 +148,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_SERVER,
         required = false,
         deprecated = true,
-        doc = """
-                Configuration store connection string (as a comma-separated list). Deprecated in favor of \
-                `configurationMetadataStoreUrl`"""
+        doc = "Configuration store connection string (as a comma-separated list). Deprecated in favor of "
+                + "`configurationMetadataStoreUrl`"
     )
     @Getter(AccessLevel.NONE)
     @Deprecated
@@ -161,25 +158,22 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_SERVER,
             required = false,
-            doc = """
-                    The metadata store URL for the configuration data. If empty, we fall back to use metadataStoreUrl"""
+            doc = "The metadata store URL for the configuration data. If empty, we fall back to use metadataStoreUrl"
     )
     private String configurationMetadataStoreUrl;
 
     @FieldContext(
         category = CATEGORY_SERVER,
-        doc = """
-             The port for serving binary protobuf requests. \
-             If set, defines a server binding for bindAddress:brokerServicePort. \
-             The Default value is 6650."""
+        doc = "The port for serving binary protobuf requests."
+            + " If set, defines a server binding for bindAddress:brokerServicePort."
+            + " The Default value is 6650."
     )
 
     private Optional<Integer> brokerServicePort = Optional.of(6650);
     @FieldContext(
         category = CATEGORY_SERVER,
-        doc = """
-            The port for serving TLS-secured binary protobuf requests. \
-            If set, defines a server binding for bindAddress:brokerServicePortTls."""
+        doc = "The port for serving TLS-secured binary protobuf requests."
+            + " If set, defines a server binding for bindAddress:brokerServicePortTls."
     )
     private Optional<Integer> brokerServicePortTls = Optional.empty();
     @FieldContext(
@@ -212,6 +206,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_TLS,
             doc = """
                     Specify the tls cipher the proxy's web service will use to negotiate during TLS Handshake.
+
                     Example:- [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256]"""
     )
     private Set<String> webServiceTlsCiphers = new TreeSet<>();
@@ -224,36 +219,32 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_SERVER,
-            doc = """
-            Hostname or IP address the service advertises to the outside world. \
-            If not set, the value of `InetAddress.getLocalHost().getCanonicalHostName()` is used."""
+        doc = "Hostname or IP address the service advertises to the outside world."
+            + " If not set, the value of `InetAddress.getLocalHost().getCanonicalHostName()` is used."
     )
     private String advertisedAddress;
 
     @FieldContext(category = CATEGORY_SERVER,
-            doc = """
-                    Used to specify multiple advertised listeners for the broker. \
-                    The value must format as <listener_name>:pulsar://<host>:<port>,\
-                    multiple listeners should separate with commas.\
-                    Do not use this configuration with advertisedAddress and brokerServicePort.\
-                    The Default value is absent means use advertisedAddress and brokerServicePort.""")
+            doc = "Used to specify multiple advertised listeners for the broker."
+                    + " The value must format as <listener_name>:pulsar://<host>:<port>,"
+                    + "multiple listeners should separate with commas."
+                    + "Do not use this configuration with advertisedAddress and brokerServicePort."
+                    + "The Default value is absent means use advertisedAddress and brokerServicePort.")
     private String advertisedListeners;
 
     @FieldContext(category = CATEGORY_SERVER,
-            doc = """
-                    Used to specify the internal listener name for the broker.\
-                    The listener name must contain in the advertisedListeners.\
-                    The Default value is absent, the broker uses the first listener as the internal listener.""")
+            doc = "Used to specify the internal listener name for the broker."
+                    + "The listener name must contain in the advertisedListeners."
+                    + "The Default value is absent, the broker uses the first listener as the internal listener.")
     private String internalListenerName;
 
     @FieldContext(category = CATEGORY_SERVER,
-            doc = """
-                    Used to specify additional bind addresses for the broker.\
-                     The value must format as <listener_name>:<scheme>://<host>:<port>,\
-                     multiple bind addresses should be separated with commas.\
-                     Associates each bind address with an advertised listener and protocol handler.\
-                     Note that the brokerServicePort, brokerServicePortTls, webServicePort, and\
-                     webServicePortTls properties define additional bindings.""")
+            doc = "Used to specify additional bind addresses for the broker."
+                    + " The value must format as <listener_name>:<scheme>://<host>:<port>,"
+                    + " multiple bind addresses should be separated with commas."
+                    + " Associates each bind address with an advertised listener and protocol handler."
+                    + " Note that the brokerServicePort, brokerServicePortTls, webServicePort, and"
+                    + " webServicePortTls properties define additional bindings.")
     private String bindAddresses;
 
     @FieldContext(category = CATEGORY_SERVER,
@@ -262,32 +253,30 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SERVER,
-            doc = "Number of threads to use for Netty Acceptor. Default is set to `1`"
+            doc = "Number of threads to use for Netty Acceptor."
+                    + " Default is set to `1`"
     )
     private int numAcceptorThreads = 1;
 
     @FieldContext(
         category = CATEGORY_SERVER,
-        doc = """
-                Number of threads to use for Netty IO.\
-                 Default is set to `2 * Runtime.getRuntime().availableProcessors()`"""
+        doc = "Number of threads to use for Netty IO."
+            + " Default is set to `2 * Runtime.getRuntime().availableProcessors()`"
     )
     private int numIOThreads = 2 * Runtime.getRuntime().availableProcessors();
 
     @FieldContext(
         category = CATEGORY_SERVER,
-        doc = """
-                Number of threads to use for orderedExecutor.\
-                 The ordered executor is used to operate with zookeeper, such as init zookeeper client,\
-                 get namespace policies from zookeeper etc. It also used to split bundle. Default is 8"""
+        doc = "Number of threads to use for orderedExecutor."
+            + " The ordered executor is used to operate with zookeeper, such as init zookeeper client,"
+            + " get namespace policies from zookeeper etc. It also used to split bundle. Default is 8"
     )
     private int numOrderedExecutorThreads = 8;
 
     @FieldContext(
             category = CATEGORY_SERVER,
-            doc = """
-                    Number of threads to use for HTTP requests processing\
-                     Default is set to `2 * Runtime.getRuntime().availableProcessors()`"""
+            doc = "Number of threads to use for HTTP requests processing"
+                + " Default is set to `2 * Runtime.getRuntime().availableProcessors()`"
         )
     // Use at least 8 threads to avoid having Jetty go into threads starving and
     // having the possibility of getting into a deadlock where a Jetty thread is
@@ -296,31 +285,28 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_SERVER,
-        doc = """
-                Number of threads to use for pulsar broker service.\
-                 The executor in thread pool will do basic broker operation like load/unload bundle,\
-                 update managedLedgerConfig, update topic/subscription/replicator message dispatch rate,\
-                 do leader election etc. Default is set to 20"""
+        doc = "Number of threads to use for pulsar broker service."
+            + " The executor in thread pool will do basic broker operation like load/unload bundle,"
+            + " update managedLedgerConfig, update topic/subscription/replicator message dispatch rate,"
+            + " do leader election etc. Default is set to 20 "
     )
     private int numExecutorThreadPoolSize = Runtime.getRuntime().availableProcessors();
 
     @FieldContext(
         category = CATEGORY_SERVER,
-        doc = """
-                Number of thread pool size to use for pulsar zookeeper callback service. \
-                The cache executor thread pool is used for restarting global zookeeper session. \
-                Default is 10"""
+        doc = "Number of thread pool size to use for pulsar zookeeper callback service."
+            + "The cache executor thread pool is used for restarting global zookeeper session. "
+            + "Default is 10"
     )
     private int numCacheExecutorThreadPoolSize = 10;
 
     @FieldContext(
             category = CATEGORY_SERVER,
-            doc = """
-                    Option to enable busy-wait settings. Default is false. \
-                    WARNING: This option will enable spin-waiting on executors and IO threads in order \
-                    to reduce latency during context switches. The spinning will consume 100% CPU even \
-                    when the broker is not doing any work. It is recommended to reduce the number of IO threads \
-                    and BK client threads to only have few CPU cores busy."""
+            doc = "Option to enable busy-wait settings. Default is false. "
+                    + "WARNING: This option will enable spin-waiting on executors and IO threads in order "
+                    + "to reduce latency during context switches. The spinning will consume 100% CPU even "
+                    + "when the broker is not doing any work. It is recommended to reduce the number of IO threads "
+                    + "and BK client threads to only have few CPU cores busy."
     )
     private boolean enableBusyWait = false;
 
@@ -329,44 +315,43 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SERVER,
-            doc = "Capacity for thread pool queue in the HTTP server Default is set to 8192."
+            doc = "Capacity for thread pool queue in the HTTP server"
+                    + " Default is set to 8192."
     )
     private int httpServerThreadPoolQueueSize = 8192;
 
     @FieldContext(
             category = CATEGORY_SERVER,
-            doc = "Capacity for accept queue in the HTTP server Default is set to 8192."
+            doc = "Capacity for accept queue in the HTTP server"
+                    + " Default is set to 8192."
     )
     private int httpServerAcceptQueueSize = 8192;
 
-    @FieldContext(category = CATEGORY_SERVER, doc = """
-            Maximum number of inbound http connections. (0 to disable limiting)""")
+    @FieldContext(category = CATEGORY_SERVER, doc = "Maximum number of inbound http connections. "
+            + "(0 to disable limiting)")
     private int maxHttpServerConnections = 2048;
 
     @FieldContext(category = CATEGORY_SERVER, doc = "Whether to enable the delayed delivery for messages.")
     private boolean delayedDeliveryEnabled = true;
 
-    @FieldContext(category = CATEGORY_SERVER, doc = """
-            Class name of the factory that implements the delayed deliver tracker
-            """)
-    private String delayedDeliveryTrackerFactoryClassName =
-            "org.apache.pulsar.broker.delayed.InMemoryDelayedDeliveryTrackerFactory";
+    @FieldContext(category = CATEGORY_SERVER, doc = "Class name of the factory that implements the delayed deliver "
+            + "tracker")
+    private String delayedDeliveryTrackerFactoryClassName = "org.apache.pulsar.broker.delayed"
+            + ".InMemoryDelayedDeliveryTrackerFactory";
 
-    @FieldContext(category = CATEGORY_SERVER, doc = """
-            Control the tick time for when retrying on delayed delivery, \
-            affecting the accuracy of the delivery time compared to the scheduled time. Default is 1 second. \
-            Note that this time is used to configure the HashedWheelTimer's tick time for the \
-            InMemoryDelayedDeliveryTrackerFactory.""")
+    @FieldContext(category = CATEGORY_SERVER, doc = "Control the tick time for when retrying on delayed delivery, "
+            + "affecting the accuracy of the delivery time compared to the scheduled time. Default is 1 second. "
+            + "Note that this time is used to configure the HashedWheelTimer's tick time for the "
+            + "InMemoryDelayedDeliveryTrackerFactory.")
     private long delayedDeliveryTickTimeMillis = 1000;
 
-    @FieldContext(category = CATEGORY_SERVER, doc = """
-            When using the InMemoryDelayedDeliveryTrackerFactory (the default DelayedDeliverTrackerFactory), \
-            whether the deliverAt time is strictly followed. When false (default), \
-            messages may be sent to consumers before the deliverAt time by as much as the tickTimeMillis. This can \
-            reduce the overhead on the broker of maintaining the delayed index for a potentially very short time \
-            period. When true, messages will not be sent to consumer until the deliverAt time has passed, and they \
-            may be as late as the deliverAt time plus the tickTimeMillis for the topic plus the \
-            delayedDeliveryTickTimeMillis.""")
+    @FieldContext(category = CATEGORY_SERVER, doc = "When using the InMemoryDelayedDeliveryTrackerFactory (the default "
+            + "DelayedDeliverTrackerFactory), whether the deliverAt time is strictly followed. When false (default), "
+            + "messages may be sent to consumers before the deliverAt time by as much as the tickTimeMillis. This can "
+            + "reduce the overhead on the broker of maintaining the delayed index for a potentially very short time "
+            + "period. When true, messages will not be sent to consumer until the deliverAt time has passed, and they "
+            + "may be as late as the deliverAt time plus the tickTimeMillis for the topic plus the "
+            + "delayedDeliveryTickTimeMillis.")
     private boolean isDelayedDeliveryDeliverAtTimeStrict = false;
 
     @FieldContext(category = CATEGORY_SERVER, doc = "Whether to enable the acknowledge of batch local index")
@@ -394,9 +379,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
-        doc = """
-                The maximum number of tenants that each pulsar cluster can create.
-                This configuration is not precise control, in a concurrent scenario, the threshold will be exceeded."""
+        doc = "The maximum number of tenants that each pulsar cluster can create."
+                + "This configuration is not precise control, in a concurrent scenario, the threshold will be exceeded."
     )
     private int maxTenants = 0;
 
@@ -429,9 +413,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_SERVER,
         deprecated = true,
-        doc = """
-                ZooKeeper session timeout in milliseconds. \
-                @deprecated - Use metadataStoreSessionTimeoutMillis instead."""
+        doc = "ZooKeeper session timeout in milliseconds. "
+                + "@deprecated - Use metadataStoreSessionTimeoutMillis instead."
     )
     private long zooKeeperSessionTimeoutMillis = -1;
 
@@ -439,9 +422,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_SERVER,
             deprecated = true,
-            doc = """
-                    ZooKeeper operation timeout in seconds. \
-                    @deprecated - Use metadataStoreOperationTimeoutSeconds instead."""
+            doc = "ZooKeeper operation timeout in seconds. "
+                    + "@deprecated - Use metadataStoreOperationTimeoutSeconds instead."
         )
     private int zooKeeperOperationTimeoutSeconds = -1;
 
@@ -449,9 +431,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_SERVER,
             deprecated = true,
-            doc = """
-                    ZooKeeper cache expiry time in seconds. \
-                    @deprecated - Use metadataStoreCacheExpirySeconds instead."""
+            doc = "ZooKeeper cache expiry time in seconds. "
+                    + "@deprecated - Use metadataStoreCacheExpirySeconds instead."
         )
     private int zooKeeperCacheExpirySeconds = -1;
 
@@ -471,9 +452,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SERVER,
-            doc = """
-                    Amount of seconds to timeout when loading a topic. In situations with many geo-replicated clusters,\
-                     this may need raised."""
+            doc = "Amount of seconds to timeout when loading a topic. In situations with many geo-replicated clusters, "
+                    + "this may need raised."
     )
     private long topicLoadTimeoutSeconds = 60;
 
@@ -511,18 +491,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             dynamic = true,
             category = CATEGORY_SERVER,
-            doc = """
-                    Event topic to sync metadata between separate pulsar \
-                    clusters on different cloud platforms."""
+            doc = "Event topic to sync metadata between separate pulsar "
+                    + "clusters on different cloud platforms."
     )
     private String metadataSyncEventTopic = null;
 
     @FieldContext(
             dynamic = true,
             category = CATEGORY_SERVER,
-            doc = """
-                    Event topic to sync configuration-metadata between separate pulsar \
-                    clusters on different cloud platforms."""
+            doc = "Event topic to sync configuration-metadata between separate pulsar "
+                    + "clusters on different cloud platforms."
     )
     private String configurationMetadataSyncEventTopic = null;
 
@@ -540,21 +518,19 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_POLICIES,
-            doc = """
-                    Whether to enable precise time based backlog quota check. \
-                    Enabling precise time based backlog quota check will cause broker to read first entry in backlog \
-                    of the slowest cursor on a ledger which will mostly result in reading entry from BookKeeper's \
-                    disk which can have negative impact on overall performance. \
-                    Disabling precise time based backlog quota check will just use the timestamp indicating when a \
-                    ledger was closed, which is of coarser granularity."""
+            doc = "Whether to enable precise time based backlog quota check. "
+                  + "Enabling precise time based backlog quota check will cause broker to read first entry in backlog "
+                  + "of the slowest cursor on a ledger which will mostly result in reading entry from BookKeeper's "
+                  + "disk which can have negative impact on overall performance. "
+                  + "Disabling precise time based backlog quota check will just use the timestamp indicating when a "
+                  + "ledger was closed, which is of coarser granularity."
     )
     private boolean preciseTimeBasedBacklogQuotaCheck = false;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
-        doc = """
-                How often to check for topics that have reached the quota.\
-                 It only takes effects when `backlogQuotaCheckEnabled` is true"""
+        doc = "How often to check for topics that have reached the quota."
+            + " It only takes effects when `backlogQuotaCheckEnabled` is true"
     )
     private int backlogQuotaCheckIntervalInSeconds = 60;
 
@@ -567,38 +543,33 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_POLICIES,
-        doc = """
-                Default per-topic backlog quota limit by size, less than 0 means no limitation. default is -1.\
-                 Increase it if you want to allow larger msg backlog"""
+        doc = "Default per-topic backlog quota limit by size, less than 0 means no limitation. default is -1."
+                + " Increase it if you want to allow larger msg backlog"
     )
     private long backlogQuotaDefaultLimitBytes = -1;
 
     @FieldContext(
             category = CATEGORY_POLICIES,
-            doc = """
-                    Default per-topic backlog quota limit by time in second, less than 0 means no limitation. \
-                    default is -1. Increase it if you want to allow larger msg backlog"""
+            doc = "Default per-topic backlog quota limit by time in second, less than 0 means no limitation. "
+                    + "default is -1. Increase it if you want to allow larger msg backlog"
     )
     private int backlogQuotaDefaultLimitSecond = -1;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
-            doc = """
-                Default backlog quota retention policy. Default is producer_request_hold
-                'producer_request_hold' Policy which holds producer's send request until the\
-                resource becomes available (or holding times out)
-                'producer_exception' Policy which throws javax.jms.ResourceAllocationException to the producer\
-                'consumer_backlog_eviction' Policy which evicts the oldest message from the slowest consumer's backlog
-                """
+        doc = "Default backlog quota retention policy. Default is producer_request_hold\n\n"
+            + "'producer_request_hold' Policy which holds producer's send request until the"
+            + "resource becomes available (or holding times out)\n"
+            + "'producer_exception' Policy which throws javax.jms.ResourceAllocationException to the producer\n"
+            + "'consumer_backlog_eviction' Policy which evicts the oldest message from the slowest consumer's backlog"
     )
     private BacklogQuota.RetentionPolicy backlogQuotaDefaultRetentionPolicy = BacklogQuota.RetentionPolicy
             .producer_request_hold;
 
     @FieldContext(
             category = CATEGORY_POLICIES,
-            doc = """
-                    Default ttl for namespaces if ttl is not already configured at namespace policies. \
-                    (disable default-ttl with value 0)"""
+            doc = "Default ttl for namespaces if ttl is not already configured at namespace policies. "
+                    + "(disable default-ttl with value 0)"
         )
     private int ttlDurationDefaultInSeconds = 0;
 
@@ -614,8 +585,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_POLICIES,
             dynamic = true,
             doc = """
-                    Metadata of inactive partitioned topic will not be automatically cleaned up by default.\
-                    Note: If `allowAutoTopicCreation` and this option are enabled at the same time,\
+                    Metadata of inactive partitioned topic will not be automatically cleaned up by default.
+                    Note: If `allowAutoTopicCreation` and this option are enabled at the same time, \
                     it may appear that a partitioned topic has just been deleted but is automatically created as a \
                     non-partitioned topic."""
     )
@@ -664,9 +635,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_POLICIES,
-        doc = """
-                Max pending publish requests per connection to avoid keeping large number of pending \
-                requests in memory. Default: 1000"""
+        doc = "Max pending publish requests per connection to avoid keeping large number of pending "
+                + "requests in memory. Default: 1000"
     )
     private int maxPendingPublishRequestsPerConnection = 1000;
 
@@ -692,17 +662,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private long subscriptionBacklogScanMaxEntries = 10_000;
     @FieldContext(
         category = CATEGORY_POLICIES,
-        doc = """
-                How long to delete inactive subscriptions from last consuming.\
-                 When it is 0, inactive subscriptions are not deleted automatically"""
+        doc = "How long to delete inactive subscriptions from last consuming."
+            + " When it is 0, inactive subscriptions are not deleted automatically"
     )
     private int subscriptionExpirationTimeMinutes = 0;
     @FieldContext(
             category = CATEGORY_POLICIES,
             dynamic = true,
-            doc = """
-                    Enable subscription message redelivery tracker to send redelivery \
-                    count to consumer (default is enabled)"""
+            doc = "Enable subscription message redelivery tracker to send redelivery "
+                    + "count to consumer (default is enabled)"
         )
     private boolean subscriptionRedeliveryTrackerEnabled = true;
     @FieldContext(
@@ -724,22 +692,20 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_POLICIES,
         dynamic = true,
         doc = """
-                Enable Key_Shared subscription (default is enabled).\
+                Enable Key_Shared subscription (default is enabled).
                 @deprecated - use subscriptionTypesEnabled instead."""
     )
     private boolean subscriptionKeySharedEnable = true;
 
     @FieldContext(category = CATEGORY_POLICIES,
-            doc = """
-                    On KeyShared subscriptions, with default AUTO_SPLIT mode, use splitting ranges or \
-                    consistent hashing to reassign keys to new consumers (default is consistent hashing)""")
+            doc = "On KeyShared subscriptions, with default AUTO_SPLIT mode, use splitting ranges or "
+                    + "consistent hashing to reassign keys to new consumers (default is consistent hashing)")
     private boolean subscriptionKeySharedUseConsistentHashing = true;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
-        doc = """
-                On KeyShared subscriptions, number of points in the consistent-hashing ring. \
-                The higher the number, the more equal the assignment of keys to consumers""")
+        doc = "On KeyShared subscriptions, number of points in the consistent-hashing ring. "
+                + "The higher the number, the more equal the assignment of keys to consumers")
     private int subscriptionKeySharedConsistentHashingReplicaPoints = 100;
 
     @FieldContext(
@@ -747,8 +713,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = """
                 Set the default behavior for message deduplication in the broker.
 
-                This can be overridden per-namespace. If enabled, broker will reject\
-                 messages that were already stored in the topic"""
+                This can be overridden per-namespace. If enabled, broker will reject \
+                messages that were already stored in the topic"""
     )
     private boolean brokerDeduplicationEnabled = false;
 
@@ -760,16 +726,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_POLICIES,
-        doc = """
-                How often is the thread pool scheduled to check whether a snapshot needs to be taken.\
-                (disable with value 0)"""
+        doc = "How often is the thread pool scheduled to check whether a snapshot needs to be taken."
+                + "(disable with value 0)"
     )
     private int brokerDeduplicationSnapshotFrequencyInSeconds = 120;
     @FieldContext(
         category = CATEGORY_POLICIES,
-        doc = """
-                If this time interval is exceeded, a snapshot will be taken.\
-                It will run simultaneously with `brokerDeduplicationEntriesInterval`"""
+        doc = "If this time interval is exceeded, a snapshot will be taken."
+            + "It will run simultaneously with `brokerDeduplicationEntriesInterval`"
     )
     private Integer brokerDeduplicationSnapshotIntervalSeconds = 120;
 
@@ -777,43 +741,40 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_POLICIES,
         doc = """
                 Number of entries after which a dedup info snapshot is taken.
-                A bigger interval will lead to less snapshots being taken though it would\
-                 increase the topic recovery time, when the entries published after the\
-                 snapshot need to be replayed"""
+
+                A bigger interval will lead to less snapshots being taken though it would \
+                increase the topic recovery time, when the entries published after the \
+                snapshot need to be replayed"""
     )
     private int brokerDeduplicationEntriesInterval = 1000;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
-        doc = """
-                Time of inactivity after which the broker will discard the deduplication information\
-                 relative to a disconnected producer. Default is 6 hours.""")
+        doc = "Time of inactivity after which the broker will discard the deduplication information"
+            + " relative to a disconnected producer. Default is 6 hours.")
     private int brokerDeduplicationProducerInactivityTimeoutMinutes = 360;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
-        doc = """
-                When a namespace is created without specifying the number of bundle, this \
-                value will be used as the default""")
+        doc = "When a namespace is created without specifying the number of bundle, this"
+            + " value will be used as the default")
     private int defaultNumberOfNamespaceBundles = 4;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
         dynamic = true,
-        doc = """
-                The maximum number of namespaces that each tenant can create.
-                This configuration is not precise control, in a concurrent scenario, the threshold will be exceeded""")
+        doc = "The maximum number of namespaces that each tenant can create."
+            + "This configuration is not precise control, in a concurrent scenario, the threshold will be exceeded")
     private int maxNamespacesPerTenant = 0;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
         dynamic = true,
-        doc = """
-                Max number of topics allowed to be created in the namespace. \
-                When the topics reach the max topics of the namespace, the broker should reject \
-                the new topic request(include topic auto-created by the producer or consumer) until \
-                the number of connected consumers decrease. \
-                 Using a value of 0, is disabling maxTopicsPerNamespace-limit check."""
+        doc = "Max number of topics allowed to be created in the namespace. "
+                + "When the topics reach the max topics of the namespace, the broker should reject "
+                + "the new topic request(include topic auto-created by the producer or consumer) until "
+                + "the number of connected consumers decrease. "
+                + " Using a value of 0, is disabling maxTopicsPerNamespace-limit check."
     )
     private int maxTopicsPerNamespace = 0;
 
@@ -832,19 +793,17 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_POLICIES,
         dynamic = true,
-        doc = """
-                Allow schema to be auto updated at broker level. User can override this by \
-                'is_allow_auto_update_schema' of namespace policy. This is enabled by default."""
+        doc = "Allow schema to be auto updated at broker level. User can override this by 'is_allow_auto_update_schema'"
+            + " of namespace policy. This is enabled by default."
     )
     private boolean isAllowAutoUpdateSchemaEnabled = true;
 
     @FieldContext(
             category = CATEGORY_SERVER,
-            doc = """
-                    Whether to enable the automatic shrink of pendingAcks map, \
-                    the default is false, which means it is not enabled. \
-                    When there are a large number of share or key share consumers in the cluster, \
-                    it can be enabled to reduce the memory consumption caused by pendingAcks.""")
+            doc = "Whether to enable the automatic shrink of pendingAcks map, "
+                    + "the default is false, which means it is not enabled. "
+                    + "When there are a large number of share or key share consumers in the cluster, "
+                    + "it can be enabled to reduce the memory consumption caused by pendingAcks.")
     private boolean autoShrinkForConsumerPendingAcksMap = false;
 
     @FieldContext(
@@ -855,45 +814,45 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean clientLibraryVersionCheckEnabled = false;
     @FieldContext(
         category = CATEGORY_SERVER,
-        doc = """
-                Path for the file used to determine the rotation status for the broker\
-                 when responding to service discovery health checks""")
+        doc = "Path for the file used to determine the rotation status for the broker"
+            + " when responding to service discovery health checks")
     private String statusFilePath;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
         doc = """
-                Max number of unacknowledged messages allowed to receive messages by a consumer on\
-                 a shared subscription
-                 Broker will stop sending messages to consumer once,\
-                 this limit reaches until consumer starts acknowledging messages back and unack count\
-                 reaches to `maxUnackedMessagesPerConsumer/2`. Using a value of 0, it is disabling\
-                 unackedMessage-limit check and consumer can receive messages without any restriction""")
+             Max number of unacknowledged messages allowed to receive messages by a consumer on a shared subscription.
+
+             Broker will stop sending messages to consumer once, \
+             this limit reaches until consumer starts acknowledging messages back and unack count \
+             reaches to `maxUnackedMessagesPerConsumer/2`. Using a value of 0, it is disabling \
+             unackedMessage-limit check and consumer can receive messages without any restriction""")
     private int maxUnackedMessagesPerConsumer = 50000;
     @FieldContext(
         category = CATEGORY_POLICIES,
         doc = """
                 Max number of unacknowledged messages allowed per shared subscription.
-                 Broker will stop dispatching messages to all consumers of the subscription once this\
-                 limit reaches until consumer starts acknowledging messages back and unack count reaches\
-                 to `limit/2`. Using a value of 0, is disabling unackedMessage-limit check and dispatcher\
-                 can dispatch messages without any restriction""")
+
+                Broker will stop dispatching messages to all consumers of the subscription once this \
+                limit reaches until consumer starts acknowledging messages back and unack count reaches \
+                to `limit/2`. Using a value of 0, is disabling unackedMessage-limit check and dispatcher \
+                can dispatch messages without any restriction""")
     private int maxUnackedMessagesPerSubscription = 4 * 50000;
-    @FieldContext(
-            category = CATEGORY_POLICIES,
-            doc = """
-                Max number of unacknowledged messages allowed per broker.
-                 Once this limit reaches, broker will stop dispatching messages to all shared subscription \
-                 which has higher number of unack messages until subscriptions start acknowledging messages \
-                 back and unack count reaches to `limit/2`. Using a value of 0, is disabling unackedMessage-limit\
-                 check and broker doesn't block dispatchers""")
-    private int maxUnackedMessagesPerBroker = 0;
     @FieldContext(
         category = CATEGORY_POLICIES,
         doc = """
-                Once broker reaches maxUnackedMessagesPerBroker limit, it blocks subscriptions which has higher \
-                 unacked messages than this percentage limit and subscription will not receive any new messages \
-                 until that subscription acks back `limit/2` messages""")
+                Max number of unacknowledged messages allowed per broker.
+
+                Once this limit reaches, broker will stop dispatching messages to all shared subscription \
+                which has higher number of unack messages until subscriptions start acknowledging messages \
+                back and unack count reaches to `limit/2`. Using a value of 0, is disabling unackedMessage-limit \
+                check and broker doesn't block dispatchers""")
+    private int maxUnackedMessagesPerBroker = 0;
+    @FieldContext(
+        category = CATEGORY_POLICIES,
+        doc = "Once broker reaches maxUnackedMessagesPerBroker limit, it blocks subscriptions which has higher "
+            + " unacked messages than this percentage limit and subscription will not receive any new messages "
+            + " until that subscription acks back `limit/2` messages")
     private double maxUnackedMessagesPerSubscriptionOnBrokerBlocked = 0.16;
     @FieldContext(
             category = CATEGORY_POLICIES,
@@ -902,18 +861,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_POLICIES,
             dynamic = true,
-            doc = """
-                    Broker periodically checks if subscription is stuck and unblock if flag is enabled. \
-                    (Default is disabled)"""
+            doc = "Broker periodically checks if subscription is stuck and unblock if flag is enabled. "
+                    + "(Default is disabled)"
         )
     private boolean unblockStuckSubscriptionEnabled = false;
     @FieldContext(
             category = CATEGORY_POLICIES,
             dynamic = true,
-            doc = """
-                    Tick time to schedule task that checks topic publish rate limiting across all topics \
-                    Reducing to lower value can give more accuracy while throttling publish but \
-                    it uses more CPU to perform frequent check. (Disable publish throttling with value 0)"""
+            doc = "Tick time to schedule task that checks topic publish rate limiting across all topics  "
+                    + "Reducing to lower value can give more accuracy while throttling publish but "
+                    + "it uses more CPU to perform frequent check. (Disable publish throttling with value 0)"
         )
     private int topicPublisherThrottlingTickTimeMillis = 10;
     @FieldContext(
@@ -924,69 +881,61 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
-        doc = """
-                Tick time to schedule task that checks broker publish rate limiting across all topics \
-                Reducing to lower value can give more accuracy while throttling publish but \
-                it uses more CPU to perform frequent check. (Disable publish throttling with value 0)"""
+        doc = "Tick time to schedule task that checks broker publish rate limiting across all topics  "
+            + "Reducing to lower value can give more accuracy while throttling publish but "
+            + "it uses more CPU to perform frequent check. (Disable publish throttling with value 0)"
     )
     private int brokerPublisherThrottlingTickTimeMillis = 50;
     @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
-        doc = """
-                Max Rate(in 1 seconds) of Message allowed to publish for a broker \
-                when broker publish rate limiting enabled. (Disable message rate limit with value 0)"""
+        doc = "Max Rate(in 1 seconds) of Message allowed to publish for a broker "
+            + "when broker publish rate limiting enabled. (Disable message rate limit with value 0)"
     )
     private int brokerPublisherThrottlingMaxMessageRate = 0;
     @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
-        doc = """
-                Max Rate(in 1 seconds) of Byte allowed to publish for a broker \
-                when broker publish rate limiting enabled. (Disable byte rate limit with value 0)"""
+        doc = "Max Rate(in 1 seconds) of Byte allowed to publish for a broker "
+            + "when broker publish rate limiting enabled. (Disable byte rate limit with value 0)"
     )
     private long brokerPublisherThrottlingMaxByteRate = 0;
     @FieldContext(
             category = CATEGORY_SERVER,
             dynamic = true,
-            doc = """
-                    Default messages per second dispatch throttling-limit for whole broker. \
-                    Using a value of 0, is disabling default message-byte dispatch-throttling"""
+            doc = "Default messages per second dispatch throttling-limit for whole broker. "
+                    + "Using a value of 0, is disabling default message-byte dispatch-throttling"
     )
     private int dispatchThrottlingRateInMsg = 0;
     @FieldContext(
             category = CATEGORY_SERVER,
             dynamic = true,
-            doc = """
-                    Default bytes per second dispatch throttling-limit for whole broker. \
-                    Using a value of 0, is disabling default message-byte dispatch-throttling"""
+            doc = "Default bytes per second dispatch throttling-limit for whole broker. "
+                    + "Using a value of 0, is disabling default message-byte dispatch-throttling"
     )
     private long dispatchThrottlingRateInByte = 0;
     @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
-        doc = """
-                Max Rate(in 1 seconds) of Message allowed to publish for a topic \
-                when topic publish rate limiting enabled. (Disable byte rate limit with value 0)"""
+        doc = "Max Rate(in 1 seconds) of Message allowed to publish for a topic "
+            + "when topic publish rate limiting enabled. (Disable byte rate limit with value 0)"
     )
     private int maxPublishRatePerTopicInMessages = 0;
     @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
-        doc = """
-                Max Rate(in 1 seconds) of Byte allowed to publish for a topic \
-                when topic publish rate limiting enabled. (Disable byte rate limit with value 0)"""
+        doc = "Max Rate(in 1 seconds) of Byte allowed to publish for a topic "
+            + "when topic publish rate limiting enabled. (Disable byte rate limit with value 0)"
     )
     private long maxPublishRatePerTopicInBytes = 0;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
         dynamic = true,
-        doc = """
-                Too many subscribe requests from a consumer can cause broker rewinding consumer cursors \
-                 and loading data from bookies, hence causing high network bandwidth usage When the positive\
-                 value is set, broker will throttle the subscribe requests for one consumer. Otherwise, the\
-                 throttling will be disabled. The default value of this setting is 0 - throttling is disabled.""")
+        doc = "Too many subscribe requests from a consumer can cause broker rewinding consumer cursors "
+            + " and loading data from bookies, hence causing high network bandwidth usage When the positive"
+            + " value is set, broker will throttle the subscribe requests for one consumer. Otherwise, the"
+            + " throttling will be disabled. The default value of this setting is 0 - throttling is disabled.")
     private int subscribeThrottlingRatePerConsumer = 0;
     @FieldContext(
         minValue = 1,
@@ -1013,9 +962,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             dynamic = true,
             category = CATEGORY_POLICIES,
-            doc = """
-                    Apply dispatch rate limiting on batch message instead individual \
-                    messages with in batch message. (Default is disabled)""")
+            doc = "Apply dispatch rate limiting on batch message instead individual "
+                    + "messages with in batch message. (Default is disabled)")
         private boolean dispatchThrottlingOnBatchMessageEnabled = false;
 
     @FieldContext(
@@ -1023,6 +971,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_POLICIES,
         doc = """
                 Default number of message dispatching throttling-limit for a subscription.
+
                 Using a value of 0, is disabling default message dispatch-throttling.""")
     private int dispatchThrottlingRatePerSubscriptionInMsg = 0;
     @FieldContext(
@@ -1030,6 +979,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_POLICIES,
         doc = """
                 Default number of message-bytes dispatching throttling-limit for a subscription.
+
                 Using a value of 0, is disabling default message-byte dispatch-throttling.""")
     private long dispatchThrottlingRatePerSubscriptionInByte = 0;
 
@@ -1038,6 +988,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_POLICIES,
         doc = """
                 Default number of message dispatching throttling-limit for every replicator in replication.
+
                 Using a value of 0, is disabling replication message dispatch-throttling""")
     private int dispatchThrottlingRatePerReplicatorInMsg = 0;
     @FieldContext(
@@ -1045,30 +996,28 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_POLICIES,
         doc = """
                 Default number of message-bytes dispatching throttling-limit for every replicator in replication.
+
                 Using a value of 0, is disabling replication message-byte dispatch-throttling""")
     private long dispatchThrottlingRatePerReplicatorInByte = 0;
     @FieldContext(
             dynamic = true,
             category = CATEGORY_POLICIES,
-            doc = """
-                    Dispatch rate-limiting relative to publish rate. (Enabling flag will make broker to dynamically \
-                    update dispatch-rate relatively to publish-rate: \
-                    throttle-dispatch-rate = (publish-rate + configured dispatch-rate)""")
+            doc = "Dispatch rate-limiting relative to publish rate. (Enabling flag will make broker to dynamically "
+                    + "update dispatch-rate relatively to publish-rate: "
+                    + "throttle-dispatch-rate = (publish-rate + configured dispatch-rate) ")
     private boolean dispatchThrottlingRateRelativeToPublishRate = false;
     @FieldContext(
         dynamic = true,
         category = CATEGORY_POLICIES,
-        doc = """
-                Default dispatch-throttling is disabled for consumers which already caught-up with\
-                 published messages and don't have backlog. This enables dispatch-throttling for \
-                 non-backlog consumers as well.""")
+        doc = "Default dispatch-throttling is disabled for consumers which already caught-up with"
+            + " published messages and don't have backlog. This enables dispatch-throttling for "
+            + " non-backlog consumers as well.")
     private boolean dispatchThrottlingOnNonBacklogConsumerEnabled = true;
 
     @FieldContext(
             category = CATEGORY_POLICIES,
-            doc = """
-                    Default policy for publishing usage reports to system topic is disabled.
-                    This enables publishing of usage reports"""
+            doc = "Default policy for publishing usage reports to system topic is disabled."
+            + "This enables publishing of usage reports"
     )
     private String resourceUsageTransportClassName = "";
 
@@ -1119,10 +1068,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         dynamic = true,
         category = CATEGORY_SERVER,
-        doc = """
-                Min number of entries to read from bookkeeper. By default it is 1 entries.\
-                When there is an error occurred on reading entries from bookkeeper, the broker\
-                 will backoff the batch size to this minimum number."""
+        doc = "Min number of entries to read from bookkeeper. By default it is 1 entries."
+            + "When there is an error occurred on reading entries from bookkeeper, the broker"
+            + " will backoff the batch size to this minimum number."
     )
     private int dispatcherMinReadBatchSize = 1;
 
@@ -1171,10 +1119,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
          dynamic = true,
          category = CATEGORY_SERVER,
-         doc = """
-                 Class name of pluggable entry filter that decides whether the entry needs to be filtered.\
-                 You can use this class to decide which entries can be sent to consumers.\
-                 Multiple names need to be separated by commas."""
+         doc = " Class name of pluggable entry filter that decides whether the entry needs to be filtered."
+                 + "You can use this class to decide which entries can be sent to consumers."
+                 + "Multiple names need to be separated by commas."
     )
     private List<String> entryFilterNames = new ArrayList<>();
 
@@ -1186,17 +1133,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String entryFiltersDirectory = "";
 
     @FieldContext(
-            category = CATEGORY_SERVER,
-            dynamic = true,
-            doc = "Whether allow topic level entry filters policies overrides broker configuration."
-    )
-    private boolean allowOverrideEntryFilters = false;
-
-    @FieldContext(
         category = CATEGORY_SERVER,
-        doc = """
-                Whether to use streaming read dispatcher. Currently is in preview and can be changed \
-                in subsequent release."""
+        doc = "Whether to use streaming read dispatcher. Currently is in preview and can be changed "
+                + "in subsequent release."
     )
     private boolean streamingDispatch = false;
 
@@ -1250,18 +1189,19 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = """
                 Max number of producers allowed to connect to topic.
 
-                Once this limit reaches,\
-                 Broker will reject new producers until the number of connected producers decrease.\
-                 Using a value of 0, is disabling maxProducersPerTopic-limit check.""")
+                Once this limit reaches, \
+                Broker will reject new producers until the number of connected producers decrease. \
+                Using a value of 0, is disabling maxProducersPerTopic-limit check.""")
     private int maxProducersPerTopic = 0;
 
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = """
                 Max number of producers with the same IP address allowed to connect to topic.
-                Once this limit reaches, Broker will reject new producers until the number of\
-                 connected producers with the same IP address decrease.\
-                 Using a value of 0, is disabling maxSameAddressProducersPerTopic-limit check.""")
+
+                Once this limit reaches, Broker will reject new producers until the number of \
+                connected producers with the same IP address decrease. \
+                Using a value of 0, is disabling maxSameAddressProducersPerTopic-limit check.""")
     private int maxSameAddressProducersPerTopic = 0;
 
     @FieldContext(
@@ -1273,27 +1213,30 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_SERVER,
         doc = """
                 Max number of consumers allowed to connect to topic.
-                Once this limit reaches,\
-                 Broker will reject new consumers until the number of connected consumers decrease.\
-                 Using a value of 0, is disabling maxConsumersPerTopic-limit check.""")
+
+                Once this limit reaches, \
+                Broker will reject new consumers until the number of connected consumers decrease. \
+                Using a value of 0, is disabling maxConsumersPerTopic-limit check.""")
     private int maxConsumersPerTopic = 0;
 
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = """
                 Max number of consumers with the same IP address allowed to connect to topic.
-                Once this limit reaches, Broker will reject new consumers until the number of\
-                 connected consumers with the same IP address decrease.\
-                 Using a value of 0, is disabling maxSameAddressConsumersPerTopic-limit check.""")
+
+                Once this limit reaches, Broker will reject new consumers until the number of \
+                connected consumers with the same IP address decrease. \
+                Using a value of 0, is disabling maxSameAddressConsumersPerTopic-limit check.""")
     private int maxSameAddressConsumersPerTopic = 0;
 
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = """
                 Max number of subscriptions allowed to subscribe to topic.
-                Once this limit reaches,\
-                 broker will reject new subscription until the number of subscribed subscriptions decrease.\
-                 Using a value of 0, is disabling maxSubscriptionsPerTopic limit check."""
+
+                Once this limit reaches, \
+                broker will reject new subscription until the number of subscribed subscriptions decrease. \
+                Using a value of 0, is disabling maxSubscriptionsPerTopic limit check."""
     )
     private int maxSubscriptionsPerTopic = 0;
 
@@ -1301,9 +1244,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_SERVER,
         doc = """
                 Max number of consumers allowed to connect to subscription.
-                Once this limit reaches,\
-                 Broker will reject new consumers until the number of connected consumers decrease.\
-                 Using a value of 0, is disabling maxConsumersPerSubscription-limit check.""")
+
+                Once this limit reaches, \
+                Broker will reject new consumers until the number of connected consumers decrease. \
+                Using a value of 0, is disabling maxConsumersPerSubscription-limit check.""")
     private int maxConsumersPerSubscription = 0;
 
     @FieldContext(
@@ -1337,26 +1281,28 @@ public class ServiceConfiguration implements PulsarConfiguration {
         dynamic = true,
         doc = """
                 Max memory size for broker handling messages sending from producers.
-                 If the processing message size exceed this value, broker will stop read data\
-                 from the connection. The processing messages means messages are sends to broker\
-                 but broker have not send response to client, usually waiting to write to bookies.
-                 It's shared across all the topics running in the same broker.
-                 Use -1 to disable the memory limitation. Default is 1/2 of direct memory.
+
+                If the processing message size exceed this value, broker will stop read data \
+                from the connection. The processing messages means messages are sends to broker \
+                but broker have not send response to client, usually waiting to write to bookies.
+
+                It's shared across all the topics running in the same broker.
+
+                Use -1 to disable the memory limitation. Default is 1/2 of direct memory.
                 """)
     private int maxMessagePublishBufferSizeInMB = Math.max(64,
         (int) (DirectMemoryUtils.jvmMaxDirectMemory() / 2 / (1024 * 1024)));
 
     @FieldContext(
         category = CATEGORY_SERVER,
-        doc = """
-                Interval between checks to see if message publish buffer size is exceed the max message publish \
-                buffer size"""
+        doc = "Interval between checks to see if message publish buffer size is exceed the max message publish "
+                + "buffer size"
     )
     private int messagePublishBufferCheckIntervalInMillis = 100;
 
     @FieldContext(category = CATEGORY_SERVER, doc = """
             Whether to recover cursors lazily when trying to recover a \
-            managed ledger backing a persistent topic. It can improve write availability of topics.\
+            managed ledger backing a persistent topic. It can improve write availability of topics.
             The caveat is now when recovered ledger is ready to write we're not sure if all old consumers last mark \
             delete position can be recovered or not.""")
     private boolean lazyCursorRecovery = false;
@@ -1371,7 +1317,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_SERVER,
             dynamic = true,
             doc = """
-                    The number of partitions per partitioned topic.\
+                    The number of partitions per partitioned topic.
                     If try to create or update partitioned topics by exceeded number of partitions, then fail."""
     )
     private int maxNumPartitionsPerPartitionedTopic = 0;
@@ -1412,8 +1358,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = """
-                If a topic remains fenced for this number of seconds, it will be closed forcefully.\
-                 If it is set to 0 or a negative number, the fenced topic will not be closed."""
+                If a topic remains fenced for this number of seconds, it will be closed forcefully.
+                If it is set to 0 or a negative number, the fenced topic will not be closed."""
     )
     private int topicFencingTimeoutSeconds = 0;
 
@@ -1451,9 +1397,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_SERVER,
-        doc = """
-                Enable or disable topic level policies, topic level policies depends on the system topic, \
-                please enable the system topic first.""")
+        doc = "Enable or disable topic level policies, topic level policies depends on the system topic, "
+                + "please enable the system topic first.")
     private boolean topicLevelPoliciesEnabled = true;
 
     @FieldContext(
@@ -1468,10 +1413,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_SERVER,
-        doc = """
-                Enable namespaceIsolation policy update take effect ontime or not,\
-                 if set to ture, then the related namespaces will be unloaded after reset policy to make it \
-                take effect."""
+        doc = "Enable namespaceIsolation policy update take effect ontime or not,"
+                + " if set to ture, then the related namespaces will be unloaded after reset policy to make it "
+                + "take effect."
     )
     private boolean enableNamespaceIsolationUpdateOnTime = false;
 
@@ -1527,7 +1471,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_TLS,
         doc = """
-                Specify whether Client certificates are required for TLS Reject.\
+                Specify whether Client certificates are required for TLS Reject.
                 the Connection if the Client Certificate is not trusted""")
     private boolean tlsRequireTrustedClientCertOnConnect = false;
 
@@ -1563,9 +1507,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_AUTHORIZATION,
         dynamic = true,
-        doc = """
-                Role names that are treated as `super-user`, meaning they will be able to\
-                 do all admin operations and publish/consume from all topics"""
+        doc = "Role names that are treated as `super-user`, meaning they will be able to"
+            + " do all admin operations and publish/consume from all topics"
     )
     private Set<String> superUserRoles = new TreeSet<>();
 
@@ -1573,24 +1516,24 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_AUTHORIZATION,
         doc = """
                 Role names that are treated as `proxy roles`.
-                If the broker sees\
-                 a request with role as proxyRoles - it will demand to see the original\
-                 client role or certificate.""")
+
+                If the broker sees a request with role as proxyRoles - it will demand to see the original \
+                client role or certificate.""")
     private Set<String> proxyRoles = new TreeSet<>();
 
     @FieldContext(
         category = CATEGORY_AUTHORIZATION,
-        doc = """
-                If this flag is set then the broker authenticates the original Auth data\
-                 else it just accepts the originalPrincipal and authorizes it (if required)""")
+        doc = "If this flag is set then the broker authenticates the original Auth data"
+            + " else it just accepts the originalPrincipal and authorizes it (if required)")
     private boolean authenticateOriginalAuthData = false;
 
     @FieldContext(
         category = CATEGORY_AUTHORIZATION,
         doc = """
                 Allow wildcard matching in authorization
-                (wildcard matching only applicable if wildcard-char: * presents at first\
-                 or last position eg: *.pulsar.service, pulsar.service.*)""")
+
+                (wildcard matching only applicable if wildcard-char: * presents at first \
+                or last position eg: *.pulsar.service, pulsar.service.*)""")
     private boolean authorizationAllowWildcardsMatching = false;
 
     @FieldContext(
@@ -1608,9 +1551,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category =  CATEGORY_HTTP,
         doc = """
-                If true, the broker will reject all HTTP requests using the TRACE and TRACK verbs.\
-                 This setting may be necessary if the broker is deployed into an environment that uses http port\
-                 scanning and flags web servers allowing the TRACE method as insecure."""
+                If true, the broker will reject all HTTP requests using the TRACE and TRACK verbs.
+                This setting may be necessary if the broker is deployed into an environment that uses http port \
+                scanning and flags web servers allowing the TRACE method as insecure."""
     )
     private boolean disableHttpDebugMethods = false;
 
@@ -1622,9 +1565,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category =  CATEGORY_HTTP,
-            doc = """
-                    Max HTTP requests per seconds allowed. The excess of requests will be rejected with HTTP code 429 \
-                    (Too many requests)"""
+            doc = "Max HTTP requests per seconds allowed. The excess of requests will be rejected with HTTP code 429 "
+                    + "(Too many requests)"
         )
     private double httpRequestsMaxPerSecond = 100.0;
 
@@ -1638,8 +1580,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_SASL_AUTH,
         doc = """
-                This is a regexp, which limits the range of possible ids which can connect to the Broker using SASL.\
-                 Default value is: ".*pulsar.*", so only clients whose id contains 'pulsar' are allowed to connect."""
+                This is a regexp, which limits the range of possible ids which can connect to the Broker using SASL.
+                Default value is: ".*pulsar.*", so only clients whose id contains 'pulsar' are allowed to connect."""
     )
     private String saslJaasClientAllowedIds = SaslConstants.JAAS_CLIENT_ALLOWED_IDS_DEFAULT;
 
@@ -1653,8 +1595,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_SASL_AUTH,
             doc = """
-                    Path to file containing the secret to be used to SaslRoleTokenSigner\
-                    The secret can be specified like:\
+                    Path to file containing the secret to be used to SaslRoleTokenSigner
+                    The secret can be specified like:
                     saslJaasServerRoleTokenSignerSecretPath=file:///my/saslRoleTokenSignerSecret.key."""
     )
     private String saslJaasServerRoleTokenSignerSecretPath;
@@ -1668,9 +1610,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     /**** --- BookKeeper Client. --- ****/
     @FieldContext(
         category = CATEGORY_STORAGE_BK,
-        doc = """
-                Metadata service uri that bookkeeper is used for loading corresponding metadata driver\
-                 and resolving its metadata service location"""
+        doc = "Metadata service uri that bookkeeper is used for loading corresponding metadata driver"
+            + " and resolving its metadata service location"
     )
     @Getter(AccessLevel.NONE)
     private String bookkeeperMetadataServiceUri;
@@ -1698,9 +1639,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private long bookkeeperClientTimeoutInSeconds = 30;
     @FieldContext(
         category = CATEGORY_STORAGE_BK,
-        doc = """
-                Speculative reads are initiated if a read request doesn't complete within\
-                 a certain time Using a value of 0, is disabling the speculative reads""")
+        doc = "Speculative reads are initiated if a read request doesn't complete within"
+            + " a certain time Using a value of 0, is disabling the speculative reads")
     private int bookkeeperClientSpeculativeReadTimeoutInMillis = 0;
     @FieldContext(
         category = CATEGORY_STORAGE_BK,
@@ -1717,9 +1657,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_STORAGE_BK,
         doc = """
                 Enable bookies health check.
-                 Bookies that have more than the configured\
-                 number of failure within the interval will be quarantined for some time.\
-                 During this period, new ledgers won't be created on these bookies""")
+
+                Bookies that have more than the configured \
+                number of failure within the interval will be quarantined for some time. \
+                During this period, new ledgers won't be created on these bookies""")
     private boolean bookkeeperClientHealthCheckEnabled = true;
     @FieldContext(
         category = CATEGORY_STORAGE_BK,
@@ -1738,37 +1679,38 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private long bookkeeperClientHealthCheckQuarantineTimeInSeconds = 1800;
     @FieldContext(
             category = CATEGORY_STORAGE_BK,
-            doc = """
-                    bookie quarantine ratio to avoid all clients quarantine \
-                    the high pressure bookie servers at the same time"""
+            doc = "bookie quarantine ratio to avoid all clients quarantine "
+                    + "the high pressure bookie servers at the same time"
     )
     private double bookkeeperClientQuarantineRatio = 1.0;
     @FieldContext(
         category = CATEGORY_STORAGE_BK,
         doc = """
                 Enable rack-aware bookie selection policy.
-                BK will chose bookies from
-                 different racks when forming a new bookie ensemble""")
+
+                BK will chose bookies from different racks when forming a new bookie ensemble""")
     private boolean bookkeeperClientRackawarePolicyEnabled = true;
     @FieldContext(
         category = CATEGORY_STORAGE_BK,
         doc = """
                 Enable region-aware bookie selection policy.
-                BK will chose bookies from\
-                 different regions and racks when forming a new bookie ensemble""")
+
+                BK will chose bookies from different regions and racks when forming a new bookie ensemble""")
     private boolean bookkeeperClientRegionawarePolicyEnabled = false;
     @FieldContext(
         category = CATEGORY_STORAGE_BK,
         doc = """
                 Minimum number of racks per write quorum.
-                BK rack-aware bookie selection policy will try to\
-                 get bookies from at least 'bookkeeperClientMinNumRacksPerWriteQuorum' racks for a write quorum.""")
+
+                BK rack-aware bookie selection policy will try to \
+                get bookies from at least 'bookkeeperClientMinNumRacksPerWriteQuorum' racks for a write quorum.""")
     private int bookkeeperClientMinNumRacksPerWriteQuorum = 2;
     @FieldContext(
         category = CATEGORY_STORAGE_BK,
         doc = """
                 Enforces rack-aware bookie selection policy to pick bookies from \
-                'bookkeeperClientMinNumRacksPerWriteQuorum' racks for  a writeQuorum.
+                'bookkeeperClientMinNumRacksPerWriteQuorum' racks for a writeQuorum.
+
                 If BK can't find bookie then it would throw BKNotEnoughBookiesException instead of picking random one.
                 """)
     private boolean bookkeeperClientEnforceMinNumRacksPerWriteQuorum = false;
@@ -1781,14 +1723,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
         required = false,
         doc = """
                 Enable bookie isolation by specifying a list of bookie groups to choose from.
+
                 Any bookie outside the specified groups will not be used by the broker""")
     private String bookkeeperClientIsolationGroups;
     @FieldContext(
             category = CATEGORY_STORAGE_BK,
             required = false,
-            doc = """
-                    Enable bookie secondary-isolation group if bookkeeperClientIsolationGroups doesn't have enough \
-                    bookie available."""
+            doc = "Enable bookie secondary-isolation group if bookkeeperClientIsolationGroups doesn't have enough "
+                    + "bookie available."
                 )
     private String bookkeeperClientSecondaryIsolationGroups;
 
@@ -1800,15 +1742,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(category = CATEGORY_STORAGE_BK, doc = """
             Enable/disable having read operations for a ledger to be \
-            sticky to a single bookie.\
+            sticky to a single bookie.
             If this flag is enabled, the client will use one single bookie (by preference) \
             to read all entries for a ledger."""
     )
     private boolean bookkeeperEnableStickyReads = true;
 
-    @FieldContext(category = CATEGORY_STORAGE_BK, doc = """
-            Set the client security provider factory class name. \
-            Default: org.apache.bookkeeper.tls.TLSContextFactory""")
+    @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Set the client security provider factory class name. "
+            + "Default: org.apache.bookkeeper.tls.TLSContextFactory")
     private String bookkeeperTLSProviderFactoryClass = "org.apache.bookkeeper.tls.TLSContextFactory";
 
     @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Enable tls authentication with bookie")
@@ -1820,14 +1761,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Supported type: PEM, JKS, PKCS12. Default value: PEM")
     private String bookkeeperTLSTrustCertTypes = "PEM";
 
-    @FieldContext(category = CATEGORY_STORAGE_BK, doc = """
-            Path to file containing keystore password, \
-            if the client keystore is password protected.""")
+    @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Path to file containing keystore password, "
+            + "if the client keystore is password protected.")
     private String bookkeeperTLSKeyStorePasswordPath;
 
-    @FieldContext(category = CATEGORY_STORAGE_BK, doc = """
-            Path to file containing truststore password, \
-            if the client truststore is password protected.""")
+    @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Path to file containing truststore password, "
+            + "if the client truststore is password protected.")
     private String bookkeeperTLSTrustStorePasswordPath;
 
     @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Path for the TLS private key file")
@@ -1839,17 +1778,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Path for the trusted TLS certificate file")
     private String bookkeeperTLSTrustCertsFilePath;
 
-    @FieldContext(category = CATEGORY_STORAGE_BK, doc = """
-            Tls cert refresh duration at bookKeeper-client in seconds (0to disable check)
-            """)
+    @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Tls cert refresh duration at bookKeeper-client in seconds (0 "
+            + "to disable check)")
     private int bookkeeperTlsCertFilesRefreshDurationSeconds = 300;
 
     @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Enable/disable disk weight based placement. Default is false")
     private boolean bookkeeperDiskWeightBasedPlacementEnabled = false;
 
-    @FieldContext(category = CATEGORY_STORAGE_BK, doc = """
-            Set the interval to check the need for sending an explicit LAC
-            """)
+    @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Set the interval to check the need for sending an explicit "
+            + "LAC")
     private int bookkeeperExplicitLacIntervalInMills = 0;
 
     @FieldContext(
@@ -1904,9 +1841,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(minValue = 1,
             category = CATEGORY_STORAGE_ML,
-            doc = """
-                    How frequently to flush the cursor positions that were accumulated due to rate limiting. (seconds).\
-                     Default is 60 seconds""")
+            doc = "How frequently to flush the cursor positions that were accumulated due to rate limiting. (seconds)."
+                    + " Default is 60 seconds")
     private int managedLedgerCursorPositionFlushSeconds = 60;
 
     @FieldContext(minValue = 1,
@@ -1920,13 +1856,17 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_STORAGE_ML,
         doc = """
                 Default type of checksum to use when writing to BookKeeper.
+
                 Default is `CRC32C`. Other possible options are `CRC32`, `MAC` or `DUMMY` (no checksum)."""
     )
     private DigestType managedLedgerDigestType = DigestType.CRC32C;
 
     @FieldContext(
             category = CATEGORY_STORAGE_ML,
-            doc = "Default  password to use when writing to BookKeeper. \n\nDefault is ``."
+            doc = """
+                    Default password to use when writing to BookKeeper.
+
+                    Default is ``."""
         )
     @ToString.Exclude
     private String managedLedgerPassword = "";
@@ -1954,13 +1894,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
         dynamic = true,
             doc = """
                 Amount of memory to use for caching data payload in managed ledger.
-                This memory is allocated from JVM direct memory and it's shared across all the topics\
-                 running in the same broker. By default, uses 1/5th of available direct memory""")
+
+                This memory is allocated from JVM direct memory and it's shared across all the topics \
+                running in the same broker. By default, uses 1/5th of available direct memory""")
     private int managedLedgerCacheSizeMB = Math.max(64,
             (int) (DirectMemoryUtils.jvmMaxDirectMemory() / 5 / (1024 * 1024)));
 
-    @FieldContext(category = CATEGORY_STORAGE_ML,
-            doc = "Whether we should make a copy of the entry payloads when inserting in cache")
+    @FieldContext(category = CATEGORY_STORAGE_ML, doc = "Whether we should make a copy of the entry payloads when "
+            + "inserting in cache")
     private boolean managedLedgerCacheCopyEntries = false;
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
@@ -1982,9 +1923,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "All entries that have stayed in cache for more than the configured time, will be evicted")
     private long managedLedgerCacheEvictionTimeThresholdMillis = 1000;
     @FieldContext(category = CATEGORY_STORAGE_ML,
-            doc = """
-                    Configure the threshold (in number of entries) from where a cursor should be \
-                    considered 'backlogged' and thus should be set as inactive.""")
+            doc = "Configure the threshold (in number of entries) from where a cursor should be considered 'backlogged'"
+                    + " and thus should be set as inactive.")
     private long managedLedgerCursorBackloggedThreshold = 1000;
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
@@ -2012,9 +1952,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_STORAGE_ML,
             dynamic = true,
-            doc = """
-                    The number of partitioned topics that is allowed to be automatically created \
-                    if allowAutoTopicCreationType is partitioned."""
+            doc = "The number of partitioned topics that is allowed to be automatically created"
+                    + "if allowAutoTopicCreationType is partitioned."
     )
     private int defaultNumPartitions = 1;
     @FieldContext(
@@ -2032,11 +1971,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_STORAGE_ML,
         doc = """
                 Max number of entries to append to a ledger before triggering a rollover.
-                A ledger rollover is triggered after the min rollover time has passed\
-                 and one of the following conditions is true:\
-                 the max rollover time has been reached,\
-                 the max entries have been written to the ledger, or\
-                 the max ledger size has been written to the ledger""")
+
+                A ledger rollover is triggered after the min rollover time has passed \
+                and one of the following conditions is true: \
+                the max rollover time has been reached, \
+                the max entries have been written to the ledger, or \
+                the max ledger size has been written to the ledger""")
     private int managedLedgerMaxEntriesPerLedger = 50000;
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
@@ -2055,9 +1995,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int managedLedgerMaxSizePerLedgerMbytes = 2048;
     @FieldContext(
         category = CATEGORY_STORAGE_OFFLOADING,
-        doc = """
-                Delay between a ledger being successfully offloaded to long term storage,\
-                 and the ledger being deleted from bookkeeper"""
+        doc = "Delay between a ledger being successfully offloaded to long term storage,"
+            + " and the ledger being deleted from bookkeeper"
     )
     private long managedLedgerOffloadDeletionLagMs = TimeUnit.HOURS.toMillis(4);
     @FieldContext(
@@ -2080,16 +2019,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = """
                 Max number of `acknowledgment holes` that are going to be persistently stored.
 
-                When acknowledging out of order, a consumer will leave holes that are supposed\
-                 to be quickly filled by acking all the messages. The information of which\
-                 messages are acknowledged is persisted by compressing in `ranges` of messages\
-                 that were acknowledged. After the max number of ranges is reached, the information\
-                 will only be tracked in memory and messages will be redelivered in case of crashes.""")
+                When acknowledging out of order, a consumer will leave holes that are supposed \
+                to be quickly filled by acking all the messages. The information of which \
+                messages are acknowledged is persisted by compressing in `ranges` of messages \
+                that were acknowledged. After the max number of ranges is reached, the information \
+                will only be tracked in memory and messages will be redelivered in case of crashes.""")
     private int managedLedgerMaxUnackedRangesToPersist = 10000;
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
         doc = """
-                If enabled, the maximum "acknowledgment holes" will not be limited and "acknowledgment holes"\
+                If enabled, the maximum "acknowledgment holes" will not be limited and "acknowledgment holes" \
                 are stored in multiple entries.""")
     private boolean persistentUnackedRangesWithMultipleEntriesEnabled = false;
     @Deprecated
@@ -2098,16 +2037,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
         deprecated = true,
         doc = """
                 Max number of `acknowledgment holes` that can be stored in Zookeeper.
-                If number of unack message range is higher than this limit then broker will persist\
-                 unacked ranges into bookkeeper to avoid additional data overhead into zookeeper.\
+
+                If number of unack message range is higher than this limit then broker will persist \
+                unacked ranges into bookkeeper to avoid additional data overhead into zookeeper. \
                 @deprecated - use managedLedgerMaxUnackedRangesToPersistInMetadataStore.""")
     private int managedLedgerMaxUnackedRangesToPersistInZooKeeper = -1;
     @FieldContext(
             category = CATEGORY_STORAGE_ML,
             doc = """
                     Max number of `acknowledgment holes` that can be stored in MetadataStore.
-                    If number of unack message range is higher than this limit then broker will persist\
-                     unacked ranges into bookkeeper to avoid additional data overhead into MetadataStore.""")
+
+                    If number of unack message range is higher than this limit then broker will persist \
+                    unacked ranges into bookkeeper to avoid additional data overhead into MetadataStore.""")
     private int managedLedgerMaxUnackedRangesToPersistInMetadataStore = 1000;
     @FieldContext(
             category = CATEGORY_STORAGE_OFFLOADING,
@@ -2119,7 +2060,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_STORAGE_ML,
         doc = """
                 Skip reading non-recoverable/unreadable data-ledger under managed-ledger's list.
-                 It helps when data-ledgers gets corrupted at bookkeeper and managed-cursor is stuck at that ledger."""
+
+                It helps when data-ledgers gets corrupted at bookkeeper and managed-cursor is stuck at that ledger."""
     )
     private boolean autoSkipNonRecoverableData = false;
     @FieldContext(
@@ -2130,9 +2072,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_STORAGE_ML,
-            doc = """
-                    Read entries timeout when broker tries to read messages from bookkeeper \
-                    (0 to disable it)"""
+            doc = "Read entries timeout when broker tries to read messages from bookkeeper "
+                    + "(0 to disable it)"
         )
     private long managedLedgerReadEntryTimeoutSeconds = 0;
 
@@ -2182,9 +2123,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             dynamic = true,
             category = CATEGORY_STORAGE_ML,
-            doc = """
-                    Minimum cursors that must be in backlog state to cache and reuse the read entries.\
-                    (Default =0 to disable backlog reach cache)"""
+            doc = "Minimum cursors that must be in backlog state to cache and reuse the read entries."
+                    + "(Default =0 to disable backlog reach cache)"
     )
     private int managedLedgerMinimumBacklogCursorsForCaching = 0;
 
@@ -2211,19 +2151,17 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_LOAD_BALANCER,
             deprecated = true,
-            doc = """
-                    load placement strategy[weightedRandomSelection/leastLoadedServer] (only used by \
-                    SimpleLoadManagerImpl)"""
+            doc = "load placement strategy[weightedRandomSelection/leastLoadedServer] (only used by "
+                    + "SimpleLoadManagerImpl)"
     )
     private String loadBalancerPlacementStrategy = "leastLoadedServer"; // weighted random selection
 
     @FieldContext(
             category = CATEGORY_LOAD_BALANCER,
             dynamic = true,
-            doc = """
-                    load balance load shedding strategy \
-                    (It requires broker restart if value is changed using dynamic config). \
-                    Default is ThresholdShedder since 2.10.0"""
+            doc = "load balance load shedding strategy "
+                + "(It requires broker restart if value is changed using dynamic config). "
+                + "Default is ThresholdShedder since 2.10.0"
     )
     private String loadBalancerLoadSheddingStrategy = "org.apache.pulsar.broker.loadbalance.impl.ThresholdShedder";
 
@@ -2263,8 +2201,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
         dynamic = true,
         doc = """
                 Load shedding interval.
-                Broker periodically checks whether some traffic\
-                 should be offload from some over-loaded broker to other under-loaded brokers"""
+
+                Broker periodically checks whether some traffic \
+                should be offload from some over-loaded broker to other under-loaded brokers"""
     )
     private int loadBalancerSheddingIntervalMinutes = 1;
 
@@ -2278,9 +2217,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_LOAD_BALANCER,
         dynamic = true,
-        doc = """
-                Prevent the same topics to be shed and moved to other broker more than\
-                 once within this timeframe"""
+        doc = "Prevent the same topics to be shed and moved to other broker more than"
+            + " once within this timeframe"
     )
     private long loadBalancerSheddingGracePeriodMinutes = 30;
     @FieldContext(
@@ -2314,26 +2252,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             dynamic = true,
             category = CATEGORY_LOAD_BALANCER,
-            doc = """
-                    Average resource usage difference threshold to determine a broker whether to be a best candidate in\
-                     LeastResourceUsageWithWeight.(eg: broker1 with 10% resource usage with weight\
-                     and broker2 with 30% and broker3 with 80% will have 40% average resource usage.\
-                     The placement strategy can select broker1 and broker2 as best candidates.)"""
+            doc = "Average resource usage difference threshold to determine a broker whether to be a best candidate in "
+                    + "LeastResourceUsageWithWeight.(eg: broker1 with 10% resource usage with weight "
+                    + "and broker2 with 30% and broker3 with 80% will have 40% average resource usage. "
+                    + "The placement strategy can select broker1 and broker2 as best candidates.)"
     )
     private int loadBalancerAverageResourceUsageDifferenceThresholdPercentage = 10;
-
-
-    @FieldContext(
-            dynamic = true,
-            category = CATEGORY_LOAD_BALANCER,
-            doc = "In FlowOrQpsEquallyDivideBundleSplitAlgorithm,"
-                    + " if msgRate >= loadBalancerNamespaceBundleMaxMsgRate * "
-                    + " (100 + flowOrQpsDifferenceThresholdPercentage)/100.0 "
-                    + " or throughput >=  loadBalancerNamespaceBundleMaxBandwidthMbytes * "
-                    + " (100 + flowOrQpsDifferenceThresholdPercentage)/100.0, "
-                    + " execute split bundle"
-    )
-    private int flowOrQpsDifferenceThresholdPercentage = 10;
 
     @FieldContext(
             dynamic = true,
@@ -2359,30 +2283,27 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         dynamic = true,
         category = CATEGORY_LOAD_BALANCER,
-        doc = """
-                Message-rate percentage threshold between highest and least loaded brokers for \
-                uniform load shedding. (eg: broker1 with 50K msgRate and broker2 with 30K msgRate \
-                will have 66% msgRate difference and load balancer can unload bundles from broker-1 \
-                to broker-2)"""
+        doc = "Message-rate percentage threshold between highest and least loaded brokers for "
+                + "uniform load shedding. (eg: broker1 with 50K msgRate and broker2 with 30K msgRate "
+                + "will have 66% msgRate difference and load balancer can unload bundles from broker-1 "
+                + "to broker-2)"
     )
     private double loadBalancerMsgRateDifferenceShedderThreshold = 50;
     @FieldContext(
         dynamic = true,
         category = CATEGORY_LOAD_BALANCER,
-        doc = """
-                Message-throughput threshold between highest and least loaded brokers for \
-                uniform load shedding. (eg: broker1 with 450MB msgRate and broker2 with 100MB msgRate \
-                will have 4.5 times msgThroughout difference and load balancer can unload bundles \
-                from broker-1 to broker-2)"""
+        doc = "Message-throughput threshold between highest and least loaded brokers for "
+                + "uniform load shedding. (eg: broker1 with 450MB msgRate and broker2 with 100MB msgRate "
+                + "will have 4.5 times msgThroughout difference and load balancer can unload bundles "
+                + "from broker-1 to broker-2)"
     )
     private double loadBalancerMsgThroughputMultiplierDifferenceShedderThreshold = 4;
 
     @FieldContext(
             dynamic = true,
             category = CATEGORY_LOAD_BALANCER,
-            doc = """
-                    For each uniform balanced unload, the maximum number of bundles that can be unloaded.\
-                     The default value is -1, which means no limit"""
+            doc = "For each uniform balanced unload, the maximum number of bundles that can be unloaded."
+                    + " The default value is -1, which means no limit"
     )
     private int maxUnloadBundleNumPerShedding = -1;
 
@@ -2444,9 +2365,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_LOAD_BALANCER,
         deprecated = true,
-        doc = """
-                Usage threshold to determine a broker is having just right level of load\
-                 (only used by SimpleLoadManagerImpl)"""
+        doc = "Usage threshold to determine a broker is having just right level of load"
+            + " (only used by SimpleLoadManagerImpl)"
     )
     private int loadBalancerBrokerComfortLoadLevelPercentage = 65;
     @FieldContext(
@@ -2470,9 +2390,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_LOAD_BALANCER,
         dynamic = true,
-        doc = """
-                maximum sessions (producers + consumers) in a bundle, otherwise bundle split will be triggered\
-                (disable threshold check with value -1)"""
+        doc = "maximum sessions (producers + consumers) in a bundle, otherwise bundle split will be triggered"
+                + "(disable threshold check with value -1)"
     )
     private int loadBalancerNamespaceBundleMaxSessions = 1000;
     @FieldContext(
@@ -2505,7 +2424,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Supported algorithms name for namespace bundle split"
     )
     private List<String> supportedNamespaceBundleSplitAlgorithms = Lists.newArrayList("range_equally_divide",
-            "topic_count_equally_divide", "specified_positions_divide", "flow_or_qps_equally_divide");
+            "topic_count_equally_divide", "specified_positions_divide");
     @FieldContext(
         dynamic = true,
         category = CATEGORY_LOAD_BALANCER,
@@ -2535,6 +2454,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_REPLICATION,
         doc = """
                 Max number of connections to open for each broker in a remote cluster.
+
                 More connections host-to-host lead to better throughput over high-latency links"""
     )
     private int replicationConnectionsPerBroker = 16;
@@ -2547,16 +2467,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_REPLICATION,
         dynamic = true,
-        doc = """
-                Replicator producer queue size.
-                When dynamically modified, it only takes effect for the newly added replicators"""
+        doc = "Replicator producer queue size. "
+                + "When dynamically modified, it only takes effect for the newly added replicators"
     )
     private int replicationProducerQueueSize = 1000;
     @FieldContext(
             category = CATEGORY_REPLICATION,
-            doc = """
-                    Duration to check replication policy to avoid replicator\
-                    inconsistency due to missing ZooKeeper watch (disable with value 0)"""
+            doc = "Duration to check replication policy to avoid replicator "
+                    + "inconsistency due to missing ZooKeeper watch (disable with value 0)"
         )
     private int replicationPolicyCheckDurationSeconds = 600;
     @Deprecated
@@ -2568,16 +2486,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean replicationTlsEnabled = false;
     @FieldContext(
         category = CATEGORY_POLICIES,
-        doc = """
-                Default message retention time.\
-                 0 means retention is disabled. -1 means data is not removed by time quota"""
+        doc = "Default message retention time."
+            + " 0 means retention is disabled. -1 means data is not removed by time quota"
     )
     private int defaultRetentionTimeInMinutes = 0;
     @FieldContext(
         category = CATEGORY_POLICIES,
-        doc = """
-                Default retention size.\
-                 0 means retention is disabled. -1 means data is not removed by size quota"""
+        doc = "Default retention size."
+            + " 0 means retention is disabled. -1 means data is not removed by size quota"
     )
     private int defaultRetentionSizeInMB = 0;
     @FieldContext(
@@ -2589,10 +2505,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_POLICIES,
         deprecated = true,
-        doc = """
-                How often broker checks for inactive topics to be deleted (topics with no subscriptions and no one \
-                connected) Deprecated in favor of using `brokerDeleteInactiveTopicsFrequencySeconds`\
-                @deprecated - unused."""
+        doc = "How often broker checks for inactive topics to be deleted (topics with no subscriptions and no one "
+                + "connected) Deprecated in favor of using `brokerDeleteInactiveTopicsFrequencySeconds`\n"
+                + "@deprecated - unused."
     )
     private int brokerServicePurgeInactiveFrequencyInSeconds = 60;
     @FieldContext(
@@ -2608,9 +2523,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         dynamic = true,
         category = CATEGORY_SERVER,
-        doc = """
-                If true, (and ModularLoadManagerImpl is being used), the load manager will attempt to \
-                use only brokers running the latest software version (to minimize impact to bundles)"""
+        doc = "If true, (and ModularLoadManagerImpl is being used), the load manager will attempt to "
+            + "use only brokers running the latest software version (to minimize impact to bundles)"
     )
     private boolean preferLaterVersions = false;
 
@@ -2630,9 +2544,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SERVER,
-            doc = """
-                    Timeout for the compaction phase one loop, If the execution time of the compaction \
-                    phase one loop exceeds this time, the compaction will not proceed."""
+            doc = "Timeout for the compaction phase one loop, If the execution time of the compaction "
+                    + "phase one loop exceeds this time, the compaction will not proceed."
     )
     private long brokerServiceCompactionPhaseOneLoopTimeInSeconds = 30;
 
@@ -2640,9 +2553,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_SCHEMA,
         doc = """
                 Enforce schema validation on following cases:
-                 - if a producer without a schema attempts to produce to a topic with schema, the producer will be\
-                   failed to connect. PLEASE be carefully on using this, since non-java clients don't support schema.\
-                   if you enable this setting, it will cause non-java clients failed to produce."""
+
+                 - if a producer without a schema attempts to produce to a topic with schema, the producer will be \
+                  failed to connect. PLEASE be carefully on using this, since non-java clients don't support schema. \
+                  if you enable this setting, it will cause non-java clients failed to produce."""
     )
     private boolean isSchemaValidationEnforced = false;
 
@@ -2650,8 +2564,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_SCHEMA,
         doc = "The schema storage implementation used by this broker"
     )
-    private String schemaRegistryStorageClassName =
-            "org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorageFactory";
+    private String schemaRegistryStorageClassName = "org.apache.pulsar.broker.service.schema"
+            + ".BookkeeperSchemaStorageFactory";
 
     @FieldContext(
         category = CATEGORY_SCHEMA,
@@ -2700,9 +2614,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     /**** --- Metrics. --- ****/
     @FieldContext(
             category = CATEGORY_METRICS,
-            doc = """
-                    Whether the '/metrics' endpoint requires authentication. Defaults to false.\
-                    'authenticationEnabled' must also be set for this to take effect."""
+            doc = "Whether the '/metrics' endpoint requires authentication. Defaults to false."
+                    + "'authenticationEnabled' must also be set for this to take effect."
     )
     private boolean authenticateMetricsEndpoint = false;
     @FieldContext(
@@ -2743,8 +2656,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_METRICS,
         doc = """
-                Enable expose the precise backlog stats.\
-                 Set false to use published counter and consumed counter to calculate,\
+                Enable expose the precise backlog stats.
+                 Set false to use published counter and consumed counter to calculate,
                  this would be more efficient but may be inaccurate. Default is false."""
     )
     private boolean exposePreciseBacklogInPrometheus = false;
@@ -2752,8 +2665,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_METRICS,
         doc = """
-                Time in milliseconds that metrics endpoint would time out. Default is 30s.\
-                 Increase it if there are a lot of topics to expose topic-level metrics.\
+                Time in milliseconds that metrics endpoint would time out. Default is 30s.
+                 Increase it if there are a lot of topics to expose topic-level metrics.
                  Set it to 0 to disable timeout."""
     )
     private long metricsServletTimeoutMs = 30000;
@@ -2769,11 +2682,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_METRICS,
             doc = """
-                    Enable splitting topic and partition label in Prometheus.\
-                     If enabled, a topic name will split into 2 parts, one is topic name without partition index,\
-                     another one is partition index, e.g. (topic=xxx, partition=0).\
-                     If the topic is a non-partitioned topic, -1 will be used for the partition index.\
-                     If disabled, one label to represent the topic and partition, e.g. (topic=xxx-partition-0)\
+                    Enable splitting topic and partition label in Prometheus.
+                     If enabled, a topic name will split into 2 parts, one is topic name without partition index,
+                     another one is partition index, e.g. (topic=xxx, partition=0).
+                     If the topic is a non-partitioned topic, -1 will be used for the partition index.
+                     If disabled, one label to represent the topic and partition, e.g. (topic=xxx-partition-0)
                      Default is false."""
     )
     private boolean splitTopicAndPartitionLabelInPrometheus = false;
@@ -2863,17 +2776,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         dynamic = true,
         category = CATEGORY_STORAGE_ML,
-        doc = """
-                Time to rollover ledger for inactive topic (duration without any publish on that topic).
-                Disable rollover with value 0 (Default value 0)"""
+        doc = "Time to rollover ledger for inactive topic (duration without any publish on that topic). "
+                + "Disable rollover with value 0 (Default value 0)"
         )
     private int managedLedgerInactiveLedgerRolloverTimeSeconds = 0;
 
     @FieldContext(
             category = CATEGORY_STORAGE_ML,
-            doc = """
-                    Evicting cache data by the slowest markDeletedPosition or readPosition.
-                    The default is to evict through readPosition."""
+            doc = "Evicting cache data by the slowest markDeletedPosition or readPosition. "
+                    + "The default is to evict through readPosition."
     )
     private boolean cacheEvictionByMarkDeletedPosition = false;
 
@@ -2907,9 +2818,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_TRANSACTION,
-            doc = """
-                    Number of threads to use for pulsar transaction replay PendingAckStore or TransactionBuffer.
-                    Default is 5"""
+            doc = "Number of threads to use for pulsar transaction replay PendingAckStore or TransactionBuffer."
+                    + "Default is 5"
     )
     private int numTransactionReplayThreadPoolSize = Runtime.getRuntime().availableProcessors();
 
@@ -2945,80 +2855,71 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_TRANSACTION,
-            doc = """
-                    MLPendingAckStore maintain a ConcurrentSkipListMap pendingAckLogIndex`,\
-                    it store the position in pendingAckStore as value and save a position used to determine\
-                    whether the previous data can be cleaned up as a key.\
-                    transactionPendingAckLogIndexMinLag is used to configure the minimum lag between indexes"""
+            doc = "MLPendingAckStore maintain a ConcurrentSkipListMap pendingAckLogIndex`,"
+                    + "it store the position in pendingAckStore as value and save a position used to determine"
+                    + "whether the previous data can be cleaned up as a key."
+                    + "transactionPendingAckLogIndexMinLag is used to configure the minimum lag between indexes"
     )
     private long transactionPendingAckLogIndexMinLag = 500L;
 
     @FieldContext(
             category = CATEGORY_SERVER,
             dynamic = true,
-            doc = """
-                    Provide a mechanism allowing the Transaction Log Store to aggregate multiple records into a batched\
-                     record and persist into a single BK entry. This will make Pulsar transactions work more\
-                     efficiently, aka batched log. see: https://github.com/apache/pulsar/issues/15370. Default false"""
+            doc = "Provide a mechanism allowing the Transaction Log Store to aggregate multiple records into a batched"
+                    + " record and persist into a single BK entry. This will make Pulsar transactions work more"
+                    + " efficiently, aka batched log. see: https://github.com/apache/pulsar/issues/15370. Default false"
     )
     private boolean transactionLogBatchedWriteEnabled = false;
 
     @FieldContext(
             category = CATEGORY_SERVER,
-            doc = """
-                    If enabled the feature that transaction log batch, this attribute means maximum log records count\
-                     in a batch, default 512."""
+            doc = "If enabled the feature that transaction log batch, this attribute means maximum log records count"
+                    + " in a batch, default 512."
     )
     private int transactionLogBatchedWriteMaxRecords = 512;
 
     @FieldContext(
             category = CATEGORY_SERVER,
-            doc = """
-                    If enabled the feature that transaction log batch, this attribute means bytes size in a\
-                     batch, default 4m."""
+            doc = "If enabled the feature that transaction log batch, this attribute means bytes size in a"
+                    + " batch, default 4m."
     )
     private int transactionLogBatchedWriteMaxSize = 1024 * 1024 * 4;
 
     @FieldContext(
             category = CATEGORY_SERVER,
-            doc = """
-                    If enabled the feature that transaction log batch, this attribute means maximum wait\
-                      time(in millis) for the first record in a batch, default 1 millisecond."""
+            doc = "If enabled the feature that transaction log batch, this attribute means maximum wait time(in millis)"
+                    + " for the first record in a batch, default 1 millisecond."
     )
     private int transactionLogBatchedWriteMaxDelayInMillis = 1;
 
     @FieldContext(
             category = CATEGORY_SERVER,
             dynamic = true,
-            doc = """
-                    Provide a mechanism allowing the transaction pending ack Log Store to aggregate multiple records\
-                     into a batched record and persist into a single BK entry. This will make Pulsar transactions\
-                     work more efficiently, aka batched log. see: https://github.com/apache/pulsar/issues/15370.\
-                     Default false."""
+            doc = "Provide a mechanism allowing the transaction pending ack Log Store to aggregate multiple records"
+                    + " into a batched record and persist into a single BK entry. This will make Pulsar transactions"
+                    + " work more efficiently, aka batched log. see: https://github.com/apache/pulsar/issues/15370."
+                    + " Default false."
     )
     private boolean transactionPendingAckBatchedWriteEnabled = false;
 
     @FieldContext(
             category = CATEGORY_SERVER,
-            doc = """
-                    If enabled the feature that transaction log batch, this attribute means maximum log records count\
-                     in a batch, default 512."""
+            doc = "If enabled the feature that transaction log batch, this attribute means maximum log records count"
+                    + " in a batch, default 512."
     )
     private int transactionPendingAckBatchedWriteMaxRecords = 512;
 
     @FieldContext(
             category = CATEGORY_SERVER,
-            doc = """
-                    If enabled the feature that transaction pending ack log batch, this attribute means bytes size in\
-                     a batch, default 4m."""
+            doc = "If enabled the feature that transaction pending ack log batch, this attribute means bytes size in"
+                    + " a batch, default 4m."
     )
     private int transactionPendingAckBatchedWriteMaxSize = 1024 * 1024 * 4;
 
     @FieldContext(
             category = CATEGORY_SERVER,
-            doc = """
-                    If enabled the feature that transaction pending ack log batch, this attribute means maximum wait\
-                     time(in millis) for the first record in a batch, default 1 millisecond."""
+            doc = "If enabled the feature that transaction pending ack log batch, this attribute means maximum wait"
+                    + " time(in millis) for the first record in a batch, default 1 millisecond."
     )
     private int transactionPendingAckBatchedWriteMaxDelayInMillis = 1;
 
@@ -3082,25 +2983,24 @@ public class ServiceConfiguration implements PulsarConfiguration {
             dynamic = true,
             doc = """
                     Authentication settings of the broker itself.
-                    Used when the broker connects\
-                     to other brokers, either in same or other clusters. \
+
+                    Used when the broker connects \
+                    to other brokers, either in same or other clusters. \
                     Default uses plugin which disables authentication"""
     )
     private String brokerClientAuthenticationPlugin = "org.apache.pulsar.client.impl.auth.AuthenticationDisabled";
     @FieldContext(
             category = CATEGORY_AUTHENTICATION,
             dynamic = true,
-            doc = """
-                    Authentication parameters of the authentication plugin the broker is using to connect \
-                    to other brokers"""
+            doc = "Authentication parameters of the authentication plugin the broker is using to connect "
+                    + "to other brokers"
     )
     private String brokerClientAuthenticationParameters = "";
     @FieldContext(
             category = CATEGORY_REPLICATION,
             dynamic = true,
-            doc = """
-                    Enable TLS when talking with other brokers in the same cluster (admin operation) \
-                    or different clusters (replication)"""
+            doc = "Enable TLS when talking with other brokers in the same cluster (admin operation) "
+                    + "or different clusters (replication)"
     )
     private boolean brokerClientTlsEnabled = false;
     @FieldContext(
@@ -3115,64 +3015,55 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String brokerClientSslProvider = null;
     @FieldContext(
             category = CATEGORY_AUTHENTICATION,
-            doc = """
-                    TLS trusted certificate file for internal client,\
-                     used by the internal client to authenticate with Pulsar brokers""")
+            doc = "TLS trusted certificate file for internal client, "
+                    + "used by the internal client to authenticate with Pulsar brokers")
     private String brokerClientTrustCertsFilePath = "";
     @FieldContext(
             category = CATEGORY_AUTHENTICATION,
-            doc = """
-                    TLS private key file for internal client,\
-                     used by the internal client to authenticate with Pulsar brokers""")
+            doc = "TLS private key file for internal client, "
+                    + "used by the internal client to authenticate with Pulsar brokers")
     private String brokerClientKeyFilePath = "";
     @FieldContext(
             category = CATEGORY_AUTHENTICATION,
-            doc = """
-                    TLS certificate file for internal client,\
-                     used by the internal client to authenticate with Pulsar brokers"""
+            doc = "TLS certificate file for internal client, "
+                    + "used by the internal client to authenticate with Pulsar brokers"
     )
     private String brokerClientCertificateFilePath = "";
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
-            doc = """
-                    TLS TrustStore type configuration for internal client: JKS, PKCS12\
-                     used by the internal client to authenticate with Pulsar brokers"""
+            doc = "TLS TrustStore type configuration for internal client: JKS, PKCS12 "
+                    + " used by the internal client to authenticate with Pulsar brokers"
     )
     private String brokerClientTlsTrustStoreType = "JKS";
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
-            doc = """
-                    TLS TrustStore path for internal client,\
-                     used by the internal client to authenticate with Pulsar brokers"""
+            doc = "TLS TrustStore path for internal client, "
+                    + " used by the internal client to authenticate with Pulsar brokers"
     )
     private String brokerClientTlsTrustStore = null;
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
-            doc = """
-                    TLS TrustStore password for internal client,\
-                     used by the internal client to authenticate with Pulsar brokers"""
+            doc = "TLS TrustStore password for internal client, "
+                  + " used by the internal client to authenticate with Pulsar brokers"
     )
     @ToString.Exclude
     private String brokerClientTlsTrustStorePassword = null;
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
-            doc = """
-                    TLS KeyStore type configuration for internal client: JKS, PKCS12,\
-                     used by the internal client to authenticate with Pulsar brokers"""
+            doc = "TLS KeyStore type configuration for internal client: JKS, PKCS12,"
+                  + " used by the internal client to authenticate with Pulsar brokers"
     )
     private String brokerClientTlsKeyStoreType = "JKS";
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
-            doc = """
-                    TLS KeyStore path for internal client,\
-                     used by the internal client to authenticate with Pulsar brokers"""
+            doc = "TLS KeyStore path for internal client, "
+                  + " used by the internal client to authenticate with Pulsar brokers"
     )
     private String brokerClientTlsKeyStore = null;
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
-            doc = """
-                    TLS KeyStore password for internal client,\
-                     used by the internal client to authenticate with Pulsar brokers"""
+            doc = "TLS KeyStore password for internal client, "
+                  + " used by the internal client to authenticate with Pulsar brokers"
     )
     @ToString.Exclude
     private String brokerClientTlsKeyStorePassword = null;
@@ -3181,7 +3072,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = """
                     Specify the tls cipher the internal client will use to negotiate during TLS Handshake\
                      (a comma-separated list of ciphers).
-                    Examples:- [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256].\
+
+                    Examples:- [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256].
                      used by the internal client to authenticate with Pulsar brokers"""
     )
     private Set<String> brokerClientTlsCiphers = new TreeSet<>();
@@ -3190,7 +3082,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = """
                     Specify the tls protocols the broker will use to negotiate during TLS handshake\
                      (a comma-separated list of protocol names).
-                    Examples:- [TLSv1.3, TLSv1.2] \
+
+                    Examples:- [TLSv1.3, TLSv1.2]
                      used by the internal client to authenticate with Pulsar brokers"""
     )
     private Set<String> brokerClientTlsProtocols = new TreeSet<>();
@@ -3207,14 +3100,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_PACKAGES_MANAGEMENT,
         doc = "The packages management service storage service provider"
     )
-    private String packagesManagementStorageProvider =
-            "org.apache.pulsar.packages.management.storage.bookkeeper.BookKeeperPackagesStorageProvider";
+    private String packagesManagementStorageProvider = "org.apache.pulsar.packages.management.storage.bookkeeper"
+            + ".BookKeeperPackagesStorageProvider";
 
     @FieldContext(
         category = CATEGORY_PACKAGES_MANAGEMENT,
-        doc = """
-                When the packages storage provider is bookkeeper, you can use this configuration to \
-                control the number of replicas for storing the package"""
+        doc = "When the packages storage provider is bookkeeper, you can use this configuration to\n"
+            + "control the number of replicas for storing the package"
     )
     private int packagesReplicas = 1;
 
