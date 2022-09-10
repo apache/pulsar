@@ -237,8 +237,10 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             int entriesWithSameKeyCount = entriesWithSameKey.size();
             int availablePermits = consumer == null ? 0 : Math.max(consumer.getAvailablePermits(), 0);
             if (consumer != null && consumer.getMaxUnackedMessages() > 0) {
-                availablePermits = Math.min(availablePermits,
-                        consumer.getMaxUnackedMessages() - consumer.getUnackedMessages());
+                int remainUnAckedMessages =
+                        // Avoid negative number
+                        Math.max(consumer.getMaxUnackedMessages() - consumer.getUnackedMessages(), 0);
+                availablePermits = Math.min(availablePermits, remainUnAckedMessages);
             }
             int maxMessagesForC = Math.min(entriesWithSameKeyCount, availablePermits);
             int messagesForC = getRestrictedMaxEntriesForConsumer(consumer, entriesWithSameKey, maxMessagesForC,
