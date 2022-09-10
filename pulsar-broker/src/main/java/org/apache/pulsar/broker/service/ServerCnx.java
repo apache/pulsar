@@ -2970,6 +2970,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         return state;
     }
 
+    public void setState(State state) {
+        this.state = state;
+    }
+
+
     public SocketAddress getRemoteAddress() {
         return remoteAddress;
     }
