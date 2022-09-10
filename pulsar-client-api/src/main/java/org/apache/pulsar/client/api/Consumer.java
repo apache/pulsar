@@ -391,6 +391,21 @@ public interface Consumer<T> extends Closeable {
     void acknowledgeCumulative(MessageId messageId) throws PulsarClientException;
 
     /**
+     * Acknowledge the reception of all the messages in the stream up to (and including) the provided message for each topic or partition.
+     *
+     * <p>This method will block until the acknowledge has been sent to the brokers of each topic or partition.
+     * After that, the messages will not be re-delivered to this consumer.
+     *
+     * <p>Cumulative acknowledge cannot be used when the consumer type is set to ConsumerShared.
+     *
+     * @param topicToMessageIdMap
+     *            The {@code topicToMessageIdMap} the topic to messageId Map to be cumulatively acknowledged
+     * @throws PulsarClientException.AlreadyClosedException
+     *             if the consumer was already closed
+     */
+    void acknowledgeCumulative(Map<String, MessageId> topicToMessageIdMap) throws  PulsarClientException;
+
+    /**
      * Acknowledge the reception of all the messages in the stream up to (and including) the provided message with this
      * transaction, it will store in transaction pending ack.
      *

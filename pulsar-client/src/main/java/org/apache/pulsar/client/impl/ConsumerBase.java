@@ -365,6 +365,20 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         }
     }
 
+    private static void validateTopicToMessageIdMap(Map<String, MessageId> topicToMessageIdMap) throws PulsarClientException {
+        if(topicToMessageIdMap == null){
+            throw new PulsarClientException.NotAllowedException("topicToMessageId Map cannot be null");
+        }
+        if(topicToMessageIdMap.containsKey(null)){
+            throw new PulsarClientException.InvalidTopicNameException("topic name cannot be null");
+        }
+        for(MessageId messageId : topicToMessageIdMap.values()){
+            if (messageId == null) {
+                throw new PulsarClientException.InvalidMessageException("Cannot handle message with null messageId");
+            }
+        }
+    }
+
     @Override
     public void acknowledge(Message<?> message) throws PulsarClientException {
         validateMessageId(message);
@@ -452,6 +466,18 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         validateMessageId(messageId);
         try {
             acknowledgeCumulativeAsync(messageId).get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw PulsarClientException.unwrap(e);
+        } catch (ExecutionException e) {
+            throw PulsarClientException.unwrap(e);
+        }
+    }
+
+    @Override
+    public void acknowledgeCumulative(Map<String, MessageId> topicToMessageIdMap) throws  PulsarClientException{
+        try {
+            acknowledgeCumulativeAsync(topicToMessageIdMap).get();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw PulsarClientException.unwrap(e);
@@ -614,6 +640,25 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             txnImpl = (TransactionImpl) txn;
         }
         return doAcknowledgeWithTxn(messageId, AckType.Cumulative, Collections.emptyMap(), txnImpl);
+    }
+
+    protected CompletableFuture<Void> acknowledgeCumulativeAsync(Map<String, MessageId> topicToMessageIdMap) throws PulsarClientException {
+        return acknowledgeCumulativeAsync(topicToMessageIdMap, null);
+    }
+
+    protected CompletableFuture<Void> acknowledgeCumulativeAsync(Map<String, MessageId> topicToMessageIdMap, Transaction txn) throws PulsarClientException {
+        validateTopicToMessageIdMap(topicToMessageIdMap);
+        if (!isCumulativeAcknowledgementAllowed(conf.getSubscriptionType())) {
+            return FutureUtil.failedFuture(new PulsarClientException.InvalidConfigurationException(
+                    "Cannot use cumulative acks on a non-exclusive/non-failover subscription"));
+        }
+
+        TransactionImpl txnImpl = null;
+        if (null != txn) {
+            checkArgument(txn instanceof TransactionImpl);
+            txnImpl = (TransactionImpl) txn;
+        }
+        return doAcknowledgeWithTxn(new ArrayList<>(topicToMessageIdMap.values()), AckType.Cumulative, Collections.emptyMap(), txnImpl);
     }
 
     @Override
