@@ -98,6 +98,99 @@ If you get the error like "libpulsar.so: cannot open shared object file: No such
 
 ### Source
 
+1. Clone the Pulsar repository and switch to the working directory `pulsar-client-cpp`:
+
+```bash
+git clone https://github.com/apache/pulsar
+cd pulsar
+cd pulsar-client-cpp
+```
+
+2. Install dependencies:
+
+<Tabs>
+<TabItem value="Linux">
+
+```bash
+apt install cmake libssl-dev libcurl4-openssl-dev liblog4cxx-dev libprotobuf-dev protobuf-compiler libboost-all-dev google-mock libgtest-dev libjsoncpp-dev
+
+# libgtest-dev version is 1.18.0 or above
+pushd /usr/src/googletest
+sudo cmake .
+sudo make
+sudo cp ./googlemock/libgmock.a ./googlemock/gtest/libgtest.a /usr/lib/
+popd
+
+## libgtest-dev less than 1.18.0
+# pushd /usr/src/gtest
+# sudo cmake .
+# sudo make
+# sudo cp libgtest.a /usr/lib
+# popd
+
+pushd /usr/src/gmock
+sudo cmake .
+sudo make
+sudo cp libgmock.a /usr/lib
+popd
+```
+
+</TabItem>
+<TabItem value="macOS">
+
+```bash
+brew install openssl@1.1
+export OPENSSL_INCLUDE_DIR=$(brew --prefix openssl@1.1)/include
+export OPENSSL_ROOT_DIR=$(brew --prefix openssl@1.1)
+
+brew install protobuf boost boost-python3 log4cxx googletest cmake
+```
+
+</TabItem>
+<TabItem value="Windows">
+
+```bash
+vcpkg install --feature-flags=manifests --triplet x64-windows
+```
+
+</TabItem>
+</Tabs>
+
+3. Compile the Pulsar C++ client library inside the Pulsar repository:
+
+<Tabs>
+<TabItem value="Linux">
+
+```bash
+cmake .
+make
+```
+
+</TabItem>
+<TabItem value="macOS">
+
+```bash
+cmake .
+make
+```
+
+</TabItem>
+<TabItem value="Windows">
+
+```bash
+cmake -B ./build -A x64 -DBUILD_PYTHON_WRAPPER=OFF -DBUILD_TESTS=OFF -DVCPKG_TRIPLET=x64-windows -DCMAKE_BUILD_TYPE=Release -S .
+cmake --build ./build --config Release
+```
+
+:::note
+
+For MSVC Debug mode, you need to replace `Release` with `Debug` for both `CMAKE_BUILD_TYPE` variable and `--config` option.
+
+:::
+
+</TabItem>
+</Tabs>
+
 ## Connection URLs
 
 To connect to Pulsar using client libraries, you need to specify a [Pulsar protocol](developing-binary-protocol.md) URL.
