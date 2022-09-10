@@ -643,22 +643,12 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     }
 
     protected CompletableFuture<Void> acknowledgeCumulativeAsync(Map<String, MessageId> topicToMessageIdMap) throws PulsarClientException {
-        return acknowledgeCumulativeAsync(topicToMessageIdMap, null);
-    }
-
-    protected CompletableFuture<Void> acknowledgeCumulativeAsync(Map<String, MessageId> topicToMessageIdMap, Transaction txn) throws PulsarClientException {
         validateTopicToMessageIdMap(topicToMessageIdMap);
         if (!isCumulativeAcknowledgementAllowed(conf.getSubscriptionType())) {
             return FutureUtil.failedFuture(new PulsarClientException.InvalidConfigurationException(
                     "Cannot use cumulative acks on a non-exclusive/non-failover subscription"));
         }
-
-        TransactionImpl txnImpl = null;
-        if (null != txn) {
-            checkArgument(txn instanceof TransactionImpl);
-            txnImpl = (TransactionImpl) txn;
-        }
-        return doAcknowledgeWithTxn(new ArrayList<>(topicToMessageIdMap.values()), AckType.Cumulative, Collections.emptyMap(), txnImpl);
+        return doAcknowledgeWithTxn(new ArrayList<>(topicToMessageIdMap.values()), AckType.Cumulative, Collections.emptyMap(), null);
     }
 
     @Override

@@ -108,6 +108,25 @@ public class ConsumerCumulativeAckMapTest extends ProducerConsumerBase{
         }
     }
 
+    @Test(timeOut = 30000)
+    public void testInputSharedSubscription() throws Exception {
+        final String topic = "persistent://my-property/my-ns/batch-ack-" + UUID.randomUUID();
+        final String subName = "testBatchAck-sub" + UUID.randomUUID();
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .subscriptionType(SubscriptionType.Shared)
+                .topic(topic)
+                .negativeAckRedeliveryDelay(1001, TimeUnit.MILLISECONDS)
+                .subscriptionName(subName)
+                .subscribe();
+        try {
+            consumer.acknowledgeCumulative(new HashMap<>());
+            Assert.fail("cannot use cumulative acknowledgement on shared subscription");
+        } catch (PulsarClientException e) {
+            // Expected
+        }
+    }
+
     private void sendMessagesAsyncAndWait(Producer<String> producer, int messages) throws Exception {
         CountDownLatch latch = new CountDownLatch(messages);
         for (int i = 0; i < messages; i++) {
