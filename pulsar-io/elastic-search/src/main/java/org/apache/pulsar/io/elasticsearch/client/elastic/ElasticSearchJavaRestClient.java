@@ -52,9 +52,20 @@ import org.elasticsearch.client.RestClientBuilder;
 public class ElasticSearchJavaRestClient extends RestClient {
 
     private final ElasticsearchClient client;
-    private final ElasticsearchTransport transport;
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final BulkProcessor bulkProcessor;
+
+    private BulkProcessor bulkProcessor;
+    private ElasticsearchTransport transport;
+
+    @VisibleForTesting
+    public void setBulkProcessor(BulkProcessor bulkProcessor) {
+        this.bulkProcessor = bulkProcessor;
+    }
+
+    @VisibleForTesting
+    public void setTransport(ElasticsearchTransport transport) {
+        this.transport = transport;
+    }
 
     public ElasticSearchJavaRestClient(ElasticSearchConfig elasticSearchConfig,
                                        BulkProcessor.Listener bulkProcessorListener) {
