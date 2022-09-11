@@ -46,6 +46,7 @@ import java.util.function.BiPredicate;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.zookeeper.AsyncCallback.Children2Callback;
 import org.apache.zookeeper.AsyncCallback.ChildrenCallback;
 import org.apache.zookeeper.AsyncCallback.DataCallback;
@@ -59,7 +60,6 @@ import org.apache.zookeeper.data.Stat;
 import org.objenesis.Objenesis;
 import org.objenesis.ObjenesisStd;
 import org.objenesis.instantiator.ObjectInstantiator;
-import org.powermock.reflect.Whitebox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -144,10 +144,7 @@ public class MockZooKeeper extends ZooKeeper {
 
     public static MockZooKeeper newInstance(ExecutorService executor, int readOpDelayMs) {
         try {
-            MockZooKeeper zk = createMockZooKeeperInstance(executor, readOpDelayMs);
-            ObjectInstantiator<ClientCnxn> clientCnxnObjectInstantiator = objenesis.getInstantiatorOf(ClientCnxn.class);
-            Whitebox.setInternalState(zk, "cnxn", clientCnxnObjectInstantiator.newInstance());
-            return zk;
+            return createMockZooKeeperInstance(executor, readOpDelayMs);
         } catch (RuntimeException e) {
             throw e;
         } catch (Exception e) {
@@ -1018,33 +1015,32 @@ public class MockZooKeeper extends ZooKeeper {
         try {
             for (org.apache.zookeeper.Op op : ops) {
                 switch (op.getType()) {
-                    case ZooDefs.OpCode.create: {
+                    case ZooDefs.OpCode.create -> {
                         org.apache.zookeeper.Op.Create opc = ((org.apache.zookeeper.Op.Create) op);
                         CreateMode cm = CreateMode.fromFlag(opc.flags);
                         String path = this.create(op.getPath(), opc.data, null, cm);
                         res.add(new OpResult.CreateResult(path));
-                        break;
                     }
-                    case ZooDefs.OpCode.delete:
-                        this.delete(op.getPath(), Whitebox.getInternalState(op, "version"));
+                    case ZooDefs.OpCode.delete -> {
+                        this.delete(op.getPath(), (int) FieldUtils.readField(op, "version", true));
                         res.add(new OpResult.DeleteResult());
-                        break;
-                    case ZooDefs.OpCode.setData: {
-                        Stat stat = this.setData(op.getPath(), Whitebox.getInternalState(op, "data"),
-                                Whitebox.getInternalState(op, "version"));
-                        res.add(new OpResult.SetDataResult(stat));
-                        break;
                     }
-                    case ZooDefs.OpCode.getChildren: {
+                    case ZooDefs.OpCode.setData -> {
+                        Stat stat = this.setData(
+                                op.getPath(),
+                                (byte[]) FieldUtils.readField(op, "data", true),
+                                (int) FieldUtils.readField(op, "version", true));
+                        res.add(new OpResult.SetDataResult(stat));
+                    }
+                    case ZooDefs.OpCode.getChildren -> {
                         try {
                             List<String> children = this.getChildren(op.getPath(), null);
                             res.add(new OpResult.GetChildrenResult(children));
                         } catch (KeeperException e) {
                             res.add(new OpResult.ErrorResult(e.code().intValue()));
                         }
-                        break;
                     }
-                    case ZooDefs.OpCode.getData: {
+                    case ZooDefs.OpCode.getData -> {
                         Stat stat = new Stat();
                         try {
                             byte[] payload = this.getData(op.getPath(), null, stat);
@@ -1052,9 +1048,7 @@ public class MockZooKeeper extends ZooKeeper {
                         } catch (KeeperException e) {
                             res.add(new OpResult.ErrorResult(e.code().intValue()));
                         }
-                        break;
                     }
-                    default:
                 }
             }
         } catch (KeeperException e) {
@@ -1063,6 +1057,8 @@ public class MockZooKeeper extends ZooKeeper {
             for (int i = res.size(); i < total; i++) {
                 res.add(new OpResult.ErrorResult(KeeperException.Code.RUNTIMEINCONSISTENCY.intValue()));
             }
+        } catch (IllegalAccessException e) {
+            throw new IllegalStateException(e);
         }
         return res;
     }
