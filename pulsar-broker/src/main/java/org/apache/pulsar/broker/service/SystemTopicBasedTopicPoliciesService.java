@@ -380,23 +380,26 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     }
 
     private void readMorePolicies(SystemTopicClient.Reader<PulsarEvent> reader) {
-        reader.readNextAsync().whenComplete((msg, ex) -> {
-            if (ex == null) {
-                refreshTopicPoliciesCache(msg);
-                notifyListener(msg);
-                readMorePolicies(reader);
-            } else {
-                Throwable cause = FutureUtil.unwrapCompletionException(ex);
-                if (cause instanceof PulsarClientException.AlreadyClosedException) {
-                    log.error("Read more topic policies exception, close the read now!", ex);
-                    cleanCacheAndCloseReader(
-                            reader.getSystemTopic().getTopicName().getNamespaceObject(), false);
-                } else {
-                    log.warn("Read more topic polices exception, read again.", ex);
-                    readMorePolicies(reader);
-                }
-            }
-        });
+        reader.readNextAsync()
+              .thenAccept(msg -> {
+                  refreshTopicPoliciesCache(msg);
+                  notifyListener(msg);
+              })
+              .whenComplete((__, ex) -> {
+                  if (ex == null) {
+                      readMorePolicies(reader);
+                  } else {
+                      Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                      if (cause instanceof PulsarClientException.AlreadyClosedException) {
+                          log.error("Read more topic policies exception, close the read now!", ex);
+                          cleanCacheAndCloseReader(
+                                  reader.getSystemTopic().getTopicName().getNamespaceObject(), false);
+                      } else {
+                          log.warn("Read more topic polices exception, read again.", ex);
+                          readMorePolicies(reader);
+                      }
+                  }
+              });
     }
 
     private void refreshTopicPoliciesCache(Message<PulsarEvent> msg) {

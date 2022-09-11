@@ -993,6 +993,11 @@ public class PulsarClientImpl implements PulsarClient {
         return eventLoopGroup;
     }
 
+    @VisibleForTesting
+    void setLookup(LookupService lookup) {
+        this.lookup = lookup;
+    }
+
     public LookupService getLookup() {
         return lookup;
     }

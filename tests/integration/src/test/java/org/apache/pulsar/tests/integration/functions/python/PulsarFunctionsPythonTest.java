@@ -23,7 +23,7 @@ import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator.Runt
 import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
 import org.testng.annotations.Test;
 
-public class PulsarFunctionsPythonTest extends PulsarFunctionsTest {
+public abstract class PulsarFunctionsPythonTest extends PulsarFunctionsTest {
 
 	PulsarFunctionsPythonTest(FunctionRuntimeType functionRuntimeType) {
 		super(functionRuntimeType);
