@@ -468,6 +468,19 @@ public class ReplicatorTest extends ReplicatorTestBase {
             consumer2.acknowledge(msg2);
             consumer3.acknowledge(msg3);
         }
+
+        @Cleanup
+        Producer<byte[]> producerBytes = client1.newProducer()
+                .topic(topic.toString())
+                .enableBatching(false)
+                .create();
+
+        byte[] data = "Bytes".getBytes();
+        producerBytes.send(data);
+
+        assertEquals(consumer1.receive().getValue().getNativeObject(), data);
+        assertEquals(consumer2.receive().getValue().getNativeObject(), data);
+        assertEquals(consumer3.receive().getValue().getNativeObject(), data);
     }
 
     @Test
