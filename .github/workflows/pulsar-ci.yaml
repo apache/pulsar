@@ -813,7 +813,6 @@ jobs:
         uses: ./.github/actions/tune-runner-vm
 
       - name: Cache Maven dependencies
-        if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
         uses: actions/cache@v2
         with:
           path: |
