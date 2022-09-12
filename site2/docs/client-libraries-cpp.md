@@ -139,11 +139,10 @@ popd
 <TabItem value="macOS">
 
 ```bash
-brew install openssl@1.1
-export OPENSSL_INCLUDE_DIR=$(brew --prefix openssl@1.1)/include
-export OPENSSL_ROOT_DIR=$(brew --prefix openssl@1.1)
+brew install protobuf boost boost-python3 log4cxx googletest cmake openssl
 
-brew install protobuf boost boost-python3 log4cxx googletest cmake
+# force linking openssl if still cannot find openssl after installing
+brew link --force openssl
 ```
 
 </TabItem>
