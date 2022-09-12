@@ -11,7 +11,7 @@ All the methods in producer, consumer, and reader of a C++ client are thread-saf
 
 ## Supported platforms
 
-Pulsar C++ client is supported on **Linux** ,**MacOS** and **Windows** platforms.
+Pulsar C++ client is supported on **Linux** ,**macOS** and **Windows** platforms.
 
 [Doxygen](http://www.doxygen.nl/)-generated API docs for the C++ client are available [here](/api/cpp).
 
@@ -136,7 +136,7 @@ The `libpulsarwithdeps.a` does not include library openssl related libraries `li
 
 ### Install RPM
 
-1. Download a RPM package from the links in the table. 
+1. Download an RPM package from the links in the table. 
 
 | Link | Crypto files |
 |------|--------------|
@@ -379,7 +379,7 @@ To use Pulsar as a producer, you need to create a producer on the C++ client. Th
 
 This example sends 100 messages using the blocking style. While simple, it does not produce high throughput as it waits for each ack to come back before sending the next message.
 
-```c++
+```cpp
 
 #include <pulsar/Client.h>
 #include <thread>
@@ -427,7 +427,7 @@ The producer configuration `blockIfQueueFull` is useful here to avoid `ResultPro
 
 Without this configuration, the result code `ResultProducerQueueIsFull` is passed to the callback. You must decide how to deal with that (retry, discard etc).
 
-```c++
+```cpp
 
 #include <pulsar/Client.h>
 #include <thread>
@@ -494,7 +494,7 @@ With our example above, that reduces the number of internal producers spread out
 
 Note that there can be extra latency for the first message sent. If you set a low send timeout, this timeout could be reached if the initial connection handshake is slow to complete.
 
-```c++
+```cpp
 
 ProducerConfiguration producerConf;
 producerConf.setPartitionsRoutingMode(ProducerConfiguration::UseSinglePartition);
@@ -508,7 +508,7 @@ Message [chunking](concepts-messaging.md#chunking) enables Pulsar to process lar
 
 The message chunking feature is OFF by default. The following is an example about how to enable message chunking when creating a producer.
 
-```c++
+```cpp
 
 ProducerConfiguration conf;
 conf.setBatchingEnabled(false);
@@ -532,7 +532,7 @@ The benefit of this approach is that it is the simplest code. Simply keeps calli
 
 This example starts a subscription at the earliest offset and consumes 100 messages.
 
-```c++
+```cpp
 
 #include <pulsar/Client.h>
 
@@ -572,11 +572,11 @@ int main() {
 
 ### Consumer with a message listener
 
-You can avoid running a loop with blocking calls with an event based style by using a message listener which is invoked for each message that is received.
+You can avoid running a loop by blocking calls with an event-based style by using a message listener which is invoked for each message that is received.
 
 This example starts a subscription at the earliest offset and consumes 100 messages.
 
-```c++
+```cpp
 
 #include <pulsar/Client.h>
 #include <atomic>
@@ -628,7 +628,7 @@ You can limit the maximum number of chunked messages a consumer maintains concur
 
 The following is an example of how to configure message chunking.
 
-```c++
+```cpp
 
 ConsumerConfiguration conf;
 conf.setAutoAckOldestChunkedMessageOnQueueFull(true);
@@ -720,7 +720,7 @@ The following example shows how to create a producer and a consumer with a Proto
 2. Include the `ProtobufNativeSchema.h` in your source code. Ensure the Protobuf dependency has been added to your project.
 ​
 
-   ```c++
+   ```cpp
    
    #include <pulsar/ProtobufNativeSchema.h>
    
@@ -730,7 +730,7 @@ The following example shows how to create a producer and a consumer with a Proto
 3. Create a producer to send a `User` instance.
 ​
 
-   ```c++
+   ```cpp
    
    ProducerConfiguration producerConf;
    producerConf.setSchema(createProtobufNativeSchema(User::GetDescriptor()));
@@ -749,7 +749,7 @@ The following example shows how to create a producer and a consumer with a Proto
 4. Create a consumer to receive a `User` instance.
 ​
 
-   ```c++
+   ```cpp
    
    ConsumerConfiguration consumerConf;
    consumerConf.setSchema(createProtobufNativeSchema(User::GetDescriptor()));

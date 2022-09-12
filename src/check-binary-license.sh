@@ -41,7 +41,7 @@ if [ -z $TARBALL ]; then
     exit 1
 fi
 
-JARS=$(tar -tf $TARBALL | grep '\.jar' | grep -v 'lib/presto/' | grep -v '/examples/' | grep -v '/instances/' | sed 's!.*/!!' | sort)
+JARS=$(tar -tf $TARBALL | grep '\.jar' | grep -v 'trino/' | grep -v '/examples/' | grep -v '/instances/' | sed 's!.*/!!' | sort)
 
 LICENSEPATH=$(tar -tf $TARBALL  | awk '/^[^\/]*\/LICENSE/')
 LICENSE=$(tar -O -xf $TARBALL "$LICENSEPATH")
@@ -96,7 +96,7 @@ done
 
 if [ "$NO_PRESTO" -ne 1 ]; then
   # check pulsar sql jars
-  JARS=$(tar -tf $TARBALL | grep '\.jar' | grep 'lib/presto/' | grep -v pulsar-client | grep -v bouncy-castle-bc | grep -v pulsar-metadata | grep -v 'managed-ledger' | grep -v  'pulsar-client-admin' | grep -v  'pulsar-client-api' | grep -v 'pulsar-functions-api' | grep -v 'pulsar-presto-connector-original' | grep -v 'pulsar-presto-distribution' | grep -v 'pulsar-common' | grep -v 'pulsar-functions-proto' | grep -v 'pulsar-functions-utils' | grep -v 'pulsar-io-core' | grep -v 'pulsar-transaction-common' | grep -v 'pulsar-package-core' | sed 's!.*/!!' | sort)
+  JARS=$(tar -tf $TARBALL | grep '\.jar' | grep 'trino/' | grep -v pulsar-client | grep -v bouncy-castle-bc | grep -v pulsar-metadata | grep -v 'managed-ledger' | grep -v  'pulsar-client-admin' | grep -v  'pulsar-client-api' | grep -v 'pulsar-functions-api' | grep -v 'pulsar-presto-connector-original' | grep -v 'pulsar-presto-distribution' | grep -v 'pulsar-common' | grep -v 'pulsar-functions-proto' | grep -v 'pulsar-functions-utils' | grep -v 'pulsar-io-core' | grep -v 'pulsar-transaction-common' | grep -v 'pulsar-package-core' | sed 's!.*/!!' | sort)
   if [ -n "$JARS" ]; then
     LICENSEPATH=$(tar -tf $TARBALL  | awk '/^[^\/]*\/lib\/presto\/LICENSE/')
     LICENSE=$(tar -O -xf $TARBALL "$LICENSEPATH")
@@ -111,7 +111,7 @@ if [ "$NO_PRESTO" -ne 1 ]; then
 
         echo "$LICENSE" | grep -q $J
         if [ $? != 0 ]; then
-      echo $J unaccounted for in lib/presto/LICENSE
+      echo $J unaccounted for in trino/LICENSE
       EXIT=1
         fi
     done
@@ -120,7 +120,7 @@ if [ "$NO_PRESTO" -ne 1 ]; then
     for J in $LICENSEJARS; do
         echo "$JARS" | grep -q $J
         if [ $? != 0 ]; then
-      echo $J mentioned in lib/presto/LICENSE, but not bundled
+      echo $J mentioned in trino/LICENSE, but not bundled
       EXIT=2
         fi
     done

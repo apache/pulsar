@@ -14,29 +14,10 @@ Follow the steps below to install the Aliyun OSS offloader.
 
 - Pulsar: 2.8.0 or later versions
 
-### Step
+### Steps
 
-This example uses Pulsar 2.8.0.
-
-1. [Download the Pulsar tarball](getting-started-standalone.md#install-pulsar-using-binary-release).
-
-2. Download and untar the Pulsar offloaders package, then copy the Pulsar offloaders as `offloaders` in the Pulsar directory. See [Install tiered storage offloaders](getting-started-standalone.md#install-tiered-storage-offloaders-optional).
-
-   **Output**
-
-   ```
-
-   tiered-storage-file-system-2.8.0.nar
-   tiered-storage-jcloud-2.8.0.nar
-
-   ```
-
-   :::note
-
-   * If you are running Pulsar in a bare-metal cluster, make sure that `offloaders` tarball is unzipped in every broker's Pulsar directory.
-   * If you are running Pulsar in Docker or deploying Pulsar using a Docker image (such as K8s and DCOS), you can use the `apachepulsar/pulsar-all` image. The `apachepulsar/pulsar-all` image has already bundled tiered storage offloaders.
-
-   :::
+1. [Download the Pulsar tarball](getting-started-standalone.md#step-1-download-pulsar-distribution).
+2. Download and untar the Pulsar offloaders package, then copy the Pulsar offloaders as `offloaders` in the Pulsar directory. See [Install tiered storage offloaders](tiered-storage-overview.md#how-to-install-tiered-storage-offloaders).
 
 ## Configuration
 
@@ -70,16 +51,14 @@ You can configure the Aliyun OSS offloader driver in the configuration file `bro
 
 #### Bucket (required)
 
-A bucket is a basic container that holds your data. Everything you store in Aliyun OSS must be contained in a bucket. You can use a bucket to organize your data and control access to your data, but unlike directory and folder, you cannot nest a bucket.
+A bucket is a basic container that holds your data. Everything you store in Aliyun OSS must be contained in a bucket. You can use a bucket to organize your data and control access to your data, but unlike a directory and folder, you cannot nest a bucket.
 
 ##### Example
 
 This example names the bucket `pulsar-topic-offload`.
 
-```properties
-
+```conf
 managedLedgerOffloadBucket=pulsar-topic-offload
-
 ```
 
 #### Endpoint (required)
@@ -97,10 +76,8 @@ For more information about Aliyun OSS regions and endpoints,  see [International
 
 This example sets the endpoint as `oss-us-west-1-internal`.
 
-```
-
+```conf
 managedLedgerOffloadServiceEndpoint=http://oss-us-west-1-internal.aliyuncs.com
-
 ```
 
 #### Authentication (required)
@@ -110,10 +87,8 @@ To be able to access Aliyun OSS, you need to authenticate with Aliyun OSS.
 Set the environment variables `ALIYUN_OSS_ACCESS_KEY_ID` and `ALIYUN_OSS_ACCESS_KEY_SECRET` in `conf/pulsar_env.sh`.
 
 ```bash
-
 export ALIYUN_OSS_ACCESS_KEY_ID=ABC123456789
 export ALIYUN_OSS_ACCESS_KEY_SECRET=ded7db27a4558e2ea8bbf0bf37ae0e8521618f366c
-
 ```
 
 :::note
@@ -143,9 +118,7 @@ The offload configurations in `broker.conf` and `standalone.conf` are used for t
 This example sets the Aliyun OSS offloader threshold size to 10 MB using `pulsar-admin`.
 
 ```bash
-
 bin/pulsar-admin namespaces set-offload-threshold --size 10M my-tenant/my-namespace
-
 ```
 
 :::tip
@@ -169,17 +142,13 @@ For individual topics, you can trigger the Aliyun OSS offloader manually using o
 - This example triggers the Aliyun OSS offloader to run manually using `pulsar-admin`.
 
   ```bash
-
   bin/pulsar-admin topics offload --size-threshold 10M my-tenant/my-namespace/topic1
-
   ```
 
   **Output**
 
   ```bash
-
   Offload triggered for persistent://my-tenant/my-namespace/topic1 for messages before 2:0:-1
-
   ```
 
   :::tip
@@ -191,52 +160,40 @@ For individual topics, you can trigger the Aliyun OSS offloader manually using o
 - This example checks the Aliyun OSS offloader status using `pulsar-admin`.
 
   ```bash
-
   bin/pulsar-admin topics offload-status persistent://my-tenant/my-namespace/topic1
-
   ```
 
   **Output**
 
   ```bash
-
   Offload is currently running
-
   ```
 
   To wait for the Aliyun OSS offloader to complete the job, add the `-w` flag.
 
   ```bash
-
   bin/pulsar-admin topics offload-status -w persistent://my-tenant/my-namespace/topic1
-
   ```
 
   **Output**
 
-  ```
-
+  ```bash
   Offload was a success
-
   ```
 
   If there is an error in offloading, the error is propagated to the `pulsar-admin topics offload-status` command.
 
   ```bash
-
   bin/pulsar-admin topics offload-status persistent://my-tenant/my-namespace/topic1
-
   ```
 
   **Output**
 
   ```
-
   Error in offload
   null
 
   Reason: Error offloading: org.apache.bookkeeper.mledger.ManagedLedgerException: java.util.concurrent.CompletionException: com.amazonaws.services.s3.model.AmazonS3Exception: Anonymous users cannot initiate multipart uploads.  Please authenticate. (Service: Amazon S3; Status Code: 403; Error Code: AccessDenied; Request ID: 798758DE3F1776DF; S3 Extended Request ID: dhBFz/lZm1oiG/oBEepeNlhrtsDlzoOhocuYMpKihQGXe6EG8puRGOkK6UwqzVrMXTWBxxHcS+g=), S3 Extended Request ID: dhBFz/lZm1oiG/oBEepeNlhrtsDlzoOhocuYMpKihQGXe6EG8puRGOkK6UwqzVrMXTWBxxHcS+g=
-
   ```
 
   :::tip

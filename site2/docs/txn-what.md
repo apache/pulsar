@@ -8,7 +8,7 @@ Transactions strengthen the message delivery semantics of Apache Pulsar and [pro
 
 Transactions allow:
 
-- A producer to send a batch of messages to multiple topics where all messages in the batch are eventually visible to any consumer, or none are ever visible to consumers. 
+- A producer to send a batch of messages to multiple topics where all messages in the batch are eventually visible to any consumer, or none is ever visible to consumers. 
 
 - End-to-end exactly-once semantics (execute a `consume-process-produce` operation exactly once).
 
@@ -52,8 +52,8 @@ Prior to Pulsar 2.8.0, there was no easy way to build stream processing applicat
 
 * [Pulsar Flink connector](https://flink.apache.org/2021/01/07/pulsar-flink-connector-270.html)
 
-  Prior to Pulsar 2.8.0, if you want to build stream applications using Pulsar and Flink, the Pulsar Flink connector only supported exactly-once source connector and at-least-once sink connector, which means the highest processing guarantee for end-to-end was at-least-once, there was possibility that the resulting messages from streaming applications produce duplicated messages to the resulting topics in Pulsar.
+  Prior to Pulsar 2.8.0, if you want to build stream applications using Pulsar and Flink, the Pulsar Flink connector only supported exactly-once source connector and at-least-once sink connector, which means the highest processing guarantee for end-to-end was at-least-once, there was a possibility that the resulting messages from streaming applications produce duplicated messages to the resulting topics in Pulsar.
 
   With the transaction introduced in Pulsar 2.8.0, the Pulsar Flink sink connector can support exactly-once semantics by implementing the designated `TwoPhaseCommitSinkFunction` and hooking up the Flink sink message lifecycle with Pulsar transaction API. 
 
-* Support for Pulsar Functions and other connectors will be added in the future releases.
+* Support for Pulsar Functions and other connectors will be added in future releases.

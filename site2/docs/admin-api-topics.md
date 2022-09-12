@@ -22,24 +22,20 @@ import TabItem from '@theme/TabItem';
  
 :::
 
-Pulsar has persistent and non-persistent topics. Persistent topic is a logical endpoint for publishing and consuming messages. The topic name structure for persistent topics is:
+Pulsar has persistent and non-persistent topics. A persistent topic is a logical endpoint for publishing and consuming messages. The topic name structure for persistent topics is:
 
 ```shell
-
 persistent://tenant/namespace/topic
-
 ```
 
-Non-persistent topics are used in applications that only consume real-time published messages and do not need persistent guarantee. In this way, it reduces message-publish latency by removing overhead of persisting messages. The topic name structure for non-persistent topics is:
+Non-persistent topics are used in applications that only consume real-time published messages and do not need persistent guarantees. In this way, it reduces message-publish latency by removing overhead of persisting messages. The topic name structure for non-persistent topics is:
 
 ```shell
-
 non-persistent://tenant/namespace/topic
-
 ```
 
 ## Manage topic resources
-Whether it is persistent or non-persistent topic, you can obtain the topic resources through `pulsar-admin` tool, REST API and Java.
+Whether it is a persistent or non-persistent topic, you can obtain the topic resources through `pulsar-admin` tool, REST API and Java.
 
 :::note
 
@@ -59,10 +55,8 @@ You can get the list of topics under a given namespace in the following ways.
 <TabItem value="pulsar-admin">
 
 ```shell
-
-$ pulsar-admin topics list \
-  my-tenant/my-namespace
-
+pulsar-admin topics list \
+my-tenant/my-namespace
 ```
 
 </TabItem>
@@ -74,10 +68,8 @@ $ pulsar-admin topics list \
 <TabItem value="Java">
 
 ```java
-
 String namespace = "my-tenant/my-namespace";
 admin.topics().getList(namespace);
-
 ```
 
 </TabItem>
@@ -96,11 +88,9 @@ You can grant permissions on a client role to perform specific actions on a give
 <TabItem value="pulsar-admin">
 
 ```shell
-
-$ pulsar-admin topics grant-permission \
-  --actions produce,consume --role application1 \
-  persistent://test-tenant/ns1/tp1 \
-
+pulsar-admin topics grant-permission \
+--actions produce,consume --role application1 \
+persistent://test-tenant/ns1/tp1 \
 ```
 
 </TabItem>
@@ -112,12 +102,10 @@ $ pulsar-admin topics grant-permission \
 <TabItem value="Java">
 
 ```java
-
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 String role = "test-role";
 Set<AuthAction> actions  = Sets.newHashSet(AuthAction.produce, AuthAction.consume);
 admin.topics().grantPermission(topic, role, actions);
-
 ```
 
 </TabItem>
@@ -136,9 +124,8 @@ You can fetch permission in the following ways.
 <TabItem value="pulsar-admin">
 
 ```shell
-
-$ pulsar-admin topics permissions \
-  persistent://test-tenant/ns1/tp1 \
+pulsar-admin topics permissions \
+persistent://test-tenant/ns1/tp1 \
 
 {
     "application1": [
@@ -146,7 +133,6 @@ $ pulsar-admin topics permissions \
         "produce"
     ]
 }
-
 ```
 
 </TabItem>
@@ -158,10 +144,8 @@ $ pulsar-admin topics permissions \
 <TabItem value="Java">
 
 ```java
-
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 admin.topics().getPermissions(topic);
-
 ```
 
 </TabItem>
@@ -171,7 +155,8 @@ admin.topics().getPermissions(topic);
 
 ### Revoke permission
 
-You can revoke a permission granted on a client role in the following ways.
+You can revoke permissions granted on a client role in the following ways.
+
 ````mdx-code-block
 <Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
@@ -179,10 +164,9 @@ You can revoke a permission granted on a client role in the following ways.
 <TabItem value="pulsar-admin">
 
 ```shell
-
-$ pulsar-admin topics revoke-permission \
-  --role application1 \
-  persistent://test-tenant/ns1/tp1 \
+pulsar-admin topics revoke-permission \
+--role application1 \
+persistent://test-tenant/ns1/tp1 \
 
 {
   "application1": [
@@ -190,7 +174,6 @@ $ pulsar-admin topics revoke-permission \
     "produce"
   ]
 }
-
 ```
 
 </TabItem>
@@ -202,11 +185,9 @@ $ pulsar-admin topics revoke-permission \
 <TabItem value="Java">
 
 ```java
-
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 String role = "test-role";
 admin.topics().revokePermissions(topic, role);
-
 ```
 
 </TabItem>
@@ -216,7 +197,7 @@ admin.topics().revokePermissions(topic, role);
 
 ### Delete topic
 
-You can delete a topic in the following ways. You cannot delete a topic if any active subscription or producers is connected to the topic.
+You can delete a topic in the following ways. You cannot delete a topic if any active subscription or producer is connected to the topic.
 
 ````mdx-code-block
 <Tabs groupId="api-choice"
@@ -225,10 +206,8 @@ You can delete a topic in the following ways. You cannot delete a topic if any a
 <TabItem value="pulsar-admin">
 
 ```shell
-
-$ pulsar-admin topics delete \
-  persistent://test-tenant/ns1/tp1 \
-
+pulsar-admin topics delete \
+persistent://test-tenant/ns1/tp1 \
 ```
 
 </TabItem>
@@ -240,10 +219,8 @@ $ pulsar-admin topics delete \
 <TabItem value="Java">
 
 ```java
-
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 admin.topics().delete(topic);
-
 ```
 
 </TabItem>
@@ -254,6 +231,7 @@ admin.topics().delete(topic);
 ### Unload topic
 
 You can unload a topic in the following ways.
+
 ````mdx-code-block
 <Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
@@ -261,10 +239,8 @@ You can unload a topic in the following ways.
 <TabItem value="pulsar-admin">
 
 ```shell
-
-$ pulsar-admin topics unload \
-  persistent://test-tenant/ns1/tp1 \
-
+pulsar-admin topics unload \
+persistent://test-tenant/ns1/tp1 \
 ```
 
 </TabItem>
@@ -276,10 +252,8 @@ $ pulsar-admin topics unload \
 <TabItem value="Java">
 
 ```java
-
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 admin.topics().unload(topic);
-
 ```
 
 </TabItem>
@@ -317,7 +291,7 @@ You can check the following statistics of a given non-partitioned topic.
 
   -   **backlogSize**: Estimated total unconsumed or backlog size (in bytes).
 
-  -   **offloadedStorageSize**: Space used to store the offloaded messages for the topic (in bytes).
+  -   **offloadedStorageSize**: Space that is used to store the offloaded messages for the topic (in bytes).
   
   -   **waitingPublishers**: The number of publishers waiting in a queue in exclusive access mode.
   
@@ -331,7 +305,9 @@ You can check the following statistics of a given non-partitioned topic.
 
   -   **nonContiguousDeletedMessagesRangesSerializedSize**: The serialized size of non-contiguous deleted messages ranges.  
 
-  -   **publishers**: The list of all local publishers into the topic. The list ranges from zero to thousands.
+  -   **ownerBroker**: The broker that owns this topic.
+
+  -   **publishers**: The list of all local publishers on the topic. The list ranges from zero to thousands.
 
       -   **accessMode**: The type of access to the topic that the producer requires.
 
@@ -373,13 +349,13 @@ You can check the following statistics of a given non-partitioned topic.
           
           -   **lastConsumedFlowTimestamp**: The timestamp of the last flow command received.
 
-          -   **lastConsumedTimestamp**: The latest timestamp of all the consumed timestamp of the consumers.
+          -   **lastConsumedTimestamp**: The latest timestamp of all the consumed timestamps of the consumers.
           
-          -   **lastAckedTimestamp**: The latest timestamp of all the acked timestamp of the consumers.
+          -   **lastAckedTimestamp**: The latest timestamp of all the acknowledged timestamps of the consumers.
 
-          -   **bytesOutCounter**: Total bytes delivered to consumer.
+          -   **bytesOutCounter**: Total bytes delivered to a consumer.
 
-          -   **msgOutCounter**: Total messages delivered to consumer.
+          -   **msgOutCounter**: Total messages delivered to a consumer.
 
           -   **msgRateRedeliver**: Total rate of messages redelivered on this subscription (msg/s).
 
@@ -391,11 +367,11 @@ You can check the following statistics of a given non-partitioned topic.
 
           -   **msgBacklogNoDelayed**: Number of messages in the subscription backlog that do not contain the delay messages.
 
-          -   **blockedSubscriptionOnUnackedMsgs**: Flag to verify if a subscription is blocked due to reaching threshold of unacked messages.
+          -   **blockedSubscriptionOnUnackedMsgs**: Flag to verify if a subscription is blocked due to reaching the threshold of unacked messages.
 
           -   **msgDelayed**: Number of delayed messages currently being tracked.
 
-          -   **unackedMessages**: Number of unacknowledged messages for the subscription, where an unacknowledged message is one that has been sent to a consumer but not yet acknowledged. This field is only meaningful when using a subscription that tracks individual message acknowledgement.
+          -   **unackedMessages**: Number of unacknowledged messages for the subscription, where an unacknowledged message is one that has been sent to a consumer but not yet acknowledged. This field is only meaningful when using a subscription that tracks individual message acknowledgment.
 
           -   **activeConsumerName**: The name of the consumer that is active for single active consumer subscriptions. For example, failover or exclusive. 
 
@@ -407,7 +383,7 @@ You can check the following statistics of a given non-partitioned topic.
 
           -   **replicated**: Mark that the subscription state is kept in sync across different regions.
 
-          -   **allowOutOfOrderDelivery**: Whether out of order delivery is allowed on the Key_Shared subscription.
+          -   **allowOutOfOrderDelivery**: Whether out-of-order delivery is allowed on the Key_Shared subscription.
 
           -   **keySharedMode**: Whether the Key_Shared subscription mode is AUTO_SPLIT or STICKY.
 
@@ -433,11 +409,11 @@ You can check the following statistics of a given non-partitioned topic.
 
                 -   **consumerName**: The internal identifier for this consumer, generated by the client library.
 
-                -   **availablePermits**: The number of messages that the consumer has space for in the client library's listen queue. `0` means the client library's queue is full and `receive()` isn't being called. A non-zero value means this consumer is ready for dispatched messages.
+                -   **availablePermits**: The number of messages that the consumer has space for in the client library's listening queue. `0` means the client library's queue is full and `receive()` isn't being called. A non-zero value means this consumer is ready for dispatched messages.
 
-                -   **unackedMessages**: The number of unacknowledged messages for the consumer, where an unacknowledged message is one that has been sent to the consumer but not yet acknowledged. This field is only meaningful when using a subscription that tracks individual message acknowledgement.
+                -   **unackedMessages**: The number of unacknowledged messages for the consumer, where an unacknowledged message has been sent to the consumer but not yet acknowledged. This field is only meaningful when using a subscription that tracks individual message acknowledgment.
 
-                -   **blockedConsumerOnUnackedMsgs**: The flag used to verify if the consumer is blocked due to reaching threshold of the unacknowledged messages.
+                -   **blockedConsumerOnUnackedMsgs**: The flag used to verify if the consumer is blocked due to reaching the threshold of the unacknowledged messages.
                 
                 -   **lastConsumedTimestamp**: The timestamp when the consumer reads a message the last time.
 
@@ -449,9 +425,9 @@ You can check the following statistics of a given non-partitioned topic.
 
                 -   **clientVersion**: The client library version of this consumer.
 
-                -   **bytesOutCounter**: Total bytes delivered to consumer.
+                -   **bytesOutCounter**: Total bytes delivered to a consumer.
 
-                -   **msgOutCounter**: Total messages delivered to consumer.
+                -   **msgOutCounter**: Total messages delivered to a consumer.
 
                 -   **msgRateRedeliver**: Total rate of messages redelivered by this consumer (msg/s).
 
@@ -459,7 +435,7 @@ You can check the following statistics of a given non-partitioned topic.
 
                 -   **avgMessagesPerEntry**: Number of average messages per entry for the consumer consumed.
 
-                -   **readPositionWhenJoining**: The read position of the cursor when the consumer joining.
+                -   **readPositionWhenJoining**: The read position of the cursor when the consumer joins.
 
                 -   **keyHashRanges**: Hash ranges assigned to this consumer if is Key_Shared sub mode.
 
@@ -489,12 +465,11 @@ You can check the following statistics of a given non-partitioned topic.
 
       -   **outboundConnection**: The address of the outbound replication connection.
 
-      -   **outboundConnectedSince**: The timestamp of establishing outbound connection.
+      -   **outboundConnectedSince**: The timestamp of establishing an outbound connection.
 
 The following is an example of a topic status.
 
 ```json
-
 {
   "msgRateIn" : 0.0,
   "msgThroughputIn" : 0.0,
@@ -583,9 +558,9 @@ The following is an example of a topic status.
   "replication" : { },
   "deduplicationStatus" : "Disabled",
   "nonContiguousDeletedMessagesRanges" : 0,
-  "nonContiguousDeletedMessagesRangesSerializedSize" : 0
+  "nonContiguousDeletedMessagesRangesSerializedSize" : 0,
+  "ownerBroker" : "localhost:8080"
 }
-
 ```
 
 To get the status of a topic, you can use the following ways.
@@ -597,10 +572,8 @@ To get the status of a topic, you can use the following ways.
 <TabItem value="pulsar-admin">
 
 ```shell
-
-$ pulsar-admin topics stats \
-  persistent://test-tenant/ns1/tp1 \
-
+pulsar-admin topics stats \
+persistent://test-tenant/ns1/tp1 \
 ```
 
 </TabItem>
@@ -612,10 +585,8 @@ $ pulsar-admin topics stats \
 <TabItem value="Java">
 
 ```java
-
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 admin.topics().getStats(topic);
-
 ```
 
 </TabItem>
@@ -645,7 +616,7 @@ You can get the detailed statistics of a topic.
 
   -   **pendingAddEntriesCount**: The number of messages that complete (asynchronous) write requests.
 
-  -   **lastConfirmedEntry**: The ledgerid:entryid of the last message that is written successfully. If the entryid is `-1`, then the ledger is open, yet no entries are written.
+  -   **lastConfirmedEntry**: The `ledgerid:entryid` of the last message that is written successfully. If the `entryid` is `-1`, then the ledger is open, yet no entries are written.
 
   -   **state**: The state of this ledger for writing. The state `LedgerOpened` means that a ledger is open for saving published messages.
 
@@ -687,17 +658,17 @@ You can get the detailed statistics of a topic.
 
       -   **markDeletePosition**: All messages before the markDeletePosition are acknowledged by the subscriber.
 
-      -   **readPosition**: The latest position of subscriber for reading message.
+      -   **readPosition**: The latest position of subscriber for reading messages.
 
       -   **waitingReadOp**: This is true when the subscription has read the latest message published to the topic and is waiting for new messages to be published.
 
       -   **pendingReadOps**: The counter for how many outstanding read requests to the BookKeepers in progress.
 
-      -   **messagesConsumedCounter**: The number of messages this cursor has acked since this broker loaded this topic.
+      -   **messagesConsumedCounter**: The number of messages this cursor has acknowledged since this broker loaded this topic.
 
       -   **cursorLedger**: The ledger being used to persistently store the current markDeletePosition.
 
-      -   **cursorLedgerLastEntry**: The last entryid used to persistently store the current markDeletePosition.
+      -   **cursorLedgerLastEntry**: The last `entryid` used to persistently store the current markDeletePosition.
 
       -   **individuallyDeletedMessages**: If acknowledges are being done out of order, the ranges of messages acknowledged between the markDeletePosition and the read-position shows.
 
@@ -708,7 +679,6 @@ You can get the detailed statistics of a topic.
 The following is an example of the detailed statistics of a topic.
 
 ```json
-
 {
     "entriesAddedCounter":0,
     "numberOfEntries":0,
@@ -766,10 +736,10 @@ The following is an example of the detailed statistics of a topic.
         "metadata":null
     }
 }
-
 ```
 
 To get the internal status of a topic, you can use the following ways.
+
 ````mdx-code-block
 <Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
@@ -777,10 +747,8 @@ To get the internal status of a topic, you can use the following ways.
 <TabItem value="pulsar-admin">
 
 ```shell
-
-$ pulsar-admin topics stats-internal \
-  persistent://test-tenant/ns1/tp1 \
-
+pulsar-admin topics stats-internal \
+persistent://test-tenant/ns1/tp1 \
 ```
 
 </TabItem>
@@ -792,10 +760,8 @@ $ pulsar-admin topics stats-internal \
 <TabItem value="Java">
 
 ```java
-
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 admin.topics().getInternalStats(topic);
-
 ```
 
 </TabItem>
@@ -806,6 +772,7 @@ admin.topics().getInternalStats(topic);
 ### Peek messages
 
 You can peek a number of messages for a specific subscription of a given topic in the following ways.
+
 ````mdx-code-block
 <Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
@@ -813,15 +780,13 @@ You can peek a number of messages for a specific subscription of a given topic i
 <TabItem value="pulsar-admin">
 
 ```shell
-
-$ pulsar-admin topics peek-messages \
-  --count 10 --subscription my-subscription \
-  persistent://test-tenant/ns1/tp1 \
+pulsar-admin topics peek-messages \
+--count 10 --subscription my-subscription \
+persistent://test-tenant/ns1/tp1 \
 
 Message ID: 315674752:0
 Properties:  {  "X-Pulsar-publish-time" : "2015-07-13 17:40:28.451"  }
 msg-payload
-
 ```
 
 </TabItem>
@@ -833,12 +798,10 @@ msg-payload
 <TabItem value="Java">
 
 ```java
-
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 String subName = "my-subscription";
 int numMessages = 1;
 admin.topics().peekMessages(topic, subName, numMessages);
-
 ```
 
 </TabItem>
@@ -857,11 +820,9 @@ You can fetch the message with the given ledger ID and entry ID in the following
 <TabItem value="pulsar-admin">
 
 ```shell
-
-$ ./bin/pulsar-admin topics get-message-by-id \
-  persistent://public/default/my-topic \
-  -l 10 -e 0
-
+./bin/pulsar-admin topics get-message-by-id \
+persistent://public/default/my-topic \
+-l 10 -e 0
 ```
 
 </TabItem>
@@ -873,12 +834,10 @@ $ ./bin/pulsar-admin topics get-message-by-id \
 <TabItem value="Java">
 
 ```java
-
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 long ledgerId = 10;
 long entryId = 10;
 admin.topics().getMessageById(topic, ledgerId, entryId);
-
 ```
 
 </TabItem>
@@ -897,11 +856,9 @@ You can examine a specific message on a topic by position relative to the earlie
 <TabItem value="pulsar-admin">
 
 ```shell
-
 ./bin/pulsar-admin topics examine-messages \
-  persistent://public/default/my-topic \
-  -i latest -m 1
-
+persistent://public/default/my-topic \
+-i latest -m 1
 ```
 
 </TabItem>
@@ -913,10 +870,8 @@ You can examine a specific message on a topic by position relative to the earlie
 <TabItem value="Java">
 
 ```java
-
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 admin.topics().examineMessage(topic, "latest", 1);
-
 ```
 
 </TabItem>
@@ -935,11 +890,9 @@ You can get message ID published at or just after the given datetime.
 <TabItem value="pulsar-admin">
 
 ```shell
-
 ./bin/pulsar-admin topics get-message-id \
-  persistent://public/default/my-topic \
-  -d 2021-06-28T19:01:17Z
-
+persistent://public/default/my-topic \
+-d 2021-06-28T19:01:17Z
 ```
 
 </TabItem>
@@ -951,11 +904,9 @@ You can get message ID published at or just after the given datetime.
 <TabItem value="Java">
 
 ```java
-
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 long timestamp = System.currentTimeMillis()
 admin.topics().getMessageIdByTimestamp(topic, timestamp);
-
 ```
 
 </TabItem>
@@ -975,11 +926,9 @@ You can skip a number of messages for a specific subscription of a given topic i
 <TabItem value="pulsar-admin">
 
 ```shell
-
-$ pulsar-admin topics skip \
-  --count 10 --subscription my-subscription \
-  persistent://test-tenant/ns1/tp1 \
-
+pulsar-admin topics skip \
+--count 10 --subscription my-subscription \
+persistent://test-tenant/ns1/tp1 \
 ```
 
 </TabItem>
@@ -991,12 +940,10 @@ $ pulsar-admin topics skip \
 <TabItem value="Java">
 
 ```java
-
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 String subName = "my-subscription";
 int numMessages = 1;
 admin.topics().skipMessages(topic, subName, numMessages);
-
 ```
 
 </TabItem>
@@ -1015,11 +962,9 @@ You can skip all the old messages for a specific subscription of a given topic.
 <TabItem value="pulsar-admin">
 
 ```shell
-
-$ pulsar-admin topics skip-all \
-  --subscription my-subscription \
-  persistent://test-tenant/ns1/tp1 \
-
+pulsar-admin topics skip-all \
+--subscription my-subscription \
+persistent://test-tenant/ns1/tp1 \
 ```
 
 </TabItem>
@@ -1031,11 +976,9 @@ $ pulsar-admin topics skip-all \
 <TabItem value="Java">
 
 ```java
-
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 String subName = "my-subscription";
 admin.topics().skipAllMessages(topic, subName);
-
 ```
 
 </TabItem>
@@ -1045,7 +988,7 @@ admin.topics().skipAllMessages(topic, subName);
 
 ### Reset cursor
 
-You can reset a subscription cursor position back to the position which is recorded X minutes before. It essentially calculates time and position of cursor at X minutes before and resets it at that position. You can reset the cursor in the following ways.
+You can reset a subscription cursor position back to the position which is recorded X minutes before. It essentially calculates the time and position of the cursor at X minutes before and resets it at that position. You can reset the cursor in the following ways.
 
 ````mdx-code-block
 <Tabs groupId="api-choice"
@@ -1054,11 +997,9 @@ You can reset a subscription cursor position back to the position which is recor
 <TabItem value="pulsar-admin">
 
 ```shell
-
-$ pulsar-admin topics reset-cursor \
-  --subscription my-subscription --time 10 \
-  persistent://test-tenant/ns1/tp1 \
-
+pulsar-admin topics reset-cursor \
+--subscription my-subscription --time 10 \
+persistent://test-tenant/ns1/tp1 \
 ```
 
 </TabItem>
@@ -1094,12 +1035,10 @@ You can locate the owner broker of the given topic in the following ways.
 <TabItem value="pulsar-admin">
 
 ```shell
+pulsar-admin topics lookup \
+persistent://test-tenant/ns1/tp1 \
 
-$ pulsar-admin topics lookup \
-  persistent://test-tenant/ns1/tp1 \
-
- "pulsar://broker1.org.com:4480"
-
+"pulsar://broker1.org.com:4480"
 ```
 
 </TabItem>
@@ -1111,10 +1050,8 @@ $ pulsar-admin topics lookup \
 <TabItem value="Java">
 
 ```java
-
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 admin.lookup().lookupDestination(topic);
-
 ```
 
 </TabItem>
@@ -1133,36 +1070,30 @@ You can locate the owner broker of the given partitioned topic in the following 
 <TabItem value="pulsar-admin">
 
 ```shell
+pulsar-admin topics partitioned-lookup \
+persistent://test-tenant/ns1/my-topic \
 
-$ pulsar-admin topics partitioned-lookup \
-  persistent://test-tenant/ns1/my-topic \
-
-  "persistent://test-tenant/ns1/my-topic-partition-0   pulsar://localhost:6650"
-  "persistent://test-tenant/ns1/my-topic-partition-1   pulsar://localhost:6650"
-  "persistent://test-tenant/ns1/my-topic-partition-2   pulsar://localhost:6650"
-  "persistent://test-tenant/ns1/my-topic-partition-3   pulsar://localhost:6650"
-
+"persistent://test-tenant/ns1/my-topic-partition-0   pulsar://localhost:6650"
+"persistent://test-tenant/ns1/my-topic-partition-1   pulsar://localhost:6650"
+"persistent://test-tenant/ns1/my-topic-partition-2   pulsar://localhost:6650"
+"persistent://test-tenant/ns1/my-topic-partition-3   pulsar://localhost:6650"
 ```
 
 </TabItem>
 <TabItem value="Java">
 
 ```java
-
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 admin.lookup().lookupPartitionedTopic(topic);
-
 ```
 
 Lookup the partitioned topics sorted by broker URL
 
 ```shell
+pulsar-admin topics partitioned-lookup \
+persistent://test-tenant/ns1/my-topic --sort-by-broker \
 
-$ pulsar-admin topics partitioned-lookup \
-  persistent://test-tenant/ns1/my-topic --sort-by-broker \
-
-  "pulsar://localhost:6650   [persistent://test-tenant/ns1/my-topic-partition-0, persistent://test-tenant/ns1/my-topic-partition-1, persistent://test-tenant/ns1/my-topic-partition-2, persistent://test-tenant/ns1/my-topic-partition-3]"
-
+"pulsar://localhost:6650   [persistent://test-tenant/ns1/my-topic-partition-0, persistent://test-tenant/ns1/my-topic-partition-1, persistent://test-tenant/ns1/my-topic-partition-2, persistent://test-tenant/ns1/my-topic-partition-3]"
 ```
 
 </TabItem>
@@ -1181,12 +1112,10 @@ You can get the range of the bundle that the given topic belongs to in the follo
 <TabItem value="pulsar-admin">
 
 ```shell
+pulsar-admin topics bundle-range \
+persistent://test-tenant/ns1/tp1 \
 
-$ pulsar-admin topics bundle-range \
-  persistent://test-tenant/ns1/tp1 \
-
- "0x00000000_0xffffffff"
-
+"0x00000000_0xffffffff"
 ```
 
 </TabItem>
@@ -1198,10 +1127,8 @@ $ pulsar-admin topics bundle-range \
 <TabItem value="Java">
 
 ```java
-
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 admin.lookup().getBundleRange(topic);
-
 ```
 
 </TabItem>
@@ -1220,12 +1147,10 @@ You can check all subscription names for a given topic in the following ways.
 <TabItem value="pulsar-admin">
 
 ```shell
+pulsar-admin topics subscriptions \
+persistent://test-tenant/ns1/tp1 \
 
-$ pulsar-admin topics subscriptions \
-  persistent://test-tenant/ns1/tp1 \
-
- my-subscription
-
+my-subscription
 ```
 
 </TabItem>
@@ -1237,10 +1162,8 @@ $ pulsar-admin topics subscriptions \
 <TabItem value="Java">
 
 ```java
-
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 admin.topics().getSubscriptions(topic);
-
 ```
 
 </TabItem>
@@ -1259,9 +1182,7 @@ You can get the last committed message ID for a persistent topic. It is availabl
 <TabItem value="pulsar-admin">
 
 ```shell
-
 pulsar-admin topics last-message-id topic-name
-
 ```
 
 </TabItem>
@@ -1273,10 +1194,8 @@ pulsar-admin topics last-message-id topic-name
 <TabItem value="Java">
 
 ```java
-
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 admin.topics().getLastMessage(topic);
-
 ```
 
 </TabItem>
@@ -1295,11 +1214,9 @@ You can get the backlog size of a single partition topic or a non-partitioned to
 <TabItem value="pulsar-admin">
 
 ```shell
-
-$ pulsar-admin topics get-backlog-size \
+pulsar-admin topics get-backlog-size \
   -m 1:1 \
   persistent://test-tenant/ns1/tp1-partition-0 \
-
 ```
 
 </TabItem>
@@ -1311,11 +1228,9 @@ $ pulsar-admin topics get-backlog-size \
 <TabItem value="Java">
 
 ```java
-
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 MessageId messageId = MessageId.earliest;
 admin.topics().getBacklogSizeByMessageId(topic, messageId);
-
 ```
 
 </TabItem>
@@ -1336,10 +1251,8 @@ To get the topic-level deduplication snapshot interval, use one of the following
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
-```
-
+```shell
 pulsar-admin topics get-deduplication-snapshot-interval options
-
 ```
 
 </TabItem>
@@ -1351,9 +1264,7 @@ pulsar-admin topics get-deduplication-snapshot-interval options
 <TabItem value="Java">
 
 ```java
-
 admin.topics().getDeduplicationSnapshotInterval(topic)
-
 ```
 
 </TabItem>
@@ -1373,10 +1284,8 @@ To set the topic-level deduplication snapshot interval, use one of the following
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
-```
-
+```shell
 pulsar-admin topics set-deduplication-snapshot-interval options
-
 ```
 
 </TabItem>
@@ -1385,20 +1294,16 @@ pulsar-admin topics set-deduplication-snapshot-interval options
 {@inject: endpoint|POST|/admin/v2/topics/:tenant/:namespace/:topic/deduplicationSnapshotInterval|operation/setDeduplicationSnapshotInterval?version=@pulsar:version_number@}
 
 ```json
-
 {
   "interval": 1000
 }
-
 ```
 
 </TabItem>
 <TabItem value="Java">
 
 ```java
-
 admin.topics().setDeduplicationSnapshotInterval(topic, 1000)
-
 ```
 
 </TabItem>
@@ -1416,10 +1321,8 @@ To remove the topic-level deduplication snapshot interval, use one of the follow
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
-```
-
+```shell
 pulsar-admin topics remove-deduplication-snapshot-interval options
-
 ```
 
 </TabItem>
@@ -1431,9 +1334,7 @@ pulsar-admin topics remove-deduplication-snapshot-interval options
 <TabItem value="Java">
 
 ```java
-
 admin.topics().removeDeduplicationSnapshotInterval(topic)
-
 ```
 
 </TabItem>
@@ -1454,10 +1355,8 @@ To get the topic-level inactive topic policies, use one of the following methods
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
-```
-
+```shell
 pulsar-admin topics get-inactive-topic-policies options
-
 ```
 
 </TabItem>
@@ -1469,9 +1368,7 @@ pulsar-admin topics get-inactive-topic-policies options
 <TabItem value="Java">
 
 ```java
-
 admin.topics().getInactiveTopicPolicies(topic)
-
 ```
 
 </TabItem>
@@ -1489,10 +1386,8 @@ To set the topic-level inactive topic policies, use one of the following methods
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
-```
-
+```shell
 pulsar-admin topics set-inactive-topic-policies options
-
 ```
 
 </TabItem>
@@ -1504,9 +1399,7 @@ pulsar-admin topics set-inactive-topic-policies options
 <TabItem value="Java">
 
 ```java
-
 admin.topics().setInactiveTopicPolicies(topic, inactiveTopicPolicies)
-
 ```
 
 </TabItem>
@@ -1524,10 +1417,8 @@ To remove the topic-level inactive topic policies, use one of the following meth
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
-```
-
+```shell
 pulsar-admin topics remove-inactive-topic-policies options
-
 ```
 
 </TabItem>
@@ -1539,9 +1430,7 @@ pulsar-admin topics remove-inactive-topic-policies options
 <TabItem value="Java">
 
 ```java
-
 admin.topics().removeInactiveTopicPolicies(topic)
-
 ```
 
 </TabItem>
@@ -1562,10 +1451,8 @@ To get the topic-level offload policies, use one of the following methods.
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
-```
-
+```shell
 pulsar-admin topics get-offload-policies options
-
 ```
 
 </TabItem>
@@ -1577,9 +1464,7 @@ pulsar-admin topics get-offload-policies options
 <TabItem value="Java">
 
 ```java
-
 admin.topics().getOffloadPolicies(topic)
-
 ```
 
 </TabItem>
@@ -1597,10 +1482,8 @@ To set the topic-level offload policies, use one of the following methods.
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
-```
-
+```shell
 pulsar-admin topics set-offload-policies options
-
 ```
 
 </TabItem>
@@ -1612,9 +1495,7 @@ pulsar-admin topics set-offload-policies options
 <TabItem value="Java">
 
 ```java
-
 admin.topics().setOffloadPolicies(topic, offloadPolicies)
-
 ```
 
 </TabItem>
@@ -1632,10 +1513,8 @@ To remove the topic-level offload policies, use one of the following methods.
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
-```
-
+```shell
 pulsar-admin topics remove-offload-policies options
-
 ```
 
 </TabItem>
@@ -1647,9 +1526,7 @@ pulsar-admin topics remove-offload-policies options
 <TabItem value="Java">
 
 ```java
-
 admin.topics().removeOffloadPolicies(topic)
-
 ```
 
 </TabItem>
@@ -1659,7 +1536,7 @@ admin.topics().removeOffloadPolicies(topic)
 
 
 ## Manage non-partitioned topics
-You can use Pulsar [admin API](admin-api-overview.md) to create, delete and check status of non-partitioned topics.
+You can use Pulsar [admin API](admin-api-overview.md) to create, delete and check the status of non-partitioned topics.
 
 ### Create
 Non-partitioned topics must be explicitly created. When creating a new non-partitioned topic, you need to provide a name for the topic.
@@ -1669,6 +1546,7 @@ By default, 60 seconds after creation, topics are considered inactive and delete
 For more information about the two parameters, see [here](reference-configuration.md#broker).
 
 You can create non-partitioned topics in the following ways.
+
 ````mdx-code-block
 <Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
@@ -1678,10 +1556,8 @@ You can create non-partitioned topics in the following ways.
 When you create non-partitioned topics with the [`create`](/tools/pulsar-admin/) command, you need to specify the topic name as an argument.
 
 ```shell
-
-$ bin/pulsar-admin topics create \
-  persistent://my-tenant/my-namespace/my-topic
-
+bin/pulsar-admin topics create \
+persistent://my-tenant/my-namespace/my-topic
 ```
 
 :::note
@@ -1699,10 +1575,8 @@ When you create a non-partitioned topic with the suffix '-partition-' followed b
 <TabItem value="Java">
 
 ```java
-
 String topicName = "persistent://my-tenant/my-namespace/my-topic";
 admin.topics().createNonPartitionedTopic(topicName);
-
 ```
 
 </TabItem>
@@ -1711,7 +1585,9 @@ admin.topics().createNonPartitionedTopic(topicName);
 ````
 
 ### Delete
+
 You can delete non-partitioned topics in the following ways.
+
 ````mdx-code-block
 <Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
@@ -1719,10 +1595,8 @@ You can delete non-partitioned topics in the following ways.
 <TabItem value="pulsar-admin">
 
 ```shell
-
-$ bin/pulsar-admin topics delete \
-  persistent://my-tenant/my-namespace/my-topic
-
+bin/pulsar-admin topics delete \
+persistent://my-tenant/my-namespace/my-topic
 ```
 
 </TabItem>
@@ -1734,9 +1608,7 @@ $ bin/pulsar-admin topics delete \
 <TabItem value="Java">
 
 ```java
-
 admin.topics().delete(topic);
-
 ```
 
 </TabItem>
@@ -1746,7 +1618,8 @@ admin.topics().delete(topic);
 
 ### List
 
-You can get the list of topics under a given namespace in the following ways.  
+You can get the list of topics under a given namespace in the following ways.
+
 ````mdx-code-block
 <Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
@@ -1754,11 +1627,9 @@ You can get the list of topics under a given namespace in the following ways.
 <TabItem value="pulsar-admin">
 
 ```shell
-
-$ pulsar-admin topics list tenant/namespace
+pulsar-admin topics list tenant/namespace
 persistent://tenant/namespace/topic1
 persistent://tenant/namespace/topic2
-
 ```
 
 </TabItem>
@@ -1770,9 +1641,7 @@ persistent://tenant/namespace/topic2
 <TabItem value="Java">
 
 ```java
-
 admin.topics().getList(namespace);
-
 ```
 
 </TabItem>
@@ -1782,10 +1651,9 @@ admin.topics().getList(namespace);
 
 ### Stats
 
-You can check the current statistics of a given topic. The following is an example. For description of each stats, refer to [get stats](#get-stats).
+You can check the current statistics of a given topic. The following is an example. For the description of each stats, refer to [get stats](#get-stats).
 
 ```json
-
 {
   "msgRateIn": 4641.528542257553,
   "msgThroughputIn": 44663039.74947473,
@@ -1816,10 +1684,10 @@ You can check the current statistics of a given topic. The following is an examp
   },
   "replication": {}
 }
-
 ```
 
 You can check the current statistics of a given topic and its connected producers and consumers in the following ways.
+
 ````mdx-code-block
 <Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
@@ -1827,11 +1695,9 @@ You can check the current statistics of a given topic and its connected producer
 <TabItem value="pulsar-admin">
 
 ```shell
-
-$ pulsar-admin topics stats \
-  persistent://test-tenant/namespace/topic \
-  --get-precise-backlog
-
+pulsar-admin topics stats \
+persistent://test-tenant/namespace/topic \
+--get-precise-backlog
 ```
 
 </TabItem>
@@ -1843,9 +1709,7 @@ $ pulsar-admin topics stats \
 <TabItem value="Java">
 
 ```java
-
 admin.topics().getStats(topic, false /* is precise backlog */);
-
 ```
 
 </TabItem>
@@ -1854,7 +1718,7 @@ admin.topics().getStats(topic, false /* is precise backlog */);
 ````
 
 ## Manage partitioned topics
-You can use Pulsar [admin API](admin-api-overview.md) to create, update, delete and check status of partitioned topics.
+You can use Pulsar [admin API](admin-api-overview.md) to create, update, delete and check the status of partitioned topics.
 
 ### Create
 
@@ -1865,6 +1729,7 @@ By default, 60 seconds after creation, topics are considered inactive and delete
 For more information about the two parameters, see [here](reference-configuration.md#broker).
 
 You can create partitioned topics in the following ways.
+
 ````mdx-code-block
 <Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
@@ -1875,11 +1740,9 @@ When you create partitioned topics with the [`create-partitioned-topic`](/tools/
 command, you need to specify the topic name as an argument and the number of partitions using the `-p` or `--partitions` flag.
 
 ```shell
-
-$ bin/pulsar-admin topics create-partitioned-topic \
-  persistent://my-tenant/my-namespace/my-topic \
-  --partitions 4
-
+bin/pulsar-admin topics create-partitioned-topic \
+persistent://my-tenant/my-namespace/my-topic \
+--partitions 4
 ```
 
 :::note
@@ -1897,11 +1760,9 @@ If a non-partitioned topic with the suffix '-partition-' followed by a numeric v
 <TabItem value="Java">
 
 ```java
-
 String topicName = "persistent://my-tenant/my-namespace/my-topic";
 int numPartitions = 4;
 admin.topics().createPartitionedTopic(topicName, numPartitions);
-
 ```
 
 </TabItem>
@@ -1922,10 +1783,8 @@ When topic auto-creation is disabled, and you have a partitioned topic without a
 You can create missed partitions with the [`create-missed-partitions`](/tools/pulsar-admin/) command and specify the topic name as an argument.
 
 ```shell
-
-$ bin/pulsar-admin topics create-missed-partitions \
-  persistent://my-tenant/my-namespace/my-topic \
-
+bin/pulsar-admin topics create-missed-partitions \
+persistent://my-tenant/my-namespace/my-topic \
 ```
 
 </TabItem>
@@ -1937,10 +1796,8 @@ $ bin/pulsar-admin topics create-missed-partitions \
 <TabItem value="Java">
 
 ```java
-
 String topicName = "persistent://my-tenant/my-namespace/my-topic";
 admin.topics().createMissedPartitions(topicName);
-
 ```
 
 </TabItem>
@@ -1965,13 +1822,11 @@ Field | Description
 You can check the number of partitions in a partitioned topic with the [`get-partitioned-topic-metadata`](/tools/pulsar-admin/) subcommand. 
 
 ```shell
-
-$ pulsar-admin topics get-partitioned-topic-metadata \
-  persistent://my-tenant/my-namespace/my-topic
+pulsar-admin topics get-partitioned-topic-metadata \
+persistent://my-tenant/my-namespace/my-topic
 {
   "partitions": 4
 }
-
 ```
 
 </TabItem>
@@ -1983,10 +1838,8 @@ $ pulsar-admin topics get-partitioned-topic-metadata \
 <TabItem value="Java">
 
 ```java
-
 String topicName = "persistent://my-tenant/my-namespace/my-topic";
 admin.topics().getPartitionedTopicMetadata(topicName);
-
 ```
 
 </TabItem>
@@ -2009,11 +1862,9 @@ Producers and consumers can find the newly created partitions automatically.
 You can update partitioned topics with the [`update-partitioned-topic`](/tools/pulsar-admin/) command.
 
 ```shell
-
-$ pulsar-admin topics update-partitioned-topic \
-  persistent://my-tenant/my-namespace/my-topic \
-  --partitions 8
-
+pulsar-admin topics update-partitioned-topic \
+persistent://my-tenant/my-namespace/my-topic \
+--partitions 8
 ```
 
 </TabItem>
@@ -2025,9 +1876,7 @@ $ pulsar-admin topics update-partitioned-topic \
 <TabItem value="Java">
 
 ```java
-
 admin.topics().updatePartitionedTopic(topic, numPartitions);
-
 ```
 
 </TabItem>
@@ -2045,10 +1894,8 @@ You can delete partitioned topics with the [`delete-partitioned-topic`](/tools/p
 <TabItem value="pulsar-admin">
 
 ```shell
-
-$ bin/pulsar-admin topics delete-partitioned-topic \
-  persistent://my-tenant/my-namespace/my-topic
-
+bin/pulsar-admin topics delete-partitioned-topic \
+persistent://my-tenant/my-namespace/my-topic
 ```
 
 </TabItem>
@@ -2060,9 +1907,7 @@ $ bin/pulsar-admin topics delete-partitioned-topic \
 <TabItem value="Java">
 
 ```java
-
 admin.topics().delete(topic);
-
 ```
 
 </TabItem>
@@ -2071,7 +1916,9 @@ admin.topics().delete(topic);
 ````
 
 ### List
-You can get the list of partitioned topics under a given namespace in the following ways.  
+
+You can get the list of partitioned topics under a given namespace in the following ways.
+
 ````mdx-code-block
 <Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
@@ -2079,11 +1926,9 @@ You can get the list of partitioned topics under a given namespace in the follow
 <TabItem value="pulsar-admin">
 
 ```shell
-
-$ pulsar-admin topics list-partitioned-topics tenant/namespace
+pulsar-admin topics list-partitioned-topics tenant/namespace
 persistent://tenant/namespace/topic1
 persistent://tenant/namespace/topic2
-
 ```
 
 </TabItem>
@@ -2095,9 +1940,7 @@ persistent://tenant/namespace/topic2
 <TabItem value="Java">
 
 ```java
-
 admin.topics().getPartitionedTopicList(namespace);
-
 ```
 
 </TabItem>
@@ -2107,12 +1950,11 @@ admin.topics().getPartitionedTopicList(namespace);
 
 ### Stats
 
-You can check the current statistics of a given partitioned topic. The following is an example. For description of each stats, refer to [get stats](#get-stats).
+You can check the current statistics of a given partitioned topic. The following is an example. For the description of each stats, refer to [get stats](#get-stats).
 
 Note that in the subscription JSON object, `chuckedMessageRate` is deprecated. Please use `chunkedMessageRate`. Both will be sent in the JSON for now.
 
 ```json
-
 {
   "msgRateIn" : 999.992947159793,
   "msgThroughputIn" : 1070918.4635439808,
@@ -2163,7 +2005,6 @@ Note that in the subscription JSON object, `chuckedMessageRate` is deprecated. P
   },
   "partitions" : { }
 }
-
 ```
 
 You can check the current statistics of a given partitioned topic and its connected producers and consumers in the following ways. 
@@ -2175,11 +2016,9 @@ You can check the current statistics of a given partitioned topic and its connec
 <TabItem value="pulsar-admin">
 
 ```shell
-
-$ pulsar-admin topics partitioned-stats \
-  persistent://test-tenant/namespace/topic \
-  --per-partition
-
+pulsar-admin topics partitioned-stats \
+persistent://test-tenant/namespace/topic \
+--per-partition
 ```
 
 </TabItem>
@@ -2191,9 +2030,7 @@ $ pulsar-admin topics partitioned-stats \
 <TabItem value="Java">
 
 ```java
-
 admin.topics().getPartitionedStats(topic, true /* per partition */, false /* is precise backlog */);
-
 ```
 
 </TabItem>
@@ -2203,10 +2040,9 @@ admin.topics().getPartitionedStats(topic, true /* per partition */, false /* is 
 
 ### Internal stats
 
-You can check the detailed statistics of a topic. The following is an example. For description of each stats, refer to [get internal stats](#get-internal-stats).
+You can check the detailed statistics of a topic. The following is an example. For the description of each stats, refer to [get internal stats](#get-internal-stats).
 
 ```json
-
 {
   "entriesAddedCounter": 20449518,
   "numberOfEntries": 3233,
@@ -2241,7 +2077,6 @@ You can check the detailed statistics of a topic. The following is an example. F
     }
   }
 }
-
 ```
 
 You can get the internal stats for the partitioned topic in the following ways.
@@ -2253,10 +2088,8 @@ You can get the internal stats for the partitioned topic in the following ways.
 <TabItem value="pulsar-admin">
 
 ```shell
-
-$ pulsar-admin topics stats-internal \
-  persistent://test-tenant/namespace/topic
-
+pulsar-admin topics stats-internal \
+persistent://test-tenant/namespace/topic
 ```
 
 </TabItem>
@@ -2268,9 +2101,7 @@ $ pulsar-admin topics stats-internal \
 <TabItem value="Java">
 
 ```java
-
 admin.topics().getInternalStats(topic);
-
 ```
 
 </TabItem>
@@ -2295,11 +2126,9 @@ You can create a subscription for a topic using one of the following methods.
 <TabItem value="pulsar-admin">
 
 ```shell
-
 pulsar-admin topics create-subscription \
 --subscription my-subscription \
 persistent://test-tenant/ns1/tp1
-
 ```
 
 </TabItem>
@@ -2311,11 +2140,9 @@ persistent://test-tenant/ns1/tp1
 <TabItem value="Java">
 
 ```java
-
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 String subscriptionName = "my-subscription";
 admin.topics().createSubscription(topic, subscriptionName, MessageId.latest);
-
 ```
 
 </TabItem>
@@ -2335,11 +2162,9 @@ You can check all subscription names for a given topic using one of the followin
 <TabItem value="pulsar-admin">
 
 ```shell
-
 pulsar-admin topics subscriptions \
 persistent://test-tenant/ns1/tp1 \
 my-subscription
-
 ```
 
 </TabItem>
@@ -2351,10 +2176,8 @@ my-subscription
 <TabItem value="Java">
 
 ```java
-
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 admin.topics().getSubscriptions(topic);
-
 ```
 
 </TabItem>
@@ -2364,7 +2187,7 @@ admin.topics().getSubscriptions(topic);
 
 ### Unsubscribe subscription 
 
-When a subscription does not process messages any more, you can unsubscribe it using one of the following methods. 
+When a subscription does not process messages anymore, you can unsubscribe it using one of the following methods. 
 
 ````mdx-code-block
 <Tabs groupId="api-choice"
@@ -2374,11 +2197,9 @@ When a subscription does not process messages any more, you can unsubscribe it u
 <TabItem value="pulsar-admin">
 
 ```shell
-
 pulsar-admin topics unsubscribe \
 --subscription my-subscription \
 persistent://test-tenant/ns1/tp1
-
 ```
 
 </TabItem>
@@ -2390,11 +2211,9 @@ persistent://test-tenant/ns1/tp1
 <TabItem value="Java">
 
 ```java
-
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 String subscriptionName = "my-subscription";
 admin.topics().deleteSubscription(topic, subscriptionName);
-
 ```
 
 </TabItem>

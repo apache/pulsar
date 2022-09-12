@@ -241,7 +241,7 @@ The cluster-level failover provides fault tolerance, continuous availability, an
 
 * Reduced cost: services can be switched and recovered automatically with no data loss.
 
-* Simplified management: businesses can operate on an “always-on” basis since no immediate user intervention is required.
+* Simplified management: businesses can operate on an "always-on" basis since no immediate user intervention is required.
 
 * Improved stability and robustness: it ensures continuous performance and minimizes service downtime. 
 
@@ -389,10 +389,10 @@ This is an example of how to construct a Java Pulsar client to use controlled cl
 
  public PulsarClient getControlledFailoverClient() throws IOException {
 Map<String, String> header = new HashMap(); 
-  header.put(“service_user_id”, “my-user”);
-  header.put(“service_password”, “tiger”);
-  header.put(“clusterA”, “tokenA”);
-  header.put(“clusterB”, “tokenB”);
+  header.put("service_user_id", "my-user");
+  header.put("service_password", "tiger");
+  header.put("clusterA", "tokenA");
+  header.put("clusterB", "tokenB");
 
   ServiceUrlProvider provider = 
       ControlledClusterFailover.builder()

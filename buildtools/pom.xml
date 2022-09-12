@@ -50,7 +50,7 @@
     <guice.version>4.2.3</guice.version>
     <guava.version>31.0.1-jre</guava.version>
     <ant.version>1.10.12</ant.version>
-    <snakeyaml.version>1.30</snakeyaml.version>
+    <snakeyaml.version>1.31</snakeyaml.version>
     <mockito.version>3.12.4</mockito.version>
     <!-- required for running tests on JDK11+ -->
     <test.additional.args>

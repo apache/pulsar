@@ -29,7 +29,6 @@ Before using the Flume sink connector, you need to create a configuration file t
 * JSON 
 
   ```json
-  
   {
      "configs": {
         "name": "a1",
@@ -39,19 +38,16 @@ Before using the Flume sink connector, you need to create a configuration file t
         "zkBasePath": ""
      }
   }
-  
   ```
 
 * YAML
 
   ```yaml
-  
   configs:
       name: a1
       confFile: sink.conf
       noReloadConf: false
       zkConnString: ""
       zkBasePath: ""
-  
   ```
 
