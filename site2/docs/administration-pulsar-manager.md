@@ -18,13 +18,11 @@ If you are monitoring your current stats with Pulsar dashboard, we recommend you
 The easiest way to use the Pulsar Manager is to run it inside a [Docker](https://www.docker.com/products/docker) container.
 
 ```shell
-
 docker pull apachepulsar/pulsar-manager:v0.2.0
 docker run -it \
-    -p 9527:9527 -p 7750:7750 \
-    -e SPRING_CONFIGURATION_FILE=/pulsar-manager/pulsar-manager/application.properties \
-    apachepulsar/pulsar-manager:v0.2.0
-
+  -p 9527:9527 -p 7750:7750 \
+  -e SPRING_CONFIGURATION_FILE=/pulsar-manager/pulsar-manager/application.properties \
+  apachepulsar/pulsar-manager:v0.2.0
 ```
 
 * Pulsar Manager is divided into front-end and back-end, the front-end service port is `9527` and the back-end service port is `7750`.
@@ -41,18 +39,15 @@ The following is an example of PostgreSQL.
 2. Download and modify the [configuration file](https://github.com/apache/pulsar-manager/blob/master/src/main/resources/application.properties), then add the PostgreSQL configuration.
 
 ```properties
-
 spring.datasource.driver-class-name=org.postgresql.Driver
 spring.datasource.url=jdbc:postgresql://127.0.0.1:5432/pulsar_manager
 spring.datasource.username=postgres
 spring.datasource.password=postgres
-
 ```
 
 3. Add a configuration mount and start with a docker image.
 
 ```bash
-
 docker pull apachepulsar/pulsar-manager:v0.2.0
 docker run -it \
     -p 9527:9527 -p 7750:7750 \
@@ -60,7 +55,6 @@ docker run -it \
 manager/application.properties
     -e SPRING_CONFIGURATION_FILE=/pulsar-manager/pulsar-manager/application.properties \
     apachepulsar/pulsar-manager:v0.2.0
-
 ```
 
 ####  Enable JWT authentication (optional)
@@ -68,7 +62,6 @@ manager/application.properties
 If you want to turn on JWT authentication, configure the `application.properties` file.
 
 ```properties
-
 backend.jwt.token=token
 
 jwt.broker.token.mode=PRIVATE
@@ -78,35 +71,31 @@ jwt.broker.private.key=file:///path/broker-private.key
 or 
 jwt.broker.token.mode=SECRET
 jwt.broker.secret.key=file:///path/broker-secret.key
-
 ```
 
-•	`backend.jwt.token`: token for the superuser. You need to configure this parameter during cluster initialization.   
-•	`jwt.broker.token.mode`: multiple modes of generating token, including PUBLIC, PRIVATE, and SECRET.  
-•	`jwt.broker.public.key`: configure this option if you use the PUBLIC mode.  
-•	`jwt.broker.private.key`: configure this option if you use the PRIVATE mode.  
-•	`jwt.broker.secret.key`: configure this option if you use the SECRET mode.  
+* `backend.jwt.token`: token for the superuser. You need to configure this parameter during cluster initialization.   
+* `jwt.broker.token.mode`: multiple modes of generating tokens, including PUBLIC, PRIVATE, and SECRET.  
+* `jwt.broker.public.key`: configure this option if you use the PUBLIC mode.  
+* `jwt.broker.private.key`: configure this option if you use the PRIVATE mode.  
+* `jwt.broker.secret.key`: configure this option if you use the SECRET mode.  
 For more information, see [Token Authentication Admin of Pulsar](security-token-admin.md).
 
 Docker command to add profile and key files mount.
 
 ```bash
-
 docker pull apachepulsar/pulsar-manager:v0.2.0
 docker run -it \
-    -p 9527:9527 -p 7750:7750 \
-    -v /your-path/application.properties:/pulsar-manager/pulsar-
+  -p 9527:9527 -p 7750:7750 \
+  -v /your-path/application.properties:/pulsar-manager/pulsar-
 manager/application.properties
-    -v /your-path/private.key:/pulsar-manager/private.key
-    -e SPRING_CONFIGURATION_FILE=/pulsar-manager/pulsar-manager/application.properties \
-    apachepulsar/pulsar-manager:v0.2.0
-
+  -v /your-path/private.key:/pulsar-manager/private.key
+  -e SPRING_CONFIGURATION_FILE=/pulsar-manager/pulsar-manager/application.properties \
+  apachepulsar/pulsar-manager:v0.2.0
 ```
 
 ### Set the administrator account and password
 
 ```bash
-
 CSRF_TOKEN=$(curl http://localhost:7750/pulsar-manager/csrf-token)
 curl \
    -H 'X-XSRF-TOKEN: $CSRF_TOKEN' \
@@ -114,30 +103,27 @@ curl \
    -H "Content-Type: application/json" \
    -X PUT http://localhost:7750/pulsar-manager/users/superuser \
    -d '{"name": "admin", "password": "apachepulsar", "description": "test", "email": "username@test.org"}'
-
 ```
 
 The request parameter in curl command:
 
 ```json
-
 {"name": "admin", "password": "apachepulsar", "description": "test", "email": "username@test.org"}
-
 ```
 
 - `name` is the Pulsar Manager login username, currently `admin`.
 - `password` is the password of the current user of Pulsar Manager, currently `apachepulsar`. The password should be more than or equal to 6 digits.
 
 
-
 ### Configure the environment
-1. Login to the system, Visit http://localhost:9527 to login.  The current default account is  `admin/apachepulsar`
+
+1. Login to the system, Visit http://localhost:9527 to login. The current default account is  `admin/apachepulsar`
 
 2. Click "New Environment" button to add an environment.
 
 3. Input the "Environment Name". The environment name is used for identifying an environment.
 
-4. Input the "Service URL". The Service URL is the admin service url of your Pulsar cluster.
+4. Input the "Service URL". The Service URL is the admin service URL of your Pulsar cluster.
 
 
 ## Other Installation
@@ -148,21 +134,17 @@ When using binary packages for direct deployment, you can follow these steps.
 - Download and unzip the binary package, which is available on the [Pulsar Download](/download/) page.
 
   ```bash
-  
   	wget https://dist.apache.org/repos/dist/release/pulsar/pulsar-manager/pulsar-manager-0.2.0/apache-pulsar-manager-0.2.0-bin.tar.gz
   	tar -zxvf apache-pulsar-manager-0.2.0-bin.tar.gz
-  
   ```
 
 - Extract the back-end service binary package and place the front-end resources in the back-end service directory.
 
   ```bash
-  
   	cd pulsar-manager
   	tar -zxvf pulsar-manager.tar
   	cd pulsar-manager
   	cp -r ../dist ui
-  
   ```
 
 - Modify `application.properties` configuration on demand.
@@ -172,9 +154,7 @@ When using binary packages for direct deployment, you can follow these steps.
 - Start Pulsar Manager
 
   ```bash
-  
   ./bin/pulsar-manager
-  
   ```
 
 ### Custom docker image installation
@@ -182,7 +162,6 @@ When using binary packages for direct deployment, you can follow these steps.
 You can find the docker image in the [Docker Hub](https://github.com/apache/pulsar-manager/tree/master/docker) directory and build an image from the source code as well:
 
   ```bash
-  
   git clone https://github.com/apache/pulsar-manager
   cd pulsar-manager/front-end
   npm install --save
@@ -191,12 +170,9 @@ You can find the docker image in the [Docker Hub](https://github.com/apache/puls
   ./gradlew build -x test
   cd ..
   docker build -f docker/Dockerfile --build-arg BUILD_DATE=`date -u +"%Y-%m-%dT%H:%M:%SZ"` --build-arg VCS_REF=`latest` --build-arg VERSION=`latest` -t apachepulsar/pulsar-manager .
-  
   ```
 
 ## Configuration
-
-
 
 | application.properties              | System env on Docker Image | Desc                                                         | Example                                           |
 | ----------------------------------- | -------------------------- | ------------------------------------------------------------ | ------------------------------------------------- |
