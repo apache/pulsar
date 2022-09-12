@@ -1172,6 +1172,18 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         topicList = admin.topics().getList(namespace);
         assertTrue(topicList.isEmpty());
 
+        // simulate a partially deleted namespace, we should be able to recover
+        pulsar.getPulsarResources().getNamespaceResources()
+                .setPolicies(NamespaceName.get(namespace), old -> {
+            old.deleted = true;
+            return old;
+        });
+        admin.namespaces().deleteNamespace(namespace, true);
+
+        admin.namespaces().createNamespace(namespace, 100);
+        topicList = admin.topics().getList(namespace);
+        assertTrue(topicList.isEmpty());
+
         // reset back to false
         pulsar.getConfiguration().setForceDeleteNamespaceAllowed(false);
     }
