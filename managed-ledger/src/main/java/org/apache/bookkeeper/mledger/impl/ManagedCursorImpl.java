@@ -35,6 +35,7 @@ import com.google.common.collect.Range;
 import com.google.common.util.concurrent.RateLimiter;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.time.Clock;
+import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -365,6 +366,10 @@ public class ManagedCursorImpl implements ManagedCursor {
                 updateCursorPropertiesResult.completeExceptionally(e);
             }
         });
+
+        Duration duration = Duration.ofSeconds(ManagedLedgerImpl.AsyncOperationTimeoutSeconds * 2);
+        FutureUtil.addTimeoutHandling(updateCursorPropertiesResult, duration, ledger.getScheduledExecutor(),
+                () -> FutureUtil.createTimeoutException("Timeout", getClass(), "asyncUpdateCursorProperties(...)"));
         return updateCursorPropertiesResult;
     }
 
