@@ -559,10 +559,18 @@ jobs:
         run: |
           # release disk space since saving docker image consumes local disk space
           #
+          echo "::group::Available diskspace before cleaning"
+          time df -BM / /mnt
+          echo "::endgroup::"          
+          echo "::group::Delete files"
           # clean build directories
           git clean -fdx
           # delete maven repository
           rm -rf ~/.m2/repository
+          echo "::endgroup::"          
+          echo "::group::Available diskspace after cleaning"
+          time df -BM / /mnt
+          echo "::endgroup::"          
 
       - name: save docker image apachepulsar/pulsar-test-latest-version:latest to Github artifact cache
         run: |
