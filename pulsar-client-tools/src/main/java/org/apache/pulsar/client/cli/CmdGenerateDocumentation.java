@@ -62,13 +62,9 @@ public class CmdGenerateDocumentation {
     protected String generateDocument(String module, JCommander parentCmd) {
         StringBuilder sb = new StringBuilder();
         JCommander cmd = parentCmd.getCommands().get(module);
-        sb.append("------------\n\n");
-        sb.append("# ").append(module).append("\n\n");
-        sb.append("### Usage\n\n");
-        sb.append("`$").append(module).append("`\n\n");
-        sb.append("------------\n\n");
+        sb.append("## ").append(module).append("\n\n");
         sb.append(parentCmd.getUsageFormatter().getCommandDescription(module)).append("\n");
-        sb.append("\n\n```bdocs-tab:example_shell\n")
+        sb.append("\n\n```shell\n")
                 .append("$ pulsar-client ").append(module).append(" [options]")
                 .append("\n```");
         sb.append("\n\n");
