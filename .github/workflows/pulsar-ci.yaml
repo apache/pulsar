@@ -844,7 +844,6 @@ jobs:
       'system-tests',
       'macos-build'
     ]
-    if: always()
     steps:
       - name: checkout
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
