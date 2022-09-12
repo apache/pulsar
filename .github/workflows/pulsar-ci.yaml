@@ -948,13 +948,9 @@ jobs:
           distribution: 'temurin'
           java-version: ${{ matrix.jdk || '17' }}
 
-      - name: clean disk
-        run: |
-          sudo swapoff -a
-          sudo rm -rf /swapfile /usr/share/dotnet /usr/local/lib/android /opt/ghc
-          sudo apt clean
-          docker rmi $(docker images -q) -f
-          df -h
+      - name: Clean Disk
+        uses: ./.github/actions/clean-disk
+
       - name: Install gh-actions-artifact-client.js
         uses: apache/pulsar-test-infra/gh-actions-artifact-client/dist@master
 
