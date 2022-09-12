@@ -861,6 +861,7 @@ jobs:
   # It cleans up the binaries in the same job in order to not spin up another runner for basically doing nothing.
   pulsar-ci-checks-completed:
     name: "Pulsar CI checks completed"
+    if: always()
     runs-on: ubuntu-20.04
     timeout-minutes: 10
     needs: [
@@ -868,9 +869,23 @@ jobs:
       'unit-tests',
       'integration-tests',
       'system-tests',
+      'flaky-system-tests',
       'macos-build'
     ]
     steps:
+      - name: Check that all required jobs were completed successfully
+        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
+        run: |
+          if [[ ! ( \
+                "${{ needs.unit-tests.result }}" == "success" \
+                && "${{ needs.integration-tests.result }}" == "success" \
+                && "${{ needs.system-tests.result }}" == "success" \
+                && "${{ needs.macos-build.result }}" == "success" \
+             ) ]]; then
+            echo "Required jobs haven't been completed successfully."
+            exit 1            
+          fi
+
       - name: checkout
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
         uses: actions/checkout@v2
