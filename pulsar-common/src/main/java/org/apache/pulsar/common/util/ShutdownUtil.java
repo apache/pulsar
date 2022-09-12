@@ -31,7 +31,10 @@ public class ShutdownUtil {
      */
     public static void triggerImmediateForcefulShutdown(int status) {
         try {
-            log.warn("Triggering immediate shutdown of current process with status {}", status, new Exception());
+            if (status != 0) {
+                log.warn("Triggering immediate shutdown of current process with status {}", status,
+                        new Exception("Stacktrace for immediate shutdown"));
+            }
             // flush log buffers and shutdown log4j2 logging to prevent log truncation
             LogManager.shutdown();
         } finally {
