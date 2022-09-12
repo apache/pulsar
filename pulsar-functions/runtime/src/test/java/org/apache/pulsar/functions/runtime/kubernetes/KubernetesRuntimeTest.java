@@ -66,6 +66,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static org.apache.pulsar.functions.runtime.RuntimeUtils.FUNCTIONS_INSTANCE_CLASSPATH;
@@ -194,10 +195,21 @@ public class KubernetesRuntimeTest {
         }
     }
 
+
     KubernetesRuntimeFactory createKubernetesRuntimeFactory(String extraDepsDir, int percentMemoryPadding,
                                                             double cpuOverCommitRatio, double memoryOverCommitRatio,
                                                             Optional<RuntimeCustomizer> manifestCustomizer,
                                                             String downloadDirectory) throws Exception {
+        return createKubernetesRuntimeFactory(extraDepsDir, percentMemoryPadding, cpuOverCommitRatio, memoryOverCommitRatio,
+                manifestCustomizer, downloadDirectory, null, null);
+    }
+
+    KubernetesRuntimeFactory createKubernetesRuntimeFactory(String extraDepsDir, int percentMemoryPadding,
+                                                            double cpuOverCommitRatio, double memoryOverCommitRatio,
+                                                            Optional<RuntimeCustomizer> manifestCustomizer,
+                                                            String downloadDirectory,
+                                                            Consumer<WorkerConfig> workerConfigConsumer,
+                                                            AuthenticationConfig authenticationConfig) throws Exception {
 
         KubernetesRuntimeFactory factory = spy(new KubernetesRuntimeFactory());
         doNothing().when(factory).setupClient();
@@ -237,7 +249,11 @@ public class KubernetesRuntimeTest {
 
         manifestCustomizer.ifPresent(runtimeCustomizer -> runtimeCustomizer.initialize(Optional.ofNullable(workerConfig.getRuntimeCustomizerConfig()).orElse(Collections.emptyMap())));
 
-        factory.initialize(workerConfig, null, new TestSecretProviderConfigurator(), Mockito.mock(ConnectorsManager.class),
+        if (workerConfigConsumer != null) {
+            workerConfigConsumer.accept(workerConfig);
+        }
+
+        factory.initialize(workerConfig, authenticationConfig, new TestSecretProviderConfigurator(), Mockito.mock(ConnectorsManager.class),
                 Mockito.mock(FunctionsManager.class), Optional.empty(), manifestCustomizer);
         return factory;
     }
@@ -245,7 +261,16 @@ public class KubernetesRuntimeTest {
     KubernetesRuntimeFactory createKubernetesRuntimeFactory(String extraDepsDir, int percentMemoryPadding,
                                                             double cpuOverCommitRatio, double memoryOverCommitRatio,
                                                             Optional<RuntimeCustomizer> manifestCustomizer) throws Exception {
-        return createKubernetesRuntimeFactory(extraDepsDir, percentMemoryPadding, cpuOverCommitRatio, memoryOverCommitRatio, manifestCustomizer, null);
+        return createKubernetesRuntimeFactory(extraDepsDir, percentMemoryPadding, cpuOverCommitRatio, memoryOverCommitRatio, manifestCustomizer,
+                null, null, null);
+    }
+
+    KubernetesRuntimeFactory createKubernetesRuntimeFactory(String extraDepsDir, int percentMemoryPadding,
+                                                            double cpuOverCommitRatio, double memoryOverCommitRatio,
+                                                            Optional<RuntimeCustomizer> manifestCustomizer,
+                                                            Consumer<WorkerConfig> workerConfigConsumer) throws Exception {
+        return createKubernetesRuntimeFactory(extraDepsDir, percentMemoryPadding, cpuOverCommitRatio, memoryOverCommitRatio, manifestCustomizer,
+                null, workerConfigConsumer, null);
     }
 
     KubernetesRuntimeFactory createKubernetesRuntimeFactory(String extraDepsDir, int percentMemoryPadding,
@@ -819,6 +844,33 @@ public class KubernetesRuntimeTest {
         assertEquals(spec.getSpec().getTemplate().getSpec().getServiceAccountName(), "my-service-account");
     }
 
+    @Test
+    public void testCustomKubernetesDownloadCommandsWithAuth() throws Exception {
+        InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, false);
+        config.setFunctionAuthenticationSpec(Function.FunctionAuthenticationSpec.newBuilder().build());
+        config.setFunctionDetails(createFunctionDetails(FunctionDetails.Runtime.JAVA, false));
+
+        factory = createKubernetesRuntimeFactory(null,
+                10, 1.0, 1.0, Optional.empty(), null, wconfig -> {
+                    wconfig.setAuthenticationEnabled(true);
+                }, AuthenticationConfig.builder()
+                        .clientAuthenticationPlugin("com.MyAuth")
+                        .clientAuthenticationParameters("{\"authParam1\": \"authParamValue1\"}")
+                        .build());
+
+        KubernetesRuntime container = factory.createContainer(config, userJarFile, userJarFile, null, null, 30l);
+        V1StatefulSet spec = container.createStatefulSet();
+        String expectedDownloadCommand = "pulsar-admin --admin-url " + pulsarAdminUrl
+                + " --auth-plugin com.MyAuth --auth-params {\"authParam1\": \"authParamValue1\"}"
+                + " functions download "
+                + "--tenant " + TEST_TENANT
+                + " --namespace " + TEST_NAMESPACE
+                + " --name " + TEST_NAME
+                + " --destination-file " + pulsarRootDir + "/" + userJarFile;
+        String containerCommand = spec.getSpec().getTemplate().getSpec().getContainers().get(0).getCommand().get(2);
+        assertTrue(containerCommand.contains(expectedDownloadCommand), "Found:" + containerCommand);
+    }
+
     InstanceConfig createGolangInstanceConfig() {
         InstanceConfig config = new InstanceConfig();
 
@@ -924,6 +976,16 @@ public class KubernetesRuntimeTest {
                                                             double cpuOverCommitRatio, double memoryOverCommitRatio,
                                                             String manifestCustomizerClassName,
                                                             Map<String, Object> runtimeCustomizerConfig) throws Exception {
+        return createKubernetesRuntimeFactory(extraDepsDir, percentMemoryPadding, cpuOverCommitRatio,
+                memoryOverCommitRatio, manifestCustomizerClassName, runtimeCustomizerConfig, null, null);
+    }
+
+    KubernetesRuntimeFactory createKubernetesRuntimeFactory(String extraDepsDir, int percentMemoryPadding,
+                                                            double cpuOverCommitRatio, double memoryOverCommitRatio,
+                                                            String manifestCustomizerClassName,
+                                                            Map<String, Object> runtimeCustomizerConfig,
+                                                            Consumer<WorkerConfig> workerConfigConsumer,
+                                                            AuthenticationConfig authenticationConfig) throws Exception {
         KubernetesRuntimeFactory factory = spy(new KubernetesRuntimeFactory());
         doNothing().when(factory).setupClient();
 
@@ -966,8 +1028,11 @@ public class KubernetesRuntimeTest {
             manifestCustomizer = Optional.of(RuntimeCustomizer.getRuntimeCustomizer(workerConfig.getRuntimeCustomizerClassName()));
             manifestCustomizer.get().initialize(Optional.ofNullable(workerConfig.getRuntimeCustomizerConfig()).orElse(Collections.emptyMap()));
         }
+        if (workerConfigConsumer != null) {
+            workerConfigConsumer.accept(workerConfig);
+        }
 
-        factory.initialize(workerConfig, null, new TestSecretProviderConfigurator(),
+        factory.initialize(workerConfig, authenticationConfig, new TestSecretProviderConfigurator(),
                 Mockito.mock(ConnectorsManager.class), Mockito.mock(FunctionsManager.class), Optional.empty(), manifestCustomizer);
         return factory;
     }
@@ -1103,7 +1168,8 @@ public class KubernetesRuntimeTest {
     public void testJavaConstructorWithoutDownloadDirectoryDefined() throws Exception {
         InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, false);
 
-        factory = createKubernetesRuntimeFactory(null, 10, 1.0, 1.0, Optional.empty(), null);
+        factory = createKubernetesRuntimeFactory(null, 10, 1.0, 1.0,
+                Optional.empty());
 
         verifyJavaInstance(config, pulsarRootDir + "/instances/deps", false, factory.getDownloadDirectory());
     }

@@ -856,17 +856,7 @@ public class KubernetesRuntime implements Runtime {
         ArrayList<String> cmd = new ArrayList<>(Arrays.asList(
                 pulsarRootDir + configAdminCLI,
                 "--admin-url",
-                pulsarAdminUrl,
-                "functions",
-                "download",
-                "--tenant",
-                tenant,
-                "--namespace",
-                namespace,
-                "--name",
-                name,
-                "--destination-file",
-                userCodeFilePath));
+                pulsarAdminUrl));
 
         // add auth plugin and parameters if necessary
         if (authenticationEnabled && authConfig != null) {
@@ -880,6 +870,18 @@ public class KubernetesRuntime implements Runtime {
                         authConfig.getClientAuthenticationParameters()));
             }
         }
+
+        cmd.addAll(Arrays.asList(
+                "functions",
+                "download",
+                "--tenant",
+                tenant,
+                "--namespace",
+                namespace,
+                "--name",
+                name,
+                "--destination-file",
+                userCodeFilePath));
 
         if (transformFunction) {
             cmd.add("--transform-function");
