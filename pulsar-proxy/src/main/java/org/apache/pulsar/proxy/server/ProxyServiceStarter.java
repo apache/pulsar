@@ -47,6 +47,7 @@ import org.apache.pulsar.common.configuration.VipStatus;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.util.CmdGenerateDocs;
 import org.apache.pulsar.common.util.DirectMemoryUtils;
+import org.apache.pulsar.common.util.ShutdownUtil;
 import org.apache.pulsar.proxy.stats.ProxyStats;
 import org.apache.pulsar.websocket.WebSocketConsumerServlet;
 import org.apache.pulsar.websocket.WebSocketPingPongServlet;
@@ -190,7 +191,7 @@ public class ProxyServiceStarter {
             serviceStarter.start();
         } catch (Throwable t) {
             log.error("Failed to start proxy.", t);
-            Runtime.getRuntime().halt(1);
+            ShutdownUtil.triggerImmediateForcefulShutdown();
         }
     }
 
