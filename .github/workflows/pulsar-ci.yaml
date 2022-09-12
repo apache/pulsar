@@ -497,11 +497,8 @@ jobs:
           distribution: 'temurin'
           java-version: 17
 
-      - name: clean disk
-        run: |
-          sudo apt clean
-          docker rmi $(docker images -q) -f
-          df -h
+      - name: Clean Disk
+        uses: ./.github/actions/clean-disk
 
       - name: Install gh-actions-artifact-client.js
         uses: apache/pulsar-test-infra/gh-actions-artifact-client/dist@master
