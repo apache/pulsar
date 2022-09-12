@@ -555,6 +555,30 @@ jobs:
           -Pmain,docker -Dmaven.test.skip=true -Ddocker.squash=true \
           -Dspotbugs.skip=true -Dlicense.skip=true -Dcheckstyle.skip=true -Drat.skip=true
 
+      - name: Clean up disk space
+        run: |
+          # release disk space since saving docker image consumes local disk space
+          #
+          echo "::group::Available diskspace before cleaning"
+          time df -BM / /mnt
+          echo "::endgroup::"          
+          echo "::group::Clean build directory"
+          # docker build changes some files to root ownership, fix this before deleting files
+          sudo chown -R $USER:$GROUP .
+          # clean build directories
+          time git clean -fdx
+          echo "::endgroup::"          
+          echo "::group::Available diskspace after cleaning build directory"
+          time df -BM / /mnt
+          echo "::endgroup::"
+          echo "::group::Delete maven repository"
+          # delete maven repository
+          time rm -rf ~/.m2/repository
+          echo "::endgroup::"          
+          echo "::group::Available diskspace after cleaning maven repository"
+          time df -BM / /mnt
+          echo "::endgroup::"          
+
       - name: save docker image apachepulsar/pulsar-test-latest-version:latest to Github artifact cache
         run: |
           $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh docker_save_image_to_github_actions_artifacts apachepulsar/pulsar-test-latest-version:latest pulsar-test-latest-version-image
@@ -844,7 +868,6 @@ jobs:
       'system-tests',
       'macos-build'
     ]
-    if: always()
     steps:
       - name: checkout
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
