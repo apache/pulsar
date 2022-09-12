@@ -555,6 +555,15 @@ jobs:
           -Pmain,docker -Dmaven.test.skip=true -Ddocker.squash=true \
           -Dspotbugs.skip=true -Dlicense.skip=true -Dcheckstyle.skip=true -Drat.skip=true
 
+      - name: Clean up disk space
+        run: |
+          # release disk space since saving docker image consumes local disk space
+          #
+          # clean build directories
+          git clean -fdx
+          # delete maven repository
+          rm -rf ~/.m2/repository
+
       - name: save docker image apachepulsar/pulsar-test-latest-version:latest to Github artifact cache
         run: |
           $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh docker_save_image_to_github_actions_artifacts apachepulsar/pulsar-test-latest-version:latest pulsar-test-latest-version-image
