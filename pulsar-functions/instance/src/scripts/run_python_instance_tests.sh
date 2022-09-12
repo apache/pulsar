@@ -27,5 +27,7 @@ pip3 install fastavro --user
 CUR_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
 PULSAR_HOME="$( cd "$CUR_DIR/../../../../" >/dev/null && pwd )"
 
+ls -la ${PULSAR_HOME}/pulsar-functions/instance/target/python-instance/tests || echo "dir not found"
+touch ${PULSAR_HOME}/pulsar-functions/instance/target/python-instance/tests/__init__.py  || echo "dir not found 2"
 # run instance tests
-PULSAR_HOME=${PULSAR_HOME} PYTHONPATH=${PULSAR_HOME}/pulsar-functions/instance/target/python-instance python3 -m unittest discover -v ${PULSAR_HOME}/pulsar-functions/instance/target/python-instance/tests
+PULSAR_HOME=${PULSAR_HOME} PYTHONPATH=${PULSAR_HOME}/pulsar-functions/instance/target/python-instance python3 -m unittest discover -v -s ${PULSAR_HOME}/pulsar-functions/instance/target/python-instance/tests
