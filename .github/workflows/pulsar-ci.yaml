@@ -799,7 +799,6 @@ jobs:
         run: |
           gh-actions-artifact-client.js delete pulsar-test-latest-version-image.zst
   
-
   macos-build:
     name: Build Pulsar on MacOS
     runs-on: macos-11
