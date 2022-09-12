@@ -1176,7 +1176,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         subscribe.getSubscriptionPropertiesList());
 
                 service.isAllowAutoTopicCreationAsync(topicName.toString())
-                        .thenApply(isAllowed -> isAuthorizedToCreateTopic && forceTopicCreation && isAllowed)
+                        .thenApply(isAllowed -> (isAuthorizedToCreateTopic && isAllowed) || forceTopicCreation)
                         .thenCompose(createTopicIfDoesNotExist ->
                                 service.getTopic(topicName.toString(), createTopicIfDoesNotExist))
                         .thenCompose(optTopic -> {
@@ -1348,6 +1348,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 topicName, TopicOperation.PRODUCE, authenticationData, originalAuthData
         );
 
+        CompletableFuture<Boolean> isAuthorizedToCreateTopicFuture = isNamespaceOperationAllowed(
+                topicName.getNamespaceObject(),
+                NamespaceOperation.CREATE_TOPIC
+        );
+
         if (!Strings.isNullOrEmpty(initialSubscriptionName)) {
             isAuthorizedFuture =
                     isAuthorizedFuture.thenCombine(
@@ -1355,7 +1360,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             (canProduce, canSubscribe) -> canProduce && canSubscribe);
         }
 
-        isAuthorizedFuture.thenApply(isAuthorized -> {
+        isAuthorizedFuture.thenCombine(isAuthorizedToCreateTopicFuture, (isAuthorized, isAuthorizedToCreateTopic) -> {
             if (!isAuthorized) {
                 String msg = "Client is not authorized to Produce";
                 log.warn("[{}] {} with role {}", remoteAddress, msg, getPrincipal());
@@ -1402,7 +1407,25 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         producerId, schema == null ? "absent" : "present");
             }
 
-            service.getOrCreateTopic(topicName.toString()).thenCompose((Topic topic) -> {
+            boolean createTopicIfDoesNotExist = isAuthorizedToCreateTopic
+                    && service.isAllowAutoTopicCreation(topicName.toString());
+            service.getTopic(topicName.toString(), createTopicIfDoesNotExist).thenCompose(optTopic -> {
+                if (optTopic.isEmpty()) {
+                    if (isAuthorizedToCreateTopic) {
+                        return FutureUtil
+                                .failedFuture(new TopicNotFoundException(
+                                        "Topic " + topicName + " does not exist"));
+                    } else {
+                        String msg = "Topic to produce does not exists and the Client is not"
+                                + " authorized to create topic";
+                        log.warn("[{}] {} with role {}", remoteAddress, msg, getPrincipal());
+                        ctx.writeAndFlush(Commands.newError(requestId, ServerError.AuthorizationError,
+                                msg));
+                        return null;
+                    }
+                }
+
+                Topic topic = optTopic.get();
                 // Before creating producer, check if backlog quota exceeded
                 // on topic for size based limit and time based limit
                 CompletableFuture<Void> backlogQuotaCheckFuture = CompletableFuture.allOf(
