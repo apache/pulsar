@@ -93,7 +93,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     protected volatile PositionImpl minReplayedPosition = null;
     protected boolean shouldRewindBeforeReadingOrReplaying = false;
     protected final String name;
-    protected volatile boolean sendInProgress;
+    protected boolean sendInProgress;
     protected static final AtomicIntegerFieldUpdater<PersistentDispatcherMultipleConsumers>
             TOTAL_AVAILABLE_PERMITS_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(PersistentDispatcherMultipleConsumers.class,
@@ -114,7 +114,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                     "blockedDispatcherOnUnackedMsgs");
     protected Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
     private AtomicBoolean isRescheduleReadInProgress = new AtomicBoolean(false);
-    private final ExecutorService dispatchMessagesThread;
+    protected final ExecutorService dispatchMessagesThread;
     private final SharedConsumerAssignor assignor;
 
     protected enum ReadType {
@@ -202,9 +202,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                     log.debug("[{}] Consumer are left, reading more entries", name);
                 }
                 consumer.getPendingAcks().forEach((ledgerId, entryId, batchSize, stickyKeyHash) -> {
-                    if (addMessageToReplay(ledgerId, entryId, stickyKeyHash)) {
-                        redeliveryTracker.addIfAbsent(PositionImpl.get(ledgerId, entryId));
-                    }
+                    addMessageToReplay(ledgerId, entryId, stickyKeyHash);
                 });
                 totalAvailablePermits -= consumer.getAvailablePermits();
                 if (log.isDebugEnabled()) {
@@ -221,9 +219,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     @Override
     public void consumerFlow(Consumer consumer, int additionalNumberOfMessages) {
-        topic.getBrokerService().executor().execute(() -> {
+        topic.getBrokerService().executor().execute(safeRun(() -> {
             internalConsumerFlow(consumer, additionalNumberOfMessages);
-        });
+        }));
     }
 
     private synchronized void internalConsumerFlow(Consumer consumer, int additionalNumberOfMessages) {
@@ -248,8 +246,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
      * We should not call readMoreEntries() recursively in the same thread as there is a risk of StackOverflowError.
      *
      */
-    public void readMoreEntiresAsync() {
-        topic.getBrokerService().executor().execute(() -> readMoreEntries());
+    public void readMoreEntriesAsync() {
+        topic.getBrokerService().executor().execute(safeRun(this::readMoreEntries));
     }
 
     public synchronized void readMoreEntries() {
@@ -295,7 +293,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 // next entries as readCompletedEntries-callback was never called
                 if ((messagesToReplayNow.size() - deletedMessages.size()) == 0) {
                     havePendingReplayRead = false;
-                    readMoreEntiresAsync();
+                    readMoreEntriesAsync();
                 }
             } else if (BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.get(this) == TRUE) {
                 if (log.isDebugEnabled()) {
@@ -550,6 +548,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         if (serviceConfig.isDispatcherDispatchMessagesInSubscriptionThread()) {
             // setting sendInProgress here, because sendMessagesToConsumers will be executed
             // in a separate thread, and we want to prevent more reads
+            sendInProgress = true;
             dispatchMessagesThread.execute(safeRun(() -> {
                 if (sendMessagesToConsumers(readType, entries)) {
                     readMoreEntries();
@@ -557,7 +556,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             }));
         } else {
             if (sendMessagesToConsumers(readType, entries)) {
-                readMoreEntiresAsync();
+                readMoreEntriesAsync();
             }
         }
     }
@@ -635,7 +634,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             // round-robin dispatch batch size for this consumer
             int availablePermits = c.isWritable() ? c.getAvailablePermits() : 1;
             if (c.getMaxUnackedMessages() > 0) {
-                availablePermits = Math.min(availablePermits, c.getMaxUnackedMessages() - c.getUnackedMessages());
+                // Avoid negative number
+                int remainUnAckedMessages = Math.max(c.getMaxUnackedMessages() - c.getUnackedMessages(), 0);
+                availablePermits = Math.min(availablePermits, remainUnAckedMessages);
             }
             if (log.isDebugEnabled() && !c.isWritable()) {
                 log.debug("[{}-{}] consumer is not writable. dispatching only 1 message to {}; "
@@ -791,7 +792,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 // Notify the consumer only if all the messages were already acknowledged
                 consumerList.forEach(Consumer::reachedEndOfTopic);
             }
-        } else if (exception.getCause() instanceof TransactionBufferException.TransactionNotSealedException) {
+        } else if (exception.getCause() instanceof TransactionBufferException.TransactionNotSealedException
+                || exception.getCause() instanceof ManagedLedgerException.OffloadReadHandleClosedException) {
             waitTimeMillis = 1;
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Error reading transaction entries : {}, Read Type {} - Retrying to read in {} seconds",
@@ -892,7 +894,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     @Override
     public synchronized void redeliverUnacknowledgedMessages(Consumer consumer, long consumerEpoch) {
         consumer.getPendingAcks().forEach((ledgerId, entryId, batchSize, stickyKeyHash) -> {
-            addMessageToReplay(ledgerId, entryId, stickyKeyHash);
+            if (addMessageToReplay(ledgerId, entryId, stickyKeyHash)) {
+                redeliveryTracker.incrementAndGetRedeliveryCount((PositionImpl.get(ledgerId, entryId)));
+            }
         });
         if (log.isDebugEnabled()) {
             log.debug("[{}-{}] Redelivering unacknowledged messages for consumer {}", name, consumer,
@@ -907,7 +911,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             // TODO: We want to pass a sticky key hash as a third argument to guarantee the order of the messages
             // on Key_Shared subscription, but it's difficult to get the sticky key here
             if (addMessageToReplay(position.getLedgerId(), position.getEntryId())) {
-                redeliveryTracker.addIfAbsent(position);
+                redeliveryTracker.incrementAndGetRedeliveryCount(position);
             }
         });
         if (log.isDebugEnabled()) {
@@ -923,15 +927,15 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         if (maxUnackedMessages <= 0 && blockedDispatcherOnUnackedMsgs == TRUE
                 && BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.compareAndSet(this, TRUE, FALSE)) {
             log.info("[{}] Dispatcher is unblocked, since maxUnackedMessagesPerSubscription=0", name);
-            readMoreEntiresAsync();
+            readMoreEntriesAsync();
         }
 
         int unAckedMessages = TOTAL_UNACKED_MESSAGES_UPDATER.addAndGet(this, numberOfMessages);
         if (unAckedMessages >= maxUnackedMessages && maxUnackedMessages > 0
                 && BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.compareAndSet(this, FALSE, TRUE)) {
             // block dispatcher if it reaches maxUnAckMsg limit
-            log.info("[{}] Dispatcher is blocked due to unackMessages {} reached to max {}", name,
-                    TOTAL_UNACKED_MESSAGES_UPDATER.get(this), maxUnackedMessages);
+            log.debug("[{}] Dispatcher is blocked due to unackMessages {} reached to max {}", name,
+                    unAckedMessages, maxUnackedMessages);
         } else if (topic.getBrokerService().isBrokerDispatchingBlocked()
                 && blockedDispatcherOnUnackedMsgs == TRUE) {
             // unblock dispatcher: if dispatcher is blocked due to broker-unackMsg limit and if it ack back enough
@@ -945,8 +949,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         } else if (blockedDispatcherOnUnackedMsgs == TRUE && unAckedMessages < maxUnackedMessages / 2) {
             // unblock dispatcher if it acks back enough messages
             if (BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.compareAndSet(this, TRUE, FALSE)) {
-                log.info("[{}] Dispatcher is unblocked", name);
-                readMoreEntiresAsync();
+                log.debug("[{}] Dispatcher is unblocked", name);
+                readMoreEntriesAsync();
             }
         }
         // increment broker-level count

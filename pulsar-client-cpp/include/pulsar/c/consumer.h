@@ -33,6 +33,8 @@ typedef struct _pulsar_consumer pulsar_consumer_t;
 
 typedef void (*pulsar_result_callback)(pulsar_result, void *);
 
+typedef void (*pulsar_receive_callback)(pulsar_result result, pulsar_message_t *msg, void *ctx);
+
 /**
  * @return the topic this consumer is subscribed to
  */
@@ -94,6 +96,17 @@ PULSAR_PUBLIC pulsar_result pulsar_consumer_receive(pulsar_consumer_t *consumer,
  */
 PULSAR_PUBLIC pulsar_result pulsar_consumer_receive_with_timeout(pulsar_consumer_t *consumer,
                                                                  pulsar_message_t **msg, int timeoutMs);
+
+/**
+ * Asynchronously receive a single message.
+ *
+ * This method will initiate the operation and return immediately. The provided callback
+ * will be triggered when the operation is complete.
+ *
+ * @param callback callback that will be triggered when the message is available
+ */
+PULSAR_PUBLIC void pulsar_consumer_receive_async(pulsar_consumer_t *consumer,
+                                                 pulsar_receive_callback callback, void *ctx);
 
 /**
  * Acknowledge the reception of a single message.

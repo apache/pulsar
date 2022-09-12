@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.client.impl;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.util.ReferenceCountUtil;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -61,7 +63,19 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
     // keep track of callbacks for individual messages being published in a batch
     protected SendCallback firstCallback;
 
+    private final ByteBufAllocator allocator;
+
     public BatchMessageContainerImpl() {
+        this(PulsarByteBufAllocator.DEFAULT);
+    }
+
+    /**
+     * This constructor is for testing only. The global allocator is always
+     * {@link PulsarByteBufAllocator#DEFAULT}.
+     */
+    @VisibleForTesting
+    BatchMessageContainerImpl(ByteBufAllocator allocator) {
+        this.allocator = allocator;
     }
 
     public BatchMessageContainerImpl(ProducerImpl<?> producer) {
@@ -84,8 +98,8 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
                 messageMetadata.setSequenceId(msg.getSequenceId());
                 lowestSequenceId = Commands.initBatchMessageMetadata(messageMetadata, msg.getMessageBuilder());
                 this.firstCallback = callback;
-                batchedMessageMetadataAndPayload = PulsarByteBufAllocator.DEFAULT
-                        .buffer(Math.min(maxBatchSize, ClientCnx.getMaxMessageSize()));
+                batchedMessageMetadataAndPayload = allocator.buffer(
+                        Math.min(maxBatchSize, ClientCnx.getMaxMessageSize()));
                 if (msg.getMessageBuilder().hasTxnidMostBits() && currentTxnidMostBits == -1) {
                     currentTxnidMostBits = msg.getMessageBuilder().getTxnidMostBits();
                 }
@@ -94,6 +108,8 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
                 }
             } catch (Throwable e) {
                 log.error("construct first message failed, exception is ", e);
+                producer.semaphoreRelease(getNumMessagesInBatch());
+                producer.client.getMemoryLimitController().releaseMemory(msg.getUncompressedSize());
                 discard(new PulsarClientException(e));
                 return false;
             }
@@ -123,8 +139,12 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
             MessageImpl<?> msg = messages.get(i);
             msg.getDataBuffer().markReaderIndex();
             try {
-                batchedMessageMetadataAndPayload = Commands.serializeSingleMessageInBatchWithPayload(
+                if (n == 1) {
+                    batchedMessageMetadataAndPayload.writeBytes(msg.getDataBuffer());
+                } else  {
+                    batchedMessageMetadataAndPayload = Commands.serializeSingleMessageInBatchWithPayload(
                         msg.getMessageBuilder(), msg.getDataBuffer(), batchedMessageMetadataAndPayload);
+                }
             } catch (Throwable th) {
                 // serializing batch message can corrupt the index of message and batch-message. Reset the index so,
                 // next iteration doesn't send corrupt message to broker.
@@ -197,6 +217,38 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
 
     @Override
     public OpSendMsg createOpSendMsg() throws IOException {
+        if (messages.size() == 1) {
+            messageMetadata.clear();
+            messageMetadata.copyFrom(messages.get(0).getMessageBuilder());
+            ByteBuf encryptedPayload = producer.encryptMessage(messageMetadata, getCompressedBatchMetadataAndPayload());
+            ByteBufPair cmd = producer.sendMessage(producer.producerId, messageMetadata.getSequenceId(),
+                1, null, messageMetadata, encryptedPayload);
+            final OpSendMsg op;
+
+            // Shouldn't call create(MessageImpl<?> msg, ByteBufPair cmd, long sequenceId, SendCallback callback),
+            // otherwise it will bring message out of order problem.
+            // Because when invoke `ProducerImpl.processOpSendMsg` on flush,
+            // if `op.msg != null && isBatchMessagingEnabled()` checks true, it will call `batchMessageAndSend` to flush
+            // messageContainers before publishing this one-batch message.
+            op = OpSendMsg.create(messages, cmd, messageMetadata.getSequenceId(), firstCallback);
+
+            // NumMessagesInBatch and BatchSizeByte will not be serialized to the binary cmd. It's just useful for the
+            // ProducerStats
+            op.setNumMessagesInBatch(1);
+            op.setBatchSizeByte(encryptedPayload.readableBytes());
+
+            // handle mgs size check as non-batched in `ProducerImpl.isMessageSizeExceeded`
+            if (op.getMessageHeaderAndPayloadSize() > ClientCnx.getMaxMessageSize()) {
+                producer.semaphoreRelease(1);
+                producer.client.getMemoryLimitController().releaseMemory(messages.get(0).getUncompressedSize());
+                discard(new PulsarClientException.InvalidMessageException(
+                    "Message size is bigger than " + ClientCnx.getMaxMessageSize() + " bytes"));
+                return null;
+            }
+            lowestSequenceId = -1L;
+            return op;
+        }
+
         ByteBuf encryptedPayload = producer.encryptMessage(messageMetadata, getCompressedBatchMetadataAndPayload());
         if (encryptedPayload.readableBytes() > ClientCnx.getMaxMessageSize()) {
             producer.semaphoreRelease(messages.size());

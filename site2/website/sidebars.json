@@ -7,6 +7,10 @@
     {
       "type": "category",
       "label": "Get Started",
+      "link": {
+        "type": "doc",
+        "id": "getting-started-home"
+      },
       "items": [
         "getting-started-standalone",
         "getting-started-docker",
@@ -22,6 +26,7 @@
         "concepts-architecture-overview",
         "concepts-clients",
         "concepts-replication",
+        "concepts-cluster-level-failover",
         "concepts-multi-tenancy",
         "concepts-authentication",
         "concepts-topic-compaction",
@@ -194,7 +199,13 @@
     {
       "type": "category",
       "label": "Transactions",
-      "items": ["txn-why", "txn-what", "txn-how", "txn-use", "txn-monitor"]
+      "items": [
+        "txn-why",
+        "txn-what",
+        "txn-how",
+        "txn-use",
+        "txn-monitor"
+      ]
     },
     {
       "type": "category",
@@ -232,7 +243,6 @@
         "administration-stats",
         "administration-load-balance",
         "administration-proxy",
-        "administration-isolation",
         "administration-upgrade",
         {
           "type": "category",
@@ -271,7 +281,9 @@
     {
       "type": "category",
       "label": "Performance",
-      "items": ["performance-pulsar-perf"]
+      "items": [
+        "performance-pulsar-perf"
+      ]
     },
     {
       "type": "category",
@@ -307,7 +319,11 @@
     {
       "type": "category",
       "label": "Adaptors",
-      "items": ["adaptors-kafka", "adaptors-spark", "adaptors-storm"]
+      "items": [
+        "adaptors-kafka",
+        "adaptors-spark",
+        "adaptors-storm"
+      ]
     },
     {
       "type": "category",
@@ -338,27 +354,14 @@
       "items": [
         "reference-terminology",
         "reference-cli-tools",
-        {
-          "type": "category",
-          "label": "Pulsar Configuration",
-          "link": {
-            "type": "doc",
-            "id": "reference-configuration"
-          },
-          "items": [
-            "reference-configuration-bookkeeper",
-            "reference-configuration-broker",
-            "reference-configuration-client",
-            "reference-configuration-log4j",
-            "reference-configuration-log4j-shell",
-            "reference-configuration-standalone",
-            "reference-configuration-websocket",
-            "reference-configuration-pulsar-proxy",
-            "reference-configuration-zookeeper"
-          ]
-        },
+        "reference-configuration",
         "reference-metrics",
-        "reference-rest-api-overview"
+        "reference-rest-api-overview",
+        {
+          "type": "link",
+          "href": "/release-notes/",
+          "label": "Release notes"
+        }
       ]
     }
   ]
