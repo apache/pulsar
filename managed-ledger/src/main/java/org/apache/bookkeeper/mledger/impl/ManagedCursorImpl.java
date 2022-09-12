@@ -96,6 +96,7 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.MessageRange;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.StringProperty;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet.LongPairConsumer;
@@ -372,13 +373,19 @@ public class ManagedCursorImpl implements ManagedCursor {
         Map<String, String> newProperties =
                 cursorProperties == null ? new HashMap<>() : new HashMap<>(cursorProperties);
         long stamp = cursorPropertiesUpdateLock.writeLock();
-        return asyncUpdateCursorProperties(newProperties).whenComplete((__, ex) -> {
-            if (ex == null) {
-                this.cursorProperties = newProperties;
-            }
 
+        try {
+            CompletableFuture<Void> future = asyncUpdateCursorProperties(newProperties);
+            return future.whenComplete((__, ex) -> {
+                if (ex == null) {
+                    this.cursorProperties = newProperties;
+                }
+                cursorPropertiesUpdateLock.unlockWrite(stamp);
+            });
+        } catch (Throwable throwable) {
             cursorPropertiesUpdateLock.unlockWrite(stamp);
-        });
+            return FutureUtil.failedFuture(throwable);
+        }
     }
 
     @Override
@@ -387,12 +394,19 @@ public class ManagedCursorImpl implements ManagedCursor {
         Map<String, String> newProperties =
                 this.cursorProperties == null ? new HashMap<>() : new HashMap<>(this.cursorProperties);
         newProperties.put(key, value);
-        return asyncUpdateCursorProperties(newProperties).whenComplete((__, ex) -> {
-            if (ex == null) {
-                this.cursorProperties = newProperties;
-            }
+
+        try {
+            CompletableFuture<Void> future = asyncUpdateCursorProperties(newProperties);
+            return future.whenComplete((__, ex) -> {
+                if (ex == null) {
+                    this.cursorProperties = newProperties;
+                }
+                cursorPropertiesUpdateLock.unlockWrite(stamp);
+            });
+        } catch (Throwable throwable) {
             cursorPropertiesUpdateLock.unlockWrite(stamp);
-        });
+            return FutureUtil.failedFuture(throwable);
+        }
     }
 
     @Override
@@ -401,12 +415,19 @@ public class ManagedCursorImpl implements ManagedCursor {
         Map<String, String> newProperties =
                 this.cursorProperties == null ? new HashMap<>() : new HashMap<>(this.cursorProperties);
         newProperties.remove(key);
-        return asyncUpdateCursorProperties(newProperties).whenComplete((__, ex) -> {
-            if (ex == null) {
-                this.cursorProperties = newProperties;
-            }
+
+        try {
+            CompletableFuture<Void> future = asyncUpdateCursorProperties(newProperties);
+            return future.whenComplete((__, ex) -> {
+                if (ex == null) {
+                    this.cursorProperties = newProperties;
+                }
+                cursorPropertiesUpdateLock.unlockWrite(stamp);
+            });
+        } catch (Throwable throwable) {
             cursorPropertiesUpdateLock.unlockWrite(stamp);
-        });
+            return FutureUtil.failedFuture(throwable);
+        }
     }
 
     @Override
