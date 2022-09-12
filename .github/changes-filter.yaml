@@ -17,4 +17,3 @@ need_owasp:
   - '**/pom.xml'
   - 'src/owasp-dependency-check-false-positives.xml'
   - 'src/owasp-dependency-check-suppressions.xml'
-  - '.github/workflows/ci-owasp-dep-check.yaml'
