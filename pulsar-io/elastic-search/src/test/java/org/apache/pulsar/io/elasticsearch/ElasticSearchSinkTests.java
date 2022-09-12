@@ -44,7 +44,6 @@ import java.util.List;
 import java.util.Locale;
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -64,7 +63,6 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.opensearch.client.Node;
 import org.opensearch.client.RestHighLevelClient;
-import org.powermock.reflect.Whitebox;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
 import org.testng.SkipException;
 import org.testng.annotations.AfterClass;
@@ -75,6 +73,7 @@ import org.testng.annotations.Test;
 
 
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.fail;
 
 public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
 
@@ -414,46 +413,44 @@ public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
 
     @Test
     public void testCloseClient() throws Exception {
-        final ElasticSearchSink sink = new ElasticSearchSink();
-        map.put("bulkEnabled", true);
-        try {
+        try (ElasticSearchSink sink = new ElasticSearchSink()) {
+            map.put("bulkEnabled", true);
             sink.open(map, mockSinkContext);
             final ElasticSearchClient elasticSearchClient = spy(sink.getElasticsearchClient());
             final RestClient restClient = spy(elasticSearchClient.getRestClient());
-            if (restClient instanceof ElasticSearchJavaRestClient) {
-                ElasticSearchJavaRestClient client = (ElasticSearchJavaRestClient) restClient;
+            if (restClient instanceof ElasticSearchJavaRestClient client) {
                 final BulkProcessor bulkProcessor = spy(restClient.getBulkProcessor());
                 final ElasticsearchTransport transport = spy(client.getTransport());
 
-                Whitebox.setInternalState(client, "transport", transport);
-                Whitebox.setInternalState(client, "bulkProcessor", bulkProcessor);
-                Whitebox.setInternalState(elasticSearchClient, "client", restClient);
-                Whitebox.setInternalState(sink, "elasticsearchClient", elasticSearchClient);
+                client.setTransport(transport);
+                client.setBulkProcessor(bulkProcessor);
+                elasticSearchClient.setClient(client);
+                sink.setElasticsearchClient(elasticSearchClient);
+
                 sink.close();
                 verify(transport).close();
                 verify(bulkProcessor).close();
                 verify(client).close();
                 verify(restClient).close();
 
-            } else {
-                OpenSearchHighLevelRestClient client = (OpenSearchHighLevelRestClient) restClient;
-
+            } else if (restClient instanceof OpenSearchHighLevelRestClient client) {
                 final org.opensearch.action.bulk.BulkProcessor internalBulkProcessor = spy(
                         client.getInternalBulkProcessor());
                 final RestHighLevelClient restHighLevelClient = spy(client.getClient());
 
-                Whitebox.setInternalState(client, "client", restHighLevelClient);
-                Whitebox.setInternalState(client, "internalBulkProcessor", internalBulkProcessor);
-                Whitebox.setInternalState(elasticSearchClient, "client", restClient);
-                Whitebox.setInternalState(sink, "elasticsearchClient", elasticSearchClient);
+                client.setClient(restHighLevelClient);
+                client.setInternalBulkProcessor(internalBulkProcessor);
+                elasticSearchClient.setClient(restClient);
+                sink.setElasticsearchClient(elasticSearchClient);
+
                 sink.close();
                 verify(restHighLevelClient).close();
                 verify(internalBulkProcessor).awaitClose(Mockito.anyLong(), Mockito.any(TimeUnit.class));
                 verify(client).close();
                 verify(restClient).close();
+            } else {
+                fail("restClient has unknown type: " + restClient.getClass().getCanonicalName());
             }
-        } finally {
-            sink.close();
         }
     }
 

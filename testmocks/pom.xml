@@ -73,11 +73,6 @@
       <artifactId>objenesis</artifactId>
     </dependency>
 
-    <dependency>
-      <groupId>org.powermock</groupId>
-      <artifactId>powermock-reflect</artifactId>
-    </dependency>
-
   </dependencies>
 
   <build>
