@@ -216,7 +216,6 @@ public class PulsarShell {
     }
 
     public void run() throws Exception {
-        System.setProperty("org.jline.terminal.dumb", "true");
         final Terminal terminal = TerminalBuilder.builder().build();
         run((providersMap) -> {
             List<Completer> completers = new ArrayList<>();
@@ -395,7 +394,8 @@ public class PulsarShell {
                 try {
                     final String line = reader.readLine().trim();
                     return substituteVariables(reader.parseLine(line), variables);
-                } catch (org.jline.reader.UserInterruptException userInterruptException) {
+                } catch (org.jline.reader.UserInterruptException
+                        | org.jline.reader.EndOfFileException userInterruptException) {
                     throw new InterruptShellException();
                 }
             };

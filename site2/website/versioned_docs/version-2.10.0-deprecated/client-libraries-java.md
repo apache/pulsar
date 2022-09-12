@@ -241,7 +241,7 @@ The cluster-level failover provides fault tolerance, continuous availability, an
 
 * Reduced cost: services can be switched and recovered automatically with no data loss.
 
-* Simplified management: businesses can operate on an “always-on” basis since no immediate user intervention is required.
+* Simplified management: businesses can operate on an "always-on" basis since no immediate user intervention is required.
 
 * Improved stability and robustness: it ensures continuous performance and minimizes service downtime. 
 
@@ -389,10 +389,10 @@ This is an example of how to construct a Java Pulsar client to use controlled cl
 
  public PulsarClient getControlledFailoverClient() throws IOException {
 Map<String, String> header = new HashMap(); 
-  header.put(“service_user_id”, “my-user”);
-  header.put(“service_password”, “tiger”);
-  header.put(“clusterA”, “tokenA”);
-  header.put(“clusterB”, “tokenB”);
+  header.put("service_user_id", "my-user");
+  header.put("service_password", "tiger");
+  header.put("clusterA", "tokenA");
+  header.put("clusterB", "tokenB");
 
   ServiceUrlProvider provider = 
       ControlledClusterFailover.builder()
@@ -744,6 +744,7 @@ When you create a consumer, you can use the `loadConf` configuration. The follow
 `autoAckOldestChunkedMessageOnQueueFull`|boolean|Whether to automatically acknowledge pending chunked messages when the threashold of `maxPendingChunkedMessage` is reached. If set to `false`, these messages will be redelivered by their broker. |true
 `maxPendingChunkedMessage`|int| The maximum size of a queue holding pending chunked messages. When the threshold is reached, the consumer drops pending messages to optimize memory utilization.|10
 `expireTimeOfIncompleteChunkedMessageMillis`|long|The time interval to expire incomplete chunks if a consumer fails to receive all the chunks in the specified time period. The default value is 1 minute. | 60000
+`ackReceiptEnabled`|boolean| If `ackReceiptEnabled` is enabled, ACK returns a receipt. The client got the ack receipt means the broker has processed the ack request, but if without transaction, the broker does not guarantee persistence of acknowledgments, which means the messages still have a chance to be redelivered after the broker crashes. With the transaction, the client can only get the receipt after the acknowledgments have been persistent. | false
 
 You can configure parameters if you do not want to use the default configuration. For a full list, see the Javadoc for the {@inject: javadoc:ConsumerBuilder:/client/org/apache/pulsar/client/api/ConsumerBuilder} class. 
 

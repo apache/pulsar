@@ -287,13 +287,13 @@ admin.namespaces().getNamespaceReplicationClusters(namespace)
 
 Backlog quota helps the broker to restrict bandwidth/storage of a namespace once it reaches a certain threshold limit. Admin can set the limit and take corresponding action after the limit is reached.
 
-  1.  producer_request_hold: broker holds but not persists produce request payload
+  1.  producer_request_hold: broker holds but does not persist produce request payload
 
   2.  producer_exception: broker disconnects with the client by giving an exception
 
   3.  consumer_backlog_eviction: broker starts discarding backlog messages
 
-Backlog quota restriction can be taken care by defining restriction of backlog-quota-type: destination_storage.
+Backlog quota restriction can be taken care of by defining the restriction of backlog-quota-type: destination_storage.
 
 ````mdx-code-block
 <Tabs 
@@ -694,7 +694,7 @@ admin.namespaces().removeNamespaceMessageTTL(namespace)
 
 #### Clear namespace backlog
 
-It clears all message backlog for all the topics that belong to a specific namespace. You can also clear backlog for a specific subscription as well.
+It clears all message backlogs for all the topics that belong to a specific namespace. You can also clear backlogs for a specific subscription as well.
 
 ````mdx-code-block
 <Tabs 
@@ -729,7 +729,7 @@ admin.namespaces().clearNamespaceBacklogForSubscription(namespace, subscription)
 
 #### Clear bundle backlog
 
-It clears all message backlog for all the topics that belong to a specific NamespaceBundle. You can also clear backlog for a specific subscription as well.
+It clears all message backlogs for all the topics that belong to a specific NamespaceBundle. You can also clear backlogs for a specific subscription as well.
 
 ````mdx-code-block
 <Tabs 
@@ -801,7 +801,7 @@ admin.namespaces().setRetention(namespace, new RetentionPolicies(retentionTimeIn
 
 #### Get retention
 
-It shows retention information of a given namespace.
+It shows the retention information of a given namespace.
 
 ````mdx-code-block
 <Tabs 
@@ -896,7 +896,7 @@ admin.namespaces().setDispatchRate(namespace, new DispatchRate(1000, 1048576, 1)
 
 #### Get configured message-rate for topics
 
-It shows configured message-rate for the namespace (topics under this namespace can dispatch this many messages per second)
+It shows the configured message-rate for the namespace (topics under this namespace can dispatch this many messages per second)
 
 ````mdx-code-block
 <Tabs 
@@ -984,7 +984,7 @@ admin.namespaces().setSubscriptionDispatchRate(namespace, new DispatchRate(1000,
 
 #### Get configured message-rate for subscription
 
-It shows configured message-rate for the namespace (topics under this namespace can dispatch this many messages per second)
+It shows the configured message-rate for the namespace (topics under this namespace can dispatch this many messages per second)
 
 ````mdx-code-block
 <Tabs 
@@ -1072,7 +1072,7 @@ admin.namespaces().setReplicatorDispatchRate(namespace, new DispatchRate(1000, 1
 
 #### Get configured message-rate for replicator
 
-It shows configured message-rate for the namespace (topics under this namespace can dispatch this many messages per second)
+It shows the configured message-rate for the namespace (topics under this namespace can dispatch this many messages per second)
 
 ````mdx-code-block
 <Tabs 
@@ -1119,7 +1119,7 @@ admin.namespaces().getReplicatorDispatchRate(namespace)
 
 #### Get deduplication snapshot interval
 
-It shows configured `deduplicationSnapshotInterval` for a namespace (Each topic under the namespace will take a deduplication snapshot according to this interval)
+It shows the configured `deduplicationSnapshotInterval` for a namespace (Each topic under the namespace will take a deduplication snapshot according to this interval)
 
 ````mdx-code-block
 <Tabs 

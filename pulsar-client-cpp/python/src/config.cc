@@ -259,6 +259,8 @@ void export_config() {
              return_value_policy<copy_const_reference>())
         .def("batching_max_publish_delay_ms", &ProducerConfiguration::setBatchingMaxPublishDelayMs,
              return_self<>())
+        .def("chunking_enabled", &ProducerConfiguration::isChunkingEnabled)
+        .def("chunking_enabled", &ProducerConfiguration::setChunkingEnabled, return_self<>())
         .def("property", &ProducerConfiguration::setProperty, return_self<>())
         .def("batching_type", &ProducerConfiguration::setBatchingType, return_self<>())
         .def("batching_type", &ProducerConfiguration::getBatchingType)
@@ -299,7 +301,14 @@ void export_config() {
         .def("replicate_subscription_state_enabled",
              &ConsumerConfiguration::setReplicateSubscriptionStateEnabled)
         .def("replicate_subscription_state_enabled",
-             &ConsumerConfiguration::isReplicateSubscriptionStateEnabled);
+             &ConsumerConfiguration::isReplicateSubscriptionStateEnabled)
+        .def("max_pending_chunked_message", &ConsumerConfiguration::getMaxPendingChunkedMessage)
+        .def("max_pending_chunked_message", &ConsumerConfiguration::setMaxPendingChunkedMessage,
+             return_self<>())
+        .def("auto_ack_oldest_chunked_message_on_queue_full",
+             &ConsumerConfiguration::isAutoAckOldestChunkedMessageOnQueueFull)
+        .def("auto_ack_oldest_chunked_message_on_queue_full",
+             &ConsumerConfiguration::setAutoAckOldestChunkedMessageOnQueueFull, return_self<>());
 
     class_<ReaderConfiguration>("ReaderConfiguration")
         .def("reader_listener", &ReaderConfiguration_setReaderListener, return_self<>())

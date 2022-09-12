@@ -37,7 +37,7 @@ jobs:
 
   owasp-dep-check:
     name:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     timeout-minutes: 120
 
     steps:
@@ -87,7 +87,7 @@ jobs:
           docker rmi $(docker images -q) -f
           df -h
 
-      # Projects dependent on flume, hdfs, hbase, and presto currently excluded from the scan.
+      # Projects dependent on flume, hdfs, hbase, and trino currently excluded from the scan.
       - name: run "clean verify" to trigger dependency check
         if: ${{ steps.changes.outputs.poms == 'true' }}
         run: mvn -q -B -ntp clean verify -PskipDocker,owasp-dependency-check -DskipTests -pl '!pulsar-sql,!distribution/io,!distribution/offloaders,!tiered-storage/file-system,!pulsar-io/flume,!pulsar-io/hbase,!pulsar-io/hdfs2,!pulsar-io/hdfs3,!pulsar-io/docs,!pulsar-io/jdbc/openmldb'

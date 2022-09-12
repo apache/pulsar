@@ -213,7 +213,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private volatile double lastUpdatedAvgPublishRateInMsg = 0;
     private volatile double lastUpdatedAvgPublishRateInByte = 0;
 
-    private volatile int maxUnackedMessagesOnSubscriptionApplied;
     private volatile boolean isClosingOrDeleting = false;
 
     private ScheduledFuture<?> fencedTopicMonitoringTask = null;
@@ -1280,6 +1279,17 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             this.resourceGroupPublishLimiter.unregisterRateLimitFunction(this.getName());
         }
 
+        //close entry filters
+        if (entryFilters != null) {
+            entryFilters.forEach((name, filter) -> {
+                try {
+                    filter.close();
+                } catch (Exception e) {
+                    log.warn("Error shutting down entry filter {}", name, e);
+                }
+            });
+        }
+
         CompletableFuture<Void> clientCloseFuture = closeWithoutWaitingClientDisconnect
                 ? CompletableFuture.completedFuture(null)
                 : FutureUtil.waitForAll(futures);
@@ -1934,6 +1944,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         stats.backlogSize = ledger.getEstimatedBacklogSize();
         stats.deduplicationStatus = messageDeduplication.getStatus().toString();
         stats.topicEpoch = topicEpoch.orElse(null);
+        stats.ownerBroker = brokerService.pulsar().getLookupServiceAddress();
         stats.offloadedStorageSize = ledger.getOffloadedSize();
         stats.lastOffloadLedgerId = ledger.getLastOffloadedLedgerId();
         stats.lastOffloadSuccessTimeStamp = ledger.getLastOffloadedSuccessTimestamp();

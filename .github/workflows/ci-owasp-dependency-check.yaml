@@ -29,7 +29,7 @@ jobs:
   run-owasp-dependency-check:
     if: ${{ github.repository == 'apache/pulsar' }}
     name: Run OWASP Dependency Check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     timeout-minutes: 45
     strategy:
       fail-fast: false
@@ -37,6 +37,8 @@ jobs:
         include:
           - name: master
             checkout_branch: 'master'
+          - name: branch-2.11
+            checkout_branch: 'branch-2.11'
           - name: branch-2.10
             checkout_branch: 'branch-2.10'
           - name: branch-2.9

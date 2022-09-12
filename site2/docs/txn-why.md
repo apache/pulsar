@@ -29,11 +29,11 @@ In Pulsar, the highest level of message delivery guarantee is using an [idempote
   
   In this case, if there are some failures  (for example, client / broker / bookie crashes, network failure, and more) in the process of producing and receiving messages, messages are re-processed and re-delivered, which may cause data loss or data duplication: 
 
-  - For the producer: if the producer retry sending messages, some messages are persisted multiple times; if the producer does not retry sending messages, some messages are persisted once and other messages are lost. 
+  - For the producer: if the producer retries sending messages, some messages are persisted multiple times; if the producer does not retry sending messages, some messages are persisted once and other messages are lost. 
   
   - For the consumer: since the consumer does not know whether the broker has received messages or not, the consumer may not retry sending acks, which causes it to receive duplicate messages.  
 
-- Similarly, for Pulsar Function, it only guarantees exactly once semantics for an idempotent function on a single event rather than processing multiple events or producing multiple results that can happen exactly. 
+- Similarly, for Pulsar Function, it only guarantees the exactly once semantics for an idempotent function on a single event rather than processing multiple events or producing multiple results that can happen exactly. 
 
   For example, if a function accepts multiple events and produces one result (for example, window function), the function may fail between producing the result and acknowledging the incoming messages, or even between acknowledging individual events, which causes all (or some) incoming messages to be re-delivered and reprocessed, and a new result is generated.
 

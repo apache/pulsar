@@ -54,7 +54,7 @@ CONFIG proxy.config.http.connect_ports STRING 4443 6651
 
 The `ssl_server_name` file is used to configure TLS connection handling for inbound and outbound connections. The configuration is determined by the SNI values provided by the inbound connection. The file consists of a set of configuration items, and each is identified by an SNI value (`fqdn`). When an inbound TLS connection is made, the SNI value from the TLS negotiation is matched with the items specified in this file. If the values match, the values specified in that item override the default values. 
 
-The following example shows mapping of the inbound SNI hostname coming from the client, and the actual broker service URL where request should be redirected. For example, if the client sends the SNI header `pulsar-broker1`, the proxy creates a TLS tunnel by redirecting request to the `pulsar-broker1:6651` service URL.
+The following example shows the mapping of the inbound SNI hostname coming from the client, and the actual broker service URL where requests should be redirected. For example, if the client sends the SNI header `pulsar-broker1`, the proxy creates a TLS tunnel by redirecting the request to the `pulsar-broker1:6651` service URL.
 
 ```
 
@@ -92,8 +92,8 @@ ATS SNI-routing works only with TLS. You need to enable TLS for the ATS proxy an
 
 ```java
 
-String brokerServiceUrl = “pulsar+ssl://pulsar-broker-vip:6651/”;
-String proxyUrl = “pulsar+ssl://ats-proxy:443”;
+String brokerServiceUrl = "pulsar+ssl://pulsar-broker-vip:6651/";
+String proxyUrl = "pulsar+ssl://ats-proxy:443";
 ClientBuilder clientBuilder = PulsarClient.builder()
 		.serviceUrl(brokerServiceUrl)
         .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH)
@@ -114,7 +114,7 @@ PulsarClient pulsarClient = clientBuilder.build();
 </TabItem>
 <TabItem value="C++">
 
-```c++
+```cpp
 
 ClientConfiguration config = ClientConfiguration();
 config.setUseTls(true);
