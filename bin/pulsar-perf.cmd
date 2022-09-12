@@ -63,12 +63,14 @@ if "%PULSAR_LOG_FILE%" == "" set "PULSAR_LOG_FILE=pulsar-perftest.log"
 if "%PULSAR_LOG_APPENDER%" == "" set "PULSAR_LOG_APPENDER=Console"
 if "%PULSAR_LOG_LEVEL%" == "" set "PULSAR_LOG_LEVEL=info"
 if "%PULSAR_LOG_ROOT_LEVEL%" == "" set "PULSAR_LOG_ROOT_LEVEL=%PULSAR_LOG_LEVEL%"
+if "%PULSAR_LOG_IMMEDIATE_FLUSH%" == "" set "PULSAR_LOG_IMMEDIATE_FLUSH=false"
 
 
 set "OPTS=%OPTS% -Dpulsar.log.appender=%PULSAR_LOG_APPENDER%"
 set "OPTS=%OPTS% -Dpulsar.log.dir=%PULSAR_LOG_DIR%"
 set "OPTS=%OPTS% -Dpulsar.log.level=%PULSAR_LOG_LEVEL%"
 set "OPTS=%OPTS% -Dpulsar.log.root.level=%PULSAR_LOG_ROOT_LEVEL%"
+set "OPTS=%OPTS% -Dpulsar.log.immediateFlush=%PULSAR_LOG_IMMEDIATE_FLUSH%"
 
 set "COMMAND=%1"
 
