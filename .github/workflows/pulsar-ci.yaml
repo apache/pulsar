@@ -124,38 +124,7 @@ jobs:
         with:
           action: wait
 
-  macos-build:
-    name:
-    runs-on: macos-11
-    timeout-minutes: 120
-    needs: [ 'changed_files_job', 'build-and-license-check' ]
-    if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
-    steps:
-      - name: checkout
-        uses: actions/checkout@v2
 
-      - name: Tune Runner VM
-        uses: ./.github/actions/tune-runner-vm
-
-      - name: Cache Maven dependencies
-        if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
-        uses: actions/cache@v2
-        with:
-          path: |
-            ~/.m2/repository/*/*/*
-            !~/.m2/repository/org/apache/pulsar
-          key: ${{ runner.os }}-m2-dependencies-all-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-m2-dependencies-all-
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v2
-        with:
-          distribution: 'temurin'
-          java-version: 17
-
-      - name: build package
-        run: mvn -B clean package -DskipTests -T 1C -ntp
 
   unit-tests:
     name: CI - Unit - ${{ matrix.name }}
@@ -829,6 +798,41 @@ jobs:
       - name: Delete docker image from GitHub Actions Artifacts
         run: |
           gh-actions-artifact-client.js delete pulsar-test-latest-version-image.zst
+  
+
+  macos-build:
+    name: Build Pulsar on MacOS
+    runs-on: macos-11
+    timeout-minutes: 120
+    needs: ['changed_files_job', 'pulsar-test-latest-version-image']
+    if: ${{ needs.changed_files_job.outputs.docs_only != 'true' && needs.changed_files_job.outputs.cpp_only != 'true' }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+
+      - name: Tune Runner VM
+        uses: ./.github/actions/tune-runner-vm
+
+      - name: Cache Maven dependencies
+        if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.m2/repository/*/*/*
+            !~/.m2/repository/org/apache/pulsar
+          key: ${{ runner.os }}-m2-dependencies-all-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-m2-dependencies-all-
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v2
+        with:
+          distribution: 'temurin'
+          java-version: 17
+
+      - name: build package
+        run: mvn -B clean package -DskipTests -T 1C -ntp
+
 
   # This job is required for pulls to be merged.
   # It depends on all other jobs in this workflow.
