@@ -32,6 +32,7 @@
             <class name="org.apache.pulsar.tests.integration.cli.PulsarVersionTest"/>
             <class name="org.apache.pulsar.tests.integration.cli.tenant.TenantTest"/>
             <class name="org.apache.pulsar.tests.integration.cli.topicpolicies.SchemaCompatibilityStrategyTest"/>
+            <class name="org.apache.pulsar.tests.integration.cli.ClientToolTest"/>
         </classes>
     </test>
 </suite>
