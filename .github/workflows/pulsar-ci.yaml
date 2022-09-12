@@ -562,13 +562,20 @@ jobs:
           echo "::group::Available diskspace before cleaning"
           time df -BM / /mnt
           echo "::endgroup::"          
-          echo "::group::Delete files"
+          echo "::group::Clean build directory"
+          # docker build changes some files to root ownership, fix this before deleting files
+          sudo chown -R $USER:$GROUP .
           # clean build directories
-          git clean -fdx
-          # delete maven repository
-          rm -rf ~/.m2/repository
+          time git clean -fdx
           echo "::endgroup::"          
-          echo "::group::Available diskspace after cleaning"
+          echo "::group::Available diskspace after cleaning build directory"
+          time df -BM / /mnt
+          echo "::endgroup::"
+          echo "::group::Delete maven repository"
+          # delete maven repository
+          time rm -rf ~/.m2/repository
+          echo "::endgroup::"          
+          echo "::group::Available diskspace after cleaning maven repository"
           time df -BM / /mnt
           echo "::endgroup::"          
 
