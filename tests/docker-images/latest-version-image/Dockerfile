@@ -89,7 +89,7 @@ COPY scripts/init-cluster.sh scripts/run-global-zk.sh scripts/run-local-zk.sh \
      scripts/run-standalone.sh \
      /pulsar/bin/
 
-COPY conf/presto/jvm.config /pulsar/conf/presto/
+COPY conf/presto/jvm.config /pulsar/trino/conf
 
 # copy python test examples
 RUN mkdir -p /pulsar/instances/deps

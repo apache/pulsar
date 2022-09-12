@@ -45,7 +45,6 @@ import org.jline.reader.UserInterruptException;
 import org.jline.reader.impl.LineReaderImpl;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
-import org.powermock.reflect.Whitebox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.BeforeMethod;
@@ -110,11 +109,11 @@ public class PulsarShellTest {
 
         @Override
         protected ClientShell createClientShell(Properties properties) {
-            final ClientShell clientShell = new ClientShell(properties);
             final CmdProduce cmdProduce = mock(CmdProduce.class);
             cmdProduceHolder.set(cmdProduce);
-            Whitebox.setInternalState(clientShell, "produceCommand", cmdProduceHolder.get());
-            return clientShell;
+            return new ClientShell(properties) {{
+                this.produceCommand = cmdProduce;
+            }};
         }
 
         @Override
@@ -127,7 +126,7 @@ public class PulsarShellTest {
     }
 
     private static class SystemExitCalledException extends RuntimeException {
-        private int code;
+        private final int code;
 
         public SystemExitCalledException(int code) {
             this.code = code;
@@ -145,7 +144,7 @@ public class PulsarShellTest {
 
 
     @Test
-    public void testInteractiveMode() throws Exception{
+    public void testInteractiveMode() throws Exception {
         Terminal terminal = TerminalBuilder.builder().build();
         final MockLineReader linereader = new MockLineReader(terminal);
 
@@ -163,7 +162,7 @@ public class PulsarShellTest {
     }
 
     @Test
-    public void testFileMode() throws Exception{
+    public void testFileMode() throws Exception {
         Terminal terminal = TerminalBuilder.builder().build();
         final MockLineReader linereader = new MockLineReader(terminal);
         final Properties props = new Properties();
@@ -194,7 +193,7 @@ public class PulsarShellTest {
         try {
             testPulsarShell.run((a) -> linereader, (a) -> terminal);
             fail();
-        }  catch (SystemExitCalledException ex) {
+        } catch (SystemExitCalledException ex) {
             assertEquals(ex.code, 1);
         }
 
