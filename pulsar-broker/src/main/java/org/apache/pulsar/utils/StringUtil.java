@@ -20,13 +20,16 @@ package org.apache.pulsar.utils;
 
 public class StringUtil {
 
+    /**
+     * The ASCII values of invisible characters are 0~32 and 127.
+     * */
     public static boolean invisibleCharacters(String str) {
-        for (char i = 0; i < 32; i++) {
+        for (char i = 0; i < 33; i++) {
             Character ch = Character.valueOf(i);
             if (str.contains(ch.toString())) {
                 return true;
             }
         }
-        return false;
+        return str.contains(Character.valueOf((char) 127).toString());
     }
 }
