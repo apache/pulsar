@@ -58,6 +58,8 @@ RUN curl -O -L https://github.com/openssl/openssl/archive/OpenSSL_1_1_1n.tar.gz 
    make -j8 && make install && \
    rm -rf /OpenSSL_1_1_1n.tar.gz /openssl-OpenSSL_1_1_1n
 
+ENV LD_LIBRARY_PATH /usr/local/ssl/lib/:
+
 # Download and copile protoubf
 RUN curl -O -L  https://github.com/google/protobuf/releases/download/v3.20.0/protobuf-cpp-3.20.0.tar.gz && \
     tar xvfz protobuf-cpp-3.20.0.tar.gz && \

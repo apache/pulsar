@@ -78,6 +78,8 @@ RUN curl -O -L https://github.com/openssl/openssl/archive/OpenSSL_1_1_1n.tar.gz 
     make -j8 && make install && \
     rm -rf /OpenSSL_1_1_1n.tar.gz /openssl-OpenSSL_1_1_1n
 
+ENV LD_LIBRARY_PATH /usr/local/ssl/lib/:
+
 # LibCurl
 RUN curl -O -L  https://github.com/curl/curl/releases/download/curl-7_61_0/curl-7.61.0.tar.gz && \
     tar xfz curl-7.61.0.tar.gz && \

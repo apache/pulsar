@@ -63,6 +63,8 @@ RUN curl -O -L https://github.com/openssl/openssl/archive/OpenSSL_1_1_1n.tar.gz 
     make -j8 && make install && \
     rm -rf /OpenSSL_1_1_1n.tar.gz /openssl-OpenSSL_1_1_1n
 
+ENV LD_LIBRARY_PATH /usr/local/ssl/lib/:
+
 # Download and compile boost
 RUN curl -O -L https://boostorg.jfrog.io/artifactory/main/release/1.78.0/source/boost_1_78_0.tar.gz && \
     tar xvfz boost_1_78_0.tar.gz && \
