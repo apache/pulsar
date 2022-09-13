@@ -15,6 +15,8 @@ All the methods in producer, consumer, and reader of a C++ client are thread-saf
 
 ## Installation
 
+Use one of the following methods to install a Pulsar C++ client.
+
 ### Brew
 
 Install the latest tagged version with the library and headers:
@@ -92,7 +94,7 @@ Now, you can see Pulsar C++ client libraries installed under the `/usr/lib` dire
 
 :::note
 
-If you get the error like "libpulsar.so: cannot open shared object file: No such file or directory" when starting Pulsar client, you need to run `ldconfig` first.
+If you get an error like "libpulsar.so: cannot open shared object file: No such file or directory" when starting a Pulsar client, you need to run `ldconfig` first.
 
 :::
 
@@ -112,7 +114,7 @@ cd pulsar-client-cpp
 <TabItem value="Linux">
 
 ```bash
-apt install cmake libssl-dev libcurl4-openssl-dev liblog4cxx-dev libprotobuf-dev protobuf-compiler libboost-all-dev google-mock libgtest-dev libjsoncpp-dev
+apt install cmake libssl-dev libcurl4-openssl-dev libprotobuf-dev protobuf-compiler libboost-all-dev google-mock libgtest-dev
 
 # libgtest-dev version is 1.18.0 or above
 pushd /usr/src/googletest
@@ -139,7 +141,7 @@ popd
 <TabItem value="macOS">
 
 ```bash
-brew install protobuf boost boost-python3 log4cxx googletest cmake openssl
+brew install protobuf boost boost-python3 googletest cmake openssl
 
 # force linking openssl if still cannot find openssl after installing
 brew link --force openssl
