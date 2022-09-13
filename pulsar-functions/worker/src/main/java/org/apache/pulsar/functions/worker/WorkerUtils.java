@@ -20,6 +20,7 @@ package org.apache.pulsar.functions.worker;
 
 import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.metadata.impl.MetadataStoreFactoryImpl.removeIdentifierFromMetadataURL;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -184,7 +185,7 @@ public final class WorkerUtils {
         // for BC purposes
         if (internalConf.getBookkeeperMetadataServiceUri() == null) {
             ledgersRootPath = internalConf.getLedgersRootPath();
-            ledgersStoreServers = internalConf.getZookeeperServers();
+            ledgersStoreServers = removeIdentifierFromMetadataURL(internalConf.getMetadataStoreUrl());
             chrootPath = "";
         } else {
             URI metadataServiceUri = URI.create(internalConf.getBookkeeperMetadataServiceUri());
