@@ -476,25 +476,31 @@ jobs:
       'changed_files_job',
       'integration-tests'
     ]
-    if: ${{ always() && needs.changed_files_job.outputs.docs_only != 'true' }}
+    if: always()
     steps:
       - name: check condition
+        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
         run: |
-          if [[ ! ( \
-                "${{ needs.integration-tests.result }}" == "skipped" \
-                || "${{ needs.integration-tests.result }}" == "success"
-             ) ]]; then
-            echo "integration-tests should be successful or skipped."
-            exit 1           
-          fi  
+          if [[ ! ( ( \
+                "${{needs.changed_files_job.outputs.cpp_only}}" == "false" \
+                && "${{ needs.integration-tests.result }}" == "success"
+               ) || ( \
+                "${{needs.changed_files_job.outputs.cpp_only}}" == "true" \
+               ) ) ]]; then
+            echo "Required jobs haven't been completed successfully."
+            exit 1            
+          fi
 
       - name: checkout
+        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
         uses: actions/checkout@v2
 
       - name: Tune Runner VM
+        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
         uses: ./.github/actions/tune-runner-vm
 
       - name: Cache local Maven repository
+        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
         uses: actions/cache@v2
         with:
           path: |
@@ -505,18 +511,22 @@ jobs:
             ${{ runner.os }}-m2-dependencies-core-modules-
 
       - name: Set up JDK 17
+        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
         uses: actions/setup-java@v2
         with:
           distribution: 'temurin'
           java-version: 17
 
       - name: Clean Disk
+        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
         uses: ./.github/actions/clean-disk
 
       - name: Install gh-actions-artifact-client.js
+        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
         uses: apache/pulsar-test-infra/gh-actions-artifact-client/dist@master
 
       - name: Restore maven build results from Github artifact cache
+        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
         run: |
           cd $HOME
           $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh restore_tar_from_github_actions_artifacts pulsar-maven-repository-binaries
@@ -524,20 +534,23 @@ jobs:
           $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh restore_tar_from_github_actions_artifacts pulsar-server-distribution
 
       - name: copy python tests
+        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
         run: |
           mvn -B -Pskip-all -ntp -pl pulsar-functions/instance package 
 
       - name: build cpp artifacts
+        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
         run: |
           echo "Build C++ client library"
           pulsar-client-cpp/docker-build.sh
 
       - name: run c++ tests
+        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
         run: pulsar-client-cpp/docker-tests.sh
 
       - name: Upload test-logs
+        if: ${{ failure() && needs.changed_files_job.outputs.docs_only != 'true' }}
         uses: actions/upload-artifact@v3
-        if: failure()
         continue-on-error: true
         with:
           name: cpp-tests-logs
@@ -1018,13 +1031,18 @@ jobs:
       - name: Check that all required jobs were completed successfully
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
         run: |
-          if [[ ! ( \
-                "${{ needs.unit-tests.result }}" == "success" \
+          if [[ ! ( ( \
+                "${{needs.changed_files_job.outputs.cpp_only}}" == "false" \
+                && "${{ needs.unit-tests.result }}" == "success" \
                 && "${{ needs.integration-tests.result }}" == "success" \
                 && "${{ needs.system-tests.result }}" == "success" \
                 && "${{ needs.macos-build.result }}" == "success" \
                 && "${{ needs.cpp-tests.result }}" == "success" \
-             ) ]]; then
+               ) || ( \
+                "${{needs.changed_files_job.outputs.cpp_only}}" == "true" \
+                && "${{ needs.system-tests.result }}" == "success" \
+                && "${{ needs.cpp-tests.result }}" == "success" \
+               ) ) ]]; then
             echo "Required jobs haven't been completed successfully."
             exit 1            
           fi
