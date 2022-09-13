@@ -5255,27 +5255,35 @@ public class PersistentTopicsBase extends AdminResource {
                     .thenCompose(__ -> getPartitionedTopicMetadataAsync(topicName, authoritative, false))
                     .thenAccept(partitionMetadata -> {
                         if (partitionMetadata.partitions > 0) {
-                            final List<CompletableFuture<Map<String, Boolean>>> futures =
-                                    Lists.newArrayListWithCapacity(partitionMetadata.partitions);
-                            final Map<String, Boolean> status = Maps.newHashMap();
+                            List<CompletableFuture<Void>> futures = new ArrayList<>(partitionMetadata.partitions);
+                            Map<String, Boolean> status = Maps.newHashMap();
 
                             for (int i = 0; i < partitionMetadata.partitions; i++) {
                                 TopicName partition = topicName.getPartition(i);
-                                try {
-                                    futures.add(pulsar().getAdminClient().topics().getReplicatedSubscriptionStatusAsync(
-                                            partition.toString(), subName).whenComplete((response, throwable) -> {
-                                        if (throwable != null) {
-                                            log.error("[{}] Failed to get replicated subscriptions on {} {}",
-                                                    clientAppId(), partition, subName, throwable);
-                                            asyncResponse.resume(new RestException(throwable));
+                                futures.add(
+                                    pulsar().getNamespaceService().isServiceUnitOwnedAsync(partition)
+                                    .thenCompose(owned -> {
+                                        if (owned) {
+                                            return getReplicatedSubscriptionStatusFromLocalBroker(partition, subName);
+                                        } else {
+                                            try {
+                                                return pulsar().getAdminClient().topics()
+                                                    .getReplicatedSubscriptionStatusAsync(partition.toString(), subName)
+                                                    .whenComplete((__, throwable) -> {
+                                                        if (throwable != null) {
+                                                            log.error("[{}] Failed to get replicated subscriptions on"
+                                                                    + " {} {}",
+                                                                clientAppId(), partition, subName, throwable);
+                                                        }
+                                                    });
+                                            } catch (Exception e) {
+                                                log.warn("[{}] Failed to get replicated subscription status on {} {}",
+                                                    clientAppId(), partition, subName, e);
+                                                return FutureUtil.failedFuture(e);
+                                            }
                                         }
-                                        status.putAll(response);
-                                    }));
-                                } catch (Exception e) {
-                                    log.warn("[{}] Failed to get replicated subscription status on {} {}",
-                                            clientAppId(), partition, subName, e);
-                                    throw new RestException(e);
-                                }
+                                    }).thenAccept(status::putAll)
+                                );
                             }
 
                             FutureUtil.waitForAll(futures).handle((result, exception) -> {
@@ -5313,42 +5321,41 @@ public class PersistentTopicsBase extends AdminResource {
         });
     }
 
+    private CompletableFuture<Map<String, Boolean>> getReplicatedSubscriptionStatusFromLocalBroker(
+            TopicName localTopicName,
+            String subName) {
+        return getTopicReferenceAsync(localTopicName).thenCompose(topic -> {
+            Subscription sub = topic.getSubscription(subName);
+            if (sub == null) {
+                return FutureUtil.failedFuture(new RestException(Status.NOT_FOUND,
+                    getSubNotFoundErrorMessage(localTopicName.toString(), subName)));
+            }
+            if (topic instanceof PersistentTopic && sub instanceof PersistentSubscription) {
+                return CompletableFuture.completedFuture(
+                        Collections.singletonMap(localTopicName.toString(), sub.isReplicated()));
+            } else {
+                return FutureUtil.failedFuture(new RestException(Status.METHOD_NOT_ALLOWED,
+                    "Cannot get replicated subscriptions on non-persistent topics"));
+            }
+        });
+    }
+
     private void internalGetReplicatedSubscriptionStatusForNonPartitionedTopic(
                                                                                AsyncResponse asyncResponse,
                                                                                String subName,
                                                                                boolean authoritative) {
         // Redirect the request to the appropriate broker if this broker is not the owner of the topic
         validateTopicOwnershipAsync(topicName, authoritative)
-                .thenCompose(__ -> getTopicReferenceAsync(topicName))
-                .thenAccept(topic -> {
-                    if (topic == null) {
-                        asyncResponse.resume(new RestException(Status.NOT_FOUND,
-                                getTopicNotFoundErrorMessage(topicName.toString())));
-                        return;
-                    }
-
-                    Subscription sub = topic.getSubscription(subName);
-                    if (sub == null) {
-                        asyncResponse.resume(new RestException(Status.NOT_FOUND,
-                                getSubNotFoundErrorMessage(topicName.toString(), subName)));
-                        return;
-                    }
-
-                    if (topic instanceof PersistentTopic && sub instanceof PersistentSubscription) {
-                        Map res = Maps.newHashMap();
-                        res.put(topicName.toString(), sub.isReplicated());
-                        asyncResponse.resume(res);
-                    } else {
-                        asyncResponse.resume(new RestException(Status.METHOD_NOT_ALLOWED,
-                                "Cannot get replicated subscriptions on non-persistent topics"));
-                    }
-                })
-                .exceptionally(e -> {
-                    Throwable cause = FutureUtil.unwrapCompletionException(e);
-                    log.error("[{}] Failed to get replicated subscription status on {} {}", clientAppId(),
+                .thenCompose(__ -> getReplicatedSubscriptionStatusFromLocalBroker(topicName, subName))
+                .whenComplete((res, e) -> {
+                    if (e != null) {
+                        Throwable cause = FutureUtil.unwrapCompletionException(e);
+                        log.error("[{}] Failed to get replicated subscription status on {} {}", clientAppId(),
                             topicName, subName, cause);
-                    resumeAsyncResponseExceptionally(asyncResponse, e);
-                    return null;
+                        resumeAsyncResponseExceptionally(asyncResponse, e);
+                    } else {
+                        asyncResponse.resume(res);
+                    }
                 });
     }
 
