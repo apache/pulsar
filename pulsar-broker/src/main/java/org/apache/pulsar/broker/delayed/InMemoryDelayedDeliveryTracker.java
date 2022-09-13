@@ -35,7 +35,7 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
 
     protected final TripleLongPriorityQueue priorityQueue = new TripleLongPriorityQueue();
 
-    private final PersistentDispatcherMultipleConsumers dispatcher;
+    protected final PersistentDispatcherMultipleConsumers dispatcher;
 
     // Reference to the shared (per-broker) timer for delayed delivery
     private final Timer timer;
@@ -49,9 +49,9 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
     // Last time the TimerTask was triggered for this class
     private long lastTickRun;
 
-    private long tickTimeMillis;
+    protected long tickTimeMillis;
 
-    private final Clock clock;
+    protected final Clock clock;
 
     private final boolean isDelayedDeliveryDeliverAtTimeStrict;
 
@@ -64,10 +64,10 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
     // This is the timestamp of the message with the highest delivery time
     // If new added messages are lower than this, it means the delivery is requested
     // to be out-of-order. It gets reset to 0, once the tracker is emptied.
-    private long highestDeliveryTimeTracked = 0;
+    protected long highestDeliveryTimeTracked = 0;
 
     // Track whether we have seen all messages with fixed delay so far.
-    private boolean messagesHaveFixedDelay = true;
+    protected boolean messagesHaveFixedDelay = true;
 
     InMemoryDelayedDeliveryTracker(PersistentDispatcherMultipleConsumers dispatcher, Timer timer, long tickTimeMillis,
                                    boolean isDelayedDeliveryDeliverAtTimeStrict,
@@ -99,7 +99,7 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
      *
      * @return the cutoff time to determine whether a message is ready to deliver to the consumer
      */
-    private long getCutoffTime() {
+    protected long getCutoffTime() {
         return isDelayedDeliveryDeliverAtTimeStrict ? clock.millis() : clock.millis() + tickTimeMillis;
     }
 
@@ -119,15 +119,21 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
         priorityQueue.add(deliverAt, ledgerId, entryId);
         updateTimer();
 
-        // Check that new delivery time comes after the current highest, or at
-        // least within a single tick time interval of 1 second.
+        checkAndUpdateHighest(deliverAt);
+
+        return true;
+    }
+
+    /**
+     * Check that new delivery time comes after the current highest, or at
+     * least within a single tick time interval of 1 second.
+     */
+    protected void checkAndUpdateHighest(long deliverAt) {
         if (deliverAt < (highestDeliveryTimeTracked - tickTimeMillis)) {
             messagesHaveFixedDelay = false;
         }
 
         highestDeliveryTimeTracked = Math.max(highestDeliveryTimeTracked, deliverAt);
-
-        return true;
     }
 
     /**
@@ -213,8 +219,8 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
      *    the last tick time plus the tickTimeMillis (to ensure we do not schedule the task more frequently than the
      *    tickTimeMillis).
      */
-    private void updateTimer() {
-        if (priorityQueue.isEmpty()) {
+    protected void updateTimer() {
+        if (getNumberOfDelayedMessages() == 0) {
             if (timeout != null) {
                 currentTimeoutTarget = -1;
                 timeout.cancel();
@@ -222,8 +228,7 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
             }
             return;
         }
-
-        long timestamp = priorityQueue.peekN1();
+        long timestamp = nextDeliveryTime();
         if (timestamp == currentTimeoutTarget) {
             // The timer is already set to the correct target time
             return;
@@ -291,12 +296,19 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
         // Pause deliveries if we know all delays are fixed within the lookahead window
         return fixedDelayDetectionLookahead > 0
                 && messagesHaveFixedDelay
-                && priorityQueue.size() >= fixedDelayDetectionLookahead
+                && getNumberOfDelayedMessages() >= fixedDelayDetectionLookahead
                 && !hasMessageAvailable();
     }
 
     @Override
     public boolean containsMessage(long ledgerId, long entryId) {
         return false;
+    }
+
+    protected TripleLongPriorityQueue getPriorityQueue() {
+        return priorityQueue;
+    }
+    protected long nextDeliveryTime() {
+        return priorityQueue.peekN1();
     }
 }
