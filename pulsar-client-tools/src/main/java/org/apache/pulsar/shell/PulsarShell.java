@@ -41,6 +41,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.text.StringSubstitutor;
+import org.apache.pulsar.admin.cli.PulsarAdminTool;
 import org.apache.pulsar.shell.config.ConfigStore;
 import org.apache.pulsar.shell.config.FileConfigStore;
 import org.jline.reader.Completer;
