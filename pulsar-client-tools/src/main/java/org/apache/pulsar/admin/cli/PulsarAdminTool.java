@@ -374,6 +374,11 @@ public class PulsarAdminTool {
     }
 
     @VisibleForTesting
+    public PulsarAdminSupplier getPulsarAdminSupplier() {
+        return pulsarAdminSupplier;
+    }
+
+    @VisibleForTesting
     public RootParams getRootParams() {
         return rootParams;
     }
