@@ -35,7 +35,6 @@ import com.google.common.collect.Range;
 import com.google.common.util.concurrent.RateLimiter;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.time.Clock;
-import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -60,7 +59,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-import java.util.concurrent.locks.StampedLock;
+import java.util.function.Function;
 import org.apache.bookkeeper.client.AsyncCallback.CloseCallback;
 import org.apache.bookkeeper.client.AsyncCallback.OpenCallback;
 import org.apache.bookkeeper.client.BKException;
@@ -97,7 +96,6 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.MessageRange;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.StringProperty;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet.LongPairConsumer;
@@ -122,8 +120,6 @@ public class ManagedCursorImpl implements ManagedCursor {
     protected final ManagedLedgerConfig config;
     protected final ManagedLedgerImpl ledger;
     private final String name;
-
-    private final StampedLock cursorPropertiesUpdateLock = new StampedLock();
 
     private volatile Map<String, String> cursorProperties;
     private final BookKeeper.DigestType digestType;
@@ -330,15 +326,17 @@ public class ManagedCursorImpl implements ManagedCursor {
         return cursorProperties;
     }
 
-    private CompletableFuture<Void> asyncUpdateCursorProperties(Map<String, String> cursorProperties) {
+    private CompletableFuture<Void> asyncReadAndUpdateCursorProperties(
+            final Function<Map<String, String>, Map<String, String>> updateFunction) {
         CompletableFuture<Void> updateCursorPropertiesResult = new CompletableFuture<>();
         ledger.getStore().asyncGetCursorInfo(ledger.getName(), name, new MetaStoreCallback<>() {
             @Override
             public void operationComplete(ManagedCursorInfo info, Stat stat) {
+                final Map<String, String> newProperties = updateFunction.apply(ManagedCursorImpl.this.cursorProperties);
                 ManagedCursorInfo copy = ManagedCursorInfo
                         .newBuilder(info)
                         .clearCursorProperties()
-                        .addAllCursorProperties(buildStringPropertiesMap(cursorProperties))
+                        .addAllCursorProperties(buildStringPropertiesMap(newProperties))
                         .build();
                 ledger.getStore().asyncUpdateCursorInfo(ledger.getName(),
                         name, copy, stat, new MetaStoreCallback<>() {
@@ -346,6 +344,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     public void operationComplete(Void result, Stat stat) {
                         log.info("[{}] Updated ledger cursor: {} properties {}", ledger.getName(),
                                 name, cursorProperties);
+                        ManagedCursorImpl.this.cursorProperties = newProperties;
                         cursorLedgerStat = stat;
                         updateCursorPropertiesResult.complete(result);
                     }
@@ -354,7 +353,19 @@ public class ManagedCursorImpl implements ManagedCursor {
                     public void operationFailed(MetaStoreException e) {
                         log.error("[{}] Error while updating ledger cursor: {} properties {}", ledger.getName(),
                                 name, cursorProperties, e);
-                        updateCursorPropertiesResult.completeExceptionally(e);
+                        // if resource is updated by other operate then we will get bad-version exception
+                        // so, retry the operation.
+                        if (e instanceof ManagedLedgerException.BadVersionException) {
+                            asyncReadAndUpdateCursorProperties(updateFunction).whenComplete((__, ex) -> {
+                                if (ex == null) {
+                                    updateCursorPropertiesResult.complete(null);
+                                } else {
+                                    updateCursorPropertiesResult.completeExceptionally(ex);
+                                }
+                            });
+                        } else {
+                            updateCursorPropertiesResult.completeExceptionally(e);
+                        }
                     }
                 });
             }
@@ -367,72 +378,30 @@ public class ManagedCursorImpl implements ManagedCursor {
             }
         });
 
-        Duration duration = Duration.ofSeconds(ManagedLedgerImpl.AsyncOperationTimeoutSeconds * 2);
-        FutureUtil.addTimeoutHandling(updateCursorPropertiesResult, duration, ledger.getScheduledExecutor(),
-                () -> FutureUtil.createTimeoutException("Timeout", getClass(), "asyncUpdateCursorProperties(...)"));
         return updateCursorPropertiesResult;
     }
 
     @Override
     public CompletableFuture<Void> setCursorProperties(Map<String, String> cursorProperties) {
-        Map<String, String> newProperties =
-                cursorProperties == null ? new HashMap<>() : new HashMap<>(cursorProperties);
-        long stamp = cursorPropertiesUpdateLock.writeLock();
-
-        try {
-            CompletableFuture<Void> future = asyncUpdateCursorProperties(newProperties);
-            return future.whenComplete((__, ex) -> {
-                if (ex == null) {
-                    this.cursorProperties = newProperties;
-                }
-                cursorPropertiesUpdateLock.unlockWrite(stamp);
-            });
-        } catch (Throwable throwable) {
-            cursorPropertiesUpdateLock.unlockWrite(stamp);
-            return FutureUtil.failedFuture(throwable);
-        }
+        return asyncReadAndUpdateCursorProperties(lastRead -> cursorProperties);
     }
 
     @Override
     public CompletableFuture<Void> putCursorProperty(String key, String value) {
-        long stamp = cursorPropertiesUpdateLock.writeLock();
-        Map<String, String> newProperties =
-                this.cursorProperties == null ? new HashMap<>() : new HashMap<>(this.cursorProperties);
-        newProperties.put(key, value);
-
-        try {
-            CompletableFuture<Void> future = asyncUpdateCursorProperties(newProperties);
-            return future.whenComplete((__, ex) -> {
-                if (ex == null) {
-                    this.cursorProperties = newProperties;
-                }
-                cursorPropertiesUpdateLock.unlockWrite(stamp);
-            });
-        } catch (Throwable throwable) {
-            cursorPropertiesUpdateLock.unlockWrite(stamp);
-            return FutureUtil.failedFuture(throwable);
-        }
+        return asyncReadAndUpdateCursorProperties(lastRead -> {
+            Map<String, String> newProperties = lastRead == null ? new HashMap<>() : new HashMap<>(lastRead);
+            newProperties.put(key, value);
+            return newProperties;
+        });
     }
 
     @Override
     public CompletableFuture<Void> removeCursorProperty(String key) {
-        long stamp = cursorPropertiesUpdateLock.writeLock();
-        Map<String, String> newProperties =
-                this.cursorProperties == null ? new HashMap<>() : new HashMap<>(this.cursorProperties);
-        newProperties.remove(key);
-
-        try {
-            CompletableFuture<Void> future = asyncUpdateCursorProperties(newProperties);
-            return future.whenComplete((__, ex) -> {
-                if (ex == null) {
-                    this.cursorProperties = newProperties;
-                }
-                cursorPropertiesUpdateLock.unlockWrite(stamp);
-            });
-        } catch (Throwable throwable) {
-            cursorPropertiesUpdateLock.unlockWrite(stamp);
-            return FutureUtil.failedFuture(throwable);
-        }
+        return asyncReadAndUpdateCursorProperties(lastRead -> {
+            Map<String, String> newProperties = lastRead == null ? new HashMap<>() : new HashMap<>(lastRead);
+            newProperties.remove(key);
+            return newProperties;
+        });
     }
 
     @Override

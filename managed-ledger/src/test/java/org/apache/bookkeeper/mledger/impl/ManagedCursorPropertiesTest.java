@@ -19,9 +19,14 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -224,5 +229,30 @@ public class ManagedCursorPropertiesTest extends MockedBookKeeperTestCase {
         ledger.close();
 
         factory2.shutdown();
+    }
+
+    @Test
+    public void testUpdateCursorPropertiesConcurrent() throws Exception {
+        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig());
+        ManagedCursor c1 = ledger.openCursor("c1");
+
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
+
+        Map<String, String> map = new HashMap<>();
+        map.put("a", "1");
+        map.put("b", "2");
+        map.put("c", "3");
+
+        futures.add(c1.setCursorProperties(map));
+        futures.add(c1.putCursorProperty("a", "2"));
+        futures.add(c1.removeCursorProperty("c"));
+
+        for (CompletableFuture<Void> future : futures) {
+            future.get();
+        }
+
+        assertEquals(c1.getCursorProperties().get("a"), "2");
+        assertEquals(c1.getCursorProperties().get("b"), "2");
+        assertNull(c1.getCursorProperties().get("c"));
     }
 }
