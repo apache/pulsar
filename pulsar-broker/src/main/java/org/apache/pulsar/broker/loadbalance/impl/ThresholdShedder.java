@@ -135,7 +135,7 @@ public class ThresholdShedder implements LoadSheddingStrategy {
                 log.warn("Broker {} is overloaded despite having no bundles", broker);
             }
         });
-        if (selectedBundlesCache.isEmpty() && conf.isEnableLowerBoundaryShedding()) {
+        if (selectedBundlesCache.isEmpty() && conf.isLowerBoundarySheddingEnabled()) {
             tryLowerBoundaryShedding(loadData, conf);
         }
         return selectedBundlesCache;
@@ -244,9 +244,8 @@ public class ThresholdShedder implements LoadSheddingStrategy {
         boolean hasBrokerBelowLowerBound = result.getLeft();
         String maxUsageBroker = result.getRight();
         BrokerData brokerData = loadData.getBrokerData().get(maxUsageBroker);
-        if (brokerData == null || brokerData.getLocalData() == null
-                || brokerData.getLocalData().getBundles().size() <= 1) {
-            log.info("Load data is null or bundle <=1, broker name is {}, skipping bundle unload.", maxUsageBroker);
+        if (brokerData == null) {
+            log.info("Load data is null or bundle <=1, skipping bundle unload.");
             return;
         }
         if (!hasBrokerBelowLowerBound) {
@@ -261,7 +260,7 @@ public class ThresholdShedder implements LoadSheddingStrategy {
         double minimumThroughputToOffload = brokerCurrentThroughput * threshold * LOWER_BOUNDARY_THRESHOLD_MARGIN;
         double minThroughputThreshold = conf.getLoadBalancerBundleUnloadMinThroughputThreshold() * MB;
         if (minThroughputThreshold > minimumThroughputToOffload) {
-            log.info("broker {} in RangeThresholdShedder is planning to shed throughput {} MByte/s less than "
+            log.info("broker {} in lower boundary shedding is planning to shed throughput {} MByte/s less than "
                             + "minimumThroughputThreshold {} MByte/s, skipping bundle unload.",
                     maxUsageBroker, minimumThroughputToOffload / MB, minThroughputThreshold / MB);
             return;
@@ -273,13 +272,15 @@ public class ThresholdShedder implements LoadSheddingStrategy {
     private Pair<Boolean, String> getMaxUsageBroker(
             LoadData loadData, double threshold, double avgUsage) {
         String maxUsageBrokerName = "";
-        double maxUsage = -1;
+        double maxUsage = avgUsage + threshold;
         boolean hasBrokerBelowLowerBound = false;
         for (Map.Entry<String, BrokerData> entry : loadData.getBrokerData().entrySet()) {
             String broker = entry.getKey();
+            BrokerData brokerData = entry.getValue();
             double currentUsage = brokerAvgResourceUsage.getOrDefault(broker, 0.0);
             // Select the broker with the most resource usage.
-            if (currentUsage > maxUsage) {
+            if (currentUsage > maxUsage && brokerData.getLocalData() != null
+                    && brokerData.getLocalData().getBundles().size() > 1) {
                 maxUsage = currentUsage;
                 maxUsageBrokerName = broker;
             }

@@ -47,7 +47,7 @@ public class ThresholdShedderTest {
 
     @BeforeMethod
     public void setup() {
-        conf.setEnableLowerBoundaryShedding(false);
+        conf.setLowerBoundarySheddingEnabled(false);
         thresholdShedder = new ThresholdShedder();
     }
 
@@ -258,7 +258,7 @@ public class ThresholdShedderTest {
         ThresholdShedder shedder = new ThresholdShedder();
         Multimap<String, String> bundlesToUnload = shedder.findBundlesForUnloading(loadData, conf);
         assertTrue(bundlesToUnload.isEmpty());
-        conf.setEnableLowerBoundaryShedding(true);
+        conf.setLowerBoundarySheddingEnabled(true);
         bundlesToUnload = thresholdShedder.findBundlesForUnloading(loadData, conf);
         assertFalse(bundlesToUnload.isEmpty());
     }
@@ -292,7 +292,7 @@ public class ThresholdShedderTest {
         ThresholdShedder shedder = new ThresholdShedder();
         Multimap<String, String> bundlesToUnload = shedder.findBundlesForUnloading(loadData, conf);
         assertTrue(bundlesToUnload.isEmpty());
-        conf.setEnableLowerBoundaryShedding(true);
+        conf.setLowerBoundarySheddingEnabled(true);
         bundlesToUnload = thresholdShedder.findBundlesForUnloading(loadData, conf);
         assertTrue(bundlesToUnload.isEmpty());
     }
