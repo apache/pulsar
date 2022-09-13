@@ -273,6 +273,9 @@ public abstract class AdminResource extends PulsarWebResource {
     @Deprecated
     protected void validateTopicName(String property, String cluster, String namespace, String encodedTopic) {
         String topic = Codec.decode(encodedTopic);
+        if (StringUtil.invisibleCharacters(topic)) {
+            throw new RestException(Response.Status.PRECONDITION_FAILED, "Topic name is not valid");
+        }
         try {
             this.namespaceName = NamespaceName.get(property, cluster, namespace);
             this.topicName = TopicName.get(domain(), namespaceName, topic);

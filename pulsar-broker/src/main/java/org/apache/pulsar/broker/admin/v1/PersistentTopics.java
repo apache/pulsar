@@ -760,12 +760,14 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative, MessageIdImpl messageId,
             @QueryParam("replicated") boolean replicated) {
         try {
+            String subscriptionName = decode(encodedSubName);
+            validateSubscriptionName(subscriptionName);
             validateTopicName(property, cluster, namespace, topic);
             if (!topicName.isPersistent()) {
                 throw new RestException(Response.Status.BAD_REQUEST, "Create subscription on non-persistent topic "
                         + "can only be done through client");
             }
-            internalCreateSubscription(asyncResponse, decode(encodedSubName), messageId, authoritative, replicated,
+            internalCreateSubscription(asyncResponse, subscriptionName, messageId, authoritative, replicated,
                     null);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
