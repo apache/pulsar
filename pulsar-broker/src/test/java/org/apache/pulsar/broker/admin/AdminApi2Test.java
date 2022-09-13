@@ -2014,6 +2014,10 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
     @Test(dataProvider = "topicType")
     public void testSetTopicLevelEntryFilters(String topicType) throws Exception {
+        cleanup();
+        conf.setSystemTopicEnabled(true);
+        conf.setTopicLevelPoliciesEnabled(true);
+        setup();
         EntryFilters entryFilters = new EntryFilters("org.apache.pulsar.broker.service.plugin.EntryFilterTest");
         final String topic = topicType + "://prop-xyz/ns1/test-schema-validation-enforced";
         admin.topics().createPartitionedTopic(topic, 1);
