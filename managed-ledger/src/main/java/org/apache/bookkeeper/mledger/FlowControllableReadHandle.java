@@ -18,17 +18,17 @@
  */
 package org.apache.bookkeeper.mledger;
 
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.LockSupport;
 import org.apache.bookkeeper.client.api.LastConfirmedAndEntry;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.util.TimeWindow;
 import org.apache.bookkeeper.mledger.util.WindowWrap;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.locks.LockSupport;
 
 public class FlowControllableReadHandle implements ReadHandle {
     private static final AtomicBoolean INITIALIZED = new AtomicBoolean(false);
@@ -45,8 +45,8 @@ public class FlowControllableReadHandle implements ReadHandle {
         }
     }
 
-    public static CompletableFuture<ReadHandle> create(ReadHandle handle, long permitBytesPerMin) {
-        return CompletableFuture.completedFuture(new FlowControllableReadHandle(handle, permitBytesPerMin));
+    public static CompletableFuture<ReadHandle> create(ReadHandle handle, long permitBytes) {
+        return CompletableFuture.completedFuture(new FlowControllableReadHandle(handle, permitBytes));
     }
 
     @Override
@@ -109,7 +109,8 @@ public class FlowControllableReadHandle implements ReadHandle {
     }
 
     @Override
-    public CompletableFuture<LastConfirmedAndEntry> readLastAddConfirmedAndEntryAsync(long entryId, long timeOutInMillis, boolean parallel) {
+    public CompletableFuture<LastConfirmedAndEntry> readLastAddConfirmedAndEntryAsync(
+            long entryId, long timeOutInMillis, boolean parallel) {
         if (!checkFlow()) {
             return this.readLastAddConfirmedAndEntryAsync(entryId, timeOutInMillis, parallel);
         }
@@ -152,7 +153,9 @@ public class FlowControllableReadHandle implements ReadHandle {
 
         if (wrap.value().get() >= permittedBytes0) {
             // park until next window start
-            LockSupport.parkUntil(TimeUnit.MILLISECONDS.toNanos(wrap.start() + wrap.interval()));
+            long end = wrap.start() + wrap.interval();
+            long parkMillis = end - System.currentTimeMillis();
+            LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(parkMillis));
             return false;
         }
 

@@ -3009,7 +3009,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                     if (exception != null) {
                                         log.error("[{}] Failed to offload data for the ledgerId {}",
                                                 name, ledgerId, exception);
-                                        cleanupOffloaded(ledgerId, uuid, driverName, driverMetadata, "Metastore failure");
+                                        cleanupOffloaded(ledgerId, uuid, driverName, driverMetadata,
+                                                "Metastore failure");
                                     }
                                 });
                     })
