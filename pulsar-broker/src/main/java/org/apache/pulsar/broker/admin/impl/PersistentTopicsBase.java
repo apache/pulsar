@@ -310,7 +310,7 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
-    private void revokePermissions(String topicUri, String role) {
+    private void revokePermissions(String topicUri, String role, boolean force) {
         Policies policies;
         try {
             policies = namespaceResources().getPolicies(namespaceName)
@@ -323,7 +323,11 @@ public class PersistentTopicsBase extends AdminResource {
                 || !policies.auth_policies.getTopicAuthentication().get(topicUri).containsKey(role)) {
             log.warn("[{}] Failed to revoke permission from role {} on topic: Not set at topic level {}", clientAppId(),
                     role, topicUri);
-            throw new RestException(Status.PRECONDITION_FAILED, "Permissions are not set at the topic level");
+            if (force) {
+                return;
+            } else {
+                throw new RestException(Status.PRECONDITION_FAILED, "Permissions are not set at the topic level");
+            }
         }
         try {
             // Write the new policies to metadata store
@@ -349,10 +353,10 @@ public class PersistentTopicsBase extends AdminResource {
         if (numPartitions > 0) {
             for (int i = 0; i < numPartitions; i++) {
                 TopicName topicNamePartition = topicName.getPartition(i);
-                revokePermissions(topicNamePartition.toString(), role);
+                revokePermissions(topicNamePartition.toString(), role, true);
             }
         }
-        revokePermissions(topicName.toString(), role);
+        revokePermissions(topicName.toString(), role, false);
     }
 
     protected void internalCreateNonPartitionedTopic(boolean authoritative) {
