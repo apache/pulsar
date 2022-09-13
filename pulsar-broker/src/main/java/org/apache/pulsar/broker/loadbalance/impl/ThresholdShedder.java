@@ -272,7 +272,7 @@ public class ThresholdShedder implements LoadSheddingStrategy {
     private Pair<Boolean, String> getMaxUsageBroker(
             LoadData loadData, double threshold, double avgUsage) {
         String maxUsageBrokerName = "";
-        double maxUsage = avgUsage + threshold;
+        double maxUsage = -1;
         boolean hasBrokerBelowLowerBound = false;
         for (Map.Entry<String, BrokerData> entry : loadData.getBrokerData().entrySet()) {
             String broker = entry.getKey();

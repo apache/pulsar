@@ -245,7 +245,7 @@ public class ThresholdShedderTest {
                 timeAverageMessageData.setMsgThroughputIn(i == lowLoadNode ? 0 : throughput);
                 timeAverageMessageData.setMsgThroughputOut(i == lowLoadNode ? 0 : throughput);
                 bundle.setShortTermData(timeAverageMessageData);
-                String broker2BundleName = "broker-" + i + "-bundle-" + (numBundles + i);
+                String broker2BundleName = "broker-" + i + "-bundle-" + j;
                 loadData.getBundleData().put(broker2BundleName, bundle);
                 broker.getBundles().add(broker2BundleName);
             }
@@ -279,7 +279,7 @@ public class ThresholdShedderTest {
                 timeAverageMessageData.setMsgThroughputIn(throughput);
                 timeAverageMessageData.setMsgThroughputOut(throughput);
                 bundle.setShortTermData(timeAverageMessageData);
-                String broker2BundleName = "broker-" + i + "-bundle-" + (numBundles + i);
+                String broker2BundleName = "broker-" + i + "-bundle-" + j;
                 loadData.getBundleData().put(broker2BundleName, bundle);
                 broker.getBundles().add(broker2BundleName);
             }
@@ -295,5 +295,44 @@ public class ThresholdShedderTest {
         conf.setLowerBoundarySheddingEnabled(true);
         bundlesToUnload = thresholdShedder.findBundlesForUnloading(loadData, conf);
         assertTrue(bundlesToUnload.isEmpty());
+    }
+
+    @Test
+    public void testBrokerWithOneBundle() {
+        int brokerNum = 11;
+        int lowLoadNode = 5;
+        int brokerWithManyBundles = 3;
+        LoadData loadData = new LoadData();
+        double throughput = 100 * 1024 * 1024;
+        //There are 11 Brokers, of which 10 are loaded at 80% and 1 is loaded at 0%.
+        //Only broker3 has 10 bundles.
+        for (int i = 0; i < brokerNum; i++) {
+            LocalBrokerData broker = new LocalBrokerData();
+            //Broker3 has 10 bundles
+            int numBundles = i == brokerWithManyBundles ? 10 : 1;
+            for (int j = 0; j < numBundles; j++) {
+                BundleData bundle = new BundleData();
+                TimeAverageMessageData timeAverageMessageData = new TimeAverageMessageData();
+                timeAverageMessageData.setMsgThroughputIn(i == lowLoadNode ? 0 : throughput);
+                timeAverageMessageData.setMsgThroughputOut(i == lowLoadNode ? 0 : throughput);
+                bundle.setShortTermData(timeAverageMessageData);
+                String broker2BundleName = "broker-" + i + "-bundle-" + j;
+                loadData.getBundleData().put(broker2BundleName, bundle);
+                broker.getBundles().add(broker2BundleName);
+            }
+            broker.setBandwidthIn(new ResourceUsage(i == lowLoadNode ? 0 : 80, 100));
+            broker.setBandwidthOut(new ResourceUsage(i == lowLoadNode ? 0 : 80, 100));
+            broker.setMsgThroughputIn(i == lowLoadNode ? 0 : throughput);
+            broker.setMsgThroughputOut(i == lowLoadNode ? 0 : throughput);
+            loadData.getBrokerData().put("broker-" + i, new BrokerData(broker));
+        }
+        ThresholdShedder shedder = new ThresholdShedder();
+        Multimap<String, String> bundlesToUnload = shedder.findBundlesForUnloading(loadData, conf);
+        assertTrue(bundlesToUnload.isEmpty());
+        conf.setLowerBoundarySheddingEnabled(true);
+        bundlesToUnload = thresholdShedder.findBundlesForUnloading(loadData, conf);
+        assertFalse(bundlesToUnload.isEmpty());
+        assertEquals(bundlesToUnload.size(), 1);
+        assertTrue(bundlesToUnload.containsKey("broker-3"));
     }
 }
