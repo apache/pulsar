@@ -476,8 +476,18 @@ jobs:
       'changed_files_job',
       'integration-tests'
     ]
-    if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
+    if: ${{ always() && needs.changed_files_job.outputs.docs_only != 'true' }}
     steps:
+      - name: check condition
+        run: |
+          if [[ ! ( \
+                "${{ needs.integration-tests.result }}" == "skipped" \
+                || "${{ needs.integration-tests.result }}" == "success"
+             ) ]]; then
+            echo "integration-tests should be successful or skipped."
+            exit 1           
+          fi  
+
       - name: checkout
         uses: actions/checkout@v2
 
