@@ -58,7 +58,7 @@ public class CmdGenerateDocument extends CmdBase {
         }
         for (Map.Entry<String, Class<?>> c : tool.commandMap.entrySet()) {
             try {
-                if (!c.getKey().equals("documents")) {
+                if (!c.getKey().equals("documents") && c.getValue() != null) {
                     baseJcommander.addCommand(
                             c.getKey(), c.getValue().getConstructor(Supplier.class).newInstance(admin));
                 }

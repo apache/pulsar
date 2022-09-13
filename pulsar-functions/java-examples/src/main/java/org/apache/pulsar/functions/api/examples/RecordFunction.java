@@ -20,6 +20,7 @@ package org.apache.pulsar.functions.api.examples;
 
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.Record;
@@ -34,7 +35,7 @@ public class RecordFunction implements Function<String, Record<String>> {
         Map<String, String> properties = new HashMap<>(context.getCurrentRecord().getProperties());
         context.getCurrentRecord().getTopicName().ifPresent(topic -> properties.put("input_topic", topic));
 
-        return context.<String>newOutputRecordBuilder()
+        return context.newOutputRecordBuilder(Schema.STRING)
                 .destinationTopic(publishTopic)
                 .value(output)
                 .properties(properties)

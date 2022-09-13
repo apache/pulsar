@@ -96,8 +96,8 @@ public class PulsarClientTool {
 
     protected JCommander jcommander;
     IUsageFormatter usageFormatter;
-    CmdProduce produceCommand;
-    CmdConsume consumeCommand;
+    protected CmdProduce produceCommand;
+    protected CmdConsume consumeCommand;
     CmdGenerateDocumentation generateDocumentation;
 
     public PulsarClientTool(Properties properties) {

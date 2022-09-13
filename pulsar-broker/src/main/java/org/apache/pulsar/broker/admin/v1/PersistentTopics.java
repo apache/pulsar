@@ -273,7 +273,8 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 406, message = "The number of partitions should be more than 0"
-                    + " and less than or equal to maxNumPartitionsPerPartitionedTopic"),
+                    + " and less than or equal to maxNumPartitionsPerPartitionedTopic"
+                    + " and number of new partitions must be greater than existing number of partitions"),
             @ApiResponse(code = 409, message = "Partitioned topic does not exist")})
     public void updatePartitionedTopic(
             @Suspended final AsyncResponse asyncResponse,
@@ -381,7 +382,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                     Throwable t = FutureUtil.unwrapCompletionException(ex);
                     if (!force && (t instanceof BrokerServiceException.TopicBusyException)) {
                         ex = new RestException(Response.Status.PRECONDITION_FAILED,
-                                "Topic has active producers/subscriptions");
+                                t.getMessage());
                     }
                     if (isManagedLedgerNotFoundException(t)) {
                         ex = new RestException(Response.Status.NOT_FOUND,

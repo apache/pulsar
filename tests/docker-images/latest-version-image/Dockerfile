@@ -89,7 +89,7 @@ COPY scripts/init-cluster.sh scripts/run-global-zk.sh scripts/run-local-zk.sh \
      scripts/run-standalone.sh \
      /pulsar/bin/
 
-COPY conf/presto/jvm.config /pulsar/conf/presto/
+COPY conf/presto/jvm.config /pulsar/trino/conf
 
 # copy python test examples
 RUN mkdir -p /pulsar/instances/deps
@@ -105,6 +105,9 @@ COPY target/java-test-functions.jar /pulsar/examples/
 
 # copy go test examples
 COPY --from=pulsar-function-go /go/bin /pulsar/examples/go-examples
+
+# copy broker plugins
+COPY target/plugins/ /pulsar/examples/
 
 # Include all offloaders
 COPY --from=pulsar-all /pulsar/offloaders /pulsar/offloaders

@@ -60,6 +60,20 @@ pulsar_result pulsar_consumer_receive_with_timeout(pulsar_consumer_t *consumer, 
     return (pulsar_result)res;
 }
 
+static void handle_receive_callback(pulsar::Result result, pulsar::Message message,
+                                    pulsar_receive_callback callback, void *ctx) {
+    if (callback) {
+        pulsar_message_t *msg = new pulsar_message_t;
+        msg->message = message;
+        callback((pulsar_result)result, msg, ctx);
+    }
+}
+
+void pulsar_consumer_receive_async(pulsar_consumer_t *consumer, pulsar_receive_callback callback, void *ctx) {
+    consumer->consumer.receiveAsync(
+        std::bind(handle_receive_callback, std::placeholders::_1, std::placeholders::_2, callback, ctx));
+}
+
 pulsar_result pulsar_consumer_acknowledge(pulsar_consumer_t *consumer, pulsar_message_t *message) {
     return (pulsar_result)consumer->consumer.acknowledge(message->message);
 }

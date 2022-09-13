@@ -23,7 +23,6 @@
 #include "lib/ProducerImpl.h"
 #include "lib/PartitionedProducerImpl.h"
 #include "lib/ConsumerImpl.h"
-#include "lib/PartitionedConsumerImpl.h"
 #include "lib/MultiTopicsConsumerImpl.h"
 #include "lib/ReaderImpl.h"
 
@@ -92,10 +91,6 @@ class PulsarFriend {
         return consumerImpl->chunkedMessageCache_;
     }
 
-    static std::shared_ptr<PartitionedConsumerImpl> getPartitionedConsumerImplPtr(Consumer consumer) {
-        return std::static_pointer_cast<PartitionedConsumerImpl>(consumer.impl_);
-    }
-
     static std::shared_ptr<MultiTopicsConsumerImpl> getMultiTopicsConsumerImplPtr(Consumer consumer) {
         return std::static_pointer_cast<MultiTopicsConsumerImpl>(consumer.impl_);
     }
@@ -115,6 +110,10 @@ class PulsarFriend {
     }
 
     static ClientConnectionWeakPtr getClientConnection(HandlerBase& handler) { return handler.connection_; }
+
+    static void setClientConnection(HandlerBase& handler, ClientConnectionWeakPtr conn) {
+        handler.connection_ = conn;
+    }
 
     static boost::posix_time::ptime& getFirstBackoffTime(Backoff& backoff) {
         return backoff.firstBackoffTime_;

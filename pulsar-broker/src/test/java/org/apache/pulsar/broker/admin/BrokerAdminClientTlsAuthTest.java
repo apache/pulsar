@@ -19,15 +19,11 @@
 package org.apache.pulsar.broker.admin;
 
 import static org.testng.Assert.fail;
-
-import com.google.common.collect.ImmutableSet;
-
 import java.lang.reflect.Method;
 import java.util.Optional;
-
+import java.util.Set;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -70,9 +66,9 @@ public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
         conf.setTlsKeyFilePath(getTLSFile("broker.key-pk8"));
         conf.setTlsTrustCertsFilePath(getTLSFile("ca.cert"));
         conf.setAuthenticationEnabled(true);
-        conf.setSuperUserRoles(ImmutableSet.of("superproxy", "broker.pulsar.apache.org"));
+        conf.setSuperUserRoles(Set.of("superproxy", "broker.pulsar.apache.org"));
         conf.setAuthenticationProviders(
-                ImmutableSet.of("org.apache.pulsar.broker.authentication.AuthenticationProviderTls"));
+                Set.of("org.apache.pulsar.broker.authentication.AuthenticationProviderTls"));
         conf.setAuthorizationEnabled(true);
         conf.setBrokerClientTlsEnabled(true);
         String str = String.format("tlsCertFile:%s,tlsKeyFile:%s", getTLSFile("broker.cert"), getTLSFile("broker.key-pk8"));
@@ -132,13 +128,13 @@ public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
         try (PulsarAdmin admin = buildAdminClient("superproxy")) {
             admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
             admin.tenants().createTenant("tenant",
-                                         new TenantInfoImpl(ImmutableSet.of("admin"),
-                                                        ImmutableSet.of("test")));
+                                         new TenantInfoImpl(Set.of("admin"),
+                                                 Set.of("test")));
         }
         try (PulsarAdmin admin = buildAdminClient("admin")) {
             Policies policies = new Policies();
             policies.bundles = BundlesData.builder().numBundles(4).build();
-            policies.replication_clusters = ImmutableSet.of("test");
+            policies.replication_clusters = Set.of("test");
             admin.namespaces().createNamespace("tenant/ns", policies);
             try {
                 admin.topics().getList("tenant/ns");

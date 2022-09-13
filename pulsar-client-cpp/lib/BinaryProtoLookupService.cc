@@ -29,35 +29,61 @@ DECLARE_LOG_OBJECT()
 
 namespace pulsar {
 
-/*
- * @param lookupUrl service url to do lookup
- * Constructor
- */
-BinaryProtoLookupService::BinaryProtoLookupService(ConnectionPool& cnxPool, const std::string& lookupUrl)
-    : serviceUrl_(lookupUrl), cnxPool_(cnxPool) {}
+auto BinaryProtoLookupService::getBroker(const TopicName& topicName) -> LookupResultFuture {
+    return findBroker(serviceNameResolver_.resolveHost(), false, topicName.toString());
+}
 
-BinaryProtoLookupService::BinaryProtoLookupService(ConnectionPool& cnxPool, const std::string& lookupUrl,
-                                                   const std::string& listenerName)
-    : serviceUrl_(lookupUrl), listenerName_(listenerName), cnxPool_(cnxPool) {}
+auto BinaryProtoLookupService::findBroker(const std::string& address, bool authoritative,
+                                          const std::string& topic) -> LookupResultFuture {
+    LOG_DEBUG("find broker from " << address << ", authoritative: " << authoritative << ", topic: " << topic);
+    auto promise = std::make_shared<Promise<Result, LookupResult>>();
+    // NOTE: we can use move capture for topic since C++14
+    cnxPool_.getConnectionAsync(address).addListener([this, promise, topic, address](
+                                                         Result result,
+                                                         const ClientConnectionWeakPtr& weakCnx) {
+        if (result != ResultOk) {
+            promise->setFailed(result);
+            return;
+        }
+        auto cnx = weakCnx.lock();
+        if (!cnx) {
+            LOG_ERROR("Connection to " << address << " is expired before lookup");
+            promise->setFailed(ResultNotConnected);
+            return;
+        }
+        auto lookupPromise = std::make_shared<LookupDataResultPromise>();
+        cnx->newTopicLookup(topic, false, listenerName_, newRequestId(), lookupPromise);
+        lookupPromise->getFuture().addListener([this, cnx, promise, topic, address](
+                                                   Result result, const LookupDataResultPtr& data) {
+            if (result != ResultOk || !data) {
+                LOG_ERROR("Lookup failed for " << topic << ", result " << result);
+                promise->setFailed(result);
+                return;
+            }
 
-/*
- * @param topicName topic name to get broker for
- *
- * Looks up the owner broker for the given topic name
- */
-Future<Result, LookupDataResultPtr> BinaryProtoLookupService::lookupAsync(const std::string& topic) {
-    TopicNamePtr topicName = TopicName::get(topic);
-    if (!topicName) {
-        LOG_ERROR("Unable to parse topic - " << topic);
-        LookupDataResultPromisePtr promise = std::make_shared<LookupDataResultPromise>();
-        promise->setFailed(ResultInvalidTopicName);
-        return promise->getFuture();
-    }
-    std::string lookupName = topicName->toString();
-    LookupDataResultPromisePtr promise = std::make_shared<LookupDataResultPromise>();
-    Future<Result, ClientConnectionWeakPtr> future = cnxPool_.getConnectionAsync(serviceUrl_, serviceUrl_);
-    future.addListener(std::bind(&BinaryProtoLookupService::sendTopicLookupRequest, this, lookupName, false,
-                                 listenerName_, std::placeholders::_1, std::placeholders::_2, promise));
+            const auto responseBrokerAddress =
+                (serviceNameResolver_.useTls() ? data->getBrokerUrlTls() : data->getBrokerUrl());
+            if (data->isRedirect()) {
+                LOG_DEBUG("Lookup request is for " << topic << " redirected to " << responseBrokerAddress);
+                findBroker(responseBrokerAddress, data->isAuthoritative(), topic)
+                    .addListener([promise](Result result, const LookupResult& value) {
+                        if (result == ResultOk) {
+                            promise->setValue(value);
+                        } else {
+                            promise->setFailed(result);
+                        }
+                    });
+            } else {
+                LOG_DEBUG("Lookup response for " << topic << ", lookup-broker-url " << data->getBrokerUrl());
+                if (data->shouldProxyThroughServiceUrl()) {
+                    // logicalAddress is the proxy's address, we should still connect through proxy
+                    promise->setValue({responseBrokerAddress, address});
+                } else {
+                    promise->setValue({responseBrokerAddress, responseBrokerAddress});
+                }
+            }
+        });
+    });
     return promise->getFuture();
 }
 
@@ -73,53 +99,11 @@ Future<Result, LookupDataResultPtr> BinaryProtoLookupService::getPartitionMetada
         return promise->getFuture();
     }
     std::string lookupName = topicName->toString();
-    Future<Result, ClientConnectionWeakPtr> future = cnxPool_.getConnectionAsync(serviceUrl_, serviceUrl_);
-    future.addListener(std::bind(&BinaryProtoLookupService::sendPartitionMetadataLookupRequest, this,
-                                 lookupName, std::placeholders::_1, std::placeholders::_2, promise));
+    const auto address = serviceNameResolver_.resolveHost();
+    cnxPool_.getConnectionAsync(address, address)
+        .addListener(std::bind(&BinaryProtoLookupService::sendPartitionMetadataLookupRequest, this,
+                               lookupName, std::placeholders::_1, std::placeholders::_2, promise));
     return promise->getFuture();
-}
-
-void BinaryProtoLookupService::sendTopicLookupRequest(const std::string& topicName, bool authoritative,
-                                                      const std::string& listenerName, Result result,
-                                                      const ClientConnectionWeakPtr& clientCnx,
-                                                      LookupDataResultPromisePtr promise) {
-    if (result != ResultOk) {
-        promise->setFailed(ResultConnectError);
-        return;
-    }
-    LookupDataResultPromisePtr lookupPromise = std::make_shared<LookupDataResultPromise>();
-    ClientConnectionPtr conn = clientCnx.lock();
-    uint64_t requestId = newRequestId();
-    conn->newTopicLookup(topicName, authoritative, listenerName, requestId, lookupPromise);
-    lookupPromise->getFuture().addListener(std::bind(&BinaryProtoLookupService::handleLookup, this, topicName,
-                                                     std::placeholders::_1, std::placeholders::_2, clientCnx,
-                                                     promise));
-}
-
-void BinaryProtoLookupService::handleLookup(const std::string& topicName, Result result,
-                                            LookupDataResultPtr data,
-                                            const ClientConnectionWeakPtr& clientCnx,
-                                            LookupDataResultPromisePtr promise) {
-    if (data) {
-        if (data->isRedirect()) {
-            LOG_DEBUG("Lookup request is for " << topicName << " redirected to " << data->getBrokerUrl());
-
-            const std::string& logicalAddress = data->getBrokerUrl();
-            const std::string& physicalAddress =
-                data->shouldProxyThroughServiceUrl() ? serviceUrl_ : logicalAddress;
-            Future<Result, ClientConnectionWeakPtr> future =
-                cnxPool_.getConnectionAsync(logicalAddress, physicalAddress);
-            future.addListener(std::bind(&BinaryProtoLookupService::sendTopicLookupRequest, this, topicName,
-                                         data->isAuthoritative(), listenerName_, std::placeholders::_1,
-                                         std::placeholders::_2, promise));
-        } else {
-            LOG_DEBUG("Lookup response for " << topicName << ", lookup-broker-url " << data->getBrokerUrl());
-            promise->setValue(data);
-        }
-    } else {
-        LOG_DEBUG("Lookup failed for " << topicName << ", result " << result);
-        promise->setFailed(result);
-    }
 }
 
 void BinaryProtoLookupService::sendPartitionMetadataLookupRequest(const std::string& topicName, Result result,
@@ -166,9 +150,9 @@ Future<Result, NamespaceTopicsPtr> BinaryProtoLookupService::getTopicsOfNamespac
         return promise->getFuture();
     }
     std::string namespaceName = nsName->toString();
-    Future<Result, ClientConnectionWeakPtr> future = cnxPool_.getConnectionAsync(serviceUrl_, serviceUrl_);
-    future.addListener(std::bind(&BinaryProtoLookupService::sendGetTopicsOfNamespaceRequest, this,
-                                 namespaceName, std::placeholders::_1, std::placeholders::_2, promise));
+    cnxPool_.getConnectionAsync(serviceNameResolver_.resolveHost())
+        .addListener(std::bind(&BinaryProtoLookupService::sendGetTopicsOfNamespaceRequest, this,
+                               namespaceName, std::placeholders::_1, std::placeholders::_2, promise));
     return promise->getFuture();
 }
 

@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -37,6 +36,7 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.common.component.ComponentStarter;
@@ -240,8 +240,8 @@ public class PulsarBrokerStarter {
 
             // init bookie server
             if (starterArguments.runBookie) {
-                checkNotNull(bookieConfig, "No ServerConfiguration for Bookie");
-                checkNotNull(bookieStatsProvider, "No Stats Provider for Bookie");
+                Objects.requireNonNull(bookieConfig, "No ServerConfiguration for Bookie");
+                Objects.requireNonNull(bookieStatsProvider, "No Stats Provider for Bookie");
                 bookieServer = org.apache.bookkeeper.server.Main
                         .buildBookieServer(new BookieConfiguration(bookieConfig));
             } else {
@@ -250,7 +250,7 @@ public class PulsarBrokerStarter {
 
             // init bookie AutorecoveryMain
             if (starterArguments.runBookieAutoRecovery) {
-                checkNotNull(bookieConfig, "No ServerConfiguration for Bookie Autorecovery");
+                Objects.requireNonNull(bookieConfig, "No ServerConfiguration for Bookie Autorecovery");
                 autoRecoveryMain = new AutoRecoveryMain(bookieConfig);
             } else {
                 autoRecoveryMain = null;

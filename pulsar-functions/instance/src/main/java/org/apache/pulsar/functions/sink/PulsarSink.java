@@ -236,8 +236,9 @@ public class PulsarSink<T> implements Sink<T> {
         @Override
         public TypedMessageBuilder<T> newMessage(AbstractSinkRecord<T> record) {
             Schema<T> schemaToWrite = record.getSchema();
-            if (record.getSourceRecord() instanceof PulsarRecord) {
+            if (!record.shouldSetSchema()) {
                 // we are receiving data directly from another Pulsar topic
+                // and the Function return type is not a Record
                 // we must use the destination topic schema
                 schemaToWrite = schema;
             }
@@ -304,8 +305,9 @@ public class PulsarSink<T> implements Sink<T> {
                         "PartitionId needs to be specified for every record while in Effectively-once mode");
             }
             Schema<T> schemaToWrite = record.getSchema();
-            if (record.getSourceRecord() instanceof PulsarRecord) {
+            if (!record.shouldSetSchema()) {
                 // we are receiving data directly from another Pulsar topic
+                // and the Function return type is not a Record
                 // we must use the destination topic schema
                 schemaToWrite = schema;
             }

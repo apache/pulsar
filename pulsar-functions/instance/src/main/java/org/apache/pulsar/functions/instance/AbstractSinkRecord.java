@@ -40,6 +40,8 @@ public abstract class AbstractSinkRecord<T> implements Record<T> {
 
     public abstract boolean shouldAlwaysSetMessageProperties();
 
+    public abstract boolean shouldSetSchema();
+
     public Record<?> getSourceRecord() {
         return sourceRecord;
     }

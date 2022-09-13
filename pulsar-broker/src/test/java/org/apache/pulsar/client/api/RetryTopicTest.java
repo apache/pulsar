@@ -200,8 +200,6 @@ public class RetryTopicTest extends ProducerConsumerBase {
 
         assertEquals(deadLetterMessageIds, originMessageIds);
 
-        deadLetterConsumer.close();
-
         Consumer<byte[]> checkConsumer = this.pulsarClient.newConsumer(Schema.BYTES)
                 .topic(topic)
                 .subscriptionName("my-subscription")
@@ -220,17 +218,29 @@ public class RetryTopicTest extends ProducerConsumerBase {
 
         // check the custom properties
         producer.send(String.format("Hello Pulsar [%d]", 1).getBytes());
-        Message<byte[]> message = consumer.receive();
-        Map<String, String> customProperties = new HashMap<String, String>();
-        customProperties.put("custom_key", "custom_value");
-        consumer.reconsumeLater(message, customProperties, 1, TimeUnit.SECONDS);
-        message = consumer.receive();
+        for (int i = 0; i < maxRedeliveryCount + 1; i++) {
+            Map<String, String> customProperties = new HashMap<String, String>();
+            customProperties.put("custom_key", "custom_value" + i);
+            Message<byte[]> message = consumer.receive();
+            log.info("Received message: {}", new String(message.getValue()));
+            consumer.reconsumeLater(message, customProperties, 1, TimeUnit.SECONDS);
+            if (i > 0) {
+                String value = message.getProperty("custom_key");
+                assertEquals(value, "custom_value" + (i - 1));
+                assertEquals(message.getProperty(RetryMessageUtil.SYSTEM_PROPERTY_ORIGIN_MESSAGE_ID),
+                        message.getProperty(RetryMessageUtil.PROPERTY_ORIGIN_MESSAGE_ID));
+            }
+        }
+        assertNull(consumer.receive(3, TimeUnit.SECONDS));
+        Message<byte[]> message = deadLetterConsumer.receive();
         String value = message.getProperty("custom_key");
-        assertEquals(value, "custom_value");
+        assertEquals(value, "custom_value" + maxRedeliveryCount);
         assertEquals(message.getProperty(RetryMessageUtil.SYSTEM_PROPERTY_ORIGIN_MESSAGE_ID),
                 message.getProperty(RetryMessageUtil.PROPERTY_ORIGIN_MESSAGE_ID));
+
         producer.close();
         consumer.close();
+        deadLetterConsumer.close();
     }
 
     //Issue 9327: do compatibility check in case of the default retry and dead letter topic name changed

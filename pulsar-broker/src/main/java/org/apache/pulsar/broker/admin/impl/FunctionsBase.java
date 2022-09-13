@@ -41,6 +41,7 @@ import javax.ws.rs.core.StreamingOutput;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.FunctionDefinition;
 import org.apache.pulsar.common.functions.FunctionState;
 import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.io.ConnectorDefinition;
@@ -710,9 +711,12 @@ public class FunctionsBase extends AdminResource {
             @ApiParam(value = "The namespace of a Pulsar Function")
             final @PathParam("namespace") String namespace,
             @ApiParam(value = "The name of a Pulsar Function")
-            final @PathParam("functionName") String functionName) {
+            final @PathParam("functionName") String functionName,
+            @ApiParam(value = "Whether to download the transform-function")
+            final @QueryParam("transform-function") boolean transformFunction) {
 
-        return functions().downloadFunction(tenant, namespace, functionName, clientAppId(), clientAuthData());
+        return functions()
+                .downloadFunction(tenant, namespace, functionName, clientAppId(), clientAuthData(), transformFunction);
     }
 
     @GET
@@ -732,6 +736,37 @@ public class FunctionsBase extends AdminResource {
      */
     public List<ConnectorDefinition> getConnectorsList() throws IOException {
         return functions().getListOfConnectors();
+    }
+
+    @POST
+    @ApiOperation(
+            value = "Reload the built-in Functions"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "This operation requires super-user access"),
+            @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later."),
+            @ApiResponse(code = 500, message = "Internal server error")
+    })
+    @Path("/builtins/reload")
+    public void reloadBuiltinFunctions() throws IOException {
+        functions().reloadBuiltinFunctions(clientAppId(), clientAuthData());
+    }
+
+    @GET
+    @ApiOperation(
+            value = "Fetches the list of built-in Pulsar functions",
+            response = FunctionDefinition.class,
+            responseContainer = "List"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+            @ApiResponse(code = 400, message = "Invalid request"),
+            @ApiResponse(code = 408, message = "Request timeout")
+    })
+    @Path("/builtins")
+    @Produces(MediaType.APPLICATION_JSON)
+    public List<FunctionDefinition> getBuiltinFunction() {
+        return functions().getBuiltinFunctions(clientAppId(), clientAuthData());
     }
 
     @PUT

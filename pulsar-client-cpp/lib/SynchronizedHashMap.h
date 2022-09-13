@@ -70,6 +70,17 @@ class SynchronizedHashMap {
         data_.clear();
     }
 
+    // clear the map and apply `f` on each removed value
+    void clear(std::function<void(const K&, const V&)> f) {
+        Lock lock(mutex_);
+        auto it = data_.begin();
+        while (it != data_.end()) {
+            f(it->first, it->second);
+            auto next = data_.erase(it);
+            it = next;
+        }
+    }
+
     OptValue find(const K& key) const {
         Lock lock(mutex_);
         auto it = data_.find(key);

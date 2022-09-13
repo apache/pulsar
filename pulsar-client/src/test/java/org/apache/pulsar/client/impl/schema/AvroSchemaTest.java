@@ -45,8 +45,6 @@ import org.apache.avro.SchemaValidationException;
 import org.apache.avro.SchemaValidator;
 import org.apache.avro.SchemaValidatorBuilder;
 import org.apache.avro.data.TimeConversions;
-import org.apache.avro.io.BinaryEncoder;
-import org.apache.avro.io.BufferedBinaryEncoder;
 import org.apache.avro.reflect.AvroDefault;
 import org.apache.avro.reflect.Nullable;
 import org.apache.avro.reflect.ReflectData;
@@ -67,7 +65,6 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.joda.time.DateTime;
 import org.joda.time.chrono.ISOChronology;
 import org.json.JSONException;
-import org.powermock.reflect.Whitebox;
 import org.skyscreamer.jsonassert.JSONAssert;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -400,10 +397,9 @@ public class AvroSchemaTest {
         Assert.assertThrows( SchemaSerializationException.class, () -> avroWriter.write(badNasaMissionData));
 
         // Get the buffered data using powermock
-        BinaryEncoder encoder = Whitebox.getInternalState(avroWriter, "encoder");
 
         // Assert that the buffer position is reset to zero
-        Assert.assertEquals(((BufferedBinaryEncoder)encoder).bytesBuffered(), 0);
+        Assert.assertEquals(avroWriter.getEncoder().bytesBuffered(), 0);
     }
 
     @Test

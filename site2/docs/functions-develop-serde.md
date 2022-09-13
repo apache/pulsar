@@ -13,12 +13,10 @@ The following basic Java types are built-in and supported by default for Java fu
 To customize Java types, you need to implement the following interface.
 
 ```java
-
 public interface SerDe<T> {
     T deserialize(byte[] input);
     byte[] serialize(T input);
 }
-
 ```
 
 SerDe works in the following ways for Java functions.
@@ -31,7 +29,6 @@ SerDe works in the following ways for Java functions.
 For example, imagine that you're writing a function that processes tweet objects. You can refer to the following example of the `Tweet` class in Java.
 
 ```java
-
 public class Tweet {
     private String username;
     private String tweetContent;
@@ -43,13 +40,11 @@ public class Tweet {
 
     // Standard setters and getters
 }
-
 ```
 
 To pass `Tweet` objects directly between functions, you need to provide a custom SerDe class. In the example below, `Tweet` objects are basically strings, and username and tweet content are separated by `|`.
 
 ```java
-
 package com.example.serde;
 
 import org.apache.pulsar.functions.api.SerDe;
@@ -67,22 +62,19 @@ public class TweetSerde implements SerDe<Tweet> {
         return "%s|%s".format(input.getUsername(), input.getTweetContent()).getBytes();
     }
 }
-
 ```
 
 To apply a customized SerDe to a particular function, you need to:
 * Package the `Tweet` and `TweetSerde` classes into a JAR.
-* Specify a path to the JAR and SerDe class name when deploying the function.
+* Specify a path to the JAR and SerDe class names when deploying the function.
 
 The following is an example of using the `create` command to deploy a function by applying a customized SerDe.
 
 ```bash
-
  bin/pulsar-admin functions create \
   --jar /path/to/your.jar \
   --output-serde-classname com.example.serde.TweetSerde \
   # Other function attributes
-
 ```
 
 :::note
@@ -98,7 +90,6 @@ In Python, the default SerDe is an identity, meaning that the type is serialized
 For example, you can specify the SerDe as follows when deploying a function in [cluster mode](functions-deploy-cluster.md). 
 
 ```bash
-
 bin/pulsar-admin functions create \
   --tenant public \
   --namespace default \
@@ -108,14 +99,13 @@ bin/pulsar-admin functions create \
   --custom-serde-inputs '{"input-topic-1":"Serde1","input-topic-2":"Serde2"}' \
   --output-serde-classname Serde3 \
   --output output-topic-1
-
 ```
 
 This case contains two input topics: `input-topic-1` and `input-topic-2`, each of which is mapped to a different SerDe class (the mapping must be specified as a JSON string). The output topic `output-topic-1` uses the `Serde3` class for SerDe. 
 
 :::note
 
-All function related logic, including processing and SerDe classes, must be contained within a single Python file.
+All function-related logic, including processing and SerDe classes, must be contained within a single Python file.
 
 :::
 
@@ -130,12 +120,10 @@ The table outlines three SerDe options for Python functions.
 For example, imagine that you are writing a function that processes tweet objects. You can refer to the following example of the `Tweet` class in Python.
 
 ```python
-
 class Tweet(object):
     def __init__(self, username, tweet_content):
         self.username = username
         self.tweet_content = tweet_content
-
 ```
 
 To use this class in Pulsar Functions, you have two options:
@@ -143,7 +131,6 @@ To use this class in Pulsar Functions, you have two options:
 * Create your own SerDe class. The following is an example.
 
 ```python
-
 from pulsar import SerDe
 
 class TweetSerDe(SerDe):
@@ -154,7 +141,6 @@ class TweetSerDe(SerDe):
     def deserialize(self, input_bytes):
         tweet_components = str(input_bytes).split('|')
         return Tweet(tweet_components[0], tweet_componentsp[1])
-
 ```
 
 For more details, see [code example](https://github.com/apache/pulsar/blob/master/pulsar-functions/python-examples/custom_object_function.py).

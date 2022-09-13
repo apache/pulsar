@@ -157,13 +157,28 @@ public abstract class AdminResource extends PulsarWebResource {
         }
         List<CompletableFuture<Void>> futures = new ArrayList<>(numPartitions);
         for (int i = 0; i < numPartitions; i++) {
-            futures.add(tryCreatePartitionAsync(i, null));
+            futures.add(tryCreatePartitionAsync(i));
         }
         return FutureUtil.waitForAll(futures);
     }
 
-    private CompletableFuture<Void> tryCreatePartitionAsync(final int partition, CompletableFuture<Void> reuseFuture) {
-        CompletableFuture<Void> result = reuseFuture == null ? new CompletableFuture<>() : reuseFuture;
+    protected CompletableFuture<Void> tryCreateExtendedPartitionsAsync(int oldNumPartitions, int numPartitions) {
+        if (!topicName.isPersistent()) {
+            return CompletableFuture.completedFuture(null);
+        }
+        if (numPartitions <= oldNumPartitions) {
+            return CompletableFuture.failedFuture(new RestException(Status.NOT_ACCEPTABLE,
+                    "Number of new partitions must be greater than existing number of partitions"));
+        }
+        List<CompletableFuture<Void>> futures = new ArrayList<>(numPartitions - oldNumPartitions);
+        for (int i = oldNumPartitions; i < numPartitions; i++) {
+            futures.add(tryCreatePartitionAsync(i));
+        }
+        return FutureUtil.waitForAll(futures);
+    }
+
+    private CompletableFuture<Void> tryCreatePartitionAsync(final int partition) {
+        CompletableFuture<Void> result = new CompletableFuture<>();
         getPulsarResources().getTopicResources().createPersistentTopicAsync(topicName.getPartition(partition))
                 .thenAccept(r -> {
                     if (log.isDebugEnabled()) {
@@ -630,7 +645,7 @@ public abstract class AdminResource extends PulsarWebResource {
                 return;
             }
 
-            provisionPartitionedTopicPath(asyncResponse, numPartitions, createLocalTopicOnly, properties)
+            provisionPartitionedTopicPath(numPartitions, createLocalTopicOnly, properties)
                     .thenCompose(ignored -> tryCreatePartitionsAsync(numPartitions))
                     .whenComplete((ignored, ex) -> {
                         if (ex != null) {
@@ -708,7 +723,7 @@ public abstract class AdminResource extends PulsarWebResource {
                 });
     }
 
-    private CompletableFuture<Void> provisionPartitionedTopicPath(AsyncResponse asyncResponse, int numPartitions,
+    private CompletableFuture<Void> provisionPartitionedTopicPath(int numPartitions,
                                                                   boolean createLocalTopicOnly,
                                                                   Map<String, String> properties) {
         CompletableFuture<Void> future = new CompletableFuture<>();

@@ -8,7 +8,7 @@ You can use the Pulsar C# client (DotPulsar) to create Pulsar producers and cons
 
 ## Installation
 
-You can install the Pulsar C# client library either through the dotnet CLI or through the Visual Studio. This section describes how to install the Pulsar C# client library through the dotnet CLI. For information about how to install the Pulsar C# client library through the Visual Studio, see [here](https://docs.microsoft.com/en-us/visualstudio/mac/nuget-walkthrough?view=vsmac-2019).
+You can install the Pulsar C# client library either through the dotnet CLI or through Visual Studio. This section describes how to install the Pulsar C# client library through the dotnet CLI. For information about how to install the Pulsar C# client library through Visual Studio, see [here](https://docs.microsoft.com/en-us/visualstudio/mac/nuget-walkthrough?view=vsmac-2019).
 
 ### Prerequisites
 
@@ -16,7 +16,7 @@ Install the [.NET Core SDK](https://dotnet.microsoft.com/download/), which provi
 
 ### Procedures
 
-To install the Pulsar C# client library, following these steps:
+To install the Pulsar C# client library, follow these steps:
 
 1. Create a project.
 
@@ -27,9 +27,7 @@ To install the Pulsar C# client library, following these steps:
    3. Create the project using the following command.
 
        ```
-       
        dotnet new console
-       
        ```
 
    4. Use `dotnet run` to test that the app has been created properly.
@@ -39,20 +37,38 @@ To install the Pulsar C# client library, following these steps:
    1. Use the following command to install the `DotPulsar` package.
 
        ```
-       
        dotnet add package DotPulsar
-       
        ```
 
    2. After the command completes, open the `.csproj` file to see the added reference.
 
        ```xml
-       
        <ItemGroup>
          <PackageReference Include="DotPulsar" Version="2.0.1" />
        </ItemGroup>
-       
        ```
+
+## Connection URLs
+
+To connect to Pulsar using client libraries, you need to specify a [Pulsar protocol](developing-binary-protocol.md) URL.
+
+You can assign Pulsar protocol URLs to specific clusters and use the `pulsar` scheme. The following is an example of `localhost` with the default port `6650`:
+
+```http
+pulsar://localhost:6650
+```
+
+If you have multiple brokers, separate `IP:port` by commas:
+
+```http
+pulsar://localhost:6550,localhost:6651,localhost:6652
+```
+
+If you use [TLS](security-tls-authentication.md) authentication, add `+ssl` in the scheme:
+
+```http
+pulsar+ssl://pulsar.us-west.example.com:6651
+```
 
 ## Client
 
@@ -62,12 +78,10 @@ This section describes some configuration examples for the Pulsar C# client.
 
 This example shows how to create a Pulsar C# client connected to localhost.
 
-```c#
-
+```csharp
 using DotPulsar;
 
 var client = PulsarClient.Builder().Build();
-
 ```
 
 To create a Pulsar C# client by using the builder, you can specify the following options.
@@ -83,26 +97,22 @@ This section describes how to create a producer.
 
 - Create a producer by using the builder.
 
-  ```c#
-  
+  ```csharp
   using DotPulsar;
   using DotPulsar.Extensions;
 
   var producer = client.NewProducer()
                        .Topic("persistent://public/default/mytopic")
                        .Create();
-  
   ```
 
 - Create a producer without using the builder.
 
-  ```c#
-  
+  ```csharp
   using DotPulsar;
 
   var options = new ProducerOptions<byte[]>("persistent://public/default/mytopic", Schema.ByteArray);
   var producer = client.CreateProducer(options);
-  
   ```
 
 ### Create consumer
@@ -111,8 +121,7 @@ This section describes how to create a consumer.
 
 - Create a consumer by using the builder.
 
-  ```c#
-  
+  ```csharp
   using DotPulsar;
   using DotPulsar.Extensions;
 
@@ -120,18 +129,15 @@ This section describes how to create a consumer.
                        .SubscriptionName("MySubscription")
                        .Topic("persistent://public/default/mytopic")
                        .Create();
-  
   ```
 
 - Create a consumer without using the builder.
 
-  ```c#
-  
+  ```csharp
   using DotPulsar;
 
   var options = new ConsumerOptions<byte[]>("MySubscription", "persistent://public/default/mytopic", Schema.ByteArray);
   var consumer = client.CreateConsumer(options);
-  
   ```
 
 ### Create reader
@@ -140,8 +146,7 @@ This section describes how to create a reader.
 
 - Create a reader by using the builder.
 
-  ```c#
-  
+  ```csharp
   using DotPulsar;
   using DotPulsar.Extensions;
 
@@ -149,18 +154,15 @@ This section describes how to create a reader.
                      .StartMessageId(MessageId.Earliest)
                      .Topic("persistent://public/default/mytopic")
                      .Create();
-  
   ```
 
 - Create a reader without using the builder.
 
-  ```c#
-  
+  ```csharp
   using DotPulsar;
 
   var options = new ReaderOptions<byte[]>(MessageId.Earliest, "persistent://public/default/mytopic", Schema.ByteArray);
   var reader = client.CreateReader(options);
-  
   ```
 
 ### Configure encryption policies
@@ -174,14 +176,12 @@ The Pulsar C# client supports four kinds of encryption policies:
 
 This example shows how to set the `EnforceUnencrypted` encryption policy.
 
-```c#
-
+```csharp
 using DotPulsar;
 
 var client = PulsarClient.Builder()
                          .ConnectionSecurity(EncryptionPolicy.EnforceEncrypted)
                          .Build();
-
 ```
 
 ### Configure authentication
@@ -192,16 +192,13 @@ If you have followed [Authentication using TLS](security-tls-authentication.md),
 
 1. Create an unencrypted and password-less pfx file.
 
-   ```c#
-   
+   ```csharp
    openssl pkcs12 -export -keypbe NONE -certpbe NONE -out admin.pfx -inkey admin.key.pem -in admin.cert.pem -passout pass:
-   
    ```
 
 2. Use the admin.pfx file to create an X509Certificate2 and pass it to the Pulsar C# client.
 
-   ```c#
-   
+   ```csharp
    using System.Security.Cryptography.X509Certificates;
    using DotPulsar;
 
@@ -209,45 +206,38 @@ If you have followed [Authentication using TLS](security-tls-authentication.md),
    var client = PulsarClient.Builder()
                             .AuthenticateUsingClientCertificate(clientCertificate)
                             .Build();
-   
    ```
 
 ## Producer
 
-A producer is a process that attaches to a topic and publishes messages to a Pulsar broker for processing. This section describes some configuration examples about the producer.
+A producer is a process that attaches to a topic and publishes messages to a Pulsar broker for processing. This section describes some configuration examples of the producer.
 
 ## Send data
 
 This example shows how to send data.
 
-```c#
-
+```csharp
 var data = Encoding.UTF8.GetBytes("Hello World");
 await producer.Send(data);
-
 ```
 
 ### Send messages with customized metadata
 
 - Send messages with customized metadata by using the builder.
 
-  ```c#
-  
+  ```csharp
   var messageId = await producer.NewMessage()
                                 .Property("SomeKey", "SomeValue")
                                 .Send(data);
-  
   ```
 
 - Send messages with customized metadata without using the builder.
 
-  ```c#
-  
+  ```csharp
   var data = Encoding.UTF8.GetBytes("Hello World");
   var metadata = new MessageMetadata();
   metadata["SomeKey"] = "SomeValue";
   var messageId = await producer.Send(metadata, data));
-  
   ```
 
 ## Consumer
@@ -258,62 +248,54 @@ A consumer is a process that attaches to a topic through a subscription and then
 
 This example shows how a consumer receives messages from a topic.
 
-```c#
-
+```csharp
 await foreach (var message in consumer.Messages())
 {
     Console.WriteLine("Received: " + Encoding.UTF8.GetString(message.Data.ToArray()));
 }
-
 ```
 
 ### Acknowledge messages
 
-Messages can be acknowledged individually or cumulatively. For details about message acknowledgement, see [acknowledgement](concepts-messaging.md#acknowledgement).
+Messages can be acknowledged individually or cumulatively. For details about message acknowledgment, see [acknowledgment](concepts-messaging.md#acknowledgment).
 
 - Acknowledge messages individually.
 
-  ```c#
-  
+  ```csharp
   await consumer.Acknowledge(message);
-  
   ```
 
 - Acknowledge messages cumulatively.
 
-  ```c#
-  
+  ```csharp
   await consumer.AcknowledgeCumulative(message);
-  
   ```
 
 ### Unsubscribe from topics
 
 This example shows how a consumer unsubscribes from a topic.
 
-```c#
-
+```csharp
 await consumer.Unsubscribe();
-
 ```
 
-#### Note
+:::note
 
-> A consumer cannot be used and is disposed once the consumer unsubscribes from a topic.
+A consumer cannot be used and is disposed once the consumer unsubscribes from a topic.
+
+:::
 
 ## Reader
 
-A reader is actually just a consumer without a cursor. This means that Pulsar does not keep track of your progress and there is no need to acknowledge messages.
+A reader is just a consumer without a cursor. This means that Pulsar does not keep track of your progress and there is no need to acknowledge messages.
 
 This example shows how a reader receives messages.
 
-```c#
-
+```csharp
 await foreach (var message in reader.Messages())
 {
     Console.WriteLine("Received: " + Encoding.UTF8.GetString(message.Data.ToArray()));
 }
-
 ```
 
 ## Monitoring
@@ -334,8 +316,7 @@ The following table lists states available for the producer.
 
 This example shows how to monitor the producer state.
 
-```c#
-
+```csharp
 private static async ValueTask Monitor(IProducer producer, CancellationToken cancellationToken)
 {
     var state = ProducerState.Disconnected;
@@ -360,7 +341,6 @@ private static async ValueTask Monitor(IProducer producer, CancellationToken can
             return;
     }
 }
-
 ```
 
 ### Monitor consumer state
@@ -379,8 +359,7 @@ The following table lists states available for the consumer.
 
 This example shows how to monitor the consumer state.
 
-```c#
-
+```csharp
 private static async ValueTask Monitor(IConsumer consumer, CancellationToken cancellationToken)
 {
     var state = ConsumerState.Disconnected;
@@ -407,7 +386,6 @@ private static async ValueTask Monitor(IConsumer consumer, CancellationToken can
             return;
     }
 }
-
 ```
 
 ### Monitor reader state
@@ -422,10 +400,9 @@ The following table lists states available for the reader.
 | Faulted | An unrecoverable error has occurred. |
 | ReachedEndOfTopic | No more messages are delivered. |
 
-This example shows how to monitor the reader state.
+This example shows how to monitor the reader's state.
 
-```c#
-
+```csharp
 private static async ValueTask Monitor(IReader reader, CancellationToken cancellationToken)
 {
     var state = ReaderState.Disconnected;
@@ -450,6 +427,5 @@ private static async ValueTask Monitor(IReader reader, CancellationToken cancell
             return;
     }
 }
-
 ```
 

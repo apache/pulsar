@@ -290,13 +290,16 @@ public class Consumer {
             return writePromise;
         }
         int unackedMessages = totalMessages;
-        // Note
-        // Must ensure that the message is written to the pendingAcks before sent is first, because this consumer
-        // is possible to disconnect at this time.
-        if (pendingAcks != null) {
-            for (int i = 0; i < entries.size(); i++) {
-                Entry entry = entries.get(i);
-                if (entry != null) {
+        int totalEntries = 0;
+
+        for (int i = 0; i < entries.size(); i++) {
+            Entry entry = entries.get(i);
+            if (entry != null) {
+                totalEntries++;
+                // Note
+                // Must ensure that the message is written to the pendingAcks before sent is first,
+                // because this consumer is possible to disconnect at this time.
+                if (pendingAcks != null) {
                     int batchSize = batchSizes.getBatchSize(i);
                     int stickyKeyHash = getStickyKeyHash(entry);
                     long[] ackSet = getCursorAckSet(PositionImpl.get(entry.getLedgerId(), entry.getEntryId()));
@@ -317,10 +320,10 @@ public class Consumer {
         // calculate avg message per entry
         if (avgMessagesPerEntry.get() < 1) { //valid avgMessagesPerEntry should always >= 1
             // set init value.
-            avgMessagesPerEntry.set(1.0 * totalMessages / entries.size());
+            avgMessagesPerEntry.set(1.0 * totalMessages / totalEntries);
         } else {
             avgMessagesPerEntry.set(avgMessagesPerEntry.get() * avgPercent
-                    + (1 - avgPercent) * totalMessages / entries.size());
+                    + (1 - avgPercent) * totalMessages / totalEntries);
         }
 
         // reduce permit and increment unackedMsg count with total number of messages in batch-msgs
@@ -528,25 +531,28 @@ public class Consumer {
         LongAdder totalAckCount = new LongAdder();
         for (int i = 0; i < ack.getMessageIdsCount(); i++) {
             MessageIdData msgId = ack.getMessageIdAt(i);
-            PositionImpl position;
+            PositionImpl position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
+            // acked count at least one
             long ackedCount = 0;
-            long batchSize = getBatchSize(msgId);
+            long batchSize = 0;
+            if (msgId.hasBatchSize()) {
+                batchSize = msgId.getBatchSize();
+                // ack batch messages set ackeCount = batchSize
+                ackedCount = msgId.getBatchSize();
+                positionsAcked.add(new MutablePair<>(position, msgId.getBatchSize()));
+            } else {
+                // ack no batch message set ackedCount = 1
+                ackedCount = 1;
+                positionsAcked.add(new MutablePair<>(position, (int) batchSize));
+            }
             Consumer ackOwnerConsumer = getAckOwnerConsumer(msgId.getLedgerId(), msgId.getEntryId());
             if (msgId.getAckSetsCount() > 0) {
                 long[] ackSets = new long[msgId.getAckSetsCount()];
                 for (int j = 0; j < msgId.getAckSetsCount(); j++) {
                     ackSets[j] = msgId.getAckSetAt(j);
                 }
-                position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId(), ackSets);
+                position.setAckSet(ackSets);
                 ackedCount = getAckedCountForTransactionAck(batchSize, ackSets);
-            } else {
-                position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
-                ackedCount = batchSize;
-            }
-            if (msgId.hasBatchSize()) {
-                positionsAcked.add(new MutablePair<>(position, msgId.getBatchSize()));
-            } else {
-                positionsAcked.add(new MutablePair<>(position, (int) batchSize));
             }
 
             addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) ackedCount);

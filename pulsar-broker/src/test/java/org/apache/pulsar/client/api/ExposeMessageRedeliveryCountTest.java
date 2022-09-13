@@ -103,11 +103,10 @@ public class ExposeMessageRedeliveryCountTest extends ProducerConsumerBase {
 
         do {
             Message<byte[]> message = consumer.receive();
-            message.getProperties();
             final int redeliveryCount = message.getRedeliveryCount();
             if (redeliveryCount > 2) {
                 consumer.acknowledge(message);
-                Assert.assertEquals(3, redeliveryCount);
+                Assert.assertEquals(redeliveryCount, 3);
                 break;
             }
         } while (true);
@@ -165,14 +164,15 @@ public class ExposeMessageRedeliveryCountTest extends ProducerConsumerBase {
                 receivedMessagesForConsumer1.add(msg);
             } else {
                 break;
-            }        }
+            }
+        }
 
         Assert.assertEquals(receivedMessagesForConsumer0.size() + receivedMessagesForConsumer1.size(), messages);
 
         consumer0.close();
 
         for (int i = 0; i < receivedMessagesForConsumer0.size(); i++) {
-            Assert.assertEquals(consumer1.receive().getRedeliveryCount(), 1);
+            Assert.assertEquals(consumer1.receive().getRedeliveryCount(), 0);
         }
 
     }

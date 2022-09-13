@@ -18,11 +18,17 @@
 # under the License.
 #
 
-set -e
+set -ex
 
 ROOT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )"/../../.. &> /dev/null && pwd )"
+IMAGE_NAME=apachepulsar/pulsar-build:debian-9-2.11
 
-docker pull apachepulsar/pulsar-build:debian-9
+if [[ -z $BUILD_IMAGE ]]; then
+    # pull the image from DockerHub by default
+    docker pull $IMAGE_NAME
+else
+    docker build --platform linux/amd64 -t $IMAGE_NAME $ROOT_DIR/pulsar-client-cpp/pkg/deb
+fi
 
-docker run -i -v $ROOT_DIR:/pulsar apachepulsar/pulsar-build:debian-9 \
+docker run --platform linux/amd64 -v $ROOT_DIR:/pulsar $IMAGE_NAME \
         /pulsar/pulsar-client-cpp/pkg/deb/build-deb.sh

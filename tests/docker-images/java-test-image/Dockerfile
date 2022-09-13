@@ -38,10 +38,18 @@ ARG UBUNTU_MIRROR=mirror://mirrors.ubuntu.com/mirrors.txt
 RUN sed -i "s|http://archive\.ubuntu\.com/ubuntu/|${UBUNTU_MIRROR:-mirror://mirrors.ubuntu.com/mirrors.txt}|g" /etc/apt/sources.list \
      && apt-get update \
      && apt-get -y dist-upgrade \
-     && apt-get -y install openjdk-17-jdk-headless
+     && apt-get -y install wget apt-transport-https
 
-ENV JAVA_HOME /usr/lib/jvm/java-17-openjdk-amd64
-RUN echo networkaddress.cache.ttl=1 >> /usr/lib/jvm/java-17-openjdk-amd64/conf/security/java.security
+# Install Eclipse Temurin Package
+RUN mkdir -p /etc/apt/keyrings \
+     && wget -O - https://packages.adoptium.net/artifactory/api/gpg/key/public | tee /etc/apt/keyrings/adoptium.asc \
+     && echo "deb [signed-by=/etc/apt/keyrings/adoptium.asc] https://packages.adoptium.net/artifactory/deb $(awk -F= '/^VERSION_CODENAME/{print$2}' /etc/os-release) main" | tee /etc/apt/sources.list.d/adoptium.list \
+     && apt-get update \
+     && apt-get -y dist-upgrade \
+     && apt-get -y install temurin-17-jdk
+
+ENV JAVA_HOME /usr/lib/jvm/temurin-17-jdk-amd64
+RUN echo networkaddress.cache.ttl=1 >> /usr/lib/jvm/temurin-17-jdk-amd64/conf/security/java.security
 
 # /pulsar/bin/watch-znode.py requires python3-kazoo
 # /pulsar/bin/pulsar-managed-ledger-admin requires python3-protobuf

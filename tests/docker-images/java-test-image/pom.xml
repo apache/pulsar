@@ -33,6 +33,10 @@
   <profiles>
     <profile>
       <id>docker</id>
+      <properties>
+        <docker.buildArg.PULSAR_TARBALL>target/pulsar-server-distribution-bin.tar.gz</docker.buildArg.PULSAR_TARBALL>
+        <docker.buildArg.UBUNTU_MIRROR>${env.UBUNTU_MIRROR}</docker.buildArg.UBUNTU_MIRROR>
+      </properties>
       <activation>
         <property>
           <name>integrationTests</name>
@@ -135,9 +139,8 @@
             </executions>
           </plugin>
           <plugin>
-            <groupId>com.spotify</groupId>
-            <artifactId>dockerfile-maven-plugin</artifactId>
-            <version>${dockerfile-maven.version}</version>
+            <groupId>io.fabric8</groupId>
+            <artifactId>docker-maven-plugin</artifactId>
             <executions>
               <execution>
                 <id>default</id>
@@ -145,29 +148,23 @@
                 <goals>
                   <goal>build</goal>
                 </goals>
-              </execution>
-              <execution>
-                <id>add-latest-tag</id>
-                <phase>package</phase>
-                <goals>
-                  <goal>tag</goal>
-                </goals>
                 <configuration>
-                  <repository>${docker.organization}/java-test-image</repository>
-                  <tag>latest</tag>
+                  <images>
+                    <image>
+                      <name>${docker.organization}/java-test-image</name>
+                      <build>
+                        <contextDir>${project.basedir}</contextDir>
+                        <tags>
+                          <tag>latest</tag>
+                          <tag>${project.version}</tag>
+                        </tags>
+                        <noCache>true</noCache>
+                      </build>
+                    </image>
+                  </images>
                 </configuration>
               </execution>
             </executions>
-            <configuration>
-              <repository>${docker.organization}/java-test-image</repository>
-              <tag>${project.version}</tag>
-              <pullNewerImage>false</pullNewerImage>
-              <noCache>true</noCache>
-              <buildArgs>
-                <PULSAR_TARBALL>target/pulsar-server-distribution-bin.tar.gz</PULSAR_TARBALL>
-                <UBUNTU_MIRROR>${env.UBUNTU_MIRROR}</UBUNTU_MIRROR>
-              </buildArgs>
-            </configuration>
           </plugin>
         </plugins>
       </build>

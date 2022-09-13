@@ -37,8 +37,11 @@ cd BUILD
 tar xfz $SRC_ROOT_DIR/target/apache-pulsar-$POM_VERSION-src.tar.gz
 pushd $CPP_DIR
 
+# link libraries for protoc
+export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
+
 chmod +x $(find . -name "*.sh")
-cmake . -DBUILD_TESTS=OFF -DLINK_STATIC=ON
+cmake . -DBUILD_TESTS=OFF -DBUILD_PYTHON_WRAPPER=OFF -DBUILD_PERF_TOOLS=OFF -DLINK_STATIC=ON
 make pulsarShared pulsarSharedNossl pulsarStatic pulsarStaticWithDeps  -j 3
 popd
 
