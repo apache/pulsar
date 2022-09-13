@@ -21,6 +21,8 @@ package org.apache.pulsar.broker.systopic;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -48,12 +50,12 @@ public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase<Pulsar
         return client.newProducer(Schema.AVRO(PulsarEvent.class))
                 .topic(topicName.toString())
                 .enableBatching(false)
-                .createAsync().thenCompose(producer -> {
+                .createAsync()
+                .thenApply(producer -> {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] A new writer is created", topicName);
                     }
-                    return CompletableFuture.completedFuture(new TopicPolicyWriter(producer,
-                            TopicPoliciesSystemTopicClient.this));
+                    return new TopicPolicyWriter(producer, TopicPoliciesSystemTopicClient.this);
                 });
     }
 
@@ -62,13 +64,13 @@ public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase<Pulsar
         return client.newReader(Schema.AVRO(PulsarEvent.class))
                 .topic(topicName.toString())
                 .startMessageId(MessageId.earliest)
-                .readCompacted(true).createAsync()
-                .thenCompose(reader -> {
+                .readCompacted(true)
+                .createAsync()
+                .thenApply(reader -> {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] A new reader is created", topicName);
                     }
-                    return CompletableFuture.completedFuture(new TopicPolicyReader(reader,
-                            TopicPoliciesSystemTopicClient.this));
+                    return new TopicPolicyReader(reader, TopicPoliciesSystemTopicClient.this);
                 });
     }
 
@@ -121,15 +123,23 @@ public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase<Pulsar
 
         @Override
         public void close() throws IOException {
-            this.producer.close();
-            systemTopicClient.getWriters().remove(TopicPolicyWriter.this);
+            try {
+                closeAsync().get();
+            } catch (ExecutionException e) {
+                if (e.getCause() instanceof IOException) {
+                    throw (IOException) e.getCause();
+                } else {
+                    throw new PulsarServerException(e.getCause());
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
         }
 
         @Override
         public CompletableFuture<Void> closeAsync() {
-            return producer.closeAsync().thenCompose(v -> {
+            return producer.closeAsync().whenComplete((r, ex) -> {
                 systemTopicClient.getWriters().remove(TopicPolicyWriter.this);
-                return CompletableFuture.completedFuture(null);
             });
         }
 
@@ -184,15 +194,23 @@ public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase<Pulsar
 
         @Override
         public void close() throws IOException {
-            this.reader.close();
-            systemTopic.getReaders().remove(TopicPolicyReader.this);
+            try {
+                closeAsync().get();
+            } catch (ExecutionException e) {
+                if (e.getCause() instanceof IOException) {
+                    throw (IOException) e.getCause();
+                } else {
+                    throw new PulsarServerException(e.getCause());
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
         }
 
         @Override
         public CompletableFuture<Void> closeAsync() {
-            return reader.closeAsync().thenCompose(v -> {
+            return reader.closeAsync().whenComplete((r, ex) -> {
                 systemTopic.getReaders().remove(TopicPolicyReader.this);
-                return CompletableFuture.completedFuture(null);
             });
         }
 
