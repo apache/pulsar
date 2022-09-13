@@ -36,7 +36,6 @@ import java.lang.reflect.Field;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -107,7 +106,7 @@ import org.testng.annotations.Test;
 
 @Slf4j
 @Test(groups = "broker")
-public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
+public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
     private MockedPulsarService mockPulsarSetup;
 
@@ -1027,9 +1026,11 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         parameters1.put("min_limit", "1");
         parameters1.put("usage_threshold", "100");
 
+        final List<String> primaryList = new ArrayList<>();
+        primaryList.add(brokerName + ".*");
         NamespaceIsolationData nsPolicyData1 = NamespaceIsolationData.builder()
                 .namespaces(Collections.singletonList(ns1Name))
-                .primary(Collections.singletonList(brokerName + ".*"))
+                .primary(primaryList)
                 .autoFailoverPolicy(AutoFailoverPolicyData.builder()
                         .policyType(AutoFailoverPolicyType.min_available)
                         .parameters(parameters1)
@@ -1252,7 +1253,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         assertEquals(topicStats.getSubscriptions().get(subName).getMsgBacklog(), 10);
 
         topicStats = admin.topics().getStats(topic, true, true);
-        assertEquals(topicStats.getSubscriptions().get(subName).getBacklogSize(), 43);
+        assertEquals(topicStats.getSubscriptions().get(subName).getBacklogSize(), 40);
         assertEquals(topicStats.getSubscriptions().get(subName).getMsgBacklog(), 1);
         consumer.acknowledge(message);
 
@@ -1500,7 +1501,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
         topicStats = admin.topics().getPartitionedStats(topic, false, true, true);
         assertEquals(topicStats.getSubscriptions().get(subName).getMsgBacklog(), 1);
-        assertEquals(topicStats.getSubscriptions().get(subName).getBacklogSize(), 43);
+        assertEquals(topicStats.getSubscriptions().get(subName).getBacklogSize(), 40);
     }
 
     @Test(timeOut = 30000)
@@ -1539,7 +1540,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
         TopicStats topicStats = admin.topics().getPartitionedStats(topic, false, true, true);
         assertEquals(topicStats.getSubscriptions().get(subName).getMsgBacklog(), 10);
-        assertEquals(topicStats.getSubscriptions().get(subName).getBacklogSize(), 470);
+        assertEquals(topicStats.getSubscriptions().get(subName).getBacklogSize(), 440);
         assertEquals(topicStats.getSubscriptions().get(subName).getMsgBacklogNoDelayed(), 5);
 
         for (int i = 0; i < 5; i++) {
@@ -1549,7 +1550,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         Awaitility.await().untilAsserted(() -> {
             TopicStats topicStats2 = admin.topics().getPartitionedStats(topic, false, true, true);
             assertEquals(topicStats2.getSubscriptions().get(subName).getMsgBacklog(), 5);
-            assertEquals(topicStats2.getSubscriptions().get(subName).getBacklogSize(), 238);
+            assertEquals(topicStats2.getSubscriptions().get(subName).getBacklogSize(), 223);
             assertEquals(topicStats2.getSubscriptions().get(subName).getMsgBacklogNoDelayed(), 0);
         });
 
@@ -1612,60 +1613,6 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
             admin.schemas().getSchemaInfo(topic);
         } catch (PulsarAdminException e) {
             assertEquals(e.getStatusCode(), 404);
-        }
-    }
-
-    @Test
-    public void testDistinguishTopicTypeWhenForceDeleteNamespace() throws Exception {
-        conf.setForceDeleteNamespaceAllowed(true);
-        final String ns = "prop-xyz/distinguish-topic-type-ns";
-        final String exNs = "prop-xyz/ex-distinguish-topic-type-ns";
-        admin.namespaces().createNamespace(ns, 2);
-        admin.namespaces().createNamespace(exNs, 2);
-
-        final String p1 = "persistent://" + ns + "/p1";
-        final String p5 = "persistent://" + ns + "/p5";
-        final String np = "persistent://" + ns + "/np";
-
-        admin.topics().createPartitionedTopic(p1, 1);
-        admin.topics().createPartitionedTopic(p5, 5);
-        admin.topics().createNonPartitionedTopic(np);
-
-        final String exNp = "persistent://" + exNs + "/np";
-        admin.topics().createNonPartitionedTopic(exNp);
-        // insert an invalid topic name
-        pulsar.getLocalMetadataStore().put(
-                "/managed-ledgers/" + exNs + "/persistent/", "".getBytes(), Optional.empty()).join();
-
-        List<String> topics = pulsar.getNamespaceService().getFullListOfTopics(NamespaceName.get(ns)).get();
-        List<String> exTopics = pulsar.getNamespaceService().getFullListOfTopics(NamespaceName.get(exNs)).get();
-
-        // ensure that the topic list contains all the topics
-        List<String> allTopics = new ArrayList<>(Arrays.asList(np, TopicName.get(p1).getPartition(0).toString()));
-        for (int i = 0; i < 5; i++) {
-            allTopics.add(TopicName.get(p5).getPartition(i).toString());
-        }
-        Assert.assertEquals(allTopics.stream().filter(t -> !topics.contains(t)).count(), 0);
-        Assert.assertTrue(exTopics.contains("persistent://" + exNs + "/"));
-        // partition num = p1 + p5 + np
-        Assert.assertEquals(topics.size(), 1 + 5 + 1);
-        Assert.assertEquals(exTopics.size(), 1 + 1);
-
-        admin.namespaces().deleteNamespace(ns, true);
-        Arrays.asList(p1, p5, np).forEach(t -> {
-            try {
-                admin.schemas().getSchemaInfo(t);
-            } catch (PulsarAdminException e) {
-                // all the normal topics' schemas have been deleted
-                Assert.assertEquals(e.getStatusCode(), 404);
-            }
-        });
-
-        try {
-            admin.namespaces().deleteNamespace(exNs, true);
-            fail("Should fail due to invalid topic");
-        } catch (Exception e) {
-            //ok
         }
     }
 
@@ -1760,11 +1707,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         for (int i = 0; i < 5; ++i) {
             admin.topics().createPartitionedTopic(topic + i, 1);
         }
-        admin.topics().createPartitionedTopic("persistent://testTenant/ns1/__change_events", 2);
-        admin.topics().createPartitionedTopic("persistent://testTenant/ns1/__transaction_buffer_snapshot", 2);
-        admin.topics().createPartitionedTopic(
-                "persistent://testTenant/ns1/__transaction_buffer_snapshot-multiTopicsReader"
-                        + "-05c0ded5e9__transaction_pending_ack", 2);
+        admin.topics().createPartitionedTopic("persistent://testTenant/ns1/__change_events", 6);
 
 
         // check first create system topics, then normal topic, unlimited even setMaxTopicsPerNamespace
@@ -1774,11 +1717,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
         admin.tenants().createTenant("testTenant", tenantInfo);
         admin.namespaces().createNamespace("testTenant/ns1", Sets.newHashSet("test"));
-        admin.topics().createPartitionedTopic("persistent://testTenant/ns1/__change_events", 2);
-        admin.topics().createPartitionedTopic("persistent://testTenant/ns1/__transaction_buffer_snapshot", 2);
-        admin.topics().createPartitionedTopic(
-                "persistent://testTenant/ns1/__transaction_buffer_snapshot-multiTopicsReader"
-                        + "-05c0ded5e9__transaction_pending_ack", 2);
+        admin.topics().createPartitionedTopic("persistent://testTenant/ns1/__change_events", 6);
         for (int i = 0; i < 5; ++i) {
             admin.topics().createPartitionedTopic(topic + i, 1);
         }
@@ -1949,6 +1888,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
     @Test(timeOut = 30000)
     public void testMaxSubPerTopic() throws Exception {
+        pulsar.getConfiguration().setMaxSubscriptionsPerTopic(0);
         final String myNamespace = "prop-xyz/ns" + UUID.randomUUID();
         admin.namespaces().createNamespace(myNamespace, Sets.newHashSet("test"));
         final String topic = "persistent://" + myNamespace + "/testMaxSubPerTopic";
