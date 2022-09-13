@@ -599,16 +599,15 @@ All the web service executor metrics are labelled with the following labels:
 
 ### Metadata store metrics
 
-All the offload metrics are labelled with the following labels:
+All the metadata store metrics are labelled with the following labels:
 
 - *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you configured in `broker.conf`.
 - *name*: `name=${metadata-store-x}`. `${name}` is the metadata store name.
 
-| Name                                   | Type      | Description                                                                    |
-|----------------------------------------|-----------|--------------------------------------------------------------------------------|
-| pulsar_metadata_store_ops_latency      | Histogram | The latency of getting/deleting/putting data from/to metadata store.           |
-| pulsar_metadata_store_ops_failed_total | Counter   | The number of failed operations to get/delete/put data from/to metadata store. |
-| pulsar_metadata_store_put_bytes_total  | Counter   | The number of data put to metadata store.                                      |
+| Name                                   | Type      | Description                                                                                  |
+|----------------------------------------|-----------|----------------------------------------------------------------------------------------------|
+| pulsar_metadata_store_ops_latency      | Histogram | The latency of getting/deleting/putting data fail/success operations from/to metadata store. |
+| pulsar_metadata_store_put_bytes_total  | Counter   | The number of data put to metadata store.                                                    |
 
 
 ## Pulsar Functions
