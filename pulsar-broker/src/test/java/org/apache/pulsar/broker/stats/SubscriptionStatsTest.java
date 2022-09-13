@@ -245,6 +245,7 @@ public class SubscriptionStatsTest extends ProducerConsumerBase {
                 Assert.assertEquals(filterAccepted, 100);
                 if (isPersistent) {
                     Assert.assertEquals(filterRejected, 100);
+                    // Only works on the test, if there are some markers, the filterProcessCount will be not equal with rejectedCount + rescheduledCount + acceptCount
                     Assert.assertEquals(throughFilter, filterAccepted + filterRejected + filterRescheduled, 0.01 * throughFilter);
                 }
             } else {
@@ -273,6 +274,7 @@ public class SubscriptionStatsTest extends ProducerConsumerBase {
             Assert.assertEquals(stats.getFilterAcceptedMsgCount(), 100);
             if (persistent) {
                 Assert.assertEquals(stats.getFilterRejectedMsgCount(), 100);
+                // Only works on the test, if there are some markers, the filterProcessCount will be not equal with rejectedCount + rescheduledCount + acceptCount
                 Assert.assertEquals(stats.getFilterProcessedMsgCount(),
                         stats.getFilterAcceptedMsgCount() + stats.getFilterRejectedMsgCount()
                                 + stats.getFilterRescheduledMsgCount(),
