@@ -180,3 +180,107 @@ var client = PulsarClient.Builder()
                          .Build();
 ```
 
+## Configure TLS authentication with KeyStore 
+
+Apache Pulsar supports [TLS encryption](security-tls-transport.md) and [TLS authentication](security-tls-authentication.md) between clients and Apache Pulsar service. By default, it uses PEM format file configuration. This section tries to describe how to use [KeyStore](https://en.wikipedia.org/wiki/Java_KeyStore) type to configure TLS.
+
+### broker authentication config
+
+`broker.conf`
+
+```properties
+# Configuration to enable authentication
+authenticationEnabled=true
+authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderTls
+
+# Enable KeyStore type
+tlsEnabledWithKeyStore=true
+tlsRequireTrustedClientCertOnConnect=true
+
+# key store
+tlsKeyStoreType=JKS
+tlsKeyStore=/var/private/tls/broker.keystore.jks
+tlsKeyStorePassword=brokerpw
+
+# trust store
+tlsTrustStoreType=JKS
+tlsTrustStore=/var/private/tls/broker.truststore.jks
+tlsTrustStorePassword=brokerpw
+
+# internal client/admin-client config
+brokerClientTlsEnabled=true
+brokerClientTlsEnabledWithKeyStore=true
+brokerClientTlsTrustStoreType=JKS
+brokerClientTlsTrustStore=/var/private/tls/client.truststore.jks
+brokerClientTlsTrustStorePassword=clientpw
+# internal auth config
+brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.AuthenticationKeyStoreTls
+brokerClientAuthenticationParameters={"keyStoreType":"JKS","keyStorePath":"/var/private/tls/client.keystore.jks","keyStorePassword":"clientpw"}
+```
+
+### client authentication configuring
+
+Besides the TLS encryption configuring. The main work is configuring the KeyStore, which contains a valid CN as client role, for client.
+
+For example:
+1. for [Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](reference-cli-tools#pulsar-admin), [`pulsar-perf`](reference-cli-tools#pulsar-perf), and [`pulsar-client`](reference-cli-tools#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
+
+   ```properties
+   webServiceUrl=https://broker.example.com:8443/
+   brokerServiceUrl=pulsar+ssl://broker.example.com:6651/
+   useKeyStoreTls=true
+   tlsTrustStoreType=JKS
+   tlsTrustStorePath=/var/private/tls/client.truststore.jks
+   tlsTrustStorePassword=clientpw
+   authPlugin=org.apache.pulsar.client.impl.auth.AuthenticationKeyStoreTls
+   authParams={"keyStoreType":"JKS","keyStorePath":"/var/private/tls/client.keystore.jks","keyStorePassword":"clientpw"}
+   ```
+
+1. for Java client
+
+   ```java
+   import org.apache.pulsar.client.api.PulsarClient;
+
+   PulsarClient client = PulsarClient.builder()
+       .serviceUrl("pulsar+ssl://broker.example.com:6651/")
+       .useKeyStoreTls(true)
+       .tlsTrustStorePath("/var/private/tls/client.truststore.jks")
+       .tlsTrustStorePassword("clientpw")
+       .allowTlsInsecureConnection(false)
+       .enableTlsHostnameVerification(false)
+       .authentication(
+               "org.apache.pulsar.client.impl.auth.AuthenticationKeyStoreTls",
+               "keyStoreType:JKS,keyStorePath:/var/private/tls/client.keystore.jks,keyStorePassword:clientpw")
+       .build();
+   ```
+
+1. for Java admin client
+
+   ```java
+       PulsarAdmin amdin = PulsarAdmin.builder().serviceHttpUrl("https://broker.example.com:8443")
+           .useKeyStoreTls(true)
+           .tlsTrustStorePath("/var/private/tls/client.truststore.jks")
+           .tlsTrustStorePassword("clientpw")
+           .allowTlsInsecureConnection(false)
+           .enableTlsHostnameVerification(false)
+           .authentication(
+                  "org.apache.pulsar.client.impl.auth.AuthenticationKeyStoreTls",
+                  "keyStoreType:JKS,keyStorePath:/var/private/tls/client.keystore.jks,keyStorePassword:clientpw")
+           .build();
+   ```
+
+:::note
+
+Configure `tlsTrustStorePath` when you set `useKeyStoreTls` to `true`.
+
+:::
+
+## Enabling TLS Logging
+
+You can enable TLS debug logging at the JVM level by starting the brokers and/or clients with `javax.net.debug` system property. For example:
+
+```shell
+-Djavax.net.debug=all
+```
+
+You can find more details on this in [Oracle documentation](http://docs.oracle.com/javase/8/docs/technotes/guides/security/jsse/ReadDebug.html) on [debugging SSL/TLS connections](http://docs.oracle.com/javase/8/docs/technotes/guides/security/jsse/ReadDebug.html).
