@@ -247,7 +247,8 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                 }
                 throw new IllegalStateException("policies are in readonly mode");
             }
-            String topicUri = topicName.toString();
+            // Enhancement: only grant permission on based topic
+            String topicUri = topicName.getPartitionedTopicName();
             return pulsarResources.getNamespaceResources()
                     .setPoliciesAsync(topicName.getNamespaceObject(), policies -> {
                         policies.auth_policies.getTopicAuthentication()
