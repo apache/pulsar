@@ -28,7 +28,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.util.CmdGenerateDocs;
-import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -101,11 +100,8 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
                 }
             }
         }
-
-        final String metadataStoreUrl =
-                ZKMetadataStore.ZK_SCHEME_IDENTIFIER + zkServers + ":" + this.getZkPort();
-        config.setMetadataStoreUrl(metadataStoreUrl);
-        config.setConfigurationMetadataStoreUrl(metadataStoreUrl);
+        config.setZookeeperServers(zkServers + ":" + this.getZkPort());
+        config.setConfigurationStoreServers(zkServers + ":" + this.getZkPort());
 
         config.setRunningStandalone(true);
 
