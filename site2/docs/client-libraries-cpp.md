@@ -114,34 +114,14 @@ cd pulsar-client-cpp
 <TabItem value="Linux">
 
 ```bash
-apt install cmake libssl-dev libcurl4-openssl-dev libprotobuf-dev protobuf-compiler libboost-all-dev google-mock libgtest-dev
-
-# libgtest-dev version is 1.18.0 or above
-pushd /usr/src/googletest
-sudo cmake .
-sudo make
-sudo cp ./googlemock/libgmock.a ./googlemock/gtest/libgtest.a /usr/lib/
-popd
-
-## libgtest-dev less than 1.18.0
-# pushd /usr/src/gtest
-# sudo cmake .
-# sudo make
-# sudo cp libgtest.a /usr/lib
-# popd
-
-pushd /usr/src/gmock
-sudo cmake .
-sudo make
-sudo cp libgmock.a /usr/lib
-popd
+apt install cmake libssl-dev libcurl4-openssl-dev libprotobuf-dev protobuf-compiler libboost-all-dev
 ```
 
 </TabItem>
 <TabItem value="macOS">
 
 ```bash
-brew install protobuf boost boost-python3 googletest cmake openssl
+brew install protobuf boost boost-python3 cmake openssl
 
 # force linking openssl if still cannot find openssl after installing
 brew link --force openssl
@@ -163,7 +143,7 @@ vcpkg install --feature-flags=manifests --triplet x64-windows
 <TabItem value="Linux">
 
 ```bash
-cmake .
+cmake -DBUILD_TESTS=OFF . 
 make
 ```
 
@@ -171,7 +151,7 @@ make
 <TabItem value="macOS">
 
 ```bash
-cmake .
+cmake -DBUILD_TESTS=OFF .
 make
 ```
 
