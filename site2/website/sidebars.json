@@ -61,7 +61,7 @@
           "items": [
             "functions-worker-corun",
             "functions-worker-run-separately",
-            "functions-worker-tmp-file-path",
+            "functions-worker-temp-file-path",
             "functions-worker-stateful",
             "functions-worker-for-geo-replication",
             "functions-worker-troubleshooting"
