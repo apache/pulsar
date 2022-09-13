@@ -76,7 +76,9 @@ RUN curl -O -L https://github.com/openssl/openssl/archive/OpenSSL_1_1_1n.tar.gz 
     cd openssl-OpenSSL_1_1_1n/ && \
     ./Configure -fPIC --prefix=/usr/local/ssl/ linux-x86_64 && \
     make -j8 && make install && \
-    rm -rf /OpenSSL_1_1_1n.tar.gz /openssl-OpenSSL_1_1_1n
+    rm -rf /OpenSSL_1_1_1n.tar.gz /openssl-OpenSSL_1_1_1n && \
+    echo /usr/local/ssl/lib >> /etc/ld.so.conf.d/ssl.conf && \
+    ldconfig -v
 
 # LibCurl
 RUN curl -O -L  https://github.com/curl/curl/releases/download/curl-7_61_0/curl-7.61.0.tar.gz && \
