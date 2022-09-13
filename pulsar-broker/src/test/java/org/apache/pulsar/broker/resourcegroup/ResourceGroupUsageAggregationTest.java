@@ -80,7 +80,7 @@ public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Test(invocationCount = 2)
+    @Test
     public void testProduceConsumeUsageOnRG() throws Exception {
         testProduceConsumeUsageOnRG(PRODUCE_CONSUME_PERSISTENT_TOPIC);
         testProduceConsumeUsageOnRG(PRODUCE_CONSUME_NON_PERSISTENT_TOPIC);
