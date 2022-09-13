@@ -72,6 +72,7 @@ public class PulsarRegistrationClient implements RegistrationClient {
 
     @Override
     public void close() {
+        executor.shutdownNow();
     }
 
     @Override
