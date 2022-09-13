@@ -260,22 +260,31 @@ public class SubscriptionStatsTest extends ProducerConsumerBase {
             Assert.assertEquals(rescheduledMetrics.size(), 0);
         }
 
-        testSubscriptionStatsAdminApi(topic, subName);
+        testSubscriptionStatsAdminApi(topic, subName, setFilter);
     }
 
-    private void testSubscriptionStatsAdminApi(String topic, String subName) throws Exception {
+    private void testSubscriptionStatsAdminApi(String topic, String subName, boolean setFilter) throws Exception {
         boolean persistent = TopicName.get(topic).isPersistent();
         TopicStats topicStats = admin.topics().getStats(topic);
         SubscriptionStats stats = topicStats.getSubscriptions().get(subName);
         Assert.assertNotNull(stats);
 
-        Assert.assertEquals(stats.getFilterAcceptedMsgCount(), 100);
-        if (persistent) {
-            Assert.assertEquals(stats.getFilterRejectedMsgCount(), 100);
-            Assert.assertEquals(stats.getFilterProcessedMsgCount(),
-                    stats.getFilterAcceptedMsgCount() + stats.getFilterRejectedMsgCount()
-                            + stats.getFilterRescheduledMsgCount(),
-                    0.01 * stats.getFilterProcessedMsgCount());
+        if (setFilter) {
+            Assert.assertEquals(stats.getFilterAcceptedMsgCount(), 100);
+            if (persistent) {
+                Assert.assertEquals(stats.getFilterRejectedMsgCount(), 100);
+                Assert.assertEquals(stats.getFilterProcessedMsgCount(),
+                        stats.getFilterAcceptedMsgCount() + stats.getFilterRejectedMsgCount()
+                                + stats.getFilterRescheduledMsgCount(),
+                        0.01 * stats.getFilterProcessedMsgCount());
+            }
+        } else {
+            Assert.assertEquals(stats.getFilterAcceptedMsgCount(), 0L);
+            if (persistent) {
+                Assert.assertEquals(stats.getFilterRejectedMsgCount(), 0L);
+                Assert.assertEquals(stats.getFilterAcceptedMsgCount(), 0L);
+                Assert.assertEquals(stats.getFilterRescheduledMsgCount(), 0L);
+            }
         }
     }
 }
