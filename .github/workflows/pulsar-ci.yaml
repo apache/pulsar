@@ -483,7 +483,7 @@ jobs:
         run: |
           if [[ ! ( ( \
                 "${{needs.changed_files_job.outputs.cpp_only}}" == "false" \
-                && "${{ needs.integration-tests.result }}" == "success"
+                && "${{ needs.integration-tests.result }}" == "success" \
                ) || ( \
                 "${{needs.changed_files_job.outputs.cpp_only}}" == "true" \
                ) ) ]]; then
