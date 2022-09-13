@@ -1219,7 +1219,7 @@ public class NamespaceService implements AutoCloseable {
 
     public CompletableFuture<List<String>> getListOfNonPersistentTopics(NamespaceName namespaceName) {
 
-        return PulsarWebResource.checkLocalOrGetPeerReplicationCluster(pulsar, namespaceName, true)
+        return PulsarWebResource.checkLocalOrGetPeerReplicationCluster(pulsar, namespaceName)
                 .thenCompose(peerClusterData -> {
                     // if peer-cluster-data is present it means namespace is owned by that peer-cluster and request
                     // should be redirect to the peer-cluster
