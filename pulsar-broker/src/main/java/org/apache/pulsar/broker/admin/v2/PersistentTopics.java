@@ -1616,9 +1616,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     ) {
         try {
             String subscriptionName = decode(encodedSubName);
-            if (StringUtil.invisibleCharacters(subscriptionName)) {
-                throw new RestException(Response.Status.BAD_REQUEST, "subscriptionName contains invisible characters!");
-            }
+            validateSubscriptionName(subscriptionName);
             validateTopicName(tenant, namespace, topic);
             if (!topicName.isPersistent()) {
                 throw new RestException(Response.Status.BAD_REQUEST, "Create subscription on non-persistent topic "

@@ -68,6 +68,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
+import org.apache.pulsar.utils.StringUtil;
 
 @Slf4j
 public abstract class AdminResource extends PulsarWebResource {
@@ -222,8 +223,18 @@ public abstract class AdminResource extends PulsarWebResource {
         }
     }
 
+    protected void validateSubscriptionName(String subscriptionName) {
+        if (StringUtil.invisibleCharacters(subscriptionName)) {
+            throw new RestException(Response.Status.PRECONDITION_FAILED, "Subscription name is not valid");
+        }
+    }
+
     protected void validateTopicName(String property, String namespace, String encodedTopic) {
         String topic = Codec.decode(encodedTopic);
+        if (StringUtil.invisibleCharacters(topic)) {
+            throw new RestException(Response.Status.PRECONDITION_FAILED, "Topic name is not valid");
+        }
+
         try {
             this.namespaceName = NamespaceName.get(property, namespace);
             this.topicName = TopicName.get(domain(), namespaceName, topic);
