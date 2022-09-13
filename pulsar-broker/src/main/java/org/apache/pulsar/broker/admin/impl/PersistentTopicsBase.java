@@ -328,7 +328,13 @@ public class PersistentTopicsBase extends AdminResource {
         try {
             // Write the new policies to metadata store
             namespaceResources().setPolicies(namespaceName, p -> {
-                p.auth_policies.getTopicAuthentication().get(topicUri).remove(role);
+                p.auth_policies.getTopicAuthentication().computeIfPresent(topicUri, (k, roles) -> {
+                    roles.remove(role);
+                    if (roles.isEmpty()) {
+                        return null;
+                    }
+                    return roles;
+                });
                 return p;
             });
             log.info("[{}] Successfully revoke access for role {} - topic {}", clientAppId(), role, topicUri);
