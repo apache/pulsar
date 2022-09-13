@@ -100,7 +100,7 @@ brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.Authenticati
 brokerClientAuthenticationParameters=tlsCertFile:/path/to/proxy.cert.pem,tlsKeyFile:/path/to/proxy.key-pk8.pem
 ```
 
-## Configure TLS authentication on clients
+## Configure TLS authentication in Pulsar clients
 
 When you use TLS authentication, client connects via TLS transport. You need to configure the client to use `https://` and 8443 port for the web service URL, `pulsar+ssl://` and 6651 port for the broker service URL.
 
@@ -186,7 +186,7 @@ var client = PulsarClient.Builder()
 </Tabs>
 ````
 
-## Configure TLS authentication using CLI tools
+## Configure TLS authentication in CLI tools
 
 [Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](/tools/pulsar-admin/), [`pulsar-perf`](reference-cli-tools.md#pulsar-perf), and [`pulsar-client`](reference-cli-tools.md#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
 
