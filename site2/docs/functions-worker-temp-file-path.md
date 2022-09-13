@@ -1,5 +1,5 @@
 ---
-id: functions-worker-tmp-file-path
+id: functions-worker-temp-file-path
 title: Configure temporary file path
 sidebar_label: "Configure temporary file path"
 ---

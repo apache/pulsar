@@ -136,7 +136,7 @@ For the latest and complete information about `pulsar-perf`, including commands,
 
 ## Transactions
 
-This section shows how Pulsar Perf runs transactions. For more information, see [Pulsar transactions](/txn-why).
+This section shows how Pulsar Perf runs transactions. For more information, see [Pulsar transactions](txn-why.md).
 
 ### Use transaction
 
