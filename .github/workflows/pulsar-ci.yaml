@@ -513,6 +513,10 @@ jobs:
           cd $GITHUB_WORKSPACE 
           $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh restore_tar_from_github_actions_artifacts pulsar-server-distribution
 
+      - name: copy python tests
+        run: |
+          mvn -B -Pskip-all -ntp -pl pulsar-functions/instance package 
+
       - name: build cpp artifacts
         run: |
           echo "Build C++ client library"
