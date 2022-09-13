@@ -456,7 +456,7 @@ Below is an `AvroSchema` defined using a JSON file (_company.avsc_).
 
 ```
 
-You can load a schema definition from file by using [`avro.schema`]((http://avro.apache.org/docs/current/gettingstartedpython.html) or [`fastavro.schema`](https://fastavro.readthedocs.io/en/latest/schema.html#fastavro._schema_py.load_schema).
+You can load a schema definition from file by using [`avro.schema`](https://avro.apache.org/docs/current/getting-started-python/) or [`fastavro.schema`](https://fastavro.readthedocs.io/en/latest/schema.html#fastavro._schema_py.load_schema).
 
 If you use the "JSON definition" method to declare an `AvroSchema`, pay attention to the following points:
 
