@@ -179,6 +179,7 @@ public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
                 true, true);
 
         consumer.close();
+        // cleanup the topic data.
         CompletableFuture<Optional<Topic>> topicFuture = pulsar.getBrokerService().getTopics().remove(topicString);
         if (topicFuture != null) {
             Optional<Topic> optTopic = topicFuture.join();
