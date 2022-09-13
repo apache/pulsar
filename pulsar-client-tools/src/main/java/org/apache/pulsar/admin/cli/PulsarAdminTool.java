@@ -31,9 +31,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-
 import lombok.Getter;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.admin.cli.extensions.CommandExecutionContext;
@@ -43,8 +41,6 @@ import org.apache.pulsar.admin.cli.utils.CustomCommandFactoryProvider;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.internal.PulsarAdminImpl;
-
-import javax.ws.rs.HEAD;
 
 public class PulsarAdminTool {
 
@@ -217,9 +213,7 @@ public class PulsarAdminTool {
     }
 
     protected boolean run(String[] args) {
-        System.out.println("run#1" + rootParams.serviceUrl);
         setupCommands();
-        System.out.println("run#2" + rootParams.serviceUrl);
 
         if (args.length == 0) {
             jcommander.usage();
@@ -306,7 +300,7 @@ public class PulsarAdminTool {
         }
     }
 
-    static void exit(int code) {
+    private static void exit(int code) {
         lastExitCode = code;
         if (allowSystemExit) {
             // we are using halt and not System.exit, we do not mind about shutdown hooks

@@ -18,15 +18,13 @@
  */
 package org.apache.pulsar.admin.cli;
 
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import lombok.Data;
 import lombok.SneakyThrows;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
-
-import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
-
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 public class PulsarAdminSupplier implements Supplier<PulsarAdmin> {
 
