@@ -2029,7 +2029,9 @@ public class BrokerService implements Closeable {
                 // Do remove.
                 return removeTopicFutureFromCache(topicNameString, createTopicFuture);
             }
-        });
+            // If the future in cache has exception complete,
+            // the topic instance in the cache is not the same with the topic.
+        }).exceptionally(ex -> null);
     }
 
     private CompletableFuture<Void> removeTopicFutureFromCache(String topic,
