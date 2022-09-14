@@ -51,6 +51,9 @@ public class LoadSheddingTask implements Runnable {
     @Override
     public void run() {
         try {
+            if (isCancel) {
+                return;
+            }
             loadManager.get().doLoadShedding();
         } catch (Exception e) {
             LOG.warn("Error during the load shedding", e);
