@@ -19,9 +19,14 @@
 package org.apache.pulsar.broker;
 
 import static org.mockito.Mockito.spy;
+import static org.testng.AssertJUnit.assertFalse;
+import static org.testng.AssertJUnit.assertTrue;
 
+import java.util.concurrent.ScheduledFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.loadbalance.LoadSheddingTask;
+import org.awaitility.reflect.WhiteboxImpl;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -55,8 +60,19 @@ public class PulsarServiceCloseTest extends MockedPulsarServiceBaseTest {
 
     @Test(timeOut = 30_000)
     public void closeInTimeTest() throws Exception {
+        LoadSheddingTask task = pulsar.getLoadSheddingTask();
+        boolean isCancel = WhiteboxImpl.getInternalState(task, "isCancel");
+        assertFalse(isCancel);
+        ScheduledFuture<?> loadSheddingFuture = WhiteboxImpl.getInternalState(task, "future");
+        assertFalse(loadSheddingFuture.isCancelled());
+
         // The pulsar service is not used, so it should be closed gracefully in short time.
         pulsar.close();
+
+        isCancel = WhiteboxImpl.getInternalState(task, "isCancel");
+        assertTrue(isCancel);
+        loadSheddingFuture = WhiteboxImpl.getInternalState(task, "future");
+        assertTrue(loadSheddingFuture.isCancelled());
     }
 
 }
