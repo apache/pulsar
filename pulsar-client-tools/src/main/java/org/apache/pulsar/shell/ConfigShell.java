@@ -42,6 +42,7 @@ import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.shell.config.ConfigStore;
 
 /**
@@ -70,11 +71,12 @@ public class ConfigShell implements ShellCommandsProvider {
     private final ConfigStore configStore;
     private final ObjectMapper writer = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
     @Getter
-    private String currentConfig = DEFAULT_CONFIG;
+    private String currentConfig;
 
-    public ConfigShell(PulsarShell pulsarShell) {
+    public ConfigShell(PulsarShell pulsarShell, String currentConfig) {
         this.configStore = pulsarShell.getConfigStore();
         this.pulsarShell = pulsarShell;
+        this.currentConfig = currentConfig;
     }
 
     @Override
@@ -104,6 +106,7 @@ public class ConfigShell implements ShellCommandsProvider {
         commands.put("update", new CmdConfigUpdate());
         commands.put("delete", new CmdConfigDelete());
         commands.put("use", new CmdConfigUse());
+        commands.put("update-property", new CmdConfigUpdateProperty());
         commands.put("view", new CmdConfigView());
         commands.forEach((k, v) -> jcommander.addCommand(k, v));
     }
@@ -327,17 +330,66 @@ public class ConfigShell implements ShellCommandsProvider {
                 return false;
             }
 
-            configStore.putConfig(new ConfigStore.ConfigEntry(name, value));
-            if (currentConfig.equals(name)) {
-                final Properties properties = new Properties();
-                properties.load(new StringReader(value));
-                pulsarShell.reload(properties);
-            }
+            final ConfigStore.ConfigEntry entry = new ConfigStore.ConfigEntry(name, value);
+            configStore.putConfig(entry);
+            reloadIfCurrent(entry);
             return true;
         }
 
+
+
         abstract boolean verifyCondition();
     }
+
+    private void reloadIfCurrent(ConfigStore.ConfigEntry entry) throws Exception {
+        if (currentConfig.equals(entry.getName())) {
+            final Properties properties = new Properties();
+            properties.load(new StringReader(entry.getValue()));
+            pulsarShell.reload(properties);
+        }
+    }
+
+
+    @Parameters(commandDescription = "Update a configuration property by name")
+    private class CmdConfigUpdateProperty implements RunnableWithResult {
+
+        @Parameter(description = "Name of the config", required = true)
+        @JCommanderCompleter.ParameterCompleter(type = JCommanderCompleter.ParameterCompleter.Type.CONFIGS)
+        private String name;
+
+        @Parameter(names = {"-p", "--property"}, description = "Name of the property to update")
+        protected String propertyName;
+
+        @Parameter(names = {"-v", "--value"}, description = "New value for the property")
+        protected String propertyValue;
+
+        @Override
+        @SneakyThrows
+        public boolean run() {
+            if (StringUtils.isBlank(propertyName)) {
+                print("-p parameter is required");
+                return false;
+            }
+
+            if (propertyValue == null) {
+                print("-v parameter is required. you can pass an empty value to empty the property. (-v= )");
+                return false;
+            }
+
+
+            final ConfigStore.ConfigEntry config = configStore.getConfig(this.name);
+            if (config == null) {
+                print("Config " + name + " not found");
+                return false;
+            }
+            ConfigStore.updateProperty(config, propertyName, propertyValue);
+            print("Property " + propertyName + " updated for config " + name);
+            configStore.putConfig(config);
+            reloadIfCurrent(config);
+            return true;
+        }
+    }
+
 
 
     <T> void print(List<T> items) {

@@ -61,7 +61,7 @@ public class FileConfigStore implements ConfigStore {
         }
         if (defaultConfig != null) {
             this.defaultConfig = new ConfigEntry(defaultConfig.getName(), defaultConfig.getValue());
-            cleanupValue(this.defaultConfig);
+            ConfigStore.cleanupValue(this.defaultConfig);
         } else {
             this.defaultConfig = null;
         }
@@ -88,24 +88,9 @@ public class FileConfigStore implements ConfigStore {
         if (DEFAULT_CONFIG.equals(entry.getName())) {
             throw new IllegalArgumentException("'" + DEFAULT_CONFIG + "' can't be modified.");
         }
-        cleanupValue(entry);
+        ConfigStore.cleanupValue(entry);
         fileConfig.configs.put(entry.getName(), entry);
         write();
-    }
-
-    private static void cleanupValue(ConfigEntry entry) {
-        StringBuilder builder = new StringBuilder();
-        try (Scanner scanner = new Scanner(entry.getValue());) {
-            while (scanner.hasNextLine()) {
-                String line = scanner.nextLine().trim();
-                if (line.startsWith("#")) {
-                    continue;
-                }
-                builder.append(line);
-                builder.append(System.lineSeparator());
-            }
-        }
-        entry.setValue(builder.toString());
     }
 
     @Override
