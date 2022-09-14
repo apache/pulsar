@@ -71,6 +71,7 @@ import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.proxy.extensions.ProxyExtensions;
+import org.apache.pulsar.proxy.stats.ClientStats;
 import org.apache.pulsar.proxy.stats.TopicStats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -141,6 +142,10 @@ public class ProxyService implements Closeable {
     private final Set<ProxyConnection> clientCnxs;
     @Getter
     private final Map<String, TopicStats> topicStats;
+
+    @Getter
+    private final Map<String, ClientStats> clientStats;
+
     @Getter
     private AdditionalServlets proxyAdditionalServlets;
 
@@ -156,6 +161,7 @@ public class ProxyService implements Closeable {
         this.proxyConfig = proxyConfig;
         this.clientCnxs = Sets.newConcurrentHashSet();
         this.topicStats = new ConcurrentHashMap<>();
+        this.clientStats = new ConcurrentHashMap<>();
 
         this.lookupRequestSemaphore = new AtomicReference<>(
                 new Semaphore(proxyConfig.getMaxConcurrentLookupRequests(), false));

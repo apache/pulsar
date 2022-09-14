@@ -203,6 +203,7 @@ public class ProxyConnection extends PulsarHandler {
         }
 
         state = State.Closed;
+        closeClientStats();
     }
 
     @Override
@@ -223,6 +224,7 @@ public class ProxyConnection extends PulsarHandler {
                 directProxyHandler = null;
             }
         }
+        closeClientStats();
     }
 
     @Override
@@ -341,6 +343,7 @@ public class ProxyConnection extends PulsarHandler {
             if (service.getConfiguration().isCheckActiveBrokers()
                     && !isBrokerActive(proxyToBrokerUrl)) {
                 state = State.Closing;
+                closeClientStats();
                 LOG.warn("[{}] Target broker '{}' isn't available. authenticated with {} role {}.",
                         remoteAddress, proxyToBrokerUrl, authMethod, clientAuthRole);
                 ctx()
@@ -403,6 +406,7 @@ public class ProxyConnection extends PulsarHandler {
                     proxyToBrokerUrl);
             directProxyHandler.close();
             ctx.close();
+            closeClientStats();
         }
     }
 
@@ -466,6 +470,7 @@ public class ProxyConnection extends PulsarHandler {
             LOG.warn("[{}] Client doesn't support connecting through proxy", remoteAddress);
             state = State.Closing;
             ctx.close();
+            closeClientStats();
             return;
         }
 
@@ -674,4 +679,11 @@ public class ProxyConnection extends PulsarHandler {
                 && pulsarServiceUrl.startsWith(expectedPrefix)
                 && pulsarServiceUrl.startsWith(brokerHostPort, expectedPrefix.length());
     }
+    private void closeClientStats(){
+        // close client stats
+        String clientAddress = ctx.channel().remoteAddress().toString();
+        service.getClientStats().remove(clientAddress);
+        LOG.info("[{}] Connection closed", remoteAddress);
+    }
+
 }

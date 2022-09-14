@@ -45,6 +45,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
+import org.apache.pulsar.proxy.stats.ClientStats;
 import org.apache.pulsar.proxy.stats.ConnectionStats;
 import org.apache.pulsar.proxy.stats.TopicStats;
 import org.glassfish.jersey.client.ClientConfig;
@@ -187,6 +188,46 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
 
         consumer.close();
         consumer2.close();
+    }
+
+    /**
+     * Validate proxy client stats api
+     *
+     * @throws Exception
+     */
+    @Test
+    public void testClientStats() throws Exception {
+        proxyService.setProxyLogLevel(1);
+        final String topicName1 = "persistent://sample/test/local/client-stats";
+        @Cleanup
+        PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl()).build();
+        Producer<byte[]> producer = client.newProducer(Schema.BYTES).topic(topicName1).enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition).create();
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName1).subscriptionName("my-sub").subscribe();
+
+        int totalMessages = 10;
+        for (int i = 0; i < totalMessages; i++) {
+            producer.send("test".getBytes());
+        }
+
+        for (int i = 0; i < totalMessages; i++) {
+            Message<byte[]> msg = consumer.receive(1, TimeUnit.SECONDS);
+            requireNonNull(msg);
+            consumer.acknowledge(msg);
+        }
+
+        Client httpClient = ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
+        Response r = httpClient.target(proxyWebServer.getServiceUri()).path("/proxy-stats/clients").request()
+                .get();
+        Assert.assertEquals(r.getStatus(), Response.Status.OK.getStatusCode());
+        String response = r.readEntity(String.class).trim();
+        Map<String, ClientStats> clientStats = new Gson().fromJson(response, new TypeToken<Map<String, ClientStats>>() {
+        }.getType());
+
+        assertNotNull(clientStats);
+
+        consumer.close();
     }
 
     /**
