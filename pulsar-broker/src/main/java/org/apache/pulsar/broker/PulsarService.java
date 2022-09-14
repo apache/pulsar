@@ -489,11 +489,11 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 this.leaderElectionService = null;
             }
 
-            // shutdown the loadManager executor and cancel loadShedding task before shutting down the broker
-            executorServicesShutdown.shutdown(loadManagerExecutor);
+            // cancel loadShedding task and shutdown the loadManager executor before shutting down the broker
             if (this.loadSheddingTask != null) {
                 this.loadSheddingTask.cancel();
             }
+            executorServicesShutdown.shutdown(loadManagerExecutor);
 
             if (adminClient != null) {
                 adminClient.close();

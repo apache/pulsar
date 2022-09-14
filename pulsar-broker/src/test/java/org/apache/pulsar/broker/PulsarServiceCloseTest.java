@@ -39,7 +39,6 @@ public class PulsarServiceCloseTest extends MockedPulsarServiceBaseTest {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
-        resetConfig();
     }
 
     protected PulsarService startBrokerWithoutAuthorization(ServiceConfiguration conf) throws Exception {
