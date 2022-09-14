@@ -132,7 +132,7 @@ The following example shows how to configure basic authentication when using Pul
 ````mdx-code-block
 <Tabs groupId="lang-choice"
   defaultValue="Java"
-  values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"},{"label":"C++","value":"C++"}]}>
+  values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"},{"label":"C++","value":"C++"},{"label":"Go","value":"Go"}]}>
 <TabItem value="Java">
 
    ```java
@@ -166,6 +166,20 @@ The following example shows how to configure basic authentication when using Pul
    ```python
    if __name__ == "__main__":
       client = Client("pulsar://broker.example.com:6650", authentication=AuthenticationBasic("admin", "123456"))
+   ```
+
+  </TabItem>
+  <TabItem value="Go">
+
+   ```go
+	provider, err := pulsar.NewAuthenticationBasic("admin", "123456")
+	if err != nil {
+		log.Fatal(err)
+	}
+	client, err := pulsar.NewClient(pulsar.ClientOptions{
+		URL: "pulsar://broker.example.com:6650",
+		Authentication: provider,
+	})
    ```
 
   </TabItem>

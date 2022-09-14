@@ -99,7 +99,7 @@ The `privateKey` parameter supports the following three pattern formats:
 * `file:/path/to/file`
 * `data:application/x-pem-file;base64,<base64-encoded value>`
 
-## Configure Athenz authentication using CLI tools
+## Configure Athenz authentication in CLI tools
 
 [Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](/tools/pulsar-admin/), [`pulsar-perf`](reference-cli-tools.md#pulsar-perf), and [`pulsar-client`](reference-cli-tools.md#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
 

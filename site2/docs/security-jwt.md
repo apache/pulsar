@@ -239,7 +239,7 @@ client = Client('pulsar://broker.example.com:6650/'
 <TabItem value="Go">
 
 ```go
-client, err := NewClient(ClientOptions{
+client, err := pulsar.NewClient(pulsar.ClientOptions{
 	URL:            "pulsar://localhost:6650",
 	Authentication: NewAuthenticationToken("eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL62SY"),
 })
@@ -248,9 +248,9 @@ client, err := NewClient(ClientOptions{
 Similarly, you can also pass a `Supplier`:
 
 ```go
-client, err := NewClient(ClientOptions{
+client, err := pulsar.NewClient(pulsar.ClientOptions{
 	URL:            "pulsar://localhost:6650",
-	Authentication: NewAuthenticationTokenSupplier(func () string {
+	Authentication: pulsar.NewAuthenticationTokenSupplier(func () string {
         // Read token from custom source
 		return readToken()
 	}),

@@ -1258,7 +1258,7 @@ For examples of ProtobufNativeSchema, see [`SchemaDefinition` in `Complex type`]
 
 ## Authentication
 
-Pulsar currently supports three authentication providers:
+Pulsar currently supports the following authentication mechansims:
 * [TLS](security-tls-authentication.md#configure-tls-authentication-in-pulsar-clients)
 * [JWT](security-jwt.md#configure-jwt-authentication-in-pulsar-clients)
 * [Athenz](security-athenz.md#configure-athenz-authentication-in-pulsar-clients)
@@ -1269,7 +1269,7 @@ Pulsar currently supports three authentication providers:
 
 ## Cluster-level failover
 
-For more concepts and reference information about cluster-level failover, including concept, benefits, use cases, constraints, usage and working principles, see [Cluster-level failover](concepts-cluster-level-failover.md). 
+For more concepts and reference information about cluster-level failover, including concepts, benefits, use cases, constraints, usage and working principles, see [Cluster-level failover](concepts-cluster-level-failover.md). 
 
 :::tip
 

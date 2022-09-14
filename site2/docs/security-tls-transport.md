@@ -327,7 +327,7 @@ var client = PulsarClient.Builder()
 </Tabs>
 ````
 
-## Configure TLS encryption using CLI tools
+## Configure TLS encryption in CLI tools
 
 [Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](reference-cli-tools.md#pulsar-admin), [`pulsar-perf`](reference-cli-tools.md#pulsar-perf), and [`pulsar-client`](reference-cli-tools.md#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
 
