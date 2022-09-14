@@ -21,8 +21,7 @@
 
 ![logo](site2/website/static/img/pulsar.svg)
 
-[![unit test](https://img.shields.io/github/workflow/status/apache/pulsar/CI%20-%20Unit?label=unit%20test)](https://github.com/apache/pulsar/actions/workflows/ci-unit.yaml)
-[![docker build](https://img.shields.io/github/workflow/status/apache/pulsar/CI%20-%20Docker%20Build?label=docker%20build)](https://hub.docker.com/r/apachepulsar/pulsar)
+[![docker pull](https://img.shields.io/docker/pulls/apachepulsar/pulsar-all.svg)](https://hub.docker.com/r/apachepulsar/pulsar)
 [![contributors](https://img.shields.io/github/contributors-anon/apache/pulsar)](https://github.com/apache/pulsar/graphs/contributors)
 [![last commit](https://img.shields.io/github/last-commit/apache/pulsar)](https://github.com/apache/pulsar/commits/master)
 [![release](https://img.shields.io/github/v/release/apache/pulsar)](https://github.com/apache/pulsar/releases)
