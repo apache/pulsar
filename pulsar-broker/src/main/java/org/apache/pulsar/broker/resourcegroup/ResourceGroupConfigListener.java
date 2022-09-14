@@ -60,7 +60,7 @@ public class ResourceGroupConfigListener implements Consumer<Notification> {
     }
 
     private void loadAllResourceGroups() {
-        rgResources.listResourceGroupsAsync().whenCompleteAsync((rgList, ex) -> {
+        rgResources.listResourceGroupsAsync().whenComplete((rgList, ex) -> {
             if (ex != null) {
                 LOG.error("Exception when fetching resource groups", ex);
                 return;
@@ -81,7 +81,7 @@ public class ResourceGroupConfigListener implements Consumer<Notification> {
             final Sets.SetView<String> addList = Sets.difference(newSet, existingSet);
             for (String rgName: addList) {
                 pulsarService.getPulsarResources().getResourcegroupResources()
-                    .getResourceGroupAsync(rgName).thenAcceptAsync(optionalRg -> {
+                    .getResourceGroupAsync(rgName).thenAccept(optionalRg -> {
                     ResourceGroup rg = optionalRg.get();
                     createResourceGroup(rgName, rg);
                 }).exceptionally((ex1) -> {

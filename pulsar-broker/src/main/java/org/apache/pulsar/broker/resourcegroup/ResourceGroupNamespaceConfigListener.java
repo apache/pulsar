@@ -60,7 +60,7 @@ public class ResourceGroupNamespaceConfigListener implements Consumer<Notificati
     }
 
     private void updateNamespaceResourceGroup(NamespaceName nsName) {
-        namespaceResources.getPoliciesAsync(nsName).whenCompleteAsync((optionalPolicies, ex) -> {
+        namespaceResources.getPoliciesAsync(nsName).whenComplete((optionalPolicies, ex) -> {
             if (ex != null) {
                 LOG.error("Exception when getting namespace {}", nsName, ex);
                 return;
