@@ -19,18 +19,15 @@
 package org.apache.pulsar.schema.compatibility;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static net.bytebuddy.jar.asm.Opcodes.ACC_PUBLIC;
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
-import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
-import net.bytebuddy.jar.asm.ClassWriter;
-import net.bytebuddy.jar.asm.Opcodes;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -491,11 +488,22 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         String topicName = "persistent://" + namespaceName + "/tp";
         admin.namespaces().createNamespace(namespaceName, Sets.newHashSet(CLUSTER_NAME));
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
-        ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
         // Update schema 100 times.
-        ArrayList<Class> classes = createManyClass(classLoader, 100);
-        for (int i = 0; i < classes.size(); i++){
-            Schema schema = Schema.KeyValue(Integer.class, classes.get(i));
+        for (int i = 0; i < 100; i++){
+            Schema schema = Schema.JSON(SchemaDefinition.builder()
+                    .withJsonDef(String.format("""
+                            {
+                            	"type": "record",
+                            	"name": "Test_Pojo",
+                            	"namespace": "org.apache.pulsar.schema.compatibility",
+                            	"fields": [{
+                            		"name": "prop_%s",
+                            		"type": ["null", "string"],
+                            		"default": null
+                            	}]
+                            }
+                            """, i))
+                    .build());
             Producer producer = pulsarClient
                     .newProducer(schema)
                     .topic(topicName)
@@ -507,21 +515,6 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
                 .filter(ledger -> !ledger.isFenced())
                 .collect(Collectors.toList()).size() < 20);
         admin.topics().delete(topicName, true);
-    }
-
-    private ArrayList<Class> createManyClass(ClassLoader classLoader, int count){
-        DynamicClassLoader dynamicClassLoader = new DynamicClassLoader(classLoader);
-        ArrayList<Class> list = new ArrayList<>(count);
-        for (int i = 0; i < count; i++){
-            ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES);
-            String className = "Dynamic_GEN_Class_" + i;
-            cw.visit(Opcodes.V17, ACC_PUBLIC, className, null, "java/lang/Object", null);
-            cw.visitEnd();
-            byte[] bytes = cw.toByteArray();
-            Class c = dynamicClassLoader.defineClass(className, bytes);
-            list.add(c);
-        }
-        return list;
     }
 
     private static class DynamicClassLoader extends ClassLoader{
