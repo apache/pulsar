@@ -100,77 +100,7 @@ If you get an error like "libpulsar.so: cannot open shared object file: No such 
 
 ### Source
 
-1. Clone the Pulsar repository and switch to the working directory `pulsar-client-cpp`:
-
-```bash
-git clone https://github.com/apache/pulsar
-cd pulsar
-cd pulsar-client-cpp
-```
-
-2. Install dependencies:
-
-<Tabs>
-<TabItem value="Linux">
-
-```bash
-apt install cmake libssl-dev libcurl4-openssl-dev libprotobuf-dev protobuf-compiler libboost-all-dev
-```
-
-</TabItem>
-<TabItem value="macOS">
-
-```bash
-brew install protobuf boost boost-python3 cmake openssl
-
-# force linking openssl if still cannot find openssl after installing
-brew link --force openssl
-```
-
-</TabItem>
-<TabItem value="Windows">
-
-```bash
-vcpkg install --feature-flags=manifests --triplet x64-windows
-```
-
-</TabItem>
-</Tabs>
-
-3. Compile the Pulsar C++ client library inside the Pulsar repository:
-
-<Tabs>
-<TabItem value="Linux">
-
-```bash
-cmake -DBUILD_TESTS=OFF . 
-make
-```
-
-</TabItem>
-<TabItem value="macOS">
-
-```bash
-cmake -DBUILD_TESTS=OFF .
-make
-```
-
-</TabItem>
-<TabItem value="Windows">
-
-```bash
-cmake -B ./build -A x64 -DBUILD_PYTHON_WRAPPER=OFF -DBUILD_TESTS=OFF -DVCPKG_TRIPLET=x64-windows -DCMAKE_BUILD_TYPE=Release -S .
-cmake --build ./build --config Release
-```
-
-:::note
-
-For MSVC Debug mode, you need to replace `Release` with `Debug` for both `CMAKE_BUILD_TYPE` variable and `--config` option.
-
-:::
-
-</TabItem>
-</Tabs>
+If you want to build the Pulsar C++ client from source code, read [these instructions](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp#compilation).
 
 ## Connection URLs
 
