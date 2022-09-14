@@ -47,8 +47,8 @@ public interface BucketSnapshotStorage {
      * Get a sequence of delayed message index bucket snapshot segments.
      *
      * @param bucketId the bucketId of snapshot
-     * @param firstSegmentEntryId  entryId of first segment of sequence
-     * @param lastSegmentEntryId  entryId of last segment of sequence
+     * @param firstSegmentEntryId entryId of first segment of sequence (include)
+     * @param lastSegmentEntryId entryId of last segment of sequence (include)
      * @return the future with snapshot segment
      */
     CompletableFuture<List<SnapshotSegment>> getBucketSnapshotSegment(long bucketId, long firstSegmentEntryId,
