@@ -22,9 +22,7 @@ on:
   pull_request:
     branches:
       - master
-  push:
-    branches:
-      - branch-*
+  workflow_dispatch:
 
 env:
   MAVEN_OPTS: -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.class=standard -Dmaven.wagon.http.retryHandler.count=3
