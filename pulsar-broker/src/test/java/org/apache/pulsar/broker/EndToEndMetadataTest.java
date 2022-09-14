@@ -60,7 +60,7 @@ public class EndToEndMetadataTest extends BaseMetadataStoreTest {
         @Cleanup
         EmbeddedPulsarCluster epc = EmbeddedPulsarCluster.builder()
                 .numBrokers(1)
-                .numBookies(1)
+                .numBookies(2)
                 .metadataStoreUrl(urlSupplier.get())
                 .dataDir(tempDir.getAbsolutePath())
                 .clearOldData(true)

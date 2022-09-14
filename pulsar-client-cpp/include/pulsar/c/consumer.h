@@ -236,6 +236,9 @@ PULSAR_PUBLIC pulsar_result pulsar_consumer_seek(pulsar_consumer_t *consumer, pu
 
 PULSAR_PUBLIC int pulsar_consumer_is_connected(pulsar_consumer_t *consumer);
 
+PULSAR_PUBLIC pulsar_result pulsar_consumer_get_last_message_id(pulsar_consumer_t *consumer,
+                                                                pulsar_message_id_t *messageId);
+
 #ifdef __cplusplus
 }
 #endif

@@ -73,6 +73,9 @@ public class ThresholdShedderTest {
         LoadData loadData = new LoadData();
 
         LocalBrokerData broker1 = new LocalBrokerData();
+        broker1.setCpu(new ResourceUsage(1000, 100));
+        broker1.setMemory(new ResourceUsage(5000, 100));
+        broker1.setDirectMemory(new ResourceUsage(5000, 100));
         broker1.setBandwidthIn(new ResourceUsage(500, 1000));
         broker1.setBandwidthOut(new ResourceUsage(500, 1000));
         broker1.setBundles(Sets.newHashSet("bundle-1"));
@@ -115,6 +118,9 @@ public class ThresholdShedderTest {
         LoadData loadData = new LoadData();
         
         LocalBrokerData broker1 = new LocalBrokerData();
+        broker1.setCpu(new ResourceUsage(1000, 100));
+        broker1.setMemory(new ResourceUsage(5000, 100));
+        broker1.setDirectMemory(new ResourceUsage(5000, 100));
         broker1.setBandwidthIn(new ResourceUsage(999, 1000));
         broker1.setBandwidthOut(new ResourceUsage(999, 1000));
 

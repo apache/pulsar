@@ -109,6 +109,7 @@ github:
     branch-2.8: {}
     branch-2.9: {}
     branch-2.10: {}
+    branch-2.11: {}
 
 notifications:
   commits:      commits@pulsar.apache.org

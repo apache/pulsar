@@ -74,7 +74,8 @@ public class PerfClientUtils {
                 .statsInterval(arguments.statsIntervalSeconds, TimeUnit.SECONDS)
                 .enableBusyWait(arguments.enableBusyWait)
                 .listenerThreads(arguments.listenerThreads)
-                .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
+                .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath)
+                .maxLookupRequests(arguments.maxLookupRequest);
 
         if (isNotBlank(arguments.authPluginClassName)) {
             clientBuilder.authentication(arguments.authPluginClassName, arguments.authParams);

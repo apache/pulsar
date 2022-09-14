@@ -50,6 +50,7 @@ public enum TopicOperation {
 
     GET_STATS,
     GET_METADATA,
+    DELETE_METADATA,
     GET_BACKLOG_SIZE,
 
     SET_REPLICATED_SUBSCRIPTION_STATUS,

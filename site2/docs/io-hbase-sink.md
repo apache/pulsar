@@ -4,8 +4,7 @@ title: HBase sink connector
 sidebar_label: "HBase sink connector"
 ---
 
-The HBase sink connector pulls the messages from Pulsar topics 
-and persists the messages to HBase tables
+The HBase sink connector pulls the messages from Pulsar topics and persists the messages to HBase tables
 
 ## Configuration
 
@@ -33,7 +32,6 @@ Before using the HBase sink connector, you need to create a configuration file t
 * JSON 
 
   ```json
-  
   {
      "configs": {
         "hbaseConfigResources": "hbase-site.xml",
@@ -46,13 +44,11 @@ Before using the HBase sink connector, you need to create a configuration file t
         "qualifierNames": [ 'name', 'address', 'age']
      }
   }
-  
   ```
 
 * YAML
 
   ```yaml
-  
   configs:
       hbaseConfigResources: "hbase-site.xml"
       zookeeperQuorum: "localhost"
@@ -62,7 +58,6 @@ Before using the HBase sink connector, you need to create a configuration file t
       rowKeyName: "rowKey"
       familyName: "info"
       qualifierNames: [ 'name', 'address', 'age']
-  
   ```
 
   

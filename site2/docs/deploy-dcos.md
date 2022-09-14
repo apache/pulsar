@@ -6,7 +6,7 @@ sidebar_label: "DC/OS"
 
 :::tip
 
-To enable all built-in [Pulsar IO](io-overview.md) connectors in your Pulsar deploymente, we recommend you use `apachepulsar/pulsar-all` image instead of `apachepulsar/pulsar` image; the former has already bundled [all built-in connectors](io-overview.md#working-with-connectors).
+To enable all built-in [Pulsar IO](io-overview.md) connectors in your Pulsar deployment, we recommend you use `apachepulsar/pulsar-all` image instead of `apachepulsar/pulsar` image; the former has already bundled [all built-in connectors](io-overview.md#working-with-connectors).
 
 :::
 
@@ -24,9 +24,7 @@ You need to prepare your environment before running Pulsar on DC/OS.
 * The [`PulsarGroups.json`](https://github.com/apache/pulsar/blob/master/deployment/dcos/PulsarGroups.json) configuration file from the Pulsar GitHub repo.
 
   ```bash
-  
-  $ curl -O https://raw.githubusercontent.com/apache/pulsar/master/deployment/dcos/PulsarGroups.json
-  
+  curl -O https://raw.githubusercontent.com/apache/pulsar/master/deployment/dcos/PulsarGroups.json
   ```
 
 Each node in the DC/OS-managed Mesos cluster must have at least:
@@ -42,9 +40,7 @@ Alternatively, you can change the configuration in `PulsarGroups.json` according
 You can deploy Pulsar on DC/OS using this command:
 
 ```bash
-
-$ dcos marathon group add PulsarGroups.json
-
+dcos marathon group add PulsarGroups.json
 ```
 
 This command deploys Docker container instances in three groups, which together comprise a Pulsar cluster:
@@ -68,7 +64,7 @@ To monitor the status of the BookKeeper cluster deployment, click the **bookkeep
 
 ![DC/OS bookkeeper status](/assets/dcos_bookkeeper_status.png)
 
-At this point, the status of the 3 [bookies](reference-terminology.md#bookie) are green, which means that the bookies have been deployed successfully and are running.
+At this point, the status of the 3 [bookies](reference-terminology.md#bookie) is green, which means that the bookies have been deployed successfully and are running.
  
 ![DC/OS bookkeeper running](/assets/dcos_bookkeeper_run.png)
  
@@ -131,9 +127,7 @@ Now that you have a fully deployed Pulsar cluster, you can run a simple consumer
 You can clone a [Pulsar Java tutorial](https://github.com/streamlio/pulsar-java-tutorial) repo. This repo contains a simple Pulsar consumer and producer (you can find more information in the `README` file in this repo).
 
 ```bash
-
-$ git clone https://github.com/streamlio/pulsar-java-tutorial
-
+git clone https://github.com/streamlio/pulsar-java-tutorial
 ```
 
 Change the `SERVICE_URL` from `pulsar://localhost:6650` to `pulsar://a1.dcos:6650` in both [`ConsumerTutorial.java`](https://github.com/streamlio/pulsar-java-tutorial/blob/master/src/main/java/tutorial/ConsumerTutorial.java) file and [`ProducerTutorial.java`](https://github.com/streamlio/pulsar-java-tutorial/blob/master/src/main/java/tutorial/ProducerTutorial.java) file.
@@ -145,9 +139,7 @@ Now, you can change the message number from 10 to 10000000 in the main method in
 Then, you can compile the project code using the command below:
 
 ```bash
-
-$ mvn clean package
-
+mvn clean package
 ```
 
 ### Run the consumer and producer
@@ -155,17 +147,13 @@ $ mvn clean package
 Execute this command to run the consumer:
 
 ```bash
-
-$ mvn exec:java -Dexec.mainClass="tutorial.ConsumerTutorial"
-
+mvn exec:java -Dexec.mainClass="tutorial.ConsumerTutorial"
 ```
 
 Execute this command to run the producer:
 
 ```bash
-
-$ mvn exec:java -Dexec.mainClass="tutorial.ProducerTutorial"
-
+mvn exec:java -Dexec.mainClass="tutorial.ProducerTutorial"
 ```
 
 You see that the producer is producing messages and the consumer is consuming messages through the DC/OS GUI.
@@ -192,8 +180,6 @@ You can shut down and uninstall the `pulsar` application from DC/OS at any time 
 2. Use the command below.
 
    ```bash
-   
-   $ dcos marathon group remove /pulsar
-   
+   dcos marathon group remove /pulsar
    ```
 

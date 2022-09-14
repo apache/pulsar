@@ -200,7 +200,15 @@ public class ElasticSearchSink implements Sink<GenericObject> {
             String doc = null;
             if (value != null) {
                 if (valueSchema != null) {
-                    doc = stringifyValue(valueSchema, value);
+                    if (elasticSearchConfig.isCopyKeyFields()
+                            && (keySchema.getSchemaInfo().getType().equals(SchemaType.AVRO)
+                            || keySchema.getSchemaInfo().getType().equals(SchemaType.JSON))) {
+                        JsonNode keyNode = extractJsonNode(keySchema, key);
+                        JsonNode valueNode = extractJsonNode(valueSchema, value);
+                        doc = stringify(JsonConverter.topLevelMerge(keyNode, valueNode));
+                    } else {
+                        doc = stringifyValue(valueSchema, value);
+                    }
                 } else {
                     if (value.getNativeObject() instanceof byte[]) {
                         // for BWC with the ES-Sink
@@ -330,6 +338,10 @@ public class ElasticSearchSink implements Sink<GenericObject> {
 
     public String stringifyValue(Schema<?> schema, Object val) throws JsonProcessingException {
         JsonNode jsonNode = extractJsonNode(schema, val);
+        return stringify(jsonNode);
+    }
+
+    public String stringify(JsonNode jsonNode) throws JsonProcessingException {
         return elasticSearchConfig.isStripNulls()
                 ? objectMapper.writeValueAsString(stripNullNodes(jsonNode))
                 : objectMapper.writeValueAsString(jsonNode);
@@ -349,6 +361,9 @@ public class ElasticSearchSink implements Sink<GenericObject> {
     }
 
     public static JsonNode extractJsonNode(Schema<?> schema, Object val) {
+        if (val == null) {
+            return null;
+        }
         switch (schema.getSchemaInfo().getType()) {
             case JSON:
                 return (JsonNode) ((GenericRecord) val).getNativeObject();

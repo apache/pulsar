@@ -106,6 +106,9 @@ COPY target/java-test-functions.jar /pulsar/examples/
 # copy go test examples
 COPY --from=pulsar-function-go /go/bin /pulsar/examples/go-examples
 
+# copy broker plugins
+COPY target/plugins/ /pulsar/examples/
+
 # Include all offloaders
 COPY --from=pulsar-all /pulsar/offloaders /pulsar/offloaders
 

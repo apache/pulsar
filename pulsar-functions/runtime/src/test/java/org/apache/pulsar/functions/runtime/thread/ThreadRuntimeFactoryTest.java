@@ -32,7 +32,6 @@ import org.apache.pulsar.functions.worker.FunctionsManager;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
-import org.powermock.reflect.Whitebox;
 import org.testng.annotations.Test;
 import java.util.Map;
 import java.util.Optional;
@@ -46,20 +45,18 @@ import static org.mockito.Mockito.mockStatic;
 @Slf4j
 public class ThreadRuntimeFactoryTest {
 
+    private static final long JVM_MAX_DIRECT_MEMORY = DirectMemoryUtils.jvmMaxDirectMemory();
+
     @Test
     public void testMemoryLimitPercent() throws Exception {
-
         ClientBuilder clientBuilder = testMemoryLimit(null, 50.0);
-
-        Mockito.verify(clientBuilder, Mockito.times(1)).memoryLimit(Mockito.eq((long) (1024 * 0.5)), Mockito.eq(SizeUnit.BYTES));
+        Mockito.verify(clientBuilder, Mockito.times(1)).memoryLimit(Mockito.eq(JVM_MAX_DIRECT_MEMORY / 2), Mockito.eq(SizeUnit.BYTES));
     }
 
     @Test
     public void testMemoryLimitAbsolute() throws Exception {
-
-        ClientBuilder clientBuilder = testMemoryLimit(512L, null);
-
-        Mockito.verify(clientBuilder, Mockito.times(1)).memoryLimit(Mockito.eq(512L), Mockito.eq(SizeUnit.BYTES));
+        ClientBuilder clientBuilder = testMemoryLimit(JVM_MAX_DIRECT_MEMORY / 2, null);
+        Mockito.verify(clientBuilder, Mockito.times(1)).memoryLimit(Mockito.eq(JVM_MAX_DIRECT_MEMORY / 2), Mockito.eq(SizeUnit.BYTES));
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
@@ -79,39 +76,30 @@ public class ThreadRuntimeFactoryTest {
 
     @Test
     public void testMemoryLimitNotSet() throws Exception {
-
         ClientBuilder clientBuilder = testMemoryLimit(null, null);
-
         Mockito.verify(clientBuilder, Mockito.times(1)).memoryLimit(Mockito.eq(0L), Mockito.eq(SizeUnit.BYTES));
     }
 
     @Test
     public void testMemoryLimitBothSet() throws Exception {
+        ClientBuilder clientBuilder = testMemoryLimit(JVM_MAX_DIRECT_MEMORY / 2, 100.0);
+        Mockito.verify(clientBuilder, Mockito.times(1)).memoryLimit(Mockito.eq(JVM_MAX_DIRECT_MEMORY / 2), Mockito.eq(SizeUnit.BYTES));
 
-        ClientBuilder clientBuilder = testMemoryLimit(512L, 100.0);
+        clientBuilder = testMemoryLimit(JVM_MAX_DIRECT_MEMORY * 2, 100.0);
+        Mockito.verify(clientBuilder, Mockito.times(1)).memoryLimit(Mockito.eq(JVM_MAX_DIRECT_MEMORY), Mockito.eq(SizeUnit.BYTES));
 
-        Mockito.verify(clientBuilder, Mockito.times(1)).memoryLimit(Mockito.eq(512L), Mockito.eq(SizeUnit.BYTES));
+        clientBuilder = testMemoryLimit(JVM_MAX_DIRECT_MEMORY / 2, 25.0);
+        Mockito.verify(clientBuilder, Mockito.times(1)).memoryLimit(Mockito.eq(JVM_MAX_DIRECT_MEMORY / 4), Mockito.eq(SizeUnit.BYTES));
 
-        clientBuilder = testMemoryLimit(2048L, 100.0);
-
-        Mockito.verify(clientBuilder, Mockito.times(1)).memoryLimit(Mockito.eq(1024L), Mockito.eq(SizeUnit.BYTES));
-
-        clientBuilder = testMemoryLimit(512L, 25.0);
-
-        Mockito.verify(clientBuilder, Mockito.times(1)).memoryLimit(Mockito.eq(256L), Mockito.eq(SizeUnit.BYTES));
-
-        clientBuilder = testMemoryLimit(512L, 75.0);
-
-        Mockito.verify(clientBuilder, Mockito.times(1)).memoryLimit(Mockito.eq(512L), Mockito.eq(SizeUnit.BYTES));
+        clientBuilder = testMemoryLimit(JVM_MAX_DIRECT_MEMORY / 2, 75.0);
+        Mockito.verify(clientBuilder, Mockito.times(1)).memoryLimit(Mockito.eq(JVM_MAX_DIRECT_MEMORY / 2), Mockito.eq(SizeUnit.BYTES));
     }
 
 
     private ClientBuilder testMemoryLimit(Long absolute, Double percent) throws Exception {
-        try (MockedStatic<PulsarClient> mockedPulsarClient = mockStatic(PulsarClient.class);) {
-            Whitebox.setInternalState(DirectMemoryUtils.class, "JVM_MAX_DIRECT_MEMORY", 1024L);
-
+        try (MockedStatic<PulsarClient> mockedPulsarClient = mockStatic(PulsarClient.class)) {
             ClientBuilder clientBuilder = Mockito.mock(ClientBuilder.class);
-            mockedPulsarClient.when(() -> PulsarClient.builder()).thenAnswer(i -> clientBuilder);
+            mockedPulsarClient.when(PulsarClient::builder).thenAnswer(i -> clientBuilder);
             doReturn(clientBuilder).when(clientBuilder).serviceUrl(anyString());
             doReturn(clientBuilder).when(clientBuilder).memoryLimit(anyLong(), any());
 

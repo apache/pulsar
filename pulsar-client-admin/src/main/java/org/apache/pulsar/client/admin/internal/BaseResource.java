@@ -181,6 +181,11 @@ public abstract class BaseResource {
         }
     }
 
+    public <T> CompletableFuture<T> asyncGetRequest(final WebTarget target, FutureCallback<T> callback) {
+        asyncGetRequest(target, (InvocationCallback<T>) callback);
+        return callback.future();
+    }
+
     public CompletableFuture<Void> asyncDeleteRequest(final WebTarget target) {
         final CompletableFuture<Void> future = new CompletableFuture<>();
         try {
@@ -211,7 +216,7 @@ public abstract class BaseResource {
         }
     }
 
-    public PulsarAdminException getApiException(Throwable e) {
+    public static PulsarAdminException getApiException(Throwable e) {
         if (e instanceof PulsarAdminException) {
             return (PulsarAdminException) e;
         } else if (e instanceof ServiceUnavailableException) {
@@ -312,5 +317,29 @@ public abstract class BaseResource {
         } catch (Exception e) {
             throw PulsarAdminException.wrap(getApiException(e));
         }
+    }
+
+    /**
+     * InvocationCallback that creates a CompletableFuture and completes it based on the response.
+     * Must be subclassed to provide runtime type information to the ReST client library.
+     * @param <T> type to which the response body is parsed in case of success
+     */
+    abstract static class FutureCallback<T> implements InvocationCallback<T> {
+        private final CompletableFuture<T> future = new CompletableFuture<>();
+
+        @Override
+        public void completed(T value) {
+            future.complete(value);
+        }
+
+        @Override
+        public void failed(Throwable throwable) {
+            future.completeExceptionally(getApiException(throwable.getCause()));
+        }
+
+        public CompletableFuture<T> future() {
+            return future;
+        }
+
     }
 }

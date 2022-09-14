@@ -22,15 +22,15 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.Iterators;
-import io.prestosql.spi.block.Block;
-import io.prestosql.spi.type.*;
+import io.trino.spi.block.Block;
+import io.trino.spi.type.*;
 import org.apache.pulsar.sql.presto.decoder.DecoderTestUtil;
 
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.Map;
 
-import static io.prestosql.spi.type.VarcharType.VARCHAR;
+import static io.trino.spi.type.VarcharType.VARCHAR;
 import static java.lang.String.format;
 import static org.testng.Assert.*;
 

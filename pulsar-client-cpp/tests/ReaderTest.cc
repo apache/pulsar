@@ -579,3 +579,30 @@ TEST(ReaderTest, testHasMessageAvailableWhenCreated) {
     EXPECT_FALSE(hasMessageAvailable);
     client.close();
 }
+
+TEST(ReaderTest, testReceiveAfterSeek) {
+    Client client(serviceUrl);
+    const std::string topic = "reader-test-receive-after-seek-" + std::to_string(time(nullptr));
+
+    Producer producer;
+    ASSERT_EQ(ResultOk, client.createProducer(topic, producer));
+
+    MessageId seekMessageId;
+    for (int i = 0; i < 5; i++) {
+        MessageId messageId;
+        producer.send(MessageBuilder().setContent("msg-" + std::to_string(i)).build(), messageId);
+        if (i == 3) {
+            seekMessageId = messageId;
+        }
+    }
+
+    Reader reader;
+    ASSERT_EQ(ResultOk, client.createReader(topic, MessageId::latest(), {}, reader));
+
+    reader.seek(seekMessageId);
+
+    bool hasMessageAvailable;
+    ASSERT_EQ(ResultOk, reader.hasMessageAvailable(hasMessageAvailable));
+
+    client.close();
+}

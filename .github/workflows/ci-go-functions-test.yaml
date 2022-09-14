@@ -66,17 +66,19 @@ jobs:
 
       - name: Check changed files
         id: check_changes
-        run: echo "::set-output name=docs_only::${{ fromJSON(steps.changes.outputs.all_count) == fromJSON(steps.changes.outputs.docs_count) && fromJSON(steps.changes.outputs.docs_count) > 0 }}"
+        run: |
+          echo "::set-output name=docs_only::${{ fromJSON(steps.changes.outputs.all_count) == fromJSON(steps.changes.outputs.docs_count) && fromJSON(steps.changes.outputs.docs_count) > 0 }}"
+          echo "::set-output name=cpp_only::${{ fromJSON(steps.changes.outputs.all_count) == fromJSON(steps.changes.outputs.cpp_count) && fromJSON(steps.changes.outputs.cpp_count) > 0 }}"
 
       - name: Set up Go
         uses: actions/setup-go@v2
-        if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
+        if: ${{ steps.check_changes.outputs.docs_only != 'true' && steps.check_changes.outputs.cpp_only != 'true' }}
         with:
           go-version: ${{ matrix.go-version }}
         id: go
 
       - name: Run tests
-        if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
+        if: ${{ steps.check_changes.outputs.docs_only != 'true' && steps.check_changes.outputs.cpp_only != 'true' }}
         run: |
           cd pulsar-function-go
           export GO111MODULE=on

@@ -21,10 +21,10 @@ package org.apache.pulsar.broker.transaction.pendingack;
 
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.collections4.map.LinkedMap;
+import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
@@ -40,6 +40,7 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.awaitility.Awaitility;
+import org.powermock.reflect.Whitebox;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -47,6 +48,7 @@ import org.testng.annotations.Test;
 
 import java.lang.reflect.Field;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -278,6 +280,56 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
             }
             assertEquals(count, 1);
         }
+    }
+
+    @Test
+    public void testPendingAckClearPositionIsSmallerThanMarkDelete() throws Exception {
+        String normalTopic = NAMESPACE1 + "/testPendingAckClearPositionIsSmallerThanMarkDelete";
+        String subscriptionName = "test";
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(normalTopic)
+                .subscriptionName(subscriptionName)
+                .enableBatchIndexAcknowledgment(true)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(normalTopic)
+                .enableBatching(true)
+                .batchingMaxMessages(200)
+                .create();
+
+        // mark delete position
+        producer.send("test1".getBytes());
+
+        Transaction commitTxn = getTxn();
+
+        consumer.acknowledgeAsync(consumer.receive().getMessageId(), commitTxn).get();
+
+        PendingAckHandle pendingAckHandle = Whitebox.getInternalState(getPulsarServiceList().get(0)
+                .getBrokerService().getTopic("persistent://" + normalTopic, false).get().get()
+                .getSubscription(subscriptionName), "pendingAckHandle");
+
+        Map<PositionImpl, MutablePair<PositionImpl, Integer>> individualAckPositions =
+                Whitebox.getInternalState(pendingAckHandle, "individualAckPositions");
+        // one message in pending ack state
+        assertEquals(1, individualAckPositions.size());
+
+        // put the PositionImpl.EARLIEST to the map
+        individualAckPositions.put(PositionImpl.EARLIEST, new MutablePair<>(PositionImpl.EARLIEST, 0));
+
+        // put the PositionImpl.LATEST to the map
+        individualAckPositions.put(PositionImpl.LATEST, new MutablePair<>(PositionImpl.EARLIEST, 0));
+
+        // three position in pending ack state
+        assertEquals(3, individualAckPositions.size());
+
+        // commit this txn will delete the received position and PositionImpl.EARLIEST, don't delete PositionImpl.LATEST
+        commitTxn.commit().get();
+        assertEquals(1, individualAckPositions.size());
     }
 
     private Transaction getTxn() throws Exception {

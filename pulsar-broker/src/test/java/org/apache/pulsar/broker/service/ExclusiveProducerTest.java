@@ -30,6 +30,7 @@ import java.util.concurrent.TimeUnit;
 import io.netty.util.HashedWheelTimer;
 import lombok.Cleanup;
 
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -331,7 +332,12 @@ public class ExclusiveProducerTest extends BrokerTestBase {
         p1.send("msg-1");
 
         if (partitioned) {
-            admin.topics().deletePartitionedTopic(topic, true);
+            try {
+                admin.topics().deletePartitionedTopic(topic, true);
+                fail("expected error because partitioned topic has active producer");
+            } catch (PulsarAdminException.ServerSideErrorException e) {
+                // expected
+            }
         } else {
             admin.topics().delete(topic, true);
         }

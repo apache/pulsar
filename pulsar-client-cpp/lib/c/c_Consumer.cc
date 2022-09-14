@@ -143,3 +143,8 @@ pulsar_result pulsar_consumer_seek(pulsar_consumer_t *consumer, pulsar_message_i
 }
 
 int pulsar_consumer_is_connected(pulsar_consumer_t *consumer) { return consumer->consumer.isConnected(); }
+
+pulsar_result pulsar_consumer_get_last_message_id(pulsar_consumer_t *consumer,
+                                                  pulsar_message_id_t *messageId) {
+    return (pulsar_result)consumer->consumer.getLastMessageId(messageId->messageId);
+}

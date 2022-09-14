@@ -112,6 +112,7 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
                 && pulsarCluster.getSqlFollowWorkerContainers().size() > 0) {
             OkHttpClient okHttpClient = new OkHttpClient();
             Request request = new Request.Builder()
+                    .header("X-Trino-User", "test-user")
                     .url("http://" + pulsarCluster.getPrestoWorkerContainer().getUrl() + "/v1/node")
                     .build();
             do {

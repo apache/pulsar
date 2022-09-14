@@ -267,11 +267,8 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
                             topicName, subscription,  consumerId, entry.getLedgerId(), entry.getEntryId(), batchSize);
                 }
 
-                int redeliveryCount = 0;
-                PositionImpl position = PositionImpl.get(entry.getLedgerId(), entry.getEntryId());
-                if (redeliveryTracker.contains(position)) {
-                    redeliveryCount = redeliveryTracker.incrementAndGetRedeliveryCount(position);
-                }
+                int redeliveryCount = redeliveryTracker
+                        .getRedeliveryCount(PositionImpl.get(entry.getLedgerId(), entry.getEntryId()));
 
                 ctx.write(
                         cnx.newMessageAndIntercept(consumerId, entry.getLedgerId(), entry.getEntryId(), partitionIdx,

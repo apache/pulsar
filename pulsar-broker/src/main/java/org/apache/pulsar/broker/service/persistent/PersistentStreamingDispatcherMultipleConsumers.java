@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import com.google.common.collect.Lists;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -91,7 +92,24 @@ public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDi
 
         cursor.seek(((ManagedLedgerImpl) cursor.getManagedLedger())
                 .getNextValidPosition((PositionImpl) entry.getPosition()));
-        sendMessagesToConsumers(readType, Lists.newArrayList(entry));
+
+        // dispatch messages to a separate thread, but still in order for this subscription
+        // sendMessagesToConsumers is responsible for running broker-side filters
+        // that may be quite expensive
+        if (serviceConfig.isDispatcherDispatchMessagesInSubscriptionThread()) {
+            // setting sendInProgress here, because sendMessagesToConsumers will be executed
+            // in a separate thread, and we want to prevent more reads
+            sendInProgress = true;
+            dispatchMessagesThread.execute(safeRun(() -> {
+                if (sendMessagesToConsumers(readType, Lists.newArrayList(entry))) {
+                    readMoreEntries();
+                }
+            }));
+        } else {
+            if (sendMessagesToConsumers(readType, Lists.newArrayList(entry))) {
+                readMoreEntriesAsync();
+            }
+        }
         ctx.recycle();
     }
 
@@ -137,6 +155,11 @@ public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDi
 
     @Override
     public synchronized void readMoreEntries() {
+        if (sendInProgress) {
+            // we cannot read more entries while sending the previous batch
+            // otherwise we could re-read the same entries and send duplicates
+            return;
+        }
         // totalAvailablePermits may be updated by other threads
         int currentTotalAvailablePermits = totalAvailablePermits;
         if (currentTotalAvailablePermits > 0 && isAtleastOneConsumerAvailable()) {
@@ -172,7 +195,7 @@ public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDi
                     topic.getBrokerService().executor().execute(() -> readMoreEntries());
                 }
             } else if (BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.get(this) == TRUE) {
-                log.warn("[{}] Dispatcher read is blocked due to unackMessages {} reached to max {}", name,
+                log.debug("[{}] Dispatcher read is blocked due to unackMessages {} reached to max {}", name,
                         totalUnackedMessages, topic.getMaxUnackedMessagesOnSubscription());
             } else if (!havePendingRead) {
                 if (log.isDebugEnabled()) {

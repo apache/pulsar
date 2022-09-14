@@ -25,7 +25,6 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import com.google.common.collect.BoundType;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.google.common.collect.TreeRangeSet;
 import java.util.ArrayList;
@@ -194,7 +193,7 @@ public class RangeSetWrapperTest {
         // add 10K values for key 0
         int totalInsert = 10_000;
         // add single values
-        List<Range<LongPair>> removedRanges = Lists.newArrayList();
+        List<Range<LongPair>> removedRanges = new ArrayList();
         for (int i = 0; i < totalInsert; i++) {
             if (i % 3 == 0 || i % 7 == 0 || i % 11 == 0) {
                 continue;
@@ -478,7 +477,7 @@ public class RangeSetWrapperTest {
 
 
     private List<Range<LongPair>> getConnectedRange(Set<Range<LongPair>> gRanges) {
-        List<Range<LongPair>> gRangeConnected = Lists.newArrayList();
+        List<Range<LongPair>> gRangeConnected = new ArrayList();
         Range<LongPair> lastRange = null;
         for (Range<LongPair> range : gRanges) {
             if (lastRange == null) {

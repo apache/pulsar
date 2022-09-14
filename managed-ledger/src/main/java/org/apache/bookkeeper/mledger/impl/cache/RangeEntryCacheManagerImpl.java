@@ -20,8 +20,8 @@ package org.apache.bookkeeper.mledger.impl.cache;
 
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import io.netty.buffer.ByteBuf;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -44,7 +44,7 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
     private volatile long evictionTriggerThreshold;
     private volatile double cacheEvictionWatermark;
     private final AtomicLong currentSize = new AtomicLong(0);
-    private final ConcurrentMap<String, EntryCache> caches = Maps.newConcurrentMap();
+    private final ConcurrentMap<String, EntryCache> caches = new ConcurrentHashMap();
     private final EntryCacheEvictionPolicy evictionPolicy;
 
     private final AtomicBoolean evictionInProgress = new AtomicBoolean(false);
@@ -141,10 +141,12 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
     }
 
     void entryAdded(long size) {
+        mlFactoryMBean.recordCacheInsertion();
         currentSize.addAndGet(size);
     }
 
-    void entriesRemoved(long size) {
+    void entriesRemoved(long size, int count) {
+        mlFactoryMBean.recordNumberOfCacheEntriesEvicted(count);
         currentSize.addAndGet(-size);
     }
 

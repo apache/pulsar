@@ -39,6 +39,9 @@ page at http://checkstyle.sourceforge.net/config.html -->
         <property name="max" value="120"/>
         <property name="severity" value="error"/>
 
+        <!-- Checks only for Java files. -->
+        <property name="fileExtensions" value="java"/>
+
         <!--
           The default ignore pattern exempts the following elements:
             - import statements

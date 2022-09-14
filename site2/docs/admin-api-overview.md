@@ -17,9 +17,7 @@ You can interact with the admin interface via:
 - The `pulsar-admin` CLI tool, which is available in the `bin` folder of your Pulsar installation:
 
   ```shell
-  
   bin/pulsar-admin
-  
   ```
 
   :::tip
@@ -81,7 +79,6 @@ You can find details for the REST API exposed by Pulsar brokers in this {@inject
 To use the Java admin API, instantiate a {@inject: javadoc:PulsarAdmin:/admin/org/apache/pulsar/client/admin/PulsarAdmin} object, and specify a URL for a Pulsar broker and a {@inject: javadoc:PulsarAdminBuilder:/admin/org/apache/pulsar/client/admin/PulsarAdminBuilder}. The following is a minimal example using `localhost`:
 
 ```java
-
 String url = "http://localhost:8080";
 // Pass auth-plugin class fully-qualified name if Pulsar-security enabled
 String authPluginClassName = "com.org.MyAuthPluginClass";
@@ -96,13 +93,11 @@ PulsarAdmin admin = PulsarAdmin.builder()
 .tlsTrustCertsFilePath(tlsTrustCertsFilePath)
 .allowTlsInsecureConnection(tlsAllowInsecureConnection)
 .build();
-
 ```
 
 If you use multiple brokers, you can use multi-host like Pulsar service. For example,
 
 ```java
-
 String url = "http://localhost:8080,localhost:8081,localhost:8082";
 // Pass auth-plugin class fully-qualified name if Pulsar-security enabled
 String authPluginClassName = "com.org.MyAuthPluginClass";
@@ -117,7 +112,6 @@ PulsarAdmin admin = PulsarAdmin.builder()
 .tlsTrustCertsFilePath(tlsTrustCertsFilePath)
 .allowTlsInsecureConnection(tlsAllowInsecureConnection)
 .build();
-
 ```
 
 </TabItem>
@@ -126,9 +120,9 @@ PulsarAdmin admin = PulsarAdmin.builder()
 ````
 
 ## How to define Pulsar resource names when running Pulsar in Kubernetes
-If you run Pulsar Functions or connectors on Kubernetes, you need to follow Kubernetes naming convention to define the names of your Pulsar resources, whichever admin interface you use.
+If you run Pulsar Functions or connectors on Kubernetes, you need to follow the Kubernetes naming convention to define the names of your Pulsar resources, whichever admin interface you use.
 
-Kubernetes requires a name that can be used as a DNS subdomain name as defined in [RFC 1123](https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names). Pulsar supports more legal characters than Kubernetes naming convention. If you create a Pulsar resource name with special characters that are not supported by Kubernetes (for example, including colons in a Pulsar namespace name), Kubernetes runtime translates the Pulsar object names into Kubernetes resource labels which are in RFC 1123-compliant forms. Consequently, you can run functions or connectors using Kubernetes runtime. The rules for translating Pulsar object names into Kubernetes resource labels are as below:
+Kubernetes requires a name that can be used as a DNS subdomain name as defined in [RFC 1123](https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names). Pulsar supports more legal characters than the Kubernetes naming convention. If you create a Pulsar resource name with special characters that are not supported by Kubernetes (for example, including colons in a Pulsar namespace name), Kubernetes runtime translates the Pulsar object names into Kubernetes resource labels which are in RFC 1123-compliant forms. Consequently, you can run functions or connectors using Kubernetes runtime. The rules for translating Pulsar object names into Kubernetes resource labels are as below:
 
 - Truncate to 63 characters
   

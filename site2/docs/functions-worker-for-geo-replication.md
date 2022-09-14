@@ -9,15 +9,11 @@ When running multiple clusters tied together with [geo replication](concepts-rep
 For example, if you have two clusters: `east-1` and `west-1`, you can configure the function workers for `east-1` and `west-1` respectively in the `conf/functions_worker.yml` file. This ensures the two different function workers use distinct sets of topics for their internal coordination.
 
 ```yaml
-
 pulsarFunctionsCluster: east-1
 pulsarFunctionsNamespace: public/functions-east-1
-
 ```
 
 ```yaml
-
 pulsarFunctionsCluster: west-1
 pulsarFunctionsNamespace: public/functions-west-1
-
 ```

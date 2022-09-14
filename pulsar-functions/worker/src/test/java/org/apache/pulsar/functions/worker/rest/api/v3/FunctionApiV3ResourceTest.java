@@ -1689,6 +1689,66 @@ public class FunctionApiV3ResourceTest {
     }
 
     @Test
+    public void testDownloadFunctionByName() throws Exception {
+        URL fileUrl = getClass().getClassLoader().getResource("test_worker_config.yml");
+        File file = Paths.get(fileUrl.toURI()).toFile();
+        String fileLocation = file.getAbsolutePath().replace('\\', '/');
+        String testDir = FunctionApiV3ResourceTest.class.getProtectionDomain().getCodeSource().getLocation().getPath();
+        doReturn(true).when(mockedWorkerService).isInitialized();
+        WorkerConfig config = mock(WorkerConfig.class);
+        when(config.isAuthorizationEnabled()).thenReturn(false);
+        when(mockedWorkerService.getWorkerConfig()).thenReturn(config);
+
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+
+        FunctionMetaData metaData = FunctionMetaData.newBuilder()
+                .setPackageLocation(PackageLocationMetaData.newBuilder().setPackagePath("file:///" + fileLocation))
+                .setTransformFunctionPackageLocation(PackageLocationMetaData.newBuilder().setPackagePath("http://invalid"))
+                .build();
+        when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(function))).thenReturn(metaData);
+
+        StreamingOutput streamOutput = resource.downloadFunction(tenant, namespace, function, null, null, false);
+        File pkgFile = new File(testDir, UUID.randomUUID().toString());
+        OutputStream output = new FileOutputStream(pkgFile);
+        streamOutput.write(output);
+        Assert.assertTrue(pkgFile.exists());
+        if (pkgFile.exists()) {
+            pkgFile.delete();
+        }
+    }
+
+    @Test
+    public void testDownloadTransformFunctionByName() throws Exception {
+        URL fileUrl = getClass().getClassLoader().getResource("test_worker_config.yml");
+        File file = Paths.get(fileUrl.toURI()).toFile();
+        String fileLocation = file.getAbsolutePath().replace('\\', '/');
+        String testDir = FunctionApiV3ResourceTest.class.getProtectionDomain().getCodeSource().getLocation().getPath();
+        doReturn(true).when(mockedWorkerService).isInitialized();
+        WorkerConfig config = mock(WorkerConfig.class);
+        when(config.isAuthorizationEnabled()).thenReturn(false);
+        when(mockedWorkerService.getWorkerConfig()).thenReturn(config);
+
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+
+        FunctionMetaData metaData = FunctionMetaData.newBuilder()
+                .setPackageLocation(PackageLocationMetaData.newBuilder().setPackagePath("http://invalid"))
+                .setTransformFunctionPackageLocation(PackageLocationMetaData.newBuilder()
+                        .setPackagePath("file:///" + fileLocation))
+                .build();
+        when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(function))).thenReturn(metaData);
+
+        StreamingOutput streamOutput = resource.downloadFunction(tenant, namespace, function, null, null, true);
+        File pkgFile = new File(testDir, UUID.randomUUID().toString());
+        OutputStream output = new FileOutputStream(pkgFile);
+        streamOutput.write(output);
+        Assert.assertTrue(pkgFile.exists());
+        if (pkgFile.exists()) {
+            pkgFile.delete();
+        }
+    }
+
+
+    @Test
     public void testRegisterFunctionFileUrlWithValidSinkClass() throws Exception {
         Configurator.setRootLevel(Level.DEBUG);
 

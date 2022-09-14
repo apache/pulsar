@@ -244,7 +244,7 @@ def deleteMLLedgerIdsCommand(zk, mlPath, deleteLedgerIds):
             deletLedgerIds = set(deleteLedgerIds.split(","))
             deletLedgerIdSet = set()
             for id in deletLedgerIds:
-                deletLedgerIdSet.add(long(id))
+                deletLedgerIdSet.add(int(id))
             deleteLedgerIdsFromManagedLedgerInfo(zk, mlPath, deletLedgerIdSet)
         else:
             print('Usage: --command {} [--ledgerIds]'.format(deleteMlLedgerIds))
@@ -274,7 +274,7 @@ def updateMarkDeleteOfCursorCommand(zk, mlPath, cursorName, markDeletePosition):
             if markDeletePosition:
                 positionPair = markDeletePosition.split(":")
                 if len(positionPair) == 2:
-                    updateCursorMarkDelete(zk, mlPath + "/" + cursorName, (long(positionPair[0])), long(positionPair[1]))
+                    updateCursorMarkDelete(zk, mlPath + "/" + cursorName, (int(positionPair[0])), int(positionPair[1]))
                 else:
                     print("markDeletePosition must be in format <ledger_id>:<entry_id>")
             else:
