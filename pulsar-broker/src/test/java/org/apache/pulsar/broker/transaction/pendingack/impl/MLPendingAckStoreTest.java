@@ -96,6 +96,19 @@ public class MLPendingAckStoreTest extends TransactionTestBase {
 
     @AfterMethod(alwaysRun = true)
     private void afterMethod() throws Exception {
+        ServiceConfiguration defaultConfig = new ServiceConfiguration();
+        ServiceConfiguration serviceConfiguration =
+                persistentSubscriptionMock.getTopic().getBrokerService().getPulsar().getConfiguration();
+        serviceConfiguration.setTransactionPendingAckBatchedWriteMaxRecords(
+                defaultConfig.getTransactionPendingAckBatchedWriteMaxRecords()
+        );
+        serviceConfiguration.setTransactionPendingAckBatchedWriteMaxSize(
+                defaultConfig.getTransactionPendingAckBatchedWriteMaxSize()
+        );
+        serviceConfiguration.setTransactionPendingAckBatchedWriteMaxDelayInMillis(
+                defaultConfig.getTransactionPendingAckBatchedWriteMaxDelayInMillis()
+        );
+        serviceConfiguration.setTransactionPendingAckBatchedWriteEnabled(defaultConfig.isTransactionPendingAckBatchedWriteEnabled());
         admin.topics().delete("persistent://" + NAMESPACE1 + "/test-txn-topic", true);
     }
 
