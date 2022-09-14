@@ -438,9 +438,9 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     ) {
         SchemaStorageFormat.SchemaEntry schemaEntry = newSchemaEntry(index, data);
         return createLedger(schemaId).thenCompose(ledgerHandle ->
-            addEntry(ledgerHandle, schemaEntry).thenApply(entryId ->
-                Functions.newPositionInfo(ledgerHandle.getId(), entryId)
-            )
+                addEntry(ledgerHandle, schemaEntry).thenCompose(entryId ->
+                        closeLedger(ledgerHandle).thenApply(ignore -> Functions.newPositionInfo(ledgerHandle.getId(), entryId))
+                )
         );
     }
 
