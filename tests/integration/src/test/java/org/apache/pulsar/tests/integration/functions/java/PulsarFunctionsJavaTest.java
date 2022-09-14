@@ -32,7 +32,7 @@ import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.testng.annotations.Test;
 
-public class PulsarFunctionsJavaTest extends PulsarFunctionsTest {
+public abstract class PulsarFunctionsJavaTest extends PulsarFunctionsTest {
 
     PulsarFunctionsJavaTest(FunctionRuntimeType functionRuntimeType) {
         super(functionRuntimeType);
@@ -174,8 +174,13 @@ public class PulsarFunctionsJavaTest extends PulsarFunctionsTest {
     }
 
     @Test(groups = {"java_function", "function"})
-    public void testGenericObjectRemoveFiledFunction() throws Exception {
+    public void testGenericObjectRemoveFieldFunction() throws Exception {
         testGenericObjectFunction(REMOVE_AVRO_FIELD_FUNCTION_JAVA_CLASS, true, false);
+    }
+
+    @Test(groups = {"java_function", "function"})
+    public void testGenericObjectRemoveFieldRecordFunction() throws Exception {
+        testGenericObjectFunction(REMOVE_AVRO_FIELD_RECORD_FUNCTION_JAVA_CLASS, true, false);
     }
 
     @Test(groups = {"java_function", "function"})
@@ -184,8 +189,13 @@ public class PulsarFunctionsJavaTest extends PulsarFunctionsTest {
     }
 
     @Test(groups = {"java_function", "function"})
-    public void testGenericObjectRemoveFiledFunctionKeyValue() throws Exception {
+    public void testGenericObjectRemoveFieldFunctionKeyValue() throws Exception {
         testGenericObjectFunction(REMOVE_AVRO_FIELD_FUNCTION_JAVA_CLASS, true, true);
+    }
+
+    @Test(groups = {"java_function", "function"})
+    public void testGenericObjectRemoveFieldRecordFunctionKeyValue() throws Exception {
+        testGenericObjectFunction(REMOVE_AVRO_FIELD_RECORD_FUNCTION_JAVA_CLASS, true, true);
     }
 
     @Test(groups = {"java_function", "function"})

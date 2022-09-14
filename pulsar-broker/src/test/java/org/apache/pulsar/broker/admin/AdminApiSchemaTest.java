@@ -27,11 +27,11 @@ import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import com.google.common.collect.Sets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.api.DigestType;
@@ -78,11 +78,11 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
 
         // Setup namespaces
         admin.clusters().createCluster(cluster, ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-        TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
         admin.tenants().createTenant("schematest", tenantInfo);
-        admin.namespaces().createNamespace("schematest/test", Sets.newHashSet("test"));
-        admin.namespaces().createNamespace("schematest/"+cluster+"/test", Sets.newHashSet("test"));
-        admin.namespaces().createNamespace(schemaCompatibilityNamespace, Sets.newHashSet("test"));
+        admin.namespaces().createNamespace("schematest/test", Set.of("test"));
+        admin.namespaces().createNamespace("schematest/"+cluster+"/test", Set.of("test"));
+        admin.namespaces().createNamespace(schemaCompatibilityNamespace, Set.of("test"));
     }
 
     @AfterMethod(alwaysRun = true)

@@ -46,7 +46,7 @@ You can configure a function by using a predefined YAML file. The following tabl
 | userConfig           | Map`<String,Object>`         | `--user-config`         	 | User-defined config key/values. |
 | secrets       | Map`<String,Object>` | `--secrets`	| The mapping from secretName to objects that encapsulate how the secret is fetched by the underlying secrets provider. |
 | runtime       | String             | N/A          | The runtime of a function. Available values: `java`,`python`, `go`. |
-| autoAck       | Boolean            | `--auto-ack` | Whether the framework acknowledges messages automatically or not. <br /><br />**Tip**: This configuration will be deprecated. If the user specifies delivery semantics, the framework will automatically ack messages. If you do not want the framework to ack messages, set the **processingGuarantees** to `MANUAL`. |
+| autoAck       | Boolean            | `--auto-ack` | Whether the framework acknowledges messages automatically or not. <br /><br />**Note**: This configuration will be deprecated in future releases. If you specify a delivery semantic, the framework automatically acknowledges messages. If you do not want the framework to auto-ack messages, set the `processingGuarantees` to `MANUAL`. |
 | maxMessageRetries    | Int      |	`--max-message-retries` | The number of retries to process a message before giving up. |
 | deadLetterTopic      | String   | `--dead-letter-topic`   | The topic used for storing messages that are not processed successfully. |
 | subName              | String   | `--subs-name`           | The name of Pulsar source subscription used for input-topic consumers if required.|

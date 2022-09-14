@@ -24,9 +24,9 @@ import TabItem from '@theme/TabItem';
 
 Pulsar allows you to grant namespace-level or topic-level permission to users.
 
-- If you grant a namespace-level permission to a user, then the user can access all the topics under the namespace.
+- If you grant namespace-level permission to a user, then the user can access all the topics under the namespace.
 
-- If you grant a topic-level permission to a user, then the user can access only the topic.
+- If you grant topic-level permission to a user, then the user can access only the topic.
 
 The chapters below demonstrate how to grant namespace-level permissions to users. For how to grant topic-level permissions to users, see [manage topics](admin-api-topics.md/#grant-permission).
 
@@ -43,47 +43,44 @@ You can grant permissions to specific roles for lists of operations such as `pro
 Use the [`grant-permission`](/tools/pulsar-admin/) subcommand and specify a namespace, actions using the `--actions` flag, and a role using the `--role` flag:
 
 ```shell
-
-$ pulsar-admin namespaces grant-permission test-tenant/ns1 \
-  --actions produce,consume \
-  --role admin10
-
+pulsar-admin namespaces grant-permission test-tenant/ns1 \
+--actions produce,consume \
+--role admin10
 ```
 
 Wildcard authorization can be performed when `authorizationAllowWildcardsMatching` is set to `true` in `broker.conf`.
 
-e.g.
+**Example**
 
 ```shell
-
-$ pulsar-admin namespaces grant-permission test-tenant/ns1 \
-                        --actions produce,consume \
-                        --role 'my.role.*'
+pulsar-admin namespaces grant-permission test-tenant/ns1 \
+                      --actions produce,consume \
+                      --role 'my.role.*'
 
 ```
 
 Then, roles `my.role.1`, `my.role.2`, `my.role.foo`, `my.role.bar`, etc. can produce and consume.  
 
 ```shell
-
-$ pulsar-admin namespaces grant-permission test-tenant/ns1 \
-                        --actions produce,consume \
-                        --role '*.role.my'
-
+pulsar-admin namespaces grant-permission test-tenant/ns1 \
+                      --actions produce,consume \
+                      --role '*.role.my'
 ```
 
 Then, roles `1.role.my`, `2.role.my`, `foo.role.my`, `bar.role.my`, etc. can produce and consume.
 
-**Note**: A wildcard matching works at **the beginning or end of the role name only**.
+:::note
 
-e.g.
+A wildcard matching works at **the beginning or end of the role name only**.
+
+:::
+
+**Example**
 
 ```shell
-
-$ pulsar-admin namespaces grant-permission test-tenant/ns1 \
-                        --actions produce,consume \
-                        --role 'my.*.role'
-
+pulsar-admin namespaces grant-permission test-tenant/ns1 \
+                      --actions produce,consume \
+                      --role 'my.*.role'
 ```
 
 In this case, only the role `my.*.role` has permissions.  
@@ -98,9 +95,7 @@ Roles `my.1.role`, `my.2.role`, `my.foo.role`, `my.bar.role`, etc. **cannot** pr
 <TabItem value="Java">
 
 ```java
-
 admin.namespaces().grantPermissionOnNamespace(namespace, role, getAuthActions(actions));
-
 ```
 
 </TabItem>
@@ -121,15 +116,13 @@ You can see which permissions have been granted to which roles in a namespace.
 Use the [`permissions`](/tools/pulsar-admin/) subcommand and specify a namespace:
 
 ```shell
-
-$ pulsar-admin namespaces permissions test-tenant/ns1
+pulsar-admin namespaces permissions test-tenant/ns1
 {
   "admin10": [
     "produce",
     "consume"
   ]
 }
-
 ```
 
 </TabItem>
@@ -141,9 +134,7 @@ $ pulsar-admin namespaces permissions test-tenant/ns1
 <TabItem value="Java">
 
 ```java
-
 admin.namespaces().getPermissions(namespace);
-
 ```
 
 </TabItem>
@@ -164,10 +155,8 @@ You can revoke permissions from specific roles, which means that those roles wil
 Use the [`revoke-permission`](/tools/pulsar-admin/) subcommand and specify a namespace and a role using the `--role` flag:
 
 ```shell
-
-$ pulsar-admin namespaces revoke-permission test-tenant/ns1 \
-  --role admin10
-
+pulsar-admin namespaces revoke-permission test-tenant/ns1 \
+--role admin10
 ```
 
 </TabItem>
@@ -179,9 +168,7 @@ $ pulsar-admin namespaces revoke-permission test-tenant/ns1 \
 <TabItem value="Java">
 
 ```java
-
 admin.namespaces().revokePermissionsOnNamespace(namespace, role);
-
 ```
 
 </TabItem>

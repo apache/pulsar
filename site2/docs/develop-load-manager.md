@@ -4,7 +4,7 @@ title: Modular load manager
 sidebar_label: "Modular load manager"
 ---
 
-The *modular load manager*, implemented in  [`ModularLoadManagerImpl`](https://github.com/apache/pulsar/blob/master/pulsar-broker/src/main/java/org/apache/pulsar/broker/loadbalance/impl/ModularLoadManagerImpl.java), is a flexible alternative to the previously implemented load manager, [`SimpleLoadManagerImpl`](https://github.com/apache/pulsar/blob/master/pulsar-broker/src/main/java/org/apache/pulsar/broker/loadbalance/impl/SimpleLoadManagerImpl.java), which attempts to simplify how load is managed while also providing abstractions so that complex load management strategies may be implemented.
+The *modular load manager*, implemented in  [`ModularLoadManagerImpl`](https://github.com/apache/pulsar/blob/master/pulsar-broker/src/main/java/org/apache/pulsar/broker/loadbalance/impl/ModularLoadManagerImpl.java), is a flexible alternative to the previously implemented load manager, [`SimpleLoadManagerImpl`](https://github.com/apache/pulsar/blob/master/pulsar-broker/src/main/java/org/apache/pulsar/broker/loadbalance/impl/SimpleLoadManagerImpl.java), which attempts to simplify how the load is managed while also providing abstractions so that complex load management strategies may be implemented.
 
 ## Usage
 
@@ -14,11 +14,9 @@ There are two ways that you can enable the modular load manager:
 2. Using the `pulsar-admin` tool. Here's an example:
 
    ```shell
-   
-   $ pulsar-admin update-dynamic-config \
-    --config loadManagerClassName \
-    --value org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl
-   
+   pulsar-admin update-dynamic-config \
+   --config loadManagerClassName \
+   --value org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl
    ```
 
    You can use the same method to change back to the original value. In either case, any mistake in specifying the load manager will cause Pulsar to default to `SimpleLoadManagerImpl`.
@@ -30,20 +28,17 @@ There are a few different ways to determine which load manager is being used:
 1. Use `pulsar-admin` to examine the `loadManagerClassName` element:
 
    ```shell
-   
-   $ bin/pulsar-admin brokers get-all-dynamic-config
+   bin/pulsar-admin brokers get-all-dynamic-config
    {
     "loadManagerClassName" : "org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl"
    }
-   
    ```
 
    If there is no `loadManagerClassName` element, then the default load manager is used.
 
-2. Consult a ZooKeeper load report. With the module load manager, the load report in `/loadbalance/brokers/...` will have many differences. for example the `systemResourceUsage` sub-elements (`bandwidthIn`, `bandwidthOut`, etc.) are now all at the top level. Here is an example load report from the module load manager:
+2. Consult a ZooKeeper load report. With the module load manager, the load report in `/loadbalance/brokers/...` will have many differences. For example, the `systemResourceUsage` sub-elements (`bandwidthIn`, `bandwidthOut`, etc.) are now all at the top level. Here is an example load report from the module load manager:
 
    ```json
-   
    {
      "bandwidthIn": {
        "limit": 10240000.0,
@@ -63,13 +58,11 @@ There are a few different ways to determine which load manager is being used:
        "usage": 1.0
      }
    }
-   
    ```
 
-   With the simple load manager, the load report in `/loadbalance/brokers/...` will look like this:
+   With the simple load manager, the load report in `/loadbalance/brokers/...` looks like this:
 
    ```json
-   
    {
      "systemResourceUsage": {
        "bandwidthIn": {
@@ -94,7 +87,6 @@ There are a few different ways to determine which load manager is being used:
        }
      }
    }
-   
    ```
 
 3. The command-line [broker monitor](reference-cli-tools.md#monitor-brokers) will have a different output format depending on which load manager implementation is being used.
@@ -149,8 +141,7 @@ Here, the available data is subdivided into the bundle data and the broker data.
 #### Broker
 
 The broker data is contained in the [`BrokerData`](https://github.com/apache/pulsar/blob/master/pulsar-broker/src/main/java/org/apache/pulsar/broker/BrokerData.java) class. It is further subdivided into two parts,
-one being the local data which every broker individually writes to ZooKeeper, and the other being the historical broker
-data which is written to ZooKeeper by the leader broker.
+one being the local data that every broker individually writes to ZooKeeper, and the other being the historical broker data that is written to ZooKeeper by the leader broker.
 
 ##### Local Broker Data
 The local broker data is contained in the class [`LocalBrokerData`](https://github.com/apache/pulsar/blob/master/pulsar-common/src/main/java/org/apache/pulsar/policies/data/loadbalancer/LocalBrokerData.java) and provides information about the following resources:
@@ -173,7 +164,7 @@ receive the update immediately via a ZooKeeper watch, where the local data is re
 
 The historical broker data is contained in the [`TimeAverageBrokerData`](https://github.com/apache/pulsar/blob/master/pulsar-broker/src/main/java/org/apache/pulsar/broker/TimeAverageBrokerData.java) class.
 
-In order to reconcile the need to make good decisions in a steady-state scenario and make reactive decisions in a critical scenario, the historical data is split into two parts: the short-term data for reactive decisions, and the long-term data for steady-state decisions. Both time frames maintain the following information:
+To reconcile the need to make good decisions in a steady-state scenario and make reactive decisions in a critical scenario, the historical data is split into two parts: the short-term data for reactive decisions, and the long-term data for steady-state decisions. Both time frames maintain the following information:
 
 * Message rate in/out for the entire broker
 * Message throughput in/out for the entire broker
@@ -184,41 +175,33 @@ The historical broker data is updated for each broker in memory by the leader br
 
 ##### Bundle Data
 
-The bundle data is contained in the [`BundleData`](https://github.com/apache/pulsar/blob/master/pulsar-broker/src/main/java/org/apache/pulsar/broker/BundleData.java). Like the historical broker data, the bundle data is split into a short-term and a long-term time frame. The information maintained in each time frame:
+The bundle data is contained in the [`BundleData`](https://github.com/apache/pulsar/blob/master/pulsar-broker/src/main/java/org/apache/pulsar/broker/BundleData.java). Like the historical broker data, the bundle data is split into a short-term and long-term time frame. The information maintained in each time frame:
 
 * Message rate in/out for this bundle
 * Message Throughput In/Out for this bundle
 * Current number of samples for this bundle
 
-The time frames are implemented by maintaining the average of these values over a set, limited number of samples, where
-the samples are obtained through the message rate and throughput values in the local data. Thus, if the update interval
-for the local data is 2 minutes, the number of short samples is 10 and the number of long samples is 1000, the
-short-term data is maintained over a period of `10 samples * 2 minutes / sample = 20 minutes`, while the long-term
-data is similarly over a period of 2000 minutes. Whenever there are not enough samples to satisfy a given time frame,
-the average is taken only over the existing samples. When no samples are available, default values are assumed until
-they are overwritten by the first sample. Currently, the default values are
+The time frames are implemented by maintaining the average of these values over a set, a limited number of samples, where the samples are obtained through the message rate and throughput values in the local data. Thus, if the update interval for the local data is 2 minutes, the number of short samples is 10 and the number of long samples is 1000, the short-term data is maintained over a period of `10 samples * 2 minutes / sample = 20 minutes`, while the long-term data is similarly over a period of 2000 minutes. Whenever there are not enough samples to satisfy a given time frame, the average is taken only over the existing samples. When no samples are available, default values are assumed until they are overwritten by the first sample. Currently, the default values are
 
 * Message rate in/out: 50 messages per second both ways
 * Message throughput in/out: 50KB per second both ways
 
 The bundle data is updated in memory on the leader broker whenever any broker writes their local data to ZooKeeper.
-Then, the bundle data is written to ZooKeeper by the leader broker periodically at the same time as the historical
-broker data, according to the configuration `loadBalancerResourceQuotaUpdateIntervalMinutes`.
+Then, the bundle data is written to ZooKeeper by the leader broker periodically at the same time as the historical broker data, according to the configuration `loadBalancerResourceQuotaUpdateIntervalMinutes`.
 
 ### Traffic Distribution
 
-The modular load manager uses the abstraction provided by [`ModularLoadManagerStrategy`](https://github.com/apache/pulsar/blob/master/pulsar-broker/src/main/java/org/apache/pulsar/broker/loadbalance/ModularLoadManagerStrategy.java) to make decisions about bundle assignment. The strategy makes a decision by considering the service configuration, the entire load data, and the bundle data for the bundle to be assigned. Currently, the only supported strategy is [`LeastLongTermMessageRate`](https://github.com/apache/pulsar/blob/master/pulsar-broker/src/main/java/org/apache/pulsar/broker/loadbalance/impl/LeastLongTermMessageRate.java), though soon users will have the ability to inject their own strategies if desired.
+The modular load manager uses the abstraction provided by [`ModularLoadManagerStrategy`](https://github.com/apache/pulsar/blob/master/pulsar-broker/src/main/java/org/apache/pulsar/broker/loadbalance/ModularLoadManagerStrategy.java) to make decisions about bundle assignments. The strategy makes a decision by considering the service configuration, the entire load data, and the bundle data for the bundle to be assigned. Currently, the only supported strategy is [`LeastLongTermMessageRate`](https://github.com/apache/pulsar/blob/master/pulsar-broker/src/main/java/org/apache/pulsar/broker/loadbalance/impl/LeastLongTermMessageRate.java), though soon users will have the ability to inject their own strategies if desired.
 
 #### Least Long Term Message Rate Strategy
 
-As its name suggests, the least long term message rate strategy attempts to distribute bundles across brokers so that
+As its name suggests, the least long-term message rate strategy attempts to distribute bundles across brokers so that
 the message rate in the long-term time window for each broker is roughly the same. However, simply balancing load based
 on message rate does not handle the issue of asymmetric resource burden per message on each broker. Thus, the system
 resource usages, which are CPU, memory, direct memory, bandwidth in, and bandwidth out, are also considered in the
 assignment process. This is done by weighting the final message rate according to
 `1 / (overload_threshold - max_usage)`, where `overload_threshold` corresponds to the configuration
-`loadBalancerBrokerOverloadedThresholdPercentage` and `max_usage` is the maximum proportion among the system resources
-that is being utilized by the candidate broker. This multiplier ensures that machines with are being more heavily taxed
+`loadBalancerBrokerOverloadedThresholdPercentage` and `max_usage` is the maximum proportion among the system resources that are being utilized by the candidate broker. This multiplier ensures that machines with are being more heavily taxed
 by the same message rates will receive less load. In particular, it tries to ensure that if one machine is overloaded,
 then all machines are approximately overloaded. In the case in which a broker's max usage exceeds the overload
 threshold, that broker is not considered for bundle assignment. If all brokers are overloaded, the bundle is randomly

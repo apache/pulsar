@@ -18,16 +18,14 @@ There are a few major changes that you should be aware of, as they may significa
 
 ### Properties versus tenants
 
-Previously, Pulsar had a concept of properties. A property is essentially the exact same thing as a tenant, so the "property" terminology has been removed in version 2.0. The [`pulsar-admin properties`](/tools/pulsar-admin/) command-line interface, for example, has been replaced with the [`pulsar-admin tenants`](/tools/pulsar-admin/) interface. In some cases the properties terminology is still used but is now considered deprecated and will be removed entirely in a future release.
+Previously, Pulsar had a concept of properties. A property is essentially the exact same thing as a tenant, so the "property" terminology has been removed in version 2.0. The [`pulsar-admin properties`](/tools/pulsar-admin/) command-line interface, for example, has been replaced with the [`pulsar-admin tenants`](/tools/pulsar-admin/) interface. In some cases, the properties terminology is still used but is now considered deprecated and will be removed entirely in a future release.
 
 ### Topic names
 
 Prior to version 2.0, *all* Pulsar topics had the following form:
 
 ```http
-
 {persistent|non-persistent}://property/cluster/namespace/topic
-
 ```
 
 Two important changes have been made in Pulsar 2.0:
@@ -42,9 +40,7 @@ Two important changes have been made in Pulsar 2.0:
 The cluster component has been removed from topic names. Thus, all topic names now have the following form:
 
 ```http
-
 {persistent|non-persistent}://tenant/namespace/topic
-
 ```
 
 > Existing topics that use the legacy name format will continue to work without any change, and there are no plans to change that.
@@ -67,5 +63,5 @@ Input topic name | Translated topic name
 `my-topic` | `persistent://public/default/my-topic`
 `my-tenant/my-namespace/my-topic` | `persistent://my-tenant/my-namespace/my-topic`
 
-> For [non-persistent topics](concepts-messaging.md#non-persistent-topics) you'll need to continue to specify the entire topic name, as the default-based rules for persistent topic names don't apply. Thus you cannot use a shorthand name like `non-persistent://my-topic` and would need to use `non-persistent://public/default/my-topic` instead
+> For [non-persistent topics](concepts-messaging.md#non-persistent-topics) you'll need to continue to specify the entire topic name, as the default-based rules for persistent topic names don't apply. Thus you cannot use a shorthand name like `non-persistent://my-topic` and would need to use `non-persistent://public/default/my-topic` instead.
 

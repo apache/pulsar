@@ -33,7 +33,6 @@ Here is an example of how to customize metrics for Java, Python and Go functions
 <TabItem value="Java">
 
 ```java
-
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 
@@ -51,14 +50,12 @@ public class MetricRecorderFunction implements Function<Integer, Void> {
         return null;
     }
 }
-
 ```
 
 </TabItem>
 <TabItem value="Python">
 
 ```python
-
 from pulsar import Function
 
 class MetricRecorderFunction(Function):
@@ -67,14 +64,12 @@ class MetricRecorderFunction(Function):
 
         if input == 11:
             context.record_metric('elevens-count', 1)
-
 ```
 
 </TabItem>
 <TabItem value="Go">
 
 ```go
-
 func metricRecorderFunction(ctx context.Context, in []byte) error {
 	inputstr := string(in)
 	fctx, ok := pf.FromContext(ctx)
@@ -87,7 +82,6 @@ func metricRecorderFunction(ctx context.Context, in []byte) error {
 	}
 	return nil
 }
-
 ```
 
 </TabItem>

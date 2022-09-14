@@ -48,47 +48,47 @@ HTTPLookupService::CurlInitializer::~CurlInitializer() { curl_global_cleanup(); 
 
 HTTPLookupService::CurlInitializer HTTPLookupService::curlInitializer;
 
-HTTPLookupService::HTTPLookupService(const std::string &lookupUrl,
+HTTPLookupService::HTTPLookupService(ServiceNameResolver &serviceNameResolver,
                                      const ClientConfiguration &clientConfiguration,
                                      const AuthenticationPtr &authData)
     : executorProvider_(std::make_shared<ExecutorServiceProvider>(NUMBER_OF_LOOKUP_THREADS)),
+      serviceNameResolver_(serviceNameResolver),
       authenticationPtr_(authData),
       lookupTimeoutInSeconds_(clientConfiguration.getOperationTimeoutSeconds()),
       tlsTrustCertsFilePath_(clientConfiguration.getTlsTrustCertsFilePath()),
       isUseTls_(clientConfiguration.isUseTls()),
       tlsAllowInsecure_(clientConfiguration.isTlsAllowInsecureConnection()),
-      tlsValidateHostname_(clientConfiguration.isValidateHostName()) {
-    if (lookupUrl[lookupUrl.length() - 1] == '/') {
-        // Remove trailing '/'
-        adminUrl_ = lookupUrl.substr(0, lookupUrl.length() - 1);
-    } else {
-        adminUrl_ = lookupUrl;
-    }
-}
+      tlsValidateHostname_(clientConfiguration.isValidateHostName()) {}
 
-Future<Result, LookupDataResultPtr> HTTPLookupService::lookupAsync(const std::string &topic) {
-    LookupPromise promise;
-    std::shared_ptr<TopicName> topicName = TopicName::get(topic);
-    if (!topicName) {
-        LOG_ERROR("Unable to parse topic - " << topic);
-        promise.setFailed(ResultInvalidTopicName);
-        return promise.getFuture();
-    }
+auto HTTPLookupService::getBroker(const TopicName &topicName) -> LookupResultFuture {
+    LookupResultPromise promise;
 
+    const auto &url = serviceNameResolver_.resolveHost();
     std::stringstream completeUrlStream;
-    if (topicName->isV2Topic()) {
-        completeUrlStream << adminUrl_ << V2_PATH << topicName->getDomain() << "/" << topicName->getProperty()
-                          << '/' << topicName->getNamespacePortion() << '/'
-                          << topicName->getEncodedLocalName();
+    if (topicName.isV2Topic()) {
+        completeUrlStream << url << V2_PATH << topicName.getDomain() << "/" << topicName.getProperty() << '/'
+                          << topicName.getNamespacePortion() << '/' << topicName.getEncodedLocalName();
     } else {
-        completeUrlStream << adminUrl_ << V1_PATH << topicName->getDomain() << "/" << topicName->getProperty()
-                          << '/' << topicName->getCluster() << '/' << topicName->getNamespacePortion() << '/'
-                          << topicName->getEncodedLocalName();
+        completeUrlStream << url << V1_PATH << topicName.getDomain() << "/" << topicName.getProperty() << '/'
+                          << topicName.getCluster() << '/' << topicName.getNamespacePortion() << '/'
+                          << topicName.getEncodedLocalName();
     }
 
-    executorProvider_->get()->postWork(std::bind(&HTTPLookupService::handleLookupHTTPRequest,
-                                                 shared_from_this(), promise, completeUrlStream.str(),
-                                                 Lookup));
+    const auto completeUrl = completeUrlStream.str();
+    auto self = shared_from_this();
+    executorProvider_->get()->postWork([this, self, promise, completeUrl] {
+        std::string responseData;
+        Result result = sendHTTPRequest(completeUrl, responseData);
+
+        if (result != ResultOk) {
+            promise.setFailed(result);
+        } else {
+            const auto lookupDataResultPtr = parseLookupData(responseData);
+            const auto brokerAddress = (serviceNameResolver_.useTls() ? lookupDataResultPtr->getBrokerUrlTls()
+                                                                      : lookupDataResultPtr->getBrokerUrl());
+            promise.setValue({brokerAddress, brokerAddress});
+        }
+    });
     return promise.getFuture();
 }
 
@@ -97,15 +97,15 @@ Future<Result, LookupDataResultPtr> HTTPLookupService::getPartitionMetadataAsync
     LookupPromise promise;
     std::stringstream completeUrlStream;
 
+    const auto &url = serviceNameResolver_.resolveHost();
     if (topicName->isV2Topic()) {
-        completeUrlStream << adminUrl_ << ADMIN_PATH_V2 << topicName->getDomain() << '/'
-                          << topicName->getProperty() << '/' << topicName->getNamespacePortion() << '/'
+        completeUrlStream << url << ADMIN_PATH_V2 << topicName->getDomain() << '/' << topicName->getProperty()
+                          << '/' << topicName->getNamespacePortion() << '/'
                           << topicName->getEncodedLocalName() << '/' << PARTITION_METHOD_NAME;
     } else {
-        completeUrlStream << adminUrl_ << ADMIN_PATH_V1 << topicName->getDomain() << '/'
-                          << topicName->getProperty() << '/' << topicName->getCluster() << '/'
-                          << topicName->getNamespacePortion() << '/' << topicName->getEncodedLocalName()
-                          << '/' << PARTITION_METHOD_NAME;
+        completeUrlStream << url << ADMIN_PATH_V1 << topicName->getDomain() << '/' << topicName->getProperty()
+                          << '/' << topicName->getCluster() << '/' << topicName->getNamespacePortion() << '/'
+                          << topicName->getEncodedLocalName() << '/' << PARTITION_METHOD_NAME;
     }
 
     completeUrlStream << "?checkAllowAutoCreation=true";
@@ -120,11 +120,12 @@ Future<Result, NamespaceTopicsPtr> HTTPLookupService::getTopicsOfNamespaceAsync(
     NamespaceTopicsPromise promise;
     std::stringstream completeUrlStream;
 
+    const auto &url = serviceNameResolver_.resolveHost();
     if (nsName->isV2()) {
-        completeUrlStream << adminUrl_ << ADMIN_PATH_V2 << "namespaces" << '/' << nsName->toString() << '/'
+        completeUrlStream << url << ADMIN_PATH_V2 << "namespaces" << '/' << nsName->toString() << '/'
                           << "topics";
     } else {
-        completeUrlStream << adminUrl_ << ADMIN_PATH_V1 << "namespaces" << '/' << nsName->toString() << '/'
+        completeUrlStream << url << ADMIN_PATH_V1 << "namespaces" << '/' << nsName->toString() << '/'
                           << "destinations";
     }
 

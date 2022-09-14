@@ -491,8 +491,8 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
     }
 
     @Override
-    public <X> FunctionRecord.FunctionRecordBuilder<X> newOutputRecordBuilder() {
-        return FunctionRecord.from(this);
+    public <X> FunctionRecord.FunctionRecordBuilder<X> newOutputRecordBuilder(Schema<X> schema) {
+        return FunctionRecord.from(this, schema);
     }
 
     @Override

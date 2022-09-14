@@ -407,7 +407,6 @@ class PULSAR_PUBLIC Consumer {
 
     friend class PulsarFriend;
     friend class PulsarWrapper;
-    friend class PartitionedConsumerImpl;
     friend class MultiTopicsConsumerImpl;
     friend class ConsumerImpl;
     friend class ClientImpl;

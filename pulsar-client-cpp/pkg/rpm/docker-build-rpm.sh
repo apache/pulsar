@@ -18,11 +18,17 @@
 # under the License.
 #
 
-set -e
+set -ex
 
 ROOT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )"/../../.. &> /dev/null && pwd )"
+IMAGE_NAME=apachepulsar/pulsar-build:centos-7-2.11
 
-docker pull apachepulsar/pulsar-build:centos-7
+if [[ -z $BUILD_IMAGE ]]; then
+    # pull the image from DockerHub by default
+    docker pull $IMAGE_NAME
+else
+    docker build --platform linux/amd64 -t $IMAGE_NAME $ROOT_DIR/pulsar-client-cpp/pkg/rpm
+fi
 
-docker run -it -v $ROOT_DIR:/pulsar apachepulsar/pulsar-build:centos-7 \
+docker run --platform linux/amd64 -v $ROOT_DIR:/pulsar $IMAGE_NAME \
         /pulsar/pulsar-client-cpp/pkg/rpm/build-rpm.sh

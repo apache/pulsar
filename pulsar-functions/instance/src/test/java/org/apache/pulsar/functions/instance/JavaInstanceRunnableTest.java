@@ -79,7 +79,7 @@ public class JavaInstanceRunnableTest {
         when(clientBuilder.build()).thenReturn(null);
         InstanceConfig config = createInstanceConfig(functionDetails);
         JavaInstanceRunnable javaInstanceRunnable = new JavaInstanceRunnable(
-                config, clientBuilder, null, null, null, null, null, null, null);
+                config, clientBuilder, null, null, null, null, null, null, null, null);
         return javaInstanceRunnable;
     }
 

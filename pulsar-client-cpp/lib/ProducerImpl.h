@@ -35,6 +35,7 @@
 #include "BatchMessageContainerBase.h"
 #include "PendingFailures.h"
 #include "Semaphore.h"
+#include "PeriodicTask.h"
 
 using namespace pulsar;
 
@@ -86,6 +87,9 @@ class ProducerImpl : public HandlerBase,
 
     static int getNumOfChunks(uint32_t size, uint32_t maxMessageSize);
 
+    // NOTE: this method is introduced into `enable_shared_from_this` since C++17
+    ProducerImplWeakPtr weak_from_this() noexcept;
+
    protected:
     ProducerStatsBasePtr producerStatsBasePtr_;
 
@@ -94,8 +98,6 @@ class ProducerImpl : public HandlerBase,
     void setMessageMetadata(const Message& msg, const uint64_t& sequenceId, const uint32_t& uncompressedSize);
 
     void sendMessage(const OpSendMsg& opSendMsg);
-
-    void batchMessageTimeoutHandler(const boost::system::error_code& ec);
 
     void startSendTimeoutTimer();
 
@@ -162,13 +164,13 @@ class ProducerImpl : public HandlerBase,
     proto::BaseCommand cmd_;
 
     std::unique_ptr<BatchMessageContainerBase> batchMessageContainer_;
-    DeadlineTimerPtr batchTimer_;
+    boost::asio::deadline_timer batchTimer_;
     PendingFailures batchMessageAndSend(const FlushCallback& flushCallback = nullptr);
 
     volatile int64_t lastSequenceIdPublished_;
     std::string schemaVersion_;
 
-    DeadlineTimerPtr sendTimer_;
+    boost::asio::deadline_timer sendTimer_;
     void handleSendTimeout(const boost::system::error_code& err);
     using DurationType = typename boost::asio::deadline_timer::duration_type;
     void asyncWaitSendTimeout(DurationType expiryTime);
@@ -182,8 +184,7 @@ class ProducerImpl : public HandlerBase,
     void failPendingMessages(Result result, bool withLock);
 
     MessageCryptoPtr msgCrypto_;
-    DeadlineTimerPtr dataKeyGenTImer_;
-    uint32_t dataKeyGenIntervalSec_;
+    PeriodicTask dataKeyRefreshTask_;
 
     MemoryLimitController& memoryLimitController_;
     const bool chunkingEnabled_;
