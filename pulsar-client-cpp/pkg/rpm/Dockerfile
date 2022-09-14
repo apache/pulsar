@@ -72,12 +72,14 @@ RUN curl -O -L https://github.com/google/snappy/releases/download/1.1.3/snappy-1
     make && make install && \
     rm -rf /snappy-1.1.3 /snappy-1.1.3.tar.gz
 
-RUN curl -O -L https://github.com/openssl/openssl/archive/OpenSSL_1_1_0j.tar.gz && \
-    tar xfz OpenSSL_1_1_0j.tar.gz && \
-    cd openssl-OpenSSL_1_1_0j/ && \
+RUN curl -O -L https://github.com/openssl/openssl/archive/OpenSSL_1_1_1n.tar.gz && \
+    tar xfz OpenSSL_1_1_1n.tar.gz && \
+    cd openssl-OpenSSL_1_1_1n/ && \
     ./Configure -fPIC --prefix=/usr/local/ssl/ linux-x86_64 && \
     make -j8 && make install && \
-    rm -rf /OpenSSL_1_1_0j.tar.gz /openssl-OpenSSL_1_1_0j
+    rm -rf /OpenSSL_1_1_1n.tar.gz /openssl-OpenSSL_1_1_1n
+
+ENV LD_LIBRARY_PATH /usr/local/ssl/lib/:
 
 # LibCurl
 RUN curl -O -L  https://github.com/curl/curl/releases/download/curl-7_61_0/curl-7.61.0.tar.gz && \
