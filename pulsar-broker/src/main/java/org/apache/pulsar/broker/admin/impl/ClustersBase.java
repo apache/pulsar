@@ -146,11 +146,12 @@ public class ClustersBase extends AdminResource {
             examples = @Example(
                 value = @ExampleProperty(
                     mediaType = MediaType.APPLICATION_JSON,
-                    value =
-                          "{\n"
-                        + "   'serviceUrl': 'http://pulsar.example.com:8080',\n"
-                        + "   'brokerServiceUrl': 'pulsar://pulsar.example.com:6651',\n"
-                        + "}"
+                    value = """
+                            {
+                               "serviceUrl": "http://pulsar.example.com:8080",
+                               "brokerServiceUrl": "pulsar://pulsar.example.com:6651",
+                            }
+                            """
                 )
             )
         ) ClusterDataImpl clusterData) {
@@ -201,11 +202,12 @@ public class ClustersBase extends AdminResource {
             examples = @Example(
                 value = @ExampleProperty(
                     mediaType = MediaType.APPLICATION_JSON,
-                    value =
-                          "{\n"
-                        + "   'serviceUrl': 'http://pulsar.example.com:8080',\n"
-                        + "   'brokerServiceUrl': 'pulsar://pulsar.example.com:6651'\n"
-                        + "}"
+                    value = """
+                            {
+                               "serviceUrl": "http://pulsar.example.com:8080",
+                               "brokerServiceUrl": "pulsar://pulsar.example.com:6651"
+                            }
+                            """
                 )
             )
         ) ClusterDataImpl clusterData) {
@@ -247,10 +249,11 @@ public class ClustersBase extends AdminResource {
                                         required = true,
                                         examples = @Example(
                                         value = @ExampleProperty(mediaType = MediaType.APPLICATION_JSON,
-                                        value = "[\n"
-                                                + "   'cluster-a',\n"
-                                                + "   'cluster-b'\n"
-                                                + "]")))
+                                        value = """
+                                                [
+                                                   "cluster-a",
+                                                   "cluster-b"
+                                                ]""")))
                                     LinkedHashSet<String> peerClusterNames) {
         validateSuperUserAccessAsync()
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
