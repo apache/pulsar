@@ -51,7 +51,7 @@ int main() {
         consumer.receive(msg);
         LOG_INFO("Received: " << msg << "  with payload '" << msg.getDataAsString() << "'");
         LOG_INFO("Received: " << msg << "  with partitionKey '" << msg.getPartitionKey() << "'");
-        KeyValue keyValue = msg.getKeyValueData(KeyValueEncodingType::INLINE);
+        KeyValue keyValue = msg.getKeyValueData();
         LOG_INFO("Received: " << msg << "  with key '" << keyValue.getKey() << "'");
         LOG_INFO("Received: " << msg << "  with value '" << keyValue.getValueAsString() << "'");
         consumer.acknowledge(msg);

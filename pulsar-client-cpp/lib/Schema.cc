@@ -47,8 +47,8 @@ static const std::string VALUE_SCHEMA_TYPE = "value.schema.type";
 static const std::string VALUE_SCHEMA_PROPS = "value.schema.properties";
 static const std::string KV_ENCODING_TYPE = "kv.encoding.type";
 
-PULSAR_PUBLIC const char *strEncodingType(KeyValueEncodingType keyValueEncodingType) {
-    switch (keyValueEncodingType) {
+PULSAR_PUBLIC const char *strEncodingType(KeyValueEncodingType encodingType) {
+    switch (encodingType) {
         case KeyValueEncodingType::INLINE:
             return "INLINE";
         case KeyValueEncodingType::SEPARATED:
@@ -58,6 +58,16 @@ PULSAR_PUBLIC const char *strEncodingType(KeyValueEncodingType keyValueEncodingT
     // Schema and miss them in the switch above we would like to get notified. Adding
     // return here to make the compiler happy.
     return "UnknownSchemaType";
+}
+
+PULSAR_PUBLIC const KeyValueEncodingType enumEncodingType(std::string encodingTypeStr) {
+    if (encodingTypeStr.compare("INLINE") == 0) {
+        return KeyValueEncodingType::INLINE;
+    } else if (encodingTypeStr.compare("SEPARATED") == 0) {
+        return KeyValueEncodingType::SEPARATED;
+    } else {
+        throw std::invalid_argument("No match encoding type: " + encodingTypeStr);
+    }
 }
 
 PULSAR_PUBLIC const char *strSchemaType(SchemaType schemaType) {

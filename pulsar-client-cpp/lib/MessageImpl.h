@@ -23,6 +23,7 @@
 #include <pulsar/MessageId.h>
 #include "SharedBuffer.h"
 #include "PulsarApi.pb.h"
+#include "KeyValueImpl.h"
 
 using namespace pulsar;
 namespace pulsar {
@@ -39,6 +40,7 @@ class MessageImpl {
 
     proto::MessageMetadata metadata;
     SharedBuffer payload;
+    std::shared_ptr<KeyValueImpl> keyValuePtr;
     MessageId messageId;
     ClientConnection* cnx_;
     const std::string* topicName_;
@@ -71,6 +73,9 @@ class MessageImpl {
     bool hasSchemaVersion() const;
     const std::string& getSchemaVersion() const;
     void setSchemaVersion(const std::string& value);
+    void convertKeyValueToPayload(SchemaInfo schemaInfo);
+    void convertPayloadToKeyValue(SchemaInfo schemaInfo);
+    KeyValueEncodingType getKeyValueEncodingType(SchemaInfo schemaInfo);
 
     friend class PulsarWrapper;
     friend class MessageBuilder;

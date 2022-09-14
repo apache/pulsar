@@ -44,7 +44,9 @@ enum class KeyValueEncodingType
 };
 
 // Return string representation of result code
-PULSAR_PUBLIC const char *strEncodingType(pulsar::KeyValueEncodingType schemaType);
+PULSAR_PUBLIC const char *strEncodingType(pulsar::KeyValueEncodingType encodingType);
+
+PULSAR_PUBLIC const KeyValueEncodingType enumEncodingType(std::string encodingTypeStr);
 
 enum SchemaType
 {

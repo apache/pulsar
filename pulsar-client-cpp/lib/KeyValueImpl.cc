@@ -24,8 +24,7 @@ using namespace pulsar;
 
 namespace pulsar {
 
-KeyValueImpl::KeyValueImpl(const char *data, int length, const KeyValueEncodingType &keyValueEncodingType) {
-    keyValueEncodingType_ = keyValueEncodingType;
+KeyValueImpl::KeyValueImpl(const char *data, int length, KeyValueEncodingType keyValueEncodingType) {
     if (keyValueEncodingType == KeyValueEncodingType::INLINE) {
         SharedBuffer buffer = SharedBuffer::wrap(const_cast<char *>(data), length);
         int keySize = buffer.readUnsignedInt();
@@ -44,17 +43,14 @@ KeyValueImpl::KeyValueImpl(const char *data, int length, const KeyValueEncodingT
     }
 }
 
-KeyValueImpl::KeyValueImpl(std::string &&key, std::string &&value,
-                           const KeyValueEncodingType &keyValueEncodingType)
-    : key_(key),
-      valueBuffer_(SharedBuffer::take(std::move(value))),
-      keyValueEncodingType_(keyValueEncodingType) {}
+KeyValueImpl::KeyValueImpl(std::string &&key, std::string &&value)
+    : key_(key), valueBuffer_(SharedBuffer::take(std::move(value))) {}
 
-SharedBuffer KeyValueImpl::getContent() {
+SharedBuffer KeyValueImpl::getContent(KeyValueEncodingType keyValueEncodingType) {
     if (contentBufferCache_.is_present()) {
         return contentBufferCache_.value();
     }
-    if (keyValueEncodingType_ == KeyValueEncodingType::INLINE) {
+    if (keyValueEncodingType == KeyValueEncodingType::INLINE) {
         int keySize = key_.length();
         int valueSize = valueBuffer_.readableBytes();
 
@@ -83,7 +79,5 @@ size_t KeyValueImpl::getValueLength() const { return valueBuffer_.readableBytes(
 std::string KeyValueImpl::getValueAsString() const {
     return std::string(valueBuffer_.data(), valueBuffer_.readableBytes());
 }
-
-KeyValueEncodingType KeyValueImpl::getEncodingType() const { return keyValueEncodingType_; }
 
 }  // namespace pulsar

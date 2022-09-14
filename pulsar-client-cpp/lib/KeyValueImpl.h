@@ -29,20 +29,19 @@ namespace pulsar {
 
 class PULSAR_PUBLIC KeyValueImpl {
    public:
-    KeyValueImpl(const char* data, int length, const KeyValueEncodingType& keyValueEncodingType);
-    KeyValueImpl(std::string&& key, std::string&& value, const KeyValueEncodingType& keyValueEncodingType);
+    KeyValueImpl();
+    KeyValueImpl(const char* data, int length, KeyValueEncodingType keyValueEncodingType);
+    KeyValueImpl(std::string&& key, std::string&& value);
     std::string getKey() const;
     const void* getValue() const;
     size_t getValueLength() const;
     std::string getValueAsString() const;
-    KeyValueEncodingType getEncodingType() const;
-    SharedBuffer getContent();
+    SharedBuffer getContent(KeyValueEncodingType keyValueEncodingType);
 
    private:
     std::string key_;
     SharedBuffer valueBuffer_;
     Optional<SharedBuffer> contentBufferCache_;
-    KeyValueEncodingType keyValueEncodingType_;
 };
 
 } /* namespace pulsar */

@@ -4104,3 +4104,89 @@ TEST(BasicEndToEndTest, testUnAckedMessageTrackerEnabledCumulativeAck) {
     consumer.close();
     client.close();
 }
+
+TEST(BasicEndToEndTest, testKeyValueSchemaWithInline) {
+    const std::string topicName = "testKeyValueSchemaInline" + std::to_string(time(nullptr));
+    const std::string subName = "sub-key-value-schema-inline";
+
+    std::string jsonSchema =
+        R"({"type":"record","name":"cpx","fields":[{"name":"re","type":"double"},{"name":"im","type":"double"}]})";
+    SchemaInfo keySchema(JSON, "key-json", jsonSchema);
+    SchemaInfo valueSchema(JSON, "value-json", jsonSchema);
+    SchemaInfo keyValueSchema(keySchema, valueSchema, KeyValueEncodingType::INLINE);
+    LOG_INFO("KeyValue schema content: " << keyValueSchema.getSchema());
+
+    // Setup client, producer and consumer.
+    Client client(lookupUrl);
+
+    Producer producer;
+    ProducerConfiguration configProducer;
+    configProducer.setSchema(keyValueSchema);
+    configProducer.setBatchingEnabled(false);
+    ASSERT_EQ(ResultOk, client.createProducer(topicName, configProducer, producer));
+
+    Consumer consumer;
+    ConsumerConfiguration configConsumer;
+    configConsumer.setSchema(keyValueSchema);
+    ASSERT_EQ(ResultOk, client.subscribe(topicName, subName, configConsumer, consumer));
+
+    // Sending and receiving messages.
+    std::string jsonData = "{\"re\":2.1,\"im\":1.23}";
+    KeyValue keyValue((std::string(jsonData)), std::string(jsonData));
+    Message msg = MessageBuilder().setContent(keyValue).setProperty("x", "1").build();
+    ASSERT_EQ(ResultOk, producer.send(msg));
+
+    Message receiveMsg;
+    consumer.receive(receiveMsg);
+    KeyValue keyValueData = receiveMsg.getKeyValueData();
+    ASSERT_EQ(receiveMsg.getPartitionKey(), "");
+    ASSERT_EQ(keyValueData.getKey(), jsonData);
+    ASSERT_EQ(keyValueData.getValueAsString(), jsonData);
+
+    producer.close();
+    consumer.close();
+    client.close();
+}
+
+TEST(BasicEndToEndTest, testKeyValueSchemaWithSeparated) {
+    const std::string topicName = "testKeyValueSchemaSeparated" + std::to_string(time(nullptr));
+    const std::string subName = "sub-key-value-schema-separated";
+
+    std::string jsonSchema =
+        R"({"type":"record","name":"cpx","fields":[{"name":"re","type":"double"},{"name":"im","type":"double"}]})";
+    SchemaInfo keySchema(JSON, "key-json", jsonSchema);
+    SchemaInfo valueSchema(JSON, "value-json", jsonSchema);
+    SchemaInfo keyValueSchema(keySchema, valueSchema, KeyValueEncodingType::SEPARATED);
+    LOG_INFO("KeyValue schema content: " << keyValueSchema.getSchema());
+
+    // Setup client, producer and consumer.
+    Client client(lookupUrl);
+
+    Producer producer;
+    ProducerConfiguration configProducer;
+    configProducer.setSchema(keyValueSchema);
+    configProducer.setBatchingEnabled(false);
+    ASSERT_EQ(ResultOk, client.createProducer(topicName, configProducer, producer));
+
+    Consumer consumer;
+    ConsumerConfiguration configConsumer;
+    configConsumer.setSchema(keyValueSchema);
+    ASSERT_EQ(ResultOk, client.subscribe(topicName, subName, configConsumer, consumer));
+
+    // Sending and receiving messages.
+    std::string jsonData = "{\"re\":2.1,\"im\":1.23}";
+    KeyValue keyValue((std::string(jsonData)), std::string(jsonData));
+    Message msg = MessageBuilder().setContent(keyValue).setProperty("x", "1").build();
+    ASSERT_EQ(ResultOk, producer.send(msg));
+
+    Message receiveMsg;
+    consumer.receive(receiveMsg);
+    KeyValue keyValueData = receiveMsg.getKeyValueData();
+    ASSERT_EQ(receiveMsg.getPartitionKey(), jsonData);
+    ASSERT_EQ(keyValueData.getKey(), "");
+    ASSERT_EQ(keyValueData.getValueAsString(), jsonData);
+
+    producer.close();
+    consumer.close();
+    client.close();
+}

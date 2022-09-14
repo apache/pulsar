@@ -21,6 +21,7 @@
 #include <gtest/gtest.h>
 #include <string>
 #include <lib/LogUtils.h>
+#include "MessageImpl.h"
 
 using namespace pulsar;
 TEST(MessageTest, testMessageContents) {
@@ -100,32 +101,50 @@ TEST(MessageTest, testMessageBuilder) {
     }
 }
 
-TEST(MessageTest, testMessageBuilderSetKeyValueContent) {
+TEST(MessageTest, testMessageImplKeyValuePayloadCovert) {
     std::string keyContent = "keyContent";
     std::string valueContent = "valueContent";
 
+    std::string jsonSchema =
+        R"({"type":"record","name":"cpx","fields":[{"name":"re","type":"double"},{"name":"im","type":"double"}]})";
+    SchemaInfo keySchema(JSON, "key-json", jsonSchema);
+    SchemaInfo valueSchema(JSON, "value-json", jsonSchema);
+
     // test inline encoding type.
     {
-        KeyValue keyValue(std::move(keyContent), std::move(valueContent), KeyValueEncodingType::INLINE);
-        const Message& message = MessageBuilder().setContent(keyValue).build();
-        ASSERT_EQ(message.getPartitionKey(), "");
-        ASSERT_TRUE(message.getDataAsString().compare(valueContent) != 0);
+        SchemaInfo keyValueSchema(keySchema, valueSchema, KeyValueEncodingType::INLINE);
+        MessageImpl msgImpl;
+        std::shared_ptr<KeyValueImpl> keyValuePtr =
+            std::make_shared<KeyValueImpl>(std::string(keyContent), std::string(valueContent));
+        msgImpl.keyValuePtr = keyValuePtr;
+        msgImpl.convertKeyValueToPayload(keyValueSchema);
+        ASSERT_EQ(msgImpl.payload.readableBytes(), 30);
+        ASSERT_EQ(msgImpl.getPartitionKey(), "");
+
+        MessageImpl deMsgImpl;
+        deMsgImpl.payload = msgImpl.payload;
+        deMsgImpl.convertPayloadToKeyValue(keyValueSchema);
+
+        ASSERT_EQ(deMsgImpl.keyValuePtr->getKey(), keyContent);
+        ASSERT_EQ(deMsgImpl.keyValuePtr->getValueAsString(), valueContent);
     }
 
     // test separated encoding type.
     {
-        KeyValue keyValue(std::move(keyContent), std::move(valueContent), KeyValueEncodingType::SEPARATED);
-        const Message& message = MessageBuilder().setContent(keyValue).build();
-        ASSERT_EQ(message.getDataAsString(), valueContent);
-        ASSERT_EQ(message.getPartitionKey(), keyContent);
-    }
+        SchemaInfo keyValueSchema(keySchema, valueSchema, KeyValueEncodingType::SEPARATED);
+        MessageImpl msgImpl;
+        std::shared_ptr<KeyValueImpl> keyValuePtr =
+            std::make_shared<KeyValueImpl>(std::string(keyContent), std::string(valueContent));
+        msgImpl.keyValuePtr = keyValuePtr;
+        msgImpl.convertKeyValueToPayload(keyValueSchema);
+        ASSERT_EQ(msgImpl.payload.readableBytes(), 12);
+        ASSERT_EQ(msgImpl.getPartitionKey(), keyContent);
 
-    // test decode
-    {
-        KeyValue keyValue(std::move(keyContent), std::move(valueContent), KeyValueEncodingType::INLINE);
-        const Message& message = MessageBuilder().setContent(keyValue).build();
-        const KeyValue deKeyValue = message.getKeyValueData(KeyValueEncodingType::INLINE);
-        ASSERT_EQ(keyContent, deKeyValue.getKey());
-        ASSERT_EQ(valueContent, deKeyValue.getValueAsString());
+        MessageImpl deMsgImpl;
+        deMsgImpl.payload = msgImpl.payload;
+        deMsgImpl.convertPayloadToKeyValue(keyValueSchema);
+
+        ASSERT_EQ(deMsgImpl.keyValuePtr->getKey(), "");
+        ASSERT_EQ(deMsgImpl.keyValuePtr->getValueAsString(), valueContent);
     }
 }

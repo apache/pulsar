@@ -192,10 +192,7 @@ uint64_t Message::getEventTimestamp() const { return impl_ ? impl_->getEventTime
 
 bool Message::operator==(const Message& msg) const { return getMessageId() == msg.getMessageId(); }
 
-KeyValue Message::getKeyValueData(KeyValueEncodingType keyValueEncodingType) const {
-    return KeyValue(std::make_shared<KeyValueImpl>(static_cast<const char*>(getData()), getLength(),
-                                                   keyValueEncodingType));
-}
+KeyValue Message::getKeyValueData() const { return KeyValue(impl_->keyValuePtr); }
 
 PULSAR_PUBLIC std::ostream& operator<<(std::ostream& s, const Message::StringMap& map) {
     // Output at most 10 elements -- appropriate if used for logging.

@@ -41,7 +41,7 @@ class PULSAR_PUBLIC KeyValue {
      * @param value value data.
      * @param keyValueEncodingType key value encoding type.
      */
-    KeyValue(std::string &&key, std::string &&value, const KeyValueEncodingType &keyValueEncodingType);
+    KeyValue(std::string &&key, std::string &&value);
 
     /**
      * Get the key of KeyValue.
@@ -71,13 +71,6 @@ class PULSAR_PUBLIC KeyValue {
      * @return the string representation of the KeyValue value
      */
     std::string getValueAsString() const;
-
-    /**
-     * Get the encoding type of KeyValue.
-     *
-     * @return encoding type
-     */
-    KeyValueEncodingType getEncodingType() const;
 
    private:
     typedef std::shared_ptr<KeyValueImpl> KeyValueImplPtr;
