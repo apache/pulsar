@@ -2087,6 +2087,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_LOAD_BALANCER,
         doc = "maximum interval to update load report"
     )
+    private int loadBalancerReportUpdateMinIntervalMillis = 5000;
+    @FieldContext(
+            category = CATEGORY_LOAD_BALANCER,
+            dynamic = true,
+            doc = "Min delay of load report to collect, in milli-seconds"
+    )
     private int loadBalancerReportUpdateMaxIntervalMinutes = 15;
     @FieldContext(
         category = CATEGORY_LOAD_BALANCER,
