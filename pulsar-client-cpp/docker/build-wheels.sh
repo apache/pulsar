@@ -27,7 +27,17 @@ BUILD_IMAGE_NAME="${BUILD_IMAGE_NAME:-apachepulsar/pulsar-build}"
 ROOT_DIR=`cd $(dirname $0)/../..; pwd`
 cd $ROOT_DIR
 
-./pulsar-client-cpp/docker/create-images.sh
+skip_create_images=0
+while [[ "$1" == "--skip-create-images" ]]; do
+  skip_create_images=1
+  shift
+done
+
+if [ $skip_create_images -ne 1 ]; then
+  cd ./pulsar-client-cpp/docker
+  ./create-images.sh
+  pushd
+fi
 
 source ./pulsar-client-cpp/docker/python-versions.sh
 
