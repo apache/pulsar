@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -200,7 +201,7 @@ public class ManagedCursorPropertiesTest extends MockedBookKeeperTestCase {
         cursorPropertiesUpdated.put("custom1", "three");
         cursorPropertiesUpdated.put("custom2", "four");
 
-        c1.setCursorProperties(cursorPropertiesUpdated).get();
+        c1.setCursorProperties(cursorPropertiesUpdated).get(10, TimeUnit.SECONDS);
 
         ledger.close();
 
