@@ -330,8 +330,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(category = CATEGORY_SERVER, doc = "Whether to enable the delayed delivery for messages.")
     private boolean delayedDeliveryEnabled = true;
 
-    @FieldContext(category = CATEGORY_SERVER, doc = "Class name of the factory that implements the delayed deliver "
-            + "tracker")
+    @FieldContext(category = CATEGORY_SERVER, doc = """
+            Class name of the factory that implements the delayed deliver tracker.
+            If value is "org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTrackerFactory", \
+            will create bucket based delayed message index tracker.
+            """)
     private String delayedDeliveryTrackerFactoryClassName = "org.apache.pulsar.broker.delayed"
             + ".InMemoryDelayedDeliveryTrackerFactory";
 
@@ -349,6 +352,25 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + "may be as late as the deliverAt time plus the tickTimeMillis for the topic plus the "
             + "delayedDeliveryTickTimeMillis.")
     private boolean isDelayedDeliveryDeliverAtTimeStrict = false;
+
+    @FieldContext(category = CATEGORY_SERVER, doc = """
+            The delayed message index bucket min index count. When the index count of the current bucket is more than \
+            this value and all message indexes of current ledger have already been added to the tracker \
+            we will seal the bucket.""")
+    private long delayedDeliveryMinIndexCountPerBucket = 50000;
+
+    @FieldContext(category = CATEGORY_SERVER, doc = """
+            The delayed message index bucket time step(in seconds) in per bucket snapshot segment, \
+            after reaching the max time step limitation, the snapshot segment will be cut off.""")
+    private long delayedDeliveryMaxTimeStepPerBucketSnapshotSegmentSeconds = 300;
+
+    @FieldContext(category = CATEGORY_SERVER, doc = """
+            The max number of delayed message index bucket, \
+            after reaching the max buckets limitation, the adjacent buckets will be merged.""")
+    private int delayedDeliveryMaxNumBuckets = 50;
+
+    @FieldContext(category = CATEGORY_SERVER, doc = "Enable share the delayed message index across subscriptions")
+    private boolean delayedDeliverySharedIndexEnabled = false;
 
     @FieldContext(category = CATEGORY_SERVER, doc = "Whether to enable the acknowledge of batch local index")
     private boolean acknowledgmentAtBatchIndexLevelEnabled = false;
