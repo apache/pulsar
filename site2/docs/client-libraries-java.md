@@ -1263,7 +1263,7 @@ Pulsar currently supports three authentication providers:
 * [JWT](security-jwt.md#configure-jwt-authentication-in-pulsar-clients)
 * [Athenz](security-athenz.md#configure-athenz-authentication-in-pulsar-clients)
 * [Kerberos](security-kerberos.md#java-client-and-java-admin-client)
-* [Oauth2](security-oauth2.md#configure-oauth2-authentication-in-pulsar-clients)
+* [OAuth2](security-oauth2.md#configure-oauth2-authentication-in-pulsar-clients)
 * [HTTP basic](security-basic-auth.md#configure-basic-authentication-in-pulsar-clients)
 
 
