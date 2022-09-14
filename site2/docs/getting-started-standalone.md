@@ -131,7 +131,7 @@ Once you've finished you can shut down the Pulsar cluster. Press **Ctrl-C** in t
 
 ## Related Topics
 
-[Pulsar Concepts and Architecture](concepts-architecture-overview.md)
-[Pulsar Client Libraries](client-libraries.md)
-[Pulsar Connectors](io-overview.md)
-[Pulsar Functions](functions-overview.md)
+- [Pulsar Concepts and Architecture](concepts-architecture-overview.md)
+- [Pulsar Client Libraries](client-libraries.md)
+- [Pulsar Connectors](io-overview.md)
+- [Pulsar Functions](functions-overview.md)
