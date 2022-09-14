@@ -21,17 +21,18 @@
 
 namespace pulsar {
 
-KeyValue::KeyValue() : impl_() {}
-
 KeyValue::KeyValue(KeyValueImplPtr impl) : impl_(impl) {}
 
-KeyValue::KeyValue(const std::string &key, const std::string &value,
-                   const KeyValueEncodingType &keyValueEncodingType)
-    : impl_(std::make_shared<KeyValueImpl>(key, value, keyValueEncodingType)) {}
-
-std::string KeyValue::getValue() const { return impl_->getValue(); }
+KeyValue::KeyValue(std::string &&key, std::string &&value, const KeyValueEncodingType &keyValueEncodingType)
+    : impl_(std::make_shared<KeyValueImpl>(std::move(key), std::move(value), keyValueEncodingType)) {}
 
 std::string KeyValue::getKey() const { return impl_->getKey(); }
+
+const void *KeyValue::getValue() const { return impl_->getValue(); }
+
+size_t KeyValue::getValueLength() const { return impl_->getValueLength(); }
+
+std::string KeyValue::getValueAsString() const { return impl_->getValueAsString(); }
 
 KeyValueEncodingType KeyValue::getEncodingType() const { return impl_->getEncodingType(); }
 

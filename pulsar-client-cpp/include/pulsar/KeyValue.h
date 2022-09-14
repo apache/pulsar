@@ -34,7 +34,6 @@ class KeyValueImpl;
  */
 class PULSAR_PUBLIC KeyValue {
    public:
-    KeyValue();
     /**
      * Constructor key value, according to keyValueEncodingType, whether key and value be encoded together.
      *
@@ -42,20 +41,37 @@ class PULSAR_PUBLIC KeyValue {
      * @param value value data.
      * @param keyValueEncodingType key value encoding type.
      */
-    KeyValue(const std::string &key, const std::string &value,
-             const KeyValueEncodingType &keyValueEncodingType);
+    KeyValue(std::string &&key, std::string &&value, const KeyValueEncodingType &keyValueEncodingType);
+
     /**
      * Get the key of KeyValue.
      *
      * @return character stream for key
      */
     std::string getKey() const;
+
     /**
-     * Get the value of KeyValue.
+     * Get the value of the KeyValue.
      *
-     * @return character stream for value
+     *
+     * @return the pointer to the KeyValue value
      */
-    std::string getValue() const;
+    const void *getValue() const;
+
+    /**
+     * Get the value length of the keyValue.
+     *
+     * @return the length of the KeyValue value
+     */
+    size_t getValueLength() const;
+
+    /**
+     * Get string representation of the KeyValue value.
+     *
+     * @return the string representation of the KeyValue value
+     */
+    std::string getValueAsString() const;
+
     /**
      * Get the encoding type of KeyValue.
      *

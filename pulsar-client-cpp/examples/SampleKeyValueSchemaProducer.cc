@@ -34,7 +34,7 @@ int main() {
     SchemaInfo keySchema(JSON, "key-json", jsonSchema);
     SchemaInfo valueSchema(JSON, "value-json", jsonSchema);
     SchemaInfo keyValueSchema(keySchema, valueSchema, KeyValueEncodingType::INLINE);
-    std::cout << keyValueSchema.getSchema() << std::endl;
+    LOG_INFO("KeyValue schema content: " << keyValueSchema.getSchema());
 
     ProducerConfiguration producerConfiguration;
     producerConfiguration.setSchema(keyValueSchema);
@@ -49,12 +49,12 @@ int main() {
 
     std::string jsonData = "{\"re\":2.1,\"im\":1.23}";
 
-    KeyValue keyValue(jsonData, jsonData, KeyValueEncodingType::INLINE);
+    KeyValue keyValue(std::move(jsonData), std::move(jsonData), KeyValueEncodingType::INLINE);
 
     Message msg = MessageBuilder().setContent(keyValue).setProperty("x", "1").build();
-    producer.send(msg);
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-    LOG_INFO("send message ok");
-
+    result = producer.send(msg);
+    if (result == ResultOk) {
+        LOG_INFO("send message ok");
+    }
     client.close();
 }

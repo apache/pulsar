@@ -98,7 +98,7 @@ class PULSAR_PUBLIC Message {
      *
      * @return key value message.
      */
-    KeyValue getKeyValueData(const KeyValueEncodingType& keyValueEncodingType) const;
+    KeyValue getKeyValueData(KeyValueEncodingType keyValueEncodingType) const;
 
     /**
      * Get the unique message ID associated with this message.

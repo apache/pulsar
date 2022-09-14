@@ -83,11 +83,9 @@ MessageBuilder& MessageBuilder::setContent(std::string&& data) {
 }
 
 MessageBuilder& MessageBuilder::setContent(const KeyValue& data) {
-    if (data.getEncodingType() == KeyValueEncodingType::INLINE) {
-        setContent(data.impl_->getContent());
-    } else {
+    impl_->payload = data.impl_->getContent();
+    if (data.getEncodingType() == KeyValueEncodingType::SEPARATED) {
         setPartitionKey(data.getKey());
-        setContent(data.getValue());
     }
     return *this;
 }

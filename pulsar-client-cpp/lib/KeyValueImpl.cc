@@ -24,8 +24,6 @@ using namespace pulsar;
 
 namespace pulsar {
 
-KeyValueImpl::KeyValueImpl() {}
-
 KeyValueImpl::KeyValueImpl(const char *data, int length, const KeyValueEncodingType &keyValueEncodingType) {
     keyValueEncodingType_ = keyValueEncodingType;
     if (keyValueEncodingType == KeyValueEncodingType::INLINE) {
@@ -33,45 +31,58 @@ KeyValueImpl::KeyValueImpl(const char *data, int length, const KeyValueEncodingT
         int keySize = buffer.readUnsignedInt();
         if (keySize != -1) {
             SharedBuffer keyContent = buffer.slice(0, keySize);
-            keyContent_ = std::string(keyContent.data(), keySize);
+            key_ = std::string(keyContent.data(), keySize);
             buffer.consume(keySize);
         }
 
         int valueSize = buffer.readUnsignedInt();
         if (valueSize != -1) {
-            SharedBuffer valueContent = buffer.slice(0, valueSize);
-            valueContent_ = std::string(valueContent.data(), valueSize);
+            valueBuffer_ = buffer.slice(0, valueSize);
         }
     } else {
-        valueContent_ = std::string(data, length);
+        valueBuffer_ = SharedBuffer::wrap(const_cast<char *>(data), length);
     }
 }
 
-KeyValueImpl::KeyValueImpl(const std::string &key, const std::string &value,
+KeyValueImpl::KeyValueImpl(std::string &&key, std::string &&value,
                            const KeyValueEncodingType &keyValueEncodingType)
-    : keyContent_(key), valueContent_(value), keyValueEncodingType_(keyValueEncodingType) {}
+    : key_(key),
+      valueBuffer_(SharedBuffer::take(std::move(value))),
+      keyValueEncodingType_(keyValueEncodingType) {}
 
-std::string KeyValueImpl::getContent() const {
+SharedBuffer KeyValueImpl::getContent() {
+    if (contentBufferCache_.is_present()) {
+        return contentBufferCache_.value();
+    }
     if (keyValueEncodingType_ == KeyValueEncodingType::INLINE) {
-        int keySize = keyContent_.length();
-        int valueSize = valueContent_.length();
+        int keySize = key_.length();
+        int valueSize = valueBuffer_.readableBytes();
 
         int buffSize = sizeof(keySize) + keySize + sizeof(valueSize) + valueSize;
         SharedBuffer buffer = SharedBuffer::allocate(buffSize);
         buffer.writeUnsignedInt(keySize == 0 ? -1 : keySize);
-        buffer.write(keyContent_.c_str(), keySize);
-        buffer.writeUnsignedInt(valueSize == 0 ? -1 : valueSize);
-        buffer.write(valueContent_.c_str(), valueSize);
+        buffer.write(key_.c_str(), keySize);
 
-        return std::string(buffer.data(), buffSize);
+        buffer.writeUnsignedInt(valueSize == 0 ? -1 : valueSize);
+        buffer.write(valueBuffer_.data(), valueSize);
+
+        contentBufferCache_ = Optional<SharedBuffer>::of(buffer);
     } else {
-        return valueContent_;
+        contentBufferCache_ =
+            Optional<SharedBuffer>::of(SharedBuffer::copyFrom(valueBuffer_, valueBuffer_.readableBytes()));
     }
+    return contentBufferCache_.value();
 }
 
-std::string KeyValueImpl::getKey() const { return keyContent_; }
+std::string KeyValueImpl::getKey() const { return key_; }
 
-std::string KeyValueImpl::getValue() const { return valueContent_; }
+const void *KeyValueImpl::getValue() const { return valueBuffer_.data(); }
+
+size_t KeyValueImpl::getValueLength() const { return valueBuffer_.readableBytes(); }
+
+std::string KeyValueImpl::getValueAsString() const {
+    return std::string(valueBuffer_.data(), valueBuffer_.readableBytes());
+}
 
 KeyValueEncodingType KeyValueImpl::getEncodingType() const { return keyValueEncodingType_; }
 

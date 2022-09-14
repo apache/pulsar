@@ -22,71 +22,84 @@
 using namespace pulsar;
 
 TEST(KeyValueTest, testEncodeAndDeCode) {
+    const std::string keyContent = "keyContent";
+    const std::string valueContent = "valueContent";
+
     // test inline encode
-    std::string keyContent = "keyContent";
-    std::string valueContent = "valueContent";
-    KeyValueImpl keyValue(keyContent, valueContent, KeyValueEncodingType::INLINE);
-    ASSERT_EQ(keyValue.getContent().size(), 8 + keyContent.size() + valueContent.size());
+    KeyValueImpl keyValue(std::string(keyContent), std::string(valueContent), KeyValueEncodingType::INLINE);
+    ASSERT_EQ(keyValue.getContent().readableBytes(), 8 + keyContent.size() + valueContent.size());
 
     // test inline decode
-    KeyValueImpl deCodeKeyValue(keyValue.getContent().c_str(), keyValue.getContent().length(),
+    KeyValueImpl deCodeKeyValue(keyValue.getContent().data(), keyValue.getContent().readableBytes(),
                                 KeyValueEncodingType::INLINE);
     ASSERT_EQ(deCodeKeyValue.getKey(), keyContent);
-    ASSERT_EQ(deCodeKeyValue.getValue(), valueContent);
-    ASSERT_TRUE(deCodeKeyValue.getContent().compare(valueContent) != 0);
+    ASSERT_EQ(deCodeKeyValue.getValueAsString(), valueContent);
+    ASSERT_TRUE(std::string(deCodeKeyValue.getContent().data(), deCodeKeyValue.getContent().readableBytes())
+                    .compare(valueContent) != 0);
 
     // test separated encode
-    KeyValueImpl sepKeyValue(keyContent, valueContent, KeyValueEncodingType::SEPARATED);
+    KeyValueImpl sepKeyValue(std::string(keyContent), std::string(valueContent),
+                             KeyValueEncodingType::SEPARATED);
     ASSERT_EQ(sepKeyValue.getKey(), keyContent);
-    ASSERT_EQ(sepKeyValue.getValue(), valueContent);
-    ASSERT_EQ(sepKeyValue.getContent(), valueContent);
+    ASSERT_EQ(sepKeyValue.getValueAsString(), valueContent);
+    ASSERT_EQ(std::string(sepKeyValue.getContent().data(), sepKeyValue.getContent().readableBytes()),
+              valueContent);
 
     // test separated decode
-    KeyValueImpl sepDeKeyValue(sepKeyValue.getContent().c_str(), sepKeyValue.getContent().length(),
+    KeyValueImpl sepDeKeyValue(sepKeyValue.getContent().data(), sepKeyValue.getContent().readableBytes(),
                                KeyValueEncodingType::SEPARATED);
     ASSERT_EQ(sepDeKeyValue.getKey(), "");
-    ASSERT_EQ(sepDeKeyValue.getValue(), valueContent);
-    ASSERT_EQ(sepDeKeyValue.getContent(), valueContent);
+    ASSERT_EQ(sepDeKeyValue.getValueAsString(), valueContent);
+    ASSERT_EQ(std::string(sepDeKeyValue.getContent().data(), sepDeKeyValue.getContent().readableBytes()),
+              valueContent);
 }
 
 TEST(KeyValueTest, testKeyIsEmpty) {
+    const std::string keyContent;
+    const std::string valueContent = "valueContent";
+
     // test encode
-    std::string keyContent;
-    std::string valueContent = "valueContent";
-    KeyValueImpl keyValue(keyContent, valueContent, KeyValueEncodingType::INLINE);
-    ASSERT_EQ(keyValue.getContent().size(), 8 + keyContent.size() + valueContent.size());
+    KeyValueImpl keyValue(std::string(keyContent), std::string(valueContent), KeyValueEncodingType::INLINE);
+    ASSERT_EQ(keyValue.getContent().readableBytes(), 8 + keyContent.size() + valueContent.size());
 
     // test decode
-    KeyValueImpl deCodeKeyValue(keyValue.getContent().c_str(), keyValue.getContent().length(),
+    KeyValueImpl deCodeKeyValue(keyValue.getContent().data(), keyValue.getContent().readableBytes(),
                                 KeyValueEncodingType::INLINE);
     ASSERT_EQ(deCodeKeyValue.getKey(), keyContent);
-    ASSERT_EQ(deCodeKeyValue.getValue(), valueContent);
-    ASSERT_TRUE(deCodeKeyValue.getContent().compare(valueContent) != 0);
+    ASSERT_EQ(deCodeKeyValue.getValueAsString(), valueContent);
+    ASSERT_TRUE(std::string(deCodeKeyValue.getContent().data(), deCodeKeyValue.getContent().readableBytes())
+                    .compare(valueContent) != 0);
 
     // test separated type
-    KeyValueImpl sepKeyValue(keyContent, valueContent, KeyValueEncodingType::SEPARATED);
+    KeyValueImpl sepKeyValue(std::string(keyContent), std::string(valueContent),
+                             KeyValueEncodingType::SEPARATED);
     ASSERT_EQ(sepKeyValue.getKey(), keyContent);
-    ASSERT_EQ(sepKeyValue.getValue(), valueContent);
-    ASSERT_EQ(sepKeyValue.getContent(), valueContent);
+    ASSERT_EQ(sepKeyValue.getValueAsString(), valueContent);
+    ASSERT_EQ(std::string(sepKeyValue.getContent().data(), sepKeyValue.getContent().readableBytes()),
+              valueContent);
 }
 
 TEST(KeyValueTest, testValueIsEmpty) {
+    const std::string keyContent = "keyContent";
+    const std::string valueContent;
+
     // test encode
-    std::string keyContent = "keyContent";
-    std::string valueContent;
-    KeyValueImpl keyValue(keyContent, valueContent, KeyValueEncodingType::INLINE);
-    ASSERT_EQ(keyValue.getContent().size(), 8 + keyContent.size() + valueContent.size());
+    KeyValueImpl keyValue(std::string(keyContent), std::string(valueContent), KeyValueEncodingType::INLINE);
+    ASSERT_EQ(keyValue.getContent().readableBytes(), 8 + keyContent.size() + valueContent.size());
 
     // test decode
-    KeyValueImpl deCodeKeyValue(keyValue.getContent().c_str(), keyValue.getContent().length(),
+    KeyValueImpl deCodeKeyValue(keyValue.getContent().data(), keyValue.getContent().readableBytes(),
                                 KeyValueEncodingType::INLINE);
     ASSERT_EQ(deCodeKeyValue.getKey(), keyContent);
-    ASSERT_EQ(deCodeKeyValue.getValue(), valueContent);
-    ASSERT_TRUE(deCodeKeyValue.getContent().compare(valueContent) != 0);
+    ASSERT_EQ(deCodeKeyValue.getValueAsString(), valueContent);
+    ASSERT_TRUE(std::string(deCodeKeyValue.getContent().data(), deCodeKeyValue.getContent().readableBytes())
+                    .compare(valueContent) != 0);
 
     // test separated type
-    KeyValueImpl sepKeyValue(keyContent, valueContent, KeyValueEncodingType::SEPARATED);
+    KeyValueImpl sepKeyValue(std::string(keyContent), std::string(valueContent),
+                             KeyValueEncodingType::SEPARATED);
     ASSERT_EQ(sepKeyValue.getKey(), keyContent);
-    ASSERT_EQ(sepKeyValue.getValue(), valueContent);
-    ASSERT_EQ(sepKeyValue.getContent(), valueContent);
+    ASSERT_EQ(sepKeyValue.getValueAsString(), valueContent);
+    ASSERT_EQ(std::string(sepKeyValue.getContent().data(), sepKeyValue.getContent().readableBytes()),
+              valueContent);
 }
