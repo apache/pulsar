@@ -100,7 +100,7 @@ If you get an error like "libpulsar.so: cannot open shared object file: No such 
 
 ### Source
 
-If you want to build the Pulsar C++ client from source code, read [these instructions](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp#compilation).
+For how to build Pulsar C++ client on different platforms from source code, see [compliation](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp#compilation).
 
 ## Connection URLs
 
