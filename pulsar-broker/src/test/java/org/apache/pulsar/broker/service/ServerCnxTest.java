@@ -2313,8 +2313,6 @@ public class ServerCnxTest {
     public void handlePartitionMetadataRequestWithServiceNotReady() throws Exception {
         resetChannel();
         setChannelConnected();
-        CompletableFuture<Boolean> successFuture = CompletableFuture.completedFuture(true);
-        doReturn(successFuture).when(namespaceService).checkTopicExists(any(TopicName.class));
         doReturn(false).when(pulsar).isRunning();
         assertTrue(channel.isActive());
 
