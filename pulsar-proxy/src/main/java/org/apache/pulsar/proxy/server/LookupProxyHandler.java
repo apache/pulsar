@@ -151,7 +151,7 @@ public class LookupProxyHandler {
                 if (t != null) {
                     log.warn("[{}] Failed to lookup topic {}: {}", clientAddress, topic, t.getMessage());
                     proxyConnection.ctx().writeAndFlush(
-                        Commands.newLookupErrorResponse(ServerError.ServiceNotReady, t.getMessage(), clientRequestId));
+                        Commands.newLookupErrorResponse(getServerError(t), t.getMessage(), clientRequestId));
                 } else {
                     String brokerUrl = connectWithTLS ? r.brokerUrlTls : r.brokerUrl;
                     if (r.redirect) {
@@ -179,7 +179,7 @@ public class LookupProxyHandler {
         }).exceptionally(ex -> {
             // Failed to connect to backend broker
             proxyConnection.ctx().writeAndFlush(
-                    Commands.newLookupErrorResponse(ServerError.ServiceNotReady, ex.getMessage(), clientRequestId));
+                    Commands.newLookupErrorResponse(getServerError(ex), ex.getMessage(), clientRequestId));
             return null;
         });
     }
@@ -249,7 +249,7 @@ public class LookupProxyHandler {
             });
         }).exceptionally(ex -> {
             // Failed to connect to backend broker
-            proxyConnection.ctx().writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.ServiceNotReady,
+            proxyConnection.ctx().writeAndFlush(Commands.newPartitionMetadataResponse(getServerError(ex),
                     ex.getMessage(), clientRequestId));
             return null;
         });
@@ -323,7 +323,7 @@ public class LookupProxyHandler {
                     log.warn("[{}] Failed to get TopicsOfNamespace {}: {}",
                             clientAddress, namespaceName, t.getMessage());
                     proxyConnection.ctx().writeAndFlush(
-                        Commands.newError(clientRequestId, ServerError.ServiceNotReady, t.getMessage()));
+                        Commands.newError(clientRequestId, getServerError(t), t.getMessage()));
                 } else {
                     proxyConnection.ctx().writeAndFlush(
                         Commands.newGetTopicsOfNamespaceResponse(r, clientRequestId));
@@ -334,7 +334,7 @@ public class LookupProxyHandler {
         }).exceptionally(ex -> {
             // Failed to connect to backend broker
             proxyConnection.ctx().writeAndFlush(
-                    Commands.newError(clientRequestId, ServerError.ServiceNotReady, ex.getMessage()));
+                    Commands.newError(clientRequestId, getServerError(ex), ex.getMessage()));
             return null;
         });
     }
@@ -377,7 +377,7 @@ public class LookupProxyHandler {
                 if (t != null) {
                     log.warn("[{}] Failed to get schema {}: {}", clientAddress, topic, t);
                     proxyConnection.ctx().writeAndFlush(
-                        Commands.newError(clientRequestId, ServerError.ServiceNotReady, t.getMessage()));
+                        Commands.newError(clientRequestId, getServerError(t), t.getMessage()));
                 } else {
                     proxyConnection.ctx().writeAndFlush(
                         Commands.newGetSchemaResponse(clientRequestId, r));
@@ -388,7 +388,7 @@ public class LookupProxyHandler {
         }).exceptionally(ex -> {
             // Failed to connect to backend broker
             proxyConnection.ctx().writeAndFlush(
-                    Commands.newError(clientRequestId, ServerError.ServiceNotReady, ex.getMessage()));
+                    Commands.newError(clientRequestId, getServerError(ex), ex.getMessage()));
             return null;
         });
 
