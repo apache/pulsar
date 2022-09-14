@@ -105,6 +105,11 @@ void HandlerBase::handleDisconnection(Result result, ClientConnectionWeakPtr con
 
     handler->connection_.reset();
 
+    if (result == ResultRetryable) {
+        scheduleReconnection(handler);
+        return;
+    }
+
     switch (state) {
         case Pending:
         case Ready:
