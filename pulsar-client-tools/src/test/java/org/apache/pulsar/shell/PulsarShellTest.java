@@ -36,8 +36,8 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.SneakyThrows;
+import org.apache.pulsar.admin.cli.PulsarAdminSupplier;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.cli.CmdProduce;
 import org.jline.reader.EndOfFileException;
@@ -54,7 +54,6 @@ public class PulsarShellTest {
 
     private static final Logger log = LoggerFactory.getLogger(PulsarShellTest.class);
 
-    private PulsarAdminBuilder pulsarAdminBuilder;
     private PulsarAdmin pulsarAdmin;
 
     private Topics topics;
@@ -88,23 +87,22 @@ public class PulsarShellTest {
 
     private static class TestPulsarShell extends PulsarShell {
 
-        private final PulsarAdminBuilder pulsarAdminBuilder;
+        private final PulsarAdmin pulsarAdmin;
         AtomicReference<CmdProduce> cmdProduceHolder = new AtomicReference<>();
         Integer exitCode;
 
-        public TestPulsarShell(String[] args, Properties props, PulsarAdminBuilder pulsarAdminBuilder) throws IOException {
+        public TestPulsarShell(String[] args, Properties props, PulsarAdmin pulsarAdmin) throws IOException {
             super(args, props);
-            this.pulsarAdminBuilder = pulsarAdminBuilder;
+            this.pulsarAdmin = pulsarAdmin;
         }
 
         @Override
         protected AdminShell createAdminShell(Properties properties) throws Exception {
-            return new AdminShell(properties) {
-                @Override
-                protected PulsarAdminBuilder createAdminBuilder(Properties properties) {
-                    return pulsarAdminBuilder;
-                }
-            };
+            final AdminShell adminShell = new AdminShell(properties);
+            final PulsarAdminSupplier supplier = mock(PulsarAdminSupplier.class);
+            when(supplier.get()).thenReturn(pulsarAdmin);
+            adminShell.setPulsarAdminSupplier(supplier);
+            return adminShell;
         }
 
         @Override
@@ -135,9 +133,7 @@ public class PulsarShellTest {
 
     @BeforeMethod(alwaysRun = true)
     public void setup() throws Exception {
-        pulsarAdminBuilder = mock(PulsarAdminBuilder.class);
         pulsarAdmin = mock(PulsarAdmin.class);
-        when(pulsarAdminBuilder.build()).thenReturn(pulsarAdmin);
         topics = mock(Topics.class);
         when(pulsarAdmin.topics()).thenReturn(topics);
     }
@@ -153,7 +149,7 @@ public class PulsarShellTest {
         linereader.addCmd("admin topics create my-topic --metadata a=b ");
         linereader.addCmd("client produce -m msg my-topic");
         linereader.addCmd("quit");
-        final TestPulsarShell testPulsarShell = new TestPulsarShell(new String[]{}, props, pulsarAdminBuilder);
+        final TestPulsarShell testPulsarShell = new TestPulsarShell(new String[]{}, props, pulsarAdmin);
         testPulsarShell.run((a) -> linereader, (a) -> terminal);
         verify(topics).createNonPartitionedTopic(eq("persistent://public/default/my-topic"), any(Map.class));
         verify(testPulsarShell.cmdProduceHolder.get()).run();
@@ -172,7 +168,7 @@ public class PulsarShellTest {
                 .getContextClassLoader().getResource("test-shell-file").getFile();
 
         final TestPulsarShell testPulsarShell = new TestPulsarShell(new String[]{"-f", shellFile},
-                props, pulsarAdminBuilder);
+                props, pulsarAdmin);
         testPulsarShell.run((a) -> linereader, (a) -> terminal);
         verify(topics).createNonPartitionedTopic(eq("persistent://public/default/my-topic"), any(Map.class));
         verify(testPulsarShell.cmdProduceHolder.get()).run();
@@ -189,7 +185,7 @@ public class PulsarShellTest {
                 .getContextClassLoader().getResource("test-shell-file-error").getFile();
 
         final TestPulsarShell testPulsarShell = new TestPulsarShell(new String[]{"-f", shellFile, "--fail-on-error"},
-                props, pulsarAdminBuilder);
+                props, pulsarAdmin);
         try {
             testPulsarShell.run((a) -> linereader, (a) -> terminal);
             fail();
