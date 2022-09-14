@@ -899,12 +899,12 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         var txnLogBufferedWriter = txnLogBufferedWriterContext.txnLogBufferedWriter;
         // Add some data.
         for (int i = 0; i < writeCount; i++){
-            txnLogBufferedWriter.asyncAddData(1, callbackWithCounter.callback, i);
+            txnLogBufferedWriter.asyncAddData(i, callbackWithCounter.callback, i);
         }
+
         // Wait for all data write finish.
         Awaitility.await().atMost(2, TimeUnit.SECONDS).until(
                 () -> {
-                    System.out.println(callbackWithCounter.failureCounter.get());
                     return callbackWithCounter.failureCounter.get() == writeCount;
                 }
         );

@@ -255,7 +255,13 @@ public class TxnLogBufferedWriter<T> {
         }
         if (dataLength >= batchedWriteMaxSize){
             trigFlushByLargeSingleData();
-            ByteBuf byteBuf = dataSerializer.serialize(data);
+            ByteBuf byteBuf = null;
+            try {
+                byteBuf = dataSerializer.serialize(data);
+            } catch (Exception e){
+                callback.addFailed(new ManagedLedgerInterceptException(e), ctx);
+                return;
+            }
             managedLedger.asyncAddEntry(byteBuf, DisabledBatchCallback.INSTANCE,
                     AsyncAddArgs.newInstance(callback, ctx, System.currentTimeMillis(), byteBuf));
             return;
