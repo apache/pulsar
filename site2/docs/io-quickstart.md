@@ -472,7 +472,7 @@ This example uses the PostgreSQL 12 docker image to start a single-node PostgreS
    psql -U postgres postgres
    ```
 
-6. Input following commands to create `pulsar_postgres_jdbc_sink` table:
+6. Create a `pulsar_postgres_jdbc_sink` table using the following command:
 
    ```sql
    create table if not exists pulsar_postgres_jdbc_sink
