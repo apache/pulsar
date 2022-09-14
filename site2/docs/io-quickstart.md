@@ -466,7 +466,7 @@ This example uses the PostgreSQL 12 docker image to start a single-node PostgreS
    docker exec -it pulsar-postgres /bin/bash
    ```
 
-5. Login PostgreSQL with default username and password:
+5. Log in to PostgreSQL with the default username and password:
 
    ```bash
    psql -U postgres postgres
