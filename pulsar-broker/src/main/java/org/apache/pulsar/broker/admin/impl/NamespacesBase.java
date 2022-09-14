@@ -1155,18 +1155,14 @@ public abstract class NamespacesBase extends AdminResource {
                     }
                 })
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
-                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
-                .thenCompose(policies->{
-                    String bundleRange = getBundleRange(bundleName);
-                    if (bundleRange == null) {
-                        throw new RestException(Status.NOT_FOUND,
-                                String.format("Bundle range %s not found", bundleName));
-                    }
-                    return validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles, bundleRange,
-                            authoritative, false)
+                .thenCompose(__ -> getBundleRangeAsync(bundleName))
+                .thenCompose(bundleRange -> {
+                    return getNamespacePoliciesAsync(namespaceName)
+                            .thenCompose(policies ->
+                                    validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles, bundleRange,
+                                        authoritative, false))
                             .thenCompose(nsBundle -> pulsar().getNamespaceService().splitAndOwnBundle(nsBundle, unload,
                                     getNamespaceBundleSplitAlgorithmByName(splitAlgorithmName), splitBoundaries));
-
                 });
     }
 
@@ -1219,27 +1215,32 @@ public abstract class NamespacesBase extends AdminResource {
                 });
     }
 
-    private String getBundleRange(String bundleName) {
-        NamespaceBundle nsBundle;
+    private CompletableFuture<String> getBundleRangeAsync(String bundleName) {
+        CompletableFuture<NamespaceBundle> future;
         if (BundleType.LARGEST.toString().equals(bundleName)) {
-            nsBundle = findLargestBundleWithTopics(namespaceName);
+            future = findLargestBundleWithTopicsAsync(namespaceName);
         } else if (BundleType.HOT.toString().equals(bundleName)) {
-            nsBundle = findHotBundle(namespaceName);
+            future = findHotBundleAsync(namespaceName);
         } else {
-            return bundleName;
+            return CompletableFuture.completedFuture(bundleName);
         }
-        if (nsBundle == null) {
-            return null;
-        }
-        return nsBundle.getBundleRange();
+        return future.thenApply(nsBundle -> {
+            if (nsBundle == null) {
+                throw new RestException(Status.NOT_FOUND,
+                        String.format("Bundle range %s not found", bundleName));
+            }
+            return nsBundle.getBundleRange();
+        });
     }
 
-    private NamespaceBundle findLargestBundleWithTopics(NamespaceName namespaceName) {
-        return pulsar().getNamespaceService().getNamespaceBundleFactory().getBundleWithHighestTopics(namespaceName);
+    private CompletableFuture<NamespaceBundle> findLargestBundleWithTopicsAsync(NamespaceName namespaceName) {
+        return pulsar().getNamespaceService().getNamespaceBundleFactory()
+                .getBundleWithHighestTopicsAsync(namespaceName);
     }
 
-    private NamespaceBundle findHotBundle(NamespaceName namespaceName) {
-        return pulsar().getNamespaceService().getNamespaceBundleFactory().getBundleWithHighestThroughput(namespaceName);
+    private CompletableFuture<NamespaceBundle> findHotBundleAsync(NamespaceName namespaceName) {
+        return pulsar().getNamespaceService().getNamespaceBundleFactory()
+                .getBundleWithHighestThroughputAsync(namespaceName);
     }
 
     private NamespaceBundleSplitAlgorithm getNamespaceBundleSplitAlgorithmByName(String algorithmName) {

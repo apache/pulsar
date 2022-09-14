@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -330,14 +331,14 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             // readMoreEntries should run regardless whether or not stuck is caused by
             // stuckConsumers for avoid stopping dispatch.
             sendInProgress = false;
-            topic.getBrokerService().executor().execute(() -> readMoreEntries());
+            topic.getBrokerService().executor().execute(safeRun(this::readMoreEntries));
         }  else if (currentThreadKeyNumber == 0) {
             sendInProgress = false;
-            topic.getBrokerService().executor().schedule(() -> {
+            topic.getBrokerService().executor().schedule(safeRun(() -> {
                 synchronized (PersistentStickyKeyDispatcherMultipleConsumers.this) {
                     readMoreEntries();
                 }
-            }, 100, TimeUnit.MILLISECONDS);
+            }), 100, TimeUnit.MILLISECONDS);
         }
         return false;
     }
@@ -411,7 +412,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     public void markDeletePositionMoveForward() {
         // Execute the notification in different thread to avoid a mutex chain here
         // from the delete operation that was completed
-        topic.getBrokerService().getTopicOrderedExecutor().execute(() -> {
+        topic.getBrokerService().getTopicOrderedExecutor().execute(safeRun(() -> {
             synchronized (PersistentStickyKeyDispatcherMultipleConsumers.this) {
                 if (recentlyJoinedConsumers != null && !recentlyJoinedConsumers.isEmpty()
                         && removeConsumersFromRecentJoinedConsumers()) {
@@ -420,7 +421,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                     readMoreEntries();
                 }
             }
-        });
+        }));
     }
 
     private boolean removeConsumersFromRecentJoinedConsumers() {
