@@ -247,7 +247,6 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 ownedBundlesCountPerNamespace.get(namespace).incrementAndGet();
                 result.complete(null);
             } else {
-                ownedBundlesCountPerNamespace.putIfAbsent(namespace, new AtomicInteger(1));
                 prepareInitPoliciesCache(namespace, result);
             }
         }
@@ -259,6 +258,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerCompletableFuture =
                     createSystemTopicClientWithRetry(namespace);
             readerCaches.put(namespace, readerCompletableFuture);
+            ownedBundlesCountPerNamespace.putIfAbsent(namespace, new AtomicInteger(1));
             readerCompletableFuture.thenAccept(reader -> {
                 initPolicesCache(reader, result);
                 result.thenRun(() -> readMorePolicies(reader));
