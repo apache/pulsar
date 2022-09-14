@@ -195,3 +195,25 @@ int pulsar_consumer_configuration_get_priority_level(
     pulsar_consumer_configuration_t *consumer_configuration) {
     return consumer_configuration->consumerConfiguration.getPriorityLevel();
 }
+
+void pulsar_consumer_configuration_set_max_pending_chunked_message(
+    pulsar_consumer_configuration_t *consumer_configuration, int max_pending_chunked_message) {
+    consumer_configuration->consumerConfiguration.setMaxPendingChunkedMessage(max_pending_chunked_message);
+}
+
+int pulsar_consumer_configuration_get_max_pending_chunked_message(
+    pulsar_consumer_configuration_t *consumer_configuration) {
+    return consumer_configuration->consumerConfiguration.getMaxPendingChunkedMessage();
+}
+
+void pulsar_consumer_configuration_set_auto_ack_oldest_chunked_message_on_queue_full(
+    pulsar_consumer_configuration_t *consumer_configuration,
+    int auto_ack_oldest_chunked_message_on_queue_full) {
+    consumer_configuration->consumerConfiguration.setAutoAckOldestChunkedMessageOnQueueFull(
+        auto_ack_oldest_chunked_message_on_queue_full);
+}
+
+int pulsar_consumer_configuration_is_auto_ack_oldest_chunked_message_on_queue_full(
+    pulsar_consumer_configuration_t *consumer_configuration) {
+    return consumer_configuration->consumerConfiguration.isAutoAckOldestChunkedMessageOnQueueFull();
+}

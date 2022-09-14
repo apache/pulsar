@@ -18,15 +18,16 @@
  */
 package org.apache.pulsar.transaction.coordinator.impl;
 
+import static org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerInterceptException;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.Recycler;
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import io.netty.util.TimerTask;
-import java.io.Closeable;
 import java.util.ArrayList;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -56,7 +57,7 @@ import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
  * You can enable or disabled the batch feature, will use Managed Ledger directly and without batching when disabled.
  */
 @Slf4j
-public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback, Closeable {
+public class TxnLogBufferedWriter<T> {
 
     public static final short BATCHED_ENTRY_DATA_PREFIX_MAGIC_NUMBER = 0x0e01;
     public static final int BATCHED_ENTRY_DATA_PREFIX_MAGIC_NUMBER_LEN = 2;
@@ -68,6 +69,10 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
             new ManagedLedgerException.ManagedLedgerFencedException(
                     new Exception("Transaction log buffered write has closed")
             );
+
+    private static final AtomicReferenceFieldUpdater<TxnLogBufferedWriter, TxnLogBufferedWriter.State> STATE_UPDATER =
+            AtomicReferenceFieldUpdater
+                    .newUpdater(TxnLogBufferedWriter.class, TxnLogBufferedWriter.State.class, "state");
 
     /**
      * Enable or disabled the batch feature, will use Managed Ledger directly and without batching when disabled.
@@ -112,10 +117,25 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
 
     /** The main purpose of state maintenance is to prevent written after close. **/
     private volatile State state;
-    private static final AtomicReferenceFieldUpdater<TxnLogBufferedWriter, TxnLogBufferedWriter.State> STATE_UPDATER =
-            AtomicReferenceFieldUpdater
-                    .newUpdater(TxnLogBufferedWriter.class, TxnLogBufferedWriter.State.class, "state");
 
+    private final BookKeeperBatchedWriteCallback bookKeeperBatchedWriteCallback = new BookKeeperBatchedWriteCallback();
+
+    private final TxnLogBufferedWriterMetricsStats metrics;
+
+    private final TimerTask timingFlushTask = (timeout) -> {
+        if (timeout.isCancelled()) {
+            return;
+        }
+        trigFlushByTimingTask();
+    };
+
+    public TxnLogBufferedWriter(ManagedLedger managedLedger, OrderedExecutor orderedExecutor, Timer timer,
+                                DataSerializer<T> dataSerializer,
+                                int batchedWriteMaxRecords, int batchedWriteMaxSize, int batchedWriteMaxDelayInMillis,
+                                boolean batchEnabled){
+        this(managedLedger, orderedExecutor, timer, dataSerializer, batchedWriteMaxRecords, batchedWriteMaxSize,
+                batchedWriteMaxDelayInMillis, batchEnabled, null);
+    }
 
     /**
      * Constructor.
@@ -132,8 +152,19 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
     public TxnLogBufferedWriter(ManagedLedger managedLedger, OrderedExecutor orderedExecutor, Timer timer,
                                 DataSerializer<T> dataSerializer,
                                 int batchedWriteMaxRecords, int batchedWriteMaxSize, int batchedWriteMaxDelayInMillis,
-                                boolean batchEnabled){
-        this.batchEnabled = batchEnabled;
+                                boolean batchEnabled, TxnLogBufferedWriterMetricsStats metrics){
+        if (batchedWriteMaxRecords <= 1 && batchEnabled){
+            if (metrics != null){
+                log.warn("Transaction Log Buffered Writer with the metrics name beginning with {} has batching enabled"
+                        + " yet the maximum batch size was configured to less than or equal to 1 record, hence due to"
+                        + " performance reasons batching is disabled", metrics.getMetricsPrefix());
+            } else {
+                log.warn("Transaction Log Buffered Writer has batching enabled"
+                        + " yet the maximum batch size was configured to less than or equal to 1 record, hence due to"
+                        + " performance reasons batching is disabled");
+            }
+        }
+        this.batchEnabled = batchEnabled && batchedWriteMaxRecords > 1;
         this.managedLedger = managedLedger;
         this.singleThreadExecutorForWrite = orderedExecutor.chooseThread(
                 managedLedger.getName() == null ? UUID.randomUUID().toString() : managedLedger.getName());
@@ -143,20 +174,14 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
         this.batchedWriteMaxDelayInMillis = batchedWriteMaxDelayInMillis;
         this.flushContext = FlushContext.newInstance();
         this.dataArray = new ArrayList<>();
-        this.state = State.OPEN;
+        STATE_UPDATER.set(this, State.OPEN);
+        this.metrics = metrics;
         this.timer = timer;
         // scheduler task.
         if (this.batchEnabled) {
             nextTimingTrigger();
         }
     }
-
-    private final TimerTask timingFlush = (timeout) -> {
-        if (timeout.isCancelled()) {
-            return;
-        }
-        trigFlush(false, true);
-    };
 
     /***
      * Why not use {@link ScheduledExecutorService#scheduleAtFixedRate(Runnable, long, long, TimeUnit)} ?
@@ -166,10 +191,10 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
      */
     private void nextTimingTrigger(){
         try {
-            if (state == State.CLOSING || state == State.CLOSED){
+            if (state == State.CLOSED || state == State.CLOSING){
                 return;
             }
-            timeout = timer.newTimeout(timingFlush, batchedWriteMaxDelayInMillis, TimeUnit.MILLISECONDS);
+            timeout = timer.newTimeout(timingFlushTask, batchedWriteMaxDelayInMillis, TimeUnit.MILLISECONDS);
         } catch (Exception e){
             log.error("Start timing flush trigger failed."
                     + " managedLedger: " + managedLedger.getName(), e);
@@ -198,33 +223,112 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
                     AsyncAddArgs.newInstance(callback, ctx, System.currentTimeMillis(), byteBuf));
             return;
         }
-        singleThreadExecutorForWrite.execute(() -> internalAsyncAddData(data, callback, ctx));
+        singleThreadExecutorForWrite.execute(() -> {
+            try {
+                internalAsyncAddData(data, callback, ctx);
+            } catch (Exception e){
+                log.warn("Execute 'internalAsyncAddData' fail", e);
+            }
+        });
     }
 
+    /**
+     * Append data to queue, if reach {@link #batchedWriteMaxRecords} or {@link #batchedWriteMaxSize}, do flush. And if
+     * accept a request that {@param data} is too large (larger than {@link #batchedWriteMaxSize}), then two flushes
+     * are executed:
+     *    1. Write the data cached in the queue to BK.
+     *    2. Direct write the large data to BK,  this flush event will not record to Metrics.
+     * This ensures the sequential nature of multiple writes to BK.
+     */
     private void internalAsyncAddData(T data, AddDataCallback callback, Object ctx){
+        // Avoid missing callback, do failed callback when error occur before add data to the array.
         if (state == State.CLOSING || state == State.CLOSED){
             callback.addFailed(BUFFERED_WRITER_CLOSED_EXCEPTION, ctx);
             return;
         }
-        int len = dataSerializer.getSerializedSize(data);
-        if (len >= batchedWriteMaxSize){
-            if (!flushContext.asyncAddArgsList.isEmpty()) {
-                doTrigFlush(true, false);
+        int dataLength;
+        try {
+            dataLength = dataSerializer.getSerializedSize(data);
+        } catch (Exception e){
+            callback.addFailed(new ManagedLedgerInterceptException(e), ctx);
+            return;
+        }
+        if (dataLength >= batchedWriteMaxSize){
+            trigFlushByLargeSingleData();
+            ByteBuf byteBuf = null;
+            try {
+                byteBuf = dataSerializer.serialize(data);
+            } catch (Exception e){
+                callback.addFailed(new ManagedLedgerInterceptException(e), ctx);
+                return;
             }
-            ByteBuf byteBuf = dataSerializer.serialize(data);
             managedLedger.asyncAddEntry(byteBuf, DisabledBatchCallback.INSTANCE,
                     AsyncAddArgs.newInstance(callback, ctx, System.currentTimeMillis(), byteBuf));
             return;
         }
-        // Add data.
-        this.dataArray.add(data);
-        // Add callback info.
-        AsyncAddArgs asyncAddArgs = AsyncAddArgs.newInstance(callback, ctx, System.currentTimeMillis());
-        this.flushContext.asyncAddArgsList.add(asyncAddArgs);
-        // Calculate bytes-size.
-        this.bytesSize += len;
-        // trig flush.
-        doTrigFlush(false, false);
+        try {
+            // Why should try-catch here?
+            // If the recycle mechanism is not executed as expected, exception occurs.
+            flushContext.addCallback(callback, ctx);
+        } catch (Exception e){
+            callback.addFailed(new ManagedLedgerInterceptException(e), ctx);
+            return;
+        }
+        dataArray.add(data);
+        bytesSize += dataLength;
+        trigFlushIfReachMaxRecordsOrMaxSize();
+    }
+
+    private void trigFlushByTimingTask(){
+        singleThreadExecutorForWrite.execute(() -> {
+            try {
+                if (flushContext.asyncAddArgsList.isEmpty()) {
+                    return;
+                }
+                if (metrics != null) {
+                    metrics.triggerFlushByByMaxDelay(flushContext.asyncAddArgsList.size(), bytesSize,
+                            System.currentTimeMillis() - flushContext.asyncAddArgsList.get(0).addedTime);
+                }
+                doFlush();
+            } catch (Exception e){
+                log.error("Trig flush by timing task fail.", e);
+            } finally {
+                // Start the next timing task.
+                nextTimingTrigger();
+            }
+        });
+    }
+
+    /**
+     * If reach the thresholds {@link #batchedWriteMaxRecords} or {@link #batchedWriteMaxSize}, do flush.
+     */
+    private void trigFlushIfReachMaxRecordsOrMaxSize(){
+        if (flushContext.asyncAddArgsList.size() >= batchedWriteMaxRecords) {
+            if (metrics != null) {
+                metrics.triggerFlushByRecordsCount(flushContext.asyncAddArgsList.size(), bytesSize,
+                        System.currentTimeMillis() - flushContext.asyncAddArgsList.get(0).addedTime);
+            }
+            doFlush();
+            return;
+        }
+        if (bytesSize >= batchedWriteMaxSize) {
+            if (metrics != null) {
+                metrics.triggerFlushByBytesSize(flushContext.asyncAddArgsList.size(), bytesSize,
+                        System.currentTimeMillis() - flushContext.asyncAddArgsList.get(0).addedTime);
+            }
+            doFlush();
+        }
+    }
+
+    private void trigFlushByLargeSingleData(){
+        if (flushContext.asyncAddArgsList.isEmpty()) {
+            return;
+        }
+        if (metrics != null) {
+            metrics.triggerFlushByLargeSingleData(this.flushContext.asyncAddArgsList.size(), this.bytesSize,
+                    System.currentTimeMillis() - flushContext.asyncAddArgsList.get(0).addedTime);
+        }
+        doFlush();
     }
 
     /***
@@ -249,7 +353,7 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
         ByteBuf serialize(T data);
 
         /**
-         * Serialize {@param dataArray} to {@link ByteBuf}.. The returned ByteBuf will be release once after writing to
+         * Serialize {@param dataArray} to {@link ByteBuf}. The returned ByteBuf will be release once after writing to
          * Bookie complete, and if you still need to use the ByteBuf, should call {@link ByteBuf#retain()} in
          * {@link #serialize(Object)} implementation.
          * @param dataArray The objects which called by {@link #asyncAddData}.
@@ -259,140 +363,58 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
 
     }
 
-    /**
-     * Trigger write to bookie once, If the conditions are not met, nothing will be done.
-     */
-    public void trigFlush(final boolean force, boolean byScheduleThreads){
-        singleThreadExecutorForWrite.execute(() -> doTrigFlush(force, byScheduleThreads));
-    }
-
-    private void doTrigFlush(boolean force, boolean byScheduleThreads){
-        try {
-            if (flushContext.asyncAddArgsList.isEmpty()) {
-                return;
-            }
-            if (force) {
-                doFlush();
-                return;
-            }
-            if (byScheduleThreads) {
-                doFlush();
-                return;
-            }
-            AsyncAddArgs firstAsyncAddArgs = flushContext.asyncAddArgsList.get(0);
-            if (System.currentTimeMillis() - firstAsyncAddArgs.addedTime >= batchedWriteMaxDelayInMillis) {
-                doFlush();
-                return;
-            }
-            if (this.flushContext.asyncAddArgsList.size() >= batchedWriteMaxRecords) {
-                doFlush();
-                return;
-            }
-            if (this.bytesSize >= batchedWriteMaxSize) {
-                doFlush();
-            }
-        } finally {
-            if (byScheduleThreads) {
-                nextTimingTrigger();
-            }
-        }
-    }
-
     private void doFlush(){
-        // Combine data.
-        ByteBuf prefix = PulsarByteBufAllocator.DEFAULT.buffer(4);
-        prefix.writeShort(BATCHED_ENTRY_DATA_PREFIX_MAGIC_NUMBER);
-        prefix.writeShort(BATCHED_ENTRY_DATA_PREFIX_VERSION);
-        ByteBuf actualContent = this.dataSerializer.serialize(this.dataArray);
-        ByteBuf pairByteBuf = Unpooled.wrappedUnmodifiableBuffer(prefix, actualContent);
-        // We need to release this pairByteBuf after Managed ledger async add callback. Just holds by FlushContext.
-        this.flushContext.byteBuf = pairByteBuf;
-        // Flush.
+        // Combine data cached by flushContext, and write to BK.
+        ByteBuf prefixByteBuf = PulsarByteBufAllocator.DEFAULT.buffer(4);
+        prefixByteBuf.writeShort(BATCHED_ENTRY_DATA_PREFIX_MAGIC_NUMBER);
+        prefixByteBuf.writeShort(BATCHED_ENTRY_DATA_PREFIX_VERSION);
+        ByteBuf contentByteBuf = dataSerializer.serialize(dataArray);
+        ByteBuf wholeByteBuf = Unpooled.wrappedUnmodifiableBuffer(prefixByteBuf, contentByteBuf);
+        flushContext.byteBuf = wholeByteBuf;
         if (State.CLOSING == state || State.CLOSED == state){
             failureCallbackByContextAndRecycle(flushContext, BUFFERED_WRITER_CLOSED_EXCEPTION);
         } else {
-            managedLedger.asyncAddEntry(pairByteBuf, this, this.flushContext);
+            managedLedger.asyncAddEntry(wholeByteBuf, bookKeeperBatchedWriteCallback, flushContext);
         }
-        // Clear buffers.ok
-        this.dataArray.clear();
-        this.flushContext = FlushContext.newInstance();
-        this.bytesSize = 0;
+        dataArray.clear();
+        flushContext = FlushContext.newInstance();
+        bytesSize = 0;
     }
 
     /**
-     * see {@link AsyncCallbacks.AddEntryCallback#addComplete(Position, ByteBuf, Object)}.
+     * Release resources and cancel pending tasks.
      */
-    @Override
-    public void addComplete(Position position, ByteBuf entryData, Object ctx) {
-        final FlushContext flushContext = (FlushContext) ctx;
-        try {
-            final int batchSize = flushContext.asyncAddArgsList.size();
-            for (int batchIndex = 0; batchIndex < batchSize; batchIndex++) {
-                final AsyncAddArgs asyncAddArgs = flushContext.asyncAddArgsList.get(batchIndex);
-                final TxnBatchedPositionImpl txnBatchedPosition = new TxnBatchedPositionImpl(position, batchSize,
-                        batchIndex);
-                // Because this task already running at ordered task, so just "run".
-                try {
-                    asyncAddArgs.callback.addComplete(txnBatchedPosition, asyncAddArgs.ctx);
-                } catch (Exception e){
-                    log.error("After writing to the transaction batched log complete, the callback failed."
-                            + " managedLedger: " + managedLedger.getName(), e);
-                }
-            }
-        } finally {
-            flushContext.recycle();
-        }
-    }
-
-    /**
-     * see {@link AsyncCallbacks.AddEntryCallback#addFailed(ManagedLedgerException, Object)}.
-     */
-    @Override
-    public void addFailed(ManagedLedgerException exception, Object ctx) {
-        final FlushContext flushContext = (FlushContext) ctx;
-        failureCallbackByContextAndRecycle(flushContext, exception);
-    }
-
-    /**
-     * Cancel pending tasks and release resources.
-     */
-    @Override
-    public void close() {
-        // If disabled batch feature, there is no closing state.
+    public CompletableFuture<Void> close() {
+        // If batch feature is disabled, there is nothing to close, so set the stat only.
         if (!batchEnabled) {
             STATE_UPDATER.compareAndSet(this, State.OPEN, State.CLOSED);
-            return;
+            return CompletableFuture.completedFuture(null);
         }
-        // Prevent the reentrant.
+        // If other thread already called "close()", so do nothing.
         if (!STATE_UPDATER.compareAndSet(this, State.OPEN, State.CLOSING)){
-            // Other thread also calling "close()".
-            return;
+            return CompletableFuture.completedFuture(null);
         }
+        CompletableFuture closeFuture = new CompletableFuture();
         // Cancel pending tasks and release resources.
         singleThreadExecutorForWrite.execute(() -> {
-            if (state == State.CLOSED){
-                return;
-            }
-            // Failure callback to pending request.
-            // If some request has been flushed, Bookie triggers the callback.
-            failureCallbackByContextAndRecycle(this.flushContext, BUFFERED_WRITER_CLOSED_EXCEPTION);
-            // Cancel task that schedule at fixed rate trig flush.
-            if (timeout == null){
-                log.error("Cancel timeout-task that schedule at fixed rate trig flush failure. The field-timeout"
-                        + " is null. managedLedger: " + managedLedger.getName());
-            } else if (timeout.isCancelled()){
-                // TODO How decisions the timer-task has been finished ?
-                this.state = State.CLOSED;
-            } else {
-                if (this.timeout.cancel()) {
-                    this.state = State.CLOSED;
-                } else {
-                    // Cancel task failure, The state will stay at CLOSING.
-                    log.error("Cancel timeout-task that schedule at fixed rate trig flush failure. The state will"
-                            + " stay at CLOSING. managedLedger: " + managedLedger.getName());
+            try {
+                // If some requests are flushed, BK will trigger these callbacks, and the remaining requests in should
+                // fail.
+                failureCallbackByContextAndRecycle(flushContext,
+                        new ManagedLedgerException.ManagedLedgerFencedException(
+                            new Exception("Transaction log buffered write has closed")
+                        ));
+                // Cancel the timing task.
+                if (!timeout.isCancelled()){
+                    this.timeout.cancel();
                 }
+                STATE_UPDATER.set(this, State.CLOSED);
+                closeFuture.complete(null);
+            } catch (Exception e){
+                closeFuture.completeExceptionally(e);
             }
         });
+        return closeFuture;
     }
 
     private void failureCallbackByContextAndRecycle(FlushContext flushContext, ManagedLedgerException ex){
@@ -438,6 +460,26 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
             }
         };
 
+        private final Recycler.Handle<AsyncAddArgs> handle;
+
+        /** {@param callback} for {@link #asyncAddData(Object, AddDataCallback, Object)}. **/
+        @Getter
+        private AddDataCallback callback;
+
+        /** {@param ctx} for {@link #asyncAddData(Object, AddDataCallback, Object)}. **/
+        @Getter
+        private Object ctx;
+
+        /** Time of executed {@link #asyncAddData(Object, AddDataCallback, Object)}. **/
+        @Getter
+        private long addedTime;
+
+        /**
+         * When turning off the Batch feature, we need to release the byteBuf generated by
+         * {@link DataSerializer#serialize(Object)}.so holds the Byte Buffer by {@link AsyncAddArgs}.
+         */
+        private ByteBuf byteBuf;
+
         /**
          * This constructor is used only when batch is enabled.
          */
@@ -450,10 +492,10 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
         }
 
         /**
-         * This constructor is used only when batch is disabled, and has {@param byteBuf} more than the
-         * {@link AsyncAddArgs#newInstance(AddDataCallback, Object, long)} constructor. The {@param byteBuf} will be
-         * released during callback. see {@link AsyncAddArgs#recycle()}.
-         * @param byteBuf produced by {@link DataSerializer#serialize(Object)}
+         * This constructor is used only when batch is disabled. Different to
+         * {@link AsyncAddArgs#newInstance(AddDataCallback, Object, long)} has {@param byteBuf}. The {@param byteBuf}
+         * generated by {@link DataSerializer#serialize(Object)} will be released during callback when
+         * {@link #recycle()} executed.
          */
         private static AsyncAddArgs newInstance(AddDataCallback callback, Object ctx, long addedTime, ByteBuf byteBuf){
             AsyncAddArgs asyncAddArgs = newInstance(callback, ctx, addedTime);
@@ -465,32 +507,13 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
             this.handle = handle;
         }
 
-        private final Recycler.Handle<AsyncAddArgs> handle;
-
-        /** Argument for {@link #asyncAddData(Object, AddDataCallback, Object)}. **/
-        @Getter
-        private AddDataCallback callback;
-
-        /** Argument for {@link #asyncAddData(Object, AddDataCallback, Object)}. **/
-        @Getter
-        private Object ctx;
-
-        /** Time of executed {@link #asyncAddData(Object, AddDataCallback, Object)}. **/
-        @Getter
-        private long addedTime;
-
-        /**
-         * When turning off the Batch feature, we need to release the byteBuf produced by
-         * {@link DataSerializer#serialize(Object)}. Only carry the ByteBuf objects, no other use.
-         */
-        private ByteBuf byteBuf;
-
         public void recycle(){
             this.callback = null;
             this.ctx = null;
             this.addedTime = 0;
             if (this.byteBuf != null){
                 this.byteBuf.release();
+                this.byteBuf = null;
             }
             this.handle.recycle(this);
         }
@@ -511,13 +534,13 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
 
         private final Recycler.Handle<FlushContext> handle;
 
-        /** Callback parameters for current batch. **/
+        /** Stores all the params used to execute the callback in batch. **/
         private final ArrayList<AsyncAddArgs> asyncAddArgsList;
 
         /**
-         * If turning on the Batch feature, we need to release the byteBuf produced by
-         * {@link DataSerializer#serialize(ArrayList)} when Managed ledger async add callback.
-         * Only carry the ByteBuf objects, no other use.
+         * This property only used on enabled batch feature: we need to release the byteBuf generated by
+         * {@link DataSerializer#serialize(ArrayList)} after Managed ledger async add complete, so holds the Byte Buffer
+         * by {@link FlushContext}.
          */
         private ByteBuf byteBuf;
 
@@ -541,8 +564,52 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
             this.asyncAddArgsList.clear();
             this.handle.recycle(this);
         }
+
+        public void addCallback(AddDataCallback callback, Object ctx){
+            AsyncAddArgs asyncAddArgs = AsyncAddArgs.newInstance(callback, ctx, System.currentTimeMillis());
+            asyncAddArgsList.add(asyncAddArgs);
+        }
     }
 
+
+
+    private class BookKeeperBatchedWriteCallback implements AsyncCallbacks.AddEntryCallback{
+
+        @Override
+        public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+            final FlushContext flushContext = (FlushContext) ctx;
+            try {
+                final int batchSize = flushContext.asyncAddArgsList.size();
+                for (int batchIndex = 0; batchIndex < batchSize; batchIndex++) {
+                    final AsyncAddArgs asyncAddArgs = flushContext.asyncAddArgsList.get(batchIndex);
+                    final TxnBatchedPositionImpl txnBatchedPosition = new TxnBatchedPositionImpl(position, batchSize,
+                            batchIndex);
+                    // Because this task already running at ordered task, so just "execute callback".
+                    try {
+                        asyncAddArgs.callback.addComplete(txnBatchedPosition, asyncAddArgs.ctx);
+                    } catch (Exception e){
+                        log.error("After writing to the transaction batched log complete, the callback failed."
+                                + " managedLedger: " + managedLedger.getName(), e);
+                    }
+                }
+            } catch (Exception e){
+                log.error("Handle callback fail after ML write complete", e);
+            } finally {
+                flushContext.recycle();
+            }
+        }
+
+        @Override
+        public void addFailed(ManagedLedgerException exception, Object ctx) {
+            try {
+                final FlushContext flushContext = (FlushContext) ctx;
+                failureCallbackByContextAndRecycle(flushContext, exception);
+            } catch (Exception e){
+                log.error("Handle callback fail after ML write fail", e);
+            }
+        }
+
+    }
 
 
     public interface AddDataCallback {
@@ -559,8 +626,9 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
     }
 
     /***
-     * Instead origin param-callback for {@link #asyncAddData(Object, AddDataCallback, Object)}
-     * when {@link #batchEnabled} == false, Used for ByteBuf release which generated by {@link DataSerializer}.
+     * If Batch is disabled, the data will directly write to BK by Managed Ledger, before write, the data will convert
+     * to {@link ByteBuf} using method {@link DataSerializer#serialize(Object)}. And this byte buffer should be released
+     * finally. So definition this class to wrap original callback, mainly to release the buffer.
      */
     private static class DisabledBatchCallback implements AsyncCallbacks.AddEntryCallback {
 
@@ -589,5 +657,9 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
                 asyncAddArgs.recycle();
             }
         }
+    }
+
+    public TxnLogBufferedWriterMetricsStats getMetrics(){
+        return metrics;
     }
 }
