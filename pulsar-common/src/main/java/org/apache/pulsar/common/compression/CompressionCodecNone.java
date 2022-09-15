@@ -20,6 +20,7 @@ package org.apache.pulsar.common.compression;
 
 import io.netty.buffer.ByteBuf;
 import java.io.IOException;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 
 /**
  * No compression.
@@ -28,8 +29,13 @@ public class CompressionCodecNone implements CompressionCodec {
 
     @Override
     public ByteBuf encode(ByteBuf raw) {
-        // Provides an encoder that simply returns the same uncompressed buffer
-        return raw.retain();
+        int readableBytes = raw.readableBytes();
+        if (readableBytes == raw.capacity()) {
+            return raw.retain();
+        }
+        ByteBuf target = PulsarByteBufAllocator.DEFAULT.buffer(readableBytes, readableBytes);
+        target.writeBytes(raw);
+        return target;
     }
 
     @Override
