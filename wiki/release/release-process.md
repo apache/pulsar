@@ -25,15 +25,15 @@ This page contains instructions for Pulsar committers on how to perform a releas
 
 ## Preparation
 
-You should open an discussion in dev@apache.org to notify others that you volunteer to be a release manager. If there are no disagreements, you can start the release process.
+Open a discussion in dev@apache.org to notify others that you volunteer to be the release manager of a specific release. If there are no disagreements, you can start the release process.
 
-For major releases, you should create a new branch named `branch-2.X.0` once all PRs with the 2.X.0 milestone are merged. If some PRs with 2.X.0 milestome are still working in progress and might took much time to complete, you can move it to the next milestone if they are not important. In this case, you'd better to notify the author in the PR.
+For major releases, you should create a new branch named `branch-2.X.0` once all PRs with the 2.X.0 milestone are merged. If some PRs with the 2.X.0 milestone are still working in progress and might take much time to complete, you can move them to the next milestone if they are not important. In this case, you'd better to notify the author in the PR.
 
 For minor releases, if there are no disagreements, you should cherry-pick all merged PRs with the `release/X.Y.Z` labels into branch-X.Y. After these PRs are cherry-picked, you should add the `cherry-picked/branch-X.Y` labels.
 
-Sometimes some PRs cannot be cherry-picked cleanly, you might need to create a separated PR and move the `release/X.Y.Z` label from the original PR to it. In this case, you can ask the author to help creating the new PR.
+Sometimes some PRs cannot be cherry-picked cleanly, you might need to create a separated PR and move the `release/X.Y.Z` label from the original PR to it. In this case, you can ask the author to help create the new PR.
 
-For PRs that are still open, you can choose delaying them to the next release or pinging others to review so that they can be merged.
+For PRs that are still open, you can choose to delay them to the next release or ping others to review so that they can be merged.
 
 To verify the release branch is not broken, you can synchronize the branch in your private repo and open a PR to trigger the CI. Example: https://github.com/BewareMyPower/pulsar/pull/3
 
@@ -306,7 +306,7 @@ The vote should be open for at least 72 hours (3 days). Votes from Pulsar PMC me
 will be considered binding, while anyone else is encouraged to verify the release and
 vote as well.
 
-If the release is approved here, we can then proceed to next step. Otherwise, we should repeat the previous steps and prepare another candidate release to vote.
+If the release is approved here, we can then proceed to the next step. Otherwise, you should repeat the previous steps and prepare another candidate release to vote.
 
 ## Move master branch to next version
 
@@ -321,8 +321,8 @@ git checkout master
 git commit -m 'Bumped version to 2.Y.0-SNAPSHOT' -a
 ```
 
-Since this needs to be merged in `master`, we need to follow the regular process
-and create a Pull Request on github.
+Since this needs to be merged into `master`, you need to follow the regular process
+and create a Pull Request on GitHub.
 
 ## Promote the release
 
@@ -346,7 +346,7 @@ will now be made available on Maven central.
 
 ## Publish Docker Images
 
-Copy the approved candidate docker images from your personal acccount to apachepulsar org.
+Copy the approved candidate docker images from your personal account to apachepulsar org.
 
 ```bash
 PULSAR_VERSION=2.x.x
@@ -431,7 +431,7 @@ Once the docs are generated, you can add them and submit them in a PR. The expec
 
 **This step can be skipped if the major version number is not latest.**
 
-Release a new version of libpulsar for Homebrew, You can follow the example [here](https://github.com/Homebrew/homebrew-core/pull/53514)
+Release a new version of libpulsar for Homebrew, You can follow the example [here](https://github.com/Homebrew/homebrew-core/pull/53514).
 
 ## Update swagger file
 
