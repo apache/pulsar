@@ -247,8 +247,8 @@ public class PulsarClusterMetadataSetup {
                 arguments.metadataStoreUrl, arguments.configurationMetadataStore);
 
         MetadataStoreExtended localStore =
-                initMetadataStore(arguments.metadataStoreUrl, arguments.zkSessionTimeoutMillis);
-        MetadataStoreExtended configStore = initMetadataStore(arguments.configurationMetadataStore,
+                initLocalMetadataStore(arguments.metadataStoreUrl, arguments.zkSessionTimeoutMillis);
+        MetadataStoreExtended configStore = initConfigMetadataStore(arguments.configurationMetadataStore,
                 arguments.zkSessionTimeoutMillis);
 
         final String metadataStoreUrlNoIdentifer = MetadataStoreFactoryImpl
@@ -388,9 +388,22 @@ public class PulsarClusterMetadataSetup {
         }
     }
 
-    public static MetadataStoreExtended initMetadataStore(String connection, int sessionTimeout) throws Exception {
+    public static MetadataStoreExtended initLocalMetadataStore(String connection, int sessionTimeout) throws Exception {
         MetadataStoreExtended store = MetadataStoreExtended.create(connection, MetadataStoreConfig.builder()
                 .sessionTimeoutMillis(sessionTimeout)
+                .metadataStoreName(MetadataStoreConfig.LOCAL_METADATA_STORE)
+                .build());
+        if (store instanceof MetadataStoreLifecycle) {
+            ((MetadataStoreLifecycle) store).initializeCluster().get();
+        }
+        return store;
+    }
+
+    public static MetadataStoreExtended initConfigMetadataStore(String connection, int sessionTimeout)
+            throws Exception {
+        MetadataStoreExtended store = MetadataStoreExtended.create(connection, MetadataStoreConfig.builder()
+                .sessionTimeoutMillis(sessionTimeout)
+                .metadataStoreName(MetadataStoreConfig.CONFIGURATION_METADATA_STORE)
                 .build());
         if (store instanceof MetadataStoreLifecycle) {
             ((MetadataStoreLifecycle) store).initializeCluster().get();

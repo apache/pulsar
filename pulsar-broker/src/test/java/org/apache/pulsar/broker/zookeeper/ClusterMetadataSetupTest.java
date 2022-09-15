@@ -251,7 +251,7 @@ public class ClusterMetadataSetupTest {
         PulsarClusterMetadataSetup.main(args);
 
         try (MetadataStoreExtended localStore = PulsarClusterMetadataSetup
-                .initMetadataStore(zkConnection, 30000)) {
+                .initLocalMetadataStore(zkConnection, 30000)) {
             // expected not exist
             assertFalse(localStore.exists("/ledgers").get());
 
@@ -268,7 +268,7 @@ public class ClusterMetadataSetupTest {
 
             PulsarClusterMetadataSetup.main(bookkeeperMetadataServiceUriArgs);
             try (MetadataStoreExtended bookkeeperMetadataServiceUriStore = PulsarClusterMetadataSetup
-                    .initMetadataStore(zkConnection, 30000)) {
+                    .initLocalMetadataStore(zkConnection, 30000)) {
                 // expected not exist
                 assertFalse(bookkeeperMetadataServiceUriStore.exists("/ledgers").get());
             }

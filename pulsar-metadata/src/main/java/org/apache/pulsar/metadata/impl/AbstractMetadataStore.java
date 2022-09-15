@@ -85,7 +85,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     protected abstract CompletableFuture<Boolean> existsFromStore(String path);
 
-    protected AbstractMetadataStore() {
+    protected AbstractMetadataStore(String metadataStoreName) {
         final String poolName = "metadata-store";
         this.executor = new ScheduledThreadPoolExecutor(1, new DefaultThreadFactory(poolName));
         registerListener(this);
@@ -132,7 +132,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                     }
                 });
 
-        this.metadataStoreName = poolName + "-" + ID.getAndIncrement();
+        this.metadataStoreName = metadataStoreName;
         this.metadataStoreStats = new MetadataStoreStats(metadataStoreName);
     }
 

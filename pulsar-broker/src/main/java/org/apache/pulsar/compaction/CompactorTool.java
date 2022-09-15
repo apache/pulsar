@@ -143,6 +143,7 @@ public class CompactorTool {
         MetadataStoreExtended store = MetadataStoreExtended.create(brokerConfig.getMetadataStoreUrl(),
                 MetadataStoreConfig.builder()
                         .sessionTimeoutMillis((int) brokerConfig.getMetadataStoreSessionTimeoutMillis())
+                        .metadataStoreName(MetadataStoreConfig.LOCAL_METADATA_STORE)
                         .build());
 
         @Cleanup

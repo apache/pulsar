@@ -74,6 +74,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.compaction.Compactor;
+import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.testng.Assert;
@@ -1565,7 +1566,11 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
         for (Metric m : opsLatency) {
             Assert.assertEquals(m.tags.get("cluster"), "test");
-            Assert.assertTrue(m.tags.get("name").startsWith("metadata-store"));
+            String metadataStoreName = m.tags.get("name");
+            Assert.assertNotNull(metadataStoreName);
+            Assert.assertTrue(metadataStoreName.equals(MetadataStoreConfig.LOCAL_METADATA_STORE)
+                    || metadataStoreName.equals(MetadataStoreConfig.CONFIGURATION_METADATA_STORE)
+                    || metadataStoreName.equals(MetadataStoreConfig.STATE_METADATA_STORE));
             Assert.assertNotNull(m.tags.get("status"));
 
             if (m.tags.get("status").equals("success")) {
@@ -1580,11 +1585,11 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                 }
             } else {
                 if (m.tags.get("type").equals("get")) {
-                    Assert.assertTrue(m.value > 0);
+                    Assert.assertTrue(m.value >= 0);
                 } else if (m.tags.get("type").equals("del")) {
-                    Assert.assertTrue(m.value > 0);
+                    Assert.assertTrue(m.value >= 0);
                 } else if (m.tags.get("type").equals("put")) {
-                    Assert.assertTrue(m.value > 0);
+                    Assert.assertTrue(m.value >= 0);
                 } else {
                     Assert.fail();
                 }
@@ -1592,7 +1597,11 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         }
         for (Metric m : putBytes) {
             Assert.assertEquals(m.tags.get("cluster"), "test");
-            Assert.assertTrue(m.tags.get("name").startsWith("metadata-store"));
+            String metadataStoreName = m.tags.get("name");
+            Assert.assertNotNull(metadataStoreName);
+            Assert.assertTrue(metadataStoreName.equals(MetadataStoreConfig.LOCAL_METADATA_STORE)
+                    || metadataStoreName.equals(MetadataStoreConfig.CONFIGURATION_METADATA_STORE)
+                    || metadataStoreName.equals(MetadataStoreConfig.STATE_METADATA_STORE));
             Assert.assertTrue(m.value > 0);
         }
     }
