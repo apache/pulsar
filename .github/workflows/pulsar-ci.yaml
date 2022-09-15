@@ -647,6 +647,10 @@ jobs:
           time df -BM / /mnt
           echo "::endgroup::"          
 
+      # Checks also Trino license files
+      - name: Check binary licenses
+        run: src/check-binary-license.sh ./distribution/server/target/apache-pulsar-*-bin.tar.gz
+
       - name: save docker image apachepulsar/pulsar-test-latest-version:latest to Github artifact cache
         run: |
           $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh docker_save_image_to_github_actions_artifacts apachepulsar/pulsar-test-latest-version:latest pulsar-test-latest-version-image
