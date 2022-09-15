@@ -11,7 +11,7 @@ It is helpful to review the [concepts](io-overview.md) for Pulsar I/O by running
 At the end of this tutorial, you can:
 
 - [Connect Pulsar to Cassandra](#connect-pulsar-to-cassandra)
-- [Connect Pulsar to PostgreSQL](#connect-pulsar-to-postgreSQL)
+- [Connect Pulsar to PostgreSQL](#connect-pulsar-to-postgresql)
 
 :::tip
 
@@ -113,7 +113,7 @@ This section demonstrates how to connect Pulsar to Cassandra.
 
 :::tip
 
-* Make sure you have Docker installed. If you do not have one, see [install Docker](https://docs.docker.com/docker-for-mac/install/).
+* Make sure you have Docker installed. If you do not have one, see [install Docker](https://docs.docker.com/docker-for-mac/install/). For more information about Docker commands, see [Docker CLI](https://docs.docker.com/engine/reference/commandline/run/).
 * The Cassandra sink connector reads messages from Pulsar topics and writes the messages into Cassandra tables. For more information, see [Cassandra sink connector](io-cassandra-sink.md).
 
 :::
@@ -167,6 +167,10 @@ This example uses `cassandra` Docker image to start a single-node Cassandra clus
 
    ```bash
    docker exec -ti cassandra cqlsh localhost
+   ```
+   
+    **Output**
+   ```
    Connected to Test Cluster at localhost:9042.
    [cqlsh 5.0.1 | Cassandra 3.11.2 | CQL spec 3.4.4 | Native protocol v4]
    Use HELP for help.
@@ -412,7 +416,7 @@ This section demonstrates how to connect Pulsar to PostgreSQL.
 
 :::tip
 
-* Make sure you have Docker installed. If you do not have one, see [install Docker](https://docs.docker.com/docker-for-mac/install/).
+* Make sure you have Docker installed. If you do not have one, see [install Docker](https://docs.docker.com/docker-for-mac/install/). For more information about Docker commands, see [Docker CLI](https://docs.docker.com/engine/reference/commandline/run/).
 * The JDBC sink connector pulls messages from Pulsar topics and persists the messages to ClickHouse, MariaDB, PostgreSQL, or SQLite. For more information, see [JDBC sink connector](io-jdbc-sink.md).
 
 :::
@@ -439,23 +443,6 @@ This example uses the PostgreSQL 12 docker image to start a single-node PostgreS
    postgres:12
    ```
 
-   #### Tip
-
-    Flag | Description | This example
-    ---|---|---|
-    `-d` | To start a container in detached mode. | /
-    `-it` | Keep STDIN open even if not attached and allocate a terminal. | /
-    `--rm` | Remove the container automatically when it exits. | /
-    `-name` | Assign a name to the container. | This example specifies _pulsar-postgres_ for the container.
-    `-p` | Publish the port of the container to the host. | This example publishes the port _5432_ of the container to the host.
-    `-e` | Set environment variables. | This example sets the following variables:<br />- The password for the user is _password_.<br />- The name for the user is _postgres_.
-
-    :::tip
-
-    For more information about Docker commands, see [Docker CLI](https://docs.docker.com/engine/reference/commandline/run/).
-
-    :::
-
 3. Check if PostgreSQL has been started successfully.
 
    ```bash
@@ -473,18 +460,22 @@ This example uses the PostgreSQL 12 docker image to start a single-node PostgreS
    2020-05-11 20:09:24.533 UTC [1] LOG:  database system is ready to accept connections
    ```
 
-4. Access to PostgreSQL.
+4. Access to PostgreSQL container.
 
    ```bash
    docker exec -it pulsar-postgres /bin/bash
    ```
 
-5. Create a PostgreSQL table _pulsar_postgres_jdbc_sink_.
+5. Log in to PostgreSQL with the default username and password:
 
    ```bash
    psql -U postgres postgres
+   ```
 
-   postgres=# create table if not exists pulsar_postgres_jdbc_sink
+6. Create a `pulsar_postgres_jdbc_sink` table using the following command:
+
+   ```sql
+   create table if not exists pulsar_postgres_jdbc_sink
    (
    id serial PRIMARY KEY,
    name VARCHAR(255) NOT NULL

@@ -22,7 +22,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.HashedWheelTimer;
+import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import io.prometheus.client.CollectorRegistry;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -32,12 +34,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BKException;
@@ -56,12 +60,19 @@ import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import org.testng.Assert;
+import static org.testng.Assert.*;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
+@Test(groups = "broker")
 public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
+
+    /** Default metrics definitions. **/
+    private String[] metricsLabelNames = new String[]{"coordinatorId"};
+    private String[] metricsLabelValues = new String[]{"1"};
+    private String metricsPrefix = "pulsar_txn_tc";
+    private String mlName = "-";
 
     /**
      * Overridden cases:
@@ -142,7 +153,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         }
         // Calculate the exactly batch-enabled for assert.
         boolean exactlyBatched = batchEnabled;
-        if (batchedWriteMaxSize <= eachDataBytesLen){
+        if (batchedWriteMaxSize <= eachDataBytesLen || batchedWriteMaxRecords <= 1){
             exactlyBatched = false;
         }
         /**
@@ -213,7 +224,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
             txnLogBufferedWriter.asyncAddData(i, callback, i);
             // Ensure flush at least once before close buffered writer.
             if (closeBufferedWriter && i == 0){
-                txnLogBufferedWriter.trigFlush(true, false);
+                // TODO Clean up this method in next PR, make more easier to read.
             }
             if (closeBufferedWriter && bufferedWriteCloseAtIndex == i){
                 // Wait for any complete callback, avoid unstable.
@@ -239,20 +250,20 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         if (closeBufferedWriter || bookieErrorType == BookieErrorType.SOMETIMES_ERROR){
             Collections.sort(contextArrayOfCallback);
         }
-        Assert.assertEquals(contextArrayOfCallback.size(), writeCmdExecuteCount);
+        assertEquals(contextArrayOfCallback.size(), writeCmdExecuteCount);
         for (int ctxIndex = 0; ctxIndex < writeCmdExecuteCount; ctxIndex++){
-            Assert.assertEquals(contextArrayOfCallback.get(ctxIndex).intValue(), ctxIndex);
+            assertEquals(contextArrayOfCallback.get(ctxIndex).intValue(), ctxIndex);
         }
         // if {@param bookieError} is true. verify the ex count.
         // if {@param bookieError} is false. verify the param-position count.
         int exceptionCallbackCount = exceptionArrayOfCallback.size();
         int positionCallbackCount = (int) positionsOfCallback.values().stream().flatMap(l -> l.stream()).count();
         if (BookieErrorType.SOMETIMES_ERROR == bookieErrorType ||  closeBufferedWriter){
-            Assert.assertEquals(exceptionCallbackCount + positionCallbackCount, writeCmdExecuteCount);
+            assertEquals(exceptionCallbackCount + positionCallbackCount, writeCmdExecuteCount);
         } else if (BookieErrorType.NO_ERROR == bookieErrorType){
-            Assert.assertEquals(positionCallbackCount, writeCmdExecuteCount);
+            assertEquals(positionCallbackCount, writeCmdExecuteCount);
         } else {
-            Assert.assertEquals(exceptionCallbackCount, writeCmdExecuteCount);
+            assertEquals(exceptionCallbackCount, writeCmdExecuteCount);
         }
         // if enabled batch-feature, will verify the attributes (batchSize, batchIndex) of callback param-position.
         if (exactlyBatched && BookieErrorType.ALWAYS_ERROR != bookieErrorType){
@@ -266,8 +277,8 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
                 for (int i = 0; i < batchedData.size(); i++) {
                     TxnBatchedPositionImpl innerPosition =
                             (TxnBatchedPositionImpl) innerPositions.get(i);
-                    Assert.assertEquals(innerPosition.getBatchSize(), batchedData.size());
-                    Assert.assertEquals(innerPosition.getBatchIndex(), i);
+                    assertEquals(innerPosition.getBatchSize(), batchedData.size());
+                    assertEquals(innerPosition.getBatchIndex(), i);
                 }
             }
         }
@@ -294,8 +305,8 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
                     Entry entry = entries.get(m);
                     // Assert the position of the read matches the position of the callback.
                     PositionImpl callbackPosition = callbackPositionIterator.next();
-                    Assert.assertEquals(entry.getLedgerId(), callbackPosition.getLedgerId());
-                    Assert.assertEquals(entry.getEntryId(), callbackPosition.getEntryId());
+                    assertEquals(entry.getLedgerId(), callbackPosition.getLedgerId());
+                    assertEquals(entry.getEntryId(), callbackPosition.getEntryId());
                     if (exactlyBatched) {
                         // Get expected entry data from cache of DataSerializer.
                         String expectEntryData = dataArrayWrite.get(entryCounter);
@@ -305,21 +316,21 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
                         entryByteBuf.readBytes(entryContentBytes);
                         String actEntryData = new String(entryContentBytes, Charset.defaultCharset());
                         // Assert the data of the read matches the data write.
-                        Assert.assertEquals(actEntryData, expectEntryData);
+                        assertEquals(actEntryData, expectEntryData);
                     } else {
                         int entryValue = entry.getDataBuffer().readInt();
                         // Assert the data of the read matches the data write.
-                        Assert.assertEquals(entryValue, entryCounter);
+                        assertEquals(entryValue, entryCounter);
                     }
                     entry.release();
                     entryCounter++;
                 }
             }
             // Assert callback count equals entry count.
-            Assert.assertEquals(entryCounter, positionsOfCallback.size());
+            assertEquals(entryCounter, positionsOfCallback.size());
         }
         /** cleanup. **/
-        txnLogBufferedWriter.close();
+        txnLogBufferedWriter.close().get();
         // If we already call {@link PulsarMockBookKeeper#failAfter}, the managed ledger could not close anymore.
         if (BookieErrorType.SOMETIMES_ERROR != bookieErrorType){
             managedLedger.close();
@@ -360,9 +371,8 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
     @Test
     public void testFlushThresholds() throws Exception{
         // Create components.
-        String managedLedgerName = "-";
         ManagedLedger managedLedger = Mockito.mock(ManagedLedger.class);
-        Mockito.when(managedLedger.getName()).thenReturn(managedLedgerName);
+        Mockito.when(managedLedger.getName()).thenReturn(mlName);
         OrderedExecutor orderedExecutor =  OrderedExecutor.newBuilder().numThreads(5).name("txn-topic-threads").build();
         HashedWheelTimer transactionTimer = new HashedWheelTimer(new DefaultThreadFactory("transaction-timer"),
                 1, TimeUnit.MILLISECONDS);
@@ -389,10 +399,10 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         txnLogBufferedWriter1.asyncAddData(100, callback, 100);
         Thread.sleep(90);
         // Verify does not refresh ahead of time.
-        Assert.assertEquals(dataArrayFlushedToBookie.size(), 0);
+        assertEquals(dataArrayFlushedToBookie.size(), 0);
         Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> dataArrayFlushedToBookie.size() == 1);
-        Assert.assertEquals(dataArrayFlushedToBookie.get(0).intValue(), 100);
-        txnLogBufferedWriter1.close();
+        assertEquals(dataArrayFlushedToBookie.get(0).intValue(), 100);
+        txnLogBufferedWriter1.close().get();
 
         // Test threshold: batchedWriteMaxRecords.
         TxnLogBufferedWriter txnLogBufferedWriter2 = new TxnLogBufferedWriter<>(managedLedger, orderedExecutor,
@@ -401,7 +411,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
             txnLogBufferedWriter2.asyncAddData(1, callback, 1);
         }
         Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> dataArrayFlushedToBookie.size() == 2);
-        Assert.assertEquals(dataArrayFlushedToBookie.get(1).intValue(), 32);
+        assertEquals(dataArrayFlushedToBookie.get(1).intValue(), 32);
         txnLogBufferedWriter2.close();
 
         // Test threshold: batchedWriteMaxSize.
@@ -411,7 +421,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
             txnLogBufferedWriter3.asyncAddData(1, callback, 1);
         }
         Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> dataArrayFlushedToBookie.size() == 3);
-        Assert.assertEquals(dataArrayFlushedToBookie.get(2).intValue(), 64);
+        assertEquals(dataArrayFlushedToBookie.get(2).intValue(), 64);
         txnLogBufferedWriter3.close();
 
         // Assert all resources released
@@ -432,9 +442,6 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
     @Test
     public void testPendingScheduleTriggerTaskCount() throws Exception {
         // Create components.
-        String managedLedgerName = "-";
-        ManagedLedger managedLedger = Mockito.mock(ManagedLedger.class);
-        Mockito.when(managedLedger.getName()).thenReturn(managedLedgerName);
         OrderedExecutor orderedExecutor =  Mockito.mock(OrderedExecutor.class);
         ArrayBlockingQueue<Runnable> workQueue = new ArrayBlockingQueue<>(65536 * 2);
         ThreadPoolExecutor threadPoolExecutor = new ThreadPoolExecutor(1, 1, 5, TimeUnit.SECONDS, workQueue);
@@ -442,27 +449,14 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         HashedWheelTimer transactionTimer = new HashedWheelTimer(new DefaultThreadFactory("transaction-timer"),
                 1, TimeUnit.MILLISECONDS);
         SumStrDataSerializer dataSerializer = new SumStrDataSerializer();
-        // Count the number of tasks that have been submitted to bookie for later validation.
-        AtomicInteger completeFlushTaskCounter = new AtomicInteger();
-        Mockito.doAnswer(new Answer() {
-            @Override
-            public Object answer(InvocationOnMock invocation) throws Throwable {
-                completeFlushTaskCounter.incrementAndGet();
-                ByteBuf byteBuf = (ByteBuf)invocation.getArguments()[0];
-                byteBuf.skipBytes(4);
-                AsyncCallbacks.AddEntryCallback callback =
-                        (AsyncCallbacks.AddEntryCallback) invocation.getArguments()[1];
-                callback.addComplete(PositionImpl.get(1,1), byteBuf,
-                        invocation.getArguments()[2]);
-                return null;
-            }
-        }).when(managedLedger).asyncAddEntry(Mockito.any(ByteBuf.class), Mockito.any(), Mockito.any());
+        // Mock managed ledger and write counter.
+        MockedManagedLedger mockedManagedLedger = mockManagedLedgerWithWriteCounter(mlName);
         // Start tests.
-        TxnLogBufferedWriter txnLogBufferedWriter = new TxnLogBufferedWriter<>(managedLedger, orderedExecutor,
+        TxnLogBufferedWriter txnLogBufferedWriter = new TxnLogBufferedWriter<>(mockedManagedLedger.managedLedger, orderedExecutor,
                     transactionTimer, dataSerializer, 2, 1024 * 4, 1, true);
         TxnLogBufferedWriter.AddDataCallback callback = Mockito.mock(TxnLogBufferedWriter.AddDataCallback.class);
         // Append heavier tasks to the Ledger thread.
-        final ExecutorService executorService = orderedExecutor.chooseThread(managedLedgerName);
+        final ExecutorService executorService = orderedExecutor.chooseThread(mlName);
         AtomicInteger heavierTaskCounter = new AtomicInteger();
         Thread heavierTask = new Thread(() -> {
             while (true) {
@@ -514,13 +508,13 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         int maxCountOfRemainingTasks = 0;
         maxCountOfRemainingTasks += normalFlushCounter.get();
         maxCountOfRemainingTasks += addAsyncDataTaskCounter.get();
-        maxCountOfRemainingTasks -= completeFlushTaskCounter.get() * 3;
+        maxCountOfRemainingTasks -= mockedManagedLedger.writeCounter.get() * 3;
         maxCountOfRemainingTasks += heavierTaskCounter.get();
         // In addition to the above tasks, is the timing tasks.
         // Assert the timing task count. The above calculation is not accurate, so leave a margin.
-        Assert.assertTrue(workQueue.size() - maxCountOfRemainingTasks < 10);
+        assertTrue(workQueue.size() - maxCountOfRemainingTasks < 10);
         // clean up.
-        txnLogBufferedWriter.close();
+        txnLogBufferedWriter.close().get();
         dataSerializer.cleanup();
         threadPoolExecutor.shutdown();
         transactionTimer.stop();
@@ -596,8 +590,12 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
 
         protected void assertAllByteBufHasBeenReleased(){
             for (ByteBuf byteBuf : generatedByteBufArray){
-                Assert.assertEquals(byteBuf.refCnt(), 0);
+                assertEquals(byteBuf.refCnt(), 0);
             }
+        }
+
+        protected int getSizePerData(){
+            return eachDataBytesLen;
         }
     }
 
@@ -613,9 +611,453 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         }
     }
 
+    private static class RandomLenSumStrDataSerializer extends SumStrDataSerializer {
+
+        @Getter
+        private int totalSize;
+
+        /**
+         * After the test, when {@link TxnLogBufferedWriterConfig#getBatchedWriteMaxRecords()} = 256
+         *   and {@link TxnLogBufferedWriterConfig#getBatchedWriteMaxSize()} = 1024,
+         *   and {@link TxnLogBufferedWriterConfig#getBatchedWriteMaxDelayInMillis()} = 1, the random-size baseline
+         *   was set as 9, and there was maximum probability that all three thresholds could be hit.
+         */
+        @Override
+        public int getSerializedSize(Integer data) {
+            int size = new Random().nextInt(9);
+            totalSize += size;
+            return size;
+        }
+    }
+
+    private static class TwoLenSumDataSerializer extends JsonDataSerializer {
+
+        private final int len1;
+
+        private final int len2;
+
+        private AtomicBoolean useLen2 = new AtomicBoolean();
+
+        public TwoLenSumDataSerializer(int len1, int len2){
+            this.len1 = len1;
+            this.len2 = len2;
+        }
+
+        /**
+         * After the test, when {@link TxnLogBufferedWriterConfig#getBatchedWriteMaxRecords()} = 256
+         *   and {@link TxnLogBufferedWriterConfig#getBatchedWriteMaxSize()} = 1024,
+         *   and {@link TxnLogBufferedWriterConfig#getBatchedWriteMaxDelayInMillis()} = 1, the random-size baseline
+         *   was set as 9, and there was maximum probability that all three thresholds could be hit.
+         */
+        @Override
+        public int getSerializedSize(Integer data) {
+            boolean b = useLen2.get();
+            useLen2.set(!b);
+            return b ? len2 : len1;
+        }
+    }
+
+    private static class WrongDataSerializer extends SumStrDataSerializer {
+
+        private final AtomicInteger counter = new AtomicInteger();
+
+        private final int dataSize;
+
+        private final boolean failOnGetSerializedSize;
+
+        private final boolean failOnSerializeSingleData;
+
+        private final boolean failOnSerializeDataArray;
+
+        public WrongDataSerializer(int dataSize, boolean failOnGetSerializedSize, boolean failOnSerializeSingleData,
+                                   boolean failOnSerializeDataArray) {
+            this.dataSize = dataSize;
+            this.failOnGetSerializedSize = failOnGetSerializedSize;
+            this.failOnSerializeSingleData = failOnSerializeSingleData;
+            this.failOnSerializeDataArray = failOnSerializeDataArray;
+        }
+
+        @Override
+        public int getSerializedSize(Integer data) {
+            if (counter.incrementAndGet() % 2 == 0 && failOnGetSerializedSize){
+                // sometimes error.
+                throw new IllegalArgumentException("serialize wrong");
+            }
+            return dataSize;
+        }
+
+        @Override
+        public ByteBuf serialize(Integer data) {
+            if (failOnSerializeSingleData) {
+                // always error.
+                throw new IllegalArgumentException("serialize wrong");
+            }
+            return super.serialize(data);
+        }
+
+        @Override
+        public ByteBuf serialize(ArrayList<Integer> dataArray) {
+            if (failOnSerializeDataArray){
+                // always error.
+                throw new IllegalArgumentException("serialize wrong");
+            }
+            return super.serialize(dataArray);
+        }
+    }
+
     public enum BookieErrorType{
         NO_ERROR,
         ALWAYS_ERROR,
         SOMETIMES_ERROR;
     }
+
+    /**
+     * Test Transaction buffered writer stats when disabled batch feature.
+     */
+    @Test
+    public void testMetricsStatsWhenDisabledBatchFeature() throws Exception {
+        TxnLogBufferedWriterMetricsStats metricsStats = new TxnLogBufferedWriterMetricsStats(
+                metricsPrefix, metricsLabelNames, metricsLabelValues, CollectorRegistry.defaultRegistry
+        );
+        ManagedLedger managedLedger = factory.open("tx_test_ledger");
+        // Create callback with counter.
+        var callbackWithCounter = createCallBackWithCounter();
+        OrderedExecutor orderedExecutor =  OrderedExecutor.newBuilder().numThreads(5).name("txn-threads").build();
+        // Create TxnLogBufferedWriter.
+        HashedWheelTimer transactionTimer = new HashedWheelTimer(new DefaultThreadFactory("transaction-timer"),
+                1, TimeUnit.MILLISECONDS);
+        var dataSerializer = new RandomLenSumStrDataSerializer();
+        var txnLogBufferedWriter = new TxnLogBufferedWriter<Integer>(
+                managedLedger, orderedExecutor, transactionTimer,
+                dataSerializer, Integer.MAX_VALUE, Integer.MAX_VALUE,
+                Integer.MAX_VALUE, false, metricsStats);
+        // Add some data.
+        int writeCount = 1000;
+        for (int i = 0; i < writeCount; i++){
+            txnLogBufferedWriter.asyncAddData(1, callbackWithCounter.callback, "");
+        }
+        // Wait for all data write finish.
+        Awaitility.await().atMost(2, TimeUnit.SECONDS).until(
+                () -> callbackWithCounter.finishCounter.get() + callbackWithCounter.failureCounter.get() == writeCount
+        );
+        assertEquals(callbackWithCounter.failureCounter.get(), 0);
+        // Assert metrics stat.
+        verifyTheHistogramMetrics(0, 0, 0);
+        // cleanup.
+        txnLogBufferedWriter.close().get();
+        metricsStats.close();
+        transactionTimer.stop();
+        orderedExecutor.shutdown();
+        CollectorRegistry.defaultRegistry.clear();
+    }
+
+    @Test
+    public void testMetricsStatsThatTriggeredByMaxRecordCount() throws Exception {
+        SumStrDataSerializer dataSerializer = new SumStrDataSerializer();
+        int batchedWriteMaxRecords = 2;
+        int writeCount = 100;
+        int expectedBatchFlushCount = writeCount / batchedWriteMaxRecords;
+        int expectedTotalBytesSize = writeCount * dataSerializer.getSizePerData();
+        // Create callback with counter.
+        var callbackWithCounter = createCallBackWithCounter();
+        // Create TxnLogBufferedWriter.
+        var txnLogBufferedWriterContext = createTxnBufferedWriterContextWithMetrics(
+                dataSerializer, batchedWriteMaxRecords, Integer.MAX_VALUE, Integer.MAX_VALUE);
+        var txnLogBufferedWriter = txnLogBufferedWriterContext.txnLogBufferedWriter;
+        // Add some data.
+        for (int i = 0; i < writeCount; i++){
+            txnLogBufferedWriter.asyncAddData(1, callbackWithCounter.callback, "");
+        }
+        // Wait for all write finish.
+        Awaitility.await().atMost(1, TimeUnit.SECONDS).until(
+                () -> callbackWithCounter.finishCounter.get() + callbackWithCounter.failureCounter.get() == writeCount
+        );
+        int actualBatchFlushCount = txnLogBufferedWriterContext.mockedManagedLedger.writeCounter.get();
+        assertEquals(callbackWithCounter.failureCounter.get(), 0);
+        assertEquals(expectedBatchFlushCount, actualBatchFlushCount);
+        verifyTheCounterMetrics(expectedBatchFlushCount,0,0,0);
+        verifyTheHistogramMetrics(expectedBatchFlushCount, writeCount, expectedTotalBytesSize);
+        // cleanup.
+        releaseTxnLogBufferedWriterContext(txnLogBufferedWriterContext);
+        // after close, verify the metrics change to 0.
+        verifyTheCounterMetrics(0,0,0,0);
+        verifyTheHistogramMetrics(0,0,0);
+    }
+
+    @Test
+    public void testMetricsStatsThatTriggeredByMaxSize() throws Exception {
+        SumStrDataSerializer dataSerializer = new SumStrDataSerializer();
+        int batchedWriteMaxSize = 16;
+        int writeCount = 100;
+        int expectedBatchFlushCount = writeCount / (batchedWriteMaxSize / dataSerializer.getSizePerData());
+        int expectedTotalBytesSize = expectedBatchFlushCount * batchedWriteMaxSize;
+        var callbackWithCounter = createCallBackWithCounter();
+        // Create TxnLogBufferedWriter.
+        var txnLogBufferedWriterContext = createTxnBufferedWriterContextWithMetrics(
+                dataSerializer, Integer.MAX_VALUE, batchedWriteMaxSize, Integer.MAX_VALUE);
+        var txnLogBufferedWriter = txnLogBufferedWriterContext.txnLogBufferedWriter;
+        // Add some data.
+        for (int i = 0; i < writeCount; i++){
+            txnLogBufferedWriter.asyncAddData(1, callbackWithCounter.callback, "");
+        }
+        // Wait for all write finish.
+        Awaitility.await().atMost(1, TimeUnit.SECONDS).until(
+                () -> callbackWithCounter.finishCounter.get() + callbackWithCounter.failureCounter.get() == writeCount
+        );
+        int actualBatchFlushCount = txnLogBufferedWriterContext.mockedManagedLedger.writeCounter.get();
+        assertEquals(callbackWithCounter.failureCounter.get(), 0);
+        assertEquals(expectedBatchFlushCount, actualBatchFlushCount);
+        verifyTheCounterMetrics(0, expectedBatchFlushCount,0,0);
+        verifyTheHistogramMetrics(expectedBatchFlushCount, writeCount, expectedTotalBytesSize);
+        // cleanup.
+        releaseTxnLogBufferedWriterContext(txnLogBufferedWriterContext);
+        // after close, verify the metrics change to 0.
+        verifyTheCounterMetrics(0,0,0,0);
+        verifyTheHistogramMetrics(0,0,0);
+    }
+
+    @Test
+    public void testMetricsStatsThatTriggeredByMaxDelayTime() throws Exception {
+        SumStrDataSerializer dataSerializer = new SumStrDataSerializer();
+        int writeCount = 1;
+        int batchedWriteMaxDelayInMillis = 1000;
+        int expectFlushCount = 1;
+        int expectedTotalBytesSize = writeCount * dataSerializer.getSizePerData();
+        var callbackWithCounter = createCallBackWithCounter();
+        // Create TxnLogBufferedWriter.
+        var txnLogBufferedWriterContext =
+                createTxnBufferedWriterContextWithMetrics(dataSerializer, Integer.MAX_VALUE,
+                        Integer.MAX_VALUE, batchedWriteMaxDelayInMillis);
+        var txnLogBufferedWriter = txnLogBufferedWriterContext.txnLogBufferedWriter;
+        // Add one data.
+        txnLogBufferedWriter.asyncAddData(1, callbackWithCounter.callback, "");
+        // Wait for all write finish.
+        Awaitility.await().atMost(2, TimeUnit.SECONDS).until(
+                () -> callbackWithCounter.finishCounter.get() + callbackWithCounter.failureCounter.get() == writeCount
+        );
+        assertEquals(callbackWithCounter.failureCounter.get(), 0);
+        int actualBatchFlushCount = txnLogBufferedWriterContext.mockedManagedLedger.writeCounter.get();
+        assertEquals(actualBatchFlushCount, expectFlushCount);
+        verifyTheCounterMetrics(0,0, actualBatchFlushCount,0);
+        verifyTheHistogramMetrics(actualBatchFlushCount, writeCount, expectedTotalBytesSize);
+        // cleanup.
+        releaseTxnLogBufferedWriterContext(txnLogBufferedWriterContext);
+        // after close, verify the metrics change to 0.
+        verifyTheCounterMetrics(0,0,0,0);
+        verifyTheHistogramMetrics(0,0,0);
+    }
+
+    @Test
+    public void testMetricsStatsThatTriggeredByLargeSingleData() throws Exception {
+        // Use TwoLenSumDataSerializer for: write a little data once, then write a large data once.
+        int bytesSizePerRecordWhichInBatch = 4;
+        int batchedWriteMaxSize = 1024;
+        TwoLenSumDataSerializer dataSerializer =
+                new TwoLenSumDataSerializer(bytesSizePerRecordWhichInBatch, batchedWriteMaxSize);
+        int writeCount = 100;
+        // Both "directly write BK because the data too large" and "flush batch data because next data too large" will
+        // write BK, so expectWriteBKCount equals writeCount.
+        int expectWriteBKCount = writeCount;
+        int singleLargeDataRequestCount = expectWriteBKCount / 2;
+        int expectedBatchFlushTriggeredByLargeData = singleLargeDataRequestCount;
+        int expectedTotalBytesSize = expectedBatchFlushTriggeredByLargeData * bytesSizePerRecordWhichInBatch;
+        var callbackWithCounter = createCallBackWithCounter();
+        // Create TxnLogBufferedWriter.
+        var txnLogBufferedWriterContext = createTxnBufferedWriterContextWithMetrics(
+                dataSerializer, Integer.MAX_VALUE, batchedWriteMaxSize, Integer.MAX_VALUE);
+        var txnLogBufferedWriter = txnLogBufferedWriterContext.txnLogBufferedWriter;
+        // Add some data.
+        for (int i = 0; i < writeCount; i++){
+            txnLogBufferedWriter.asyncAddData(1, callbackWithCounter.callback, i);
+        }
+        // Wait for all data write finish.
+        Awaitility.await().atMost(2, TimeUnit.SECONDS).until(
+                () -> callbackWithCounter.finishCounter.get() + callbackWithCounter.failureCounter.get() == writeCount
+        );
+        assertEquals(callbackWithCounter.failureCounter.get(), 0);
+        assertEquals(txnLogBufferedWriterContext.mockedManagedLedger.writeCounter.get(), expectWriteBKCount);
+        verifyTheCounterMetrics(0,0,0,expectedBatchFlushTriggeredByLargeData);
+        verifyTheHistogramMetrics(expectedBatchFlushTriggeredByLargeData,
+                writeCount - singleLargeDataRequestCount, expectedTotalBytesSize);
+        // cleanup.
+        releaseTxnLogBufferedWriterContext(txnLogBufferedWriterContext);
+        // after close, verify the metrics change to 0.
+        verifyTheCounterMetrics(0,0,0,0);
+        verifyTheHistogramMetrics(0,0,0);
+    }
+
+    @Test
+    public void testFailWhenAddData() throws Exception {
+        int batchedWriteMaxSize = 1024;
+        TxnLogBufferedWriter.DataSerializer dataSerializer =
+                new WrongDataSerializer(batchedWriteMaxSize, true, true, true);
+        int writeCount = 100;
+        var callbackWithCounter = createCallBackWithCounter();
+        // Create TxnLogBufferedWriter.
+        var txnLogBufferedWriterContext = createTxnBufferedWriterContextWithMetrics(
+                dataSerializer, Integer.MAX_VALUE, batchedWriteMaxSize, Integer.MAX_VALUE);
+        var txnLogBufferedWriter = txnLogBufferedWriterContext.txnLogBufferedWriter;
+        // Add some data.
+        for (int i = 0; i < writeCount; i++){
+            txnLogBufferedWriter.asyncAddData(i, callbackWithCounter.callback, i);
+        }
+
+        // Wait for all data write finish.
+        Awaitility.await().atMost(2, TimeUnit.SECONDS).until(
+                () -> {
+                    return callbackWithCounter.failureCounter.get() == writeCount;
+                }
+        );
+        assertEquals(txnLogBufferedWriterContext.mockedManagedLedger.writeCounter.get(), 0);
+        // cleanup.
+        releaseTxnLogBufferedWriterContext(txnLogBufferedWriterContext);
+    }
+
+    private void releaseTxnLogBufferedWriterContext(TxnLogBufferedWriterContext context)
+            throws ExecutionException, InterruptedException {
+        context.txnLogBufferedWriter.close().get();
+        context.metrics.close();
+        context.timer.stop();
+        context.orderedExecutor.shutdown();
+        CollectorRegistry.defaultRegistry.clear();
+    }
+
+    @AllArgsConstructor
+    private static class TxnLogBufferedWriterContext{
+        TxnLogBufferedWriter<Integer> txnLogBufferedWriter;
+        MockedManagedLedger mockedManagedLedger;
+        Timer timer;
+        OrderedExecutor orderedExecutor;
+        TxnLogBufferedWriterMetricsStats metrics;
+    }
+
+    @AllArgsConstructor
+    private static class MockedManagedLedger{
+        ManagedLedger managedLedger;
+        AtomicInteger writeCounter;
+    }
+
+    @AllArgsConstructor
+    public static class AddDataCallbackAndCounter{
+        TxnLogBufferedWriter.AddDataCallback callback;
+        AtomicInteger finishCounter;
+        AtomicInteger failureCounter;
+    }
+
+    private TxnLogBufferedWriterContext createTxnBufferedWriterContextWithMetrics(
+            TxnLogBufferedWriter.DataSerializer<Integer> dataSerializer, int batchedWriteMaxRecords,
+            int batchedWriteMaxSize, int batchedWriteMaxDelayInMillis){
+        OrderedExecutor orderedExecutor =  OrderedExecutor.newBuilder()
+                .numThreads(5).name("txn-threads").build();
+        HashedWheelTimer transactionTimer = new HashedWheelTimer(new DefaultThreadFactory("transaction-timer"),
+                1, TimeUnit.MILLISECONDS);
+        TxnLogBufferedWriterMetricsStats metricsStats = new TxnLogBufferedWriterMetricsStats(
+                metricsPrefix, metricsLabelNames, metricsLabelValues, CollectorRegistry.defaultRegistry
+        );
+        // Mock managed ledger and write counter.
+        MockedManagedLedger mockedManagedLedger = mockManagedLedgerWithWriteCounter(mlName);
+        // Create Txn Buffered Writer.
+        TxnLogBufferedWriter<Integer> txnLogBufferedWriter = new TxnLogBufferedWriter<Integer>(
+                mockedManagedLedger.managedLedger, orderedExecutor, transactionTimer,
+                dataSerializer, batchedWriteMaxRecords, batchedWriteMaxSize,
+                batchedWriteMaxDelayInMillis, true, metricsStats);
+        return new TxnLogBufferedWriterContext(txnLogBufferedWriter, mockedManagedLedger, transactionTimer,
+                orderedExecutor, metricsStats);
+    }
+
+    private void verifyTheCounterMetrics(int triggeredByRecordCount, int triggeredByMaxSize, int triggeredByMaxDelay,
+                                         int triggeredByLargeData){
+        assertEquals(
+                getCounterValue(String.format("%s_bufferedwriter_flush_trigger_max_records", metricsPrefix)),
+                triggeredByRecordCount);
+        assertEquals(
+                getCounterValue(String.format("%s_bufferedwriter_flush_trigger_max_size", metricsPrefix)),
+                triggeredByMaxSize);
+        assertEquals(
+                getCounterValue(String.format("%s_bufferedwriter_flush_trigger_max_delay", metricsPrefix)),
+                triggeredByMaxDelay);
+        assertEquals(
+                getCounterValue(String.format("%s_bufferedwriter_flush_trigger_large_data", metricsPrefix)),
+                triggeredByLargeData);
+    }
+
+    private void verifyTheHistogramMetrics(int batchFlushCount, int totalRecordsCount, int totalSize){
+        // Total flush count.
+        assertEquals(
+                getHistogramCount(String.format("%s_bufferedwriter_batch_record_count", metricsPrefix)),
+                batchFlushCount);
+        assertEquals(
+                getHistogramCount(String.format("%s_bufferedwriter_batch_size_bytes", metricsPrefix)),
+                batchFlushCount);
+        assertEquals(
+                getHistogramCount(String.format("%s_bufferedwriter_batch_oldest_record_delay_time_second", metricsPrefix)),
+                batchFlushCount);
+        // Total records count.
+        assertEquals(
+                getHistogramSum(String.format("%s_bufferedwriter_batch_record_count", metricsPrefix)),
+                totalRecordsCount);
+        // Total data size.
+        assertEquals(
+                getHistogramSum(String.format("%s_bufferedwriter_batch_size_bytes", metricsPrefix)),
+                totalSize);
+    }
+
+    private MockedManagedLedger mockManagedLedgerWithWriteCounter(String mlName){
+        AtomicInteger writeCounter = new AtomicInteger();
+        ManagedLedger managedLedger = Mockito.mock(ManagedLedger.class);
+        Mockito.when(managedLedger.getName()).thenReturn(mlName);
+        Mockito.doAnswer(new Answer() {
+            @Override
+            public Object answer(InvocationOnMock invocation) throws Throwable {
+                writeCounter.incrementAndGet();
+                AsyncCallbacks.AddEntryCallback callback =
+                        (AsyncCallbacks.AddEntryCallback) invocation.getArguments()[1];
+                callback.addComplete(PositionImpl.get(1,1), (ByteBuf)invocation.getArguments()[0],
+                        invocation.getArguments()[2]);
+                return null;
+            }
+        }).when(managedLedger).asyncAddEntry(Mockito.any(ByteBuf.class), Mockito.any(), Mockito.any());
+        return new MockedManagedLedger(managedLedger, writeCounter);
+    }
+
+    private AddDataCallbackAndCounter createCallBackWithCounter(){
+        AtomicInteger finishCounter = new AtomicInteger();
+        AtomicInteger failureCounter = new AtomicInteger();
+        TxnLogBufferedWriter.AddDataCallback callback = new TxnLogBufferedWriter.AddDataCallback(){
+            @Override
+            public void addComplete(Position position, Object context) {
+                finishCounter.incrementAndGet();
+            }
+            @Override
+            public void addFailed(ManagedLedgerException exception, Object ctx) {
+                failureCounter.incrementAndGet();
+            }
+        };
+        return new AddDataCallbackAndCounter(callback, finishCounter, failureCounter);
+    }
+
+    private double getCounterValue(String name) {
+        Double d = CollectorRegistry.defaultRegistry.getSampleValue(
+                name + "_total",
+                metricsLabelNames,
+                metricsLabelValues);
+        return d == null ? 0: d.doubleValue();
+    }
+
+    private double getHistogramCount(String name) {
+        Double d = CollectorRegistry.defaultRegistry.getSampleValue(
+                name + "_count",
+                metricsLabelNames,
+                metricsLabelValues);
+        return d == null ? 0: d.doubleValue();
+    }
+
+    private double getHistogramSum(String name) {
+        Double d = CollectorRegistry.defaultRegistry.getSampleValue(
+                name + "_sum",
+                metricsLabelNames,
+                metricsLabelValues);
+        return d == null ? 0: d.doubleValue();
+    }
+
 }

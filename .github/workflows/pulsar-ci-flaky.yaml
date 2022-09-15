@@ -75,7 +75,7 @@ jobs:
 
       - name: Setup ssh access to build runner VM
         # ssh access is enabled for builds in own forks
-        if: ${{ github.repository != 'apache/pulsar' }}
+        if: ${{ github.repository != 'apache/pulsar' && github.event_name == 'pull_request' }}
         uses: ./.github/actions/ssh-access
         with:
           limit-access-to-actor: true
