@@ -2388,6 +2388,15 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         final OffloadPoliciesImpl policies = config.getLedgerOffloader().getOffloadPolicies();
         final Long offloadThresholdInBytes = policies.getManagedLedgerOffloadThresholdInBytes();
         final Long offloadTimeThreshold = policies.getManagedLedgerOffloadTimeThresholdInSeconds();
+
+        //Skip the following steps if `offloadTimeThreshold` and `offloadThresholdInBytes` are null.
+        if (null == offloadTimeThreshold && null == offloadThresholdInBytes) {
+            log.debug("[{}] Nothing to offload due to [managedLedgerOffloadAutoTriggerSizeThresholdBytes] " +
+                    "and [managedLedgerOffloadTimeThresholdInSeconds] is NULL", name);
+            unlockingPromise.complete(PositionImpl.LATEST);
+            return;
+        }
+
         for (Map.Entry<Long, LedgerInfo> e : ledgers.descendingMap().entrySet()) {
             final LedgerInfo info = e.getValue();
             final long size = info.getSize();
@@ -2400,7 +2409,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 alreadyOffloadedSize += size;
             } else {
                 if ((offloadThresholdInBytes != null && sizeSummed > offloadThresholdInBytes)
-                        || (offloadTimeThreshold != null && now - timestamp > offloadTimeThreshold)) {
+                        || (offloadTimeThreshold != null && offloadTimeThreshold >= 0
+                        && now - timestamp > offloadTimeThreshold)) {
                     toOffloadSize += size;
                     toOffload.addFirst(info);
                 }

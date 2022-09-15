@@ -326,7 +326,7 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
                 this.getManagedLedgerOffloadPrefetchRounds());
         setProperty(properties, "managedLedgerOffloadThresholdInBytes",
                 this.getManagedLedgerOffloadThresholdInBytes());
-        setProperty(properties, "managedLedgerOffloadThresholdInSeconds",
+        setProperty(properties, "managedLedgerOffloadTimeThresholdInSeconds",
                 this.getManagedLedgerOffloadTimeThresholdInSeconds());
         setProperty(properties, "managedLedgerOffloadDeletionLagInMillis",
                 this.getManagedLedgerOffloadDeletionLagInMillis());
