@@ -27,20 +27,21 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.loadbalance.LoadSheddingTask;
 import org.awaitility.reflect.WhiteboxImpl;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Slf4j
+@Test(groups = "broker")
 public class PulsarServiceCloseTest extends MockedPulsarServiceBaseTest {
 
-    @BeforeMethod
+    @BeforeClass
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
     }
 
-    @AfterMethod(alwaysRun = true)
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
