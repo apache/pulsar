@@ -37,4 +37,6 @@ OPTS="-Dorg.jline.terminal.jansi=false $OPTS"
 OPTS="-Dpulsar.shell.working.dir=$(pwd) $OPTS"
 DEFAULT_CONFIG="-Dpulsar.shell.config.default=$PULSAR_CLIENT_CONF"
 
+#Change to PULSAR_HOME to support relative paths
+cd "$PULSAR_HOME"
 exec $JAVA $OPTS $DEFAULT_CONFIG org.apache.pulsar.shell.PulsarShell "$@"
