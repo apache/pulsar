@@ -1014,12 +1014,12 @@ Options
 | `--url`  | URL of the config.       |  |
 | `--value`  | Inline value of the config. Base64-encoded value is supported with the prefix `base64:`. |  |
 
-#### `update-property`
+#### `set-property`
 
-Update an existing configuration property.
+Set a value for a specified configuration property.
 
 ```bash
-default(localhost)> config update-property -p webServiceUrl -v http://<cluster-hostname> mycluster
+default(localhost)> config set-property -p webServiceUrl -v http://<cluster-hostname> mycluster
 ```
 
 Options
@@ -1028,6 +1028,21 @@ Options
 |--------------------|-----------------------------|-----------------|
 | `-p`, `--property` | Property name to update.    |  | 
 | `-v`, `--value`    | New value for the property. |  |
+
+
+#### `get-property`
+
+Get the value for a specified configuration property.
+
+```bash
+default(localhost)> config get-property -p webServiceUrl mycluster
+```
+
+Options
+
+| Flag               | Description                 | Default         |
+|--------------------|-----------------------------|-----------------|
+| `-p`, `--property` | Property name to update.    |  | 
 
 
 #### `view`
