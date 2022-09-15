@@ -28,14 +28,12 @@ import com.google.common.collect.BoundType;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Queues;
 import com.google.common.collect.Range;
-import io.etcd.jetcd.op.Op;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import io.netty.util.ReferenceCountUtil;
 import java.io.IOException;
-import java.sql.Time;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -2396,8 +2394,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         //Skip the following steps if `offloadTimeThreshold` and `offloadThresholdInBytes` are null OR negative values.
         if (offloadThresholdInBytes < 0 && offloadTimeThresholdMillis < 0) {
-            log.debug("[{}] Nothing to offload due to [managedLedgerOffloadAutoTriggerSizeThresholdBytes] " +
-                    "and [managedLedgerOffloadTimeThresholdInSeconds] are null OR negative values.", name);
+            log.debug("[{}] Nothing to offload due to [managedLedgerOffloadAutoTriggerSizeThresholdBytes] "
+                    + "and [managedLedgerOffloadTimeThresholdInSeconds] are null OR negative values.", name);
             unlockingPromise.complete(PositionImpl.LATEST);
             return;
         }
