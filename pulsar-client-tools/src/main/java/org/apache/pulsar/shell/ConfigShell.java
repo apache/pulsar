@@ -106,8 +106,9 @@ public class ConfigShell implements ShellCommandsProvider {
         commands.put("update", new CmdConfigUpdate());
         commands.put("delete", new CmdConfigDelete());
         commands.put("use", new CmdConfigUse());
-        commands.put("update-property", new CmdConfigUpdateProperty());
         commands.put("view", new CmdConfigView());
+        commands.put("set-property", new CmdConfigSetProperty());
+        commands.put("get-property", new CmdConfigGetProperty());
         commands.forEach((k, v) -> jcommander.addCommand(k, v));
     }
 
@@ -350,14 +351,14 @@ public class ConfigShell implements ShellCommandsProvider {
     }
 
 
-    @Parameters(commandDescription = "Update a configuration property by name")
-    private class CmdConfigUpdateProperty implements RunnableWithResult {
+    @Parameters(commandDescription = "Set a configuration property by name")
+    private class CmdConfigSetProperty implements RunnableWithResult {
 
         @Parameter(description = "Name of the config", required = true)
         @JCommanderCompleter.ParameterCompleter(type = JCommanderCompleter.ParameterCompleter.Type.CONFIGS)
         private String name;
 
-        @Parameter(names = {"-p", "--property"}, description = "Name of the property to update")
+        @Parameter(names = {"-p", "--property"}, required = true, description = "Name of the property to update")
         protected String propertyName;
 
         @Parameter(names = {"-v", "--value"}, description = "New value for the property")
@@ -382,10 +383,41 @@ public class ConfigShell implements ShellCommandsProvider {
                 print("Config " + name + " not found");
                 return false;
             }
-            ConfigStore.updateProperty(config, propertyName, propertyValue);
-            print("Property " + propertyName + " updated for config " + name);
+            ConfigStore.setProperty(config, propertyName, propertyValue);
+            print("Property " + propertyName + " set for config " + name);
             configStore.putConfig(config);
             reloadIfCurrent(config);
+            return true;
+        }
+    }
+
+    @Parameters(commandDescription = "Get a configuration property by name")
+    private class CmdConfigGetProperty implements RunnableWithResult {
+
+        @Parameter(description = "Name of the config", required = true)
+        @JCommanderCompleter.ParameterCompleter(type = JCommanderCompleter.ParameterCompleter.Type.CONFIGS)
+        private String name;
+
+        @Parameter(names = {"-p", "--property"}, required = true, description = "Name of the property")
+        protected String propertyName;
+
+        @Override
+        @SneakyThrows
+        public boolean run() {
+            if (StringUtils.isBlank(propertyName)) {
+                print("-p parameter is required");
+                return false;
+            }
+
+            final ConfigStore.ConfigEntry config = configStore.getConfig(this.name);
+            if (config == null) {
+                print("Config " + name + " not found");
+                return false;
+            }
+            final String value = ConfigStore.getProperty(config, propertyName);
+            if (!StringUtils.isBlank(value)) {
+                print(value);
+            }
             return true;
         }
     }

@@ -23,7 +23,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Scanner;
 import java.util.Set;
-
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -70,7 +69,7 @@ public interface ConfigStore {
         entry.setValue(builder.toString());
     }
 
-    static void updateProperty(ConfigEntry entry, String propertyName, String propertyValue) {
+    static void setProperty(ConfigEntry entry, String propertyName, String propertyValue) {
         Set<String> keys = new HashSet<>();
         StringBuilder builder = new StringBuilder();
         try (Scanner scanner = new Scanner(entry.getValue());) {
@@ -98,6 +97,28 @@ public interface ConfigStore {
             }
         }
         entry.setValue(builder.toString());
+    }
+
+    static String getProperty(ConfigEntry entry, String propertyName) {
+        try (Scanner scanner = new Scanner(entry.getValue());) {
+            while (scanner.hasNextLine()) {
+                String line = scanner.nextLine().trim();
+                if (line.isBlank() || line.startsWith("#")) {
+                    continue;
+                }
+                final String[] split = line.split("=", 2);
+                if (split.length > 0) {
+                    final String property = split[0];
+                    if (property.equals(propertyName)) {
+                        if (split.length > 1) {
+                            return split[1];
+                        }
+                        return null;
+                    }
+                }
+            }
+        }
+        return null;
     }
 
 
