@@ -21,15 +21,28 @@ package org.apache.pulsar.utils;
 public class StringUtil {
 
     /**
-     * The ASCII values of invisible characters are 0~32 and 127.
+     * Check for invisible characters.
      * */
     public static boolean invisibleCharacters(String str) {
-        for (char i = 0; i < 33; i++) {
-            Character ch = Character.valueOf(i);
-            if (str.contains(ch.toString())) {
-                return true;
+        if (str == null) {
+            return false;
+        }
+        for (int offset = 0; offset < str.length(); ) {
+            int codePoint = str.codePointAt(offset);
+            offset += Character.charCount(codePoint);
+            switch (Character.getType(codePoint)) {
+                case Character.CONTROL:
+                case Character.FORMAT:
+                case Character.PRIVATE_USE:
+                case Character.SURROGATE:
+                case Character.UNASSIGNED:
+                case Character.OTHER_SYMBOL:
+                case Character.SPACE_SEPARATOR:
+                    return true;
+                default:
+                    break;
             }
         }
-        return str.contains(Character.valueOf((char) 127).toString());
+        return false;
     }
 }
