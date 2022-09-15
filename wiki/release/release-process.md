@@ -23,6 +23,28 @@
 
 This page contains instructions for Pulsar committers on how to perform a release.
 
+## Preparation
+
+You should open an discussion in dev@apache.org to notify others that you volunteer to be a release manager. If there are no disagreements, you can start the release process.
+
+For major releases, you should create a new branch named `branch-2.X.0` once all PRs with the 2.X.0 milestone are merged. If some PRs with 2.X.0 milestome are still working in progress and might took much time to complete, you can move it to the next milestone if they are not important. In this case, you'd better to notify the author in the PR.
+
+For minor releases, if there are no disagreements, you should cherry-pick all merged PRs with the `release/X.Y.Z` labels into branch-X.Y. After these PRs are cherry-picked, you should add the `cherry-picked/branch-X.Y` labels.
+
+Sometimes some PRs cannot be cherry-picked cleanly, you might need to create a separated PR and move the `release/X.Y.Z` label from the original PR to it. In this case, you can ask the author to help creating the new PR.
+
+For PRs that are still open, you can choose delaying them to the next release or pinging others to review so that they can be merged.
+
+To verify the release branch is not broken, you can synchronize the branch in your private repo and open a PR to trigger the CI. Example: https://github.com/BewareMyPower/pulsar/pull/3
+
+> You can use the following command to catch basic compilation or checkstyle errors in your local env before cherry-picking.
+>
+> ```bash
+> mvn -Pcore-modules,-main -T 1C clean install -DskipTests -Dspotbugs.skip=true
+> ```
+
+## Requirements
+
 If you haven't already done it, [create and publish the GPG key](https://github.com/apache/pulsar/blob/master/wiki/release/create-gpg-keys.md) to sign the release artifacts.
 
 Before you start the next release steps, make sure you have installed the **JDK8** and maven **3.6.1** for Pulsar 2.6 and Pulsar 2.7, and **JDK11** and Maven **3.6.1** for Pulsar 2.8 onwards. And **clean up the bookkeeper's local compiled** to make sure the bookkeeper dependency is fetched from the Maven repo, details to see https://lists.apache.org/thread/gsbh95b2d9xtcg5fmtxpm9k9q6w68gd2
