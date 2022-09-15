@@ -183,7 +183,9 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
                     entry.release();
                     continue;
                 }
-            } else if (msgMetadata == null || Markers.isServerOnlyMarker(msgMetadata)) {
+            }
+
+            if (msgMetadata == null || Markers.isServerOnlyMarker(msgMetadata)) {
                 PositionImpl pos = (PositionImpl) entry.getPosition();
                 // Message metadata was corrupted or the messages was a server-only marker
 
