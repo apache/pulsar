@@ -24,9 +24,6 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.resourcegroup.ResourceUsageTransportManager.DISABLE_RESOURCE_USAGE_TRANSPORT_MANAGER;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionInternalName;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
@@ -41,6 +38,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -919,10 +917,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                                       ServiceConfiguration config)
             throws PulsarServerException, PulsarClientException, MalformedURLException, ServletException,
             DeploymentException {
-        Map<String, Object> attributeMap = Maps.newHashMap();
+        Map<String, Object> attributeMap = new HashMap<>();
         attributeMap.put(WebService.ATTRIBUTE_PULSAR_NAME, this);
 
-        Map<String, Object> vipAttributeMap = Maps.newHashMap();
+        Map<String, Object> vipAttributeMap = new HashMap<>();
         vipAttributeMap.put(VipStatus.ATTRIBUTE_STATUS_FILE_PATH, config.getStatusFilePath());
         vipAttributeMap.put(VipStatus.ATTRIBUTE_IS_READY_PROBE, (Supplier<Boolean>) () -> {
             // Ensure the VIP status is only visible when the broker is fully initialized
@@ -1187,7 +1185,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             LOG.info("Loading all topics on bundle: {}", bundle);
 
             NamespaceName nsName = bundle.getNamespaceObject();
-            List<CompletableFuture<Optional<Topic>>> persistentTopics = Lists.newArrayList();
+            List<CompletableFuture<Optional<Topic>>> persistentTopics = new ArrayList<>();
             long topicLoadStart = System.nanoTime();
 
             for (String topic : getNamespaceService().getListOfPersistentTopics(nsName)
@@ -1351,7 +1349,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                     try {
                         return offloaderFactory.create(
                                 offloadPolicies,
-                                ImmutableMap.of(
+                                Map.of(
                                         LedgerOffloader.METADATA_SOFTWARE_VERSION_KEY.toLowerCase(),
                                         PulsarVersion.getVersion(),
                                         LedgerOffloader.METADATA_SOFTWARE_GITSHA_KEY.toLowerCase(),

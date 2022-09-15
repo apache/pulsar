@@ -23,12 +23,12 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.BoundType;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -1152,7 +1152,7 @@ public abstract class PulsarWebResource {
 
     protected CompletableFuture<Void> canUpdateCluster(String tenant, Set<String> oldClusters,
             Set<String> newClusters) {
-        List<CompletableFuture<Void>> activeNamespaceFuture = Lists.newArrayList();
+        List<CompletableFuture<Void>> activeNamespaceFuture = new ArrayList<>();
         for (String cluster : oldClusters) {
             if (Constants.GLOBAL_CLUSTER.equals(cluster) || newClusters.contains(cluster)) {
                 continue;
