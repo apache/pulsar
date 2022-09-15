@@ -1306,6 +1306,7 @@ public class PersistentTopic extends AbstractTopic
                 public void closeFailed(ManagedLedgerException exception, Object ctx) {
                     log.error("[{}] Failed to close managed ledger, proceeding anyway.", topic, exception);
                     brokerService.removeTopicFromCache(topic);
+                    unregisterTopicPolicyListener();
                     closeFuture.complete(null);
                 }
             }, null);
