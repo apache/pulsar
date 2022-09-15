@@ -115,6 +115,9 @@ jobs:
           $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh store_tar_to_github_actions_artifacts pulsar-maven-repository-binaries \
           tar --exclude '.m2/repository/org/apache/pulsar/pulsar-*-distribution' \
               -I zstd -cf - .m2/repository/org/apache/pulsar
+          cd $GITHUB_WORKSPACE
+          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh store_tar_to_github_actions_artifacts pulsar-server-distribution \
+          tar -I zstd -cf - distribution/server/target/apache-pulsar-*-bin.tar.gz
 
       - name: Wait for ssh connection when build fails
         # ssh access is enabled for builds in own forks
@@ -123,7 +126,6 @@ jobs:
         continue-on-error: true
         with:
           action: wait
-
 
 
   unit-tests:
@@ -465,6 +467,94 @@ jobs:
       - name: Delete docker image from GitHub Actions Artifacts
         run: |
           gh-actions-artifact-client.js delete pulsar-java-test-image.zst
+
+  cpp-tests:
+    name:
+    runs-on: ubuntu-20.04
+    timeout-minutes: 120
+    needs: [
+      'changed_files_job',
+      'integration-tests'
+    ]
+    if: always()
+    steps:
+      - name: check condition
+        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
+        run: |
+          if [[ ! ( ( \
+                "${{needs.changed_files_job.outputs.cpp_only}}" == "false" \
+                && "${{ needs.integration-tests.result }}" == "success" \
+               ) || ( \
+                "${{needs.changed_files_job.outputs.cpp_only}}" == "true" \
+               ) ) ]]; then
+            echo "Required jobs haven't been completed successfully."
+            exit 1            
+          fi
+
+      - name: checkout
+        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
+        uses: actions/checkout@v2
+
+      - name: Tune Runner VM
+        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
+        uses: ./.github/actions/tune-runner-vm
+
+      - name: Cache local Maven repository
+        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.m2/repository/*/*/*
+            !~/.m2/repository/org/apache/pulsar
+          key: ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-m2-dependencies-core-modules-
+
+      - name: Set up JDK 17
+        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
+        uses: actions/setup-java@v2
+        with:
+          distribution: 'temurin'
+          java-version: 17
+
+      - name: Clean Disk
+        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
+        uses: ./.github/actions/clean-disk
+
+      - name: Install gh-actions-artifact-client.js
+        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
+        uses: apache/pulsar-test-infra/gh-actions-artifact-client/dist@master
+
+      - name: Restore maven build results from Github artifact cache
+        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
+        run: |
+          cd $HOME
+          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh restore_tar_from_github_actions_artifacts pulsar-maven-repository-binaries
+          cd $GITHUB_WORKSPACE 
+          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh restore_tar_from_github_actions_artifacts pulsar-server-distribution
+
+      - name: copy python tests
+        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
+        run: |
+          mvn -B -Pskip-all -ntp -pl pulsar-functions/instance package 
+
+      - name: build cpp artifacts
+        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
+        run: |
+          echo "Build C++ client library"
+          pulsar-client-cpp/docker-build.sh
+
+      - name: run c++ tests
+        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
+        run: pulsar-client-cpp/docker-tests.sh
+
+      - name: Upload test-logs
+        if: ${{ failure() && needs.changed_files_job.outputs.docs_only != 'true' }}
+        uses: actions/upload-artifact@v3
+        continue-on-error: true
+        with:
+          name: cpp-tests-logs
+          path: test-logs
 
   pulsar-test-latest-version-image:
     name: Build Pulsar docker image
@@ -822,7 +912,7 @@ jobs:
       - name: Delete docker image from GitHub Actions Artifacts
         run: |
           gh-actions-artifact-client.js delete pulsar-test-latest-version-image.zst
-  
+
   macos-build:
     name: Build Pulsar on MacOS
     runs-on: macos-11
@@ -890,13 +980,9 @@ jobs:
           distribution: 'temurin'
           java-version: ${{ matrix.jdk || '17' }}
 
-      - name: clean disk
-        run: |
-          sudo swapoff -a
-          sudo rm -rf /swapfile /usr/share/dotnet /usr/local/lib/android /opt/ghc
-          sudo apt clean
-          docker rmi $(docker images -q) -f
-          df -h
+      - name: Clean Disk
+        uses: ./.github/actions/clean-disk
+
       - name: Install gh-actions-artifact-client.js
         uses: apache/pulsar-test-infra/gh-actions-artifact-client/dist@master
 
@@ -938,18 +1024,25 @@ jobs:
       'integration-tests',
       'system-tests',
       'flaky-system-tests',
-      'macos-build'
+      'macos-build',
+      'cpp-tests'
     ]
     steps:
       - name: Check that all required jobs were completed successfully
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
         run: |
-          if [[ ! ( \
-                "${{ needs.unit-tests.result }}" == "success" \
+          if [[ ! ( ( \
+                "${{needs.changed_files_job.outputs.cpp_only}}" == "false" \
+                && "${{ needs.unit-tests.result }}" == "success" \
                 && "${{ needs.integration-tests.result }}" == "success" \
                 && "${{ needs.system-tests.result }}" == "success" \
                 && "${{ needs.macos-build.result }}" == "success" \
-             ) ]]; then
+                && "${{ needs.cpp-tests.result }}" == "success" \
+               ) || ( \
+                "${{needs.changed_files_job.outputs.cpp_only}}" == "true" \
+                && "${{ needs.system-tests.result }}" == "success" \
+                && "${{ needs.cpp-tests.result }}" == "success" \
+               ) ) ]]; then
             echo "Required jobs haven't been completed successfully."
             exit 1            
           fi
@@ -969,4 +1062,5 @@ jobs:
       - name: Delete maven repository binaries from GitHub Actions Artifacts
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
         run: |
-          gh-actions-artifact-client.js delete pulsar-maven-repository-binaries.tar.zst
+          gh-actions-artifact-client.js delete pulsar-maven-repository-binaries.tar.zst || true
+          gh-actions-artifact-client.js delete pulsar-server-distribution.tar.zst || true
