@@ -1,176 +1,364 @@
 ---
 id: cookbooks-encryption
 title: Pulsar Encryption
-sidebar_label: "Encryption "
+sidebar_label: "Encryption"
 ---
 
-Pulsar encryption allows applications to encrypt messages at the producer and decrypt at the consumer. Encryption is performed using the public/private key pair configured by the application. Encrypted messages can only be decrypted by consumers with a valid key.
+````mdx-code-block
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+````
 
-## Asymmetric and symmetric encryption
+Pulsar encryption allows clients to encrypt messages at producers and decrypt messages at consumers.
 
-Pulsar uses a dynamically generated symmetric AES key to encrypt messages(data). The AES key(data key) is encrypted using the application-provided ECDSA/RSA key pair. As a result, there is no need to share the secret with everyone.
+## Prerequisites
 
-Key is a public/private key pair used for encryption/decryption. The producer key is the public key, and the consumer key is the private key of the key pair.
+* Pulsar Python/Node.js client 2.7.1 or later versions.
+* Pulsar Java//C++/Go client 2.7.1 or later versions.
 
-The application configures the producer with the public key. This key is used to encrypt the AES data key. The encrypted data key is sent as part of the message header. Only entities with the private key(in this case the consumer) will be able to decrypt the data key which is used to decrypt the message.
+## Steps
 
-A message can be encrypted with more than one key.  Any one of the keys used for encrypting the message is sufficient to decrypt the message
+1. Configure key paths for producers and consumers.
 
-Pulsar does not store the encryption key anywhere in the pulsar service. If you lose/delete the private key, your message is irretrievably lost, and is unrecoverable
+   ```properties
+   publicKeyPath: "./public.pem"
+   privateKeyPath: "./private.pem"
+   ```
 
-## Producer
-![alt text](/assets/pulsar-encryption-producer.jpg "Pulsar Encryption Producer")
+2. Create both public and private key pairs.
+   * ECDSA（for Java clients only)
+     ```shell
+     openssl ecparam -name secp521r1 -genkey -param_enc explicit -out test_ecdsa_privkey.pem
+     openssl ec -in test_ecdsa_privkey.pem -pubout -outform pem -out test_ecdsa_pubkey.pem
+     ```
 
-## Consumer
-![alt text](/assets/pulsar-encryption-consumer.jpg "Pulsar Encryption Consumer")
+   * RSA (for Python, C++ and Node.js clients)
+     ```shell
+     openssl genrsa -out private.pem 2048
+     openssl rsa -in private.pem -pubout -out public.pem
+     ```
 
-## Here are the steps to get started:
+3. Create a producer to send encrypted messages.
 
-1. Create your ECDSA or RSA public/private key pair.
+   ````mdx-code-block
+   <Tabs groupId="lang-choice"
+     defaultValue="Java"
+     values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"},{"label":"C++","value":"C++"},{"label":"Node.js","value":"Node.js"}]}>
+   <TabItem value="Java">
 
-```shell
-openssl ecparam -name secp521r1 -genkey -param_enc explicit -out test_ecdsa_privkey.pem
-openssl ec -in test_ecdsa_privkey.pem -pubout -outform pkcs8 -out test_ecdsa_pubkey.pem
-```
+   ```java
 
-2. Add the public and private key to the key management and configure your producers to retrieve public keys and consumers clients to retrieve private keys.
-3. Implement CryptoKeyReader::getPublicKey() interface from producer and CryptoKeyReader::getPrivateKey() interface from consumer, which will be invoked by Pulsar client to load the key.
-4. Add encryption key to producer configuration: conf.addEncryptionKey("myapp.key")
-5. Add CryptoKeyReader implementation to producer/consumer config: conf.setCryptoKeyReader(keyReader)
-6. Sample producer application:
+   ```
 
-```java
-class RawFileKeyReader implements CryptoKeyReader {
+   </TabItem>
+   <TabItem value="Python">
 
-    String publicKeyFile = "";
-    String privateKeyFile = "";
+   ```python
+   import pulsar
 
-    RawFileKeyReader(String pubKeyFile, String privKeyFile) {
-        publicKeyFile = pubKeyFile;
-        privateKeyFile = privKeyFile;
-    }
+   publicKeyPath = "./public.pem"
+   privateKeyPath = ""
+   crypto_key_reader = pulsar.CryptoKeyReader(publicKeyPath, privateKeyPath)
+   client = pulsar.Client('pulsar://localhost:6650')
+   producer = client.create_producer(topic='encryption', encryption_key='encryption', crypto_key_reader=crypto_key_reader)
+   producer.send('encryption message'.encode('utf8'))
+   print('sent message')
+   producer.close()
+   client.close()
+   ```
 
-    @Override
-    public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
-        EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
-        try {
-            keyInfo.setKey(Files.readAllBytes(Paths.get(publicKeyFile)));
-        } catch (IOException e) {
-            System.out.println("ERROR: Failed to read public key from file " + publicKeyFile);
-            e.printStackTrace();
-        }
-        return keyInfo;
-    }
+   </TabItem>
+   <TabItem value="C++">
 
-    @Override
-    public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> keyMeta) {
-        EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
-        try {
-            keyInfo.setKey(Files.readAllBytes(Paths.get(privateKeyFile)));
-        } catch (IOException e) {
-            System.out.println("ERROR: Failed to read private key from file " + privateKeyFile);
-            e.printStackTrace();
-        }
-        return keyInfo;
-    }
-}
-PulsarClient pulsarClient = PulsarClient.create("http://localhost:8080");
+   ```cpp
 
-ProducerConfiguration prodConf = new ProducerConfiguration();
-prodConf.setCryptoKeyReader(new RawFileKeyReader("test_ecdsa_pubkey.pem", "test_ecdsa_privkey.pem"));
-prodConf.addEncryptionKey("myappkey");
+   ```
 
-Producer producer = pulsarClient.createProducer("persistent://my-tenant/my-ns/my-topic", prodConf);
+   </TabItem>
+   <TabItem value="Node.js">
 
-for (int i = 0; i < 10; i++) {
-    producer.send("my-message".getBytes());
-}
+   ```javascript
+   const Pulsar = require('pulsar-client');
 
-pulsarClient.close();
-```
+   (async () => {
+     // Create a client
+     const client = new Pulsar.Client({
+       serviceUrl: 'pulsar://localhost:6650',
+       operationTimeoutSeconds: 30,
+     });
 
-7. Sample Consumer Application:
+     // Create a producer
+     const producer = await client.createProducer({
+       topic: 'persistent://public/default/my-topic',
+       sendTimeoutMs: 30000,
+       batchingEnabled: true,
+       publicKeyPath: "./public.pem",
+       encryptionKey: "encryption-key"
+     });
 
-```java
-class RawFileKeyReader implements CryptoKeyReader {
+     console.log(producer.ProducerConfig)
+     // Send messages
+     for (let i = 0; i < 10; i += 1) {
+       const msg = `my-message-${i}`;
+       producer.send({
+         data: Buffer.from(msg),
+       });
+       console.log(`Sent message: ${msg}`);
+     }
+     await producer.flush();
 
-    String publicKeyFile = "";
-    String privateKeyFile = "";
+     await producer.close();
+     await client.close();
+   })();
+   ```
 
-    RawFileKeyReader(String pubKeyFile, String privKeyFile) {
-        publicKeyFile = pubKeyFile;
-        privateKeyFile = privKeyFile;
-    }
+   </TabItem>
+   </Tabs>
+   ````
 
-    @Override
-    public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
-        EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
-        try {
-            keyInfo.setKey(Files.readAllBytes(Paths.get(publicKeyFile)));
-        } catch (IOException e) {
-            System.out.println("ERROR: Failed to read public key from file " + publicKeyFile);
-            e.printStackTrace();
-        }
-        return keyInfo;
-    }
+4. Create a consumer to receive encrypted messages.
+   
+   ````mdx-code-block
+   <Tabs groupId="lang-choice"
+     defaultValue="Java"
+     values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"},{"label":"C++","value":"C++"},{"label":"Node.js","value":"Node.js"}]}>
+   <TabItem value="Java">
 
-    @Override
-    public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> keyMeta) {
-        EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
-        try {
-            keyInfo.setKey(Files.readAllBytes(Paths.get(privateKeyFile)));
-        } catch (IOException e) {
-            System.out.println("ERROR: Failed to read private key from file " + privateKeyFile);
-            e.printStackTrace();
-        }
-        return keyInfo;
-    }
-}
+   ```java
 
-ConsumerConfiguration consConf = new ConsumerConfiguration();
-consConf.setCryptoKeyReader(new RawFileKeyReader("test_ecdsa_pubkey.pem", "test_ecdsa_privkey.pem"));
-PulsarClient pulsarClient = PulsarClient.create("http://localhost:8080");
-Consumer consumer = pulsarClient.subscribe("persistent://my-tenant//my-ns/my-topic", "my-subscriber-name", consConf);
-Message msg = null;
+   ```
 
-for (int i = 0; i < 10; i++) {
-    msg = consumer.receive();
-    // do something
-    System.out.println("Received: " + new String(msg.getData()));
-}
+   </TabItem>
+   <TabItem value="Python">
 
-// Acknowledge the consumption of all messages at once
-consumer.acknowledgeCumulative(msg);
-pulsarClient.close();
-```
+   ```python
+   import pulsar
 
-## Key rotation
-Pulsar generates a new AES data key every 4 hours or after a certain number of messages are published. The asymmetric public key is automatically fetched by producers every 4 hours by calling CryptoKeyReader::getPublicKey() to retrieve the latest version.
+   publicKeyPath = ""
+   privateKeyPath = "./private.pem"
+   crypto_key_reader = pulsar.CryptoKeyReader(publicKeyPath, privateKeyPath)
+   client = pulsar.Client('pulsar://localhost:6650')
+   consumer = client.subscribe(topic='encryption', subscription_name='encryption-sub', crypto_key_reader=crypto_key_reader)
+   msg = consumer.receive()
+   print("Received msg '{}' id = '{}'".format(msg.data(), msg.message_id()))
+   consumer.close()
+   client.close()
+   ```
 
-## Enabling encryption at the producer application:
-If you produce messages that are consumed across application boundaries, you need to ensure that consumers in other applications have access to one of the private keys that can decrypt the messages.  This can be done in two ways:
-1. The consumer application provides you access to their public key, which you add to your producer keys
-1. You grant access to one of the private keys from the pairs used by producers
+   </TabItem>
+   <TabItem value="C++">
 
-In some cases, the producer may want to encrypt the messages with multiple keys. For this, add all such keys to the config. Consumers will be able to decrypt the message, as long as it has access to at least one of the keys.
+   ```cpp
 
-For example, to encrypt messages using 2 keys `myapp.messagekey1` and `myapp.messagekey2`, do the following:
+   ```
 
-```java
+   </TabItem>
+   <TabItem value="Node.js">
 
-conf.addEncryptionKey("myapp.messagekey1");
-conf.addEncryptionKey("myapp.messagekey2");
+   ```javascript
+   const Pulsar = require('pulsar-client');
 
-```
+   (async () => {
+     // Create a client
+     const client = new Pulsar.Client({
+       serviceUrl: 'pulsar://172.25.0.3:6650',
+       operationTimeoutSeconds: 30
+     });
 
-## Decrypting encrypted messages at the consumer application:
-Consumers require to access one of the private keys to decrypt messages produced by the producer. If you would like to receive encrypted messages, create a public/private key and give your public key to the producer application to encrypt messages using your public key.
+     // Create a consumer
+     const consumer = await client.subscribe({
+       topic: 'persistent://public/default/my-topic',
+       subscription: 'sub1',
+       subscriptionType: 'Shared',
+       ackTimeoutMs: 10000,
+       privateKeyPath: "./private.pem"
+     });
 
-## Handling Failures:
-* Producer/ Consumer loses access to the key
-  * Producer action will fail to indicate the cause of the failure. The application has the option to proceed with sending unencrypted messages in such cases. Call `conf.setCryptoFailureAction`(ProducerCryptoFailureAction) to control the producer behavior. The default behavior is to fail the request.
-  * If consumption failed due to decryption failure or missing keys in consumers, the application has the option to consume the encrypted message or discard it. Call conf.setCryptoFailureAction(ConsumerCryptoFailureAction) to control the consumer behavior. The default behavior is to fail the request. The application will never be able to decrypt the messages if the private key is permanently lost.
-* Batch messaging
-  * If decryption fails and the message contains batch messages, the client will not be able to retrieve individual messages in the batch, hence message consumption fails even if conf.setCryptoFailureAction() is set to CONSUME.
-* If decryption fails, the message consumption stops and the application will notice backlog growth in addition to decryption failure messages in the client log. If the application does not have access to the private key to decrypt the message, the only option is to skip/discard backlogged messages. 
+     console.log(consumer)
+     // Receive messages
+     for (let i = 0; i < 10; i += 1) {
+       const msg = await consumer.receive();
+       console.log(msg.getData().toString());
+       consumer.acknowledge(msg);
+     }
 
+     await consumer.close();
+     await client.close();
+   })();
+   ```
+
+   </TabItem>
+   </Tabs>
+   ````
+
+5. Run the consumer to receive encrypted messages.
+
+   ````mdx-code-block
+   <Tabs groupId="lang-choice"
+     defaultValue="Java"
+     values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"},{"label":"C++","value":"C++"},{"label":"Node.js","value":"Node.js"}]}>
+   <TabItem value="Java">
+
+   ```shell
+
+   ```
+
+   </TabItem>
+   <TabItem value="Python">
+
+   ```shell
+   python consumer.py
+   ```
+
+   </TabItem>
+   <TabItem value="C++">
+
+   ```shell
+
+   ```
+
+   </TabItem>
+   <TabItem value="Node.js">
+
+   ```shell
+   node consumer.js
+   ```
+
+   </TabItem>
+   </Tabs>
+   ````
+
+6. In a new terminal tab, run the producer to produce encrypted messages.
+
+   **Input**
+
+   ````mdx-code-block
+   <Tabs groupId="lang-choice"
+     defaultValue="Java"
+     values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"},{"label":"C++","value":"C++"},{"label":"Node.js","value":"Node.js"}]}>
+   <TabItem value="Java">
+
+   ```shell
+
+   ```
+
+   </TabItem>
+   <TabItem value="Python">
+
+   ```shell
+   python producer.py
+   ```
+
+   </TabItem>
+   <TabItem value="C++">
+
+   ```shell
+
+   ```
+
+   </TabItem>
+   <TabItem value="Node.js">
+
+   ```shell
+   node producer.js
+   ```
+
+   </TabItem>
+   </Tabs>
+   ````
+
+   Now you can see the producer sends messages and the consumer receives messages successfully.
+
+   **Output**
+
+   This is the output from the producer side.
+
+   ````mdx-code-block
+   <Tabs groupId="lang-choice"
+     defaultValue="Java"
+     values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"},{"label":"C++","value":"C++"},{"label":"Node.js","value":"Node.js"}]}>
+   <TabItem value="Java">
+
+   ```shell
+
+   ```
+
+   </TabItem>
+   <TabItem value="Python">
+
+   ```shell
+   sent message
+   ```
+
+   </TabItem>
+   <TabItem value="C++">
+
+   ```shell
+
+   ```
+
+   </TabItem>
+   <TabItem value="Node.js">
+
+   ```shell
+   Sent message: my-message-0
+   Sent message: my-message-1
+   Sent message: my-message-2
+   Sent message: my-message-3
+   Sent message: my-message-4
+   Sent message: my-message-5
+   Sent message: my-message-6
+   Sent message: my-message-7
+   Sent message: my-message-8
+   Sent message: my-message-9
+   ```
+
+   </TabItem>
+   </Tabs>
+   ````
+
+   This is the output from the consumer side.
+
+   ````mdx-code-block
+   <Tabs groupId="lang-choice"
+     defaultValue="Java"
+     values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"},{"label":"C++","value":"C++"},{"label":"Node.js","value":"Node.js"}]}>
+   <TabItem value="Java">
+
+   ```shell
+
+   ```
+
+   </TabItem>
+   <TabItem value="Python">
+
+   ```shell
+   Received msg 'encryption message' id = '(0,0,-1,-1)'
+   ```
+
+   </TabItem>
+   <TabItem value="C++">
+
+   ```shell
+
+   ```
+
+   </TabItem>
+   <TabItem value="Node.js">
+
+   ```shell
+   my-message-0
+   my-message-1
+   my-message-2
+   my-message-3
+   my-message-4
+   my-message-5
+   my-message-6
+   my-message-7
+   my-message-8
+   my-message-9
+   ```
+
+   </TabItem>
+   </Tabs>
+   ````
