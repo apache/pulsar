@@ -80,7 +80,8 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
         Set<String> primaryIsolationGroups = new HashSet<>();
         Set<String> secondaryIsolationGroups = new HashSet<>();
         if (conf.getProperty(ISOLATION_BOOKIE_GROUPS) != null) {
-            String isolationGroupsString = castToString(conf.getProperty(ISOLATION_BOOKIE_GROUPS));
+            String isolationGroupsString = ConfigurationStringUtil
+                    .castToString(conf.getProperty(ISOLATION_BOOKIE_GROUPS));
             if (!isolationGroupsString.isEmpty()) {
                 for (String isolationGroup : isolationGroupsString.split(",")) {
                     primaryIsolationGroups.add(isolationGroup);
@@ -91,7 +92,8 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
             bookieMappingCache.get(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH).join();
         }
         if (conf.getProperty(SECONDARY_ISOLATION_BOOKIE_GROUPS) != null) {
-            String secondaryIsolationGroupsString = castToString(conf.getProperty(SECONDARY_ISOLATION_BOOKIE_GROUPS));
+            String secondaryIsolationGroupsString = ConfigurationStringUtil
+                    .castToString(conf.getProperty(SECONDARY_ISOLATION_BOOKIE_GROUPS));
             if (!secondaryIsolationGroupsString.isEmpty()) {
                 for (String isolationGroup : secondaryIsolationGroupsString.split(",")) {
                     secondaryIsolationGroups.add(isolationGroup);
@@ -100,21 +102,6 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
         }
         defaultIsolationGroups = ImmutablePair.of(primaryIsolationGroups, secondaryIsolationGroups);
         return super.initialize(conf, optionalDnsResolver, timer, featureProvider, statsLogger, bookieAddressResolver);
-    }
-
-    private static String castToString(Object obj) {
-        if (null == obj) {
-            return "";
-        }
-        if (obj instanceof List<?>) {
-            List<String> result = new ArrayList<>();
-            for (Object o : (List<?>) obj) {
-                result.add((String) o);
-            }
-            return String.join(",", result);
-        } else {
-            return obj.toString();
-        }
     }
 
     @Override
@@ -181,9 +168,10 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
         String className = IsolatedBookieEnsemblePlacementPolicy.class.getName();
         if (ensemblePlacementPolicyConfig.getPolicyClass().getName().equals(className)) {
             Map<String, Object> properties = ensemblePlacementPolicyConfig.getProperties();
-            String primaryIsolationGroupString = castToString(properties.getOrDefault(ISOLATION_BOOKIE_GROUPS, ""));
-            String secondaryIsolationGroupString =
-                    castToString(properties.getOrDefault(SECONDARY_ISOLATION_BOOKIE_GROUPS, ""));
+            String primaryIsolationGroupString = ConfigurationStringUtil
+                    .castToString(properties.getOrDefault(ISOLATION_BOOKIE_GROUPS, ""));
+            String secondaryIsolationGroupString = ConfigurationStringUtil
+                    .castToString(properties.getOrDefault(SECONDARY_ISOLATION_BOOKIE_GROUPS, ""));
             if (!primaryIsolationGroupString.isEmpty()) {
                 pair.setLeft(new HashSet(Arrays.asList(primaryIsolationGroupString.split(","))));
             } else {
