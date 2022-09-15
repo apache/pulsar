@@ -22,7 +22,6 @@ import static java.lang.annotation.ElementType.FIELD;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.ParameterDescription;
 import com.beust.jcommander.WrappedParameter;
-import java.io.File;
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 import java.lang.reflect.Field;
