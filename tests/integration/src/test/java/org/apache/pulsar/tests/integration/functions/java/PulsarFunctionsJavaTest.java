@@ -32,7 +32,7 @@ import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.testng.annotations.Test;
 
-public class PulsarFunctionsJavaTest extends PulsarFunctionsTest {
+public abstract class PulsarFunctionsJavaTest extends PulsarFunctionsTest {
 
     PulsarFunctionsJavaTest(FunctionRuntimeType functionRuntimeType) {
         super(functionRuntimeType);

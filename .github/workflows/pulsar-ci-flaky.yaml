@@ -22,9 +22,7 @@ on:
   pull_request:
     branches:
       - master
-  push:
-    branches:
-      - branch-*
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

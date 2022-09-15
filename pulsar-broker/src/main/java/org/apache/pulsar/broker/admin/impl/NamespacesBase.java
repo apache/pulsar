@@ -1509,27 +1509,11 @@ public abstract class NamespacesBase extends AdminResource {
                 .thenCompose(__ -> doUpdatePersistenceAsync(null));
     }
 
-    protected void internalSetPersistence(PersistencePolicies persistence) {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.PERSISTENCE, PolicyOperation.WRITE);
-        validatePoliciesReadOnlyAccess();
-        validatePersistencePolicies(persistence);
-
-        doUpdatePersistence(persistence);
-    }
-
-    private void doUpdatePersistence(PersistencePolicies persistence) {
-        try {
-            updatePolicies(namespaceName, policies -> {
-                policies.persistence = persistence;
-                return policies;
-            });
-            log.info("[{}] Successfully updated persistence configuration: namespace={}, map={}", clientAppId(),
-                    namespaceName, jsonMapper().writeValueAsString(persistence));
-        } catch (Exception e) {
-            log.error("[{}] Failed to update persistence configuration for namespace {}", clientAppId(), namespaceName,
-                    e);
-            throw new RestException(e);
-        }
+    protected CompletableFuture<Void> internalSetPersistenceAsync(PersistencePolicies persistence) {
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.PERSISTENCE, PolicyOperation.WRITE)
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenAccept(__ -> validatePersistencePolicies(persistence))
+                .thenCompose(__ -> doUpdatePersistenceAsync(persistence));
     }
 
     private CompletableFuture<Void> doUpdatePersistenceAsync(PersistencePolicies persistence) {
