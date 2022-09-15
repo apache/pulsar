@@ -33,8 +33,10 @@ public class CompressionCodecNone implements CompressionCodec {
         if (readableBytes == raw.capacity()) {
             return raw.retain();
         }
+        raw.markReaderIndex();
         ByteBuf target = PulsarByteBufAllocator.DEFAULT.buffer(readableBytes, readableBytes);
         target.writeBytes(raw);
+        raw.resetReaderIndex();
         return target;
     }
 

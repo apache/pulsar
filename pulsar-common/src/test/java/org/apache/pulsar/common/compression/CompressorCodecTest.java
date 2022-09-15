@@ -189,4 +189,19 @@ public class CompressorCodecTest {
         compressed.release();
         uncompressed.release();
     }
+
+    @Test
+    public void testCompressionCodecNone() {
+        CompressionCodec codec = CompressionCodecProvider.getCompressionCodec( CompressionType.NONE);
+        ByteBuf uncompressed = PulsarByteBufAllocator.DEFAULT.directBuffer(100);
+
+        byte[] write = new byte[50];
+        uncompressed.writeBytes(write);
+
+        ByteBuf compressed = codec.encode(uncompressed);
+        assertEquals(compressed.capacity(), 50);
+
+        compressed.release();
+        uncompressed.release();
+    }
 }
