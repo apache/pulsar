@@ -28,6 +28,7 @@ import com.google.common.collect.BoundType;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Queues;
 import com.google.common.collect.Range;
+import io.etcd.jetcd.op.Op;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.Recycler;
@@ -2386,13 +2387,15 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         ConcurrentLinkedDeque<LedgerInfo> toOffload = new ConcurrentLinkedDeque<>();
 
         final OffloadPoliciesImpl policies = config.getLedgerOffloader().getOffloadPolicies();
-        final Long offloadThresholdInBytes = policies.getManagedLedgerOffloadThresholdInBytes();
-        final Long offloadTimeThreshold = policies.getManagedLedgerOffloadTimeThresholdInSeconds();
+        final long offloadThresholdInBytes =
+                Optional.ofNullable(policies.getManagedLedgerOffloadThresholdInBytes()).orElse(-1L);
+        final long offloadTimeThreshold =
+                Optional.ofNullable(policies.getManagedLedgerOffloadTimeThresholdInSeconds()).orElse(-1L);
 
-        //Skip the following steps if `offloadTimeThreshold` and `offloadThresholdInBytes` are null.
-        if (null == offloadTimeThreshold && null == offloadThresholdInBytes) {
+        //Skip the following steps if `offloadTimeThreshold` and `offloadThresholdInBytes` are null OR negative values.
+        if (offloadThresholdInBytes < 0 && offloadTimeThreshold < 0) {
             log.debug("[{}] Nothing to offload due to [managedLedgerOffloadAutoTriggerSizeThresholdBytes] " +
-                    "and [managedLedgerOffloadTimeThresholdInSeconds] is NULL", name);
+                    "and [managedLedgerOffloadTimeThresholdInSeconds] are null OR negative values.", name);
             unlockingPromise.complete(PositionImpl.LATEST);
             return;
         }
@@ -2408,9 +2411,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             if (alreadyOffloaded) {
                 alreadyOffloadedSize += size;
             } else {
-                if ((offloadThresholdInBytes != null && sizeSummed > offloadThresholdInBytes)
-                        || (offloadTimeThreshold != null && offloadTimeThreshold >= 0
-                        && now - timestamp > offloadTimeThreshold)) {
+                if ((offloadThresholdInBytes >= 0 && sizeSummed > offloadThresholdInBytes)
+                        || (offloadTimeThreshold >= 0 && now - timestamp > offloadTimeThreshold)) {
                     toOffloadSize += size;
                     toOffload.addFirst(info);
                 }
