@@ -172,7 +172,7 @@ public class JCommanderCompleter {
         if (parameterCompleter != null) {
             final ParameterCompleter.Type completer = parameterCompleter.type();
             if (completer == ParameterCompleter.Type.FILES) {
-                valueCompleter = new Completers.FilesCompleter(new File(System.getProperty("user.dir")));
+                valueCompleter = new Completers.FilesCompleter(ConfigShell.resolveLocalFile("."));
             } else if (completer == ParameterCompleter.Type.CONFIGS) {
                 valueCompleter = new Completer() {
                     @Override
