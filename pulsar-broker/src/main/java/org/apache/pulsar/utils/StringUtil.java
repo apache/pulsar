@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.utils;
 
+import org.apache.pulsar.common.naming.TopicName;
+
 public class StringUtil {
 
     /**
@@ -37,7 +39,6 @@ public class StringUtil {
                 case Character.SURROGATE:
                 case Character.UNASSIGNED:
                 case Character.OTHER_SYMBOL:
-                case Character.SPACE_SEPARATOR:
                     return true;
                 default:
                     break;
