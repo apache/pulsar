@@ -35,6 +35,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -110,6 +111,9 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         Awaitility.await().until(consumer::isConnected);
         consumer.seek(messageIds.get(5));
         assertEquals(sub.getNumberOfEntriesInBacklog(false), 5);
+
+        ManagedCursor cursor = topicRef.getSubscription("my-subscription").getCursor();
+        assertEquals(cursor.getMarkDeletedPosition(), cursor.getPersistentMarkDeletedPosition());
 
         MessageIdImpl messageId = (MessageIdImpl) messageIds.get(5);
         MessageIdImpl beforeEarliest = new MessageIdImpl(

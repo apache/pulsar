@@ -230,7 +230,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
 
         public void triggerComplete() {
-            // Trigger the final callback after having (eventually) triggered the switchin-ledger operation. This
+            // Trigger the final callback after having (eventually) triggered the switching-ledger operation. This
             // will ensure that no race condition will happen between the next mark-delete and the switching
             // operation.
             if (callbackGroup != null) {
@@ -1277,8 +1277,9 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         persistentMarkDeletePosition = null;
         inProgressMarkDeletePersistPosition = null;
-        lastMarkDeleteEntry = new MarkDeleteEntry(newPosition, getProperties(), null, null);
-        internalAsyncMarkDelete(newPosition, isCompactionCursor() ? getProperties() : Collections.emptyMap(),
+        PositionImpl newMarkDeletePosition = ledger.getPreviousPosition(newPosition);
+        lastMarkDeleteEntry = new MarkDeleteEntry(newMarkDeletePosition, getProperties(), null, null);
+        internalAsyncMarkDelete(newMarkDeletePosition, isCompactionCursor() ? getProperties() : Collections.emptyMap(),
                 new MarkDeleteCallback() {
             @Override
             public void markDeleteComplete(Object ctx) {
@@ -2005,7 +2006,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         LAST_MARK_DELETE_ENTRY_UPDATER.updateAndGet(this, last -> {
             if (last != null && last.newPosition.compareTo(mdEntry.newPosition) > 0) {
-                // keep the current value since it's later then the mdEntry.newPosition
+                // keep the current value since it's later than the mdEntry.newPosition
                 return last;
             } else {
                 return mdEntry;
