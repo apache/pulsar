@@ -29,7 +29,8 @@ namespace pulsar {
  */
 enum Result
 {
-    ResultOk,  /// Operation successful
+    ResultRetryable = -1,  /// An internal error code used for retry
+    ResultOk = 0,          /// Operation successful
 
     ResultUnknownError,  /// Unknown error happened on broker
 

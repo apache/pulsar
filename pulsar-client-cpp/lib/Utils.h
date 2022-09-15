@@ -85,6 +85,7 @@ class Optional {
      * Create an Optional with the bound value
      */
     static Optional<T> of(const T& value) { return Optional<T>(value); }
+    static Optional<T> of(T&& value) { return Optional<T>(std::move(value)); }
 
     /**
      * Create an empty optional
@@ -95,6 +96,7 @@ class Optional {
 
    private:
     Optional(const T& value) : value_(value), present_(true) {}
+    Optional(T&& value) : value_(std::move(value)), present_(true) {}
 
     T value_;
     bool present_;
