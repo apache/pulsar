@@ -21,11 +21,11 @@ package org.apache.pulsar.broker.service;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.systopic.SystemTopicClient.Reader;
 import org.apache.pulsar.broker.systopic.SystemTopicClient.Writer;
+import org.apache.pulsar.broker.systopic.SystemTopicClientBase;
 import org.apache.pulsar.broker.systopic.TransactionBufferSystemTopicClient;
-import org.apache.pulsar.broker.transaction.buffer.matadata.TransactionBufferSnapshot;
 import org.apache.pulsar.common.naming.TopicName;
 
-public interface TransactionBufferSnapshotService {
+public interface TransactionBufferSnapshotService<T> {
 
     /**
      * Create a transaction buffer snapshot writer.
@@ -34,7 +34,7 @@ public interface TransactionBufferSnapshotService {
      *
      * @return {@link CompletableFuture<Writer>} return the future of writer
      */
-    CompletableFuture<Writer<TransactionBufferSnapshot>> createWriter(TopicName topicName);
+    CompletableFuture<Writer<T>> createWriter(TopicName topicName);
 
     /**
      * Create a transaction buffer snapshot reader.
@@ -43,7 +43,7 @@ public interface TransactionBufferSnapshotService {
      *
      * @return {@link CompletableFuture<Writer>} return the future of reader
      */
-    CompletableFuture<Reader<TransactionBufferSnapshot>> createReader(TopicName topicName);
+    CompletableFuture<Reader<T>> createReader(TopicName topicName);
 
     /**
      * Remove a topic client from cache.
@@ -52,7 +52,7 @@ public interface TransactionBufferSnapshotService {
      * @param transactionBufferSystemTopicClient {@link TransactionBufferSystemTopicClient} the topic client
      *
      */
-    void removeClient(TopicName topicName, TransactionBufferSystemTopicClient transactionBufferSystemTopicClient);
+    void removeClient(TopicName topicName, SystemTopicClientBase<T> transactionBufferSystemTopicClient);
 
     /**
      * Close transaction buffer snapshot service.

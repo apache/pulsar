@@ -18,14 +18,10 @@
  */
 package org.apache.pulsar.broker.service;
 
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
-import org.apache.pulsar.broker.systopic.SystemTopicClient.Reader;
-import org.apache.pulsar.broker.systopic.SystemTopicClient.Writer;
-import org.apache.pulsar.broker.systopic.TransactionBufferSystemTopicClient;
 import org.apache.pulsar.broker.transaction.buffer.matadata.TransactionBufferSnapshot;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException.InvalidTopicNameException;
@@ -33,23 +29,18 @@ import org.apache.pulsar.common.events.EventType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 
-public class SystemTopicBaseTxnBufferSnapshotService implements TransactionBufferSnapshotService {
-
-    private final Map<TopicName, SystemTopicClient<TransactionBufferSnapshot>> clients;
+public class SystemTopicBaseTxnBufferSnapshotService
+        extends SystemTopicBaseTxnBufferSnapshotBaseService<TransactionBufferSnapshot> {
 
     private final NamespaceEventsSystemTopicFactory namespaceEventsSystemTopicFactory;
 
     public SystemTopicBaseTxnBufferSnapshotService(PulsarClient client) {
+        super(new ConcurrentHashMap<>());
         this.namespaceEventsSystemTopicFactory = new NamespaceEventsSystemTopicFactory(client);
-        this.clients = new ConcurrentHashMap<>();
     }
 
     @Override
-    public CompletableFuture<Writer<TransactionBufferSnapshot>> createWriter(TopicName topicName) {
-        return getTransactionBufferSystemTopicClient(topicName).thenCompose(SystemTopicClient::newWriterAsync);
-    }
-
-    private CompletableFuture<SystemTopicClient<TransactionBufferSnapshot>> getTransactionBufferSystemTopicClient(
+    protected CompletableFuture<SystemTopicClient<TransactionBufferSnapshot>> getTransactionBufferSystemTopicClient(
             TopicName topicName) {
         TopicName systemTopicName = NamespaceEventsSystemTopicFactory
                 .getSystemTopicName(topicName.getNamespaceObject(), EventType.TRANSACTION_BUFFER_SNAPSHOT);
@@ -61,26 +52,5 @@ public class SystemTopicBaseTxnBufferSnapshotService implements TransactionBuffe
         return CompletableFuture.completedFuture(clients.computeIfAbsent(systemTopicName,
                 (v) -> namespaceEventsSystemTopicFactory
                         .createTransactionBufferSystemTopicClient(topicName.getNamespaceObject(), this)));
-    }
-
-    @Override
-    public CompletableFuture<Reader<TransactionBufferSnapshot>> createReader(TopicName topicName) {
-        return getTransactionBufferSystemTopicClient(topicName).thenCompose(SystemTopicClient::newReaderAsync);
-    }
-
-    @Override
-    public void removeClient(TopicName topicName,
-                                          TransactionBufferSystemTopicClient transactionBufferSystemTopicClient) {
-        if (transactionBufferSystemTopicClient.getReaders().size() == 0
-                && transactionBufferSystemTopicClient.getWriters().size() == 0) {
-            clients.remove(topicName);
-        }
-    }
-
-    @Override
-    public void close() throws Exception {
-        for (Map.Entry<TopicName, SystemTopicClient<TransactionBufferSnapshot>> entry : clients.entrySet()) {
-            entry.getValue().close();
-        }
     }
 }

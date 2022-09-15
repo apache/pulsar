@@ -50,8 +50,6 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.AbstractTopic;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
-import org.apache.pulsar.broker.service.TransactionBufferSnapshotIndexService;
-import org.apache.pulsar.broker.service.TransactionBufferSnapshotSegmentService;
 import org.apache.pulsar.broker.service.TransactionBufferSnapshotService;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
@@ -575,7 +573,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
 
     @Test
     public void testTransactionBufferIndexSystemTopic() throws Exception {
-        TransactionBufferSnapshotIndexService transactionBufferSnapshotIndexService =
+        TransactionBufferSnapshotService<TransactionBufferSnapshotIndexes> transactionBufferSnapshotIndexService =
                 getPulsarServiceList().get(0).getTransactionBufferSnapshotIndexService();
 
         SystemTopicClient.Writer<TransactionBufferSnapshotIndexes> indexesWriter =
@@ -617,7 +615,8 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
 
     @Test
     public void testTransactionBufferSegmentSystemTopic() throws Exception {
-        TransactionBufferSnapshotSegmentService transactionBufferSnapshotSegmentService =
+        TransactionBufferSnapshotService<TransactionBufferSnapshotIndexes.TransactionBufferSnapshot>
+                transactionBufferSnapshotSegmentService =
                 getPulsarServiceList().get(0).getTransactionBufferSnapshotSegmentService();
 
         SystemTopicClient.Writer<TransactionBufferSnapshotIndexes.TransactionBufferSnapshot>

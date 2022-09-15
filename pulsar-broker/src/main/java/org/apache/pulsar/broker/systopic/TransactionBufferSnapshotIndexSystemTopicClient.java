@@ -19,30 +19,27 @@
 
 package org.apache.pulsar.broker.systopic;
 
-import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.service.TransactionBufferSnapshotIndexService;
+import org.apache.pulsar.broker.service.TransactionBufferSnapshotService;
 import org.apache.pulsar.broker.transaction.buffer.matadata.v2.TransactionBufferSnapshotIndexes;
-import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.TopicName;
 
 @Slf4j
 public class TransactionBufferSnapshotIndexSystemTopicClient extends
-        SystemTopicClientBase<TransactionBufferSnapshotIndexes> {
+        TransactionBufferSnapshotBaseSystemTopicClient<TransactionBufferSnapshotIndexes> {
 
-    private final TransactionBufferSnapshotIndexService transactionBufferSnapshotIndexService;
+    private final TransactionBufferSnapshotService<TransactionBufferSnapshotIndexes>
+            transactionBufferSnapshotIndexService;
 
     public TransactionBufferSnapshotIndexSystemTopicClient(PulsarClient client, TopicName topicName,
-                                                           TransactionBufferSnapshotIndexService
-                                                                     transactionBufferSnapshotIndexService) {
-        super(client, topicName);
+           TransactionBufferSnapshotService<TransactionBufferSnapshotIndexes> transactionBufferSnapshotIndexService) {
+        super(client, topicName, transactionBufferSnapshotIndexService);
         this.transactionBufferSnapshotIndexService = transactionBufferSnapshotIndexService;
     }
 
@@ -75,27 +72,14 @@ public class TransactionBufferSnapshotIndexSystemTopicClient extends
                 });
     }
 
-    protected void removeWriter(TransactionBufferSnapshotIndexWriter writer) {
-        writers.remove(writer);
-        this.transactionBufferSnapshotIndexService.removeClient(topicName, this);
-    }
+    private static class TransactionBufferSnapshotIndexWriter extends
+            TransactionBufferSnapshotBaseWriter<TransactionBufferSnapshotIndexes> {
 
-    protected void removeReader(TransactionBufferSnapshotIndexReader reader) {
-        readers.remove(reader);
-        this.transactionBufferSnapshotIndexService.removeClient(topicName, this);
-    }
-
-    private static class TransactionBufferSnapshotIndexWriter implements Writer<TransactionBufferSnapshotIndexes> {
-
-        private final Producer<TransactionBufferSnapshotIndexes> producer;
-        private final TransactionBufferSnapshotIndexSystemTopicClient
-                transactionBufferSnapshotIndexSystemTopicClient;
 
         private TransactionBufferSnapshotIndexWriter(Producer<TransactionBufferSnapshotIndexes> producer,
                                                      TransactionBufferSnapshotIndexSystemTopicClient
                                                              transactionBufferSnapshotIndexSystemTopicClient) {
-            this.producer = producer;
-            this.transactionBufferSnapshotIndexSystemTopicClient = transactionBufferSnapshotIndexSystemTopicClient;
+            super(producer, transactionBufferSnapshotIndexSystemTopicClient);
         }
 
         @Override
@@ -130,109 +114,14 @@ public class TransactionBufferSnapshotIndexSystemTopicClient extends
                     .value(null)
                     .sendAsync();
         }
-
-        @Override
-        public void close() throws IOException {
-            this.producer.close();
-            transactionBufferSnapshotIndexSystemTopicClient.removeWriter(this);
-        }
-
-        @Override
-        public CompletableFuture<Void> closeAsync() {
-            CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-            producer.closeAsync().whenComplete((v, e) -> {
-                // if close fail, also need remove the producer
-                transactionBufferSnapshotIndexSystemTopicClient.removeWriter(this);
-                if (e != null) {
-                    completableFuture.completeExceptionally(e);
-                    return;
-                }
-                completableFuture.complete(null);
-            });
-            return completableFuture;
-        }
-
-        @Override
-        public SystemTopicClient<TransactionBufferSnapshotIndexes> getSystemTopicClient() {
-            return transactionBufferSnapshotIndexSystemTopicClient;
-        }
     }
 
-    private static class TransactionBufferSnapshotIndexReader implements Reader<TransactionBufferSnapshotIndexes> {
-
-        private final org.apache.pulsar.client.api.Reader<TransactionBufferSnapshotIndexes> reader;
-        private final TransactionBufferSnapshotIndexSystemTopicClient
-                transactionBufferSnapshotIndexSystemTopicClient;
-
+    private static class TransactionBufferSnapshotIndexReader extends TransactionBufferSnapshotBaseSystemTopicClient
+            .TransactionBufferSnapshotBaseReader<TransactionBufferSnapshotIndexes> {
         private TransactionBufferSnapshotIndexReader(
                 org.apache.pulsar.client.api.Reader<TransactionBufferSnapshotIndexes> reader,
                 TransactionBufferSnapshotIndexSystemTopicClient transactionBufferSnapshotIndexSystemTopicClient) {
-            this.reader = reader;
-            this.transactionBufferSnapshotIndexSystemTopicClient = transactionBufferSnapshotIndexSystemTopicClient;
-        }
-
-        @Override
-        public Message<TransactionBufferSnapshotIndexes> readNext() throws PulsarClientException {
-            return reader.readNext();
-        }
-
-        @Override
-        public CompletableFuture<Message<TransactionBufferSnapshotIndexes>> readNextAsync() {
-            return reader.readNextAsync();
-        }
-
-        @Override
-        public Message<TransactionBufferSnapshotIndexes> readByMessageId(MessageId messageId)
-                throws PulsarClientException {
-            MessageIdImpl messageIdImpl = (MessageIdImpl) messageId;
-            reader.seek(new MessageIdImpl(messageIdImpl.getLedgerId(), messageIdImpl.getEntryId() - 1,
-                    messageIdImpl.getPartitionIndex()));
-            return reader.readNext();
-        }
-
-        @Override
-        public CompletableFuture<Message<TransactionBufferSnapshotIndexes>> readByMessageIdAsync(MessageId messageId) {
-            MessageIdImpl messageIdImpl = (MessageIdImpl) messageId;
-            return reader.seekAsync(new MessageIdImpl(messageIdImpl.getLedgerId(), messageIdImpl.getEntryId() - 1,
-                    messageIdImpl.getPartitionIndex())).thenCompose((ignore) -> {
-                return reader.readNextAsync();
-            });
-        }
-
-        @Override
-        public boolean hasMoreEvents() throws PulsarClientException {
-            return reader.hasMessageAvailable();
-        }
-
-        @Override
-        public CompletableFuture<Boolean> hasMoreEventsAsync() {
-            return reader.hasMessageAvailableAsync();
-        }
-
-        @Override
-        public void close() throws IOException {
-            this.reader.close();
-            transactionBufferSnapshotIndexSystemTopicClient.removeReader(this);
-        }
-
-        @Override
-        public CompletableFuture<Void> closeAsync() {
-            CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-            reader.closeAsync().whenComplete((v, e) -> {
-                // if close fail, also need remove the reader
-                transactionBufferSnapshotIndexSystemTopicClient.removeReader(this);
-                if (e != null) {
-                    completableFuture.completeExceptionally(e);
-                    return;
-                }
-                completableFuture.complete(null);
-            });
-            return completableFuture;
-        }
-
-        @Override
-        public SystemTopicClient<TransactionBufferSnapshotIndexes> getSystemTopic() {
-            return transactionBufferSnapshotIndexSystemTopicClient;
+            super(reader, transactionBufferSnapshotIndexSystemTopicClient);
         }
     }
 }

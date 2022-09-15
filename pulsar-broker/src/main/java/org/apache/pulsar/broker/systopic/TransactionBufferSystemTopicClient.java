@@ -19,28 +19,26 @@
 
 package org.apache.pulsar.broker.systopic;
 
-import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.service.TransactionBufferSnapshotService;
 import org.apache.pulsar.broker.transaction.buffer.matadata.TransactionBufferSnapshot;
-import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.TopicName;
 
 @Slf4j
-public class TransactionBufferSystemTopicClient extends SystemTopicClientBase<TransactionBufferSnapshot> {
+public class TransactionBufferSystemTopicClient extends
+        TransactionBufferSnapshotBaseSystemTopicClient<TransactionBufferSnapshot> {
     private TransactionBufferSnapshotService transactionBufferSnapshotService;
 
     public TransactionBufferSystemTopicClient(PulsarClient client, TopicName topicName,
-                                              TransactionBufferSnapshotService transactionBufferSnapshotService) {
-        super(client, topicName);
-        this.transactionBufferSnapshotService = transactionBufferSnapshotService;
+                                              TransactionBufferSnapshotService<TransactionBufferSnapshot>
+                                                      transactionBufferSnapshotService) {
+        super(client, topicName, transactionBufferSnapshotService);
     }
 
     @Override
@@ -72,25 +70,12 @@ public class TransactionBufferSystemTopicClient extends SystemTopicClientBase<Tr
                 });
     }
 
-    protected void removeWriter(TransactionBufferSnapshotWriter writer) {
-        writers.remove(writer);
-        this.transactionBufferSnapshotService.removeClient(topicName, this);
-    }
-
-    protected void removeReader(TransactionBufferSnapshotReader reader) {
-        readers.remove(reader);
-        this.transactionBufferSnapshotService.removeClient(topicName, this);
-    }
-
-    private static class TransactionBufferSnapshotWriter implements Writer<TransactionBufferSnapshot> {
-
-        private final Producer<TransactionBufferSnapshot> producer;
-        private final TransactionBufferSystemTopicClient transactionBufferSystemTopicClient;
+    private static class TransactionBufferSnapshotWriter extends
+            TransactionBufferSnapshotBaseWriter<TransactionBufferSnapshot> {
 
         private TransactionBufferSnapshotWriter(Producer<TransactionBufferSnapshot> producer,
                                                 TransactionBufferSystemTopicClient transactionBufferSystemTopicClient) {
-            this.producer = producer;
-            this.transactionBufferSystemTopicClient = transactionBufferSystemTopicClient;
+            super(producer, transactionBufferSystemTopicClient);
         }
 
         @Override
@@ -120,106 +105,13 @@ public class TransactionBufferSystemTopicClient extends SystemTopicClientBase<Tr
                     .value(null)
                     .sendAsync();
         }
-
-        @Override
-        public void close() throws IOException {
-            this.producer.close();
-            transactionBufferSystemTopicClient.removeWriter(this);
-        }
-
-        @Override
-        public CompletableFuture<Void> closeAsync() {
-            CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-            producer.closeAsync().whenComplete((v, e) -> {
-                // if close fail, also need remove the producer
-                transactionBufferSystemTopicClient.removeWriter(this);
-                if (e != null) {
-                    completableFuture.completeExceptionally(e);
-                    return;
-                }
-                completableFuture.complete(null);
-            });
-            return completableFuture;
-        }
-
-        @Override
-        public SystemTopicClient<TransactionBufferSnapshot> getSystemTopicClient() {
-            return transactionBufferSystemTopicClient;
-        }
     }
 
-    private static class TransactionBufferSnapshotReader implements Reader<TransactionBufferSnapshot> {
-
-        private final org.apache.pulsar.client.api.Reader<TransactionBufferSnapshot> reader;
-        private final TransactionBufferSystemTopicClient transactionBufferSystemTopicClient;
-
+    private static class TransactionBufferSnapshotReader extends
+            TransactionBufferSnapshotBaseReader<TransactionBufferSnapshot> {
         private TransactionBufferSnapshotReader(org.apache.pulsar.client.api.Reader<TransactionBufferSnapshot> reader,
                                                 TransactionBufferSystemTopicClient transactionBufferSystemTopicClient) {
-            this.reader = reader;
-            this.transactionBufferSystemTopicClient = transactionBufferSystemTopicClient;
-        }
-
-        @Override
-        public Message<TransactionBufferSnapshot> readNext() throws PulsarClientException {
-            return reader.readNext();
-        }
-
-        @Override
-        public CompletableFuture<Message<TransactionBufferSnapshot>> readNextAsync() {
-            return reader.readNextAsync();
-        }
-
-        @Override
-        public Message<TransactionBufferSnapshot> readByMessageId(MessageId messageId) throws PulsarClientException {
-            MessageIdImpl messageIdImpl = (MessageIdImpl) messageId;
-            reader.seek(new MessageIdImpl(messageIdImpl.getLedgerId(), messageIdImpl.getEntryId() - 1,
-                    messageIdImpl.getPartitionIndex()));
-            return reader.readNext();
-        }
-
-        @Override
-        public CompletableFuture<Message<TransactionBufferSnapshot>> readByMessageIdAsync(MessageId messageId) {
-            MessageIdImpl messageIdImpl = (MessageIdImpl) messageId;
-            return reader.seekAsync(new MessageIdImpl(messageIdImpl.getLedgerId(), messageIdImpl.getEntryId() - 1,
-                    messageIdImpl.getPartitionIndex())).thenCompose((ignore) -> {
-                return reader.readNextAsync();
-            });
-        }
-
-        @Override
-        public boolean hasMoreEvents() throws PulsarClientException {
-            return reader.hasMessageAvailable();
-        }
-
-        @Override
-        public CompletableFuture<Boolean> hasMoreEventsAsync() {
-            return reader.hasMessageAvailableAsync();
-        }
-
-        @Override
-        public void close() throws IOException {
-            this.reader.close();
-            transactionBufferSystemTopicClient.removeReader(this);
-        }
-
-        @Override
-        public CompletableFuture<Void> closeAsync() {
-            CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-            reader.closeAsync().whenComplete((v, e) -> {
-                // if close fail, also need remove the reader
-                transactionBufferSystemTopicClient.removeReader(this);
-                if (e != null) {
-                    completableFuture.completeExceptionally(e);
-                    return;
-                }
-                completableFuture.complete(null);
-            });
-            return completableFuture;
-        }
-
-        @Override
-        public SystemTopicClient<TransactionBufferSnapshot> getSystemTopic() {
-            return transactionBufferSystemTopicClient;
+            super(reader, transactionBufferSystemTopicClient);
         }
     }
 }

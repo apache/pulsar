@@ -107,8 +107,6 @@ import org.apache.pulsar.broker.service.SystemTopicBaseTxnBufferSnapshotService;
 import org.apache.pulsar.broker.service.SystemTopicBasedTopicPoliciesService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TopicPoliciesService;
-import org.apache.pulsar.broker.service.TransactionBufferSnapshotIndexService;
-import org.apache.pulsar.broker.service.TransactionBufferSnapshotSegmentService;
 import org.apache.pulsar.broker.service.TransactionBufferSnapshotService;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.SchemaStorageFactory;
@@ -118,6 +116,8 @@ import org.apache.pulsar.broker.stats.prometheus.PulsarPrometheusMetricsServlet;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientImpl;
+import org.apache.pulsar.broker.transaction.buffer.matadata.TransactionBufferSnapshot;
+import org.apache.pulsar.broker.transaction.buffer.matadata.v2.TransactionBufferSnapshotIndexes;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
 import org.apache.pulsar.broker.validator.MultipleListenerValidator;
 import org.apache.pulsar.broker.web.WebService;
@@ -264,9 +264,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private MetadataStoreExtended localMetadataStore;
     private PulsarMetadataEventSynchronizer localMetadataSynchronizer;
     private CoordinationService coordinationService;
-    private TransactionBufferSnapshotService transactionBufferSnapshotService;
-    private TransactionBufferSnapshotIndexService transactionBufferSnapshotIndexService;
-    private TransactionBufferSnapshotSegmentService transactionBufferSnapshotSegmentService;
+    private TransactionBufferSnapshotService<TransactionBufferSnapshot> transactionBufferSnapshotService;
+    private TransactionBufferSnapshotService<TransactionBufferSnapshotIndexes> transactionBufferSnapshotIndexService;
+    private TransactionBufferSnapshotService<TransactionBufferSnapshotIndexes.TransactionBufferSnapshot>
+            transactionBufferSnapshotSegmentService;
 
     private MetadataStore configurationMetadataStore;
     private PulsarMetadataEventSynchronizer configMetadataSynchronizer;
