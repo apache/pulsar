@@ -35,6 +35,7 @@ import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import io.netty.util.ReferenceCountUtil;
 import java.io.IOException;
+import java.sql.Time;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -2389,11 +2390,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         final OffloadPoliciesImpl policies = config.getLedgerOffloader().getOffloadPolicies();
         final long offloadThresholdInBytes =
                 Optional.ofNullable(policies.getManagedLedgerOffloadThresholdInBytes()).orElse(-1L);
-        final long offloadTimeThreshold =
-                Optional.ofNullable(policies.getManagedLedgerOffloadTimeThresholdInSeconds()).orElse(-1L);
+        final long offloadTimeThresholdMillis =
+                Optional.ofNullable(policies.getManagedLedgerOffloadTimeThresholdInSeconds())
+                        .filter(v -> v >= 0).map(TimeUnit.SECONDS::toMillis).orElse(-1L);
 
         //Skip the following steps if `offloadTimeThreshold` and `offloadThresholdInBytes` are null OR negative values.
-        if (offloadThresholdInBytes < 0 && offloadTimeThreshold < 0) {
+        if (offloadThresholdInBytes < 0 && offloadTimeThresholdMillis < 0) {
             log.debug("[{}] Nothing to offload due to [managedLedgerOffloadAutoTriggerSizeThresholdBytes] " +
                     "and [managedLedgerOffloadTimeThresholdInSeconds] are null OR negative values.", name);
             unlockingPromise.complete(PositionImpl.LATEST);
@@ -2412,7 +2414,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 alreadyOffloadedSize += size;
             } else {
                 if ((offloadThresholdInBytes >= 0 && sizeSummed > offloadThresholdInBytes)
-                        || (offloadTimeThreshold >= 0 && now - timestamp > offloadTimeThreshold)) {
+                        || (offloadTimeThresholdMillis >= 0 && now - timestamp > offloadTimeThresholdMillis)) {
                     toOffloadSize += size;
                     toOffload.addFirst(info);
                 }
@@ -2430,7 +2432,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             log.debug("[{}] Nothing to offload, total size = {}, already offloaded = {}, "
                             + "threshold = [managedLedgerOffloadThresholdInBytes:{}, "
                             + "managedLedgerOffloadTimeThresholdInSeconds:{}]",
-                    name, sizeSummed, alreadyOffloadedSize, offloadThresholdInBytes, offloadTimeThreshold);
+                    name, sizeSummed, alreadyOffloadedSize, offloadThresholdInBytes,
+                    TimeUnit.MILLISECONDS.toSeconds(offloadTimeThresholdMillis));
             unlockingPromise.complete(PositionImpl.LATEST);
         }
     }
