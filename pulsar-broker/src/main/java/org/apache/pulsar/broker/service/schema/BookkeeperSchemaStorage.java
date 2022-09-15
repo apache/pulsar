@@ -198,9 +198,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Fetching schema from store", schemaId);
             }
-            CompletableFuture<StoredSchema> future = new CompletableFuture<>();
-
-            getSchemaLocator(getSchemaPath(schemaId)).thenCompose(locator -> {
+            return getSchemaLocator(getSchemaPath(schemaId)).thenCompose(locator -> {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Got schema locator {}", schemaId, locator);
                 }
@@ -213,22 +211,12 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                 return readSchemaEntry(schemaLocator.getInfo().getPosition())
                         .thenApply(entry -> new StoredSchema(entry.getSchemaData().toByteArray(),
                                 new LongSchemaVersion(schemaLocator.getInfo().getVersion())));
-            }).handleAsync((res, ex) -> {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Get operation completed. res={} -- ex={}", schemaId, res, ex);
-                }
-
-                // Cleanup the pending ops from the map
-                readSchemaOperations.remove(schemaId, future);
-                if (ex != null) {
-                    future.completeExceptionally(ex);
-                } else {
-                    future.complete(res);
-                }
-                return null;
             });
-
-            return future;
+        }).whenComplete((res, ex) -> {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Get operation completed. res={} -- ex={}", schemaId, res, ex);
+            }
+            readSchemaOperations.remove(schemaId);
         });
     }
 

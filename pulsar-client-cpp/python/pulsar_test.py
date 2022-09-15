@@ -31,6 +31,7 @@ from pulsar import (
     CompressionType,
     ConsumerType,
     PartitionsRoutingMode,
+    AuthenticationBasic,
     AuthenticationTLS,
     Authentication,
     AuthenticationToken,
@@ -1282,6 +1283,28 @@ class PulsarTest(TestCase):
         with self.assertRaises(TypeError):
             fun()
 
+    def test_basic_auth(self):
+        username = "admin"
+        password = "123456"
+        client = Client(self.adminUrl, authentication=AuthenticationBasic(username, password))
+
+        topic = "persistent://private/auth/my-python-topic-basic-auth"
+        consumer = client.subscribe(topic, "my-sub", consumer_type=ConsumerType.Shared)
+        producer = client.create_producer(topic)
+        producer.send(b"hello")
+
+        msg = consumer.receive(TM)
+        self.assertTrue(msg)
+        self.assertEqual(msg.data(), b"hello")
+        client.close()
+
+    def test_invalid_basic_auth(self):
+        username = "invalid"
+        password = "123456"
+        client = Client(self.adminUrl, authentication=AuthenticationBasic(username, password))
+        topic = "persistent://private/auth/my-python-topic-invalid-basic-auth"
+        with self.assertRaises(pulsar.ConnectError):
+            client.subscribe(topic, "my-sub", consumer_type=ConsumerType.Shared)
 
 if __name__ == "__main__":
     main()

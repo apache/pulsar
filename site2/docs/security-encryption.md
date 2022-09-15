@@ -18,11 +18,11 @@ Pulsar uses a dynamically generated symmetric AES key to encrypt messages(data).
 
 Key is a public and private key pair used for encryption or decryption. The producer key is the public key of the key pair, and the consumer key is the private key of the key pair.
 
-The application configures the producer with the public key. You can use this key to encrypt the AES data key. The encrypted data key is sent as part of message header. Only entities with the private key (in this case the consumer) are able to decrypt the data key which is used to decrypt the message.
+The application configures the producer with the public key. You can use this key to encrypt the AES data key. The encrypted data key is sent as part of the message header. Only entities with the private key (in this case the consumer) can decrypt the data key which is used to decrypt the message.
 
 You can encrypt a message with more than one key. Any one of the keys used for encrypting the message is sufficient to decrypt the message.
 
-Pulsar does not store the encryption key anywhere in the Pulsar service. If you lose or delete the private key, your message is irretrievably lost, and is unrecoverable.
+Pulsar does not store the encryption key anywhere in the Pulsar service. If you lose or delete the private key, your message is irretrievably lost and unrecoverable.
 
 ## Producer
 ![alt text](/assets/pulsar-encryption-producer.jpg "Pulsar Encryption Producer")
@@ -36,22 +36,18 @@ Pulsar does not store the encryption key anywhere in the Pulsar service. If you 
   * ECDSA（for Java clients only)
 
    ```shell
-
    openssl ecparam -name secp521r1 -genkey -param_enc explicit -out test_ecdsa_privkey.pem
    openssl ec -in test_ecdsa_privkey.pem -pubout -outform pem -out test_ecdsa_pubkey.pem
-
    ```
 
   * RSA (for C++, Python and Node.js clients)
 
    ```shell
-
    openssl genrsa -out test_rsa_privkey.pem 2048
    openssl rsa -in test_rsa_privkey.pem -pubout -outform pkcs8 -out test_rsa_pubkey.pem
-
    ```
 
-2. Add the public and private key to the key management and configure your producers to retrieve public keys and consumers clients to retrieve private keys.
+2. Add the public and private keys to the key management and configure your producers to retrieve public keys and consumer clients to retrieve private keys.
 
 3. Implement the `CryptoKeyReader` interface, specifically `CryptoKeyReader.getPublicKey()` for producer and `CryptoKeyReader.getPrivateKey()` for consumer, which Pulsar client invokes to load the key.
 
@@ -66,7 +62,6 @@ Pulsar does not store the encryption key anywhere in the Pulsar service. If you 
 <TabItem value="Java">
 
 ```java
-
 PulsarClient pulsarClient = PulsarClient.builder().serviceUrl("pulsar://localhost:6650").build();
 String topic = "persistent://my-tenant/my-ns/my-topic";
 // RawFileKeyReader is just an example implementation that's not provided by Pulsar
@@ -75,7 +70,7 @@ CryptoKeyReader keyReader = new RawFileKeyReader("test_ecdsa_pubkey.pem", "test_
 Producer<byte[]> producer = pulsarClient.newProducer()
         .topic(topic)
         .cryptoKeyReader(keyReader)
-        .addEncryptionKey(“myappkey”)
+        .addEncryptionKey("myappkey")
         .create();
 
 Consumer<byte[]> consumer = pulsarClient.newConsumer()
@@ -89,14 +84,12 @@ Reader<byte[]> reader = pulsarClient.newReader()
         .startMessageId(MessageId.earliest)
         .cryptoKeyReader(keyReader)
         .create();
-
 ```
 
 </TabItem>
 <TabItem value="C++">
 
 ```cpp
-
 Client client("pulsar://localhost:6650");
 std::string topic = "persistent://my-tenant/my-ns/my-topic";
 // DefaultCryptoKeyReader is a built-in implementation that reads public key and private key from files
@@ -117,14 +110,12 @@ Reader reader;
 ReaderConfiguration readerConf;
 readerConf.setCryptoKeyReader(keyReader);
 client.createReader(topic, MessageId::earliest(), readerConf, reader);
-
 ```
 
 </TabItem>
 <TabItem value="Python">
 
 ```python
-
 from pulsar import Client, CryptoKeyReader
 
 client = Client('pulsar://localhost:6650')
@@ -151,14 +142,12 @@ reader = client.create_reader(
 )
 
 client.close()
-
 ```
 
 </TabItem>
 <TabItem value="Node.js">
 
 ```javascript
-
 const Pulsar = require('pulsar-client');
 
 (async () => {
@@ -207,7 +196,6 @@ await consumer.close();
 await producer.close();
 await client.close();
 })();
-
 ```
 
 </TabItem>
@@ -224,7 +212,6 @@ await client.close();
 <TabItem value="Java">
 
 ```java
-
 class RawFileKeyReader implements CryptoKeyReader {
 
     String publicKeyFile = "";
@@ -259,14 +246,12 @@ class RawFileKeyReader implements CryptoKeyReader {
         return keyInfo;
     }
 }
-
 ```
 
 </TabItem>
 <TabItem value="C++">
 
 ```cpp
-
 class CustomCryptoKeyReader : public CryptoKeyReader {
     public:
     Result getPublicKey(const std::string& keyName, std::map<std::string, std::string>& metadata,
@@ -284,7 +269,6 @@ class CustomCryptoKeyReader : public CryptoKeyReader {
 
 auto keyReader = std::make_shared<CustomCryptoKeyReader>(/* ... */);
 // TODO: create producer, consumer or reader based on keyReader here
-
 ```
 
 Besides, you can use the **default** implementation of `CryptoKeyReader` by specifying the paths of `private key` and `public key`.
@@ -305,21 +289,19 @@ Currently, **customized** `CryptoKeyReader` implementation is not supported in N
 ````
 
 ## Key rotation
-Pulsar generates a new AES data key every 4 hours or after publishing a certain number of messages. A producer fetches the asymmetric public key every 4 hours by calling CryptoKeyReader.getPublicKey() to retrieve the latest version.
+Pulsar generates a new AES data key every 4 hours or after publishing a certain number of messages. A producer fetches the asymmetric public key every 4 hours by calling `CryptoKeyReader.getPublicKey()` to retrieve the latest version.
 
 ## Enable encryption at the producer application
 If you produce messages that are consumed across application boundaries, you need to ensure that consumers in other applications have access to one of the private keys that can decrypt the messages. You can do this in two ways:
 1. The consumer application provides you access to their public key, which you add to your producer keys.
-2. You grant access to one of the private keys from the pairs that producer uses.
+2. You grant access to one of the private keys from the pairs that the producer uses. 
 
-When producers want to encrypt the messages with multiple keys, producers add all such keys to the config. Consumer can decrypt the message as long as the consumer has access to at least one of the keys.
+When producers want to encrypt the messages with multiple keys, producers add all such keys to the config. Consumers can decrypt the message as long as they have access to at least one of the keys.
 
 If you need to encrypt the messages using 2 keys (`myapp.messagekey1` and `myapp.messagekey2`), refer to the following example.
 
 ```java
-
 PulsarClient.newProducer().addEncryptionKey("myapp.messagekey1").addEncryptionKey("myapp.messagekey2");
-
 ```
 
 ## Decrypt encrypted messages at the consumer application
@@ -328,7 +310,7 @@ Consumers require to access one of the private keys to decrypt messages that the
 ## Handle failures
 * Producer/Consumer loses access to the key
   * Producer action fails to indicate the cause of the failure. Application has the option to proceed with sending unencrypted messages in such cases. Call `PulsarClient.newProducer().cryptoFailureAction(ProducerCryptoFailureAction)` to control the producer behavior. The default behavior is to fail the request.
-  * If consumption fails due to decryption failure or missing keys in consumer, the application has the option to consume the encrypted message or discard it. Call `PulsarClient.newConsumer().cryptoFailureAction(ConsumerCryptoFailureAction)` to control the consumer behavior. The default behavior is to fail the request. Application is never able to decrypt the messages if the private key is permanently lost.
+  * If consumption fails due to decryption failure or missing keys in the consumer, the application has the option to consume the encrypted message or discard it. Call `PulsarClient.newConsumer().cryptoFailureAction(ConsumerCryptoFailureAction)` to control the consumer behavior. The default behavior is to fail the request. Application is never able to decrypt the messages if the private key is permanently lost.
 * Batch messaging
   * If decryption fails and the message contains batch messages, client is not able to retrieve individual messages in the batch, hence message consumption fails even if cryptoFailureAction() is set to `ConsumerCryptoFailureAction.CONSUME`.
 * If decryption fails, the message consumption stops and the application notices backlog growth in addition to decryption failure messages in the client log. If the application does not have access to the private key to decrypt the message, the only option is to skip or discard backlogged messages.

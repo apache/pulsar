@@ -163,23 +163,6 @@
           </execution>
         </executions>
       </plugin>
-      <plugin>
-        <groupId>org.gaul</groupId>
-        <artifactId>modernizer-maven-plugin</artifactId>
-        <configuration>
-          <failOnViolations>true</failOnViolations>
-          <javaVersion>8</javaVersion>
-        </configuration>
-        <executions>
-          <execution>
-            <id>modernizer</id>
-            <phase>verify</phase>
-            <goals>
-              <goal>modernizer</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
     </plugins>
   </build>
 </project>

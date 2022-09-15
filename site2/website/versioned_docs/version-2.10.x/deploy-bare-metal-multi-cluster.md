@@ -7,9 +7,9 @@ original_id: deploy-bare-metal-multi-cluster
 
 :::tip
 
-1. You can use single-cluster Pulsar installation in most use cases, such as experimenting with Pulsar or using Pulsar in a startup or in a single team. If you need to run a multi-cluster Pulsar instance, see the [guide](deploy-bare-metal-multi-cluster.md).
-2. If you want to use all built-in [Pulsar IO](io-overview.md) connectors, you need to download `apache-pulsar-io-connectors`package and install `apache-pulsar-io-connectors` under `connectors` directory in the pulsar directory on every broker node or on every function-worker node if you have run a separate cluster of function workers for [Pulsar Functions](functions-overview.md).
-3. If you want to use [Tiered Storage](concepts-tiered-storage.md) feature in your Pulsar deployment, you need to download `apache-pulsar-offloaders`package and install `apache-pulsar-offloaders` under `offloaders` directory in the Pulsar directory on every broker node. For more details of how to configure this feature, you can refer to the [Tiered storage cookbook](cookbooks-tiered-storage.md).
+1. You can use single-cluster Pulsar installation in most use cases, such as experimenting with Pulsar or using Pulsar in a startup or a single team. If you need to run a multi-cluster Pulsar instance, see the [guide](deploy-bare-metal-multi-cluster.md).
+2. If you want to use all built-in [Pulsar IO](io-overview.md) connectors, you need to download `apache-pulsar-io-connectors` package and install `apache-pulsar-io-connectors` under `connectors` directory in the pulsar directory on every broker node or every function-worker node if you have run a separate cluster of function workers for [Pulsar Functions](functions-overview.md).
+3. If you want to use the [Tiered Storage](concepts-tiered-storage.md) feature in your Pulsar deployment, you need to download `apache-pulsar-offloaders` package and install `apache-pulsar-offloaders` under `offloaders` directory in the Pulsar directory on every broker node. For more details on how to configure this feature, you can refer to the [Tiered storage cookbook](cookbooks-tiered-storage.md).
 
 :::
 
@@ -96,7 +96,7 @@ ZooKeeper manages a variety of essential coordination-related and configuration-
 
 You need to stand up one local ZooKeeper cluster per Pulsar cluster for deploying a Pulsar instance. 
 
-To begin, add all ZooKeeper servers to the quorum configuration specified in the [`conf/zookeeper.conf`](reference-configuration.md#zookeeper) file. Add a `server.N` line for each node in the cluster to the configuration, where `N` is the number of the ZooKeeper node. The following is an example for a three-node cluster:
+To begin, add all ZooKeeper servers to the quorum configuration specified in the [`conf/zookeeper.conf`](reference-configuration.md#zookeeper) file. Add a `server.N` line for each node in the cluster to the configuration, where `N` is the number of the ZooKeeper node. The following is an example of a three-node cluster:
 
 ```properties
 
@@ -172,11 +172,11 @@ zk[1-3].${CLUSTER}.example.com
 
 ```
 
-In this scenario if you want to pick the quorum participants from few clusters and let all the others be ZK observers. For example, to form a 7 servers quorum, you can pick 3 servers from `us-west`, 2 from `us-central` and 2 from `us-east`.
+In this scenario if you want to pick the quorum participants from a few clusters and let all the others be ZK observers. For example, to form a 7 servers quorum, you can pick 3 servers from `us-west`, 2 from `us-central` and 2 from `us-east`.
 
-This method guarantees that writes to configuration store is possible even if one of these regions is unreachable.
+This method guarantees that writing to the configuration store is possible even if one of these regions is unreachable.
 
-The ZK configuration in all the servers looks like:
+The ZK configuration in all the servers looks like this:
 
 ```properties
 
@@ -297,7 +297,7 @@ Message entries written to bookies are always synced to disk before returning an
 designed to use multiple devices:
 
 * A **journal** to ensure durability. For sequential writes, having fast [fsync](https://linux.die.net/man/2/fsync) operations on bookie hosts is critical. Typically, small and fast [solid-state drives](https://en.wikipedia.org/wiki/Solid-state_drive) (SSDs) should suffice, or [hard disk drives](https://en.wikipedia.org/wiki/Hard_disk_drive) (HDDs) with a [RAID](https://en.wikipedia.org/wiki/RAID) controller and a battery-backed write cache. Both solutions can reach fsync latency of ~0.4 ms.
-* A **ledger storage device** is where data is stored until all consumers acknowledge the message. Writes happen in the background, so write I/O is not a big concern. Reads happen sequentially most of the time and the backlog is drained only in case of consumer drain. To store large amounts of data, a typical configuration involves multiple HDDs with a RAID controller.
+* A **ledger storage device** is where data is stored until all consumers acknowledge the message. Writes happen in the background, so writing I/O is not a big concern. Reads happen sequentially most of the time and the backlog is drained only in case of consumer drain. To store large amounts of data, a typical configuration involves multiple HDDs with a RAID controller.
 
 
 

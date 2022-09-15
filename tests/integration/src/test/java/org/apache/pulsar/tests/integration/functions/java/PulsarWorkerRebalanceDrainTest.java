@@ -45,7 +45,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
 @Slf4j
-public class PulsarWorkerRebalanceDrainTest extends PulsarFunctionsTest {
+public abstract class PulsarWorkerRebalanceDrainTest extends PulsarFunctionsTest {
 
     final String UrlProtocolPrefix = "http://";
     final String WorkerRebalanceUrlSuffix = "/admin/v2/worker/rebalance";

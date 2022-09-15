@@ -25,21 +25,21 @@ You can install the [`pulsar-client`](https://pypi.python.org/pypi/pulsar-client
 To install the `pulsar-client` library as a pre-built package using the [pip](https://pip.pypa.io/en/stable/) package manager:
 
 ```shell
-$ pip install pulsar-client==@pulsar:version_number@
+pip install pulsar-client==@pulsar:version_number@
 ```
 
 ### Optional dependencies
-If you install the client libraries on Linux to support services like Pulsar functions or Avro serialization, you can install optional components alongside the  `pulsar-client` library.
+If you install the client libraries on Linux to support services like Pulsar functions or Avro serialization, you can install optional components alongside the `pulsar-client` library.
 
 ```shell
 # avro serialization
-$ pip install 'pulsar-client[avro]==@pulsar:version_number@'
+pip install 'pulsar-client[avro]==@pulsar:version_number@'
 
 # functions runtime
-$ pip install 'pulsar-client[functions]==@pulsar:version_number@'
+pip install 'pulsar-client[functions]==@pulsar:version_number@'
 
 # all optional components
-$ pip install 'pulsar-client[all]==@pulsar:version_number@'
+pip install 'pulsar-client[all]==@pulsar:version_number@'
 ```
 
 Installation via PyPi is available for the following Python versions:
@@ -57,9 +57,9 @@ To install the `pulsar-client` library by building from source, follow [instruct
 To install the built Python bindings:
 
 ```shell
-$ git clone https://github.com/apache/pulsar
-$ cd pulsar/pulsar-client-cpp/python
-$ sudo pip install .
+git clone https://github.com/apache/pulsar
+cd pulsar/pulsar-client-cpp/python
+sudo python setup.py install
 ```
 
 ## Connection URLs
@@ -133,7 +133,7 @@ while True:
 client.close()
 ```
 
-This example shows how to configure negative acknowledgement.
+This example shows how to configure negative acknowledgment.
 
 ```python
 from pulsar import Client, schema
@@ -180,7 +180,7 @@ while True:
 
 In addition to subscribing a consumer to a single Pulsar topic, you can also subscribe to multiple topics simultaneously. To use multi-topic subscriptions, you can supply a regular expression (regex) or a `List` of topics. If you select topics via regex, all topics must be within the same Pulsar namespace.
 
-The following is an example: 
+The following is an example:
 
 ```python
 import re
@@ -212,7 +212,7 @@ client = pulsar.Client('pulsar://localhost:6650', listener_name='external')
 
 ### Supported schema types
 
-You can use different builtin schema types in Pulsar. All the definitions are in the `pulsar.schema` package.
+You can use different built-in schema types in Pulsar. All the definitions are in the `pulsar.schema` package.
 
 | Schema | Notes |
 | ------ | ----- |
@@ -225,10 +225,7 @@ You can use different builtin schema types in Pulsar. All the definitions are in
 
 The schema definition is done through a class that inherits from `pulsar.schema.Record`.
 
-This class has a number of fields which can be of either
-`pulsar.schema.Field` type or another nested `Record`. All the
-fields are specified in the `pulsar.schema` package. The fields
-are matching the AVRO fields types.
+This class has a number of fields that can be of either `pulsar.schema.Field` type or another nested `Record`. All the fields are specified in the `pulsar.schema` package. The fields are matching the AVRO field types.
 
 | Field Type | Python Type | Notes |
 | ---------- | ----------- | ----- |
@@ -250,7 +247,7 @@ When adding a field, you can use these parameters in the constructor.
 
 | Argument   | Default | Notes |
 | ---------- | --------| ----- |
-| `default`  | `None`  | Set a default value for the field. Eg: `a = Integer(default=5)` |
+| `default`  | `None`  | Set a default value for the field, such as `a = Integer(default=5)`. |
 | `required` | `False` | Mark the field as "required". It is set in the schema accordingly. |
 
 #### Schema definition examples
@@ -295,7 +292,7 @@ class Example(Record):
 
 ##### Set namespace for Avro schema
 
-Set the namespace for Avro Record schema using the special field `_avro_namespace`.
+Set the namespace for the Avro Record schema using the special field `_avro_namespace`.
 
 ```python
 class NamespaceDemo(Record):
@@ -309,7 +306,7 @@ The schema definition is like this.
 ```json
 {
   "name": "NamespaceDemo", "namespace": "xxx.xxx.xxx", "type": "record", "fields": [
-    {"name": "x", "type": ["null", "string"]}, 
+    {"name": "x", "type": ["null", "string"]},
     {"name": "y", "type": ["null", "int"]}
   ]
 }
@@ -346,7 +343,7 @@ while True:
 ```
 
 ````mdx-code-block
-<Tabs 
+<Tabs
   defaultValue="BytesSchema"
   values={[{"label":"BytesSchema","value":"BytesSchema"},{"label":"StringSchema","value":"StringSchema"},{"label":"AvroSchema","value":"AvroSchema"},{"label":"JsonSchema","value":"JsonSchema"}]}>
 
@@ -400,7 +397,7 @@ You can declare an `AvroSchema` using one of the following methods.
 
 You can declare an `AvroSchema` by passing a class that inherits
 from `pulsar.schema.Record` and defines the fields as
-class variables. 
+class variables.
 
 **Example**
 
@@ -429,7 +426,7 @@ You can declare an `AvroSchema` using JSON. In this case, Avro schemas are defin
 
 **Example**
 
-Below is an `AvroSchema` defined using a JSON file (_company.avsc_). 
+Below is an `AvroSchema` defined using a JSON file (_company.avsc_).
 
 ```json
 {
@@ -522,7 +519,7 @@ consumer = client.subscribe(
 
 ### Configuration
 
-To use the end-to-end encryption feature in the Python client, you need to configure `publicKeyPath` for producer and `privateKeyPath` for consumer.
+To use the end-to-end encryption feature in the Python client, you need to configure `publicKeyPath` for producers and `privateKeyPath` for consumers.
 
 ```
 publicKeyPath: "./public.pem"
@@ -535,7 +532,7 @@ This section provides step-by-step instructions on how to use the end-to-end enc
 
 **Prerequisite**
 
-- Pulsar Python client 2.7.1 or later 
+- Pulsar Python client 2.7.1 or later
 
 **Step**
 

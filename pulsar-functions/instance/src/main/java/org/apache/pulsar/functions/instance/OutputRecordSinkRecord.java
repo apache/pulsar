@@ -35,10 +35,7 @@ public class OutputRecordSinkRecord<T> extends AbstractSinkRecord<T> {
     private final Schema<T> schema;
 
     OutputRecordSinkRecord(Record<T> sourceRecord, Record<T> sinkRecord) {
-        super(sourceRecord);
-        this.sinkRecord = sinkRecord;
-        this.value = sinkRecord.getValue();
-        this.schema = getRecordSchema(sinkRecord);
+        this(sourceRecord, sinkRecord, sinkRecord.getValue(), getRecordSchema(sinkRecord));
     }
 
     OutputRecordSinkRecord(Record<T> sourceRecord, Record<T> sinkRecord, T value, Schema<T> schema) {
@@ -55,7 +52,7 @@ public class OutputRecordSinkRecord<T> extends AbstractSinkRecord<T> {
 
     @Override
     public T getValue() {
-        return sinkRecord.getValue();
+        return value;
     }
 
     @Override
@@ -85,7 +82,7 @@ public class OutputRecordSinkRecord<T> extends AbstractSinkRecord<T> {
 
     @Override
     public Schema<T> getSchema() {
-        return getRecordSchema(sinkRecord);
+        return schema;
     }
 
     @Override

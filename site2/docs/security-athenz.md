@@ -46,7 +46,6 @@ For more specific steps involving UI, refer to [Example Service Access Control S
 In the `conf/broker.conf` configuration file in your Pulsar installation, you need to provide the class name of the Athenz authentication provider as well as a comma-separated list of provider domain names.
 
 ```properties
-
 # Add the Athenz auth provider
 authenticationEnabled=true
 authorizationEnabled=true
@@ -61,7 +60,6 @@ tlsKeyFilePath=/path/to/broker-key.pem
 # Authentication settings of the broker itself. Used when the broker connects to other brokers, either in same or other clusters
 brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.AuthenticationAthenz
 brokerClientAuthenticationParameters={"tenantDomain":"shopping","tenantService":"some_app","providerDomain":"pulsar","privateKey":"file:///path/to/private.pem","keyId":"v1"}
-
 ```
 
 > A full listing of parameters is available in the `conf/broker.conf` file, you can also find the default
@@ -80,7 +78,6 @@ For more information on Pulsar client authentication using Athenz, see the follo
 You need to add the following authentication parameters to the `conf/client.conf` config file to use Athenz with CLI tools of Pulsar:
 
 ```properties
-
 # URL for the broker
 serviceUrl=https://broker.example.com:8443/
 
@@ -92,6 +89,5 @@ authParams={"tenantDomain":"shopping","tenantService":"some_app","providerDomain
 useTls=true
 tlsAllowInsecureConnection=false
 tlsTrustCertsFilePath=/path/to/cacert.pem
-
 ```
 

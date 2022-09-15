@@ -22,9 +22,7 @@ A user typically gets a token string from the administrator (or some automated s
 The compact representation of a signed JWT is a string that looks like the following:
 
 ```
-
 eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL62SY
-
 ```
 
 Application specifies the token when you create the client instance. An alternative is to pass a "token supplier" (a function that returns the token when the client library needs one).
@@ -41,21 +39,17 @@ Always use TLS transport encryption when you connect to the Pulsar service, beca
 
 You need to add the following parameters to that file to use the token authentication with CLI tools of Pulsar:
 
-```properties
-
+```conf
 webServiceUrl=http://broker.example.com:8080/
 brokerServiceUrl=pulsar://broker.example.com:6650/
 authPlugin=org.apache.pulsar.client.impl.auth.AuthenticationToken
 authParams=token:eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL62SY
-
 ```
 
 The token string can also be read from a file, for example:
 
-```
-
+```conf
 authParams=file:///path/to/token/file
-
 ```
 
 ### Pulsar client
@@ -69,19 +63,16 @@ You can use tokens to authenticate the following Pulsar clients.
 <TabItem value="Java">
 
 ```java
-
 PulsarClient client = PulsarClient.builder()
     .serviceUrl("pulsar://broker.example.com:6650/")
     .authentication(
         AuthenticationFactory.token("eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL62SY")）
     .build();
-
 ```
 
 Similarly, you can also pass a `Supplier`:
 
 ```java
-
 PulsarClient client = PulsarClient.builder()
     .serviceUrl("pulsar://broker.example.com:6650/")
     .authentication(
@@ -90,50 +81,42 @@ PulsarClient client = PulsarClient.builder()
             return readToken();
         }))
     .build();
-
 ```
 
 </TabItem>
 <TabItem value="Python">
 
 ```python
-
 from pulsar import Client, AuthenticationToken
 
 client = Client('pulsar://broker.example.com:6650/'
                 authentication=AuthenticationToken('eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL62SY'))
-
 ```
 
 Alternatively, you can also pass a `Supplier`:
 
 ```python
-
 def read_token():
     with open('/path/to/token.txt') as tf:
         return tf.read().strip()
 
 client = Client('pulsar://broker.example.com:6650/'
                 authentication=AuthenticationToken(read_token))
-
 ```
 
 </TabItem>
 <TabItem value="Go">
 
 ```go
-
 client, err := NewClient(ClientOptions{
 	URL:            "pulsar://localhost:6650",
 	Authentication: NewAuthenticationToken("eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL62SY"),
 })
-
 ```
 
 Similarly, you can also pass a `Supplier`:
 
 ```go
-
 client, err := NewClient(ClientOptions{
 	URL:            "pulsar://localhost:6650",
 	Authentication: NewAuthenticationTokenSupplier(func () string {
@@ -141,32 +124,27 @@ client, err := NewClient(ClientOptions{
 		return readToken()
 	}),
 })
-
 ```
 
 </TabItem>
 <TabItem value="C++">
 
 ```cpp
-
 #include <pulsar/Client.h>
 
 pulsar::ClientConfiguration config;
 config.setAuth(pulsar::AuthToken::createWithToken("eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL62SY"));
 
 pulsar::Client client("pulsar://broker.example.com:6650/", config);
-
 ```
 
 </TabItem>
 <TabItem value="C#">
 
 ```csharp
-
 var client = PulsarClient.Builder()
                          .AuthenticateUsingToken("eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL62SY")
                          .Build();
-
 ```
 
 </TabItem>
@@ -176,7 +154,7 @@ var client = PulsarClient.Builder()
 
 ## Enable token authentication
 
-JWT supports two different kinds of keys in order to generate and validate the tokens:
+JWT supports two different kinds of keys to generate and validate the tokens:
 
  * Symmetric:
     - You can use a single ***Secret*** key to generate and validate tokens.
@@ -186,22 +164,18 @@ JWT supports two different kinds of keys in order to generate and validate the t
 
 ### Create a secret key
 
-When you use a secret key, the administrator creates the key and uses the key to generate the client tokens. You can also configure this key to brokers in order to validate the clients.
+When you use a secret key, the administrator creates the key and uses the key to generate the client tokens. You can also configure this key to brokers to validate the clients.
 
 The output file is generated in the root of your Pulsar installation directory. You can also provide an absolute path for the output file using the command below.
 
 ```shell
-
-$ bin/pulsar tokens create-secret-key --output my-secret.key
-
+bin/pulsar tokens create-secret-key --output my-secret.key
 ```
 
 Enter this command to generate a base64 encoded private key.
 
 ```shell
-
-$ bin/pulsar tokens create-secret-key --output  /opt/my-secret.key --base64
-
+bin/pulsar tokens create-secret-key --output  /opt/my-secret.key --base64
 ```
 
 ### Create a key pair
@@ -211,25 +185,21 @@ With Public and Private keys, you need to create a pair of keys. Pulsar supports
 The output file is generated in the root of your Pulsar installation directory. You can also provide an absolute path for the output file using the command below.
 
 ```shell
-
-$ bin/pulsar tokens create-key-pair --output-private-key my-private.key --output-public-key my-public.key
-
+bin/pulsar tokens create-key-pair --output-private-key my-private.key --output-public-key my-public.key
 ```
 
- * Store `my-private.key` in a safe location and only administrator can use `my-private.key` to generate new tokens.
- * `my-public.key` is distributed to all Pulsar brokers. You can publicly share this file without any security concern.
+ * Store `my-private.key` in a safe location and only administrators can use `my-private.key` to generate new tokens.
+ * `my-public.key` is distributed to all Pulsar brokers. You can publicly share this file without any security concerns.
 
 ### Generate tokens
 
-A token is a credential associated with a user. The association is done through the "principal" or "role". In the case of JWT tokens, this field is typically referred as **subject**, though they are exactly the same concept.
+A token is a credential associated with a user. The association is done through the "principal" or "role". In the case of JWT tokens, this field is typically referred as **subject**, though they are the same concept.
 
-Then, you need to use this command to require the generated token to have a **subject** field set.
+Then, you need to use this command to require the generated token to have a **subject** fieldset.
 
 ```shell
-
-$ bin/pulsar tokens create --secret-key file:///path/to/my-secret.key \
+bin/pulsar tokens create --secret-key file:///path/to/my-secret.key \
             --subject test-user
-
 ```
 
 This command prints the token string on stdout.
@@ -237,20 +207,16 @@ This command prints the token string on stdout.
 Similarly, you can create a token by passing the "private" key using the command below:
 
 ```shell
-
-$ bin/pulsar tokens create --private-key file:///path/to/my-private.key \
+bin/pulsar tokens create --private-key file:///path/to/my-private.key \
             --subject test-user
-
 ```
 
 Finally, you can enter the following command to create a token with a pre-defined TTL. And then the token is automatically invalidated.
 
 ```shell
-
-$ bin/pulsar tokens create --secret-key file:///path/to/my-secret.key \
+bin/pulsar tokens create --secret-key file:///path/to/my-secret.key \
             --subject test-user \
             --expiry-time 1y
-
 ```
 
 :::tip
@@ -264,7 +230,6 @@ The token itself does not have any permission associated. The authorization engi
 To configure brokers to authenticate clients, add the following parameters to the `conf/broker.conf` or `conf/standalone.conf` file.
 
 ```properties
-
 # Configuration to enable authentication
 authenticationEnabled=true
 authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderToken
@@ -289,7 +254,6 @@ tokenSecretKey=file:///path/to/secret.key
 
 # If using public/private (Note: key files must be DER-encoded)
 # tokenPublicKey=file:///path/to/public.key
-
 ```
 
 :::note
@@ -303,7 +267,6 @@ Equivalent to `brokerClientAuthenticationParameters`, you need to configure `aut
 To configure proxies to authenticate clients, add the following parameters to the `conf/proxy.conf` file.
 
 ```properties
-
 # For clients connecting to the proxy
 authenticationEnabled=true
 authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderToken
@@ -316,7 +279,6 @@ brokerClientAuthenticationParameters={"token":"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0
 # brokerClientAuthenticationParameters={"token":"your-token-string"}
 # brokerClientAuthenticationParameters=token:your-token-string
 # brokerClientAuthenticationParameters=file:///path/to/token
-
 ```
 
 The proxy uses its own token when connecting to brokers. You need to configure the role token for this key pair in the `proxyRoles` of the brokers. For more details, see [authorization](security-authorization.md).

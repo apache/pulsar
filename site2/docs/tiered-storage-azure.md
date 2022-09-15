@@ -14,58 +14,10 @@ Follow the steps below to install the Azure BlobStore offloader.
 
 - Pulsar: 2.6.2 or later versions
 
-### Step
+### Steps
 
-This example uses Pulsar 2.6.2.
-
-1. Download the Pulsar tarball using one of the following ways:
-
-   * Download from the [Apache mirror](https://archive.apache.org/dist/pulsar/pulsar-2.6.2/apache-pulsar-2.6.2-bin.tar.gz)
-
-   * Download from the Pulsar [downloads page](/download)
-
-   * Use [wget](https://www.gnu.org/software/wget):
-
-    ```shell
-
-    wget https://archive.apache.org/dist/pulsar/pulsar-2.6.2/apache-pulsar-2.6.2-bin.tar.gz
-
-    ```
-
-2. Download and untar the Pulsar offloaders package.
-
-   ```bash
-
-   wget https://downloads.apache.org/pulsar/pulsar-2.6.2/apache-pulsar-offloaders-2.6.2-bin.tar.gz
-   tar xvfz apache-pulsar-offloaders-2.6.2-bin.tar.gz
-
-   ```
-
-3. Copy the Pulsar offloaders as `offloaders` in the Pulsar directory.
-
-   ```
-
-   mv apache-pulsar-offloaders-2.6.2/offloaders apache-pulsar-2.6.2/offloaders
-
-   ls offloaders
-
-   ```
-
-   **Output**
-
-   ```
-
-   tiered-storage-file-system-2.6.2.nar
-   tiered-storage-jcloud-2.6.2.nar
-
-   ```
-
-   :::note
-
-   * If you are running Pulsar in a bare metal cluster, make sure that `offloaders` tarball is unzipped in every broker's Pulsar directory.
-   * If you are running Pulsar in Docker or deploying Pulsar using a Docker image (such as K8s and DCOS), you can use the `apachepulsar/pulsar-all` image instead of the `apachepulsar/pulsar` image. `apachepulsar/pulsar-all` image has already bundled tiered storage offloaders.
-
-   :::
+1. [Download the Pulsar tarball](getting-started-standalone.md#step-1-download-pulsar-distribution).
+2. Download and untar the Pulsar offloaders package, then copy the Pulsar offloaders as `offloaders` in the Pulsar directory. See [Install tiered storage offloaders](tiered-storage-overview.md#how-to-install-tiered-storage-offloaders).
 
 ## Configuration
 
@@ -106,10 +58,8 @@ A bucket is a basic container that holds your data. Everything you store in Azur
 
 This example names the bucket as _pulsar-topic-offload_.
 
-```properties
-
+```conf
 managedLedgerOffloadBucket=pulsar-topic-offload
-
 ```
 
 #### Authentication (required)
@@ -121,10 +71,8 @@ To be able to access Azure BlobStore, you need to authenticate with Azure BlobSt
   "export" is important so that the variables are made available in the environment of spawned processes.
 
   ```bash
-
   export AZURE_STORAGE_ACCOUNT=ABC123456789
   export AZURE_STORAGE_ACCESS_KEY=ded7db27a4558e2ea8bbf0bf37ae0e8521618f366c
-
   ```
 
 #### Size of block read/write
@@ -157,9 +105,7 @@ The offload configurations in `broker.conf` and `standalone.conf` are used for t
 This example sets the Azure BlobStore offloader threshold size to 10 MB using pulsar-admin.
 
 ```bash
-
 bin/pulsar-admin namespaces set-offload-threshold --size 10M my-tenant/my-namespace
-
 ```
 
 :::tip
@@ -183,17 +129,13 @@ For individual topics, you can trigger Azure BlobStore offloader manually using 
 - This example triggers the Azure BlobStore offloader to run manually using pulsar-admin.
 
   ```bash
-
   bin/pulsar-admin topics offload --size-threshold 10M my-tenant/my-namespace/topic1
-
   ```
 
   **Output**
 
   ```bash
-
   Offload triggered for persistent://my-tenant/my-namespace/topic1 for messages before 2:0:-1
-
   ```
 
   :::tip
@@ -205,52 +147,40 @@ For individual topics, you can trigger Azure BlobStore offloader manually using 
 - This example checks the Azure BlobStore offloader status using pulsar-admin.
 
   ```bash
-
   bin/pulsar-admin topics offload-status persistent://my-tenant/my-namespace/topic1
-
   ```
 
   **Output**
 
   ```bash
-
   Offload is currently running
-
   ```
 
   To wait for the Azure BlobStore offloader to complete the job, add the `-w` flag.
 
   ```bash
-
   bin/pulsar-admin topics offload-status -w persistent://my-tenant/my-namespace/topic1
-
   ```
 
   **Output**
 
   ```
-
   Offload was a success
-
   ```
 
   If there is an error in offloading, the error is propagated to the `pulsar-admin topics offload-status` command.
 
   ```bash
-
   bin/pulsar-admin topics offload-status persistent://my-tenant/my-namespace/topic1
-
   ```
 
   **Output**
 
   ```
-
   Error in offload
   null
 
   Reason: Error offloading: org.apache.bookkeeper.mledger.ManagedLedgerException:
-
   ```
 
   :::tip
