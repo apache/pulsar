@@ -199,8 +199,8 @@ The following retention policies are available:
 
 Policy | Action
 :------|:------
-`producer_request_hold` | The broker will hold and not persist produce request payload
-`producer_exception` | The broker will disconnect from the client by throwing an exception
+`producer_request_hold` | The producer holds the message and retris until client configuration `sendTimeoutMs` is exceeded.
+`producer_exception` | The producer throws an exception when trying to send a message
 `consumer_backlog_eviction` | The broker will begin discarding backlog messages
 
 

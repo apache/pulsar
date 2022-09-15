@@ -23,8 +23,12 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
-import com.google.common.collect.Maps;
 import io.netty.buffer.ByteBuf;
+import java.util.HashMap;
+import java.util.Map;
+import javax.servlet.FilterChain;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.Consumer;
@@ -38,10 +42,6 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.intercept.InterceptException;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.testng.annotations.Test;
-import javax.servlet.FilterChain;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import java.util.Map;
 
 /**
  * Unit test {@link BrokerInterceptorWithClassLoader}.
@@ -164,11 +164,11 @@ public class BrokerInterceptorWithClassLoaderTest {
         assertEquals(Thread.currentThread().getContextClassLoader(), curClassLoader);
         // test consumerCreated
         brokerInterceptorWithClassLoader
-                .consumerCreated(mock(ServerCnx.class), mock(Consumer.class), Maps.newHashMap());
+                .consumerCreated(mock(ServerCnx.class), mock(Consumer.class), new HashMap<>());
         assertEquals(Thread.currentThread().getContextClassLoader(), curClassLoader);
         // test producerCreated
         brokerInterceptorWithClassLoader
-                .producerCreated(mock(ServerCnx.class), mock(Producer.class), Maps.newHashMap());
+                .producerCreated(mock(ServerCnx.class), mock(Producer.class), new HashMap<>());
         assertEquals(Thread.currentThread().getContextClassLoader(), curClassLoader);
         // test onConnectionCreated
         brokerInterceptorWithClassLoader

@@ -36,8 +36,8 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.SneakyThrows;
+import org.apache.pulsar.admin.cli.PulsarAdminSupplier;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.cli.CmdProduce;
 import org.jline.reader.EndOfFileException;
@@ -45,7 +45,6 @@ import org.jline.reader.UserInterruptException;
 import org.jline.reader.impl.LineReaderImpl;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
-import org.powermock.reflect.Whitebox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.BeforeMethod;
@@ -55,7 +54,6 @@ public class PulsarShellTest {
 
     private static final Logger log = LoggerFactory.getLogger(PulsarShellTest.class);
 
-    private PulsarAdminBuilder pulsarAdminBuilder;
     private PulsarAdmin pulsarAdmin;
 
     private Topics topics;
@@ -89,32 +87,31 @@ public class PulsarShellTest {
 
     private static class TestPulsarShell extends PulsarShell {
 
-        private final PulsarAdminBuilder pulsarAdminBuilder;
+        private final PulsarAdmin pulsarAdmin;
         AtomicReference<CmdProduce> cmdProduceHolder = new AtomicReference<>();
         Integer exitCode;
 
-        public TestPulsarShell(String[] args, Properties props, PulsarAdminBuilder pulsarAdminBuilder) throws IOException {
+        public TestPulsarShell(String[] args, Properties props, PulsarAdmin pulsarAdmin) throws IOException {
             super(args, props);
-            this.pulsarAdminBuilder = pulsarAdminBuilder;
+            this.pulsarAdmin = pulsarAdmin;
         }
 
         @Override
         protected AdminShell createAdminShell(Properties properties) throws Exception {
-            return new AdminShell(properties) {
-                @Override
-                protected PulsarAdminBuilder createAdminBuilder(Properties properties) {
-                    return pulsarAdminBuilder;
-                }
-            };
+            final AdminShell adminShell = new AdminShell(properties);
+            final PulsarAdminSupplier supplier = mock(PulsarAdminSupplier.class);
+            when(supplier.get()).thenReturn(pulsarAdmin);
+            adminShell.setPulsarAdminSupplier(supplier);
+            return adminShell;
         }
 
         @Override
         protected ClientShell createClientShell(Properties properties) {
-            final ClientShell clientShell = new ClientShell(properties);
             final CmdProduce cmdProduce = mock(CmdProduce.class);
             cmdProduceHolder.set(cmdProduce);
-            Whitebox.setInternalState(clientShell, "produceCommand", cmdProduceHolder.get());
-            return clientShell;
+            return new ClientShell(properties) {{
+                this.produceCommand = cmdProduce;
+            }};
         }
 
         @Override
@@ -127,7 +124,7 @@ public class PulsarShellTest {
     }
 
     private static class SystemExitCalledException extends RuntimeException {
-        private int code;
+        private final int code;
 
         public SystemExitCalledException(int code) {
             this.code = code;
@@ -136,16 +133,14 @@ public class PulsarShellTest {
 
     @BeforeMethod(alwaysRun = true)
     public void setup() throws Exception {
-        pulsarAdminBuilder = mock(PulsarAdminBuilder.class);
         pulsarAdmin = mock(PulsarAdmin.class);
-        when(pulsarAdminBuilder.build()).thenReturn(pulsarAdmin);
         topics = mock(Topics.class);
         when(pulsarAdmin.topics()).thenReturn(topics);
     }
 
 
     @Test
-    public void testInteractiveMode() throws Exception{
+    public void testInteractiveMode() throws Exception {
         Terminal terminal = TerminalBuilder.builder().build();
         final MockLineReader linereader = new MockLineReader(terminal);
 
@@ -154,7 +149,7 @@ public class PulsarShellTest {
         linereader.addCmd("admin topics create my-topic --metadata a=b ");
         linereader.addCmd("client produce -m msg my-topic");
         linereader.addCmd("quit");
-        final TestPulsarShell testPulsarShell = new TestPulsarShell(new String[]{}, props, pulsarAdminBuilder);
+        final TestPulsarShell testPulsarShell = new TestPulsarShell(new String[]{}, props, pulsarAdmin);
         testPulsarShell.run((a) -> linereader, (a) -> terminal);
         verify(topics).createNonPartitionedTopic(eq("persistent://public/default/my-topic"), any(Map.class));
         verify(testPulsarShell.cmdProduceHolder.get()).run();
@@ -163,7 +158,7 @@ public class PulsarShellTest {
     }
 
     @Test
-    public void testFileMode() throws Exception{
+    public void testFileMode() throws Exception {
         Terminal terminal = TerminalBuilder.builder().build();
         final MockLineReader linereader = new MockLineReader(terminal);
         final Properties props = new Properties();
@@ -173,7 +168,7 @@ public class PulsarShellTest {
                 .getContextClassLoader().getResource("test-shell-file").getFile();
 
         final TestPulsarShell testPulsarShell = new TestPulsarShell(new String[]{"-f", shellFile},
-                props, pulsarAdminBuilder);
+                props, pulsarAdmin);
         testPulsarShell.run((a) -> linereader, (a) -> terminal);
         verify(topics).createNonPartitionedTopic(eq("persistent://public/default/my-topic"), any(Map.class));
         verify(testPulsarShell.cmdProduceHolder.get()).run();
@@ -190,11 +185,11 @@ public class PulsarShellTest {
                 .getContextClassLoader().getResource("test-shell-file-error").getFile();
 
         final TestPulsarShell testPulsarShell = new TestPulsarShell(new String[]{"-f", shellFile, "--fail-on-error"},
-                props, pulsarAdminBuilder);
+                props, pulsarAdmin);
         try {
             testPulsarShell.run((a) -> linereader, (a) -> terminal);
             fail();
-        }  catch (SystemExitCalledException ex) {
+        } catch (SystemExitCalledException ex) {
             assertEquals(ex.code, 1);
         }
 

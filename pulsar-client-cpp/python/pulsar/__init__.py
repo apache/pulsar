@@ -344,6 +344,23 @@ class AuthenticationOauth2(Authentication):
         _check_type(str, auth_params_string, 'auth_params_string')
         self.auth = _pulsar.AuthenticationOauth2(auth_params_string)
 
+class AuthenticationBasic(Authentication):
+    """
+    Basic Authentication implementation
+    """
+    def __init__(self, username, password):
+        """
+        Create the Basic authentication provider instance.
+
+        **Args**
+
+        * `username`: Used to authentication as username
+        * `password`: Used to authentication as password
+        """
+        _check_type(str, username, 'username')
+        _check_type(str, password, 'password')
+        self.auth = _pulsar.AuthenticationBasic(username, password)
+
 class Client:
     """
     The Pulsar client. A single client instance can be used to create producers
