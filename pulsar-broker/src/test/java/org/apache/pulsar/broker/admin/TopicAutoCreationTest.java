@@ -19,18 +19,34 @@
 
 package org.apache.pulsar.broker.admin;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.ClientBuilder;
+import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.LookupService;
+import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.powermock.reflect.Whitebox;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-admin")
+@Slf4j
 public class TopicAutoCreationTest extends ProducerConsumerBase {
 
     @Override
@@ -41,6 +57,11 @@ public class TopicAutoCreationTest extends ProducerConsumerBase {
         conf.setDefaultNumPartitions(3);
         super.internalSetup();
         super.producerBaseSetup();
+    }
+
+    @Override
+    protected void customizeNewPulsarClientBuilder(ClientBuilder clientBuilder) {
+        clientBuilder.operationTimeout(2, TimeUnit.SECONDS);
     }
 
     @Override
@@ -84,5 +105,83 @@ public class TopicAutoCreationTest extends ProducerConsumerBase {
         assertEquals(topics.size(), 1);
 
         producer.close();
+    }
+
+
+    @Test
+    public void testPartitionedTopicAutoCreationForbiddenDuringNamespaceDeletion()
+            throws Exception {
+        final String namespaceName = "my-property/my-ns";
+        final String topic = "persistent://" + namespaceName + "/test-partitioned-topi-auto-creation-"
+                + UUID.randomUUID().toString();
+
+        pulsar.getPulsarResources().getNamespaceResources()
+                .setPolicies(NamespaceName.get(namespaceName), old -> {
+            old.deleted = true;
+            return old;
+        });
+
+
+        LookupService original = Whitebox.getInternalState(pulsarClient, "lookup");
+        try {
+
+            // we want to skip the "lookup" phase, because it is blocked by the HTTP API
+            LookupService mockLookup = mock(LookupService.class);
+            Whitebox.setInternalState(pulsarClient, "lookup", mockLookup);
+            when(mockLookup.getPartitionedTopicMetadata(any())).thenAnswer(i -> {
+                return CompletableFuture.completedFuture(new PartitionedTopicMetadata(0));
+            });
+            when(mockLookup.getBroker(any())).thenAnswer(i -> {
+                InetSocketAddress brokerAddress =
+                        new InetSocketAddress(pulsar.getAdvertisedAddress(), pulsar.getBrokerListenPort().get());
+                return CompletableFuture.completedFuture(Pair.of(brokerAddress, brokerAddress));
+            });
+
+            // Creating a producer and creating a Consumer may trigger automatic topic
+            // creation, let's try to create a Producer and a Consumer
+            try (Producer<byte[]> producer = pulsarClient.newProducer()
+                    .sendTimeout(1, TimeUnit.SECONDS)
+                    .topic(topic)
+                    .create();) {
+            } catch (PulsarClientException.LookupException expected) {
+                String msg = "Namespace bundle for topic (%s) not served by this instance";
+                log.info("Expected error", expected);
+                assertTrue(expected.getMessage().contains(String.format(msg, topic)));
+            }
+
+            try (Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                    .topic(topic)
+                    .subscriptionName("test")
+                    .subscribe();) {
+            } catch (PulsarClientException.LookupException expected) {
+                String msg = "Namespace bundle for topic (%s) not served by this instance";
+                log.info("Expected error", expected);
+                assertTrue(expected.getMessage().contains(String.format(msg, topic)));
+            }
+
+
+            // verify that the topic does not exist
+            pulsar.getPulsarResources().getNamespaceResources()
+                    .setPolicies(NamespaceName.get(namespaceName), old -> {
+                        old.deleted = false;
+                        return old;
+                    });
+
+            admin.topics().getList(namespaceName).isEmpty();
+
+            // create now the topic using auto creation
+            Whitebox.setInternalState(pulsarClient, "lookup", original);
+
+            try (Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                    .topic(topic)
+                    .subscriptionName("test")
+                    .subscribe();) {
+            }
+
+            admin.topics().getList(namespaceName).contains(topic);
+        } finally {
+            Whitebox.setInternalState(pulsarClient, "lookup", original);
+        }
+
     }
 }
