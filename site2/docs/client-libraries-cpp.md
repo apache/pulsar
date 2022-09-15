@@ -19,13 +19,11 @@ Use one of the following methods to install a Pulsar C++ client.
 
 ### Brew
 
-Install the latest tagged version with the library and headers:
+Use [Homebrew](http://brew.sh/) to install the latest tagged version with the library and headers:
 
 ```bash
 brew install libpulsar
 ```
-
-For more information, read [libpulsar formula's homepage](https://formulae.brew.sh/formula/libpulsar).
 
 ### Deb
 
@@ -38,12 +36,16 @@ For more information, read [libpulsar formula's homepage](https://formulae.brew.
 wget @pulsar:deb:client@
 ```
 
+This package contains shared libraries `libpulsar.so` and `libpulsarnossl.so`.
+
 </TabItem>
 <TabItem value="client-devel">
 
 ```bash
 wget @pulsar:deb:client-devel@
 ```
+
+This package contains static libraries: `libpulsar.a`, `libpulsarwithdeps.a` and C/C++ headers.
 
 </TabItem>
 </Tabs>
@@ -67,6 +69,8 @@ Now, you can see Pulsar C++ client libraries installed under the `/usr/lib` dire
 wget @pulsar:dist_rpm:client@
 ```
 
+This package contains shared libraries: `libpulsar.so` and `libpulsarnossl.so`.
+
 </TabItem>
 <TabItem value="client-debuginfo">
 
@@ -74,12 +78,16 @@ wget @pulsar:dist_rpm:client@
 wget @pulsar:dist_rpm:client-debuginfo@
 ```
 
+This package contains debug symbols for `libpulsar.so`
+
 </TabItem>
 <TabItem value="client-devel">
 
 ```bash
 wget @pulsar:dist_rpm:client-devel@
 ```
+
+This package contains static libraries: `libpulsar.a`, `libpulsarwithdeps.a` and C/C++ headers.
 
 </TabItem>
 </Tabs>
