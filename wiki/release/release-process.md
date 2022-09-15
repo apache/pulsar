@@ -145,7 +145,7 @@ pulsar-client-cpp/pkg/deb/docker-build-deb.sh
 This will leave the RPM/YUM and DEB repo files in `pulsar-client-cpp/pkg/rpm/RPMS/x86_64` and
 `pulsar-client-cpp/pkg/deb/BUILD/DEB` directory.
 
-> Tips: If you get error `c++: internal compiler error: Killed (program cc1plus)` when run `pulsar-client-cpp/pkg/deb/docker-build-deb.sh`. You may need to expand your docker memory greater than 2GB.
+> **NOTE**: If you get error `c++: internal compiler error: Killed (program cc1plus)` when run `pulsar-client-cpp/pkg/deb/docker-build-deb.sh`. You may need to expand your docker memory greater than 2GB.
 
 ## Sign and stage the artifacts
 
@@ -218,7 +218,7 @@ https://repository.apache.org/content/repositories/orgapachepulsar-XYZ
 
 ## Publish release candidate docker images
 
-Run the following commands.
+Run the following commands:
 
 ```shell
 cd $PULSAR_HOME/docker
@@ -288,7 +288,7 @@ If the release is approved here, we can then proceed to next step. Otherwise, we
 
 ## Move master branch to next version
 
-NOTE: This is for major releases only.
+> **NOTE**: This is for major releases only.
 
 We need to move master version to the next iteration `Y` (`X + 1`).
 
@@ -356,9 +356,11 @@ If you don't have the permission, you can ask someone with access to apachepulsa
 
 > **NOTES**
 >
-> 1. You need to create an account on PyPI: https://pypi.org/project/pulsar-client/
+> 1. You need to create an account on PyPI: https://pypi.org/account/register/
 >
 > 2. Ask anyone that has been a release manager before to add you as a maintainer for pulsar-docker on PyPI
+>
+> 3. Once you have completed the following steps in this section, you can check if the wheels are uploaded successfully in [Download files](https://pypi.org/project/pulsar-client/#files). Remember to switch to the correct version in [Release history](https://pypi.org/project/pulsar-client/#history)).
 
 ### Linux
 
@@ -403,11 +405,11 @@ Note that it builds the docs within a docker image, so you'll need to have docke
 
 Once the docs are generated, you can add them and submit them in a PR. The expected doc output is `site2/website/static/api/python`.
 
-## Publish MacOS libpulsar package
+## Publish Homebrew libpulsar package
 
 **This step can be skipped if the major version number is not latest.**
 
-Release a new version of libpulsar for MacOS, You can follow the example [here](https://github.com/Homebrew/homebrew-core/pull/53514)
+Release a new version of libpulsar for Homebrew, You can follow the example [here](https://github.com/Homebrew/homebrew-core/pull/53514)
 
 ## Update swagger file
 
