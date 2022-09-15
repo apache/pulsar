@@ -37,13 +37,7 @@ One of the ways to easily install an x86 JDK is to use [SDKMan](http://sdkman.io
 
 1. Install [SDKMan](http://sdkman.io).
 
- * Method 1: follow instructions on the SDKMan website.
- 
- * Method 2: if you have [Homebrew](https://brew.sh) installed, enter the following command.
-
-```shell
-brew install sdkman
-```
+Follow the instructions on the SDKMan website.
 
 2. Turn on Rosetta2 compatibility for SDKMan by editing `~/.sdkman/etc/config` and changing the following property from `false` to `true`.
 
