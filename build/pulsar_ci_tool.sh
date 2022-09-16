@@ -180,7 +180,7 @@ function ci_check_ready_to_test() {
   PR_BRANCH_LABEL=$(jq -r '.pull_request.head.label' "$GITHUB_EVENT_PATH")
   PR_URL=$(jq -r '.pull_request.html_url' "$GITHUB_EVENT_PATH")
   FORK_PR_TITLE_URL_ENCODED=$(jq -r '"[run-tests] " + .pull_request.title | @uri' "$GITHUB_EVENT_PATH")
-  FORK_PR_BODY_URL_ENCODED=$(jq -n -r "\"This PR is for running tests for upstream PR ${PR_URL}.\" | @uri")
+  FORK_PR_BODY_URL_ENCODED=$(jq -n -r "\"This PR is for running tests for upstream PR ${PR_URL}.\n\n<!-- Before creating this PR, please ensure that the fork $FORK_REPO_URL is up to date with https://github.com/apache/pulsar -->\" | @uri")
   >&2 tee -a "$GITHUB_STEP_SUMMARY" <<EOF
 
 # Instructions for proceeding with the pull request:
