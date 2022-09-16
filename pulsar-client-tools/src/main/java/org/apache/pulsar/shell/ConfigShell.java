@@ -50,6 +50,15 @@ import org.apache.pulsar.shell.config.ConfigStore;
 @Parameters(commandDescription = "Manage Pulsar shell configurations.")
 public class ConfigShell implements ShellCommandsProvider {
 
+    private static final String LOCAL_FILES_BASE_DIR = System.getProperty("pulsar.shell.working.dir");
+
+    static File resolveLocalFile(String input) {
+        if (LOCAL_FILES_BASE_DIR != null) {
+            return new File(LOCAL_FILES_BASE_DIR, input);
+        }
+        return new File(input);
+    }
+
 
     @Getter
     @Parameters
@@ -305,7 +314,7 @@ public class ConfigShell implements ShellCommandsProvider {
                     value = inlineValue;
                 }
             } else if (file != null) {
-                final File f = new File(file);
+                final File f = resolveLocalFile(file);
                 if (!f.exists()) {
                     print("File " + f.getAbsolutePath() + " not found.");
                     return false;
