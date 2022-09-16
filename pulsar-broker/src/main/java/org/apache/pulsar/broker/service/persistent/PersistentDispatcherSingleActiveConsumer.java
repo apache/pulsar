@@ -221,8 +221,8 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                     redeliveryTracker, epoch)
             .addListener(future -> {
                 if (future.isSuccess()) {
-                    acquirePermitsForDeliveredMessages(topic, cursor,entries.size(), sendMessageInfo.getTotalMessages(),
-                            sendMessageInfo.getTotalBytes());
+                    acquirePermitsForDeliveredMessages(topic, cursor, entries.size(),
+                            sendMessageInfo.getTotalMessages(), sendMessageInfo.getTotalBytes());
 
                     // Schedule a new read batch operation only after the previous batch has been written to the socket.
                     topic.getBrokerService().getTopicOrderedExecutor().executeOrdered(topicName,

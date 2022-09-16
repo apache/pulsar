@@ -248,8 +248,8 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
 
     protected void acquirePermitsForDeliveredMessages(Topic topic, ManagedCursor cursor, long totalEntries,
                                                       long totalMessagesSent, long totalBytesSent) {
-        if (serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled() ||
-                (cursor != null && !cursor.isActive())) {
+        if (serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled()
+                || (cursor != null && !cursor.isActive())) {
             long permits = dispatchThrottlingOnBatchMessageEnabled ? totalEntries : totalMessagesSent;
             topic.getBrokerDispatchRateLimiter().ifPresent(rateLimiter ->
                     rateLimiter.tryDispatchPermit(permits, totalBytesSent));
