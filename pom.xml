@@ -98,7 +98,8 @@ flexible messaging model and an intuitive client API.</description>
       --add-opens java.base/java.io=ALL-UNNAMED <!--Bookkeeper NativeIO-->
       --add-opens java.base/java.util=ALL-UNNAMED <!--System Lambda-->
       --add-opens java.base/sun.net=ALL-UNNAMED <!--netty.DnsResolverUtil-->
-      --add-opens java.management/sun.management=ALL-UNNAMED <!--JvmDefaultGCMetricsLogger-->
+      --add-opens java.management/sun.management=ALL-UNNAMED <!--JvmDefaultGCMetricsLogger & MBeanStatsGenerator-->
+      --add-opens jdk.management/com.sun.management.internal=ALL-UNNAMED <!--MBeanStatsGenerator-->
     </test.additional.args>
     <testReuseFork>true</testReuseFork>
     <testForkCount>4</testForkCount>
