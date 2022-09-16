@@ -29,6 +29,7 @@ import io.netty.util.concurrent.FastThreadLocal;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -1731,6 +1732,9 @@ public class Commands {
             if (metadata.hasOrderingKey()) {
                 return metadata.getOrderingKey();
             } else if (metadata.hasPartitionKey()) {
+                if (metadata.isPartitionKeyB64Encoded()) {
+                    return Base64.getDecoder().decode(metadata.getPartitionKey());
+                }
                 return metadata.getPartitionKey().getBytes(StandardCharsets.UTF_8);
             }
         } catch (Throwable t) {
