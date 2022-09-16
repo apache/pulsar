@@ -47,7 +47,9 @@ public class InternalConfigurationData {
                                      String bookkeeperMetadataServiceUri,
                                      String stateStorageServiceUrl) {
         this.metadataStoreUrl = zookeeperServers;
+        this.zookeeperServers = zookeeperServers;
         this.configurationMetadataStoreUrl = configurationMetadataStoreUrl;
+        this.configurationStoreServers = configurationMetadataStoreUrl;
         this.ledgersRootPath = ledgersRootPath;
         this.bookkeeperMetadataServiceUri = bookkeeperMetadataServiceUri;
         this.stateStorageServiceUrl = stateStorageServiceUrl;
