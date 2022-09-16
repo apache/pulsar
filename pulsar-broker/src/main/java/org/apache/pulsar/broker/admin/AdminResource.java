@@ -224,7 +224,7 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     protected void validateSubscriptionName(String subscriptionName) {
-        if (StringUtil.invisibleCharacters(subscriptionName)) {
+        if (StringUtil.containsInvisibleCharacters(subscriptionName)) {
             throw new RestException(Response.Status.PRECONDITION_FAILED, "Subscription name contains "
                     + "invisible characters");
         }
@@ -232,10 +232,6 @@ public abstract class AdminResource extends PulsarWebResource {
 
     protected void validateTopicName(String property, String namespace, String encodedTopic) {
         String topic = Codec.decode(encodedTopic);
-        if (StringUtil.invisibleCharacters(topic)) {
-            throw new RestException(Response.Status.PRECONDITION_FAILED, "Topic name contains invisible characters");
-        }
-
         try {
             this.namespaceName = NamespaceName.get(property, namespace);
             this.topicName = TopicName.get(domain(), namespaceName, topic);
@@ -274,9 +270,6 @@ public abstract class AdminResource extends PulsarWebResource {
     @Deprecated
     protected void validateTopicName(String property, String cluster, String namespace, String encodedTopic) {
         String topic = Codec.decode(encodedTopic);
-        if (StringUtil.invisibleCharacters(topic)) {
-            throw new RestException(Response.Status.PRECONDITION_FAILED, "Topic name contains invisible characters");
-        }
         try {
             this.namespaceName = NamespaceName.get(property, cluster, namespace);
             this.topicName = TopicName.get(domain(), namespaceName, topic);

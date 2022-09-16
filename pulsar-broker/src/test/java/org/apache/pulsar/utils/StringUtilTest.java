@@ -27,13 +27,18 @@ import org.testng.annotations.Test;
 public class StringUtilTest {
 
     @Test
-    public void testInvisibleCharacters() {
-        String str1 = "hello\u0000world";
-        assertTrue(StringUtil.invisibleCharacters(str1));
-        String str2 = "hello\u0003world";
-        assertTrue(StringUtil.invisibleCharacters(str2));
-        String str3 = "helloworld";
-        assertFalse(StringUtil.invisibleCharacters(str3));
+    public void testContainsInvisibleCharacters() {
+        assertTrue(StringUtil.containsInvisibleCharacters("hello\u0000world"));
+        assertTrue(StringUtil.containsInvisibleCharacters("hello\u0002world"));
+        assertTrue(StringUtil.containsInvisibleCharacters("hello\u0003world"));
+        assertTrue(StringUtil.containsInvisibleCharacters("hello\u3000world"));
+        assertTrue(StringUtil.containsInvisibleCharacters("hello\u001Aworld"));
+        assertTrue(StringUtil.containsInvisibleCharacters("hello world"));
+        assertTrue(StringUtil.containsInvisibleCharacters("hello\nworld"));
+        assertTrue(StringUtil.containsInvisibleCharacters("hello\tworld"));
+        assertTrue(StringUtil.containsInvisibleCharacters("hello\rworld"));
+        assertFalse(StringUtil.containsInvisibleCharacters(
+                "hello~`!@#$￥%^……&*(){「【[]}】』\\|、:;\"'<《,>。》.?/world"));
     }
 
 }
