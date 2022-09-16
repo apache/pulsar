@@ -179,6 +179,8 @@ function ci_check_ready_to_test() {
   FORK_REPO_URL=$(jq -r '.pull_request.head.repo.html_url' "$GITHUB_EVENT_PATH")
   PR_BRANCH_LABEL=$(jq -r '.pull_request.head.label' "$GITHUB_EVENT_PATH")
   PR_URL=$(jq -r '.pull_request.html_url' "$GITHUB_EVENT_PATH")
+  FORK_PR_TITLE_URL_ENCODED=$(jq -r '"[run-tests] " + .pull_request.title | @uri' "$GITHUB_EVENT_PATH")
+  FORK_PR_BODY_URL_ENCODED=$(jq -n -r "\"This PR is for running tests for upstream PR ${PR_URL}.\" | @uri")
   >&2 tee -a "$GITHUB_STEP_SUMMARY" <<EOF
 
 # Instructions for proceeding with the pull request:
@@ -191,7 +193,7 @@ pull requests that are executed in a forked repository.
    Sync your fork if it's behind.
 2. Open a pull request to your own fork. You can use this link to create the pull request in
    your own fork:
-   ${FORK_REPO_URL}/compare/master...${PR_BRANCH_LABEL}?expand=1
+   [Create PR in fork for running tests](${FORK_REPO_URL}/compare/master...${PR_BRANCH_LABEL}?expand=1&title=${FORK_PR_TITLE_URL_ENCODED}&body=${FORK_PR_BODY_URL_ENCODED})
 3. Edit the description of the pull request ${PR_URL} and add the link to the PR that you opened to your own fork
    so that the reviewer can verify that tests pass in your own fork.
 4. Ensure that tests pass in your own fork. Your own fork will be used to run the tests during the PR review
