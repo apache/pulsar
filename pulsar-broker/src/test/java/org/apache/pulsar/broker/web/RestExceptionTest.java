@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.web;
 
 import static org.testng.Assert.assertEquals;
-
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response.Status;
 import org.apache.pulsar.common.policies.data.ErrorData;

@@ -18,7 +18,14 @@
  */
 package org.apache.pulsar.broker.admin;
 
-import com.google.common.collect.Lists;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertThrows;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
@@ -32,16 +39,6 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertThrows;
 
 @Test(groups = "broker-admin")
 public class AnalyzeBacklogSubscriptionTest extends ProducerConsumerBase {
@@ -78,7 +75,7 @@ public class AnalyzeBacklogSubscriptionTest extends ProducerConsumerBase {
         String subName = "sub-1";
         admin.topics().createSubscription(topic, subName, MessageId.latest);
 
-        assertEquals(admin.topics().getSubscriptions(topic), Lists.newArrayList("sub-1"));
+        assertEquals(admin.topics().getSubscriptions(topic), List.of("sub-1"));
 
         verifyBacklog(topic, subName, 0, 0);
 
@@ -178,7 +175,7 @@ public class AnalyzeBacklogSubscriptionTest extends ProducerConsumerBase {
         String subName = "sub-1";
         admin.topics().createPartitionedTopic(topic, 2);
         admin.topics().createSubscription(topic, subName, MessageId.latest);
-        assertEquals(admin.topics().getSubscriptions(topic), Lists.newArrayList("sub-1"));
+        assertEquals(admin.topics().getSubscriptions(topic), List.of("sub-1"));
 
         // you cannot use this feature on a partitioned topic
         assertThrows(PulsarAdminException.NotAllowedException.class, () -> {

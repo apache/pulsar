@@ -24,7 +24,6 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -367,7 +366,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
             messageIds.add(msgId);
         }
 
-        List<PulsarAdminException> exceptions = Lists.newLinkedList();
+        List<PulsarAdminException> exceptions = new ArrayList<>();
         class ResetCursorThread extends Thread {
             public void run() {
                 try {
@@ -378,7 +377,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
             }
         }
 
-        List<ResetCursorThread> resetCursorThreads = Lists.newLinkedList();
+        List<ResetCursorThread> resetCursorThreads = new ArrayList<>();
         for (int i = 0; i < 4; i ++) {
             ResetCursorThread thread = new ResetCursorThread();
             resetCursorThreads.add(thread);

@@ -25,7 +25,6 @@ import static org.apache.bookkeeper.mledger.ManagedCursor.FindPositionConstraint
 import static org.apache.pulsar.sql.presto.PulsarConnectorUtils.restoreNamespaceDelimiterIfNeeded;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Predicate;
 import io.airlift.log.Logger;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
@@ -48,7 +47,6 @@ import java.util.LinkedList;
 import java.util.List;
 import javax.inject.Inject;
 import lombok.Data;
-import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
@@ -442,19 +440,18 @@ public class PulsarSplitManager implements ConnectorSplitManager {
     private static PositionImpl findPosition(ReadOnlyCursor readOnlyCursor, long timestamp) throws
             ManagedLedgerException,
             InterruptedException {
-        return (PositionImpl) readOnlyCursor.findNewestMatching(SearchAllAvailableEntries, new Predicate<Entry>() {
-            @Override
-            public boolean apply(Entry entry) {
-                try {
-                    long entryTimestamp = Commands.getEntryTimestamp(entry.getDataBuffer());
-                    return entryTimestamp <= timestamp;
-                } catch (Exception e) {
-                    log.error(e, "Failed To deserialize message when finding position with error: %s", e);
-                } finally {
-                    entry.release();
-                }
-                return false;
-            }
-        });
+        return (PositionImpl) readOnlyCursor.findNewestMatching(
+                SearchAllAvailableEntries,
+                entry -> {
+                    try {
+                        long entryTimestamp = Commands.getEntryTimestamp(entry.getDataBuffer());
+                        return entryTimestamp <= timestamp;
+                    } catch (Exception e) {
+                        log.error(e, "Failed To deserialize message when finding position with error: %s", e);
+                    } finally {
+                        entry.release();
+                    }
+                    return false;
+                });
     }
 }

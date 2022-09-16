@@ -20,7 +20,6 @@
 package org.apache.pulsar.broker.admin.impl;
 
 import static org.apache.pulsar.common.naming.Constants.GLOBAL_CLUSTER;
-import com.google.common.collect.Lists;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
@@ -249,7 +248,7 @@ public class TenantsBase extends PulsarWebResource {
         }
         return tenantResources().getListOfNamespacesAsync(tenant)
                 .thenApply(namespaces -> {
-                    final List<CompletableFuture<Void>> futures = Lists.newArrayList();
+                    final List<CompletableFuture<Void>> futures = new ArrayList<>();
                     try {
                         PulsarAdmin adminClient = pulsar().getAdminClient();
                         for (String namespace : namespaces) {
