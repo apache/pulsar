@@ -18,11 +18,28 @@
  */
 package org.apache.pulsar.common.util;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.logging.log4j.LogManager;
 
 @Slf4j
 public class ShutdownUtil {
+    private static final Method log4j2ShutdownMethod;
+
+    static {
+        // use reflection to find org.apache.logging.log4j.LogManager.shutdown method
+        Method shutdownMethod = null;
+        try {
+            shutdownMethod = Class.forName("org.apache.logging.log4j.LogManager")
+                    .getMethod("shutdown");
+        } catch (ClassNotFoundException | NoSuchMethodException e) {
+            // ignore when Log4j2 isn't found, log at debug level
+            log.debug("Cannot find org.apache.logging.log4j.LogManager.shutdown method", e);
+        }
+        log4j2ShutdownMethod = shutdownMethod;
+    }
+
+
     /**
      * Triggers an immediate forceful shutdown of the current process.
      *
@@ -35,10 +52,21 @@ public class ShutdownUtil {
                 log.warn("Triggering immediate shutdown of current process with status {}", status,
                         new Exception("Stacktrace for immediate shutdown"));
             }
-            // flush log buffers and shutdown log4j2 logging to prevent log truncation
-            LogManager.shutdown();
+            shutdownLogging();
         } finally {
             Runtime.getRuntime().halt(status);
+        }
+    }
+
+    private static void shutdownLogging() {
+        // flush log buffers and shutdown log4j2 logging to prevent log truncation
+        if (log4j2ShutdownMethod != null) {
+            try {
+                // use reflection to call org.apache.logging.log4j.LogManager.shutdown()
+                log4j2ShutdownMethod.invoke(null);
+            } catch (IllegalAccessException | InvocationTargetException e) {
+                log.error("Unable to call org.apache.logging.log4j.LogManager.shutdown using reflection.", e);
+            }
         }
     }
 
