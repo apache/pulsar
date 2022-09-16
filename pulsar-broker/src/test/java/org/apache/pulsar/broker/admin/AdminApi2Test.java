@@ -51,7 +51,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import javax.ws.rs.NotAcceptableException;
 import javax.ws.rs.core.Response.Status;
+import lombok.AllArgsConstructor;
 import lombok.Cleanup;
+import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
@@ -1500,9 +1502,43 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
-    public void testDeleteNamespace() throws Exception {
-        pulsar.getConfiguration().setForceDeleteNamespaceAllowed(false);
+    @Data
+    @AllArgsConstructor
+    private static class NamespaceAttr {
+        private boolean systemTopicEnabled;
+        private String autoTopicCreationType;
+        private int defaultNumPartitions;
+        private boolean forceDeleteNamespaceAllowed;
+    }
+
+    @DataProvider(name = "namespaceAttrs")
+    public Object[][] namespaceAttributes(){
+        return new Object[][]{
+                {new NamespaceAttr(false, "non-partitioned", 0, false)},
+                {new NamespaceAttr(true, "non-partitioned", 0, false)},
+                {new NamespaceAttr(true, "partitioned", 3, false)}
+        };
+    }
+
+    private NamespaceAttr markOriginalNamespaceAttr(){
+        return new NamespaceAttr(conf.isSystemTopicEnabled(), conf.getAllowAutoTopicCreationType(),
+                conf.getDefaultNumPartitions(), conf.isForceDeleteNamespaceAllowed());
+    }
+
+    private void setNamespaceAttr(NamespaceAttr namespaceAttr){
+        conf.setSystemTopicEnabled(namespaceAttr.systemTopicEnabled);
+        conf.setAllowAutoTopicCreationType(namespaceAttr.autoTopicCreationType);
+        conf.setDefaultNumPartitions(namespaceAttr.defaultNumPartitions);
+        conf.setForceDeleteNamespaceAllowed(namespaceAttr.forceDeleteNamespaceAllowed);
+    }
+
+    @Test(dataProvider = "namespaceAttrs")
+    public void testDeleteNamespace(NamespaceAttr namespaceAttr) throws Exception {
+        // Set conf.
+        internalCleanup();
+        NamespaceAttr originalNamespaceAttr = markOriginalNamespaceAttr();
+        setNamespaceAttr(namespaceAttr);
+        setup();
 
         String tenant = "test-tenant";
         assertFalse(admin.tenants().getTenants().contains(tenant));
@@ -1548,6 +1584,11 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
         final String bundleDataPath = "/loadbalance/bundle-data/" + namespace;
         assertFalse(pulsar.getLocalMetadataStore().exists(bundleDataPath).join());
+
+        // Reset config
+        internalCleanup();
+        setNamespaceAttr(originalNamespaceAttr);
+        setup();
     }
 
     private void awaitChangeEventTopicAndCompactionCreateFinish(String ns, String topic) throws Exception {
