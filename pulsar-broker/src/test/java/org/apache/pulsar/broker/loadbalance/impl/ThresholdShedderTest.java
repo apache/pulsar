@@ -227,7 +227,7 @@ public class ThresholdShedderTest {
     }
 
     @Test
-    public void testRangeThroughput() {
+    public void testLowerBoundaryShedding() {
         int numBundles = 10;
         int brokerNum = 11;
         int lowLoadNode = 10;
