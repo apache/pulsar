@@ -4,20 +4,18 @@ title: How to connect Pulsar to database
 sidebar_label: "Get started"
 ---
 
-This tutorial provides a hands-on look at how you can move data out of Pulsar without writing a single line of code.  
+This tutorial provides a hands-on look at how you can move data out of Pulsar without writing a single line of code.
 
-It is helpful to review the [concepts](io-overview.md) for Pulsar I/O by running the steps in this guide to gain a deeper understanding.   
+It is helpful to review the [concepts](io-overview.md) for Pulsar I/O by running the steps in this guide to gain a deeper understanding.
 
 At the end of this tutorial, you can:
 
 - [Connect Pulsar to Cassandra](#connect-pulsar-to-cassandra)
-  
-- [Connect Pulsar to PostgreSQL](#connect-pulsar-to-postgreSQL)
+- [Connect Pulsar to PostgreSQL](#connect-pulsar-to-postgresql)
 
 :::tip
 
-* These instructions assume you are running Pulsar in [standalone mode](getting-started-standalone.md). However, all
-the commands used in this tutorial can be used in a multi-node Pulsar cluster without any changes.
+* These instructions assume you are running Pulsar in standalone mode. However, all the commands used in this tutorial can be used in a multi-node Pulsar cluster without any changes.
 * All the instructions are assumed to run at the root directory of a Pulsar binary distribution.
 
 :::
@@ -26,9 +24,33 @@ the commands used in this tutorial can be used in a multi-node Pulsar cluster wi
 
 Before connecting Pulsar to a database, you need to install Pulsar and the desired built-in connector.
 
-For more information about **how to install a standalone Pulsar and built-in connectors**, see [here](getting-started-standalone.md/#installing-pulsar).
+Read [Run a standalone Pulsar cluster locally](getting-started-standalone.md) for downloading the Pulsar distribution.
 
-## Start Pulsar standalone 
+Pulsar releases a separate binary distribution to contain all the built-in connectors. To enable those connectors, you need to download the connectors tarball release:
+
+```bash
+wget pulsar:connector_release_url/{connector}-@pulsar:version@.nar
+```
+
+After you download the NAR file, copy the file to the `connectors` directory in the Pulsar directory. For example, if you download the `pulsar-io-aerospike-@pulsar:version@.nar` connector file, enter the following commands:
+
+```bash
+mkdir connectors
+mv pulsar-io-aerospike-@pulsar:version@.nar connectors
+
+ls connectors
+# pulsar-io-aerospike-@pulsar:version@.nar
+# ...
+```
+
+:::note
+
+* If you are running Pulsar in a bare metal cluster, make sure `connectors` tarball is unzipped in every pulsar directory of the broker (or in every pulsar directory of function-worker if you are running a separate worker cluster for Pulsar Functions).
+* If you are [running Pulsar in Docker](getting-started-docker.md) or deploying Pulsar using a docker image (e.g. [K8S](deploy-kubernetes.md)), you can use the `apachepulsar/pulsar-all` image instead of the `apachepulsar/pulsar` image. The `apachepulsar/pulsar-all` image has already bundled all built-in connectors.
+
+:::
+
+## Start Pulsar standalone
 
 1. Start Pulsar locally.
 
@@ -36,8 +58,8 @@ For more information about **how to install a standalone Pulsar and built-in con
    bin/pulsar standalone
    ```
 
-   All the components of a Pulsar service are started in order. 
-   
+   All the components of a Pulsar service are started in order.
+
    You can curl those pulsar service endpoints to make sure the Pulsar service is up and running correctly.
 
 2. Check Pulsar binary protocol port.
@@ -91,7 +113,7 @@ This section demonstrates how to connect Pulsar to Cassandra.
 
 :::tip
 
-* Make sure you have Docker installed. If you do not have one, see [install Docker](https://docs.docker.com/docker-for-mac/install/).
+* Make sure you have Docker installed. If you do not have one, see [install Docker](https://docs.docker.com/docker-for-mac/install/). For more information about Docker commands, see [Docker CLI](https://docs.docker.com/engine/reference/commandline/run/).
 * The Cassandra sink connector reads messages from Pulsar topics and writes the messages into Cassandra tables. For more information, see [Cassandra sink connector](io-cassandra-sink.md).
 
 :::
@@ -141,10 +163,14 @@ This example uses `cassandra` Docker image to start a single-node Cassandra clus
    UN  172.17.0.2  103.67 KiB  256          100.0%            af0e4b2f-84e0-4f0b-bb14-bd5f9070ff26  rack1
    ```
 
-5. Use `cqlsh` to connect to the Cassandra cluster. 
+5. Use `cqlsh` to connect to the Cassandra cluster.
 
    ```bash
    docker exec -ti cassandra cqlsh localhost
+   ```
+   
+    **Output**
+   ```
    Connected to Test Cluster at localhost:9042.
    [cqlsh 5.0.1 | Cassandra 3.11.2 | CQL spec 3.4.4 | Native protocol v4]
    Use HELP for help.
@@ -166,11 +192,11 @@ This example uses `cassandra` Docker image to start a single-node Cassandra clus
 
 ### Configure a Cassandra sink
 
-Now that we have a Cassandra cluster running locally. 
+Now that we have a Cassandra cluster running locally.
 
 In this section, you need to configure a Cassandra sink connector.
 
-To run a Cassandra sink connector, you need to prepare a configuration file including the information that Pulsar connector runtime needs to know. 
+To run a Cassandra sink connector, you need to prepare a configuration file including the information that Pulsar connector runtime needs to know.
 
 For example, how Pulsar connector can find the Cassandra cluster, what is the keyspace and the table that Pulsar connector uses for writing Pulsar messages to, and so on.
 
@@ -223,7 +249,7 @@ bin/pulsar-admin sinks create \
     --inputs test_cassandra
 ```
 
-Once the command is executed, Pulsar creates the sink connector _cassandra-test-sink_. 
+Once the command is executed, Pulsar creates the sink connector _cassandra-test-sink_.
 
 This sink connector runs as a Pulsar Function and writes the messages produced in the topic _test_cassandra_ to the Cassandra table _pulsar_test_table_.
 
@@ -231,7 +257,7 @@ This sink connector runs as a Pulsar Function and writes the messages produced i
 
 You can use the [Connector Admin CLI](/tools/pulsar-admin/) to monitor a connector and perform other operations on it.
 
-* Get the information of a Cassandra sink. 
+* Get the information of a Cassandra sink.
 
   ```bash
   bin/pulsar-admin sinks get \
@@ -268,7 +294,7 @@ You can use the [Connector Admin CLI](/tools/pulsar-admin/) to monitor a connect
   }
   ```
 
-* Check the status of a Cassandra sink. 
+* Check the status of a Cassandra sink.
 
   ```bash
   bin/pulsar-admin sinks status \
@@ -374,7 +400,7 @@ You can use the [Connector Admin CLI](/tools/pulsar-admin/) to monitor a connect
 
 ### Delete a Cassandra Sink
 
-You can use the [Connector Admin CLI](/tools/pulsar-admin/) 
+You can use the [Connector Admin CLI](/tools/pulsar-admin/)
 to delete a connector and perform other operations on it.
 
 ```bash
@@ -390,7 +416,7 @@ This section demonstrates how to connect Pulsar to PostgreSQL.
 
 :::tip
 
-* Make sure you have Docker installed. If you do not have one, see [install Docker](https://docs.docker.com/docker-for-mac/install/).
+* Make sure you have Docker installed. If you do not have one, see [install Docker](https://docs.docker.com/docker-for-mac/install/). For more information about Docker commands, see [Docker CLI](https://docs.docker.com/engine/reference/commandline/run/).
 * The JDBC sink connector pulls messages from Pulsar topics and persists the messages to ClickHouse, MariaDB, PostgreSQL, or SQLite. For more information, see [JDBC sink connector](io-jdbc-sink.md).
 
 :::
@@ -413,26 +439,9 @@ This example uses the PostgreSQL 12 docker image to start a single-node PostgreS
    --name pulsar-postgres \
    -p 5432:5432 \
    -e POSTGRES_PASSWORD=password \
-   -e POSTGRES_USER=postgres \    
+   -e POSTGRES_USER=postgres \
    postgres:12
    ```
-
-   #### Tip
-   
-    Flag | Description | This example
-    ---|---|---|
-    `-d` | To start a container in detached mode. | /
-    `-it` | Keep STDIN open even if not attached and allocate a terminal. | /
-    `--rm` | Remove the container automatically when it exits. | /
-    `-name` | Assign a name to the container. | This example specifies _pulsar-postgres_ for the container.
-    `-p` | Publish the port of the container to the host. | This example publishes the port _5432_ of the container to the host.
-    `-e` | Set environment variables. | This example sets the following variables:<br />- The password for the user is _password_.<br />- The name for the user is _postgres_.
-
-    :::tip
-
-    For more information about Docker commands, see [Docker CLI](https://docs.docker.com/engine/reference/commandline/run/).
-
-    :::
 
 3. Check if PostgreSQL has been started successfully.
 
@@ -451,34 +460,38 @@ This example uses the PostgreSQL 12 docker image to start a single-node PostgreS
    2020-05-11 20:09:24.533 UTC [1] LOG:  database system is ready to accept connections
    ```
 
-4. Access to PostgreSQL.
+4. Access to PostgreSQL container.
 
    ```bash
    docker exec -it pulsar-postgres /bin/bash
    ```
 
-5. Create a PostgreSQL table _pulsar_postgres_jdbc_sink_.
+5. Log in to PostgreSQL with the default username and password:
 
    ```bash
    psql -U postgres postgres
-   
-   postgres=# create table if not exists pulsar_postgres_jdbc_sink
+   ```
+
+6. Create a `pulsar_postgres_jdbc_sink` table using the following command:
+
+   ```sql
+   create table if not exists pulsar_postgres_jdbc_sink
    (
    id serial PRIMARY KEY,
-   name VARCHAR(255) NOT NULL    
+   name VARCHAR(255) NOT NULL
    );
    ```
 
 ### Configure a JDBC sink
 
-Now we have a PostgreSQL running locally. 
+Now we have a PostgreSQL running locally.
 
 In this section, you need to configure a JDBC sink connector.
 
-1. Add a configuration file.   
-   
-   To run a JDBC sink connector, you need to prepare a YAML configuration file including the information that the Pulsar connector runtime needs to know. 
-   
+1. Add a configuration file.
+
+   To run a JDBC sink connector, you need to prepare a YAML configuration file including the information that the Pulsar connector runtime needs to know.
+
    For example, how Pulsar connector can find the PostgreSQL cluster, what is the JDBC URL and the table that Pulsar connector uses for writing messages.
 
    Create a _pulsar-postgres-jdbc-sink.yaml_ file, copy the following contents to this file, and place the file in the `pulsar/connectors` folder.
@@ -509,7 +522,7 @@ In this section, you need to configure a JDBC sink connector.
 
    :::
 
-3. Upload a schema to a topic.  
+3. Upload a schema to a topic.
 
    This example uploads the _avro-schema_ schema to the _pulsar-postgres-jdbc-sink-topic_ topic.
 
@@ -531,7 +544,7 @@ In this section, you need to configure a JDBC sink connector.
 
 ### Create a JDBC sink
 
-You can use the [Connector Admin CLI](/tools/pulsar-admin/) 
+You can use the [Connector Admin CLI](/tools/pulsar-admin/)
 to create a sink connector and perform other operations on it.
 
 This example creates a sink connector and specifies the desired information.
@@ -551,7 +564,7 @@ This sink connector runs as a Pulsar Function and writes the messages produced i
 
  #### Tip
 
- Flag | Description | Example 
+ Flag | Description | Example
  ---|---|---|
  `--archive` | The path to the archive file for the sink. | pulsar-io-jdbc-postgres-@pulsar:version@.nar |
  `--inputs` | The input topic(s) of the sink. <br /><br /> Multiple topics can be specified as a comma-separated list.||
@@ -573,7 +586,7 @@ Created successfully
 
 ### Inspect a JDBC sink
 
-You can use the [Connector Admin CLI](/tools/pulsar-admin/) 
+You can use the [Connector Admin CLI](/tools/pulsar-admin/)
 to monitor a connector and perform other operations on it.
 
 * List all running JDBC sink(s).
@@ -727,7 +740,7 @@ Started successfully
 
 :::tip
 
-* Optionally, you can run a standalone sink connector using `pulsar-admin sinks localrun options`. 
+* Optionally, you can run a standalone sink connector using `pulsar-admin sinks localrun options`.
 Note that `pulsar-admin sinks localrun options` **runs a sink connector locally**, while `pulsar-admin sinks start options` **starts a sink connector in a cluster**.
 * For more information about `pulsar-admin sinks localrun options`, see [Pulsar admin docs](/tools/pulsar-admin/).
 
@@ -794,7 +807,7 @@ The result shows that the parallelism is 2.
 
 ### Delete a JDBC sink
 
-You can use the [Connector Admin CLI](/tools/pulsar-admin/) 
+You can use the [Connector Admin CLI](/tools/pulsar-admin/)
 to delete a connector and perform other operations on it.
 
 This example deletes the _pulsar-postgres-jdbc-sink_ sink connector.

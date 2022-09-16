@@ -503,6 +503,7 @@ After you run this command, a new folder `version-<release-version>` is added in
   ```
 
 > **Note**
+>
 > You can move the latest version under the old version in the `versions.json` file. Make sure the Algolia index works before moving 2.X.0 as the current stable.
 
 4. Update the `releases.json` file by adding `<release-version>` to the second of the list (this is to make the search work. After your PR is merged, the Pulsar website is built and tagged for search, you can change it to the first list).
@@ -521,9 +522,8 @@ After you run this command, a new folder `version-<release-version>` is added in
 9. Generate the doc set and sidebar file for the next minor release `2.X.x` based on the `site2/docs` folder. You can follow steps 1, 2, and 3, and submit those files to the `apache/pulsar` repository. This step is a preparation for the `2.X.x` release.
 
 > **Note**
+>
 > Starting from 2.8, you don't need to generate an independent doc set or update the Pulsar site for bug-fix releases, such as 2.8.1, 2.8.2, and so on. Instead, the generic doc set 2.8.x is used.
-
-:::
 
 ## 18. Announce the release
 

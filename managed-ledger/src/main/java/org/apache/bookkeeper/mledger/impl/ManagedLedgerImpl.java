@@ -32,7 +32,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
-import io.netty.util.ReferenceCountUtil;
 import java.io.IOException;
 import java.time.Clock;
 import java.util.ArrayList;
@@ -851,7 +850,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         } catch (Exception e) {
             addOperation.failed(
                     new ManagedLedgerInterceptException("Interceptor managed ledger before add to bookie failed."));
-            ReferenceCountUtil.release(addOperation.data);
             log.error("[{}] Failed to intercept adding an entry to bookie.", name, e);
             return false;
         }
@@ -3004,8 +3002,21 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                            scheduledExecutor, name)
                             .whenComplete((ignore2, exception) -> {
                                     if (exception != null) {
-                                        log.error("[{}] Failed to offload data for the ledgerId {}",
+                                        Throwable e = FutureUtil.unwrapCompletionException(exception);
+                                        if (e instanceof MetaStoreException) {
+                                            // When a MetaStore exception happens, we can not make sure the metadata
+                                            // update is failed or not. Because we have a retry on the connection loss,
+                                            // it is possible to get a BadVersion or other exception after retrying.
+                                            // So we don't clean up the data if it has metadata operation exception.
+                                            log.error("[{}] Failed to update offloaded metadata for the ledgerId {}, "
+                                                    + "the offloaded data will not be cleaned up",
                                                 name, ledgerId, exception);
+                                            return;
+                                        } else {
+                                            log.error("[{}] Failed to offload data for the ledgerId {}, "
+                                                    + "clean up the offloaded data",
+                                                name, ledgerId, exception);
+                                        }
                                         cleanupOffloaded(
                                             ledgerId, uuid,
                                             driverName, driverMetadata,

@@ -6,9 +6,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -52,7 +52,7 @@ if (NOT GTESTD_LIBRARY_PATH)
     set(GTESTD_LIBRARY_PATH ${GTEST_LIBRARY_PATH})
 endif()
 
-file(GLOB TEST_SOURCES *.cc)
+file(GLOB TEST_SOURCES *.cc c/*.cc)
 
 add_executable(main ${TEST_SOURCES} ${PROTO_SOURCES})
 

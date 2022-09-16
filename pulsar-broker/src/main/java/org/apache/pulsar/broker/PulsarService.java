@@ -89,7 +89,6 @@ import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.LoadReportUpdaterTask;
 import org.apache.pulsar.broker.loadbalance.LoadResourceQuotaUpdaterTask;
 import org.apache.pulsar.broker.loadbalance.LoadSheddingTask;
-import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.lookup.v1.TopicLookup;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.protocol.ProtocolHandlers;
@@ -116,6 +115,7 @@ import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientImpl;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
 import org.apache.pulsar.broker.validator.MultipleListenerValidator;
+import org.apache.pulsar.broker.validator.TransactionBatchedWriteValidator;
 import org.apache.pulsar.broker.web.WebService;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlet;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServletWithClassLoader;
@@ -303,6 +303,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
         // Validate correctness of configuration
         PulsarConfigurationLoader.isComplete(config);
+        TransactionBatchedWriteValidator.validate(config);
 
         // validate `advertisedAddress`, `advertisedListeners`, `internalListenerName`
         this.advertisedListeners = MultipleListenerValidator.validateAndAnalysisAdvertisedListener(config);
@@ -1164,7 +1165,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         if (config.isLoadBalancerEnabled()) {
             LOG.info("Starting load balancer");
             if (this.loadReportTask == null) {
-                long loadReportMinInterval = LoadManagerShared.LOAD_REPORT_UPDATE_MINIMUM_INTERVAL;
+                long loadReportMinInterval = config.getLoadBalancerReportUpdateMinIntervalMillis();
                 this.loadReportTask = this.loadManagerExecutor.scheduleAtFixedRate(
                         new LoadReportUpdaterTask(loadManager), loadReportMinInterval, loadReportMinInterval,
                         TimeUnit.MILLISECONDS);
@@ -1650,6 +1651,12 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     @Deprecated
     public String getSafeBrokerServiceUrl() {
         return brokerServiceUrl != null ? brokerServiceUrl : brokerServiceUrlTls;
+    }
+
+    public String getLookupServiceAddress() {
+        return String.format("%s:%s", advertisedAddress, config.getWebServicePort().isPresent()
+                ? config.getWebServicePort().get()
+                : config.getWebServicePortTls().get());
     }
 
     public TopicPoliciesService getTopicPoliciesService() {
