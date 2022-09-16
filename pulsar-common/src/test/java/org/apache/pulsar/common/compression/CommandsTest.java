@@ -28,6 +28,9 @@ import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import java.io.IOException;
 import java.util.Base64;
+
+import io.netty.util.ReferenceCountUtil;
+import io.netty.util.ReferenceCounted;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.ByteBufPair;
@@ -108,6 +111,7 @@ public class CommandsTest {
         byte[] bytes = Commands.peekStickyKey(byteBuf, "topic-1", "sub-1");
         String key = new String(bytes);
         Assert.assertEquals(partitionedKey, key);
+        ReferenceCountUtil.safeRelease(byteBuf);
         // test 64 encoded
         String partitionedKey2 = Base64.getEncoder().encodeToString("key2".getBytes(UTF_8));
         MessageMetadata messageMetadata = new MessageMetadata()
@@ -121,5 +125,6 @@ public class CommandsTest {
         byte[] bytes2 = Commands.peekStickyKey(byteBuf2, "topic-2", "sub-2");
         String key2 = Base64.getEncoder().encodeToString(bytes2);;
         Assert.assertEquals(partitionedKey2, key2);
+        ReferenceCountUtil.safeRelease(byteBuf2);
     }
 }
