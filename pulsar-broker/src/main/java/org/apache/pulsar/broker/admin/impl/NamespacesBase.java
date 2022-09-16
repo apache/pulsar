@@ -1474,7 +1474,11 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalSetRetentionAsync(RetentionPolicies retentionPolicies) {
-        validateRetentionPolicies(retentionPolicies);
+        try {
+            validateRetentionPolicies(retentionPolicies);
+        } catch (Throwable ex) {
+            return FutureUtil.failedFuture(ex);
+        }
         return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.RETENTION, PolicyOperation.WRITE)
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenCompose(__ -> namespaceResources().setPoliciesAsync(namespaceName, policies -> {
