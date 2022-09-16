@@ -160,7 +160,7 @@ function ci_check_ready_to_test() {
     return 1
   fi
   # check ready-to-test label
-  if ! yq eval -e '.pull_request.labels[] | .name | select(. == "ready-to-test")' "$GITHUB_EVENT_PATH" &> /dev/null; then
+  if ! jq -e '.pull_request.labels[] | .name | select(. == "ready-to-test")' "$GITHUB_EVENT_PATH" &> /dev/null; then
     # check if the PR has been approved
     PR_NUM=$(jq -r '.pull_request.number' "${GITHUB_EVENT_PATH}")
     REPO_FULL_NAME=$(jq -r '.repository.full_name' "${GITHUB_EVENT_PATH}")
