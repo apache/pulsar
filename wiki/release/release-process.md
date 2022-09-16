@@ -23,13 +23,20 @@
 
 This page contains instructions for Pulsar committers on how to perform a release.
 
+> **NOTE**: The term `major/minor releases` used throughout this document is defined as follows:
+>
+> * Major releases refer to feature releases, such as 2.10.0, 2.11.0, and so on.
+> 
+> * Minor releases refer to bug-fix releases, such as 2.10.1, 2.10.2, and so on.
+
+
 ## Preparation
 
 Open a discussion in dev@apache.org to notify others that you volunteer to be the release manager of a specific release. If there are no disagreements, you can start the release process.
 
 For major releases, you should create a new branch named `branch-2.X.0` once all PRs with the 2.X.0 milestone are merged. If some PRs with the 2.X.0 milestone are still working in progress and might take much time to complete, you can move them to the next milestone if they are not important. In this case, you'd better notify the author in the PR.
 
-For minor releases, if there are no disagreements, you should cherry-pick all merged PRs with the `release/X.Y.Z` labels into branch-X.Y. After these PRs are cherry-picked, you should add the `cherry-picked/branch-X.Y` labels.
+For minor releases, if there are no disagreements, you should cherry-pick all merged PRs with the `release/X.Y.Z` labels into `branch-X.Y`. After these PRs are cherry-picked, you should add the `cherry-picked/branch-X.Y` labels.
 
 Sometimes some PRs cannot be cherry-picked cleanly, you might need to create a separate PR and move the `release/X.Y.Z` label from the original PR to it. In this case, you can ask the author to help create the new PR.
 
@@ -56,9 +63,9 @@ where the tag will be generated and where new fixes will be
 applied as part of the maintenance for the release.
 
 The branch needs only to be created when creating major releases,
-and not for patch releases like `2.3.1`. For patch and minor release, go to the next step.
+and not for minor releases like `2.3.1`. For minor releases, go to the next step.
 
-Eg: When creating the `v2.3.0` release, the branch `branch-2.3` will be created; but for `v2.3.1`, we
+For example, when you create the `v2.3.0` release, the branch `branch-2.3` will be created; but for `v2.3.1`, we
 keep using the old `branch-2.3`.
 
 In these instructions, I'm referring to a fictitious release `2.X.0`. Change the release version in the examples accordingly with the real version.
@@ -79,7 +86,7 @@ git worktree add ../pulsar.branch-2.X branch-2.X
 
 If you created a new branch, update the `CI - OWASP Dependency Check` workflow so that it will run on the new branch. At the time of writing, here is the file that should be updated: https://github.com/apache/pulsar/blob/master/.github/workflows/ci-owasp-dependency-check.yaml.
 
-(Note also that you should stop the GitHub action for Pulsar versions that are EOL.)
+Note also that you should stop the GitHub action for Pulsar versions that are EOL.
 
 Also, if you created a new branch, please update the `Security Policy and Supported Versions` page on the website. This page has a table for support timelines based on when minor releases take place.
 
@@ -307,9 +314,9 @@ If the release is approved here, you can then proceed to the next step. Otherwis
 
 ## Move master branch to next version
 
-> **NOTE**: This is for major releases only.
+> **NOTE**: This step is for major releases only.
 
-We need to move the master version to the next iteration `Y` (`X + 1`).
+You need to move the master version to the next iteration `Y` (`X + 1`).
 
 ```shell
 git checkout master
@@ -373,7 +380,7 @@ If you don't have the permission, you can ask someone with access to apachepulsa
 
 ## Publish Python Clients
 
-> **NOTES**
+> **NOTES**:
 >
 > 1. You need to create an account on PyPI: https://pypi.org/account/register/
 >
@@ -432,8 +439,8 @@ Release a new version of libpulsar for Homebrew, You can follow the example [her
 
 ## Update swagger file
 
-> For major release, the swagger file update happen under `master` branch.
-> while for minor release, swagger file is created from branch-2.x, and need copy to a new branch based on master.
+> For major releases, the swagger file update happen under `master` branch.
+> while for minor releases, swagger file is created from branch-2.x, and need copy to a new branch based on master.
 
 ```shell
 git checkout branch-2.X
@@ -451,8 +458,9 @@ See [Pulsar Release Notes Guide](https://docs.google.com/document/d/1cwNkBefKyV6
 
 ## Update the site
 
-### Update the site for minor releases
-For minor releases, such as 2.10, the website is updated based on the `master` branch.
+> **NOTE**: This step is for major releases only.
+
+For major releases, such as 2.10.0, the website is updated based on the `master` branch.
 
 1. Create a new branch off master.
 
@@ -480,9 +488,7 @@ After you run this command, a new folder `version-<release-version>` is added in
   versioned_sidebars/version-<release-version>-sidebars.json 
   ```
 
-> **Note**
->
-> You can move the latest version under the old version in the `versions.json` file. Make sure the Algolia index works before moving 2.X.0 as the current stable.
+> **NOTE**: You can move the latest version under the old version in the `versions.json` file. Make sure the Algolia index works before moving 2.X.0 as the current stable.
 
 4. Update the `releases.json` file by adding `<release-version>` to the second of the list (this is to make the search work. After your PR is merged, the Pulsar website is built and tagged for search, you can change it to the first list).
 
@@ -497,11 +503,9 @@ After you run this command, a new folder `version-<release-version>` is added in
 
 8. Update the deploy version to the current release version in `deployment/terraform-ansible/deploy-pulsar.yaml`.
 
-9. Generate the doc set and sidebar file for the next minor release `2.X.x` based on the `site2/docs` folder. You can follow steps 1, 2, and 3, and submit those files to the `apache/pulsar` repository. This step is a preparation for the `2.X.x` release.
+9. Generate the doc set and sidebar file for the next major release `2.X.x` based on the `site2/docs` folder. You can follow steps 1, 2, and 3, and submit those files to the `apache/pulsar` repository. This step is a preparation for the `2.X.x` release.
 
-> **Note**
->
-> Starting from 2.8, you don't need to generate an independent doc set or update the Pulsar site for bug-fix releases, such as 2.8.1, 2.8.2, and so on. Instead, the generic doc set 2.8.x is used.
+> **NOTE**: Starting from 2.8.0, you don't need to generate an independent doc set or update the Pulsar site for minor releases, such as 2.8.1, 2.8.2, and so on. Instead, the generic doc set 2.8.x is used.
 
 ## Announce the release
 
