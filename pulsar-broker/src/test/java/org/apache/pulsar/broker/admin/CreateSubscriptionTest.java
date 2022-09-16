@@ -135,6 +135,44 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
         }
     }
 
+    public void testContainsInvisibleCharactersForSubscriptionName() throws PulsarAdminException {
+        String topic = "persistent://my-property/my-ns/my-partitioned-topic";
+        admin.topics().createPartitionedTopic(topic, 10);
+        admin.topics().createSubscription(topic, "sub-1", MessageId.latest);
+
+        // Create should fail if the subscription name contain invisible characters
+        try {
+            admin.topics().createSubscription(topic, "sub\u0000-2", MessageId.latest);
+            fail("Should have failed");
+        } catch (Exception e) {
+            // Expected
+        }
+        try {
+            admin.topics().createSubscription(topic, "sub\r-3", MessageId.latest);
+            fail("Should have failed");
+        } catch (Exception e) {
+            // Expected
+        }
+        try {
+            admin.topics().createSubscription(topic, "sub\n-4", MessageId.latest);
+            fail("Should have failed");
+        } catch (Exception e) {
+            // Expected
+        }
+        try {
+            admin.topics().createSubscription(topic, "sub\t-5", MessageId.latest);
+            fail("Should have failed");
+        } catch (Exception e) {
+            // Expected
+        }
+        try {
+            admin.topics().createSubscription(topic, "sub -6", MessageId.latest);
+            fail("Should have failed");
+        } catch (Exception e) {
+            // Expected
+        }
+    }
+
     @Test
     public void createSubscriptionOnPartitionedTopicWithPartialFailure() throws Exception {
         String topic = "persistent://my-property/my-ns/my-partitioned-topic";
