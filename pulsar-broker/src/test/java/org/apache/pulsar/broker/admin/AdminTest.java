@@ -51,7 +51,6 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.StreamingOutput;
 import javax.ws.rs.core.UriInfo;
-
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import org.apache.bookkeeper.conf.ClientConfiguration;
