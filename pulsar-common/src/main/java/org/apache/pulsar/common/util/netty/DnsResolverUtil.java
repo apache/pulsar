@@ -19,13 +19,13 @@
 package org.apache.pulsar.common.util.netty;
 
 import io.netty.resolver.dns.DnsNameResolverBuilder;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
+import java.security.Security;
+import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class DnsResolverUtil {
-    private static final int MIN_TTL = 0;
+    static final int MIN_TTL = 0;
     private static final int TTL;
     private static final int NEGATIVE_TTL;
 
@@ -36,22 +36,16 @@ public class DnsResolverUtil {
     private static final int DEFAULT_NEGATIVE_TTL = 10;
 
     static {
-        int ttl = DEFAULT_TTL;
-        int negativeTtl = DEFAULT_NEGATIVE_TTL;
-        try {
-            // use reflection to call sun.net.InetAddressCachePolicy's get and getNegative methods for getting
-            // effective JDK settings for DNS caching
-            Class<?> inetAddressCachePolicyClass = Class.forName("sun.net.InetAddressCachePolicy");
-            Method getTTLMethod = inetAddressCachePolicyClass.getMethod("get");
-            ttl = (Integer) getTTLMethod.invoke(null);
-            Method getNegativeTTLMethod = inetAddressCachePolicyClass.getMethod("getNegative");
-            negativeTtl = (Integer) getNegativeTTLMethod.invoke(null);
-        } catch (NoSuchMethodException | ClassNotFoundException | InvocationTargetException
-                 | IllegalAccessException e) {
-            log.warn("Cannot get DNS TTL settings from sun.net.InetAddressCachePolicy class", e);
-        }
+        int ttl = getSecurityProperty("networkaddress.cache.ttl", DEFAULT_TTL);
+        int negativeTtl = getSecurityProperty("networkaddress.cache.negative.ttl", DEFAULT_NEGATIVE_TTL);
         TTL = useDefaultTTLWhenSetToForever(ttl, DEFAULT_TTL);
         NEGATIVE_TTL = useDefaultTTLWhenSetToForever(negativeTtl, DEFAULT_NEGATIVE_TTL);
+    }
+
+    private static int getSecurityProperty(String key, int defaultValue) {
+        return Optional.ofNullable(Security.getProperty(key))
+                .map(Integer::parseInt)
+                .orElse(defaultValue);
     }
 
     private static int useDefaultTTLWhenSetToForever(int ttl, int defaultTtl) {
