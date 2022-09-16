@@ -38,9 +38,9 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.LookupService;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
-import org.powermock.reflect.Whitebox;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -122,15 +122,14 @@ public class TopicAutoCreationTest extends ProducerConsumerBase {
         });
 
 
-        LookupService original = Whitebox.getInternalState(pulsarClient, "lookup");
+        LookupService original = ((PulsarClientImpl) pulsarClient).getLookup();
         try {
 
             // we want to skip the "lookup" phase, because it is blocked by the HTTP API
             LookupService mockLookup = mock(LookupService.class);
-            Whitebox.setInternalState(pulsarClient, "lookup", mockLookup);
-            when(mockLookup.getPartitionedTopicMetadata(any())).thenAnswer(i -> {
-                return CompletableFuture.completedFuture(new PartitionedTopicMetadata(0));
-            });
+            ((PulsarClientImpl) pulsarClient).setLookup(mockLookup);
+            when(mockLookup.getPartitionedTopicMetadata(any())).thenAnswer(
+                    i -> CompletableFuture.completedFuture(new PartitionedTopicMetadata(0)));
             when(mockLookup.getBroker(any())).thenAnswer(i -> {
                 InetSocketAddress brokerAddress =
                         new InetSocketAddress(pulsar.getAdvertisedAddress(), pulsar.getBrokerListenPort().get());
@@ -139,20 +138,20 @@ public class TopicAutoCreationTest extends ProducerConsumerBase {
 
             // Creating a producer and creating a Consumer may trigger automatic topic
             // creation, let's try to create a Producer and a Consumer
-            try (Producer<byte[]> producer = pulsarClient.newProducer()
+            try (Producer<byte[]> ignored = pulsarClient.newProducer()
                     .sendTimeout(1, TimeUnit.SECONDS)
                     .topic(topic)
-                    .create();) {
+                    .create()) {
             } catch (PulsarClientException.LookupException expected) {
                 String msg = "Namespace bundle for topic (%s) not served by this instance";
                 log.info("Expected error", expected);
                 assertTrue(expected.getMessage().contains(String.format(msg, topic)));
             }
 
-            try (Consumer<byte[]> consumer = pulsarClient.newConsumer()
+            try (Consumer<byte[]> ignored = pulsarClient.newConsumer()
                     .topic(topic)
                     .subscriptionName("test")
-                    .subscribe();) {
+                    .subscribe()) {
             } catch (PulsarClientException.LookupException expected) {
                 String msg = "Namespace bundle for topic (%s) not served by this instance";
                 log.info("Expected error", expected);
@@ -170,17 +169,16 @@ public class TopicAutoCreationTest extends ProducerConsumerBase {
             admin.topics().getList(namespaceName).isEmpty();
 
             // create now the topic using auto creation
-            Whitebox.setInternalState(pulsarClient, "lookup", original);
-
-            try (Consumer<byte[]> consumer = pulsarClient.newConsumer()
+            ((PulsarClientImpl) pulsarClient).setLookup(original);
+            try (Consumer<byte[]> ignored = pulsarClient.newConsumer()
                     .topic(topic)
                     .subscriptionName("test")
-                    .subscribe();) {
+                    .subscribe()) {
             }
 
             admin.topics().getList(namespaceName).contains(topic);
         } finally {
-            Whitebox.setInternalState(pulsarClient, "lookup", original);
+            ((PulsarClientImpl) pulsarClient).setLookup(original);
         }
 
     }
