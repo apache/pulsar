@@ -29,6 +29,8 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -1688,7 +1690,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
     public void testForceDeleteNamespaceWithAutomaticTopicCreation() throws Exception {
         conf.setForceDeleteNamespaceAllowed(true);
         final String namespaceName = "prop-xyz2/ns1";
-        TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(ImmutableSet.of("role1", "role2"), ImmutableSet.of("test"));
         admin.tenants().createTenant("prop-xyz2", tenantInfo);
         admin.namespaces().createNamespace(namespaceName, 1);
         admin.namespaces().setAutoTopicCreation(namespaceName,
