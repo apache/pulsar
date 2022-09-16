@@ -33,7 +33,7 @@ concurrency:
 
 jobs:
   changed_files_job:
-    name: 'Changed files check'
+    name: Preconditions
     runs-on: ubuntu-20.04
     outputs:
       docs_only: ${{ needs.changed_files_job.outputs.docs_only }}

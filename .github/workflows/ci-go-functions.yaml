@@ -36,7 +36,7 @@ env:
 
 jobs:
   changed_files_job:
-    name: 'Changed files check'
+    name: Preconditions
     runs-on: ubuntu-20.04
     outputs:
       docs_only: ${{ steps.check_changes.outputs.docs_only }}
