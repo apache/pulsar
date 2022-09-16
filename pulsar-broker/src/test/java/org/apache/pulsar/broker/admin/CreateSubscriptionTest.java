@@ -31,6 +31,7 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.io.IOException;
 import javax.ws.rs.ClientErrorException;
+import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
 import lombok.extern.slf4j.Slf4j;
@@ -137,6 +138,7 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
 
     public void testContainsInvisibleCharactersForSubscriptionName() throws PulsarAdminException {
         String topic = "persistent://my-property/my-ns/my-partitioned-topic";
+        String errorMsg = "Subscription name contains invisible characters";
         admin.topics().createPartitionedTopic(topic, 10);
         admin.topics().createSubscription(topic, "sub-1", MessageId.latest);
         admin.topics().createSubscription(topic, "sub~`!@#$￥%^……&*(){「【[]}】』\\|、:;\"'<《,>。》.?/-1",
@@ -146,32 +148,37 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
         try {
             admin.topics().createSubscription(topic, "sub\u0000-2", MessageId.latest);
             fail("Should have failed");
-        } catch (Exception e) {
-            // Expected
+        } catch (PulsarAdminException.PreconditionFailedException e) {
+            assertEquals(Response.Status.PRECONDITION_FAILED.getStatusCode(), e.getStatusCode());
+            assertEquals(e.getMessage(), errorMsg);
         }
         try {
             admin.topics().createSubscription(topic, "sub\r-3", MessageId.latest);
             fail("Should have failed");
-        } catch (Exception e) {
-            // Expected
+        } catch (PulsarAdminException.PreconditionFailedException e) {
+            assertEquals(Response.Status.PRECONDITION_FAILED.getStatusCode(), e.getStatusCode());
+            assertEquals(e.getMessage(), errorMsg);
         }
         try {
             admin.topics().createSubscription(topic, "sub\n-4", MessageId.latest);
             fail("Should have failed");
-        } catch (Exception e) {
-            // Expected
+        } catch (PulsarAdminException.PreconditionFailedException e) {
+            assertEquals(Response.Status.PRECONDITION_FAILED.getStatusCode(), e.getStatusCode());
+            assertEquals(e.getMessage(), errorMsg);
         }
         try {
             admin.topics().createSubscription(topic, "sub\t-5", MessageId.latest);
             fail("Should have failed");
-        } catch (Exception e) {
-            // Expected
+        } catch (PulsarAdminException.PreconditionFailedException e) {
+            assertEquals(Response.Status.PRECONDITION_FAILED.getStatusCode(), e.getStatusCode());
+            assertEquals(e.getMessage(), errorMsg);
         }
         try {
             admin.topics().createSubscription(topic, "sub -6", MessageId.latest);
             fail("Should have failed");
-        } catch (Exception e) {
-            // Expected
+        } catch (PulsarAdminException.PreconditionFailedException e) {
+            assertEquals(Response.Status.PRECONDITION_FAILED.getStatusCode(), e.getStatusCode());
+            assertEquals(e.getMessage(), errorMsg);
         }
     }
 
