@@ -21,41 +21,35 @@
 
 # Release Process
 
-
 This page contains instructions for Pulsar committers on how to perform a release.
+
+## Preparation
+
+Open a discussion in dev@apache.org to notify others that you volunteer to be the release manager of a specific release. If there are no disagreements, you can start the release process.
+
+For major releases, you should create a new branch named `branch-2.X.0` once all PRs with the 2.X.0 milestone are merged. If some PRs with the 2.X.0 milestone are still working in progress and might take much time to complete, you can move them to the next milestone if they are not important. In this case, you'd better to notify the author in the PR.
+
+For minor releases, if there are no disagreements, you should cherry-pick all merged PRs with the `release/X.Y.Z` labels into branch-X.Y. After these PRs are cherry-picked, you should add the `cherry-picked/branch-X.Y` labels.
+
+Sometimes some PRs cannot be cherry-picked cleanly, you might need to create a separated PR and move the `release/X.Y.Z` label from the original PR to it. In this case, you can ask the author to help create the new PR.
+
+For PRs that are still open, you can choose to delay them to the next release or ping others to review so that they can be merged.
+
+To verify the release branch is not broken, you can synchronize the branch in your private repo and open a PR to trigger the CI. Example: https://github.com/BewareMyPower/pulsar/pull/3
+
+> You can use the following command to catch basic compilation or checkstyle errors in your local env before cherry-picking.
+>
+> ```bash
+> mvn -Pcore-modules,-main -T 1C clean install -DskipTests -Dspotbugs.skip=true
+> ```
+
+## Requirements
 
 If you haven't already done it, [create and publish the GPG key](https://github.com/apache/pulsar/blob/master/wiki/release/create-gpg-keys.md) to sign the release artifacts.
 
 Before you start the next release steps, make sure you have installed the **JDK8** and maven **3.6.1** for Pulsar 2.6 and Pulsar 2.7, and **JDK11** and Maven **3.6.1** for Pulsar 2.8 onwards. And **clean up the bookkeeper's local compiled** to make sure the bookkeeper dependency is fetched from the Maven repo, details to see https://lists.apache.org/thread/gsbh95b2d9xtcg5fmtxpm9k9q6w68gd2
 
-## Release workflow
-
-The steps for releasing are as follows:
-1. Create release branch
-2. Update project version and tag
-3. Build and inspect the artifacts
-4. Inspect the artifacts
-5. Stage artifacts in maven
-6. Move master branch to next version
-7. Write release notes
-8. Run the vote
-9. Promote the release
-10. Publish Docker Images
-11. Release Helm Chart
-12. Publish Python Clients
-13. Publish MacOS libpulsar package
-14. Update Python Client docs
-15. Update swagger file
-16. Write release notes
-17. Update the site
-18. Announce the release
-19. Write a blog post for the release (optional)
-20. Remove old releases
-21. Move branch to next version
-
-The following are details for each step.
-
-## 1. Create the release branch
+## Create the release branch
 
 We are going to create a branch from `master` to `branch-v2.X`
 where the tag will be generated and where new fixes will be
@@ -90,7 +84,7 @@ If you created a new branch, update the `CI - OWASP Dependency Check` workflow s
 
 Also, if you created a new branch, please update the `Security Policy and Supported Versions` page on the website. This page has a table for support timelines based on when minor releases take place.
 
-## 2. Update project version and tag
+## Update project version and tag
 
 During the release process, we are going to initially create
 "candidate" tags, that after verification and approval will
@@ -125,7 +119,7 @@ git push origin v2.X.0-candidate-1
 
 For minor release, tag is like `2.3.1`.
 
-## 3. Build and inspect the artifacts
+## Build and inspect the artifacts
 
 ```shell
 mvn clean install -DskipTests
@@ -159,7 +153,7 @@ Inspect the artifacts:
 
 * Use instructions in [Release-Candidate-Validation](https://github.com/apache/pulsar/blob/master/wiki/release/release-candidate-validation.md) to do some sanity checks on the produced binary distributions.
 
-### 3.1. Build RPM and DEB packages
+### Build RPM and DEB packages
 
 ```shell
 pulsar-client-cpp/pkg/rpm/docker-build-rpm.sh
@@ -173,9 +167,9 @@ pulsar-client-cpp/pkg/deb/docker-build-deb.sh
 This will leave the RPM/YUM and DEB repo files in `pulsar-client-cpp/pkg/rpm/RPMS/x86_64` and
 `pulsar-client-cpp/pkg/deb/BUILD/DEB` directory.
 
-> Tips: If you get error `c++: internal compiler error: Killed (program cc1plus)` when run `pulsar-client-cpp/pkg/deb/docker-build-deb.sh`. You may need to expand your docker memory greater than 2GB.
+> **NOTE**: If you get error `c++: internal compiler error: Killed (program cc1plus)` when run `pulsar-client-cpp/pkg/deb/docker-build-deb.sh`. You may need to expand your docker memory greater than 2GB.
 
-## 4. Sign and stage the artifacts
+## Sign and stage the artifacts
 
 The `src` and `bin` artifacts need to be signed and uploaded to the dist SVN
 repository for staging.
@@ -202,7 +196,7 @@ svn add *
 svn ci -m 'Staging artifacts and signature for Pulsar release 2.X.0'
 ```
 
-## 5. Stage artifacts in maven
+## Stage artifacts in maven
 
 Upload the artifacts to ASF Nexus:
 
@@ -224,6 +218,8 @@ mvn deploy -DskipTests -Papache-release --settings /tmp/mvn-apache-settings.xml
 mvn deploy -DskipTests -Papache-release --settings /tmp/mvn-apache-settings.xml -f tests/pom.xml -pl org.apache.pulsar.tests:tests-parent,org.apache.pulsar.tests:integration
 ```
 
+> **NOTE**: The `GPG_TTY` environment variable must be set for all the following steps. Otherwise, some operations might fail by `gpg failed to sign the data`.
+
 This will ask for the GPG key passphrase and then upload to the staging repository.
 
 > If you have deployed before, re-deploying might fail on pulsar-presto-connector-original.
@@ -242,31 +238,24 @@ minutes. Once complete click "Refresh" and now a link to the staging repository
 should be available, something like
 https://repository.apache.org/content/repositories/orgapachepulsar-XYZ
 
+## Publish release candidate docker images
 
-## 6. Move master branch to next version
+Run the following commands:
 
-We need to move master version to next iteration `X + 1`.
-
-```
-git checkout master
-./src/set-project-version.sh 2.Y.0-SNAPSHOT
-
-git commit -m 'Bumped version to 2.Y.0-SNAPSHOT' -a
+```shell
+cd $PULSAR_HOME/docker
+./build.sh
+DOCKER_USER=<your-username> DOCKER_PASSWORD=<your-password> DOCKER_ORG=<your-username> ./publish.sh
 ```
 
-Since this needs to be merged in `master`, we need to follow the regular process
-and create a Pull Request on github.
+After that, the following images will be built and pushed to your own DockerHub account.
+- pulsar
+- pulsar-all
+- pulsar-grafana
+- pulsar-standalone
 
-## 7. Write release notes
 
-Check the milestone in Github associated with the release.
-https://github.com/apache/pulsar/milestones?closed=1
-
-In the release item, add the list of most important changes that happened in the
-release and a link to the associated milestone, with the complete list of all the
-changes.
-
-## 8. Run the vote
+## Run the vote
 
 Send an email on the Pulsar Dev mailing list:
 
@@ -303,6 +292,12 @@ https://github.com/apache/pulsar/releases/tag/v2.X.0-candidate-1
 Pulsar's KEYS file containing PGP keys we use to sign the release:
 https://dist.apache.org/repos/dist/dev/pulsar/KEYS
 
+Docker images:
+
+<link of the pulsar images>
+
+<link of the pulsar-all image>
+
 Please download the source package, and follow the README to build
 and run the Pulsar standalone service.
 ```
@@ -311,9 +306,25 @@ The vote should be open for at least 72 hours (3 days). Votes from Pulsar PMC me
 will be considered binding, while anyone else is encouraged to verify the release and
 vote as well.
 
-If the release is approved here, we can then proceed to next step.
+If the release is approved here, we can then proceed to the next step. Otherwise, you should repeat the previous steps and prepare another candidate release to vote.
 
-## 9. Promote the release
+## Move master branch to next version
+
+> **NOTE**: This is for major releases only.
+
+We need to move master version to the next iteration `Y` (`X + 1`).
+
+```shell
+git checkout master
+./src/set-project-version.sh 2.Y.0-SNAPSHOT
+
+git commit -m 'Bumped version to 2.Y.0-SNAPSHOT' -a
+```
+
+Since this needs to be merged into `master`, you need to follow the regular process
+and create a Pull Request on GitHub.
+
+## Promote the release
 
 Create the final git tag:
 
@@ -333,23 +344,11 @@ select the staging repository associated with the RC candidate that was approved
 will be like `orgapachepulsar-XYZ`. Select the repository and click on "Release". Artifacts
 will now be made available on Maven central.
 
-## 10. Publish Docker Images
+## Publish Docker Images
 
-Choose either A. or B. depending if you have access to apachepulsar org in hub.docker.com. There's a limited number of users that are allowed in the account.
+Copy the approved candidate docker images from your personal account to apachepulsar org.
 
-### A. No push access to apachepulsar org - use Personal account for staging the Docker images
-
-#### Publish Docker Images to personal account in hub.docker.com (if you don't have access to apachepulsar org)
-
-- a) Run `cd $PULSAR_HOME/docker && ./build.sh` build docker images.
-- b) Run `cd $PULSAR_HOME/docker && DOCKER_PASSWORD="hub.docker.com token here" DOCKER_ORG=dockerhubuser DOCKER_USER=dockerhubuser ./publish.sh` to publish all images
-- c) Try to run `docker pull ${DOCKER_ORG}/pulsar:<tag>` to fetch the image, run the docker in standalone mode and make sure the docker image is okay.
-
-
-#### Copy Docker image from the Release manager's personal account to apachepulsar org
-
-Ask a person with access to apachepulsar org in hub.docker.com to copy the docker images from your (release manager) personal acccount to apachepulsar org.
-```
+```bash
 PULSAR_VERSION=2.x.x
 OTHER_DOCKER_USER=otheruser
 for image in pulsar pulsar-all pulsar-grafana pulsar-standalone; do
@@ -361,18 +360,11 @@ for image in pulsar pulsar-all pulsar-grafana pulsar-standalone; do
 done
 ```
 
-### B. Push access to apachepulsar org
+If you don't have the permission, you can ask someone with access to apachepulsar org to do that.
 
-This is alternative to A. when the user has access to apachepulsar org in hub.docker.com.
+## Release Helm Chart
 
-#### Publish Docker Images directly to apachepulsar org in hub.docker.com
-
-- a) Run `cd $PULSAR_HOME/docker && ./build.sh` build docker images.
-- b) Run `cd $PULSAR_HOME/docker && DOCKER_PASSWORD="hub.docker.com token here" DOCKER_USER=dockerhubuser ./publish.sh` to publish all images
-- c) Try to run `docker pull pulsar:<tag>` to fetch the image, run the docker in standalone mode and make sure the docker image is okay.
-
-
-## 11. Release Helm Chart
+**This step can be skipped if the major version number is not latest.**
 
 1. Bump the image version in the Helm Chart: [charts/pulsar/values.yaml](https://github.com/apache/pulsar-helm-chart/blob/master/charts/pulsar/values.yaml)
 
@@ -382,13 +374,15 @@ This is alternative to A. when the user has access to apachepulsar org in hub.do
 
 4. Once it is merged, the chart will be automatically released to Github releases at https://github.com/apache/pulsar-helm-chart and updated to https://pulsar.apache.org/charts.
 
-## 12. Publish Python Clients
+## Publish Python Clients
 
 > **NOTES**
 >
-> 1. You need to create an account on PyPI: https://pypi.org/project/pulsar-client/
+> 1. You need to create an account on PyPI: https://pypi.org/account/register/
 >
-> 2. Ask Matteo or Sijie for adding you as a maintainer for pulsar-docker on PyPI
+> 2. Ask anyone that has been a release manager before to add you as a maintainer for pulsar-docker on PyPI
+>
+> 3. Once you have completed the following steps in this section, you can check if the wheels are uploaded successfully in [Download files](https://pypi.org/project/pulsar-client/#files). Remember to switch to the correct version in [Release history](https://pypi.org/project/pulsar-client/#history)).
 
 ### Linux
 
@@ -412,35 +406,16 @@ $ twine upload pulsar_client-*.whl
 
 ### MacOS
 
-> **NOTES**
->
-> You need to install following softwares before proceeding:
->
-> - [VirtualBox](https://www.virtualbox.org/)
-> - [VirtualBox Extension Pack]
-> - [Vagrant](https://www.vagrantup.com/)
-> - [Vagrant-scp](https://github.com/invernizzi/vagrant-scp)
->
-> And make sure your laptop have enough disk spaces (> 30GB) since the build scripts
-> will download MacOS images, launch them in VirtualBox and build the python
-> scripts.
-
-Build the python scripts.
+There is a script that builds and packages the Python client inside Docker images.
 
 ```shell
-$ cd pulsar-client-cpp/python/pkg/osx/
-$ ./generate-all-wheel.sh v2.X.Y
+$ pulsar-client-cpp/python/build-mac-wheels.sh
 ```
 
 The wheel files will be generated at each platform directory under `pulsar-client-cpp/python/pkg/osx/`.
 Then you can run `twin upload` to upload those wheel files.
 
-If you don't have enough spaces, you can build the python wheel file platform by platform and remove the images under `~/.vagrant.d/boxes` between each run.
-
-## 13. Publish MacOS libpulsar package
-Release a new version of libpulsar for MacOS, You can follow the example [here](https://github.com/Homebrew/homebrew-core/pull/53514)
-
-## 14. Update Python Client docs
+## Update Python Client docs
 
 After publishing the python client docs, run the following script from the apache/pulsar-site `main` branch:
 
@@ -452,7 +427,13 @@ Note that it builds the docs within a docker image, so you'll need to have docke
 
 Once the docs are generated, you can add them and submit them in a PR. The expected doc output is `site2/website/static/api/python`.
 
-## 15. Update swagger file
+## Publish Homebrew libpulsar package
+
+**This step can be skipped if the major version number is not latest.**
+
+Release a new version of libpulsar for Homebrew, You can follow the example [here](https://github.com/Homebrew/homebrew-core/pull/53514).
+
+## Update swagger file
 
 > For major release, the swagger file update happen under `master` branch.
 > while for minor release, swagger file is created from branch-2.x, and need copy to a new branch based on master.
@@ -467,11 +448,11 @@ cp pulsar-broker/target/docs/*.json site2/website/static/swagger/2.X.0
 ```
 Send out a PR request for review.
 
-## 16. Write release notes
+## Write release notes
 
-Steps and examples see [Pulsar Release Notes Guide](https://docs.google.com/document/d/1cwNkBefKyV6OPbEXnUrcCdVZi0i2BezqL6vAL7VqVC0/edit#).
+See [Pulsar Release Notes Guide](https://docs.google.com/document/d/1cwNkBefKyV6OPbEXnUrcCdVZi0i2BezqL6vAL7VqVC0/edit#).
 
-## 17. Update the site
+## Update the site
 
 ### Update the site for minor releases
 For minor releases, such as 2.10, the website is updated based on the `master` branch.
@@ -525,7 +506,7 @@ After you run this command, a new folder `version-<release-version>` is added in
 >
 > Starting from 2.8, you don't need to generate an independent doc set or update the Pulsar site for bug-fix releases, such as 2.8.1, 2.8.2, and so on. Instead, the generic doc set 2.8.x is used.
 
-## 18. Announce the release
+## Announce the release
 
 Once the release artifacts are available in the Apache Mirrors and the website is updated,
 we need to announce the release.
@@ -561,13 +542,13 @@ Send the email in plain text mode since the announce@apache.org mailing list wil
 In Gmail, there's an option to set `Plain text mode` in the `⋮`/ `More options` menu.
 
 
-## 19. Write a blog post for the release (optional)
+## Write a blog post for the release (optional)
 
 It is encouraged to write a blog post to summarize the features introduced in this release,
 especially for feature releases.
 You can follow the example [here](https://github.com/apache/pulsar/pull/2308)
 
-## 20. Remove old releases
+## Remove old releases
 
 Remove the old releases (if any). We only need the latest release there, older releases are
 available through the Apache archive:
@@ -580,10 +561,13 @@ svn ls https://dist.apache.org/repos/dist/release/pulsar
 svn rm https://dist.apache.org/repos/dist/release/pulsar/pulsar-2.Y.0
 ```
 
-## 21. Move branch to next version
+## Move release branch to next version
 
-Follow the instructions in step 6, but run the script on the release branch.
+Run the following commands in release branches.
 
 ```shell
 ./src/set-project-version.sh 2.X.Y-SNAPSHOT
+
+git commit -m 'Bumped version to 2.X.Y-SNAPSHOT' -a
+git push origin branch-2.X
 ```

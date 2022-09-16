@@ -105,6 +105,11 @@ void HandlerBase::handleDisconnection(Result result, ClientConnectionWeakPtr con
 
     handler->connection_.reset();
 
+    if (result == ResultRetryable) {
+        scheduleReconnection(handler);
+        return;
+    }
+
     switch (state) {
         case Pending:
         case Ready:
@@ -121,14 +126,7 @@ void HandlerBase::handleDisconnection(Result result, ClientConnectionWeakPtr con
     }
 }
 
-bool HandlerBase::isRetriableError(Result result) {
-    switch (result) {
-        case ResultServiceUnitNotReady:
-            return true;
-        default:
-            return false;
-    }
-}
+bool HandlerBase::isRetriableError(Result result) { return result == ResultRetryable; }
 
 void HandlerBase::scheduleReconnection(HandlerBasePtr handler) {
     const auto state = handler->state_.load();

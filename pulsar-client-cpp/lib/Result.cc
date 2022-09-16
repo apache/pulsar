@@ -25,6 +25,9 @@ namespace pulsar {
 
 const char* strResult(Result result) {
     switch (result) {
+        case ResultRetryable:
+            return "Retryable";
+
         case ResultOk:
             return "Ok";
 

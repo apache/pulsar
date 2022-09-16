@@ -52,6 +52,8 @@ class ServiceNameResolver {
     const ServiceURI serviceUri_;
     const size_t numAddresses_;
     std::atomic_size_t index_{0};
+
+    friend class PulsarFriend;
 };
 
 }  // namespace pulsar

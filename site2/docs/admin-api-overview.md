@@ -1,6 +1,6 @@
 ---
 id: admin-api-overview
-title: Pulsar admin interface
+title: Pulsar admin interfaces
 sidebar_label: "Overview"
 ---
 

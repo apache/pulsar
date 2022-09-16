@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.resourcegroup;
 
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
+import com.google.common.annotations.VisibleForTesting;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Summary;
 import java.util.Map;
@@ -829,4 +830,14 @@ public class ResourceGroupService {
             .name("pulsar_resource_group_calculate_quota_secs")
             .help("Time required to calculate quota of all resource groups, in seconds.")
             .register();
+
+    @VisibleForTesting
+    ConcurrentHashMap getTopicConsumeStats() {
+        return this.topicConsumeStats;
+    }
+
+    @VisibleForTesting
+    ConcurrentHashMap getTopicProduceStats() {
+        return this.topicProduceStats;
+    }
 }
