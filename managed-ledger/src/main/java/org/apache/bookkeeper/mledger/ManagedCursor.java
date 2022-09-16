@@ -89,6 +89,9 @@ public interface ManagedCursor {
     /**
      * Add a property associated with the cursor.
      *
+     * Note: {@link ManagedLedgerException.BadVersionException} will be set in this {@link CompletableFuture},
+     * if there are concurrent modification and store data has changed.
+     *
      * @return a handle to the result of the operation
      */
     CompletableFuture<Void> putCursorProperty(String key, String value);
@@ -96,12 +99,18 @@ public interface ManagedCursor {
     /**
      * Set all properties associated with the cursor.
      *
+     * Note: {@link ManagedLedgerException.BadVersionException} will be set in this {@link CompletableFuture},
+     * if there are concurrent modification and store data has changed.
+     *
      * @return a handle to the result of the operation
      */
     CompletableFuture<Void> setCursorProperties(Map<String, String> cursorProperties);
 
     /**
      * Remove a property associated with the cursor.
+     *
+     * Note: {@link ManagedLedgerException.BadVersionException} will be set in this {@link CompletableFuture},
+     * if there are concurrent modification and store data has changed.
      *
      * @return a handle to the result of the operation
      */
