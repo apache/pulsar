@@ -160,20 +160,26 @@ function ci_check_ready_to_test() {
     return 1
   fi
   # check ready-to-test label
-  if ! jq -e '.pull_request.labels[] | .name | select(. == "ready-to-test")' "$GITHUB_EVENT_PATH" &> /dev/null; then
-    # check if the PR has been approved
-    PR_NUM=$(jq -r '.pull_request.number' "${GITHUB_EVENT_PATH}")
-    REPO_FULL_NAME=$(jq -r '.repository.full_name' "${GITHUB_EVENT_PATH}")
-    REPO_NAME=$(basename "${REPO_FULL_NAME}")
-    REPO_OWNER=$(dirname "${REPO_FULL_NAME}")
-    # use graphql query to find out reviewDecision
-    PR_REVIEW_DECISION=$(curl -s -H "Authorization: bearer $GITHUB_TOKEN" -X POST -d '{"query": "query { repository(name: \"'${REPO_NAME}'\", owner: \"'${REPO_OWNER}'\") { pullRequest(number: '${PR_NUM}') { reviewDecision } } }"}' https://api.github.com/graphql |jq -r '.data.repository.pullRequest.reviewDecision')
-    echo "Review decision for PR #${PR_NUM} in repository ${REPO_OWNER}/${REPO_NAME} is ${PR_REVIEW_DECISION}"
-    if [[ "$PR_REVIEW_DECISION" != "APPROVED" ]]; then
-      FORK_REPO_URL=$(jq -r '.pull_request.head.repo.html_url' "$GITHUB_EVENT_PATH")
-      PR_BRANCH_LABEL=$(jq -r '.pull_request.head.label' "$GITHUB_EVENT_PATH")
-      PR_URL=$(jq -r '.pull_request.html_url' "$GITHUB_EVENT_PATH")
-      >&2 tee -a "$GITHUB_STEP_SUMMARY" <<EOF
+  if jq -e '.pull_request.labels[] | .name | select(. == "ready-to-test")' "$GITHUB_EVENT_PATH" &> /dev/null; then
+    return 0
+  fi
+
+  # check if the PR has been approved
+  PR_NUM=$(jq -r '.pull_request.number' "${GITHUB_EVENT_PATH}")
+  REPO_FULL_NAME=$(jq -r '.repository.full_name' "${GITHUB_EVENT_PATH}")
+  REPO_NAME=$(basename "${REPO_FULL_NAME}")
+  REPO_OWNER=$(dirname "${REPO_FULL_NAME}")
+  # use graphql query to find out reviewDecision
+  PR_REVIEW_DECISION=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" -X POST -d '{"query": "query { repository(name: \"'${REPO_NAME}'\", owner: \"'${REPO_OWNER}'\") { pullRequest(number: '${PR_NUM}') { reviewDecision } } }"}' https://api.github.com/graphql |jq -r '.data.repository.pullRequest.reviewDecision')
+  echo "Review decision for PR #${PR_NUM} in repository ${REPO_OWNER}/${REPO_NAME} is ${PR_REVIEW_DECISION}"
+  if [[ "$PR_REVIEW_DECISION" == "APPROVED" ]]; then
+    return 0
+  fi
+
+  FORK_REPO_URL=$(jq -r '.pull_request.head.repo.html_url' "$GITHUB_EVENT_PATH")
+  PR_BRANCH_LABEL=$(jq -r '.pull_request.head.label' "$GITHUB_EVENT_PATH")
+  PR_URL=$(jq -r '.pull_request.html_url' "$GITHUB_EVENT_PATH")
+  >&2 tee -a "$GITHUB_STEP_SUMMARY" <<EOF
 
 # Instructions for proceeding with the pull request:
 
@@ -204,9 +210,7 @@ If you have any trouble you can get support in multiple ways:
 * in apache/pulsar [GitHub discussions Q&A](https://github.com/apache/pulsar/discussions/categories/q-a)
 
 EOF
-      return 1
-    fi
-  fi
+  return 1
 }
 
 if [ -z "$1" ]; then
