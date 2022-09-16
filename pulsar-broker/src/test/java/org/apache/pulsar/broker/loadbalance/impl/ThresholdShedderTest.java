@@ -264,7 +264,7 @@ public class ThresholdShedderTest {
     }
 
     @Test
-    public void testNoBrokerToOffload() {
+    public void testLowerBoundarySheddingNoBrokerToOffload() {
         int numBundles = 10;
         int brokerNum = 11;
         LoadData loadData = new LoadData();
