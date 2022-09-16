@@ -347,7 +347,8 @@ public class ManagedCursorImpl implements ManagedCursor {
                     public void operationComplete(Void result, Stat stat) {
                         log.info("[{}] Updated ledger cursor: {} properties {}", ledger.getName(),
                                 name, cursorProperties);
-                        ManagedCursorImpl.this.cursorProperties = newProperties;
+                        ManagedCursorImpl.this.managedCursorInfo = copy;
+                        ManagedCursorImpl.this.cursorProperties = Collections.unmodifiableMap(newProperties);
                         cursorLedgerStat = stat;
                         updateCursorPropertiesResult.complete(result);
                     }

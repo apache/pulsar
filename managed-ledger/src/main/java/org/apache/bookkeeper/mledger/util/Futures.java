@@ -78,7 +78,7 @@ public class Futures {
                 resultFuture.complete(res);
             } else {
                 if (needRetryExceptionClass.isAssignableFrom(ex.getClass())) {
-                    op.get().whenComplete((res2, ex2) -> {
+                    executeWithRetry(op, needRetryExceptionClass).whenComplete((res2, ex2) -> {
                         if (ex2 == null) {
                             resultFuture.complete(res2);
                         } else {
