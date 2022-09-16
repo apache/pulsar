@@ -1050,6 +1050,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private boolean dispatcherDispatchMessagesInSubscriptionThread = true;
 
+    @FieldContext(
+        dynamic = false,
+        category = CATEGORY_SERVER,
+        doc = "Whether the broker should count filtered entries in dispatch rate limit calculations. When disabled, "
+            + "only messages sent to a consumer count towards a dispatch rate limit at the broker, topic, and "
+            + "subscription level. When enabled, messages filtered out due to entry filter logic are counted towards "
+            + "each relevant rate limit."
+    )
+    private boolean dispatchThrottlingForFilteredEntriesEnabled = false;
+
     // <-- dispatcher read settings -->
     @FieldContext(
         dynamic = true,
