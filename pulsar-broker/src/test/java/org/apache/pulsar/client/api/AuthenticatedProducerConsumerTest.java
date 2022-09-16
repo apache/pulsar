@@ -466,4 +466,45 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         @Cleanup
         Producer<byte[]> ignored = client.newProducer().topic(topicName).create();
     }
+
+    @Test
+    public void testCleanupEmptyTopicAuthenticationMap() throws Exception {
+        Map<String, String> authParams = new HashMap<>();
+        authParams.put("tlsCertFile", TLS_CLIENT_CERT_FILE_PATH);
+        authParams.put("tlsKeyFile", TLS_CLIENT_KEY_FILE_PATH);
+        Authentication authTls = new AuthenticationTls();
+        authTls.configure(authParams);
+        internalSetup(authTls);
+
+        admin.clusters().createCluster("test", ClusterData.builder().build());
+        admin.tenants().createTenant("p1",
+                new TenantInfoImpl(Collections.emptySet(), new HashSet<>(admin.clusters().getClusters())));
+        admin.namespaces().createNamespace("p1/ns1");
+
+        String topic = "persistent://p1/ns1/topic";
+        admin.topics().createNonPartitionedTopic(topic);
+        assertFalse(pulsar.getPulsarResources().getNamespaceResources().getPolicies(NamespaceName.get("p1/ns1"))
+                .get().auth_policies.getTopicAuthentication().containsKey(topic));
+
+        // grant permission
+        admin.topics().grantPermission(topic, "test-user-1", EnumSet.of(AuthAction.consume));
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(pulsar.getPulsarResources().getNamespaceResources().getPolicies(NamespaceName.get("p1/ns1"))
+                    .get().auth_policies.getTopicAuthentication().containsKey(topic));
+        });
+
+        // revoke permission
+        admin.topics().revokePermissions(topic, "test-user-1");
+        Awaitility.await().untilAsserted(() -> {
+            assertFalse(pulsar.getPulsarResources().getNamespaceResources().getPolicies(NamespaceName.get("p1/ns1"))
+                    .get().auth_policies.getTopicAuthentication().containsKey(topic));
+        });
+
+        // grant permission again
+        admin.topics().grantPermission(topic, "test-user-1", EnumSet.of(AuthAction.consume));
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(pulsar.getPulsarResources().getNamespaceResources().getPolicies(NamespaceName.get("p1/ns1"))
+                    .get().auth_policies.getTopicAuthentication().containsKey(topic));
+        });
+    }
 }

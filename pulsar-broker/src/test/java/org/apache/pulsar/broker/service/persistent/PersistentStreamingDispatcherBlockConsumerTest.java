@@ -26,7 +26,7 @@ import org.testng.annotations.Test;
 /**
  * DispatcherBlockConsumerTest with {@link StreamingDispatcher}
  */
-@Test(groups = "broker")
+@Test(groups = "flaky")
 public class PersistentStreamingDispatcherBlockConsumerTest extends DispatcherBlockConsumerTest {
 
     @BeforeMethod

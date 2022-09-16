@@ -12,3 +12,8 @@ tests:
   - added|modified: '**/src/test/java/**/*.java'
 cpp:
   - 'pulsar-client-cpp/**'
+need_owasp:
+  - 'pom.xml'
+  - '**/pom.xml'
+  - 'src/owasp-dependency-check-false-positives.xml'
+  - 'src/owasp-dependency-check-suppressions.xml'

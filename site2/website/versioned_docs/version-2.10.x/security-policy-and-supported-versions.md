@@ -2,7 +2,6 @@
 id: security-policy-and-supported-versions
 title: Security Policy and Supported Versions
 sidebar_label: "Security Policy and Supported Versions"
-original_id: security-policy-and-supported-versions
 ---
 
 ## Using Pulsar's Security Features
@@ -10,10 +9,13 @@ original_id: security-policy-and-supported-versions
 You can find documentation on Pulsar's available security features and how to use them here:
 https://pulsar.apache.org/docs/en/security-overview/.
 
-## Security Vulnerability Announcements
+## Security Vulnerability Process
 
-The Pulsar community will announce security vulnerabilities and how to mitigate them on the [users@pulsar.apache.org](mailto:users@pulsar.apache.org).
-For instructions on how to subscribe, please see https://pulsar.apache.org/contact/.
+The Pulsar community follows the ASF [security vulnerability handling process](https://apache.org/security/#vulnerability-handling).
+
+To report a new vulnerability you have discovered, please follow the [ASF security vulnerability reporting process](https://apache.org/security/#reporting-a-vulnerability). To report a vulnerability for Pulsar, contact the [Apache Security Team](https://www.apache.org/security/). When reporting a vulnerability to [security@apache.org](mailto:security@apache.org), you can copy your email to [private@pulsar.apache.org](mailto:private@pulsar.apache.org) to send your report to the Apache Pulsar Project Management Committee. This is a private mailing list.
+
+It is the responsibility of the security vulnerability handling project team (Apache Pulsar PMC in most cases) to make public security vulnerability announcements. You can follow announcements on the [users@pulsar.apache.org](mailto:users@pulsar.apache.org) mailing list. For instructions on how to subscribe, please see https://pulsar.apache.org/contact/.
 
 ## Versioning Policy
 

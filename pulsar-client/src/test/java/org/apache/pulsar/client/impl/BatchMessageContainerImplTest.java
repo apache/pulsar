@@ -24,6 +24,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBufAllocator;
+import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -31,6 +32,7 @@ import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.junit.Assert;
 import org.testng.annotations.Test;
 
 public class BatchMessageContainerImplTest {
@@ -41,6 +43,17 @@ public class BatchMessageContainerImplTest {
         final ProducerImpl<?> producer = mock(ProducerImpl.class);
         final ProducerConfigurationData producerConfigurationData = new ProducerConfigurationData();
         producerConfigurationData.setCompressionType(CompressionType.NONE);
+        PulsarClientImpl pulsarClient = mock(PulsarClientImpl.class);
+        MemoryLimitController memoryLimitController = mock(MemoryLimitController.class);
+        when(pulsarClient.getMemoryLimitController()).thenReturn(memoryLimitController);
+        try {
+            Field clientFiled = HandlerState.class.getDeclaredField("client");
+            clientFiled.setAccessible(true);
+            clientFiled.set(producer, pulsarClient);
+        } catch (Exception e){
+            Assert.fail(e.getMessage());
+        }
+
         when(producer.getConfiguration()).thenReturn(producerConfigurationData);
         final ByteBufAllocator mockAllocator = mock(ByteBufAllocator.class);
         doAnswer((ignore) -> {

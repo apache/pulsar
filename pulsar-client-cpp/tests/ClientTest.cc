@@ -20,6 +20,7 @@
 
 #include "HttpHelper.h"
 #include "PulsarFriend.h"
+#include "WaitUtils.h"
 
 #include <future>
 #include <pulsar/Client.h>
@@ -219,9 +220,13 @@ TEST(ClientTest, testReferenceCount) {
     ASSERT_EQ(producers.size(), 1);
     ASSERT_EQ(producers[0].use_count(), 0);
     ASSERT_EQ(consumers.size(), 2);
-    ASSERT_EQ(consumers[0].use_count(), 0);
-    ASSERT_EQ(consumers[1].use_count(), 0);
-    ASSERT_EQ(readerWeakPtr.use_count(), 0);
+
+    waitUntil(std::chrono::seconds(1), [&consumers, &readerWeakPtr] {
+        return consumers[0].use_count() == 0 && consumers[1].use_count() == 0 && readerWeakPtr.expired();
+    });
+    EXPECT_EQ(consumers[0].use_count(), 0);
+    EXPECT_EQ(consumers[1].use_count(), 0);
+    EXPECT_EQ(readerWeakPtr.use_count(), 0);
     client.close();
 }
 

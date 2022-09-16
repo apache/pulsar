@@ -59,7 +59,7 @@ To install the built Python bindings:
 ```shell
 git clone https://github.com/apache/pulsar
 cd pulsar/pulsar-client-cpp/python
-sudo pip install .
+sudo python setup.py install
 ```
 
 ## Connection URLs
@@ -180,7 +180,7 @@ while True:
 
 In addition to subscribing a consumer to a single Pulsar topic, you can also subscribe to multiple topics simultaneously. To use multi-topic subscriptions, you can supply a regular expression (regex) or a `List` of topics. If you select topics via regex, all topics must be within the same Pulsar namespace.
 
-The following is an example: 
+The following is an example:
 
 ```python
 import re
@@ -306,7 +306,7 @@ The schema definition is like this.
 ```json
 {
   "name": "NamespaceDemo", "namespace": "xxx.xxx.xxx", "type": "record", "fields": [
-    {"name": "x", "type": ["null", "string"]}, 
+    {"name": "x", "type": ["null", "string"]},
     {"name": "y", "type": ["null", "int"]}
   ]
 }
@@ -343,7 +343,7 @@ while True:
 ```
 
 ````mdx-code-block
-<Tabs 
+<Tabs
   defaultValue="BytesSchema"
   values={[{"label":"BytesSchema","value":"BytesSchema"},{"label":"StringSchema","value":"StringSchema"},{"label":"AvroSchema","value":"AvroSchema"},{"label":"JsonSchema","value":"JsonSchema"}]}>
 
@@ -397,7 +397,7 @@ You can declare an `AvroSchema` using one of the following methods.
 
 You can declare an `AvroSchema` by passing a class that inherits
 from `pulsar.schema.Record` and defines the fields as
-class variables. 
+class variables.
 
 **Example**
 
@@ -426,7 +426,7 @@ You can declare an `AvroSchema` using JSON. In this case, Avro schemas are defin
 
 **Example**
 
-Below is an `AvroSchema` defined using a JSON file (_company.avsc_). 
+Below is an `AvroSchema` defined using a JSON file (_company.avsc_).
 
 ```json
 {
@@ -532,7 +532,7 @@ This section provides step-by-step instructions on how to use the end-to-end enc
 
 **Prerequisite**
 
-- Pulsar Python client 2.7.1 or later 
+- Pulsar Python client 2.7.1 or later
 
 **Step**
 

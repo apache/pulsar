@@ -4,41 +4,50 @@ title: Overview of tiered storage
 sidebar_label: "Overview"
 ---
 
-Pulsar's **Tiered Storage** feature allows older backlog data to be moved from BookKeeper to long term and cheaper storage, while still allowing clients to access the backlog as if nothing has changed. 
+Pulsar's **Tiered Storage** feature allows older backlog data to be moved from BookKeeper to long-term and cheaper storage, while still allowing clients to access the backlog as if nothing has changed.
 
-* Tiered storage uses [Apache jclouds](https://jclouds.apache.org) to support [Amazon S3](https://aws.amazon.com/s3/), [GCS (Google Cloud Storage)](https://cloud.google.com/storage/), [Azure](https://azure.microsoft.com/en-us/services/storage/blobs/) and [Aliyun OSS](https://www.aliyun.com/product/oss) for long term storage. 
-
-  With jclouds, it is easy to add support for more [cloud storage providers](https://jclouds.apache.org/reference/providers/#blobstore-providers) in the future.
-
-  :::tip
-
-  - For more information about how to use the AWS S3 offloader with Pulsar, see [here](tiered-storage-aws.md).
-  
-  - For more information about how to use the GCS offloader with Pulsar, see [here](tiered-storage-gcs.md).
-  
-  - For more information about how to use the Azure offloader with Pulsar, see [here](tiered-storage-azure.md).
-  
-  - For more information about how to use the Aliyun OSS offloader with Pulsar, see [here](tiered-storage-aliyun.md).
-
-  - For more information about how to use the S3 offloader with Pulsar, see [here](tiered-storage-s3.md).
-
-  :::
-
-* Tiered storage uses [Apache Hadoop](http://hadoop.apache.org/) to support filesystems for long term storage. 
-
-  With Hadoop, it is easy to add support for more filesystems in the future.
-
-  :::tip
-
-  For more information about how to use the filesystem offloader with Pulsar, see [here](tiered-storage-filesystem.md).
-
-  :::
+* Tiered storage uses [Apache jclouds](https://jclouds.apache.org) to support [Amazon S3](https://aws.amazon.com/s3/), [GCS (Google Cloud Storage)](https://cloud.google.com/storage/), [Azure](https://azure.microsoft.com/en-us/services/storage/blobs/) and [Aliyun OSS](https://www.aliyun.com/product/oss) for long term storage.
+  * Read how to [Use AWS S3 offloader with Pulsar](tiered-storage-aws.md);
+  * Read how to [Use GCS offloader with Pulsar](tiered-storage-gcs.md);
+  * Read how to [Use Azure BlobStore offloader with Pulsar](tiered-storage-azure.md);
+  * Read how to [Use Aliyun OSS offloader with Pulsar](tiered-storage-aliyun.md);
+  * Read how to [Use S3 offloader with Pulsar](tiered-storage-s3.md).
+* Tiered storage uses [Apache Hadoop](http://hadoop.apache.org/) to support filesystems for long-term storage.
+  * Read how to [Use filesystem offloader with Pulsar](tiered-storage-filesystem.md).
 
 ## When to use tiered storage?
 
-Tiered storage should be used when you have a topic for which you want to keep a very long backlog for a long time. 
+Tiered storage should be used when you have a topic for which you want to keep a very long backlog for a long time.
 
 For example, if you have a topic containing user actions that you use to train your recommendation systems, you may want to keep that data for a long time, so that if you change your recommendation algorithm, you can rerun it against your full user history.
+
+## How to install tiered storage offloaders?
+
+Pulsar releases a separate binary distribution, containing the tiered storage offloaders. To enable those offloaders, you need to download the offloaders tarball release:
+
+```bash
+wget pulsar:offloader_release_url
+```
+
+After you download the tarball, untar the offloaders package and copy the offloaders as `offloaders` in the pulsar directory:
+
+```bash
+tar xvfz apache-pulsar-offloaders-@pulsar:version@-bin.tar.gz
+mv apache-pulsar-offloaders-@pulsar:version@/offloaders offloaders
+
+ls offloaders
+# tiered-storage-file-system-@pulsar:version@.nar
+# tiered-storage-jcloud-@pulsar:version@.nar
+```
+
+For more information on how to configure tiered storage, see [Tiered storage cookbook](cookbooks-tiered-storage.md).
+
+:::note
+
+* If you are running Pulsar in a bare metal cluster, make sure that `offloaders` tarball is unzipped in every broker's pulsar directory.
+* If you are [running Pulsar in Docker](getting-started-docker.md) or deploying Pulsar using a docker image (e.g. [K8S](deploy-kubernetes.md)), you can use the `apachepulsar/pulsar-all` image instead of the `apachepulsar/pulsar` image. `apachepulsar/pulsar-all` image has already bundled tiered storage offloaders.
+
+:::
 
 ## How does tiered storage work?
 
@@ -50,7 +59,7 @@ The tiered storage offloading mechanism takes advantage of the segment-oriented 
 
 Data written to BookKeeper is replicated to 3 physical machines by default. However, once a segment is sealed in BookKeeper, it becomes immutable and can be copied to long-term storage. Long-term storage can achieve cost savings by using mechanisms such as [Reed-Solomon error correction](https://en.wikipedia.org/wiki/Reed%E2%80%93Solomon_error_correction) to require fewer physical copies of data.
 
-Before offloading ledgers to long-term storage, you need to configure buckets, credentials, and other properties for the cloud storage service. Additionally, Pulsar uses multi-part objects to upload the segment data and brokers may crash while uploading the data. It is recommended that you add a life cycle rule for your bucket to expire incomplete multi-part upload after a day or two days to avoid getting charged for incomplete uploads. Moreover, you can trigger the offloading operation manually (via REST API or CLI) or automatically (via CLI).  
+Before offloading ledgers to long-term storage, you need to configure buckets, credentials, and other properties for the cloud storage service. Additionally, Pulsar uses multi-part objects to upload the segment data and brokers may crash while uploading the data. It is recommended that you add a life cycle rule for your bucket to expire incomplete multi-part upload after a day or two days to avoid getting charged for incomplete uploads. Moreover, you can trigger the offloading operation manually (via REST API or CLI) or automatically (via CLI).
 
 After offloading ledgers to long-term storage, you can still query data in the offloaded ledgers with Pulsar SQL.
 

@@ -71,6 +71,7 @@ To configure brokers to authenticate clients, add the following parameters to `b
 # Configuration to enable authentication
 authenticationEnabled=true
 authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderTls
+tlsRequireTrustedClientCertOnConnect=true
 
 brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.AuthenticationTls
 brokerClientAuthenticationParameters={"tlsCertFile":"/path/my-ca/admin.cert.pem","tlsKeyFile":"/path/my-ca/admin.key-pk8.pem"}
@@ -87,6 +88,7 @@ The proxy should have its own client key pair for connecting to brokers. You nee
 # For clients connecting to the proxy
 authenticationEnabled=true
 authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderTls
+tlsRequireTrustedClientCertOnConnect=true
 
 # For the proxy to connect to brokers
 brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.AuthenticationTls
