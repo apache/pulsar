@@ -28,6 +28,8 @@
 #include <pulsar/Authentication.h>
 #include <boost/exception/all.hpp>
 #include "LogUtils.h"
+#include "RetryableLookupService.h"
+#include "PulsarFriend.h"
 
 #include <algorithm>
 
@@ -135,7 +137,7 @@ static void testMultiAddresses(LookupService& lookupService) {
     auto verifySuccessCount = [&results] {
         // Only half of them succeeded
         ASSERT_EQ(std::count(results.cbegin(), results.cend(), ResultOk), numRequests / 2);
-        ASSERT_EQ(std::count(results.cbegin(), results.cend(), ResultConnectError), numRequests / 2);
+        ASSERT_EQ(std::count(results.cbegin(), results.cend(), ResultRetryable), numRequests / 2);
     };
 
     for (int i = 0; i < numRequests; i++) {
@@ -178,4 +180,95 @@ TEST(LookupServiceTest, testMultiAddresses) {
     auto httpLookupServicePtr = std::make_shared<HTTPLookupService>(
         std::ref(serviceNameResolverForHttp), ClientConfiguration{}, AuthFactory::Disabled());
     testMultiAddresses(*httpLookupServicePtr);
+}
+TEST(LookupServiceTest, testRetry) {
+    auto executorProvider = std::make_shared<ExecutorServiceProvider>(1);
+    ConnectionPool pool({}, executorProvider, AuthFactory::Disabled(), true);
+    ServiceNameResolver serviceNameResolver("pulsar://localhost:9999,localhost");
+
+    auto lookupService = RetryableLookupService::create(
+        std::make_shared<BinaryProtoLookupService>(serviceNameResolver, pool, ""), 30 /* seconds */,
+        executorProvider);
+
+    PulsarFriend::setServiceUrlIndex(serviceNameResolver, 0);
+    auto topicNamePtr = TopicName::get("lookup-service-test-retry");
+    auto future1 = lookupService->getBroker(*topicNamePtr);
+    LookupService::LookupResult lookupResult;
+    ASSERT_EQ(ResultOk, future1.get(lookupResult));
+    LOG_INFO("getBroker returns logicalAddress: " << lookupResult.logicalAddress
+                                                  << ", physicalAddress: " << lookupResult.physicalAddress);
+
+    PulsarFriend::setServiceUrlIndex(serviceNameResolver, 0);
+    auto future2 = lookupService->getPartitionMetadataAsync(topicNamePtr);
+    LookupDataResultPtr lookupDataResultPtr;
+    ASSERT_EQ(ResultOk, future2.get(lookupDataResultPtr));
+    LOG_INFO("getPartitionMetadataAsync returns " << lookupDataResultPtr->getPartitions() << " partitions");
+
+    PulsarFriend::setServiceUrlIndex(serviceNameResolver, 0);
+    auto future3 = lookupService->getTopicsOfNamespaceAsync(topicNamePtr->getNamespaceName());
+    NamespaceTopicsPtr namespaceTopicsPtr;
+    ASSERT_EQ(ResultOk, future3.get(namespaceTopicsPtr));
+    LOG_INFO("getTopicPartitionName Async returns " << namespaceTopicsPtr->size() << " topics");
+
+    std::atomic_int retryCount{0};
+    constexpr int totalRetryCount = 3;
+    auto future4 = lookupService->executeAsync<int>("key", [&retryCount]() -> Future<Result, int> {
+        Promise<Result, int> promise;
+        if (++retryCount < totalRetryCount) {
+            LOG_INFO("Retry count: " << retryCount);
+            promise.setFailed(ResultRetryable);
+        } else {
+            LOG_INFO("Retry done with " << retryCount << " times");
+            promise.setValue(100);
+        }
+        return promise.getFuture();
+    });
+    int customResult = 0;
+    ASSERT_EQ(ResultOk, future4.get(customResult));
+    ASSERT_EQ(customResult, 100);
+    ASSERT_EQ(retryCount.load(), totalRetryCount);
+
+    ASSERT_EQ(PulsarFriend::getNumberOfPendingTasks(*lookupService), 0);
+}
+
+TEST(LookupServiceTest, testTimeout) {
+    auto executorProvider = std::make_shared<ExecutorServiceProvider>(1);
+    ConnectionPool pool({}, executorProvider, AuthFactory::Disabled(), true);
+    ServiceNameResolver serviceNameResolver("pulsar://localhost:9990,localhost:9902,localhost:9904");
+
+    constexpr int timeoutInSeconds = 2;
+    auto lookupService = RetryableLookupService::create(
+        std::make_shared<BinaryProtoLookupService>(serviceNameResolver, pool, ""), timeoutInSeconds,
+        executorProvider);
+    auto topicNamePtr = TopicName::get("lookup-service-test-retry");
+
+    decltype(std::chrono::high_resolution_clock::now()) startTime;
+    auto beforeMethod = [&startTime] { startTime = std::chrono::high_resolution_clock::now(); };
+    auto afterMethod = [&startTime](const std::string& name) {
+        auto timeInterval = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                std::chrono::high_resolution_clock::now() - startTime)
+                                .count();
+        LOG_INFO(name << " took " << timeInterval << " seconds");
+        ASSERT_TRUE(timeInterval >= timeoutInSeconds * 1000L);
+    };
+
+    beforeMethod();
+    auto future1 = lookupService->getBroker(*topicNamePtr);
+    LookupService::LookupResult lookupResult;
+    ASSERT_EQ(ResultTimeout, future1.get(lookupResult));
+    afterMethod("getBroker");
+
+    beforeMethod();
+    auto future2 = lookupService->getPartitionMetadataAsync(topicNamePtr);
+    LookupDataResultPtr lookupDataResultPtr;
+    ASSERT_EQ(ResultTimeout, future2.get(lookupDataResultPtr));
+    afterMethod("getPartitionMetadataAsync");
+
+    beforeMethod();
+    auto future3 = lookupService->getTopicsOfNamespaceAsync(topicNamePtr->getNamespaceName());
+    NamespaceTopicsPtr namespaceTopicsPtr;
+    ASSERT_EQ(ResultTimeout, future3.get(namespaceTopicsPtr));
+    afterMethod("getTopicsOfNamespaceAsync");
+
+    ASSERT_EQ(PulsarFriend::getNumberOfPendingTasks(*lookupService), 0);
 }

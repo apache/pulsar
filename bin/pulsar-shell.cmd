@@ -29,5 +29,5 @@ if ERRORLEVEL 1 (
 
 set "OPTS=%OPTS% -Dorg.jline.terminal.jansi=false"
 set "DEFAULT_CONFIG=-Dpulsar.shell.config.default="%PULSAR_CLIENT_CONF%""
-
+cd "%PULSAR_HOME%"
 "%JAVACMD%" %OPTS%  %DEFAULT_CONFIG%  org.apache.pulsar.shell.PulsarShell %*

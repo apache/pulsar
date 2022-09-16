@@ -23,13 +23,12 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import com.google.common.collect.TreeMultimap;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -39,6 +38,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executors;
@@ -193,7 +193,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
         this.sortedRankings.set(new TreeMap<>());
         this.currentLoadReports = new HashMap<>();
         this.resourceUnitRankings = new HashMap<>();
-        this.loadBalancingMetrics.set(Lists.newArrayList());
+        this.loadBalancingMetrics.set(new ArrayList<>());
         this.realtimeResourceQuotas.set(new HashMap<>());
         this.realtimeAvgResourceQuota = new ResourceQuota();
         placementStrategy = new WRRPlacementStrategy();
@@ -653,7 +653,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
         log.info("doLoadRanking - load balancing strategy: {}", strategy);
         if (!currentLoadReports.isEmpty()) {
 
-            Map<Long, Set<ResourceUnit>> newSortedRankings = Maps.newTreeMap();
+            Map<Long, Set<ResourceUnit>> newSortedRankings = new TreeMap<>();
             Map<ResourceUnit, ResourceUnitRanking> newResourceUnitRankings = new HashMap<>();
             ResourceQuota defaultResourceQuota =
                     pulsar.getBrokerService().getBundlesQuotas().getDefaultResourceQuota().join();
@@ -690,10 +690,8 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
                     finalRank = (long) (maxCapacity * idleRatio * idleRatio);
                 }
 
-                if (!newSortedRankings.containsKey(finalRank)) {
-                    newSortedRankings.put(finalRank, new HashSet<ResourceUnit>());
-                }
-                newSortedRankings.get(finalRank).add(entry.getKey());
+                newSortedRankings.computeIfAbsent(finalRank, k -> new HashSet<>())
+                        .add(entry.getKey());
                 if (log.isDebugEnabled()) {
                     log.debug("Added Resource Unit [{}] with Rank [{}]", entry.getKey().getResourceId(), finalRank);
                 }
@@ -718,7 +716,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
     }
 
     private void updateLoadBalancingMetrics(String hostname, long finalRank, ResourceUnitRanking ranking) {
-        List<Metrics> metrics = Lists.newArrayList();
+        List<Metrics> metrics = new ArrayList<>();
         Map<String, String> dimensions = new HashMap<>();
 
         dimensions.put("broker", hostname);
@@ -923,11 +921,11 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
             List<String> activeBrokers = loadReports.listLocks(LOADBALANCE_BROKERS_ROOT).join();
             Collections.shuffle(activeBrokers);
 
-            availableBrokers = Maps.newTreeMap();
+            availableBrokers = new HashMap<>();
             for (String broker : activeBrokers) {
                 ResourceUnit resourceUnit = new SimpleResourceUnit(String.format("http://%s", broker),
                         new PulsarResourceDescription());
-                availableBrokers.computeIfAbsent(0L, key -> Sets.newTreeSet()).add(resourceUnit);
+                availableBrokers.computeIfAbsent(0L, key -> new TreeSet<>()).add(resourceUnit);
             }
             log.info("Choosing at random from broker list: [{}]", availableBrokers.values());
         }
