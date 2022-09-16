@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import static org.apache.bookkeeper.mledger.util.Futures.executeWithRetry;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import java.util.ArrayList;
@@ -31,6 +32,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
@@ -244,9 +246,14 @@ public class ManagedCursorPropertiesTest extends MockedBookKeeperTestCase {
         map.put("b", "2");
         map.put("c", "3");
 
-        futures.add(c1.setCursorProperties(map));
-        futures.add(c1.putCursorProperty("a", "2"));
-        futures.add(c1.removeCursorProperty("c"));
+        futures.add(executeWithRetry(() -> c1.setCursorProperties(map),
+                ManagedLedgerException.BadVersionException.class));
+
+        futures.add(executeWithRetry(() -> c1.putCursorProperty("a", "2"),
+                ManagedLedgerException.BadVersionException.class));
+
+        futures.add(executeWithRetry(() -> c1.removeCursorProperty("c"),
+                ManagedLedgerException.BadVersionException.class));
 
         for (CompletableFuture<Void> future : futures) {
             future.get();

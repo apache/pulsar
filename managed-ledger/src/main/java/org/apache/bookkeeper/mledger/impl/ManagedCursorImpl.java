@@ -328,7 +328,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         return cursorProperties;
     }
 
-    private CompletableFuture<Void> asyncReadAndUpdateCursorProperties(
+    private CompletableFuture<Void> computeCursorProperties(
             final Function<Map<String, String>, Map<String, String>> updateFunction) {
         CompletableFuture<Void> updateCursorPropertiesResult = new CompletableFuture<>();
 
@@ -356,19 +356,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     public void operationFailed(MetaStoreException e) {
                         log.error("[{}] Error while updating ledger cursor: {} properties {}", ledger.getName(),
                                 name, cursorProperties, e);
-                        // if resource is updated by other operate then we will get bad-version exception
-                        // so, retry the operation.
-                        if (e instanceof ManagedLedgerException.BadVersionException) {
-                            asyncReadAndUpdateCursorProperties(updateFunction).whenComplete((__, ex) -> {
-                                if (ex == null) {
-                                    updateCursorPropertiesResult.complete(null);
-                                } else {
-                                    updateCursorPropertiesResult.completeExceptionally(ex);
-                                }
-                            });
-                        } else {
-                            updateCursorPropertiesResult.completeExceptionally(e);
-                        }
+                        updateCursorPropertiesResult.completeExceptionally(e);
                     }
                 });
 
@@ -377,12 +365,12 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public CompletableFuture<Void> setCursorProperties(Map<String, String> cursorProperties) {
-        return asyncReadAndUpdateCursorProperties(lastRead -> cursorProperties);
+        return computeCursorProperties(lastRead -> cursorProperties);
     }
 
     @Override
     public CompletableFuture<Void> putCursorProperty(String key, String value) {
-        return asyncReadAndUpdateCursorProperties(lastRead -> {
+        return computeCursorProperties(lastRead -> {
             Map<String, String> newProperties = lastRead == null ? new HashMap<>() : new HashMap<>(lastRead);
             newProperties.put(key, value);
             return newProperties;
@@ -391,7 +379,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public CompletableFuture<Void> removeCursorProperty(String key) {
-        return asyncReadAndUpdateCursorProperties(lastRead -> {
+        return computeCursorProperties(lastRead -> {
             Map<String, String> newProperties = lastRead == null ? new HashMap<>() : new HashMap<>(lastRead);
             newProperties.remove(key);
             return newProperties;
