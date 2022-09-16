@@ -139,6 +139,8 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
         String topic = "persistent://my-property/my-ns/my-partitioned-topic";
         admin.topics().createPartitionedTopic(topic, 10);
         admin.topics().createSubscription(topic, "sub-1", MessageId.latest);
+        admin.topics().createSubscription(topic, "sub~`!@#$￥%^……&*(){「【[]}】』\\|、:;\"'<《,>。》.?/-1",
+                MessageId.latest);
 
         // Create should fail if the subscription name contain invisible characters
         try {
