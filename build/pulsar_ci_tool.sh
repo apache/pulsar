@@ -198,8 +198,10 @@ pull requests that are executed in a forked repository.
    by Apache Pulsar committers.
 6. When tests pass on the apache/pulsar side, the PR can be merged by a Apache Pulsar Committer.
 
-If you have any trouble, please join the #contributor channel on Pulsar Slack to get real-time support.
-Instructions for joining Pulsar Slack: https://pulsar.apache.org/community#section-discussions
+If you have any trouble you can get support in multiple ways:
+* by sending email to the [dev mailing list](mailto:dev@pulsar.apache.org) ([subscribe](mailto:dev-subscribe@pulsar.apache.org))
+* on the [#contributors channel on Pulsar Slack](https://apache-pulsar.slack.com/channels/contributors) ([join](https://pulsar.apache.org/community#section-discussions))
+* in apache/pulsar [GitHub discussions Q&A](https://github.com/apache/pulsar/discussions/categories/q-a)
 
 EOF
       return 1
