@@ -102,6 +102,7 @@ import org.apache.pulsar.common.api.proto.CommandError;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespaceResponse;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
+import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadataResponse;
 import org.apache.pulsar.common.api.proto.CommandProducerSuccess;
 import org.apache.pulsar.common.api.proto.CommandSendError;
 import org.apache.pulsar.common.api.proto.CommandSendReceipt;
@@ -2305,6 +2306,21 @@ public class ServerCnxTest {
         assertTrue(response instanceof CommandError);
         CommandError error = (CommandError) response;
         assertEquals(error.getError(), ServerError.ServiceNotReady);
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
+    public void handlePartitionMetadataRequestWithServiceNotReady() throws Exception {
+        resetChannel();
+        setChannelConnected();
+        doReturn(false).when(pulsar).isRunning();
+        assertTrue(channel.isActive());
+
+        ByteBuf clientCommand = Commands.newPartitionMetadataRequest(successTopicName, 1);
+        channel.writeInbound(clientCommand);
+        Object response = getResponse();
+        assertTrue(response instanceof CommandPartitionedTopicMetadataResponse);
+        assertEquals(((CommandPartitionedTopicMetadataResponse) response).getError(), ServerError.ServiceNotReady);
         channel.finish();
     }
 }

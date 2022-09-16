@@ -20,5 +20,5 @@ To develop Pulsar Functions, you can leverage the following tools and features.
 * [Security](functions-develop-security.md)
 * [Stage storage](functions-develop-state.md)
 * [Admin APIs](functions-develop-admin-api.md)
-* [Schema registry](functions-schema-registry.md)
+* [Schema registry](functions-develop-schema-registry.md)
 * [SerDe](functions-develop-serde.md)

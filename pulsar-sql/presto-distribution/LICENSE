@@ -372,7 +372,6 @@ The Apache Software License, Version 2.0
   * JCommander
     - jcommander-1.82.jar
   * FindBugs JSR305
-    - jsr305-2.0.1.jar
     - jsr305-3.0.2.jar
   * Objenesis
     - objenesis-2.6.jar
