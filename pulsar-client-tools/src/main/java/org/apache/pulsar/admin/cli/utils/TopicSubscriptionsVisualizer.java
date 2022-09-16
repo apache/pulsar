@@ -1,3 +1,21 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.apache.pulsar.admin.cli.utils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -108,7 +126,8 @@ public class TopicSubscriptionsVisualizer {
         List<Pair<EntriesStatsByStatus, StringBuilder>> subscriptionsLines = new ArrayList<>();
         persistentTopicInternalStats.cursors.forEach((name, cursor) -> {
             StringBuilder subBuilder = new StringBuilder();
-            final EntriesStatsByStatus entriesStatsByStatus = generateSubscriptionLine(subBuilder, persistentTopicInternalStats,
+            final EntriesStatsByStatus entriesStatsByStatus =
+                    generateSubscriptionLine(subBuilder, persistentTopicInternalStats,
                     persistentTopicStats, totalEntries, name, cursor);
             subscriptionsLines.add(Pair.of(entriesStatsByStatus, subBuilder));
         });
@@ -119,14 +138,18 @@ public class TopicSubscriptionsVisualizer {
         subscriptionsLines.forEach(pair -> builder.append(pair.getRight()));
     }
 
-    private static void generateTopicLine(String topic, ManagedLedgerInternalStats persistentTopicInternalStats, StringBuilder builder, long totalEntries) {
+    private static void generateTopicLine(String topic,
+                                          ManagedLedgerInternalStats persistentTopicInternalStats,
+                                          StringBuilder builder,
+                                          long totalEntries) {
         builder.append("<div class=\"line-container\"><h4>");
         builder.append(topic);
         builder.append("</h4><div class=\"topic\">");
         final LedgerSegmentProgress ledgerSegmentProgress = new LedgerSegmentProgress();
         boolean first = true;
         for (ManagedLedgerInternalStats.LedgerInfo ledger : persistentTopicInternalStats.ledgers) {
-            builder.append(TopicSubscriptionsVisualizerHtmlUtil.genLedgerSegment(ledger, totalEntries, ledgerSegmentProgress, first));
+            builder.append(TopicSubscriptionsVisualizerHtmlUtil.genLedgerSegment(ledger,
+                    totalEntries, ledgerSegmentProgress, first));
             first = false;
         }
         builder.append("</div></div>");
@@ -188,8 +211,8 @@ public class TopicSubscriptionsVisualizer {
         });
         EntriesStatsByStatus entriesStatsByStatus = new EntriesStatsByStatus();
 
-        final String line = TopicSubscriptionsVisualizerHtmlUtil.genSubscriptionLine(entryStatuses, persistentTopicInternalStats.ledgers,
-                totalEntries, entriesStatsByStatus);
+        final String line = TopicSubscriptionsVisualizerHtmlUtil.genSubscriptionLine(entryStatuses,
+                persistentTopicInternalStats.ledgers, totalEntries, entriesStatsByStatus);
 
         Map<String, Map<String, Object>> details = new LinkedHashMap<>();
         details.put("Subscription", mapper.convertValue(persistentTopicStats.getSubscriptions().get(name), Map.class));
