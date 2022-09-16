@@ -202,7 +202,7 @@ If you have any trouble, please join the #contributor channel on Pulsar Slack to
 Instructions for joining Pulsar Slack: https://pulsar.apache.org/community#section-discussions
 
 EOF
-      exit 1
+      return 1
     fi
   fi
 }
