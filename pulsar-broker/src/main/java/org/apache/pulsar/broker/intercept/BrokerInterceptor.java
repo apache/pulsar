@@ -52,16 +52,34 @@ public interface BrokerInterceptor extends AutoCloseable {
 
     /**
      * Intercept messages before sending them to the consumers.
+     * Deprecated, use {@link #beforeSendMessage(Subscription, Entry, long[], MessageMetadata, Consumer)} instead.
      *
      * @param subscription pulsar subscription
      * @param entry entry
      * @param ackSet entry ack bitset. it is either <tt>null</tt> or an array of long-based bitsets.
      * @param msgMetadata message metadata. The message metadata will be recycled after this call.
      */
+    @Deprecated
     default void beforeSendMessage(Subscription subscription,
                                    Entry entry,
                                    long[] ackSet,
                                    MessageMetadata msgMetadata) {
+    }
+
+    /**
+     * Intercept messages before sending them to the consumers.
+     *
+     * @param subscription pulsar subscription
+     * @param entry entry
+     * @param ackSet entry ack bitset. it is either <tt>null</tt> or an array of long-based bitsets.
+     * @param msgMetadata message metadata. The message metadata will be recycled after this call.
+     * @param consumer consumer. Consumer which entry are sent to.
+     */
+    default void beforeSendMessage(Subscription subscription,
+                                   Entry entry,
+                                   long[] ackSet,
+                                   MessageMetadata msgMetadata,
+                                   Consumer consumer) {
     }
 
     /**
@@ -78,6 +96,18 @@ public interface BrokerInterceptor extends AutoCloseable {
     }
 
     /**
+     * Called by the broker when a producer is closed.
+     *
+     * @param cnx      client Connection
+     * @param producer Producer object
+     * @param metadata A map of metadata
+     */
+    default void producerClosed(ServerCnx cnx,
+                                Producer producer,
+                                Map<String, String> metadata) {
+    }
+
+    /**
      * Intercept after a consumer is created.
      *
      * @param cnx client Connection
@@ -87,6 +117,30 @@ public interface BrokerInterceptor extends AutoCloseable {
     default void consumerCreated(ServerCnx cnx,
                                  Consumer consumer,
                                  Map<String, String> metadata) {
+    }
+
+    /**
+     *  Called by the broker when a consumer is closed.
+     *
+     * @param cnx client Connection
+     * @param consumer Consumer object
+     * @param metadata A map of metadata
+     */
+    default void consumerClosed(ServerCnx cnx,
+                                Consumer consumer,
+                                Map<String, String> metadata) {
+    }
+
+    /**
+     * Intercept message when broker receive a send request.
+     *
+     * @param headersAndPayload entry's header and payload
+     * @param publishContext Publish Context
+     */
+    default void onMessagePublish(Producer producer,
+                                  ByteBuf headersAndPayload,
+                                  Topic.PublishContext publishContext) {
+
     }
 
     /**

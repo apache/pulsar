@@ -47,7 +47,9 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.testcontainers.shaded.org.awaitility.Awaitility;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -64,17 +66,21 @@ public class MLPendingAckStoreTest extends TransactionTestBase {
 
     private int pendingAckLogIndexMinLag = 1;
 
-    @BeforeMethod
+    @BeforeClass
     @Override
     protected void setup() throws Exception {
         setUpBase(1, 1, NAMESPACE1 + "/test", 0);
+    }
+
+    @BeforeMethod
+    public void beforeMethod() throws Exception {
         String topic = NAMESPACE1 + "/test-txn-topic";
         admin.topics().createNonPartitionedTopic(topic);
         PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0).getBrokerService()
                 .getTopic(topic, false).get().get();
         getPulsarServiceList().get(0).getConfig().setTransactionPendingAckLogIndexMinLag(pendingAckLogIndexMinLag);
         CompletableFuture<Subscription> subscriptionFuture = persistentTopic .createSubscription("test",
-                        CommandSubscribe.InitialPosition.Earliest, false, null);
+                CommandSubscribe.InitialPosition.Earliest, false, null);
         PersistentSubscription subscription = (PersistentSubscription) subscriptionFuture.get();
         ManagedCursor managedCursor = subscription.getCursor();
         this.managedCursorMock = spy(managedCursor);
@@ -88,7 +94,25 @@ public class MLPendingAckStoreTest extends TransactionTestBase {
                 .getExecutor(this);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
+    private void afterMethod() throws Exception {
+        ServiceConfiguration defaultConfig = new ServiceConfiguration();
+        ServiceConfiguration serviceConfiguration =
+                persistentSubscriptionMock.getTopic().getBrokerService().getPulsar().getConfiguration();
+        serviceConfiguration.setTransactionPendingAckBatchedWriteMaxRecords(
+                defaultConfig.getTransactionPendingAckBatchedWriteMaxRecords()
+        );
+        serviceConfiguration.setTransactionPendingAckBatchedWriteMaxSize(
+                defaultConfig.getTransactionPendingAckBatchedWriteMaxSize()
+        );
+        serviceConfiguration.setTransactionPendingAckBatchedWriteMaxDelayInMillis(
+                defaultConfig.getTransactionPendingAckBatchedWriteMaxDelayInMillis()
+        );
+        serviceConfiguration.setTransactionPendingAckBatchedWriteEnabled(defaultConfig.isTransactionPendingAckBatchedWriteEnabled());
+        admin.topics().delete("persistent://" + NAMESPACE1 + "/test-txn-topic", true);
+    }
+
+    @AfterClass
     public void cleanup(){
         super.internalCleanup();
     }

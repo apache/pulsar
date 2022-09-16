@@ -42,9 +42,9 @@ RUN for SUBDIRECTORY in conf data download logs; do \
      chmod -R g+w /pulsar/$SUBDIRECTORY; \
      done
 
-# Presto writes logs to this directory (at least during tests), so we need to give the process permission
-# to create those log directories. This should be removed when presto is removed.
-RUN chmod g+w /pulsar/lib/presto
+# Trino writes logs to this directory (at least during tests), so we need to give the process permission
+# to create those log directories. This should be removed when Trino is removed.
+RUN chmod g+w /pulsar/trino
 
 ### Create 2nd stage from Ubuntu image
 ### and add OpenJDK and Python dependencies (for Pulsar functions)

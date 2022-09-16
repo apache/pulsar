@@ -30,7 +30,9 @@
 #include <boost/algorithm/string/predicate.hpp>
 #include <sstream>
 #include <stdexcept>
+#include <lib/BinaryProtoLookupService.h>
 #include <lib/HTTPLookupService.h>
+#include <lib/RetryableLookupService.h>
 #include <lib/TopicName.h>
 #include <algorithm>
 #include <random>
@@ -106,17 +108,21 @@ ClientImpl::ClientImpl(const std::string& serviceUrl, const ClientConfiguration&
     }
     LogUtils::setLoggerFactory(std::move(loggerFactory));
 
+    LookupServicePtr underlyingLookupServicePtr;
     if (serviceNameResolver_.useHttp()) {
         LOG_DEBUG("Using HTTP Lookup");
-        lookupServicePtr_ = std::make_shared<HTTPLookupService>(std::ref(serviceNameResolver_),
-                                                                std::cref(clientConfiguration_),
-                                                                std::cref(clientConfiguration_.getAuthPtr()));
+        underlyingLookupServicePtr = std::make_shared<HTTPLookupService>(
+            std::ref(serviceNameResolver_), std::cref(clientConfiguration_),
+            std::cref(clientConfiguration_.getAuthPtr()));
     } else {
         LOG_DEBUG("Using Binary Lookup");
-        lookupServicePtr_ =
+        underlyingLookupServicePtr =
             std::make_shared<BinaryProtoLookupService>(std::ref(serviceNameResolver_), std::ref(pool_),
                                                        std::cref(clientConfiguration_.getListenerName()));
     }
+
+    lookupServicePtr_ = RetryableLookupService::create(
+        underlyingLookupServicePtr, clientConfiguration_.getOperationTimeoutSeconds(), ioExecutorProvider_);
 }
 
 ClientImpl::~ClientImpl() { shutdown(); }

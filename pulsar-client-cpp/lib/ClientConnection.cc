@@ -51,7 +51,7 @@ static const uint32_t DefaultBufferSize = 64 * 1024;
 static const int KeepAliveIntervalInSeconds = 30;
 
 // Convert error codes from protobuf to client API Result
-static Result getResult(ServerError serverError) {
+static Result getResult(ServerError serverError, const std::string& message) {
     switch (serverError) {
         case UnknownError:
             return ResultUnknownError;
@@ -75,7 +75,9 @@ static Result getResult(ServerError serverError) {
             return ResultConsumerBusy;
 
         case ServiceNotReady:
-            return ResultServiceUnitNotReady;
+            // If the error is not caused by a PulsarServerException, treat it as retryable.
+            return (message.find("PulsarServerException") == std::string::npos) ? ResultRetryable
+                                                                                : ResultServiceUnitNotReady;
 
         case ProducerBlockedQuotaExceededError:
             return ResultProducerBlockedQuotaExceededError;
@@ -138,7 +140,7 @@ static Result getResult(ServerError serverError) {
 }
 
 inline std::ostream& operator<<(std::ostream& os, ServerError error) {
-    os << getResult(error);
+    os << getResult(error, "");
     return os;
 }
 
@@ -182,7 +184,7 @@ ClientConnection::ClientConnection(const std::string& logicalAddress, const std:
         consumerStatsRequestTimer_ = executor_->createDeadlineTimer();
     } catch (const boost::system::system_error& e) {
         LOG_ERROR("Failed to initialize connection: " << e.what());
-        close();
+        close(ResultRetryable);
         return;
     }
 
@@ -368,7 +370,7 @@ void ClientConnection::handleTcpConnected(const boost::system::error_code& err,
             cnxString_ = cnxStringStream.str();
         } catch (const boost::system::system_error& e) {
             LOG_ERROR("Failed to get endpoint: " << e.what());
-            close();
+            close(ResultRetryable);
             return;
         }
         if (logicalAddress_ == physicalAddress_) {
@@ -450,11 +452,16 @@ void ClientConnection::handleTcpConnected(const boost::system::error_code& err,
                                    std::bind(&ClientConnection::handleTcpConnected, shared_from_this(),
                                              std::placeholders::_1, ++endpointIterator));
         } else {
-            close();
+            if (err == boost::asio::error::operation_aborted) {
+                // TCP connect timeout, which is not retryable
+                close();
+            } else {
+                close(ResultRetryable);
+            }
         }
     } else {
         LOG_ERROR(cnxString_ << "Failed to establish connection: " << err.message());
-        close();
+        close(ResultRetryable);
     }
 }
 
@@ -810,6 +817,10 @@ void ClientConnection::handleIncomingCommand() {
         }
 
         case Ready: {
+            // Since we are receiving data from the connection, we are assuming that for now the connection is
+            // still working well.
+            havePendingPingRequest_ = false;
+
             // Handle normal commands
             switch (incomingCmd_.type()) {
                 case BaseCommand::SEND_RECEIPT: {
@@ -913,7 +924,8 @@ void ClientConnection::handleIncomingCommand() {
                                                      << " error: " << partitionMetadataResponse.error()
                                                      << " msg: " << partitionMetadataResponse.message());
                                 checkServerError(partitionMetadataResponse.error());
-                                lookupDataPromise->setFailed(getResult(partitionMetadataResponse.error()));
+                                lookupDataPromise->setFailed(getResult(partitionMetadataResponse.error(),
+                                                                       partitionMetadataResponse.message()));
                             } else {
                                 LOG_ERROR(cnxString_ << "Failed partition-metadata lookup req_id: "
                                                      << partitionMetadataResponse.request_id()
@@ -952,7 +964,8 @@ void ClientConnection::handleIncomingCommand() {
                                 LOG_ERROR(cnxString_ << " Failed to get consumer stats - "
                                                      << consumerStatsResponse.error_message());
                             }
-                            consumerStatsPromise.setFailed(getResult(consumerStatsResponse.error_code()));
+                            consumerStatsPromise.setFailed(getResult(consumerStatsResponse.error_code(),
+                                                                     consumerStatsResponse.error_message()));
                         } else {
                             LOG_DEBUG(cnxString_ << "ConsumerStatsResponse command - Received consumer stats "
                                                     "response from server. req_id: "
@@ -1000,7 +1013,8 @@ void ClientConnection::handleIncomingCommand() {
                                           << " error: " << lookupTopicResponse.error()
                                           << " msg: " << lookupTopicResponse.message());
                                 checkServerError(lookupTopicResponse.error());
-                                lookupDataPromise->setFailed(getResult(lookupTopicResponse.error()));
+                                lookupDataPromise->setFailed(
+                                    getResult(lookupTopicResponse.error(), lookupTopicResponse.message()));
                             } else {
                                 LOG_ERROR(cnxString_
                                           << "Failed lookup req_id: " << lookupTopicResponse.request_id()
@@ -1067,7 +1081,7 @@ void ClientConnection::handleIncomingCommand() {
 
                 case BaseCommand::ERROR: {
                     const CommandError& error = incomingCmd_.error();
-                    Result result = getResult(error.error());
+                    Result result = getResult(error.error(), error.message());
                     LOG_WARN(cnxString_ << "Received error response from server: " << result
                                         << (error.has_message() ? (" (" + error.message() + ")") : "")
                                         << " -- req_id: " << error.request_id());
@@ -1080,7 +1094,7 @@ void ClientConnection::handleIncomingCommand() {
                         pendingRequests_.erase(it);
                         lock.unlock();
 
-                        requestData.promise.setFailed(getResult(error.error()));
+                        requestData.promise.setFailed(result);
                         requestData.timer->cancel();
                     } else {
                         PendingGetLastMessageIdRequestsMap::iterator it =
@@ -1090,7 +1104,7 @@ void ClientConnection::handleIncomingCommand() {
                             pendingGetLastMessageIdRequests_.erase(it);
                             lock.unlock();
 
-                            getLastMessageIdPromise.setFailed(getResult(error.error()));
+                            getLastMessageIdPromise.setFailed(result);
                         } else {
                             PendingGetNamespaceTopicsMap::iterator it =
                                 pendingGetNamespaceTopicsRequests_.find(error.request_id());
@@ -1099,7 +1113,7 @@ void ClientConnection::handleIncomingCommand() {
                                 pendingGetNamespaceTopicsRequests_.erase(it);
                                 lock.unlock();
 
-                                getNamespaceTopicsPromise.setFailed(getResult(error.error()));
+                                getNamespaceTopicsPromise.setFailed(result);
                             } else {
                                 lock.unlock();
                             }
@@ -1165,7 +1179,6 @@ void ClientConnection::handleIncomingCommand() {
 
                 case BaseCommand::PONG: {
                     LOG_DEBUG(cnxString_ << "Received response to ping message");
-                    havePendingPingRequest_ = false;
                     break;
                 }
 
@@ -1557,34 +1570,34 @@ void ClientConnection::close(Result result) {
     }
 
     lock.unlock();
-    LOG_INFO(cnxString_ << "Connection closed");
+    LOG_INFO(cnxString_ << "Connection closed with " << result);
 
     for (ProducersMap::iterator it = producers.begin(); it != producers.end(); ++it) {
-        HandlerBase::handleDisconnection(ResultConnectError, shared_from_this(), it->second);
+        HandlerBase::handleDisconnection(result, shared_from_this(), it->second);
     }
 
     for (ConsumersMap::iterator it = consumers.begin(); it != consumers.end(); ++it) {
-        HandlerBase::handleDisconnection(ResultConnectError, shared_from_this(), it->second);
+        HandlerBase::handleDisconnection(result, shared_from_this(), it->second);
     }
 
     connectPromise_.setFailed(result);
 
     // Fail all pending requests, all these type are map whose value type contains the Promise object
     for (auto& kv : pendingRequests) {
-        kv.second.promise.setFailed(ResultConnectError);
+        kv.second.promise.setFailed(result);
     }
     for (auto& kv : pendingLookupRequests) {
-        kv.second.promise->setFailed(ResultConnectError);
+        kv.second.promise->setFailed(result);
     }
     for (auto& kv : pendingConsumerStatsMap) {
         LOG_ERROR(cnxString_ << " Closing Client Connection, please try again later");
-        kv.second.setFailed(ResultConnectError);
+        kv.second.setFailed(result);
     }
     for (auto& kv : pendingGetLastMessageIdRequests) {
-        kv.second.setFailed(ResultConnectError);
+        kv.second.setFailed(result);
     }
     for (auto& kv : pendingGetNamespaceTopicsRequests) {
-        kv.second.setFailed(ResultConnectError);
+        kv.second.setFailed(result);
     }
 }
 
