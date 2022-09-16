@@ -46,7 +46,7 @@ public class ConfigShellTest {
 
     private PulsarShell pulsarShell;
     private ConfigShell configShell;
-    private final List<String> output = new ArrayList<>();
+    private List<String> output;
 
     @BeforeMethod(alwaysRun = true)
     public void before() throws Exception {
@@ -60,7 +60,7 @@ public class ConfigShellTest {
                         new ConfigStore.ConfigEntry(ConfigStore.DEFAULT_CONFIG, "#comment\ndefault-config=true")));
         configShell = new ConfigShell(pulsarShell, ConfigStore.DEFAULT_CONFIG);
         configShell.setupState(new Properties());
-
+        output = new ArrayList<>();
         setConsole();
     }
 
