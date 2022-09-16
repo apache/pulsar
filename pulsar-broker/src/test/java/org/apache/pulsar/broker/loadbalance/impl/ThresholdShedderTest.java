@@ -298,7 +298,7 @@ public class ThresholdShedderTest {
     }
 
     @Test
-    public void testBrokerWithOneBundle() {
+    public void testLowerBoundarySheddingBrokerWithOneBundle() {
         int brokerNum = 11;
         int lowLoadNode = 5;
         int brokerWithManyBundles = 3;
