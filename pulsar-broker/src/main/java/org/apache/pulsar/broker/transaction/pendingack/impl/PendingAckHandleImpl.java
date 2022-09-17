@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.transaction.pendingack.impl;
 import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.andAckSet;
 import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.compareToWithAckSet;
 import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.isAckSetOverlap;
+import com.google.common.annotations.VisibleForTesting;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -1025,6 +1026,11 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         } else {
             return new PositionInPendingAckStats(PositionInPendingAckStats.State.NotInPendingAck);
         }
+    }
+
+    @VisibleForTesting
+    public Map<PositionImpl, MutablePair<PositionImpl, Integer>> getIndividualAckPositions() {
+        return individualAckPositions;
     }
 
     @Override

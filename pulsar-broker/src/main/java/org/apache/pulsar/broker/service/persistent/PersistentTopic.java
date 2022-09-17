@@ -382,6 +382,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
     }
 
+    @VisibleForTesting
+    public AtomicLong getPendingWriteOps() {
+        return pendingWriteOps;
+    }
+
     private PersistentSubscription createPersistentSubscription(String subscriptionName, ManagedCursor cursor,
             boolean replicated, Map<String, String> subscriptionProperties) {
         checkNotNull(compactedTopic);
