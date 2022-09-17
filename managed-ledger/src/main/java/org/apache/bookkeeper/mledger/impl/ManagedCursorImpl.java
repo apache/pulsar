@@ -175,7 +175,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     private boolean isCursorLedgerReadOnly = true;
 
     // Stat of the cursor z-node
-    // NOTE: Don't update individually cursorLedgerStat,
+    // NOTE: Don't update cursorLedgerStat alone,
     // please use updateCursorLedgerStat method to update cursorLedgerStat and managedCursorInfo at the same time.
     private volatile Stat cursorLedgerStat;
     private volatile ManagedCursorInfo managedCursorInfo;
@@ -439,6 +439,10 @@ public class ManagedCursorImpl implements ManagedCursor {
 
                 updateCursorLedgerStat(info, stat);
                 lastActive = info.getLastActive() != 0 ? info.getLastActive() : lastActive;
+
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] [{}] Recover cursor last active to [{}]", ledger.getName(), name, lastActive);
+                }
 
                 Map<String, String> recoveredCursorProperties = Collections.emptyMap();
                 if (info.getCursorPropertiesCount() > 0) {
@@ -1755,7 +1759,7 @@ public class ManagedCursorImpl implements ManagedCursor {
      */
     PositionImpl setAcknowledgedPosition(PositionImpl newMarkDeletePosition) {
         if (newMarkDeletePosition.compareTo(markDeletePosition) < 0) {
-            throw new IllegalArgumentException(
+            throw new MarkDeletingMarkedPosition(
                     "Mark deleting an already mark-deleted position. Current mark-delete: " + markDeletePosition
                             + " -- attempted mark delete: " + newMarkDeletePosition);
         }
@@ -1824,6 +1828,12 @@ public class ManagedCursorImpl implements ManagedCursor {
     @Override
     public void asyncMarkDelete(final Position position, final MarkDeleteCallback callback, final Object ctx) {
         asyncMarkDelete(position, Collections.emptyMap(), callback, ctx);
+    }
+
+    private final class MarkDeletingMarkedPosition extends IllegalArgumentException {
+        public MarkDeletingMarkedPosition(String s) {
+            super(s);
+        }
     }
 
     @Override
@@ -3317,7 +3327,13 @@ public class ManagedCursorImpl implements ManagedCursor {
 
             @Override
             public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
-                log.warn("[{}][{}] Failed to flush mark-delete position", ledger.getName(), name, exception);
+                if (exception.getCause() instanceof MarkDeletingMarkedPosition) {
+                    // this is not actually a problem, we should not log a stacktrace
+                    log.info("[{}][{}] Cannot flush mark-delete position: {}", ledger.getName(),
+                            name, exception.getCause().getMessage());
+                } else {
+                    log.warn("[{}][{}] Failed to flush mark-delete position", ledger.getName(), name, exception);
+                }
             }
         }, null);
     }

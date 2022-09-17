@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.intercept;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.util.concurrent.CountDownLatch;
+import java.util.function.Predicate;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
@@ -328,7 +329,7 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
                 Thread.currentThread().getContextClassLoader());
     }
 
-    static class IndexSearchPredicate implements com.google.common.base.Predicate<Entry> {
+    static class IndexSearchPredicate implements Predicate<Entry> {
 
         long indexToSearch = -1;
         public IndexSearchPredicate(long indexToSearch) {
@@ -336,7 +337,7 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
         }
 
         @Override
-        public boolean apply(@Nullable Entry entry) {
+        public boolean test(@Nullable Entry entry) {
             try {
                 BrokerEntryMetadata brokerEntryMetadata = Commands.parseBrokerEntryMetadataIfExist(entry.getDataBuffer());
                 return brokerEntryMetadata.getIndex() < indexToSearch;
