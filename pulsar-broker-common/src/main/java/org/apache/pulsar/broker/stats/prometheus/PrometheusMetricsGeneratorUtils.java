@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Enumeration;
 import java.util.List;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
 
 /**
@@ -67,14 +68,21 @@ public class PrometheusMetricsGeneratorUtils {
                 stream.write(sample.name);
                 if (!sample.labelNames.contains("cluster")) {
                     stream.write("{cluster=\"").write(cluster).write('"');
+                    // If label is empty, should not append ','.
+                    if (!CollectionUtils.isEmpty(sample.labelNames)){
+                        stream.write(",");
+                    }
+                } else {
+                    stream.write("{");
                 }
                 for (int j = 0; j < sample.labelNames.size(); j++) {
                     String labelValue = sample.labelValues.get(j);
                     if (labelValue != null) {
                         labelValue = labelValue.replace("\"", "\\\"");
                     }
-
-                    stream.write(",");
+                    if (j > 0) {
+                        stream.write(",");
+                    }
                     stream.write(sample.labelNames.get(j));
                     stream.write("=\"");
                     stream.write(labelValue);
