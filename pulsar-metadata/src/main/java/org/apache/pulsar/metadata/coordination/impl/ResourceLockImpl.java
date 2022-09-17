@@ -218,8 +218,8 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
             revalidateFuture = newFuture;
         }
         revalidateFuture.exceptionally(ex -> {
-            Throwable realCause = FutureUtil.unwrapCompletionException(ex);
             synchronized (ResourceLockImpl.this) {
+                Throwable realCause = FutureUtil.unwrapCompletionException(ex);
                 if (realCause instanceof BadVersionException || realCause instanceof LockBusyException) {
                     log.warn("Failed to revalidate the lock at {}. Marked as expired", path);
                     state = State.Released;
