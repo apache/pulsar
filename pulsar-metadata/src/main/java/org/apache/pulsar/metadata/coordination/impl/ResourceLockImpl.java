@@ -128,7 +128,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
                 .thenRun(() -> result.complete(null))
                 .exceptionally(ex -> {
                     if (ex.getCause() instanceof LockBusyException) {
-                        revalidate(newValue)
+                        revalidate(newValue, false)
                                 .thenAccept(__ -> result.complete(null))
                                 .exceptionally(ex1 -> {
                                    result.completeExceptionally(ex1);
@@ -185,7 +185,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
         }
 
         log.info("Lock on resource {} was invalidated", path);
-        revalidate(value)
+        revalidate(value, true)
                 .thenRun(() -> log.info("Successfully revalidated the lock on {}", path));
     }
 
@@ -193,13 +193,13 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
         if (revalidateAfterReconnection) {
             revalidateAfterReconnection = false;
             log.warn("Revalidate lock at {} after reconnection", path);
-            return revalidate(value);
+            return revalidate(value, true);
         } else {
             return CompletableFuture.completedFuture(null);
         }
     }
 
-    synchronized CompletableFuture<Void> revalidate(T newValue) {
+    synchronized CompletableFuture<Void> revalidate(T newValue, boolean retryWhenConnectionLost) {
         if (revalidateFuture == null || revalidateFuture.isDone()) {
             revalidateFuture = doRevalidate(newValue);
         } else {
@@ -219,6 +219,12 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
         }
         revalidateFuture.exceptionally(ex -> {
             synchronized (ResourceLockImpl.this) {
+                if (!retryWhenConnectionLost) {
+                    log.warn("Failed to revalidate the lock at {}. Marked as expired", path);
+                    state = State.Released;
+                    expiredFuture.complete(null);
+                    return null;
+                }
                 Throwable realCause = FutureUtil.unwrapCompletionException(ex);
                 if (realCause instanceof BadVersionException || realCause instanceof LockBusyException) {
                     log.warn("Failed to revalidate the lock at {}. Marked as expired", path);
