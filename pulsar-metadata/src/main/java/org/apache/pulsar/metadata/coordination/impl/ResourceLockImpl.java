@@ -229,7 +229,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
                     // Continue assuming we hold the lock, until we can revalidate it, either
                     // on Reconnected or SessionReestablished events.
                     log.warn("Failed to revalidate the lock at {}. Retrying later on reconnection {}", path,
-                            ex.getCause().getMessage());
+                            realCause.getMessage());
                 }
             }
             return null;
