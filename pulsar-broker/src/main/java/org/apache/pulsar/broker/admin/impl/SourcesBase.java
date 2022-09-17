@@ -119,28 +119,24 @@ public class SourcesBase extends AdminResource {
                     examples = @Example(
                             value = @ExampleProperty(
                                     mediaType = MediaType.TEXT_PLAIN,
-                                    value = " Example \n"
-                                            + "\n"
-                                            + "1. Create a JSON object. \n"
-                                            + "\n"
-                                            + "{\n"
-                                            + "\t\"tenant\": \"public\",\n"
-                                            + "\t\"namespace\": \"default\",\n"
-                                            + "\t\"name\": \"pulsar-io-mysql\",\n"
-                                            + "\t\"className\": \"TestSourceMysql\",\n"
-                                            + "\t\"topicName\": \"pulsar-io-mysql\",\n"
-                                            + "\t\"parallelism\": \"1\",\n"
-                                            + "\t\"archive\": \"/connectors/pulsar-io-mysql-0.0.1.nar\",\n"
-                                            + "\t\"schemaType\": \"avro\"\n"
-                                            + "}\n"
-                                            + "\n"
-                                            + "\n"
-                                            + "2. Encapsulate the JSON object to a multipart object (in Python). \n"
-                                            + "\n"
-                                            + "from requests_toolbelt.multipart.encoder import MultipartEncoder \n"
-                                            + "mp_encoder = MultipartEncoder( \n"
-                                            + "\t[('sourceConfig', "
-                                            + "(None, json.dumps(config), 'application/json'))])\n"
+                                    value = """
+                                            Example
+                                            1. Create a JSON object.
+                                            {
+                                             "tenant": "public",
+                                             "namespace": "default",
+                                             "name": "pulsar-io-mysql",
+                                             "className": "TestSourceMysql",
+                                             "topicName": "pulsar-io-mysql",
+                                             "parallelism": "1",
+                                             "archive": "/connectors/pulsar-io-mysql-0.0.1.nar",
+                                             "schemaType": "avro"
+                                            }
+                                            2. Encapsulate the JSON object to a multipart object (in Python).
+                                            from requests_toolbelt.multipart.encoder import MultipartEncoder
+                                            mp_encoder = MultipartEncoder([('sourceConfig', \
+                                            (None, json.dumps(config), 'application/json'))])
+                                            """
                             )
                     )
             )
@@ -212,16 +208,18 @@ public class SourcesBase extends AdminResource {
                     examples = @Example(
                             value = @ExampleProperty(
                                     mediaType = MediaType.APPLICATION_JSON,
-                                    value = "{\n"
-                                            + "  \"tenant\": public\n"
-                                            + "  \"namespace\": default\n"
-                                            + "  \"name\": pulsar-io-mysql\n"
-                                            + "  \"className\": TestSourceMysql\n"
-                                            + "  \"topicName\": pulsar-io-mysql\n"
-                                            + "  \"parallelism\": 1\n"
-                                            + "  \"archive\": /connectors/pulsar-io-mysql-0.0.1.nar\n"
-                                            + "  \"schemaType\": avro\n"
-                                            + "}\n"
+                                    value = """
+                                            {
+                                              "tenant": "public",
+                                              "namespace": "default",
+                                              "name": "pulsar-io-mysql",
+                                              "className": "TestSourceMysql",
+                                              "topicName": "pulsar-io-mysql",
+                                              "parallelism": 1,
+                                              "archive": "/connectors/pulsar-io-mysql-0.0.1.nar",
+                                              "schemaType": "avro"
+                                            }
+                                            """
                             )
                     )
             )

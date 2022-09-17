@@ -43,7 +43,7 @@
     <slf4j.version>1.7.32</slf4j.version>
     <testng.version>7.3.0</testng.version>
     <commons-lang3.version>3.11</commons-lang3.version>
-    <maven-shade-plugin.version>3.2.4</maven-shade-plugin.version>
+    <maven-shade-plugin.version>3.4.0</maven-shade-plugin.version>
     <puppycrawl.checkstyle.version>8.37</puppycrawl.checkstyle.version>
     <maven-checkstyle-plugin.version>3.1.2</maven-checkstyle-plugin.version>
     <netty.version>4.1.77.Final</netty.version>

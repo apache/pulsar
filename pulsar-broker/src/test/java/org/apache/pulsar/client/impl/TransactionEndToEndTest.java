@@ -31,6 +31,8 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.util.Collection;
 import java.util.Optional;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.ArrayList;
 import java.util.List;
@@ -1339,5 +1341,64 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
         assertEquals(value1, new String(deadLetterConsumer.receive(3, TimeUnit.SECONDS).getValue()));
         assertEquals(value2, new String(deadLetterConsumer.receive(3, TimeUnit.SECONDS).getValue()));
+    }
+
+    @Test
+    public void testDelayedTransactionMessages() throws Exception {
+        String topic = NAMESPACE1 + "/testDelayedTransactionMessages";
+
+        @Cleanup
+        Consumer<String> failoverConsumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("failover-sub")
+                .subscriptionType(SubscriptionType.Failover)
+                .subscribe();
+
+        @Cleanup
+        Consumer<String> sharedConsumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("shared-sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .enableBatching(false)
+                .create();
+
+        Transaction transaction = pulsarClient.newTransaction()
+                .withTransactionTimeout(10, TimeUnit.SECONDS).build().get();
+        for (int i = 0; i < 10; i++) {
+            producer.newMessage(transaction)
+                    .value("msg-" + i)
+                    .deliverAfter(5, TimeUnit.SECONDS)
+                    .sendAsync();
+        }
+
+        producer.flush();
+
+        transaction.commit().get();
+
+        // Failover consumer will receive the messages immediately while
+        // the shared consumer will get them after the delay
+        Message<String> msg = sharedConsumer.receive(1, TimeUnit.SECONDS);
+        assertNull(msg);
+
+        for (int i = 0; i < 10; i++) {
+            msg = failoverConsumer.receive(100, TimeUnit.MILLISECONDS);
+            assertEquals(msg.getValue(), "msg-" + i);
+        }
+
+        Set<String> receivedMsgs = new TreeSet<>();
+        for (int i = 0; i < 10; i++) {
+            msg = sharedConsumer.receive(10, TimeUnit.SECONDS);
+            receivedMsgs.add(msg.getValue());
+        }
+
+        assertEquals(receivedMsgs.size(), 10);
+        for (int i = 0; i < 10; i++) {
+            assertTrue(receivedMsgs.contains("msg-" + i));
+        }
     }
 }

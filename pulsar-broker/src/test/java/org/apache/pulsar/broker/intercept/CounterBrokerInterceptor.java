@@ -50,10 +50,12 @@ import org.eclipse.jetty.server.Response;
 public class CounterBrokerInterceptor implements BrokerInterceptor {
 
     private AtomicInteger beforeSendCount = new AtomicInteger();
+    private AtomicInteger beforeSendCountAtConsumerLevel = new AtomicInteger();
     private AtomicInteger count = new AtomicInteger();
     private AtomicInteger connectionCreationCount = new AtomicInteger();
     private AtomicInteger producerCount = new AtomicInteger();
     private AtomicInteger consumerCount = new AtomicInteger();
+    private AtomicInteger messagePublishCount = new AtomicInteger();
     private AtomicInteger messageCount = new AtomicInteger();
     private AtomicInteger messageDispatchCount = new AtomicInteger();
     private AtomicInteger messageAckCount = new AtomicInteger();
@@ -105,6 +107,16 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     }
 
     @Override
+    public void producerClosed(ServerCnx cnx, Producer producer,
+                                Map<String, String> metadata) {
+        if (log.isDebugEnabled()) {
+            log.debug("Producer with name={}, id={} closed",
+                    producer.getProducerName(), producer.getProducerId());
+        }
+        producerCount.decrementAndGet();
+    }
+
+    @Override
     public void consumerCreated(ServerCnx cnx,
                                  Consumer consumer,
                                  Map<String, String> metadata) {
@@ -113,6 +125,26 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
                     consumer.consumerName(), consumer.consumerId());
         }
         consumerCount.incrementAndGet();
+    }
+
+    @Override
+    public void consumerClosed(ServerCnx cnx,
+                                Consumer consumer,
+                                Map<String, String> metadata) {
+        if (log.isDebugEnabled()) {
+            log.debug("Consumer with name={}, id={} closed",
+                    consumer.consumerName(), consumer.consumerId());
+        }
+        consumerCount.decrementAndGet();
+    }
+
+    @Override
+    public void onMessagePublish(Producer producer, ByteBuf headersAndPayload, Topic.PublishContext publishContext) {
+        if (log.isDebugEnabled()) {
+            log.debug("Message broker received topic={}, producer={}",
+                    producer.getTopic().getName(), producer.getProducerName());
+        }
+        messagePublishCount.incrementAndGet();
     }
 
     @Override
@@ -152,6 +184,19 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
                     subscription.getTopic(), subscription.getName());
         }
         beforeSendCount.incrementAndGet();
+    }
+
+    @Override
+    public void beforeSendMessage(Subscription subscription,
+                                  Entry entry,
+                                  long[] ackSet,
+                                  MessageMetadata msgMetadata,
+                                  Consumer consumer) {
+        if (log.isDebugEnabled()) {
+            log.debug("Send message to topic {}, subscription {}, consumer {}",
+                    subscription.getTopic(), subscription.getName(), consumer.consumerName());
+        }
+        beforeSendCountAtConsumerLevel.incrementAndGet();
     }
 
     @Override
@@ -238,6 +283,9 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     }
 
     public int getMessagePublishCount() {
+        return messagePublishCount.get();
+    }
+    public int getMessageProducedCount() {
         return messageCount.get();
     }
 
@@ -251,6 +299,10 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
 
     public int getBeforeSendCount() {
         return beforeSendCount.get();
+    }
+
+    public int getBeforeSendCountAtConsumerLevel() {
+        return beforeSendCountAtConsumerLevel.get();
     }
 
     public int getConnectionCreationCount() {

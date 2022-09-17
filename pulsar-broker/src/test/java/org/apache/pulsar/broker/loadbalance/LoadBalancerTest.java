@@ -25,7 +25,6 @@ import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
-import com.google.common.collect.Lists;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.URL;
@@ -555,7 +554,7 @@ public class LoadBalancerTest {
     private BundlesData getBundles(int numBundles) {
         Long maxVal = ((long) 1) << 32;
         Long segSize = maxVal / numBundles;
-        List<String> partitions = Lists.newArrayList();
+        List<String> partitions = new ArrayList<>();
         partitions.add(String.format("0x%08x", 0l));
         Long curPartition = segSize;
         for (int i = 0; i < numBundles; i++) {

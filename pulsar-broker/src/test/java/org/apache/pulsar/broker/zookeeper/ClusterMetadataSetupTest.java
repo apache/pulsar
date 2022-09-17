@@ -48,14 +48,14 @@ import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
-import org.apache.pulsar.zookeeper.ZookeeperServerTest;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.server.NIOServerCnxnFactory;
 import org.apache.zookeeper.server.ZooKeeperServer;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -405,15 +405,20 @@ public class ClusterMetadataSetupTest {
 
     }
 
-    @BeforeMethod
+    @BeforeClass
     void setup() throws Exception {
         localZkS = new ZookeeperServerTest(0);
         localZkS.start();
     }
 
-    @AfterMethod(alwaysRun = true)
+    @AfterClass
     void teardown() throws Exception {
         localZkS.close();
+    }
+
+    @AfterMethod(alwaysRun = true)
+    void cleanup() {
+        localZkS.clear();
     }
 
     static class ZookeeperServerTest implements Closeable {
@@ -448,10 +453,8 @@ public class ClusterMetadataSetupTest {
             log.info("ZooKeeper started at {}", hostPort);
         }
 
-        public void stop() throws IOException {
-            zks.shutdown();
-            serverFactory.shutdown();
-            log.info("Stoppend ZK server at {}", hostPort);
+        private void clear() {
+            zks.getZKDatabase().clear();
         }
 
         @Override

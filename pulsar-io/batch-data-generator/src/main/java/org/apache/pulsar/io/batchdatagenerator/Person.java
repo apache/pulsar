@@ -40,7 +40,8 @@ public class Person {
     private String password;
     private Sex sex;
     private String telephoneNumber;
-    @org.apache.avro.reflect.AvroSchema("{ \"type\": \"long\", \"logicalType\": \"timestamp-millis\" }")
+    @org.apache.avro.reflect.AvroSchema("""
+            { "type": "long", "logicalType": "timestamp-millis" }""")
     private long dateOfBirth;
     private Integer age;
     private Company company;

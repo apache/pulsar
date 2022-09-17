@@ -182,13 +182,21 @@ public class PulsarFunctionTlsTest {
                 if (pulsarAdmins[i] != null) {
                     pulsarAdmins[i].close();
                 }
+            }
+            for (int i = 0; i < BROKER_COUNT; i++) {
                 if (fnWorkerServices[i] != null) {
                     fnWorkerServices[i].stop();
                 }
+            }
+            for (int i = 0; i < BROKER_COUNT; i++) {
+                if (pulsarServices[i] != null) {
+                    pulsarServices[i].getLoadManager().get().stop();
+                }
+            }
+            for (int i = 0; i < BROKER_COUNT; i++) {
                 if (pulsarServices[i] != null) {
                     pulsarServices[i].close();
                 }
-
             }
             bkEnsemble.stop();
         } finally {

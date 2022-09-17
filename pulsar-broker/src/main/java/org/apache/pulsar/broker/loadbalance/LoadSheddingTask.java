@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.loadbalance;
 
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -37,6 +38,8 @@ public class LoadSheddingTask implements Runnable {
 
     private volatile boolean isCancel = false;
 
+    private volatile ScheduledFuture<?> future;
+
     public LoadSheddingTask(AtomicReference<LoadManager> loadManager,
                             ScheduledExecutorService loadManagerExecutor,
                             ServiceConfiguration config) {
@@ -47,24 +50,22 @@ public class LoadSheddingTask implements Runnable {
 
     @Override
     public void run() {
+        if (isCancel) {
+            return;
+        }
         try {
             loadManager.get().doLoadShedding();
         } catch (Exception e) {
             LOG.warn("Error during the load shedding", e);
         } finally {
-            if (!isCancel && loadManagerExecutor != null && config != null) {
-                loadManagerExecutor.schedule(
-                        new LoadSheddingTask(loadManager, loadManagerExecutor, config),
-                        config.getLoadBalancerSheddingIntervalMinutes(),
-                        TimeUnit.MINUTES);
-            }
+            start();
         }
     }
 
     public void start() {
-        if (loadManagerExecutor != null && config != null) {
-            loadManagerExecutor.schedule(
-                    new LoadSheddingTask(loadManager, loadManagerExecutor, config),
+        if (!isCancel && loadManagerExecutor != null && config != null) {
+            future = loadManagerExecutor.schedule(
+                    this,
                     config.getLoadBalancerSheddingIntervalMinutes(),
                     TimeUnit.MINUTES);
         }
@@ -72,5 +73,9 @@ public class LoadSheddingTask implements Runnable {
 
     public void cancel() {
         isCancel = true;
+        if (future != null) {
+            future.cancel(false);
+        }
     }
+
 }

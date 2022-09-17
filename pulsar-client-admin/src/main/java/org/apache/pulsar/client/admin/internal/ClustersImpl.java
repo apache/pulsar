@@ -26,7 +26,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import org.apache.pulsar.client.admin.Clusters;
@@ -140,22 +139,9 @@ public class ClustersImpl extends BaseResource implements Clusters {
     public CompletableFuture<Map<String, NamespaceIsolationData>> getNamespaceIsolationPoliciesAsync(
             String cluster) {
         WebTarget path = adminClusters.path(cluster).path("namespaceIsolationPolicies");
-        final CompletableFuture<Map<String, NamespaceIsolationData>> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Map<String, NamespaceIsolationDataImpl>>() {
-                    @Override
-                    public void completed(Map<String, NamespaceIsolationDataImpl> stringNamespaceIsolationDataMap) {
-                        Map<String, NamespaceIsolationData> result = new HashMap<>();
-                        stringNamespaceIsolationDataMap.forEach(result::put);
-                        future.complete(result);
-                    }
 
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<Map<String, NamespaceIsolationDataImpl>>() {})
+                .thenApply(HashMap::new);
     }
 
     @Override
@@ -168,22 +154,8 @@ public class ClustersImpl extends BaseResource implements Clusters {
     public CompletableFuture<List<BrokerNamespaceIsolationData>> getBrokersWithNamespaceIsolationPolicyAsync(
             String cluster) {
         WebTarget path = adminClusters.path(cluster).path("namespaceIsolationPolicies").path("brokers");
-        final CompletableFuture<List<BrokerNamespaceIsolationData>> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<List<BrokerNamespaceIsolationDataImpl>>() {
-                    @Override
-                    public void completed(List<BrokerNamespaceIsolationDataImpl> brokerNamespaceIsolationData) {
-                        List<BrokerNamespaceIsolationData> data =
-                                new ArrayList<>(brokerNamespaceIsolationData);
-                        future.complete(data);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<List<BrokerNamespaceIsolationDataImpl>>() {})
+                .thenApply(ArrayList::new);
     }
 
     @Override
@@ -303,21 +275,8 @@ public class ClustersImpl extends BaseResource implements Clusters {
     @Override
     public CompletableFuture<Map<String, FailureDomain>> getFailureDomainsAsync(String cluster) {
         WebTarget path = adminClusters.path(cluster).path("failureDomains");
-        final CompletableFuture<Map<String, FailureDomain>> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Map<String, FailureDomainImpl>>() {
-                    @Override
-                    public void completed(Map<String, FailureDomainImpl> failureDomains) {
-                        Map<String, FailureDomain> result = new HashMap<>(failureDomains);
-                        future.complete(result);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<Map<String, FailureDomainImpl>>() {})
+                .thenApply(HashMap::new);
     }
 
     @Override

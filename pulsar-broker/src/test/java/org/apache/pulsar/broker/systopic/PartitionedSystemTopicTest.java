@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.systopic;
 
 import com.google.common.collect.Sets;
+import java.util.HashSet;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -107,7 +108,7 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
     @Test(timeOut = 1000 * 60)
     public void testConsumerCreationWhenEnablingTopicPolicy() throws Exception {
         String tenant = "tenant-" + RandomStringUtils.randomAlphabetic(4).toLowerCase();
-        admin.tenants().createTenant(tenant, new TenantInfoImpl(Sets.newHashSet(), Sets.newHashSet("test")));
+        admin.tenants().createTenant(tenant, new TenantInfoImpl(new HashSet<>(), Sets.newHashSet("test")));
         int namespaceCount = 30;
         for (int i = 0; i < namespaceCount; i++) {
             String ns = tenant + "/ns-" + i;

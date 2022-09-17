@@ -25,7 +25,6 @@ import java.io.File;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.MediaType;
@@ -68,24 +67,7 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
     @Override
     public CompletableFuture<List<String>> listSourcesAsync(String tenant, String namespace) {
         WebTarget path = source.path(tenant).path(namespace);
-        final CompletableFuture<List<String>> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Response>() {
-                    @Override
-                    public void completed(Response response) {
-                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
-                            future.completeExceptionally(getApiException(response));
-                        } else {
-                            future.complete(response.readEntity(new GenericType<List<String>>() {}));
-                        }
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new GenericType<List<String>>() {});
     }
 
     @Override
@@ -96,24 +78,7 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
     @Override
     public CompletableFuture<SourceConfig> getSourceAsync(String tenant, String namespace, String sourceName) {
         WebTarget path = source.path(tenant).path(namespace).path(sourceName);
-        final CompletableFuture<SourceConfig> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Response>() {
-                    @Override
-                    public void completed(Response response) {
-                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
-                            future.completeExceptionally(getApiException(response));
-                        } else {
-                            future.complete(response.readEntity(SourceConfig.class));
-                        }
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, SourceConfig.class);
     }
 
     @Override
@@ -125,24 +90,7 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
     @Override
     public CompletableFuture<SourceStatus> getSourceStatusAsync(String tenant, String namespace, String sourceName) {
         WebTarget path = source.path(tenant).path(namespace).path(sourceName).path("status");
-        final CompletableFuture<SourceStatus> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Response>() {
-                    @Override
-                    public void completed(Response response) {
-                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
-                            future.completeExceptionally(getApiException(response));
-                        } else {
-                            future.complete(response.readEntity(SourceStatus.class));
-                        }
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, SourceStatus.class);
     }
 
     @Override
@@ -155,26 +103,7 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
     public CompletableFuture<SourceStatus.SourceInstanceStatus.SourceInstanceStatusData> getSourceStatusAsync(
             String tenant, String namespace, String sourceName, int id) {
         WebTarget path = source.path(tenant).path(namespace).path(sourceName).path(Integer.toString(id)).path("status");
-        final CompletableFuture<SourceStatus.SourceInstanceStatus.SourceInstanceStatusData> future =
-                new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Response>() {
-                    @Override
-                    public void completed(Response response) {
-                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
-                            future.completeExceptionally(getApiException(response));
-                        } else {
-                            future.complete(response.readEntity(
-                                    SourceStatus.SourceInstanceStatus.SourceInstanceStatusData.class));
-                        }
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, SourceStatus.SourceInstanceStatus.SourceInstanceStatusData.class);
     }
 
     @Override
@@ -432,24 +361,7 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
     public CompletableFuture<List<ConnectorDefinition>> getBuiltInSourcesAsync() {
         WebTarget path = source.path("builtinsources");
         final CompletableFuture<List<ConnectorDefinition>> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Response>() {
-                    @Override
-                    public void completed(Response response) {
-                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
-                            future.completeExceptionally(getApiException(response));
-                        } else {
-                            future.complete(response.readEntity(
-                                    new GenericType<List<ConnectorDefinition>>() {}));
-                        }
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new GenericType<List<ConnectorDefinition>>() {});
     }
 
     @Override

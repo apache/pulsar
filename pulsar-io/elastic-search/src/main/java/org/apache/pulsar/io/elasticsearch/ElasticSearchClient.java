@@ -256,6 +256,11 @@ public class ElasticSearchClient implements AutoCloseable {
         }
     }
 
+    @VisibleForTesting
+    void setClient(RestClient client) {
+        this.client = client;
+    }
+
     private void checkNotFailed() throws Exception {
         if (irrecoverableError.get() != null) {
             throw irrecoverableError.get();

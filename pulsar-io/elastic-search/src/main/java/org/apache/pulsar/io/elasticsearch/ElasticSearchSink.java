@@ -102,6 +102,11 @@ public class ElasticSearchSink implements Sink<GenericObject> {
         }
     }
 
+    @VisibleForTesting
+    void setElasticsearchClient(ElasticSearchClient elasticsearchClient) {
+        this.elasticsearchClient = elasticsearchClient;
+    }
+
     @Override
     public void write(Record<GenericObject> record) throws Exception {
         if (!elasticsearchClient.isFailed()) {

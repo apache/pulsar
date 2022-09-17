@@ -347,4 +347,59 @@ public class PersistentTopicTest extends BrokerTestBase {
             Assert.assertEquals(topicLevelNum, 0);
         }
     }
+
+    @Test
+    public void testUpdateCursorLastActive() throws Exception {
+        final String topicName = "persistent://prop/ns-abc/aTopic";
+        final String sharedSubName = "shared";
+        final String failoverSubName = "failOver";
+
+        long beforeAddConsumerTimestamp = System.currentTimeMillis();
+        Thread.sleep(1);
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
+                .subscriptionType(SubscriptionType.Shared).subscriptionName(sharedSubName)
+                .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS).subscribe();
+        Consumer<String> consumer2 = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
+                .subscriptionType(SubscriptionType.Failover).subscriptionName(failoverSubName)
+                .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS).subscribe();
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName).create();
+
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
+        PersistentSubscription persistentSubscription =  topic.getSubscription(sharedSubName);
+        PersistentSubscription persistentSubscription2 =  topic.getSubscription(failoverSubName);
+
+        // `addConsumer` should update last active
+        assertTrue(persistentSubscription.getCursor().getLastActive() > beforeAddConsumerTimestamp);
+        assertTrue(persistentSubscription2.getCursor().getLastActive() > beforeAddConsumerTimestamp);
+
+        long beforeAckTimestamp = System.currentTimeMillis();
+        Thread.sleep(1);
+        producer.newMessage().value("test").send();
+        Message<String> msg = consumer.receive();
+        assertNotNull(msg);
+        consumer.acknowledge(msg);
+        msg = consumer2.receive();
+        assertNotNull(msg);
+        consumer2.acknowledge(msg);
+
+        // Make sure ack commands have been sent to broker
+        Awaitility.waitAtMost(5, TimeUnit.SECONDS)
+                .until(() -> persistentSubscription.getCursor().getLastActive() > beforeAckTimestamp);
+        Awaitility.waitAtMost(5, TimeUnit.SECONDS)
+                .until(() -> persistentSubscription2.getCursor().getLastActive() > beforeAckTimestamp);
+
+        // `acknowledgeMessage` should update last active
+        assertTrue(persistentSubscription.getCursor().getLastActive() > beforeAckTimestamp);
+        assertTrue(persistentSubscription2.getCursor().getLastActive() > beforeAckTimestamp);
+
+        long beforeRemoveConsumerTimestamp = System.currentTimeMillis();
+        Thread.sleep(1);
+        consumer.unsubscribe();
+        consumer2.unsubscribe();
+        producer.close();
+
+        // `removeConsumer` should update last active
+        assertTrue(persistentSubscription.getCursor().getLastActive() > beforeRemoveConsumerTimestamp);
+        assertTrue(persistentSubscription2.getCursor().getLastActive() > beforeRemoveConsumerTimestamp);
+    }
 }

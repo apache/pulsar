@@ -154,7 +154,9 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                     entry.release();
                     continue;
                 }
-            } else if (msgMetadata == null || Markers.isServerOnlyMarker(msgMetadata)) {
+            }
+
+            if (msgMetadata == null || Markers.isServerOnlyMarker(msgMetadata)) {
                 PositionImpl pos = (PositionImpl) entry.getPosition();
                 // Message metadata was corrupted or the messages was a server-only marker
 
@@ -194,7 +196,9 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
 
             BrokerInterceptor interceptor = subscription.interceptor();
             if (null != interceptor) {
+                // keep for compatibility if users has implemented the old interface
                 interceptor.beforeSendMessage(subscription, entry, ackSet, msgMetadata);
+                interceptor.beforeSendMessage(subscription, entry, ackSet, msgMetadata, consumer);
             }
         }
         if (CollectionUtils.isNotEmpty(entriesToFiltered)) {

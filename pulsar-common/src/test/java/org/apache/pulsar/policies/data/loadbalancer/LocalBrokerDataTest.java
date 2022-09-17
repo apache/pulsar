@@ -22,6 +22,8 @@ import com.google.gson.Gson;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import static org.testng.Assert.assertEquals;
+
 public class LocalBrokerDataTest {
 
     @Test
@@ -32,5 +34,29 @@ public class LocalBrokerDataTest {
         Assert.assertEquals(localBrokerData.getMemory().limit, 1228.0d, 0.0001f);
         Assert.assertEquals(localBrokerData.getMemory().usage, 614.0d, 0.0001f);
         Assert.assertEquals(localBrokerData.getMemory().percentUsage(), ((float) localBrokerData.getMemory().usage) / ((float) localBrokerData.getMemory().limit) * 100, 0.0001f);
+    }
+
+    @Test
+    public void testMaxResourceUsage() {
+        LocalBrokerData data = new LocalBrokerData();
+        data.setCpu(new ResourceUsage(1.0, 100.0));
+        data.setMemory(new ResourceUsage(800.0, 200.0));
+        data.setDirectMemory(new ResourceUsage(2.0, 100.0));
+        data.setBandwidthIn(new ResourceUsage(3.0, 100.0));
+        data.setBandwidthOut(new ResourceUsage(4.0, 100.0));
+
+        double epsilon = 0.00001;
+        double weight = 0.5;
+        // skips memory usage
+        assertEquals(data.getMaxResourceUsage(), 0.04, epsilon);
+
+        assertEquals(
+                data.getMaxResourceUsageWithWeight(
+                        weight, weight, weight, weight, weight), 2.0, epsilon);
+
+        assertEquals(
+                data.getMaxResourceUsageWithWeightWithinLimit(
+                        weight, weight, weight, weight, weight), 0.02, epsilon);
+
     }
 }

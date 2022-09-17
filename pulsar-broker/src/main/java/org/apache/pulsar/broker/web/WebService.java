@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.web;
 
-import com.google.common.collect.Lists;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.jetty.JettyStatisticsCollector;
 import java.util.ArrayList;
@@ -86,7 +85,7 @@ public class WebService implements AutoCloseable {
     }
 
     public WebService(PulsarService pulsar) throws PulsarServerException {
-        this.handlers = Lists.newArrayList();
+        this.handlers = new ArrayList<>();
         this.pulsar = pulsar;
         ServiceConfiguration config = pulsar.getConfiguration();
         this.webServiceExecutor = new WebExecutorThreadPool(
