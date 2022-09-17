@@ -40,6 +40,7 @@ import org.apache.pulsar.io.core.PushSource;
 import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.core.annotations.Connector;
 import org.apache.pulsar.io.core.annotations.IOType;
+import org.bson.BsonDocument;
 import org.bson.BsonTimestamp;
 import org.bson.Document;
 import org.reactivestreams.Subscriber;
@@ -87,23 +88,24 @@ public class MongoSource extends PushSource<byte[]> {
             mongoClient = MongoClients.create(mongoSourceConfig.getMongoUri());
         }
 
-        if (StringUtils.isEmpty(mongoSourceConfig.getDatabase())) {
+        String mongoDatabase = mongoSourceConfig.getDatabase();
+        if (StringUtils.isEmpty(mongoDatabase)) {
             // Watch all databases
-            log.info("Watch all");
+            log.info("Watch all databases");
             stream = mongoClient.watch();
 
         } else {
-            final MongoDatabase db = mongoClient.getDatabase(mongoSourceConfig.getDatabase());
-
-            if (StringUtils.isEmpty(mongoSourceConfig.getCollection())) {
+            final MongoDatabase db = mongoClient.getDatabase(mongoDatabase);
+            String mongoCollection = mongoSourceConfig.getCollection();
+            if (StringUtils.isEmpty(mongoCollection)) {
                 // Watch all collections in a database
                 log.info("Watch db: {}", db.getName());
                 stream = db.watch();
 
             } else {
                 // Watch a collection
-                final MongoCollection<Document> collection = db.getCollection(mongoSourceConfig.getCollection());
-                log.info("Watch collection: {}.{}", db.getName(), mongoSourceConfig.getCollection());
+                final MongoCollection<Document> collection = db.getCollection(mongoCollection);
+                log.info("Watch collection: {}.{}", db.getName(), mongoCollection);
                 stream = collection.watch();
             }
         }
@@ -134,6 +136,12 @@ public class MongoSource extends PushSource<byte[]> {
                 try {
                     log.info("New change doc: {}", doc);
 
+                    BsonDocument documentKey = doc.getDocumentKey();
+                    if (documentKey == null) {
+                        log.warn("The document key is null");
+                        return;
+                    }
+
                     // Build a record with the essential information
                     final Map<String, Object> recordValue = new HashMap<>();
                     recordValue.put("fullDocument", doc.getFullDocument());
@@ -141,7 +149,7 @@ public class MongoSource extends PushSource<byte[]> {
                     recordValue.put("operation", doc.getOperationType());
 
                     consume(new DocRecord(
-                            Optional.of(doc.getDocumentKey().toJson()),
+                            Optional.of(documentKey.toJson()),
                             mapper.writeValueAsString(recordValue).getBytes(StandardCharsets.UTF_8)));
 
                 } catch (JsonProcessingException e) {
