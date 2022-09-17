@@ -185,7 +185,8 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
         }
 
         log.info("Lock on resource {} was invalidated", path);
-        revalidate(value);
+        revalidate(value)
+                .thenRun(() -> log.info("Successfully revalidated the lock on {}", path));
     }
 
     synchronized CompletableFuture<Void> revalidateIfNeededAfterReconnection() {
