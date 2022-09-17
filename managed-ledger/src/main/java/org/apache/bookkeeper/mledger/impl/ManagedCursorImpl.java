@@ -175,8 +175,9 @@ public class ManagedCursorImpl implements ManagedCursor {
     private boolean isCursorLedgerReadOnly = true;
 
     // Stat of the cursor z-node
+    // NOTE: Don't update individually cursorLedgerStat,
+    // please use updateCursorLedgerStat method to update cursorLedgerStat and managedCursorInfo at the same time.
     private volatile Stat cursorLedgerStat;
-
     private volatile ManagedCursorInfo managedCursorInfo;
 
     private static final LongPairConsumer<PositionImpl> positionRangeConverter = PositionImpl::new;
@@ -318,6 +319,11 @@ public class ManagedCursorImpl implements ManagedCursor {
         this.mbean = new ManagedCursorMXBeanImpl(this);
     }
 
+    private void updateCursorLedgerStat(ManagedCursorInfo cursorInfo, Stat stat) {
+        this.managedCursorInfo = cursorInfo;
+        this.cursorLedgerStat = stat;
+    }
+
     @Override
     public Map<String, Long> getProperties() {
         return lastMarkDeleteEntry != null ? lastMarkDeleteEntry.properties : Collections.emptyMap();
@@ -347,9 +353,8 @@ public class ManagedCursorImpl implements ManagedCursor {
                     public void operationComplete(Void result, Stat stat) {
                         log.info("[{}] Updated ledger cursor: {} properties {}", ledger.getName(),
                                 name, cursorProperties);
-                        ManagedCursorImpl.this.managedCursorInfo = copy;
                         ManagedCursorImpl.this.cursorProperties = Collections.unmodifiableMap(newProperties);
-                        cursorLedgerStat = stat;
+                        updateCursorLedgerStat(copy, stat);
                         updateCursorPropertiesResult.complete(result);
                     }
 
@@ -432,10 +437,8 @@ public class ManagedCursorImpl implements ManagedCursor {
             @Override
             public void operationComplete(ManagedCursorInfo info, Stat stat) {
 
-                ManagedCursorImpl.this.managedCursorInfo = info;
-                cursorLedgerStat = stat;
+                updateCursorLedgerStat(info, stat);
                 lastActive = info.getLastActive() != 0 ? info.getLastActive() : lastActive;
-
 
                 Map<String, String> recoveredCursorProperties = Collections.emptyMap();
                 if (info.getCursorPropertiesCount() > 0) {
@@ -2550,8 +2553,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 new MetaStoreCallback<Void>() {
                     @Override
                     public void operationComplete(Void result, Stat stat) {
-                        managedCursorInfo = cursorInfo;
-                        cursorLedgerStat = stat;
+                        updateCursorLedgerStat(cursorInfo, stat);
                         callback.operationComplete(result, stat);
                     }
 
@@ -2567,7 +2569,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                                         new MetaStoreCallback<ManagedCursorInfo>() {
                                             @Override
                                             public void operationComplete(ManagedCursorInfo info, Stat stat) {
-                                                cursorLedgerStat = stat;
+                                                updateCursorLedgerStat(info, stat);
                                             }
 
                                             @Override
@@ -2953,7 +2955,6 @@ public class ManagedCursorImpl implements ManagedCursor {
                 final LedgerHandle oldLedger = cursorLedger;
                 cursorLedger = lh;
                 isCursorLedgerReadOnly = false;
-                cursorLedgerStat = stat;
 
                 // At this point the position had already been safely markdeleted
                 callback.operationComplete();
