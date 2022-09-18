@@ -3406,4 +3406,19 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         long value2 = partitionedStats.getEarliestMsgPublishTimeInBacklogs();
         Assert.assertNotEquals(value2, 0);
     }
+
+    @Test
+    public void testRetentionAndBacklogQuotaCheck() throws PulsarAdminException {
+        String namespace = "prop-xyz/ns1";
+        admin.namespaces().setRetention(namespace, new RetentionPolicies(-1, 10));
+        Assert.expectThrows(PulsarAdminException.PreconditionFailedException.class, () -> {
+            admin.namespaces().setBacklogQuota(namespace, BacklogQuota.builder().limitSize(100 * 1024 * 1024).build());
+        });
+
+        admin.namespaces().setRetention(namespace, new RetentionPolicies(1, 10));
+        Assert.expectThrows(PulsarAdminException.PreconditionFailedException.class, () -> {
+            admin.namespaces().setBacklogQuota(namespace, BacklogQuota.builder().limitSize(100 * 1024 * 1024).build());
+        });
+
+    }
 }
