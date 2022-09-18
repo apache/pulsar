@@ -22,7 +22,7 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.systopic.SystemTopicClient.Reader;
 import org.apache.pulsar.broker.systopic.SystemTopicClient.Writer;
 import org.apache.pulsar.broker.systopic.SystemTopicClientBase;
-import org.apache.pulsar.broker.systopic.TransactionBufferSystemTopicClient;
+import org.apache.pulsar.broker.systopic.TransactionBufferSnapshotBaseSystemTopicClient;
 import org.apache.pulsar.common.naming.TopicName;
 
 public interface TransactionBufferSnapshotService<T> {
@@ -49,10 +49,10 @@ public interface TransactionBufferSnapshotService<T> {
      * Remove a topic client from cache.
      *
      * @param topicName {@link TopicName} the topic name
-     * @param transactionBufferSystemTopicClient {@link TransactionBufferSystemTopicClient} the topic client
-     *
+     * @param TransactionBufferSnapshotBaseSystemTopicClient {@link TransactionBufferSnapshotBaseSystemTopicClient}
+     * the topic client
      */
-    void removeClient(TopicName topicName, SystemTopicClientBase<T> transactionBufferSystemTopicClient);
+    void removeClient(TopicName topicName, SystemTopicClientBase<T> TransactionBufferSnapshotBaseSystemTopicClient);
 
     /**
      * Close transaction buffer snapshot service.

@@ -31,12 +31,12 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicName;
 
 @Slf4j
-public class TransactionBufferSystemTopicClient extends
+public class TransactionBufferSnapshotSystemTopicClient extends
         TransactionBufferSnapshotBaseSystemTopicClient<TransactionBufferSnapshot> {
     private TransactionBufferSnapshotService transactionBufferSnapshotService;
 
-    public TransactionBufferSystemTopicClient(PulsarClient client, TopicName topicName,
-                                              TransactionBufferSnapshotService<TransactionBufferSnapshot>
+    public TransactionBufferSnapshotSystemTopicClient(PulsarClient client, TopicName topicName,
+                                                      TransactionBufferSnapshotService<TransactionBufferSnapshot>
                                                       transactionBufferSnapshotService) {
         super(client, topicName, transactionBufferSnapshotService);
     }
@@ -74,8 +74,8 @@ public class TransactionBufferSystemTopicClient extends
             TransactionBufferSnapshotBaseWriter<TransactionBufferSnapshot> {
 
         private TransactionBufferSnapshotWriter(Producer<TransactionBufferSnapshot> producer,
-                                                TransactionBufferSystemTopicClient transactionBufferSystemTopicClient) {
-            super(producer, transactionBufferSystemTopicClient);
+                TransactionBufferSnapshotSystemTopicClient transactionBufferSnapshotSystemTopicClient) {
+            super(producer, transactionBufferSnapshotSystemTopicClient);
         }
 
         @Override
@@ -110,8 +110,8 @@ public class TransactionBufferSystemTopicClient extends
     private static class TransactionBufferSnapshotReader extends
             TransactionBufferSnapshotBaseReader<TransactionBufferSnapshot> {
         private TransactionBufferSnapshotReader(org.apache.pulsar.client.api.Reader<TransactionBufferSnapshot> reader,
-                                                TransactionBufferSystemTopicClient transactionBufferSystemTopicClient) {
-            super(reader, transactionBufferSystemTopicClient);
+                   TransactionBufferSnapshotSystemTopicClient transactionBufferSnapshotSystemTopicClient) {
+            super(reader, transactionBufferSnapshotSystemTopicClient);
         }
     }
 }
