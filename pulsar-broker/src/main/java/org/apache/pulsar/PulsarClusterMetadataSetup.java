@@ -391,7 +391,7 @@ public class PulsarClusterMetadataSetup {
     public static MetadataStoreExtended initLocalMetadataStore(String connection, int sessionTimeout) throws Exception {
         MetadataStoreExtended store = MetadataStoreExtended.create(connection, MetadataStoreConfig.builder()
                 .sessionTimeoutMillis(sessionTimeout)
-                .metadataStoreName(MetadataStoreConfig.LOCAL_METADATA_STORE)
+                .metadataStoreName(MetadataStoreConfig.METADATA_STORE)
                 .build());
         if (store instanceof MetadataStoreLifecycle) {
             ((MetadataStoreLifecycle) store).initializeCluster().get();

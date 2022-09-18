@@ -381,13 +381,13 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
 
     protected MetadataStoreExtended createLocalMetadataStore(PulsarMetadataEventSynchronizer synchronizer) {
         return new ZKMetadataStore(mockZooKeeper, MetadataStoreConfig.builder()
-                .metadataStoreName(MetadataStoreConfig.LOCAL_METADATA_STORE)
+                .metadataStoreName(MetadataStoreConfig.METADATA_STORE)
                 .synchronizer(synchronizer).build());
     }
 
     protected MetadataStoreExtended createLocalMetadataStore() throws MetadataStoreException {
         return new ZKMetadataStore(mockZooKeeper, MetadataStoreConfig.builder()
-                .metadataStoreName(MetadataStoreConfig.LOCAL_METADATA_STORE).build());
+                .metadataStoreName(MetadataStoreConfig.METADATA_STORE).build());
     }
 
     protected MetadataStoreExtended createConfigurationMetadataStore(PulsarMetadataEventSynchronizer synchronizer) {

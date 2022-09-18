@@ -101,7 +101,7 @@ public class PulsarClusterMetadataTeardown {
         MetadataStoreExtended metadataStore = MetadataStoreExtended.create(arguments.zookeeper,
                 MetadataStoreConfig.builder()
                         .sessionTimeoutMillis(arguments.zkSessionTimeoutMillis)
-                        .metadataStoreName(MetadataStoreConfig.LOCAL_METADATA_STORE)
+                        .metadataStoreName(MetadataStoreConfig.METADATA_STORE)
                         .build());
 
         if (arguments.bkMetadataServiceUri != null) {

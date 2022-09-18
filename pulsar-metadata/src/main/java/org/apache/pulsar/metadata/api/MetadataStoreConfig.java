@@ -29,7 +29,7 @@ import lombok.ToString;
 @Getter
 @ToString
 public class MetadataStoreConfig {
-    public static final String LOCAL_METADATA_STORE = "local-metadata-store";
+    public static final String METADATA_STORE = "metadata-store";
     public static final String STATE_METADATA_STORE = "state-metadata-store";
     public static final String CONFIGURATION_METADATA_STORE = "configuration-metadata-store";
 

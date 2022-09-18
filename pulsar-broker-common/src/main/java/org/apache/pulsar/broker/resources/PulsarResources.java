@@ -92,7 +92,7 @@ public class PulsarResources {
             throws MetadataStoreException {
         return MetadataStoreExtended.create(serverUrls, MetadataStoreConfig.builder()
                 .sessionTimeoutMillis(sessionTimeoutMs).allowReadOnlyOperations(false)
-                .metadataStoreName(MetadataStoreConfig.LOCAL_METADATA_STORE).build());
+                .metadataStoreName(MetadataStoreConfig.METADATA_STORE).build());
     }
 
     public static MetadataStoreExtended createConfigMetadataStore(String serverUrls, int sessionTimeoutMs)

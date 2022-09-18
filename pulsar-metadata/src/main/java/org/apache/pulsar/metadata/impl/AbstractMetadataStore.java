@@ -39,7 +39,6 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import lombok.Getter;
@@ -63,8 +62,6 @@ import org.apache.pulsar.metadata.impl.stats.MetadataStoreStats;
 
 @Slf4j
 public abstract class AbstractMetadataStore implements MetadataStoreExtended, Consumer<Notification> {
-
-    private static final AtomicInteger ID = new AtomicInteger();
     private static final long CACHE_REFRESH_TIME_MILLIS = TimeUnit.MINUTES.toMillis(5);
 
     private final CopyOnWriteArrayList<Consumer<Notification>> listeners = new CopyOnWriteArrayList<>();
@@ -86,8 +83,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     protected abstract CompletableFuture<Boolean> existsFromStore(String path);
 
     protected AbstractMetadataStore(String metadataStoreName) {
-        final String poolName = "metadata-store";
-        this.executor = new ScheduledThreadPoolExecutor(1, new DefaultThreadFactory(poolName));
+        this.executor = new ScheduledThreadPoolExecutor(1, new DefaultThreadFactory(metadataStoreName));
         registerListener(this);
 
         this.childrenCache = Caffeine.newBuilder()
@@ -254,7 +250,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                     if (t != null) {
                         metadataStoreStats.recordGetOpsFailed(System.currentTimeMillis() - start);
                     } else {
-                        metadataStoreStats.recordGetOpsLatency(System.currentTimeMillis() - start);
+                        metadataStoreStats.recordGetOpsSucceeded(System.currentTimeMillis() - start);
                     }
                 });
     }
@@ -346,7 +342,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                         if (null != t) {
                             metadataStoreStats.recordDelOpsFailed(System.currentTimeMillis() - start);
                         } else {
-                            metadataStoreStats.recordDelOpsLatency(System.currentTimeMillis() - start);
+                            metadataStoreStats.recordDelOpsSucceeded(System.currentTimeMillis() - start);
                         }
                     });
         } else {
@@ -355,7 +351,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                         if (null != t) {
                             metadataStoreStats.recordDelOpsFailed(System.currentTimeMillis() - start);
                         } else {
-                            metadataStoreStats.recordDelOpsLatency(System.currentTimeMillis() - start);
+                            metadataStoreStats.recordDelOpsSucceeded(System.currentTimeMillis() - start);
                         }
                     });
         }
@@ -416,7 +412,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                             metadataStoreStats.recordPutOpsFailed(System.currentTimeMillis() - start);
                         } else {
                             int len = data == null ? 0 : data.length;
-                            metadataStoreStats.recordPutOpsLatency(System.currentTimeMillis() - start, len);
+                            metadataStoreStats.recordPutOpsSucceeded(System.currentTimeMillis() - start, len);
                         }
                     });
         } else {
@@ -426,7 +422,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                             metadataStoreStats.recordPutOpsFailed(System.currentTimeMillis() - start);
                         } else {
                             int len = data == null ? 0 : data.length;
-                            metadataStoreStats.recordPutOpsLatency(System.currentTimeMillis() - start, len);
+                            metadataStoreStats.recordPutOpsSucceeded(System.currentTimeMillis() - start, len);
                         }
                     });
         }

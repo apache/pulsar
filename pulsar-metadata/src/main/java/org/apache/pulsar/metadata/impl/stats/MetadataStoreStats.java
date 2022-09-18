@@ -70,15 +70,15 @@ public final class MetadataStoreStats implements AutoCloseable {
         this.putBytesChild = PUT_BYTES.labels(metadataStoreName);
     }
 
-    public void recordGetOpsLatency(long millis) {
+    public void recordGetOpsSucceeded(long millis) {
         this.getOpsSucceedChild.observe(millis);
     }
 
-    public void recordDelOpsLatency(long millis) {
+    public void recordDelOpsSucceeded(long millis) {
         this.delOpsSucceedChild.observe(millis);
     }
 
-    public void recordPutOpsLatency(long millis, int bytes) {
+    public void recordPutOpsSucceeded(long millis, int bytes) {
         this.putOpsSucceedChild.observe(millis);
         this.putBytesChild.inc(bytes);
     }
