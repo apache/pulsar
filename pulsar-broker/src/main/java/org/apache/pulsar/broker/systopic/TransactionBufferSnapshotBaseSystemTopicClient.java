@@ -22,11 +22,9 @@ import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.service.TransactionBufferSnapshotService;
 import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.TopicName;
 
 public abstract class TransactionBufferSnapshotBaseSystemTopicClient<T> extends
@@ -112,24 +110,6 @@ public abstract class TransactionBufferSnapshotBaseSystemTopicClient<T> extends
         @Override
         public CompletableFuture<Message<T>> readNextAsync() {
             return reader.readNextAsync();
-        }
-
-        @Override
-        public Message<T> readByMessageId(MessageId messageId)
-                throws PulsarClientException {
-            MessageIdImpl messageIdImpl = (MessageIdImpl) messageId;
-            reader.seek(new MessageIdImpl(messageIdImpl.getLedgerId(), messageIdImpl.getEntryId() - 1,
-                    messageIdImpl.getPartitionIndex()));
-            return reader.readNext();
-        }
-
-        @Override
-        public CompletableFuture<Message<T>> readByMessageIdAsync(MessageId messageId) {
-            MessageIdImpl messageIdImpl = (MessageIdImpl) messageId;
-            return reader.seekAsync(new MessageIdImpl(messageIdImpl.getLedgerId(), messageIdImpl.getEntryId() - 1,
-                    messageIdImpl.getPartitionIndex())).thenCompose((ignore) -> {
-                return reader.readNextAsync();
-            });
         }
 
         @Override

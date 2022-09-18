@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.systopic;
 
 import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.TransactionBufferSnapshotService;
 import org.apache.pulsar.broker.transaction.buffer.matadata.v2.TransactionBufferSnapshotIndexes;
 import org.apache.pulsar.client.api.MessageId;
@@ -28,6 +29,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.FutureUtil;
 
 @Slf4j
 public class TransactionBufferSnapshotSegmentSystemTopicClient extends
@@ -56,19 +58,8 @@ public class TransactionBufferSnapshotSegmentSystemTopicClient extends
     @Override
     protected CompletableFuture<Reader<TransactionBufferSnapshotIndexes.TransactionBufferSnapshot>>
     newReaderAsyncInternal() {
-        return client.newReader(Schema.AVRO(TransactionBufferSnapshotIndexes.TransactionBufferSnapshot.class))
-                .topic(topicName.toString())
-                .startMessageId(MessageId.earliest)
-                .readCompacted(true)
-                .createAsync()
-                .thenCompose(reader -> {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] A new transactionBufferSnapshot buffer snapshot segment reader is created",
-                                topicName);
-                    }
-                    return CompletableFuture.completedFuture(
-                            new TransactionBufferSnapshotSegmentReader(reader, this));
-                });
+        return FutureUtil.failedFuture(new BrokerServiceException
+                .NotAllowedException("Do not allow to get reader for segment topic reader"));
     }
 
     protected static String buildKey(TransactionBufferSnapshotIndexes.TransactionBufferSnapshot snapshot) {
@@ -120,13 +111,4 @@ public class TransactionBufferSnapshotSegmentSystemTopicClient extends
         }
     }
 
-    private static class TransactionBufferSnapshotSegmentReader extends TransactionBufferSnapshotBaseSystemTopicClient
-            .TransactionBufferSnapshotBaseReader<TransactionBufferSnapshotIndexes.TransactionBufferSnapshot> {
-
-        private TransactionBufferSnapshotSegmentReader(
-                org.apache.pulsar.client.api.Reader<TransactionBufferSnapshotIndexes.TransactionBufferSnapshot> reader,
-                TransactionBufferSnapshotSegmentSystemTopicClient transactionBufferSnapshotSegmentSystemTopicClient) {
-            super(reader, transactionBufferSnapshotSegmentSystemTopicClient);
-        }
-    }
 }

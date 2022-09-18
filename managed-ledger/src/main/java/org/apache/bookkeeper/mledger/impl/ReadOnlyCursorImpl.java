@@ -19,10 +19,13 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import com.google.common.collect.Range;
+import java.util.concurrent.CountDownLatch;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
+import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ReadOnlyCursor;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.PositionBound;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
@@ -47,6 +50,43 @@ public class ReadOnlyCursorImpl extends ManagedCursorImpl implements ReadOnlyCur
         }
 
         this.state = State.NoLedger;
+    }
+
+    @Override
+    public void asyncReadEntry(PositionImpl position, AsyncCallbacks.ReadEntryCallback callback, Object ctx) {
+        ledger.asyncReadEntry(position, callback, ctx);
+    }
+
+    @Override
+    public Entry readEntry(PositionImpl position, Object ctx) throws ManagedLedgerException, InterruptedException {
+        class Result {
+            Entry entry;
+            ManagedLedgerException exception;
+        }
+
+        Result result = new Result();
+        CountDownLatch wait = new CountDownLatch(1);
+
+        AsyncCallbacks.ReadEntryCallback callback = new AsyncCallbacks.ReadEntryCallback() {
+            @Override
+            public void readEntryComplete(Entry entry, Object ctx) {
+                result.entry = entry;
+                wait.countDown();
+            }
+
+            @Override
+            public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                result.exception = exception;
+                wait.countDown();
+            }
+        };
+        asyncReadEntry(position, callback, null);
+        wait.await();
+        if (result.exception != null) {
+            throw result.exception;
+        } else {
+            return result.entry;
+        }
     }
 
     @Override

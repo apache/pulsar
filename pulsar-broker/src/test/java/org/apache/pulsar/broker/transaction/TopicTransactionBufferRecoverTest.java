@@ -28,6 +28,8 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -41,6 +43,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.ReadOnlyCursor;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
@@ -70,9 +74,11 @@ import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.events.EventType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.awaitility.Awaitility;
@@ -615,39 +621,65 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
 
     @Test
     public void testTransactionBufferSegmentSystemTopic() throws Exception {
+        // init topic and topicName
+        String snapshotTopic = NAMESPACE1 + "/" + EventType.TRANSACTION_BUFFER_SNAPSHOT_SEGMENT;
+        TopicName snapshotSegmentTopicName = TopicName.getPartitionedTopicName(snapshotTopic);
+
+        //send message to create manager ledger
+        Producer<TransactionBufferSnapshotIndexes.TransactionBufferSnapshot> producer =
+                pulsarClient.newProducer(Schema.AVRO(TransactionBufferSnapshotIndexes.TransactionBufferSnapshot.class))
+                .topic(snapshotTopic)
+                .create();
+
+        // get brokerService and pulsarService
+        PulsarService pulsarService = getPulsarServiceList().get(0);
+        BrokerService brokerService = pulsarService.getBrokerService();
+
+        // create snapshot sgement writer
         TransactionBufferSnapshotService<TransactionBufferSnapshotIndexes.TransactionBufferSnapshot>
-                transactionBufferSnapshotSegmentService =
-                getPulsarServiceList().get(0).getTransactionBufferSnapshotSegmentService();
+                transactionBufferSnapshotSegmentService = pulsarService.getTransactionBufferSnapshotSegmentService();
 
         SystemTopicClient.Writer<TransactionBufferSnapshotIndexes.TransactionBufferSnapshot>
-                segmentWriter =
-                transactionBufferSnapshotSegmentService.createWriter(TopicName.get(SNAPSHOT_SEGMENT)).get();
+                segmentWriter = transactionBufferSnapshotSegmentService.createWriter(snapshotSegmentTopicName).get();
 
-        SystemTopicClient.Reader<TransactionBufferSnapshotIndexes.TransactionBufferSnapshot>
-                segmentReader =
-                transactionBufferSnapshotSegmentService.createReader(TopicName.get(SNAPSHOT_SEGMENT)).get();
-
+        // write two snapshot to snapshot segment topic
         TransactionBufferSnapshotIndexes.TransactionBufferSnapshot snapshot =
                 new TransactionBufferSnapshotIndexes.TransactionBufferSnapshot();
 
-        snapshot.setTopicName(SNAPSHOT_SEGMENT);
+        //build and send sanpshot
+        snapshot.setTopicName(snapshotTopic);
         snapshot.setSequenceId(1L);
         snapshot.setMaxReadPositionLedgerId(2L);
         snapshot.setMaxReadPositionEntryId(3L);
         snapshot.setAborts(Collections.singletonList(
                 new org.apache.pulsar.broker.transaction.buffer.matadata.v2.TxnID(1, 1)));
 
-        MessageId messageId = segmentWriter.write(snapshot);
         segmentWriter.write(snapshot);
+        snapshot.setSequenceId(2L);
 
-        snapshot = segmentReader.readByMessageId(messageId).getValue();
-        assertEquals(snapshot.getTopicName(), SNAPSHOT_SEGMENT);
-        assertEquals(snapshot.getSequenceId(), 1L);
+        MessageIdImpl messageId = (MessageIdImpl) segmentWriter.write(snapshot);
+
+        //create cursor
+        ReadOnlyCursor readOnlyCursor = pulsarService.getManagedLedgerFactory()
+                .openReadOnlyCursor(snapshotSegmentTopicName.getPersistenceNamingEncoding(),
+                        PositionImpl.EARLIEST, brokerService.getManagedLedgerConfig(snapshotSegmentTopicName).get());
+        //read the entry and decode entry to snapshot
+        Entry entry = readOnlyCursor.readEntry(new PositionImpl(messageId.getLedgerId(), messageId.getEntryId()), null);
+
+        //decode snapshot from entry
+        ByteBuf headersAndPayload = entry.getDataBuffer();
+        //skip metadata
+        MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
+        snapshot = Schema.AVRO(TransactionBufferSnapshotIndexes
+                .TransactionBufferSnapshot.class).decode(Unpooled.wrappedBuffer(headersAndPayload).nioBuffer());
+
+        //verify snapshot
+        assertEquals(snapshot.getTopicName(), snapshotTopic);
+        assertEquals(snapshot.getSequenceId(), 2L);
         assertEquals(snapshot.getMaxReadPositionLedgerId(), 2L);
         assertEquals(snapshot.getMaxReadPositionEntryId(), 3L);
         assertEquals(snapshot.getAborts().get(0),
                 new org.apache.pulsar.broker.transaction.buffer.matadata.v2.TxnID(1, 1));
-
     }
 
 }
