@@ -59,7 +59,7 @@ public class BatchMessageContainerImplTest {
         doAnswer((ignore) -> {
             called.set(true);
             throw new OutOfMemoryError("test");
-        }).when(mockAllocator).buffer(anyInt());
+        }).when(mockAllocator).compositeBuffer();
         final BatchMessageContainerImpl batchMessageContainer = new BatchMessageContainerImpl(mockAllocator);
         batchMessageContainer.setProducer(producer);
         MessageMetadata messageMetadata1 = new MessageMetadata();
