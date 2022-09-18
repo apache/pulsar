@@ -3412,25 +3412,24 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         String namespace = "prop-xyz/ns1";
         //test size check.
         admin.namespaces().setRetention(namespace, new RetentionPolicies(-1, 10));
-        //test when backlog quota equals to retention quota.
-        admin.namespaces().setBacklogQuota(namespace, BacklogQuota.builder().limitSize(10 * 1024 * 1024).build());
+        admin.namespaces().setBacklogQuota(namespace, BacklogQuota.builder().limitSize(9 * 1024 * 1024).build());
         Assert.expectThrows(PulsarAdminException.PreconditionFailedException.class, () -> {
             admin.namespaces().setBacklogQuota(namespace, BacklogQuota.builder().limitSize(100 * 1024 * 1024).build());
         });
 
         //test time check
         admin.namespaces().setRetention(namespace, new RetentionPolicies(10, -1));
-        admin.namespaces().setBacklogQuota(namespace, BacklogQuota.builder().limitTime(10 * 60).build());
+        admin.namespaces().setBacklogQuota(namespace, BacklogQuota.builder().limitTime(9 * 60).build());
         Assert.expectThrows(PulsarAdminException.PreconditionFailedException.class, () -> {
             admin.namespaces().setBacklogQuota(namespace, BacklogQuota.builder().limitTime(11 * 60).build());
         });
 
         // test both size and time.
         admin.namespaces().setRetention(namespace, new RetentionPolicies(10, 10));
-        admin.namespaces().setBacklogQuota(namespace, BacklogQuota.builder().limitSize(10 * 1024 * 1024).build());
-        admin.namespaces().setBacklogQuota(namespace, BacklogQuota.builder().limitTime(10 * 60).build());
-        admin.namespaces().setBacklogQuota(namespace, BacklogQuota.builder().limitSize(10 * 1024 * 1024).
-                limitTime(10 * 60).build());
+        admin.namespaces().setBacklogQuota(namespace, BacklogQuota.builder().limitSize(9 * 1024 * 1024).build());
+        admin.namespaces().setBacklogQuota(namespace, BacklogQuota.builder().limitTime(9 * 60).build());
+        admin.namespaces().setBacklogQuota(namespace, BacklogQuota.builder().limitSize(9 * 1024 * 1024).
+                limitTime(9 * 60).build());
         Assert.expectThrows(PulsarAdminException.PreconditionFailedException.class, () -> {
             admin.namespaces().setBacklogQuota(namespace, BacklogQuota.builder().limitSize(100 * 1024 * 1024).build());
         });
