@@ -49,10 +49,10 @@ public interface TransactionBufferSnapshotService<T> {
      * Remove a topic client from cache.
      *
      * @param topicName {@link TopicName} the topic name
-     * @param TransactionBufferSnapshotBaseSystemTopicClient {@link TransactionBufferSnapshotBaseSystemTopicClient}
+     * @param transactionBufferSnapshotBaseSystemTopicClient {@link TransactionBufferSnapshotBaseSystemTopicClient}
      * the topic client
      */
-    void removeClient(TopicName topicName, SystemTopicClientBase<T> TransactionBufferSnapshotBaseSystemTopicClient);
+    void removeClient(TopicName topicName, SystemTopicClientBase<T> transactionBufferSnapshotBaseSystemTopicClient);
 
     /**
      * Close transaction buffer snapshot service.
