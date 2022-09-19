@@ -199,7 +199,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
         }
     }
 
-    synchronized CompletableFuture<Void> revalidate(T newValue, boolean retryWhenConnectionLost) {
+    synchronized CompletableFuture<Void> revalidate(T newValue, boolean revalidateAfterReconnection) {
         if (revalidateFuture == null || revalidateFuture.isDone()) {
             revalidateFuture = doRevalidate(newValue);
         } else {
@@ -220,7 +220,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
         revalidateFuture.exceptionally(ex -> {
             synchronized (ResourceLockImpl.this) {
                 Throwable realCause = FutureUtil.unwrapCompletionException(ex);
-                if (!retryWhenConnectionLost || realCause instanceof BadVersionException
+                if (!revalidateAfterReconnection || realCause instanceof BadVersionException
                         || realCause instanceof LockBusyException) {
                     log.warn("Failed to revalidate the lock at {}. Marked as expired", path);
                     state = State.Released;
@@ -229,7 +229,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
                     // We failed to revalidate the lock due to connectivity issue
                     // Continue assuming we hold the lock, until we can revalidate it, either
                     // on Reconnected or SessionReestablished events.
-                    revalidateAfterReconnection = true;
+                    this.revalidateAfterReconnection = true;
                     log.warn("Failed to revalidate the lock at {}. Retrying later on reconnection {}", path,
                             realCause.getMessage());
                 }
