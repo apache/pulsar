@@ -75,7 +75,7 @@ jobs:
 
       - name: Setup ssh access to build runner VM
         # ssh access is enabled for builds in own forks
-        if: ${{ github.repository != 'apache/pulsar' }}
+        if: ${{ github.repository != 'apache/pulsar' && github.event_name == 'pull_request' }}
         uses: ./.github/actions/ssh-access
         with:
           limit-access-to-actor: true
@@ -122,7 +122,7 @@ jobs:
       - name: Wait for ssh connection when build fails
         # ssh access is enabled for builds in own forks
         uses: ./.github/actions/ssh-access
-        if: ${{ failure() && github.repository != 'apache/pulsar' }}
+        if: ${{ failure() && github.repository != 'apache/pulsar' && github.event_name == 'pull_request' }}
         continue-on-error: true
         with:
           action: wait
@@ -165,7 +165,7 @@ jobs:
 
       - name: Setup ssh access to build runner VM
         # ssh access is enabled for builds in own forks
-        if: ${{ github.repository != 'apache/pulsar' }}
+        if: ${{ github.repository != 'apache/pulsar' && github.event_name == 'pull_request' }}
         uses: ./.github/actions/ssh-access
         with:
           limit-access-to-actor: true
@@ -237,7 +237,7 @@ jobs:
       - name: Wait for ssh connection when build fails
         # ssh access is enabled for builds in own forks
         uses: ./.github/actions/ssh-access
-        if: ${{ failure() && github.repository != 'apache/pulsar' }}
+        if: ${{ failure() && github.repository != 'apache/pulsar' && github.event_name == 'pull_request' }}
         continue-on-error: true
         with:
           action: wait
@@ -259,6 +259,7 @@ jobs:
 
       - name: Setup ssh access to build runner VM
         # ssh access is enabled for builds in own forks
+        if: ${{ github.repository != 'apache/pulsar' && github.event_name == 'pull_request' }}
         uses: ./.github/actions/ssh-access
         with:
           limit-access-to-actor: true
@@ -301,7 +302,7 @@ jobs:
       - name: Wait for ssh connection when build fails
         # ssh access is enabled for builds in own forks
         uses: ./.github/actions/ssh-access
-        if: ${{ failure() && github.repository != 'apache/pulsar' }}
+        if: ${{ failure() && github.repository != 'apache/pulsar' && github.event_name == 'pull_request' }}
         continue-on-error: true
         with:
           action: wait
@@ -356,7 +357,7 @@ jobs:
 
       - name: Setup ssh access to build runner VM
         # ssh access is enabled for builds in own forks
-        if: ${{ github.repository != 'apache/pulsar' }}
+        if: ${{ github.repository != 'apache/pulsar' && github.event_name == 'pull_request' }}
         uses: ./.github/actions/ssh-access
         with:
           limit-access-to-actor: true
@@ -440,7 +441,7 @@ jobs:
       - name: Wait for ssh connection when build fails
         # ssh access is enabled for builds in own forks
         uses: ./.github/actions/ssh-access
-        if: ${{ failure() && github.repository != 'apache/pulsar' }}
+        if: ${{ failure() && github.repository != 'apache/pulsar' && github.event_name == 'pull_request' }}
         continue-on-error: true
         with:
           action: wait
@@ -573,7 +574,7 @@ jobs:
 
       - name: Setup ssh access to build runner VM
         # ssh access is enabled for builds in own forks
-        if: ${{ github.repository != 'apache/pulsar' }}
+        if: ${{ github.repository != 'apache/pulsar' && github.event_name == 'pull_request' }}
         uses: ./.github/actions/ssh-access
         with:
           limit-access-to-actor: true
@@ -645,7 +646,7 @@ jobs:
       - name: Wait for ssh connection when build fails
         # ssh access is enabled for builds in own forks
         uses: ./.github/actions/ssh-access
-        if: ${{ failure() && github.repository != 'apache/pulsar' }}
+        if: ${{ failure() && github.repository != 'apache/pulsar' && github.event_name == 'pull_request' }}
         continue-on-error: true
         with:
           action: wait
@@ -695,7 +696,7 @@ jobs:
 
       - name: Setup ssh access to build runner VM
         # ssh access is enabled for builds in own forks
-        if: ${{ github.repository != 'apache/pulsar' }}
+        if: ${{ github.repository != 'apache/pulsar' && github.event_name == 'pull_request' }}
         uses: ./.github/actions/ssh-access
         with:
           limit-access-to-actor: true
@@ -773,7 +774,7 @@ jobs:
       - name: Wait for ssh connection when build fails
         # ssh access is enabled for builds in own forks
         uses: ./.github/actions/ssh-access
-        if: ${{ failure() && github.repository != 'apache/pulsar' }}
+        if: ${{ failure() && github.repository != 'apache/pulsar' && github.event_name == 'pull_request' }}
         continue-on-error: true
         with:
           action: wait
@@ -806,7 +807,7 @@ jobs:
 
       - name: Setup ssh access to build runner VM
         # ssh access is enabled for builds in own forks
-        if: ${{ github.repository != 'apache/pulsar' }}
+        if: ${{ github.repository != 'apache/pulsar' && github.event_name == 'pull_request' }}
         uses: ./.github/actions/ssh-access
         with:
           limit-access-to-actor: true
@@ -884,7 +885,7 @@ jobs:
       - name: Wait for ssh connection when build fails
         # ssh access is enabled for builds in own forks
         uses: ./.github/actions/ssh-access
-        if: ${{ failure() && github.repository != 'apache/pulsar' }}
+        if: ${{ failure() && github.repository != 'apache/pulsar' && github.event_name == 'pull_request' }}
         continue-on-error: true
         with:
           action: wait
@@ -960,7 +961,7 @@ jobs:
 
       - name: Setup ssh access to build runner VM
         # ssh access is enabled for builds in own forks
-        if: ${{ github.repository != 'apache/pulsar' }}
+        if: ${{ github.repository != 'apache/pulsar' && github.event_name == 'pull_request' }}
         uses: ./.github/actions/ssh-access
         with:
           limit-access-to-actor: true
@@ -1005,7 +1006,7 @@ jobs:
       - name: Wait for ssh connection when build fails
         # ssh access is enabled for builds in own forks
         uses: ./.github/actions/ssh-access
-        if: ${{ failure() && github.repository != 'apache/pulsar' }}
+        if: ${{ failure() && github.repository != 'apache/pulsar' && github.event_name == 'pull_request' }}
         continue-on-error: true
         with:
           action: wait

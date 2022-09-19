@@ -64,10 +64,39 @@ public class BrokerInterceptorWithClassLoader implements BrokerInterceptor {
     }
 
     @Override
+    public void beforeSendMessage(Subscription subscription,
+                                  Entry entry,
+                                  long[] ackSet,
+                                  MessageMetadata msgMetadata,
+                                  Consumer consumer) {
+        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+            this.interceptor.beforeSendMessage(
+                    subscription, entry, ackSet, msgMetadata, consumer);
+        }
+    }
+
+    @Override
+    public void onMessagePublish(Producer producer, ByteBuf headersAndPayload,
+                                 Topic.PublishContext publishContext) {
+        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+            this.interceptor.onMessagePublish(producer, headersAndPayload, publishContext);
+        }
+    }
+
+    @Override
     public void producerCreated(ServerCnx cnx, Producer producer,
                                 Map<String, String> metadata){
         try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
             this.interceptor.producerCreated(cnx, producer, metadata);
+        }
+    }
+
+    @Override
+    public void producerClosed(ServerCnx cnx,
+                               Producer producer,
+                               Map<String, String> metadata) {
+        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+            this.interceptor.producerClosed(cnx, producer, metadata);
         }
     }
 
@@ -80,6 +109,16 @@ public class BrokerInterceptorWithClassLoader implements BrokerInterceptor {
                     cnx, consumer, metadata);
         }
     }
+
+    @Override
+    public void consumerClosed(ServerCnx cnx,
+                               Consumer consumer,
+                               Map<String, String> metadata) {
+        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+            this.interceptor.consumerClosed(cnx, consumer, metadata);
+        }
+    }
+
 
     @Override
     public void messageProduced(ServerCnx cnx, Producer producer, long startTimeNs, long ledgerId,

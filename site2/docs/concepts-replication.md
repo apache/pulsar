@@ -20,7 +20,7 @@ The geo-replication mechanism can be categorized into synchronous geo-replicatio
 
 An asynchronous geo-replicated cluster is composed of multiple physical clusters set up in different data centers. Messages produced on a Pulsar topic are first persisted to the local cluster and then replicated asynchronously to the remote clusters by brokers. 
 
-![An example of asynchronous geo-replication mechanism](/assets/geo-replication-async.svg)
+![An example of an asynchronous geo-replication mechanism](/assets/geo-replication-async.svg)
 
 In normal cases, when there are no connectivity issues, messages are replicated immediately, at the same time as they are dispatched to local consumers. Typically, end-to-end delivery latency is defined by the network round-trip time (RTT) between the data centers. Applications can create producers and consumers in any of the clusters, even when the remote clusters are not reachable (for example, during a network partition).
 
@@ -54,12 +54,6 @@ Active-active replication is a variation of full-mesh replication, with only two
 ![An example of an active-active replication pattern](/assets/active-active-replication.svg)
 
 For how to use active-active replication to migrate data between clusters, refer to [here](administration-geo.md/#migrate-data-between-clusters-using-geo-replication).
-
-### Active-standby replication
-
-Active-standby replication is a variation of active-active replication. Producers send messages to the active data center while messages are replicated to the standby data center for backup. If the active data center goes down, the standby data center takes over and becomes the active one. 
-
-![An example of an active-standby replication pattern](/assets/active-standby-replication.svg)
 
 ### Aggregation replication
 

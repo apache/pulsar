@@ -86,14 +86,14 @@ TEST(ClientTest, testSwHwChecksum) {
 
 TEST(ClientTest, testServerConnectError) {
     const std::string topic = "test-server-connect-error";
-    Client client("pulsar://localhost:65535");
+    Client client("pulsar://localhost:65535", ClientConfiguration().setOperationTimeoutSeconds(1));
     Producer producer;
-    ASSERT_EQ(ResultConnectError, client.createProducer(topic, producer));
+    ASSERT_EQ(ResultTimeout, client.createProducer(topic, producer));
     Consumer consumer;
-    ASSERT_EQ(ResultConnectError, client.subscribe(topic, "sub", consumer));
+    ASSERT_EQ(ResultTimeout, client.subscribe(topic, "sub", consumer));
     Reader reader;
     ReaderConfiguration readerConf;
-    ASSERT_EQ(ResultConnectError, client.createReader(topic, MessageId::earliest(), readerConf, reader));
+    ASSERT_EQ(ResultTimeout, client.createReader(topic, MessageId::earliest(), readerConf, reader));
     client.close();
 }
 
@@ -122,6 +122,9 @@ TEST(ClientTest, testConnectTimeout) {
 
     clientLow.close();
     clientDefault.close();
+
+    ASSERT_EQ(futureDefault.wait_for(std::chrono::milliseconds(10)), std::future_status::ready);
+    ASSERT_EQ(futureDefault.get(), ResultConnectError);
 }
 
 TEST(ClientTest, testGetNumberOfReferences) {
@@ -273,4 +276,22 @@ TEST(ClientTest, testWrongListener) {
     ASSERT_EQ(ResultConsumerNotInitialized, reader.close());
     ASSERT_EQ(PulsarFriend::getConsumers(client).size(), 0);
     ASSERT_EQ(ResultOk, client.close());
+}
+
+TEST(ClientTest, testMultiBrokerUrl) {
+    const std::string topic = "client-test-multi-broker-url-" + std::to_string(time(nullptr));
+    Client client("pulsar://localhost:6000,localhost");  // the 1st address is not reachable
+
+    Producer producer;
+    PulsarFriend::setServiceUrlIndex(client, 0);
+    ASSERT_EQ(ResultOk, client.createProducer(topic, producer));
+
+    Consumer consumer;
+    PulsarFriend::setServiceUrlIndex(client, 0);
+    ASSERT_EQ(ResultOk, client.subscribe(topic, "sub", consumer));
+
+    Reader reader;
+    PulsarFriend::setServiceUrlIndex(client, 0);
+    ASSERT_EQ(ResultOk, client.createReader(topic, MessageId::earliest(), {}, reader));
+    client.close();
 }

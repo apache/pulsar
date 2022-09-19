@@ -4,298 +4,111 @@ title: Pulsar C++ client
 sidebar_label: "C++"
 ---
 
-You can use Pulsar C++ client to create Pulsar producers and consumers in C++.
+````mdx-code-block
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+````
 
-All the methods in producer, consumer, and reader of a C++ client are thread-safe.
+You can use a Pulsar C++ client to create producers, consumers, and readers.
 
-## Supported platforms
+All the methods in producer, consumer, and reader of a C++ client are thread-safe. You can read the Doxygen-generated [API docs](/api/cpp) for the C++ client
 
-Pulsar C++ client is supported on **Linux**, **macOS** and **Windows** platforms.
+## Installation
 
-Doxygen-generated API docs for the C++ client are available [here](/api/cpp).
+Use one of the following methods to install a Pulsar C++ client.
 
-## Linux
+### Brew
 
-:::note
-
-You can choose one of the following installation methods based on your needs: Compilation, Install RPM or Install Debian.
-
-:::
-
-### Compilation
-
-#### System requirements
-
-You need to install the following components before using the C++ client:
-
-* [CMake](https://cmake.org/)
-* [Boost](http://www.boost.org/)
-* [Protocol Buffers](https://developers.google.com/protocol-buffers/) >= 3
-* [libcurl](https://curl.se/libcurl/)
-* [Google Test](https://github.com/google/googletest)
-
-1. Clone the Pulsar repository.
-
-```shell
-git clone https://github.com/apache/pulsar
-```
-
-2. Install all necessary dependencies.
-
-```shell
-apt-get install cmake libssl-dev libcurl4-openssl-dev liblog4cxx-dev \
-libprotobuf-dev protobuf-compiler libboost-all-dev google-mock libgtest-dev libjsoncpp-dev
-```
-
-3. Compile and install [Google Test](https://github.com/google/googletest).
-
-```shell
-# libgtest-dev version is 1.18.0 or above
-cd /usr/src/googletest
-sudo cmake .
-sudo make
-sudo cp ./googlemock/libgmock.a ./googlemock/gtest/libgtest.a /usr/lib/
-
-# less than 1.18.0
-cd /usr/src/gtest
-sudo cmake .
-sudo make
-sudo cp libgtest.a /usr/lib
-
-cd /usr/src/gmock
-sudo cmake .
-sudo make
-sudo cp libgmock.a /usr/lib
-```
-
-4. Compile the Pulsar client library for C++ inside the Pulsar repository.
-
-```shell
-cd pulsar-client-cpp
-cmake .
-make
-```
-
-After you install the components successfully, the files `libpulsar.so` and `libpulsar.a` are in the `lib` folder of the repository. The tools `perfProducer` and `perfConsumer` are in the `perf` directory.
-
-### Install Dependencies
-
-> Since 2.1.0 release, Pulsar ships pre-built RPM and Debian packages. You can download and install those packages directly.
-
-After you download and install RPM or DEB, the `libpulsar.so`, `libpulsarnossl.so`, `libpulsar.a`, and `libpulsarwithdeps.a` libraries are in your `/usr/lib` directory.
-
-By default, they are built-in code path `${PULSAR_HOME}/pulsar-client-cpp`. You can build with the command below.
-
- ```bash
- cmake . -DBUILD_TESTS=OFF -DLINK_STATIC=ON && make pulsarShared pulsarSharedNossl pulsarStatic pulsarStaticWithDeps -j 3
- ```
-
-These libraries rely on some other libraries. If you want to get a detailed version of dependencies, see [RPM](https://github.com/apache/pulsar/blob/master/pulsar-client-cpp/pkg/rpm/Dockerfile) or [DEB](https://github.com/apache/pulsar/blob/master/pulsar-client-cpp/pkg/deb/Dockerfile) files.
-
-1. `libpulsar.so` is a shared library, containing statically linked `boost` and `openssl`. It also dynamically links all other necessary libraries. You can use this Pulsar library with the command below.
+Use [Homebrew](http://brew.sh/) to install the latest tagged version with the library and headers:
 
 ```bash
- g++ --std=c++11  PulsarTest.cpp -o test /usr/lib/libpulsar.so -I/usr/local/ssl/include
+brew install libpulsar
 ```
 
-2. `libpulsarnossl.so` is a shared library, similar to `libpulsar.so` except that the libraries `openssl` and `crypto` are dynamically linked. You can use this Pulsar library with the command below.
+### Deb
+
+1. Download any one of the Deb packages:
+
+<Tabs>
+<TabItem value="client">
 
 ```bash
- g++ --std=c++11  PulsarTest.cpp -o test /usr/lib/libpulsarnossl.so -lssl -lcrypto -I/usr/local/ssl/include -L/usr/local/ssl/lib
+wget @pulsar:deb:client@
 ```
 
-3. `libpulsar.a` is a static library. You need to load dependencies before using this library. You can use this Pulsar library with the command below.
+This package contains shared libraries `libpulsar.so` and `libpulsarnossl.so`.
+
+</TabItem>
+<TabItem value="client-devel">
 
 ```bash
- g++ --std=c++11  PulsarTest.cpp -o test /usr/lib/libpulsar.a -lssl -lcrypto -ldl -lpthread  -I/usr/local/ssl/include -L/usr/local/ssl/lib -lboost_system -lboost_regex -lcurl -lprotobuf -lzstd -lz
+wget @pulsar:deb:client-devel@
 ```
 
-4. `libpulsarwithdeps.a` is a static library, based on `libpulsar.a`. It is archived in the dependencies of `libboost_regex`, `libboost_system`, `libcurl`, `libprotobuf`, `libzstd` and `libz`. You can use this Pulsar library with the command below.
+This package contains static libraries: `libpulsar.a`, `libpulsarwithdeps.a` and C/C++ headers.
 
-```bash
- g++ --std=c++11  PulsarTest.cpp -o test /usr/lib/libpulsarwithdeps.a -lssl -lcrypto -ldl -lpthread  -I/usr/local/ssl/include -L/usr/local/ssl/lib
-```
+</TabItem>
+</Tabs>
 
-The `libpulsarwithdeps.a` does not include library openssl related libraries `libssl` and `libcrypto`, because these two libraries are related to security. It is more reasonable and easier to use the versions provided by the local system to handle security issues and upgrade libraries.
-
-### Install RPM
-
-1. Download an RPM package from the links in the table. 
-
-| Link | Crypto files |
-|------|--------------|
-| [client](@pulsar:dist_rpm:client@) | [asc](@pulsar:dist_rpm:client@.asc), [sha512](@pulsar:dist_rpm:client@.sha512) |
-| [client-debuginfo](@pulsar:dist_rpm:client-debuginfo@) | [asc](@pulsar:dist_rpm:client-debuginfo@.asc),  [sha512](@pulsar:dist_rpm:client-debuginfo@.sha512) |
-| [client-devel](@pulsar:dist_rpm:client-devel@) | [asc](@pulsar:dist_rpm:client-devel@.asc),  [sha512](@pulsar:dist_rpm:client-devel@.sha512) |
-
-2. Install the package using the following command.
-
-```bash
-rpm -ivh apache-pulsar-client*.rpm
-```
-
-After you install RPM successfully, Pulsar libraries are in the `/usr/lib` directory, for example：
-
-```bash
-lrwxrwxrwx 1 root root 18 Dec 30 22:21 libpulsar.so -> libpulsar.so.2.9.1
-lrwxrwxrwx 1 root root 23 Dec 30 22:21 libpulsarnossl.so -> libpulsarnossl.so.2.9.1
-```
-
-:::note
-
-If you get the error that `libpulsar.so: cannot open shared object file: No such file or directory` when starting Pulsar client, you may need to run `ldconfig` first.
-
-:::
-
-2. Install the GCC and g++ using the following command, otherwise errors would occur in installing Node.js.
-
-```bash
-sudo yum -y install gcc automake autoconf libtool make
-sudo yum -y install gcc-c++
-```
-
-### Install Debian
-
-1. Download a Debian package from the links in the table.
-
-| Link | Crypto files |
-|------|--------------|
-| [client](@pulsar:deb:client@) | [asc](@pulsar:dist_deb:client@.asc), [sha512](@pulsar:dist_deb:client@.sha512) |
-| [client-devel](@pulsar:deb:client-devel@) | [asc](@pulsar:dist_deb:client-devel@.asc),  [sha512](@pulsar:dist_deb:client-devel@.sha512) |
-
-2. Install the package using the following command.
+2. Install the package using the following command:
 
 ```bash
 apt install ./apache-pulsar-client*.deb
 ```
 
-After you install DEB successfully, Pulsar libraries are in the `/usr/lib` directory.
+Now, you can see Pulsar C++ client libraries installed under the `/usr/lib` directory.
 
-### Build
+### RPM
 
-If you want to build RPM and Debian packages from the latest master, follow the instructions below. You must run all the instructions at the root directory of your cloned Pulsar repository.
+1. Download any one of the RPM packages:
 
-There are recipes that build RPM and Debian packages containing a
-statically linked `libpulsar.so` / `libpulsarnossl.so` / `libpulsar.a` / `libpulsarwithdeps.a` with all required dependencies.
+<Tabs>
+<TabItem value="client">
 
-To build the C++ library packages, you need to build the Java packages first.
-
-```shell
-mvn install -DskipTests
+```bash
+wget @pulsar:dist_rpm:client@
 ```
 
-#### RPM
+This package contains shared libraries: `libpulsar.so` and `libpulsarnossl.so`.
 
-To build the RPM inside a Docker container, use the command below. The RPMs are in the `pulsar-client-cpp/pkg/rpm/RPMS/x86_64/` path.
+</TabItem>
+<TabItem value="client-debuginfo">
 
-```shell
-pulsar-client-cpp/pkg/rpm/docker-build-rpm.sh
+```bash
+wget @pulsar:dist_rpm:client-debuginfo@
 ```
 
-| Package name | Content |
-|-----|-----|
-| pulsar-client | Shared library `libpulsar.so` and `libpulsarnossl.so` |
-| pulsar-client-devel | Static library `libpulsar.a`, `libpulsarwithdeps.a`and C++ and C headers |
-| pulsar-client-debuginfo | Debug symbols for `libpulsar.so` |
+This package contains debug symbols for `libpulsar.so`
 
-#### Debian
+</TabItem>
+<TabItem value="client-devel">
 
-To build Debian packages, enter the following command.
-
-```shell
-pulsar-client-cpp/pkg/deb/docker-build-deb.sh
+```bash
+wget @pulsar:dist_rpm:client-devel@
 ```
 
-Debian packages are created in the `pulsar-client-cpp/pkg/deb/BUILD/DEB/` path.
+This package contains static libraries: `libpulsar.a`, `libpulsarwithdeps.a` and C/C++ headers.
 
-| Package name | Content |
-|-----|-----|
-| pulsar-client | Shared library `libpulsar.so` and `libpulsarnossl.so` |
-| pulsar-client-dev | Static library `libpulsar.a`, `libpulsarwithdeps.a` and C++ and C headers |
+</TabItem>
+</Tabs>
 
-## MacOS
+2. Install the package using the following command:
 
-### Compilation
-
-1. Clone the Pulsar repository.
-
-```shell
-git clone https://github.com/apache/pulsar
+```bash
+rpm -ivh apache-pulsar-client*.rpm
 ```
 
-2. Install all necessary dependencies.
-
-```shell
-# OpenSSL installation
-brew install openssl
-export OPENSSL_INCLUDE_DIR=/usr/local/opt/openssl/include/
-export OPENSSL_ROOT_DIR=/usr/local/opt/openssl/
-
-# Protocol Buffers installation
-brew install protobuf boost boost-python log4cxx
-# If you are using python3, you need to install boost-python3 
-
-# Google Test installation
-git clone https://github.com/google/googletest.git
-cd googletest
-git checkout release-1.12.1
-cmake .
-make install
-```
-
-3. Compile the Pulsar client library in the repository that you cloned.
-
-```shell
-cd pulsar-client-cpp
-cmake .
-make
-```
-
-### Install `libpulsar`
-
-Pulsar releases are available in the [Homebrew](https://brew.sh/) core repository. You can install the C++ client library with the following command. The package is installed with the library and headers.
-
-```shell
-brew install libpulsar
-```
-
-## Windows (64-bit)
-
-### Compilation
-
-1. Clone the Pulsar repository.
-
-```shell
-git clone https://github.com/apache/pulsar
-```
-
-2. Install all necessary dependencies.
-
-```shell
-cd ${PULSAR_HOME}/pulsar-client-cpp
-vcpkg install --feature-flags=manifests --triplet x64-windows
-```
-
-3. Build C++ libraries.
-
-```shell
-cmake -B ./build -A x64 -DBUILD_PYTHON_WRAPPER=OFF -DBUILD_TESTS=OFF -DVCPKG_TRIPLET=x64-windows -DCMAKE_BUILD_TYPE=Release -S .
-cmake --build ./build --config Release
-```
+Now, you can see Pulsar C++ client libraries installed under the `/usr/lib` directory.
 
 :::note
 
-* For Windows 32-bit, you need to use `-A Win32` and `-DVCPKG_TRIPLET=x86-windows`.
-* For MSVC Debug mode, you need to replace `Release` with `Debug` for both `CMAKE_BUILD_TYPE` variable and `--config` option.
+If you get an error like "libpulsar.so: cannot open shared object file: No such file or directory" when starting a Pulsar client, you need to run `ldconfig` first.
 
 :::
 
-4. Client libraries are available in the following places.
+### Source
 
-```
-${PULSAR_HOME}/pulsar-client-cpp/build/lib/Release/pulsar.lib
-${PULSAR_HOME}/pulsar-client-cpp/build/lib/Release/pulsar.dll
-```
+For how to build Pulsar C++ client on different platforms from source code, see [compliation](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp#compilation).
 
 ## Connection URLs
 
@@ -677,4 +490,3 @@ The following example shows how to create a producer and a consumer with a Proto
    User user2;
    user2.ParseFromArray(msg.getData(), msg.getLength());
    ```
-
