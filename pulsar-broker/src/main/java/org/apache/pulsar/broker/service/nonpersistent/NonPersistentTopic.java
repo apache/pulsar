@@ -92,6 +92,7 @@ import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.utils.StatsOutputStream;
+import org.apache.pulsar.utils.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -290,6 +291,14 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                 return future;
             }
 
+            if (StringUtil.containsInvisibleCharacters(subscriptionName)) {
+                log.warn("[{}] Failed to create subscription for {} : "
+                        + "subscriptionName contains invisible characters", topic, subscriptionName);
+                future.completeExceptionally(
+                        new NamingException("Subscription name contains invisible characters"));
+                return future;
+            }
+
             if (readCompacted) {
                 future.completeExceptionally(new NotAllowedException("readCompacted only valid on persistent topics"));
                 return future;
@@ -362,6 +371,10 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
     @Override
     public CompletableFuture<Subscription> createSubscription(String subscriptionName, InitialPosition initialPosition,
             boolean replicateSubscriptionState, Map<String, String> properties) {
+        if (StringUtil.containsInvisibleCharacters(subscriptionName)) {
+            return CompletableFuture.failedFuture(new NamingException("Subscription name contains "
+                    + "invisible characters"));
+        }
         return CompletableFuture.completedFuture(new NonPersistentSubscription(this, subscriptionName, true,
                 properties));
     }

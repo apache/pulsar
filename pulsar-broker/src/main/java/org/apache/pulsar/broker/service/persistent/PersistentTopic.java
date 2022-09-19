@@ -161,6 +161,7 @@ import org.apache.pulsar.compaction.CompactorMXBean;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.utils.StatsOutputStream;
+import org.apache.pulsar.utils.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -728,6 +729,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 return FutureUtil.failedFuture(new NamingException("Empty subscription name"));
             }
 
+            if (StringUtil.containsInvisibleCharacters(subscriptionName)) {
+                log.warn("[{}] Failed to create subscription for {} : "
+                        + "subscriptionName contains invisible characters", topic, subscriptionName);
+                return FutureUtil.failedFuture(new NamingException("Subscription name contains invisible characters"));
+            }
+
             if (hasBatchMessagePublished && !cnx.isBatchMessageCompatibleVersion()) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Consumer doesn't support batch-message {}", topic, subscriptionName);
@@ -998,6 +1005,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     public CompletableFuture<Subscription> createSubscription(String subscriptionName, InitialPosition initialPosition,
                                                               boolean replicateSubscriptionState,
                                                               Map<String, String> subscriptionProperties) {
+        if (StringUtil.containsInvisibleCharacters(subscriptionName)) {
+            return CompletableFuture.failedFuture(new NamingException("Subscription name contains "
+                    + "invisible characters"));
+        }
         return getDurableSubscription(subscriptionName, initialPosition,
                 0 /*avoid reseting cursor*/, replicateSubscriptionState, subscriptionProperties);
     }

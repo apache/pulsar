@@ -57,6 +57,28 @@ public class BrokerServiceAutoSubscriptionCreationTest extends BrokerTestBase {
     }
 
     @Test
+    public void testContainsInvisibleCharactersForSubscriptionName() throws Exception {
+        pulsar.getConfiguration().setAllowAutoSubscriptionCreation(true);
+        String errorMsg = "Subscription name contains invisible characters";
+
+        final String topicName = "persistent://prop/ns-abc/test-subtopic-" + testId.getAndIncrement();
+        admin.topics().createNonPartitionedTopic(topicName);
+
+        String[] subs = {"test-\u0000sub1", "test-\rsub2", "test-\nsub3", "test-\tsub4"};
+        for (int i = 0; i < subs.length; i++) {
+            final String subscriptionName = subs[i];
+            try {
+                pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).subscribe();
+                fail("Subscribe operation should have failed");
+            } catch (Exception e) {
+                assertTrue(e instanceof PulsarClientException.ProducerBusyException);
+                assertTrue(e.getMessage().contains(errorMsg));
+            }
+            assertFalse(admin.topics().getSubscriptions(topicName).contains(subscriptionName));
+        }
+    }
+
+    @Test
     public void testAutoSubscriptionCreationDisable() throws Exception {
         pulsar.getConfiguration().setAllowAutoSubscriptionCreation(false);
 
