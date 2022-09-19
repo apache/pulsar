@@ -66,14 +66,13 @@ public class PrometheusMetricsGeneratorUtils {
             for (int i = 0; i < metricFamily.samples.size(); i++) {
                 Collector.MetricFamilySamples.Sample sample = metricFamily.samples.get(i);
                 stream.write(sample.name);
+                stream.write("{");
                 if (!sample.labelNames.contains("cluster")) {
-                    stream.write("{cluster=\"").write(cluster).write('"');
+                    stream.write("cluster=\"").write(cluster).write('"');
                     // If label is empty, should not append ','.
                     if (!CollectionUtils.isEmpty(sample.labelNames)){
                         stream.write(",");
                     }
-                } else {
-                    stream.write("{");
                 }
                 for (int j = 0; j < sample.labelNames.size(); j++) {
                     String labelValue = sample.labelValues.get(j);
