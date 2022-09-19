@@ -16,7 +16,7 @@ import TabItem from '@theme/TabItem';
 * Pulsar Java/Python/C++/Node.js client 2.7.1 or later versions.
 * Pulsar Go client 0.6.0 or later versions.
 
-## Steps
+## Configure end-to-end encryption
 
 1. Create both public and private key pairs.
    * ECDSA（for Java and Go clients)
@@ -316,3 +316,19 @@ import TabItem from '@theme/TabItem';
    </TabItem>
    </Tabs>
    ````
+
+## Encrypt a message with multiple keys
+
+:::note
+
+This is only available for Java clients.
+
+:::
+
+You can encrypt a message with more than one key. Producers add all such keys to the config and consumers can decrypt the message as long as they have access to at least one of the keys. Any one of the keys used for encrypting the message is sufficient to decrypt the message. 
+
+For example, encrypt the messages using 2 keys (`myapp.messagekey1` and `myapp.messagekey2`):
+
+```java
+PulsarClient.newProducer().addEncryptionKey("myapp.messagekey1").addEncryptionKey("myapp.messagekey2");
+```

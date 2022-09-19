@@ -15,10 +15,13 @@ By default, Pulsar configures no encryption, authentication, or authorization. A
 
 Apache Pulsar uses an [Authentication Provider](#authentication) or an [Authentication Provider Chain](security-extending.md/#proxybroker-authentication-plugin) to establish the identity of a client and then assign a *role token* (a string like `admin` or `app1`)to that client. This role token can represent a single client or multiple clients and is then used for [Authorization](security-authorization.md) to determine what the client is authorized to do. You can use roles to control permission for clients to produce or consume from certain topics, administer the configuration for tenants, and so on.
 
-
 ## Encryption
 
-Encryption ensures that if an attacker gets access to your data, the attacker cannot read the data without also having access to the encryption keys. Encryption provides an important mechanism for protecting your data at-rest and in-transit to meet your security requirements for cryptographic algorithms and key management. See [End-to-end encryption](security-encryption.md) for more details.
+Encryption ensures that if an attacker gets access to your data, the attacker cannot read the data without also having access to the encryption keys. Encryption provides an important mechanism for protecting your data at-rest and in-transit to meet your security requirements for cryptographic algorithms and key management. 
+
+**What's next?**
+* To configure end-to-end encryption, see [End-to-end encryption](security-encryption.md) for more details.
+* To configure transport layer encryption, see [TLS encryption](security-tls-transport.md) for more details.
 
 ## Authentication
 
@@ -30,6 +33,7 @@ Pulsar broker validates the authentication credentials when a connection is esta
 
 Pulsar broker supports learning whether a particular client supports authentication refreshing. If a client supports authentication refreshing and the credential is expired, the authentication provider calls the `refreshAuthentication` method to initiate the refreshing process. If a client does not support authentication refreshing and the credential is expired, the broker disconnects the client.
 
+**What's next?**
 Currently, Pulsar supports the following authentication providers:
 - [TLS authentication](security-tls-authentication.md)
 - [Athenz authentication](security-athenz.md)
@@ -38,6 +42,12 @@ Currently, Pulsar supports the following authentication providers:
 - [OAuth 2.0 authentication](security-oauth2.md)
 - [HTTP basic authentication](security-basic-auth.md)
 You can also configure Pulsar to support multiple authentication providers.
+
+:::note
+
+Starting from 2.11.0, [TLS authentication](security-tls-authentication.md) includes [TLS encryption](security-tls-transport.md) by default. If you configure TLS authentication first, then TLS encryption automatically applies; if you configure TLS encryption first, you can select any one of the above authentication providers.
+
+:::
 
 ## Authorization
 
