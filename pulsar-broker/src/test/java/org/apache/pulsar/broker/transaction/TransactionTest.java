@@ -77,6 +77,7 @@ import org.apache.pulsar.broker.intercept.CounterBrokerInterceptor;
 import org.apache.pulsar.broker.service.BacklogQuotaManager;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
+import org.apache.pulsar.broker.service.SystemTopicBaseTxnBufferSnapshotService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TransactionBufferSnapshotService;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
@@ -1431,12 +1432,17 @@ public class TransactionTest extends TransactionTestBase {
         when(pendingAckStoreProvider.newPendingAckStore(any()))
                 .thenReturn(CompletableFuture.completedFuture(pendingAckStore));
         // Mock TransactionBufferSnapshotService
-        TransactionBufferSnapshotService transactionBufferSnapshotService
-                = mock(TransactionBufferSnapshotService.class);
+        SystemTopicBaseTxnBufferSnapshotService systemTopicTxnBufferSnapshotService
+                = mock(SystemTopicBaseTxnBufferSnapshotService.class);
         SystemTopicClient.Writer writer = mock(SystemTopicClient.Writer.class);
         when(writer.closeAsync()).thenReturn(CompletableFuture.completedFuture(null));
-        when(transactionBufferSnapshotService.createWriter(any()))
+        when(systemTopicTxnBufferSnapshotService.createWriter(any()))
                 .thenReturn(CompletableFuture.completedFuture(writer));
+        TransactionBufferSnapshotService transactionBufferSnapshotService =
+                mock(TransactionBufferSnapshotService.class);
+        when(transactionBufferSnapshotService.getTxnBufferSnapshotService())
+                .thenReturn(systemTopicTxnBufferSnapshotService);
+
         // Mock pulsar.
         PulsarService pulsar = mock(PulsarService.class);
         when(pulsar.getConfiguration()).thenReturn(serviceConfiguration);

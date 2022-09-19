@@ -16,46 +16,32 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.apache.pulsar.broker.service;
 
-import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.broker.systopic.SystemTopicClient.Reader;
-import org.apache.pulsar.broker.systopic.SystemTopicClient.Writer;
-import org.apache.pulsar.broker.systopic.SystemTopicClientBase;
-import org.apache.pulsar.broker.systopic.TransactionBufferSnapshotBaseSystemTopicClient;
-import org.apache.pulsar.common.naming.TopicName;
-
-public interface TransactionBufferSnapshotService<T> {
+public interface TransactionBufferSnapshotService {
 
     /**
-     * Create a transaction buffer snapshot writer.
-     *
-     * @param topicName {@link TopicName} the topic name
-     *
-     * @return {@link CompletableFuture<Writer>} return the future of writer
+     * Get the systemTopicBaseTxnBufferSnapshotIndexService.
+     * @return systemTopicBaseTxnBufferSnapshotIndexService
      */
-    CompletableFuture<Writer<T>> createWriter(TopicName topicName);
+    SystemTopicBaseTxnBufferSnapshotIndexService getTxnBufferSnapshotIndexService ();
 
     /**
-     * Create a transaction buffer snapshot reader.
-     *
-     * @param topicName {@link TopicName} the topic name
-     *
-     * @return {@link CompletableFuture<Writer>} return the future of reader
+     * Get the systemTopicBaseTxnBufferSnapshotSegmentService.
+     * @return systemTopicBaseTxnBufferSnapshotSegmentService
      */
-    CompletableFuture<Reader<T>> createReader(TopicName topicName);
+    SystemTopicBaseTxnBufferSnapshotSegmentService getTxnBufferSnapshotSegmentService();
 
     /**
-     * Remove a topic client from cache.
-     *
-     * @param topicName {@link TopicName} the topic name
-     * @param transactionBufferSnapshotBaseSystemTopicClient {@link TransactionBufferSnapshotBaseSystemTopicClient}
-     * the topic client
+     * Get the systemTopicBaseTxnBufferSnapshotService.
+     * @return
      */
-    void removeClient(TopicName topicName, SystemTopicClientBase<T> transactionBufferSnapshotBaseSystemTopicClient);
+    SystemTopicBaseTxnBufferSnapshotService getTxnBufferSnapshotService();
 
     /**
-     * Close transaction buffer snapshot service.
+     * Close the systemTopicBaseTxnBufferSnapshotxxService in TransactionBufferSnapshotService .
+     * @throws Exception
      */
     void close() throws Exception;
 

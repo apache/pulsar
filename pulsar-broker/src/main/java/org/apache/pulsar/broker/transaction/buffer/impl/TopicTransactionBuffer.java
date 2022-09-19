@@ -117,7 +117,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         super(State.None);
         this.topic = topic;
         this.takeSnapshotWriter = this.topic.getBrokerService().getPulsar()
-                .getTransactionBufferSnapshotService().createWriter(TopicName.get(topic.getName()));
+                .getTransactionBufferSnapshotService()
+                .getTxnBufferSnapshotService().createWriter(TopicName.get(topic.getName()));
         this.timer = topic.getBrokerService().getPulsar().getTransactionTimer();
         this.takeSnapshotIntervalNumber = topic.getBrokerService().getPulsar()
                 .getConfiguration().getTransactionBufferSnapshotMaxTransactionCount();
@@ -645,7 +646,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                             this, topic.getName());
                     return;
                 }
-                topic.getBrokerService().getPulsar().getTransactionBufferSnapshotService()
+                topic.getBrokerService().getPulsar().getTransactionBufferSnapshotService().getTxnBufferSnapshotService()
                         .createReader(TopicName.get(topic.getName())).thenAcceptAsync(reader -> {
                             try {
                                 boolean hasSnapshot = false;

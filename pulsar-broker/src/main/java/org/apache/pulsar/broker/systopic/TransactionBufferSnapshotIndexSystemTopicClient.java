@@ -21,7 +21,7 @@ package org.apache.pulsar.broker.systopic;
 
 import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.service.TransactionBufferSnapshotService;
+import org.apache.pulsar.broker.service.SystemTopicTxnBufferSnapshotService;
 import org.apache.pulsar.broker.transaction.buffer.matadata.v2.TransactionBufferSnapshotIndexes;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -34,11 +34,12 @@ import org.apache.pulsar.common.naming.TopicName;
 public class TransactionBufferSnapshotIndexSystemTopicClient extends
         TransactionBufferSnapshotBaseSystemTopicClient<TransactionBufferSnapshotIndexes> {
 
-    private final TransactionBufferSnapshotService<TransactionBufferSnapshotIndexes>
+    private final SystemTopicTxnBufferSnapshotService<TransactionBufferSnapshotIndexes>
             transactionBufferSnapshotIndexService;
 
     public TransactionBufferSnapshotIndexSystemTopicClient(PulsarClient client, TopicName topicName,
-           TransactionBufferSnapshotService<TransactionBufferSnapshotIndexes> transactionBufferSnapshotIndexService) {
+           SystemTopicTxnBufferSnapshotService<TransactionBufferSnapshotIndexes>
+                   transactionBufferSnapshotIndexService) {
         super(client, topicName, transactionBufferSnapshotIndexService);
         this.transactionBufferSnapshotIndexService = transactionBufferSnapshotIndexService;
     }

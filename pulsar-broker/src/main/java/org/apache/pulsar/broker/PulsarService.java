@@ -101,13 +101,12 @@ import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.rest.Topics;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.PulsarMetadataEventSynchronizer;
-import org.apache.pulsar.broker.service.SystemTopicBaseTxnBufferSnapshotIndexService;
-import org.apache.pulsar.broker.service.SystemTopicBaseTxnBufferSnapshotSegmentService;
-import org.apache.pulsar.broker.service.SystemTopicBaseTxnBufferSnapshotService;
 import org.apache.pulsar.broker.service.SystemTopicBasedTopicPoliciesService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TopicPoliciesService;
+import org.apache.pulsar.broker.service.TransactionBufferSnapshotSegmentServiceImpl;
 import org.apache.pulsar.broker.service.TransactionBufferSnapshotService;
+import org.apache.pulsar.broker.service.TransactionBufferSnapshotServiceImpl;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.SchemaStorageFactory;
 import org.apache.pulsar.broker.stats.MetricsGenerator;
@@ -116,8 +115,6 @@ import org.apache.pulsar.broker.stats.prometheus.PulsarPrometheusMetricsServlet;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientImpl;
-import org.apache.pulsar.broker.transaction.buffer.matadata.TransactionBufferSnapshot;
-import org.apache.pulsar.broker.transaction.buffer.matadata.v2.TransactionBufferSnapshotIndexes;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
 import org.apache.pulsar.broker.validator.MultipleListenerValidator;
 import org.apache.pulsar.broker.web.WebService;
@@ -264,11 +261,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private MetadataStoreExtended localMetadataStore;
     private PulsarMetadataEventSynchronizer localMetadataSynchronizer;
     private CoordinationService coordinationService;
-    private TransactionBufferSnapshotService<TransactionBufferSnapshot> transactionBufferSnapshotService;
-    private TransactionBufferSnapshotService<TransactionBufferSnapshotIndexes> transactionBufferSnapshotIndexService;
-    private TransactionBufferSnapshotService<TransactionBufferSnapshotIndexes.TransactionBufferSnapshot>
-            transactionBufferSnapshotSegmentService;
-
+    private TransactionBufferSnapshotService transactionBufferSnapshotService;
     private MetadataStore configurationMetadataStore;
     private PulsarMetadataEventSynchronizer configMetadataSynchronizer;
     private boolean shouldShutdownConfigurationMetadataStore;
@@ -826,11 +819,11 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             // Register pulsar system namespaces and start transaction meta store service
             if (config.isTransactionCoordinatorEnabled()) {
-                this.transactionBufferSnapshotService = new SystemTopicBaseTxnBufferSnapshotService(getClient());
-                this.transactionBufferSnapshotIndexService =
-                        new SystemTopicBaseTxnBufferSnapshotIndexService(getClient());
-                this.transactionBufferSnapshotSegmentService =
-                        new SystemTopicBaseTxnBufferSnapshotSegmentService(getClient());
+//                if (transactionBufferSegmentedSnapshotEnabled)
+                this.transactionBufferSnapshotService = new TransactionBufferSnapshotSegmentServiceImpl(getClient());
+//                  else
+                this.transactionBufferSnapshotService = new TransactionBufferSnapshotServiceImpl(getClient());
+
                 this.transactionTimer =
                         new HashedWheelTimer(new DefaultThreadFactory("pulsar-transaction-timer"));
                 transactionBufferClient = TransactionBufferClientImpl.create(this, transactionTimer,

@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.systopic;
 
-import org.apache.pulsar.broker.service.TransactionBufferSnapshotService;
+import org.apache.pulsar.broker.service.SystemTopicTxnBufferSnapshotService;
 import org.apache.pulsar.broker.transaction.buffer.matadata.TransactionBufferSnapshot;
 import org.apache.pulsar.broker.transaction.buffer.matadata.v2.TransactionBufferSnapshotIndexes;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -46,16 +46,16 @@ public class NamespaceEventsSystemTopicFactory {
     }
 
     public TransactionBufferSnapshotSystemTopicClient createTransactionBufferSystemTopicClient(
-            NamespaceName namespaceName, TransactionBufferSnapshotService<TransactionBufferSnapshot>
-            transactionBufferSnapshotService) {
+            NamespaceName namespaceName, SystemTopicTxnBufferSnapshotService<TransactionBufferSnapshot>
+            systemTopicTxnBufferSnapshotService) {
         TopicName topicName = TopicName.get(TopicDomain.persistent.value(), namespaceName,
                 SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
         log.info("Create transaction buffer snapshot client, topicName : {}", topicName.toString());
-        return new TransactionBufferSnapshotSystemTopicClient(client, topicName, transactionBufferSnapshotService);
+        return new TransactionBufferSnapshotSystemTopicClient(client, topicName, systemTopicTxnBufferSnapshotService);
     }
 
     public TransactionBufferSnapshotIndexSystemTopicClient createTransactionBufferSnapshotIndexSystemTopicClient(
-            NamespaceName namespaceName, TransactionBufferSnapshotService<TransactionBufferSnapshotIndexes>
+            NamespaceName namespaceName, SystemTopicTxnBufferSnapshotService<TransactionBufferSnapshotIndexes>
             transactionBufferSnapshotIndexService) {
         TopicName topicName = TopicName.get(TopicDomain.persistent.value(), namespaceName,
                 SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_INDEXES);
@@ -66,7 +66,7 @@ public class NamespaceEventsSystemTopicFactory {
 
     public TransactionBufferSnapshotSegmentSystemTopicClient createTransactionBufferSnapshotSegmentSystemTopicClient(
             NamespaceName namespaceName,
-            TransactionBufferSnapshotService<TransactionBufferSnapshotIndexes.TransactionBufferSnapshot>
+            SystemTopicTxnBufferSnapshotService<TransactionBufferSnapshotIndexes.TransactionBufferSnapshot>
                     transactionBufferSnapshotSegmentService) {
         TopicName topicName = TopicName.get(TopicDomain.persistent.value(), namespaceName,
                 SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_SEGMENT);

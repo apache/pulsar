@@ -20,7 +20,7 @@ package org.apache.pulsar.broker.systopic;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.broker.service.TransactionBufferSnapshotService;
+import org.apache.pulsar.broker.service.SystemTopicTxnBufferSnapshotService;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -30,24 +30,24 @@ import org.apache.pulsar.common.naming.TopicName;
 public abstract class TransactionBufferSnapshotBaseSystemTopicClient<T> extends
         SystemTopicClientBase<T> {
 
-    protected final TransactionBufferSnapshotService<T> transactionBufferSnapshotService;
+    protected final SystemTopicTxnBufferSnapshotService<T> systemTopicTxnBufferSnapshotService;
     public TransactionBufferSnapshotBaseSystemTopicClient(PulsarClient client,
                                                           TopicName topicName,
-                                                          TransactionBufferSnapshotService<T>
-                                                                  transactionBufferSnapshotService) {
+                                                          SystemTopicTxnBufferSnapshotService<T>
+                                                                  systemTopicTxnBufferSnapshotService) {
         super(client, topicName);
-        this.transactionBufferSnapshotService = transactionBufferSnapshotService;
+        this.systemTopicTxnBufferSnapshotService = systemTopicTxnBufferSnapshotService;
     }
 
 
     protected void removeWriter(Writer<T> writer) {
         writers.remove(writer);
-        this.transactionBufferSnapshotService.removeClient(topicName, this);
+        this.systemTopicTxnBufferSnapshotService.removeClient(topicName, this);
     }
 
     protected void removeReader(Reader<T> reader) {
         readers.remove(reader);
-        this.transactionBufferSnapshotService.removeClient(topicName, this);
+        this.systemTopicTxnBufferSnapshotService.removeClient(topicName, this);
     }
 
     protected abstract static class TransactionBufferSnapshotBaseWriter<T> implements Writer<T> {

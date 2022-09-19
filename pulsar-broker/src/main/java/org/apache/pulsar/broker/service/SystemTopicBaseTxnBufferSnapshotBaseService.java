@@ -24,7 +24,8 @@ import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.systopic.SystemTopicClientBase;
 import org.apache.pulsar.common.naming.TopicName;
 
-public abstract class  SystemTopicBaseTxnBufferSnapshotBaseService<T> implements TransactionBufferSnapshotService<T> {
+public abstract class  SystemTopicBaseTxnBufferSnapshotBaseService<T> implements
+        SystemTopicTxnBufferSnapshotService<T> {
 
     protected final Map<TopicName, SystemTopicClient<T>> clients;
 
