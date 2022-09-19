@@ -206,6 +206,11 @@ PULSAR_PUBLIC void pulsar_producer_configuration_set_crypto_failure_action(
 PULSAR_PUBLIC void pulsar_producer_configuration_set_encryption_key(pulsar_producer_configuration_t *conf,
                                                                     const char *key);
 
+PULSAR_PUBLIC void pulsar_producer_configuration_set_chunking_enabled(pulsar_producer_configuration_t *conf,
+                                                                      int chunkingEnabled);
+
+PULSAR_PUBLIC int pulsar_producer_configuration_is_chunking_enabled(pulsar_producer_configuration_t *conf);
+
 // const CryptoKeyReaderPtr getCryptoKeyReader() const;
 // ProducerConfiguration &setCryptoKeyReader(CryptoKeyReaderPtr cryptoKeyReader);
 //

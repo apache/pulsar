@@ -57,6 +57,7 @@ import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.CmdGenerateDocs;
 import org.apache.pulsar.common.util.DirectMemoryUtils;
+import org.apache.pulsar.common.util.ShutdownUtil;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.service.WorkerServiceLoader;
@@ -205,7 +206,7 @@ public class PulsarBrokerStarter {
                                               (exitCode) -> {
                                                   log.info("Halting broker process with code {}",
                                                            exitCode);
-                                                  Runtime.getRuntime().halt(exitCode);
+                                                  ShutdownUtil.triggerImmediateForcefulShutdown(exitCode);
                                               });
 
             // if no argument to run bookie in cmd line, read from pulsar config
@@ -354,8 +355,7 @@ public class PulsarBrokerStarter {
             starter.start();
         } catch (Throwable t) {
             log.error("Failed to start pulsar service.", t);
-            LogManager.shutdown();
-            Runtime.getRuntime().halt(1);
+            ShutdownUtil.triggerImmediateForcefulShutdown();
         } finally {
             starter.join();
         }

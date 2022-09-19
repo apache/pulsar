@@ -111,7 +111,6 @@ void BinaryProtoLookupService::sendPartitionMetadataLookupRequest(const std::str
                                                                   LookupDataResultPromisePtr promise) {
     if (result != ResultOk) {
         promise->setFailed(result);
-        Future<Result, LookupDataResultPtr> future = promise->getFuture();
         return;
     }
     LookupDataResultPromisePtr lookupPromise = std::make_shared<LookupDataResultPromise>();
@@ -160,7 +159,7 @@ void BinaryProtoLookupService::sendGetTopicsOfNamespaceRequest(const std::string
                                                                const ClientConnectionWeakPtr& clientCnx,
                                                                NamespaceTopicsPromisePtr promise) {
     if (result != ResultOk) {
-        promise->setFailed(ResultConnectError);
+        promise->setFailed(result);
         return;
     }
 

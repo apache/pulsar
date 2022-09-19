@@ -17,26 +17,6 @@
 # under the License.
 #
 
-name: 'Add flaky test issues and PRs to flaky test project'
-
-on:
-  issues:
-    types:
-      - opened
-      - labeled
-  pull_request:
-    types:
-      - opened
-      - labeled
-
-jobs:
-  add-to-project:
-    name: Add flaky test issues and PRs to flaky test project
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/add-to-project@v0.3.0
-        with:
-          project-url: https://github.com/apache/pulsar/projects/11
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          labeled: flaky-tests
-          label-operator: OR
+name: random
+description: Additional servlet that generates a random sequence
+additionalServletClass: org.apache.pulsar.tests.integration.plugins.RandomAdditionalServlet

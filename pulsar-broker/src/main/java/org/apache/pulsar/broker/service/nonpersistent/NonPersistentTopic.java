@@ -1001,8 +1001,8 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                         return;
                     }
                     if (System.currentTimeMillis() - sub.getLastActive() > expirationTimeMillis) {
-                        sub.delete().thenAccept(v -> log.info("[{}][{}] The subscription was deleted due to expiration",
-                                topic, subName));
+                        sub.delete().thenAccept(v -> log.info("[{}][{}] The subscription was deleted due to expiration "
+                                + "with last active [{}]", topic, subName, sub.getLastActive()));
                     }
                 });
             }

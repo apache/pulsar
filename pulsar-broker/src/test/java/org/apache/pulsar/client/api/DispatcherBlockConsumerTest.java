@@ -65,7 +65,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import org.testng.collections.Lists;
 
-@Test(groups = "broker")
+@Test(groups = "flaky")
 public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(DispatcherBlockConsumerTest.class);
 

@@ -213,7 +213,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private volatile double lastUpdatedAvgPublishRateInMsg = 0;
     private volatile double lastUpdatedAvgPublishRateInByte = 0;
 
-    private volatile int maxUnackedMessagesOnSubscriptionApplied;
     private volatile boolean isClosingOrDeleting = false;
 
     private ScheduledFuture<?> fencedTopicMonitoringTask = null;
@@ -381,6 +380,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 this.dispatchRateLimiter = Optional.of(new DispatchRateLimiter(this, Type.TOPIC));
             }
         }
+    }
+
+    @VisibleForTesting
+    public AtomicLong getPendingWriteOps() {
+        return pendingWriteOps;
     }
 
     private PersistentSubscription createPersistentSubscription(String subscriptionName, ManagedCursor cursor,
@@ -1139,13 +1143,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                 .map(PersistentSubscription::getName).toList();
                 return FutureUtil.failedFuture(
                         new TopicBusyException("Topic has subscriptions did not catch up: " + backlogSubs));
-            } else if (TopicName.get(topic).isPartitioned()
-                    && (getProducers().size() > 0 || getNumberOfConsumers() > 0)
-                    && getBrokerService().isAllowAutoTopicCreation(topic)) {
-                // to avoid inconsistent metadata as a result
-                return FutureUtil.failedFuture(
-                        new TopicBusyException("Partitioned topic has active consumers or producers and "
-                                + "auto-creation of topic is allowed"));
             }
 
             fenceTopicToCloseOrDelete(); // Avoid clients reconnections while deleting
@@ -1331,6 +1328,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 public void closeFailed(ManagedLedgerException exception, Object ctx) {
                     log.error("[{}] Failed to close managed ledger, proceeding anyway.", topic, exception);
                     brokerService.removeTopicFromCache(topic);
+                    unregisterTopicPolicyListener();
                     closeFuture.complete(null);
                 }
             }, null);
@@ -2353,8 +2351,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         return;
                     }
                     if (System.currentTimeMillis() - sub.cursor.getLastActive() > expirationTimeMillis) {
-                        sub.delete().thenAccept(v -> log.info("[{}][{}] The subscription was deleted due to expiration",
-                                topic, subName));
+                        sub.delete().thenAccept(v -> log.info("[{}][{}] The subscription was deleted due to expiration "
+                                + "with last active [{}]", topic, subName, sub.cursor.getLastActive()));
                     }
                 });
             }
