@@ -1995,8 +1995,8 @@ public class BrokerService implements Closeable {
                     Map<String, String> data = optMap.get();
                     data.forEach((configKey, value) -> {
                         Field configField = dynamicConfigurationMap.get(configKey).field;
-                        Object newValue = FieldParser.value(data.get(configKey), configField);
                         if (configField != null) {
+                            Object newValue = FieldParser.value(data.get(configKey), configField);
                             Consumer listener = configRegisteredListeners.get(configKey);
                             try {
                                 Object existingValue = configField.get(pulsar.getConfiguration());
@@ -2010,7 +2010,8 @@ public class BrokerService implements Closeable {
                                 log.error("Failed to update config {}/{}", configKey, newValue);
                             }
                         } else {
-                            log.error("Found non-dynamic field in dynamicConfigMap {}/{}", configKey, newValue);
+                            log.error("Found non-dynamic field in dynamicConfigMap {}/{}",
+                                    configKey, data.get(configKey));
                         }
                     });
                 });
