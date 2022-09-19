@@ -1,7 +1,7 @@
 ---
 id: cookbooks-encryption
-title: Pulsar Encryption
-sidebar_label: "Encryption"
+title: Configure end-to-end encryption
+sidebar_label: "Configure end-to-end encryption"
 ---
 
 ````mdx-code-block
@@ -9,12 +9,12 @@ import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 ````
 
-Pulsar encryption allows clients to encrypt messages at producers and decrypt messages at consumers.
+[Pulsar encryption](security-encryption.md) allows clients to encrypt messages at producers and decrypt messages at consumers.
 
 ## Prerequisites
 
-* Pulsar Python/Node.js client 2.7.1 or later versions.
-* Pulsar Java//C++/Go client 2.7.1 or later versions.
+* Pulsar Java/Python/C++/Node.js client 2.7.1 or later versions.
+* Pulsar Go client 0.6.0 or later versions.
 
 ## Steps
 
