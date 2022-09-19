@@ -516,17 +516,6 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         admin.topics().delete(topicName, true);
     }
 
-    private static class DynamicClassLoader extends ClassLoader{
-
-        private DynamicClassLoader(ClassLoader parent) {
-            super(parent);
-        }
-
-        private Class<?> defineClass(String name, byte[] bytes) throws ClassFormatError {
-            return defineClass(name, bytes, 0, bytes.length);
-        }
-    }
-
     @Test
     public void testAutoProduceSchemaAlwaysCompatible() throws Exception {
         final String tenant = PUBLIC_TENANT;
