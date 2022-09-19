@@ -4105,21 +4105,34 @@ TEST(BasicEndToEndTest, testUnAckedMessageTrackerEnabledCumulativeAck) {
     client.close();
 }
 
-TEST(BasicEndToEndTest, testAckMsgList) {
-    constexpr auto numMsg = 10;
-    const std::string topicName =
-        "testAckMsgList" + std::to_string(time(nullptr));
-    const std::string subName = "sub-ack-list";
+void testAckMsgList(bool multiConsumer) {
 
-    // Setup client, producer and consumer.
     Client client(lookupUrl);
     auto clientImplPtr = PulsarFriend::getClientImplPtr(client);
+
+    std::string uniqueChunk = unique_str();
+    std::string topicName = "persistent://public/default/test-ack-msgs" + uniqueChunk;
+
+    if (multiConsumer) {
+        // call admin api to make it partitioned
+        std::string url =
+            adminUrl + "admin/v2/persistent/public/default/test-ack-msgs" + uniqueChunk + "/partitions";
+        int res = makePutRequest(url, "5");
+        LOG_INFO("res = " << res);
+        ASSERT_FALSE(res != 204 && res != 409);
+    }
+
+    constexpr auto numMsg = 100;
+    const std::string subName = "sub-ack-list";
 
     Producer producer;
     ASSERT_EQ(ResultOk, client.createProducer(topicName, producer));
 
+    ConsumerConfiguration consumerConfig;
+    consumerConfig.setAckGroupingMaxSize(numMsg);
+    consumerConfig.setUnAckedMessagesTimeoutMs(10000);
     Consumer consumer;
-    ASSERT_EQ(ResultOk, client.subscribe(topicName, subName, consumer));
+    ASSERT_EQ(ResultOk, client.subscribe(topicName, subName, consumerConfig, consumer));
 
     // Sending and receiving messages.
     for (auto count = 0; count < numMsg; ++count) {
@@ -4135,9 +4148,20 @@ TEST(BasicEndToEndTest, testAckMsgList) {
     }
     consumer.acknowledge(recvMsgId);
 
+    // try redeliver unack messages.
+    consumer.redeliverUnacknowledgedMessages();
+
     Message msg;
     auto ret = consumer.receive(msg, 1000);
     ASSERT_EQ(ResultTimeout, ret) << "Received redundant message ID: " << msg.getMessageId();
     consumer.close();
     client.close();
+}
+
+TEST(BasicEndToEndTest, testAckMsgList) {
+    testAckMsgList(false);
+}
+
+TEST(BasicEndToEndTest, testAckMsgListWithMultiConsumer) {
+    testAckMsgList(true);
 }
