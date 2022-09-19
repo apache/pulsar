@@ -63,22 +63,6 @@ public interface ReadOnlyCursor {
                           Object ctx, PositionImpl maxPosition);
 
     /**
-     * Asynchronously read entry by position from the ManagedLedger.
-     * @param position the position of the entry to read.
-     * @param callback callback  object
-     * @param ctx opaque context
-     */
-    void asyncReadEntry(PositionImpl position, AsyncCallbacks.ReadEntryCallback callback, Object ctx);
-
-    /**
-     * Read entry by position from the ManagedLedger.
-     * @param position the position of the entry to read.
-     * @param ctx opaque context.
-     * @return the entry.
-     * @throws ManagedLedgerException
-     */
-    Entry readEntry(PositionImpl position, Object ctx) throws ManagedLedgerException, InterruptedException;
-    /**
      * Get the read position. This points to the next message to be read from the cursor.
      *
      * @return the read position

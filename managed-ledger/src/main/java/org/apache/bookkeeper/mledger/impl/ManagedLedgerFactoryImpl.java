@@ -418,7 +418,33 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         });
     }
 
+    @Override
+    public void asyncOpenReadOnlyManagedLedger(String managedLedgerName, ManagedLedgerConfig config,
+                                               OpenLedgerCallback callback, Object ctx) {
+        if (closed) {
+            callback.openLedgerFailed(new ManagedLedgerException.ManagedLedgerFactoryClosedException(), ctx);
+            return;
+        }
+        ReadOnlyManagedLedgerImpl roManagedLedger = new ReadOnlyManagedLedgerImpl(this,
+                bookkeeperFactory
+                        .get(new EnsemblePlacementPolicyConfig(config.getBookKeeperEnsemblePlacementPolicyClassName(),
+                                config.getBookKeeperEnsemblePlacementPolicyProperties())),
+                store, config, scheduledExecutor, managedLedgerName);
 
+        roManagedLedger.initialize(new ManagedLedgerInitializeLedgerCallback() {
+            @Override
+            public void initializeComplete() {
+                log.info("[{}] Successfully initialize Read-only managed ledger", managedLedgerName);
+                callback.openLedgerComplete(roManagedLedger, ctx);
+            }
+
+            @Override
+            public void initializeFailed(ManagedLedgerException e) {
+                log.error("[{}] Failed to initialize Read-only managed ledger", managedLedgerName, e);
+                callback.openLedgerFailed(e, ctx);
+            }
+        }, ctx);
+    }
 
     @Override
     public ReadOnlyCursor openReadOnlyCursor(String managedLedgerName, Position startPosition,
