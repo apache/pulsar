@@ -133,9 +133,10 @@ void ProducerImpl::connectionOpened(const ClientConnectionPtr& cnx) {
     ClientImplPtr client = client_.lock();
     int requestId = client->newRequestId();
 
-    SharedBuffer cmd = Commands::newProducer(topic_, producerId_, producerName_, requestId,
-                                             conf_.getProperties(), conf_.getSchema(), epoch_,
-                                             userProvidedProducerName_, conf_.isEncryptionEnabled());
+    SharedBuffer cmd = Commands::newProducer(
+        topic_, producerId_, producerName_, requestId, conf_.getProperties(), conf_.getSchema(), epoch_,
+        userProvidedProducerName_, conf_.isEncryptionEnabled(),
+        static_cast<proto::ProducerAccessMode>(conf_.getAccessMode()), topicEpoch);
     cnx->sendRequestWithId(cmd, requestId)
         .addListener(std::bind(&ProducerImpl::handleCreateProducer, shared_from_this(), cnx,
                                std::placeholders::_1, std::placeholders::_2));
@@ -145,7 +146,7 @@ void ProducerImpl::connectionFailed(Result result) {
     // Keep a reference to ensure object is kept alive
     ProducerImplPtr ptr = shared_from_this();
 
-    if (conf_.getLazyStartPartitionedProducers()) {
+    if (conf_.getLazyStartPartitionedProducers() && conf_.getAccessMode() == ProducerConfiguration::Shared) {
         // if producers are lazy, then they should always try to restart
         // so don't change the state and allow reconnections
         return;
@@ -177,6 +178,7 @@ void ProducerImpl::handleCreateProducer(const ClientConnectionPtr& cnx, Result r
         producerName_ = responseData.producerName;
         schemaVersion_ = responseData.schemaVersion;
         producerStr_ = "[" + topic_ + ", " + producerName_ + "] ";
+        topicEpoch = responseData.topicEpoch;
 
         if (lastSequenceIdPublished_ == -1 && conf_.getInitialSequenceId() == -1) {
             lastSequenceIdPublished_ = responseData.lastSequenceId;
@@ -204,7 +206,8 @@ void ProducerImpl::handleCreateProducer(const ClientConnectionPtr& cnx, Result r
         }
 
         // if the producer is lazy the send timeout timer is already running
-        if (!conf_.getLazyStartPartitionedProducers()) {
+        if (!(conf_.getLazyStartPartitionedProducers() &&
+              conf_.getAccessMode() == ProducerConfiguration::Shared)) {
             startSendTimeoutTimer();
         }
 
@@ -542,7 +545,6 @@ Result ProducerImpl::canEnqueueRequest(uint32_t payloadSize) {
         if (semaphore_ && !semaphore_->tryAcquire()) {
             return ResultProducerQueueIsFull;
         }
-
         if (!memoryLimitController_.tryReserveMemory(payloadSize)) {
             if (semaphore_) {
                 semaphore_->release(1);
@@ -853,7 +855,7 @@ void ProducerImpl::disconnectProducer() {
 void ProducerImpl::start() {
     HandlerBase::start();
 
-    if (conf_.getLazyStartPartitionedProducers()) {
+    if (conf_.getLazyStartPartitionedProducers() && conf_.getAccessMode() == ProducerConfiguration::Shared) {
         // we need to kick it off now as it is possible that the connection may take
         // longer than sendTimeout to connect
         startSendTimeoutTimer();

@@ -60,6 +60,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
+import lombok.Lombok;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.util.Bytes;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -71,6 +72,8 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.lang3.reflect.FieldUtils;
+import org.apache.commons.lang3.reflect.MethodUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.CounterBrokerInterceptor;
@@ -138,7 +141,6 @@ import org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriterConfig
 import org.awaitility.Awaitility;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import org.powermock.reflect.Whitebox;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -1244,8 +1246,8 @@ public class TransactionTest extends TransactionTestBase {
         for (int i = 0; i < 10; i++) {
             producer.newMessage().value(Bytes.toBytes(i)).send();
         }
-        ClientCnx cnx = Whitebox.invokeMethod(consumer, "cnx");
-        Whitebox.invokeMethod(consumer, "connectionClosed", cnx);
+        ClientCnx cnx = (ClientCnx) MethodUtils.invokeMethod(consumer, true, "cnx");
+        MethodUtils.invokeMethod(consumer, true, "connectionClosed", cnx);
 
         Message<byte[]> message = consumer.receive();
         Transaction transaction = pulsarClient
@@ -1391,39 +1393,37 @@ public class TransactionTest extends TransactionTestBase {
      */
     @Test
     public void testTBRecoverChangeStateError() throws InterruptedException, TimeoutException {
-        final AtomicReference<PersistentTopic> persistentTopic = new AtomicReference<PersistentTopic>();
-        AtomicInteger atomicInteger = new AtomicInteger(1);
+        final AtomicReference<PersistentTopic> persistentTopic = new AtomicReference<>();
         // Create Executor
-        ScheduledExecutorService executorService_recover = mock(ScheduledExecutorService.class);
+        ScheduledExecutorService executorServiceRecover = mock(ScheduledExecutorService.class);
         // Mock serviceConfiguration.
         ServiceConfiguration serviceConfiguration = mock(ServiceConfiguration.class);
         when(serviceConfiguration.isEnableReplicatedSubscriptions()).thenReturn(false);
         when(serviceConfiguration.isTransactionCoordinatorEnabled()).thenReturn(true);
         // Mock executorProvider.
         ExecutorProvider executorProvider = mock(ExecutorProvider.class);
-        when(executorProvider.getExecutor(any(Object.class))).thenReturn(executorService_recover);
+        when(executorProvider.getExecutor(any(Object.class))).thenReturn(executorServiceRecover);
         // Mock pendingAckStore.
         PendingAckStore pendingAckStore = mock(PendingAckStore.class);
-        doAnswer(new Answer() {
-            @Override
-            public Object answer(InvocationOnMock invocation) throws Throwable {
-                new Thread(() -> {
-                    TopicTransactionBuffer.TopicTransactionBufferRecover recover
-                            = (TopicTransactionBuffer.TopicTransactionBufferRecover)invocation.getArguments()[0];
-                    TopicTransactionBufferRecoverCallBack callBack
-                            = Whitebox.getInternalState(recover, "callBack");;
-                    try {
-                        persistentTopic.get().getTransactionBuffer().closeAsync().get();
-                    } catch (InterruptedException e) {
-                        throw new RuntimeException(e);
-                    } catch (ExecutionException e) {
-                        throw new RuntimeException(e);
+        doAnswer(invocation -> {
+            new Thread(() -> {
+                TopicTransactionBuffer.TopicTransactionBufferRecover recover
+                        = (TopicTransactionBuffer.TopicTransactionBufferRecover) invocation.getArguments()[0];
+                TopicTransactionBufferRecoverCallBack callBack = null;
+                try {
+                    callBack = (TopicTransactionBufferRecoverCallBack) FieldUtils.readField(
+                            recover, "callBack", true);
+                    persistentTopic.get().getTransactionBuffer().closeAsync().get();
+                } catch (Exception e) {
+                    throw Lombok.sneakyThrow(e);
+                } finally {
+                    if (callBack != null) {
+                        callBack.recoverComplete();
                     }
-                    callBack.recoverComplete();
-                }).start();
-                return null;
-            }
-        }).when(executorService_recover).execute(any());
+                }
+            }).start();
+            return null;
+        }).when(executorServiceRecover).execute(any());
         // Mock executorProvider.
         TransactionPendingAckStoreProvider pendingAckStoreProvider = mock(TransactionPendingAckStoreProvider.class);
         when(pendingAckStoreProvider.checkInitializedBefore(any()))

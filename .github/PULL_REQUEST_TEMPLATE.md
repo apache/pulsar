@@ -76,3 +76,20 @@ This change added tests and can be verified as follows:
 
 - [ ] `doc-complete`
 (Docs have been already added)
+
+### Matching PR in forked repository
+
+PR in forked repository: <!-- ENTER URL HERE 
+
+After opening this PR, the build in apache/pulsar will fail and instructions will
+be provided for opening a PR in the PR author's forked repository.
+
+apache/pulsar pull requests should be first tested in your own fork since the 
+apache/pulsar CI based on GitHub Actions has constrained resources and quota.
+GitHub Actions provides separate quota for pull requests that are executed in 
+a forked repository.
+
+The tests will be run in the forked repository until all PR review comments have
+been handled, the tests pass and the PR is approved by a reviewer.
+
+-->

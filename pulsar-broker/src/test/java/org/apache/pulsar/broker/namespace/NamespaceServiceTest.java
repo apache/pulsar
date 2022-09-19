@@ -49,6 +49,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.loadbalance.LoadData;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
@@ -87,7 +88,6 @@ import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.policies.data.loadbalancer.BundleData;
 import org.awaitility.Awaitility;
 import org.mockito.stubbing.Answer;
-import org.powermock.reflect.Whitebox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -822,11 +822,10 @@ public class NamespaceServiceTest extends BrokerTestBase {
         // Wait until "ModularLoadManager" completes processing the ZK notification.
         ModularLoadManagerWrapper modularLoadManagerWrapper = (ModularLoadManagerWrapper) loadManager;
         ModularLoadManagerImpl modularLoadManager = (ModularLoadManagerImpl) modularLoadManagerWrapper.getLoadManager();
-        ScheduledExecutorService scheduler = Whitebox.getInternalState(modularLoadManager, "scheduler");
+        ScheduledExecutorService scheduler = (ScheduledExecutorService) FieldUtils.readField(
+                modularLoadManager, "scheduler", true);
         CompletableFuture<Void> waitForNoticeHandleFinishByLoadManager = new CompletableFuture<>();
-        scheduler.execute(() -> {
-            waitForNoticeHandleFinishByLoadManager.complete(null);
-        });
+        scheduler.execute(() -> waitForNoticeHandleFinishByLoadManager.complete(null));
         waitForNoticeHandleFinishByLoadManager.join();
         // Manually trigger "LoadResourceQuotaUpdaterTask"
         loadManager.writeResourceQuotasToZooKeeper();

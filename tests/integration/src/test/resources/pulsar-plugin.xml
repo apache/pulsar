@@ -24,6 +24,7 @@
         <classes>
             <class name="org.apache.pulsar.tests.integration.plugins.TestProtocolHandlers" />
             <class name="org.apache.pulsar.tests.integration.plugins.TestAdditionalServlets" />
+            <class name="org.apache.pulsar.tests.integration.plugins.TestEntryFilters" />
         </classes>
     </test>
 </suite>

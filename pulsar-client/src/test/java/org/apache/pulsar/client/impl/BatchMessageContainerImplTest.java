@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.impl;
 
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -59,7 +58,7 @@ public class BatchMessageContainerImplTest {
         doAnswer((ignore) -> {
             called.set(true);
             throw new OutOfMemoryError("test");
-        }).when(mockAllocator).buffer(anyInt());
+        }).when(mockAllocator).compositeBuffer();
         final BatchMessageContainerImpl batchMessageContainer = new BatchMessageContainerImpl(mockAllocator);
         batchMessageContainer.setProducer(producer);
         MessageMetadata messageMetadata1 = new MessageMetadata();

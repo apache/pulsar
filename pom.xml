@@ -98,7 +98,8 @@ flexible messaging model and an intuitive client API.</description>
       --add-opens java.base/java.io=ALL-UNNAMED <!--Bookkeeper NativeIO-->
       --add-opens java.base/java.util=ALL-UNNAMED <!--System Lambda-->
       --add-opens java.base/sun.net=ALL-UNNAMED <!--netty.DnsResolverUtil-->
-      --add-opens java.management/sun.management=ALL-UNNAMED <!--JvmDefaultGCMetricsLogger-->
+      --add-opens java.management/sun.management=ALL-UNNAMED <!--JvmDefaultGCMetricsLogger & MBeanStatsGenerator-->
+      --add-opens jdk.management/com.sun.management.internal=ALL-UNNAMED <!--MBeanStatsGenerator-->
     </test.additional.args>
     <testReuseFork>true</testReuseFork>
     <testForkCount>4</testForkCount>
@@ -240,7 +241,6 @@ flexible messaging model and an intuitive client API.</description>
     <kerby.version>1.1.1</kerby.version>
     <testng.version>7.3.0</testng.version>
     <mockito.version>3.12.4</mockito.version>
-    <powermock.version>2.0.9</powermock.version>
     <javassist.version>3.25.0-GA</javassist.version>
     <skyscreamer.version>1.5.0</skyscreamer.version>
     <objenesis.version>3.1</objenesis.version>
@@ -337,12 +337,6 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.mockito</groupId>
         <artifactId>mockito-inline</artifactId>
         <version>${mockito.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.powermock</groupId>
-        <artifactId>powermock-reflect</artifactId>
-        <version>${powermock.version}</version>
       </dependency>
 
       <dependency>
@@ -1327,12 +1321,6 @@ flexible messaging model and an intuitive client API.</description>
       <groupId>com.github.stefanbirkner</groupId>
       <artifactId>system-lambda</artifactId>
       <version>${system-lambda.version}</version>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.powermock</groupId>
-      <artifactId>powermock-reflect</artifactId>
       <scope>test</scope>
     </dependency>
 
