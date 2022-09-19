@@ -69,6 +69,7 @@ class MultiTopicsConsumerImpl : public ConsumerImplBase,
     void receiveAsync(ReceiveCallback& callback) override;
     void unsubscribeAsync(ResultCallback callback) override;
     void acknowledgeAsync(const MessageId& msgId, ResultCallback callback) override;
+    void acknowledgeAsync(const MessageIdList& messageIdList, ResultCallback callback) override;
     void acknowledgeCumulativeAsync(const MessageId& msgId, ResultCallback callback) override;
     void closeAsync(ResultCallback callback) override;
     void start() override;

@@ -53,6 +53,7 @@ class AckGroupingTrackerEnabled : public AckGroupingTracker {
     void start() override;
     bool isDuplicate(const MessageId& msgId) override;
     void addAcknowledge(const MessageId& msgId) override;
+    void addAcknowledgeList(const MessageIdList& msgIds) override;
     void addAcknowledgeCumulative(const MessageId& msgId) override;
     void close() override;
     void flush() override;

@@ -4104,3 +4104,40 @@ TEST(BasicEndToEndTest, testUnAckedMessageTrackerEnabledCumulativeAck) {
     consumer.close();
     client.close();
 }
+
+TEST(BasicEndToEndTest, testAckMsgList) {
+    constexpr auto numMsg = 10;
+    const std::string topicName =
+        "testAckMsgList" + std::to_string(time(nullptr));
+    const std::string subName = "sub-ack-list";
+
+    // Setup client, producer and consumer.
+    Client client(lookupUrl);
+    auto clientImplPtr = PulsarFriend::getClientImplPtr(client);
+
+    Producer producer;
+    ASSERT_EQ(ResultOk, client.createProducer(topicName, producer));
+
+    Consumer consumer;
+    ASSERT_EQ(ResultOk, client.subscribe(topicName, subName, consumer));
+
+    // Sending and receiving messages.
+    for (auto count = 0; count < numMsg; ++count) {
+        Message msg = MessageBuilder().setContent(std::string("MSG-") + std::to_string(count)).build();
+        ASSERT_EQ(ResultOk, producer.send(msg));
+    }
+
+    std::vector<MessageId> recvMsgId;
+    for (auto count = 0; count < numMsg; ++count) {
+        Message msg;
+        ASSERT_EQ(ResultOk, consumer.receive(msg, 1000));
+        recvMsgId.emplace_back(msg.getMessageId());
+    }
+    consumer.acknowledge(recvMsgId);
+
+    Message msg;
+    auto ret = consumer.receive(msg, 1000);
+    ASSERT_EQ(ResultTimeout, ret) << "Received redundant message ID: " << msg.getMessageId();
+    consumer.close();
+    client.close();
+}

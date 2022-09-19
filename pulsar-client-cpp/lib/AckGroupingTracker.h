@@ -62,6 +62,12 @@ class AckGroupingTracker : public std::enable_shared_from_this<AckGroupingTracke
     virtual void addAcknowledge(const MessageId& msgId) {}
 
     /**
+     * Adding message ID list into ACK group for individual ACK.
+     * @param[in] msgIds of the message to be ACKed.
+     */
+    virtual void addAcknowledgeList(const MessageIdList& msgIds) {}
+
+    /**
      * Adding message ID into ACK group for cumulative ACK.
      * @param[in] msgId ID of the message to be ACKed.
      */

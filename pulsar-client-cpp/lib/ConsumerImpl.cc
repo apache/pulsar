@@ -925,6 +925,19 @@ void ConsumerImpl::acknowledgeAsync(const MessageId& msgId, ResultCallback callb
     doAcknowledgeIndividual(msgId, cb);
 }
 
+void ConsumerImpl::acknowledgeAsync(const MessageIdList& messageIdList, ResultCallback callback) {
+
+    ResultCallback cb = std::bind(&ConsumerImpl::statsCallback, shared_from_this(), std::placeholders::_1,
+                                  callback, proto::CommandAck_AckType_Individual);
+    // Currently not supported batch message id individual index ack.
+    this->ackGroupingTrackerPtr_->addAcknowledgeList(messageIdList);
+    for (const auto& messageId : messageIdList) {
+        this->unAckedMessageTrackerPtr_->remove(messageId);
+        this->batchAcknowledgementTracker_.deleteAckedMessage(messageId, proto::CommandAck::Individual);
+    }
+    callback(ResultOk);
+}
+
 void ConsumerImpl::acknowledgeCumulativeAsync(const MessageId& msgId, ResultCallback callback) {
     ResultCallback cb = std::bind(&ConsumerImpl::statsCallback, shared_from_this(), std::placeholders::_1,
                                   callback, proto::CommandAck_AckType_Cumulative);

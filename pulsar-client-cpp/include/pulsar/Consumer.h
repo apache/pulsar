@@ -20,6 +20,7 @@
 #define CONSUMER_HPP_
 
 #include <iostream>
+#include <vector>
 #include <pulsar/defines.h>
 #include <pulsar/BrokerConsumerStats.h>
 #include <pulsar/ConsumerConfiguration.h>
@@ -29,6 +30,7 @@ class PulsarWrapper;
 class ConsumerImplBase;
 class PulsarFriend;
 typedef std::shared_ptr<ConsumerImplBase> ConsumerImplBasePtr;
+typedef std::vector<MessageId> MessageIdList;
 /**
  *
  */
@@ -139,6 +141,12 @@ class PULSAR_PUBLIC Consumer {
     Result acknowledge(const MessageId& messageId);
 
     /**
+     * Acknowledge the consumption of a list of message.
+     * @param messageIdList
+     */
+    Result acknowledge(const MessageIdList& messageIdList);
+
+    /**
      * Asynchronously acknowledge the reception of a single message.
      *
      * This method will initiate the operation and return immediately. The provided callback
@@ -159,6 +167,14 @@ class PULSAR_PUBLIC Consumer {
      * @param callback the callback that is triggered when the message has been acknowledged or not
      */
     void acknowledgeAsync(const MessageId& messageId, ResultCallback callback);
+
+    /**
+     * Asynchronously acknowledge the consumption of a list of message.
+     * @param messageIdList
+     * @param callback the callback that is triggered when the message has been acknowledged or not
+     * @return
+     */
+    void acknowledgeAsync(const MessageIdList& messageIdList, ResultCallback callback);
 
     /**
      * Acknowledge the reception of all the messages in the stream up to (and including)

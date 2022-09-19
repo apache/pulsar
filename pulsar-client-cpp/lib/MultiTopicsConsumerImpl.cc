@@ -572,6 +572,36 @@ void MultiTopicsConsumerImpl::acknowledgeAsync(const MessageId& msgId, ResultCal
     }
 }
 
+void MultiTopicsConsumerImpl::acknowledgeAsync(const MessageIdList& messageIdList, ResultCallback callback) {
+    if (state_ != Ready) {
+        callback(ResultAlreadyClosed);
+        return;
+    }
+
+    std::map<std::string, MessageIdList> topicToMessageId;
+    for (const MessageId &messageId: messageIdList) {
+        auto topicName = messageId.getTopicName();
+        if (topicToMessageId.count(topicName) == 0) {
+            topicToMessageId.emplace(topicName, std::vector<MessageId>());
+        }
+        topicToMessageId[topicName].emplace_back(messageId);
+    }
+
+    for (const auto& kv : topicToMessageId) {
+        auto optConsumer = consumers_.find(kv.first);
+        if (optConsumer.is_present()) {
+            for (const auto& msgId : kv.second) {
+                unAckedMessageTrackerPtr_->remove(msgId);
+            }
+            optConsumer.value()->acknowledgeAsync(kv.second, callback);
+        } else {
+            LOG_ERROR("Message of topic: " << kv.first << " not in unAckedMessageTracker");
+            callback(ResultUnknownError);
+        }
+    }
+}
+
+
 void MultiTopicsConsumerImpl::acknowledgeCumulativeAsync(const MessageId& msgId, ResultCallback callback) {
     callback(ResultOperationNotSupported);
 }

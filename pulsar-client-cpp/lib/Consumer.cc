@@ -95,6 +95,17 @@ Result Consumer::acknowledge(const MessageId& messageId) {
     return result;
 }
 
+Result Consumer::acknowledge(const MessageIdList& messageIdList) {
+    if (!impl_) {
+        return ResultConsumerNotInitialized;
+    }
+    Promise<bool, Result> promise;
+    impl_->acknowledgeAsync(messageIdList, WaitForCallback(promise));
+    Result result;
+    promise.getFuture().get(result);
+    return result;
+}
+
 void Consumer::acknowledgeAsync(const Message& message, ResultCallback callback) {
     if (!impl_) {
         callback(ResultConsumerNotInitialized);
@@ -111,6 +122,15 @@ void Consumer::acknowledgeAsync(const MessageId& messageId, ResultCallback callb
     }
 
     impl_->acknowledgeAsync(messageId, callback);
+}
+
+void Consumer::acknowledgeAsync(const MessageIdList& messageIdList, ResultCallback callback) {
+    if (!impl_) {
+        callback(ResultConsumerNotInitialized);
+        return;
+    }
+
+    impl_->acknowledgeAsync(messageIdList, callback);
 }
 
 Result Consumer::acknowledgeCumulative(const Message& message) {
