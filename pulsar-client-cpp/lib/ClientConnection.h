@@ -77,6 +77,7 @@ struct ResponseData {
     std::string producerName;
     int64_t lastSequenceId;
     std::string schemaVersion;
+    Optional<uint64_t> topicEpoch;
 };
 
 typedef std::shared_ptr<std::vector<std::string>> NamespaceTopicsPtr;

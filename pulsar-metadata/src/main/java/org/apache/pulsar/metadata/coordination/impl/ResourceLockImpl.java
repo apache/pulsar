@@ -196,6 +196,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
                             // We failed to revalidate the lock due to connectivity issue
                             // Continue assuming we hold the lock, until we can revalidate it, either
                             // on Reconnected or SessionReestablished events.
+                            revalidateAfterReconnection = true;
                             log.warn("Failed to revalidate the lock at {}. Retrying later on reconnection {}", path,
                                     ex.getCause().getMessage());
                         }
