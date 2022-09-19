@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.metadata;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -42,8 +46,6 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.coordination.impl.CoordinationServiceImpl;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
-
-import static org.testng.Assert.*;
 
 public class LockManagerTest extends BaseMetadataStoreTest {
 
