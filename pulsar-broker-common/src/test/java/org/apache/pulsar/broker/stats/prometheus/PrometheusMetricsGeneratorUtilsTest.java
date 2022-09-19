@@ -26,6 +26,7 @@ import java.util.Collections;
 import java.util.UUID;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class PrometheusMetricsGeneratorUtilsTest {
 
     private static final String LABEL_NAME_CLUSTER = "cluster";
