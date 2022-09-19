@@ -20,6 +20,7 @@ package org.apache.pulsar.metadata;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -29,6 +30,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import lombok.Cleanup;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -42,7 +44,6 @@ import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.coordination.impl.CoordinationServiceImpl;
 import org.awaitility.Awaitility;
-import org.testng.Assert;
 import org.testng.annotations.Test;
 
 public class LockManagerTest extends BaseMetadataStoreTest {
@@ -305,24 +306,43 @@ public class LockManagerTest extends BaseMetadataStoreTest {
         }
 
         @Cleanup
-        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+        MetadataStoreExtended store1 = MetadataStoreExtended.create(urlSupplier.get(),
                 MetadataStoreConfig.builder().build());
         @Cleanup
-        CoordinationService cs1 = new CoordinationServiceImpl(store);
+        MetadataStoreExtended store2 = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().build());
+
+        @Cleanup
+        CoordinationService cs1 = new CoordinationServiceImpl(store1);
         @Cleanup
         LockManager<String> lm1 = cs1.getLockManager(String.class);
-        final String path = newKey();
-        ResourceLock<String> lock = lm1.acquireLock(path, "value-1").join();
 
-        assertFalse(lock.getLockExpiredFuture().isDone());
-        store.delete(path, Optional.empty()).join();
+        @Cleanup
+        CoordinationService cs2 = new CoordinationServiceImpl(store2);
+        @Cleanup
+        LockManager<String> lm2 = cs2.getLockManager(String.class);
 
-        ResourceLock<String> lock2 = lm1.acquireLock(path, "value-2").join();
+        String path1 = newKey();
 
-        assertFalse(lock2.getLockExpiredFuture().isDone());
-
+        ResourceLock<String> lock1 = lm1.acquireLock(path1, "value-1").join();
+        AtomicReference<ResourceLock<String>> lock2 = new AtomicReference<>();
+        // lock 2 will steal the distributed lock first.
         Awaitility.await().untilAsserted(()-> {
-            Assert.assertTrue(lock.getLockExpiredFuture().isDone());
+            // Ensure steal the lock success.
+           lock2.set(lm2.acquireLock(path1, "value-1").join());
+        });
+
+        // Since we can steal the lock repeatedly, we don't know which one will get it.
+        // But we can verify the final state.
+        Awaitility.await().untilAsserted(() -> {
+            if (lock1.getLockExpiredFuture().isDone()) {
+                assertTrue(lm1.listLocks(path1).join().isEmpty());
+                assertFalse(lock2.get().getLockExpiredFuture().isDone());
+            }
+            if (lock2.get().getLockExpiredFuture().isDone()) {
+                assertTrue(lm2.listLocks(path1).join().isEmpty());
+                assertFalse(lock1.getLockExpiredFuture().isDone());
+            }
         });
     }
 }
