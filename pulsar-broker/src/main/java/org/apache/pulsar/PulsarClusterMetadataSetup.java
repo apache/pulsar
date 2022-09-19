@@ -44,6 +44,7 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.CmdGenerateDocs;
+import org.apache.pulsar.common.util.ShutdownUtil;
 import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
@@ -238,7 +239,7 @@ public class PulsarClusterMetadataSetup {
             System.err.println("Unexpected error occured.");
             e.printStackTrace(System.err);
             System.err.println("Terminating JVM...");
-            Runtime.getRuntime().halt(1);
+            ShutdownUtil.triggerImmediateForcefulShutdown();
         }
     }
 
