@@ -1,4 +1,4 @@
-/*
+/**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -32,6 +32,10 @@ import com.google.gson.JsonParser;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
+import java.io.File;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -48,8 +52,10 @@ import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.Getter;
+import lombok.SneakyThrows;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.ListTopicsOptions;
+import org.apache.pulsar.admin.cli.utils.TopicSubscriptionsVisualizer;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -77,6 +83,7 @@ import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
@@ -109,6 +116,7 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("stats", new GetStats());
         jcommander.addCommand("stats-internal", new GetInternalStats());
         jcommander.addCommand("info-internal", new GetInternalInfo());
+        jcommander.addCommand("subscriptions-visual-stats", new GetSubscriptionsVisualStats());
 
         jcommander.addCommand("partitioned-stats", new GetPartitionedStats());
         jcommander.addCommand("partitioned-stats-internal", new GetPartitionedStatsInternal());
@@ -841,6 +849,33 @@ public class CmdTopics extends CmdBase {
             JsonObject result = JsonParser.parseString(internalInfo).getAsJsonObject();
             Gson gson = new GsonBuilder().setPrettyPrinting().create();
             System.out.println(gson.toJson(result));
+        }
+    }
+
+    @Parameters(commandDescription = "Get the internal metadata info for the topic")
+    private class GetSubscriptionsVisualStats extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-f", "--filename" }, description = "Output filename")
+        private String outputFilename;
+
+        @Override
+        @SneakyThrows
+        void run() throws PulsarAdminException {
+            String topic = validateTopicName(params);
+            final PersistentTopicInternalStats internalStats = getTopics().getInternalStats(topic);
+            final TopicStats stats = getTopics().getStats(topic);
+
+            final String result = TopicSubscriptionsVisualizer.createHtml(topic, internalStats, stats);
+            if (outputFilename != null) {
+                final Path path = new File(outputFilename).toPath();
+                Files.write(path, result.getBytes(StandardCharsets.UTF_8));
+                print("Written to " + path.toFile().getAbsolutePath());
+            } else {
+                print(result);
+            }
+
         }
     }
 

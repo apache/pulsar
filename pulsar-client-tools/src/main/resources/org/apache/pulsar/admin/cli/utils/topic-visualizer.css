@@ -1,0 +1,180 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+:root {
+    --c-black: #03071e;
+
+    --c-topic: #277DA1;
+    --c-topic-hover: #577590;
+
+    --c-ahead: #F3722C;
+    --c-ahead-hover: #F94144;
+
+    --c-acked: #90BE6D;
+    --c-acked-hover: #43AA8B;
+
+    --c-idel: #b9a44c;
+    --c-idel-hover: #566e3d;
+
+
+    --c-tooltip: #F8961E;
+}
+body {
+    color: var(--c-black);
+    font-family: verdana;
+}
+span {
+    font-size: 14px
+}
+.line-container {
+    margin: 6px 0;
+    box-shadow: 0 2px 4px 0 rgba(0,0,0,0.2);
+    border-radius: 5px;
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+
+}
+.line-container:hover {
+    box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);
+}
+.line-container .subscription {
+    height: 20px;
+    display: flex;
+    margin-top: 5px;
+}
+.line-container .subscription div {
+    border-top: 1px var(--c-black) solid;
+    border-bottom: 1px var(--c-black) solid;
+}
+.line-container .subscription .segment-acked {
+    background-color: var(--c-acked);
+}
+.line-container .subscription .segment-acked:hover {
+    background-color: var(--c-acked-hover);
+}
+.line-container .subscription .segment-ahead {
+    background-color: var(--c-ahead);
+}
+.line-container .subscription .segment-ahead:hover {
+    background-color: var(--c-ahead-hover);
+}
+.line-container .subscription .segment-idel {
+    background-color: var(--c-idel);
+}
+.line-container .subscription .segment-idel:hover {
+    background-color: var(--c-idel-hover);
+}
+
+.line-container .topic {
+    display: flex;
+
+}
+.line-container .topic .ledger {
+    height: 15px;
+    background-color: var(--c-topic);
+    border-top: 1px white solid;
+    border-bottom: 1px white solid;
+    border-right: 1px white solid;
+}
+.line-container .topic .ledger:hover {
+    background-color: var(--c-topic-hover);
+}
+.line-container .topic .ledger.first {
+    border-left: 1px white solid;
+}
+.line-container .description {
+    font-size: 18px;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-end;
+}
+.line-container .description .title {
+    cursor: pointer;
+    font-size: 20px;
+    font-weight: 800;
+    padding: 4px 0;
+}
+
+details > summary {
+    list-style: none;
+}
+details > summary::-webkit-details-marker {
+    display: none;
+}
+
+.details-sections-container {
+    display: flex;
+}
+.details-sections-container .details-section {
+    display: flex;
+    flex-direction: column;
+}
+.details-sections-container .details-section .title {
+    font-size: 14px;
+    font-weight: 800;
+}
+.details-section .description-details .detail-item span {
+    font-size: 10px;
+}
+.description-details {
+    display: flex;
+    flex-direction: column;
+}
+.description-details .detail-item {
+    display: flex;
+
+}
+.description-details .detail-item span {
+    font-size: 14px;
+    padding: 2px;
+}
+.description-details .detail-item .detail-item-key {
+    padding-right: 4px;
+    font-weight: 400;
+}
+.description-details .detail-item .detail-item-value {
+    font-weight: 900;
+}
+
+.tooltip {
+    position: relative;
+    display: inline-block;
+}
+.tooltip .tooltiptext {
+    visibility: hidden;
+    min-width: 30px;
+    background-color: var(--c-tooltip);
+    border-radius: 1px;
+    border: 2px var(--c-black) solid;
+    margin: 6px;
+    position: absolute;
+    z-index: 1;
+
+    display: flex;
+
+}
+.tooltip .tooltiptext .tooltip-section {
+    padding: 8px 4px;
+    display: flex;
+    flex-direction: column;
+}
+.tooltip:hover .tooltiptext {
+    visibility: visible;
+}
