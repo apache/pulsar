@@ -178,7 +178,8 @@ class ConsumerImpl : public ConsumerImplBase,
     // TODO - Convert these functions to lambda when we move to C++11
     Result receiveHelper(Message& msg);
     Result receiveHelper(Message& msg, int timeout);
-    void statsCallback(Result, ResultCallback, proto::CommandAck_AckType);
+    void statsAckCallback(Result, ResultCallback, proto::CommandAck_AckType);
+    void statsAckCallbacks(Result, ResultCallback, proto::CommandAck_AckType, uint numAcks);
     void notifyPendingReceivedCallback(Result result, Message& message, const ReceiveCallback& callback);
     void failPendingReceiveCallback();
     void setNegativeAcknowledgeEnabledForTesting(bool enabled) override;

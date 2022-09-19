@@ -150,6 +150,7 @@ class MultiTopicsConsumerImpl : public ConsumerImplBase,
     void subscribeSingleNewConsumer(int numPartitions, TopicNamePtr topicName, int partitionIndex,
                                     ConsumerSubResultPromisePtr topicSubResultPromise,
                                     std::shared_ptr<std::atomic<int>> partitionsNeedCreate);
+    friend class PulsarFriend;
 
    private:
     void setNegativeAcknowledgeEnabledForTesting(bool enabled) override;

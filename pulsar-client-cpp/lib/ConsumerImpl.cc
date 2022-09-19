@@ -907,15 +907,23 @@ inline proto::CommandSubscribe_InitialPosition ConsumerImpl::getInitialPosition(
     BOOST_THROW_EXCEPTION(std::logic_error("Invalid InitialPosition enumeration value"));
 }
 
-void ConsumerImpl::statsCallback(Result res, ResultCallback callback, proto::CommandAck_AckType ackType) {
-    consumerStatsBasePtr_->messageAcknowledged(res, ackType);
+void ConsumerImpl::statsAckCallback(Result res, ResultCallback callback, proto::CommandAck_AckType ackType) {
+    consumerStatsBasePtr_->messageAcknowledged(res, ackType, 1);
+    if (callback) {
+        callback(res);
+    }
+}
+
+void ConsumerImpl::statsAckCallbacks(Result res, ResultCallback callback, proto::CommandAck_AckType ackType,
+                                     uint numAcks) {
+    consumerStatsBasePtr_->messageAcknowledged(res, ackType, numAcks);
     if (callback) {
         callback(res);
     }
 }
 
 void ConsumerImpl::acknowledgeAsync(const MessageId& msgId, ResultCallback callback) {
-    ResultCallback cb = std::bind(&ConsumerImpl::statsCallback, shared_from_this(), std::placeholders::_1,
+    ResultCallback cb = std::bind(&ConsumerImpl::statsAckCallback, shared_from_this(), std::placeholders::_1,
                                   callback, proto::CommandAck_AckType_Individual);
     if (msgId.batchIndex() != -1 &&
         !batchAcknowledgementTracker_.isBatchReady(msgId, proto::CommandAck_AckType_Individual)) {
@@ -926,20 +934,19 @@ void ConsumerImpl::acknowledgeAsync(const MessageId& msgId, ResultCallback callb
 }
 
 void ConsumerImpl::acknowledgeAsync(const MessageIdList& messageIdList, ResultCallback callback) {
-
-    ResultCallback cb = std::bind(&ConsumerImpl::statsCallback, shared_from_this(), std::placeholders::_1,
-                                  callback, proto::CommandAck_AckType_Individual);
+    ResultCallback cb = std::bind(&ConsumerImpl::statsAckCallbacks, shared_from_this(), std::placeholders::_1,
+                                  callback, proto::CommandAck_AckType_Individual, messageIdList.size());
     // Currently not supported batch message id individual index ack.
     this->ackGroupingTrackerPtr_->addAcknowledgeList(messageIdList);
     for (const auto& messageId : messageIdList) {
         this->unAckedMessageTrackerPtr_->remove(messageId);
         this->batchAcknowledgementTracker_.deleteAckedMessage(messageId, proto::CommandAck::Individual);
     }
-    callback(ResultOk);
+    cb(ResultOk);
 }
 
 void ConsumerImpl::acknowledgeCumulativeAsync(const MessageId& msgId, ResultCallback callback) {
-    ResultCallback cb = std::bind(&ConsumerImpl::statsCallback, shared_from_this(), std::placeholders::_1,
+    ResultCallback cb = std::bind(&ConsumerImpl::statsAckCallback, shared_from_this(), std::placeholders::_1,
                                   callback, proto::CommandAck_AckType_Cumulative);
     if (!isCumulativeAcknowledgementAllowed(config_.getConsumerType())) {
         cb(ResultCumulativeAcknowledgementNotAllowedError);

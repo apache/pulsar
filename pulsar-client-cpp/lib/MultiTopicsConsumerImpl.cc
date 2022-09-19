@@ -579,7 +579,7 @@ void MultiTopicsConsumerImpl::acknowledgeAsync(const MessageIdList& messageIdLis
     }
 
     std::map<std::string, MessageIdList> topicToMessageId;
-    for (const MessageId &messageId: messageIdList) {
+    for (const MessageId& messageId : messageIdList) {
         auto topicName = messageId.getTopicName();
         if (topicToMessageId.count(topicName) == 0) {
             topicToMessageId.emplace(topicName, std::vector<MessageId>());
@@ -600,7 +600,6 @@ void MultiTopicsConsumerImpl::acknowledgeAsync(const MessageIdList& messageIdLis
         }
     }
 }
-
 
 void MultiTopicsConsumerImpl::acknowledgeCumulativeAsync(const MessageId& msgId, ResultCallback callback) {
     callback(ResultOperationNotSupported);
