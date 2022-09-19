@@ -135,6 +135,7 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.compaction.Compactor;
+import org.apache.pulsar.utils.StringUtil;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -855,7 +856,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
     @Test(dataProvider = "topicName")
     public void persistentTopics(String topicName) throws Exception {
-        final String subName = topicName;
+        final String subName = StringUtil.removeInvisible(topicName, "");
         assertEquals(admin.topics().getList("prop-xyz/ns1"), new ArrayList<>());
 
         final String persistentTopicName = "persistent://prop-xyz/ns1/" + topicName;

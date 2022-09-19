@@ -45,4 +45,32 @@ public class StringUtil {
         }
         return false;
     }
+
+    public static String removeInvisible(String str, String replaceChar) {
+        if (str == null) {
+            return "";
+        }
+
+        str = str.trim();
+        StringBuilder newString = new StringBuilder(str.length());
+        for (int offset = 0; offset < str.length(); ) {
+            int codePoint = str.codePointAt(offset);
+            offset += Character.charCount(codePoint);
+            switch (Character.getType(codePoint)) {
+                case Character.CONTROL:
+                case Character.FORMAT:
+                case Character.PRIVATE_USE:
+                case Character.SURROGATE:
+                case Character.UNASSIGNED:
+                case Character.OTHER_SYMBOL:
+                case Character.SPACE_SEPARATOR:
+                    newString.append(replaceChar);
+                    break;
+                default:
+                    newString.append(Character.toChars(codePoint));
+                    break;
+            }
+        }
+        return newString.toString();
+    }
 }
