@@ -18,9 +18,6 @@
  */
 package org.apache.pulsar.metadata;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -45,6 +42,8 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.coordination.impl.CoordinationServiceImpl;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
+
+import static org.testng.Assert.*;
 
 public class LockManagerTest extends BaseMetadataStoreTest {
 
@@ -338,10 +337,11 @@ public class LockManagerTest extends BaseMetadataStoreTest {
             if (lock1.getLockExpiredFuture().isDone()) {
                 assertTrue(lm1.listLocks(path1).join().isEmpty());
                 assertFalse(lock2.get().getLockExpiredFuture().isDone());
-            }
-            if (lock2.get().getLockExpiredFuture().isDone()) {
+            } else if (lock2.get().getLockExpiredFuture().isDone()) {
                 assertTrue(lm2.listLocks(path1).join().isEmpty());
                 assertFalse(lock1.getLockExpiredFuture().isDone());
+            } else {
+                fail("unexpected behaviour");
             }
         });
     }
