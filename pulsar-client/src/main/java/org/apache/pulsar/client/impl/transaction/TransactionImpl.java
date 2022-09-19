@@ -133,15 +133,9 @@ public class TransactionImpl implements Transaction , TimerTask {
         if (checkIfOpen(completableFuture)) {
             synchronized (TransactionImpl.this) {
                 // we need to issue the request to TC to register the acked topic
-                return registerSubscriptionMap.compute(Pair.of(topic, subscription), (key, future) -> {
-                    if (future != null) {
-                        return future.thenCompose(ignored -> CompletableFuture.completedFuture(null));
-                    } else {
-                        return tcClient.addSubscriptionToTxnAsync(
-                                new TxnID(txnIdMostBits, txnIdLeastBits), topic, subscription)
-                                .thenCompose(ignored -> CompletableFuture.completedFuture(null));
-                    }
-                });
+                return registerSubscriptionMap.computeIfAbsent(Pair.of(topic, subscription), key ->
+                        tcClient.addSubscriptionToTxnAsync(
+                                new TxnID(txnIdMostBits, txnIdLeastBits), topic, subscription));
             }
         }
         return completableFuture;
