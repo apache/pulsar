@@ -19,13 +19,15 @@
 package org.apache.pulsar.client.impl.auth.oauth2;
 
 import java.net.URL;
-import java.time.Clock;
 import org.apache.pulsar.client.api.Authentication;
 
 /**
  * Factory class that allows to create {@link Authentication} instances
  * for OAuth 2.0 authentication methods.
+ *
+ * Use {@link AuthenticationOAuth2Builder}.
  */
+@Deprecated
 public final class AuthenticationFactoryOAuth2 {
 
     /**
@@ -35,7 +37,9 @@ public final class AuthenticationFactoryOAuth2 {
      * @param credentialsUrl the credentials URL
      * @param audience An optional field. The audience identifier used by some Identity Providers, like Auth0.
      * @return an Authentication object
+     * @deprecated use {@link AuthenticationOAuth2Builder}, instead.
      */
+    @Deprecated
     public static Authentication clientCredentials(URL issuerUrl, URL credentialsUrl, String audience) {
         return clientCredentials(issuerUrl, credentialsUrl, audience, null);
     }
@@ -52,14 +56,16 @@ public final class AuthenticationFactoryOAuth2 {
      *              and each string adds an additional access range to the requested scope.
      *              From here: https://datatracker.ietf.org/doc/html/rfc6749#section-4.4.2
      * @return an Authentication object
+     * @deprecated use {@link AuthenticationOAuth2Builder}, instead.
      */
+    @Deprecated
     public static Authentication clientCredentials(URL issuerUrl, URL credentialsUrl, String audience, String scope) {
-        ClientCredentialsFlow flow = ClientCredentialsFlow.builder()
+        ClientCredentialsConfiguration config = ClientCredentialsConfiguration.builder()
                 .issuerUrl(issuerUrl)
-                .privateKey(credentialsUrl.toExternalForm())
+                .keyFileUrl(credentialsUrl)
                 .audience(audience)
                 .scope(scope)
                 .build();
-        return new AuthenticationOAuth2(flow, Clock.systemDefaultZone());
+        return new AuthenticationOAuth2Builder().setClientCredentialsConfiguration(config).build();
     }
 }

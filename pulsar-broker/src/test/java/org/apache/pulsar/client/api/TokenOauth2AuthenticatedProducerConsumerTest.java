@@ -34,7 +34,8 @@ import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.impl.ProducerImpl;
-import org.apache.pulsar.client.impl.auth.oauth2.AuthenticationFactoryOAuth2;
+import org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2Builder;
+import org.apache.pulsar.client.impl.auth.oauth2.ClientCredentialsConfiguration;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
@@ -92,12 +93,16 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
         Path path = Paths.get(CREDENTIALS_FILE).toAbsolutePath();
         log.info("Credentials File path: {}", path.toString());
 
+        ClientCredentialsConfiguration config = ClientCredentialsConfiguration.builder()
+                .issuerUrl(new URL("https://dev-kt-aa9ne.us.auth0.com"))
+                .keyFileUrl(path.toUri().toURL())
+                .scope("https://dev-kt-aa9ne.us.auth0.com/api/v2/")
+                .build();
+
         // AuthenticationOAuth2
-        Authentication authentication = AuthenticationFactoryOAuth2.clientCredentials(
-                new URL("https://dev-kt-aa9ne.us.auth0.com"),
-                path.toUri().toURL(),  // key file path
-                "https://dev-kt-aa9ne.us.auth0.com/api/v2/"
-        );
+        Authentication authentication = AuthenticationOAuth2Builder.builder()
+                .setClientCredentialsConfiguration(config)
+                .build();
 
         admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
                 .authentication(authentication)
