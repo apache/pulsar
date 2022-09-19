@@ -29,6 +29,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
+import org.apache.pulsar.common.policies.data.impl.AutoSubscriptionCreationOverrideImpl;
 import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 
@@ -73,6 +74,8 @@ public class TopicPolicies {
     private DispatchRateImpl replicatorDispatchRate;
     private SchemaCompatibilityStrategy schemaCompatibilityStrategy;
     private EntryFilters entryFilters;
+    // If set, it will override the namespace settings for allowing auto subscription creation
+    private AutoSubscriptionCreationOverrideImpl autoSubscriptionCreationOverride;
 
     /**
      * Subscription level policies for specific subscription.
