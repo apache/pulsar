@@ -23,6 +23,7 @@ import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMo
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockZooKeeper;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -347,5 +348,26 @@ public class PersistentSubscriptionTest {
         positionsPair.add(new MutablePair(new PositionImpl(2, 1), 0));
 
         persistentSubscription.transactionIndividualAcknowledge(txnID2, positionsPair);
+    }
+
+    @Test
+    public void testAcknowledgeUpdateCursorLastActive() throws Exception {
+        doAnswer((invocationOnMock) -> {
+            ((AsyncCallbacks.DeleteCallback) invocationOnMock.getArguments()[1])
+                    .deleteComplete(invocationOnMock.getArguments()[2]);
+            return null;
+        }).when(cursorMock).asyncDelete(any(List.class), any(AsyncCallbacks.DeleteCallback.class), any());
+
+        doCallRealMethod().when(cursorMock).updateLastActive();
+        doCallRealMethod().when(cursorMock).getLastActive();
+
+        List<Position> positionList = new ArrayList<>();
+        positionList.add(new PositionImpl(1, 1));
+        long beforeAcknowledgeTimestamp = System.currentTimeMillis();
+        Thread.sleep(1);
+        persistentSubscription.acknowledgeMessage(positionList, AckType.Individual, Collections.emptyMap());
+
+        // `acknowledgeMessage` should update cursor last active
+        assertTrue(persistentSubscription.cursor.getLastActive() > beforeAcknowledgeTimestamp);
     }
 }

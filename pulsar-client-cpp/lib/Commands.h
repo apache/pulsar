@@ -100,7 +100,8 @@ class Commands {
                                     const std::string& producerName, uint64_t requestId,
                                     const std::map<std::string, std::string>& metadata,
                                     const SchemaInfo& schemaInfo, uint64_t epoch,
-                                    bool userProvidedProducerName, bool encrypted);
+                                    bool userProvidedProducerName, bool encrypted,
+                                    proto::ProducerAccessMode accessMode, Optional<uint64_t> topicEpoch);
 
     static SharedBuffer newAck(uint64_t consumerId, const proto::MessageIdData& messageId,
                                proto::CommandAck_AckType ackType, int validationError);

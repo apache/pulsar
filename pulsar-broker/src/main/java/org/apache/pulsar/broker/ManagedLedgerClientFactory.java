@@ -19,11 +19,11 @@
 package org.apache.pulsar.broker;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Maps;
 import io.netty.channel.EventLoopGroup;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.RejectedExecutionException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.conf.ClientConfiguration;
@@ -49,7 +49,7 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
     private ManagedLedgerFactory managedLedgerFactory;
     private BookKeeper defaultBkClient;
     private final Map<EnsemblePlacementPolicyConfig, BookKeeper>
-            bkEnsemblePolicyToBkClientMap = Maps.newConcurrentMap();
+            bkEnsemblePolicyToBkClientMap = new ConcurrentHashMap<>();
     private StatsProvider statsProvider = new NullStatsProvider();
 
     public void initialize(ServiceConfiguration conf, MetadataStoreExtended metadataStore,

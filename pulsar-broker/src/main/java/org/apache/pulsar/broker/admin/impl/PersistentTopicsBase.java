@@ -740,7 +740,7 @@ public class PersistentTopicsBase extends AdminResource {
                         .fetchPartitionedTopicMetadataAsync(topicName)
                         .thenCompose(partitionedMeta -> {
                             final int numPartitions = partitionedMeta.partitions;
-                            if (numPartitions < 1){
+                            if (numPartitions < 1) {
                                 return CompletableFuture.completedFuture(null);
                             }
                             return internalRemovePartitionsAuthenticationPoliciesAsync(numPartitions)
@@ -4459,10 +4459,6 @@ public class PersistentTopicsBase extends AdminResource {
             });
             return future;
         }).thenAccept(__ -> result.complete(null)).exceptionally(ex -> {
-            if (force && ex.getCause() instanceof PulsarAdminException.ConflictException) {
-                result.complete(null);
-                return null;
-            }
             result.completeExceptionally(ex);
             return null;
         });
@@ -4520,7 +4516,7 @@ public class PersistentTopicsBase extends AdminResource {
                                 future.complete(null);
                             } else {
                                 if (ignoreConflictException
-                                        && ex.getCause() instanceof PulsarAdminException.ConflictException) {
+                                        && ex instanceof PulsarAdminException.ConflictException) {
                                     future.complete(null);
                                 } else {
                                     future.completeExceptionally(ex);
