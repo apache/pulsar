@@ -37,6 +37,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -419,9 +420,9 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         if (!admin.clusters().getClusters().contains(configClusterName)) {
             admin.clusters().createCluster(configClusterName, ClusterData.builder().build());
         }
-        Set<String> allowedClusters = Sets.newHashSet();
+        Set<String> allowedClusters = new HashSet<>();
         allowedClusters.add(configClusterName);
-        return new TenantInfoImpl(Sets.newHashSet(), allowedClusters);
+        return new TenantInfoImpl(new HashSet<>(), allowedClusters);
     }
 
     public static MockZooKeeper createMockZooKeeper() throws Exception {

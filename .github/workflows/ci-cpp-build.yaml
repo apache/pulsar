@@ -25,12 +25,7 @@ on:
     paths:
       - '.github/workflows/**'
       - 'pulsar-client-cpp/**'
-  push:
-    branches:
-      - branch-*
-    paths:
-      - '.github/workflows/**'
-      - 'pulsar-client-cpp/**'
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -62,8 +57,8 @@ jobs:
 
   cpp-build-centos7:
     needs: changed_files_job
-    name:
-    runs-on: ubuntu-latest
+    name: Build CPP Client on CentOS7
+    runs-on: ubuntu-20.04
     if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
     timeout-minutes: 120
 
@@ -82,7 +77,7 @@ jobs:
   cpp-build-windows:
     needs: changed_files_job
     timeout-minutes: 120
-    name: ${{ matrix.name }}
+    name: Build CPP Client on ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
     env:
@@ -189,8 +184,8 @@ jobs:
           fi
   cpp-deb-rpm-packaging:
     needs: changed_files_job
-    name:
-    runs-on: ubuntu-latest
+    name: Build CPP Client on RPM
+    runs-on: ubuntu-20.04
     timeout-minutes: 120
     if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
 
@@ -238,8 +233,8 @@ jobs:
 
   build-python-wheel:
     needs: changed_files_job
-    name:
-    runs-on: ubuntu-latest
+    name: Build Python Client
+    runs-on: ubuntu-20.04
     timeout-minutes: 120
     if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
 

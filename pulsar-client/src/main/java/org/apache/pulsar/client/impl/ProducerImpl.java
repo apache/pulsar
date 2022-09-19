@@ -1455,7 +1455,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             SendCallback callback = this.callback;
             if (null != callback) {
                 Exception finalEx = e;
-                if (finalEx != null && finalEx instanceof TimeoutException) {
+                if (finalEx instanceof TimeoutException) {
                     TimeoutException te = (TimeoutException) e;
                     long sequenceId = te.getSequenceId();
                     long ns = System.nanoTime();

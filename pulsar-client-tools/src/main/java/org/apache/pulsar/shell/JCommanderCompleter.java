@@ -22,7 +22,6 @@ import static java.lang.annotation.ElementType.FIELD;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.ParameterDescription;
 import com.beust.jcommander.WrappedParameter;
-import java.io.File;
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 import java.lang.reflect.Field;
@@ -172,7 +171,7 @@ public class JCommanderCompleter {
         if (parameterCompleter != null) {
             final ParameterCompleter.Type completer = parameterCompleter.type();
             if (completer == ParameterCompleter.Type.FILES) {
-                valueCompleter = new Completers.FilesCompleter(new File(System.getProperty("user.dir")));
+                valueCompleter = new Completers.FilesCompleter(ConfigShell.resolveLocalFile("."));
             } else if (completer == ParameterCompleter.Type.CONFIGS) {
                 valueCompleter = new Completer() {
                     @Override

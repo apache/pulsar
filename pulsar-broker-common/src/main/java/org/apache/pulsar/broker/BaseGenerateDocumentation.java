@@ -97,6 +97,16 @@ public abstract class BaseGenerateDocumentation {
         return fieldContext.deprecated();
     };
 
+    protected Predicate<Field> isRequiredApiModel = field -> {
+        ApiModelProperty modelProperty = field.getAnnotation(ApiModelProperty.class);
+        return modelProperty.required();
+    };
+
+    protected Predicate<Field> isOptionalApiModel = field -> {
+        ApiModelProperty modelProperty = field.getAnnotation(ApiModelProperty.class);
+        return !modelProperty.required();
+    };
+
     protected void writeDocListByFieldContext(List<Field> fieldList, StringBuilder sb, Object obj) throws Exception {
         for (Field field : fieldList) {
             FieldContext fieldContext = field.getAnnotation(FieldContext.class);
@@ -104,9 +114,23 @@ public abstract class BaseGenerateDocumentation {
 
             sb.append("### ").append(field.getName()).append("\n");
             sb.append(fieldContext.doc().replace(">", "\\>")).append("\n\n");
+            sb.append("**Type**: `").append(field.getType().getCanonicalName()).append("`\n\n");
             sb.append("**Default**: `").append(field.get(obj)).append("`\n\n");
             sb.append("**Dynamic**: `").append(fieldContext.dynamic()).append("`\n\n");
             sb.append("**Category**: ").append(fieldContext.category()).append("\n\n");
+        }
+    }
+
+    protected void writeDocListByApiModel(List<Field> fieldList, StringBuilder sb, Object obj) throws Exception {
+        for (Field field : fieldList) {
+            ApiModelProperty modelProperty = field.getAnnotation(ApiModelProperty.class);
+            field.setAccessible(true);
+
+            String name = StringUtils.isBlank(modelProperty.name()) ? field.getName() : modelProperty.name();
+            sb.append("### ").append(name).append("\n");
+            sb.append(modelProperty.value().replace(">", "\\>")).append("\n\n");
+            sb.append("**Type**: `").append(field.getType().getCanonicalName()).append("`\n\n");
+            sb.append("**Default**: `").append(field.get(obj)).append("`\n\n");
         }
     }
 
@@ -161,23 +185,17 @@ public abstract class BaseGenerateDocumentation {
         Field[] fields = clazz.getDeclaredFields();
         ArrayList<Field> fieldList = new ArrayList<>(Arrays.asList(fields));
 
+        fieldList.removeIf(f -> f.getAnnotation(ApiModelProperty.class) == null);
         fieldList.sort(Comparator.comparing(Field::getName));
+        List<Field> requiredFields = fieldList.stream().filter(isRequiredApiModel).toList();
+        List<Field> optionalFields = fieldList.stream().filter(isOptionalApiModel).toList();
 
         sb.append("# ").append(type).append("\n");
         sb.append(prefix).append(className).append(suffix);
+        sb.append("## Required\n");
+        writeDocListByApiModel(requiredFields, sb, obj);
         sb.append("## Optional\n");
-        for (Field field : fieldList) {
-            ApiModelProperty fieldContext = field.getAnnotation(ApiModelProperty.class);
-            if (fieldContext == null) {
-                continue;
-            }
-            field.setAccessible(true);
-
-            String name = StringUtils.isBlank(fieldContext.name()) ? field.getName() : fieldContext.name();
-            sb.append("### ").append(name).append("\n");
-            sb.append(fieldContext.value().replace(">", "\\>")).append("\n\n");
-            sb.append("**Default**: `").append(field.get(obj)).append("`\n\n");
-        }
+        writeDocListByApiModel(optionalFields, sb, obj);
 
         return sb.toString();
     }
