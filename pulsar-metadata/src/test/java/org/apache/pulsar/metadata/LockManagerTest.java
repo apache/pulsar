@@ -42,6 +42,7 @@ import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.coordination.impl.CoordinationServiceImpl;
 import org.awaitility.Awaitility;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 public class LockManagerTest extends BaseMetadataStoreTest {
@@ -291,6 +292,37 @@ public class LockManagerTest extends BaseMetadataStoreTest {
             // On 'store1' we might see for a short amount of time an empty result still cached while the lock is
             // being reacquired.
             assertEquals(new String(store1.get(path2).join().get().getValue()), "\"value-1\"");
+        });
+    }
+
+    @Test(dataProvider = "impl")
+    public void testCleanUpStateWhenRevalidationGotLockBusy(String provider, Supplier<String> urlSupplier)
+            throws Exception {
+
+        if (provider.equals("Memory") || provider.equals("RocksDB")) {
+            // Local memory provider doesn't really have the concept of multiple sessions
+            return;
+        }
+
+        @Cleanup
+        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().build());
+        @Cleanup
+        CoordinationService cs1 = new CoordinationServiceImpl(store);
+        @Cleanup
+        LockManager<String> lm1 = cs1.getLockManager(String.class);
+        final String path = newKey();
+        ResourceLock<String> lock = lm1.acquireLock(path, "value-1").join();
+
+        assertFalse(lock.getLockExpiredFuture().isDone());
+        store.delete(path, Optional.empty()).join();
+
+        ResourceLock<String> lock2 = lm1.acquireLock(path, "value-2").join();
+
+        assertFalse(lock2.getLockExpiredFuture().isDone());
+
+        Awaitility.await().untilAsserted(()-> {
+            Assert.assertTrue(lock.getLockExpiredFuture().isDone());
         });
     }
 }
