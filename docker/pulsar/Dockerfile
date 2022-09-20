@@ -69,7 +69,8 @@ RUN mkdir -p /etc/apt/keyrings \
      && echo "deb [signed-by=/etc/apt/keyrings/adoptium.asc] https://packages.adoptium.net/artifactory/deb $(awk -F= '/^VERSION_CODENAME/{print$2}' /etc/os-release) main" | tee /etc/apt/sources.list.d/adoptium.list \
      && apt-get update \
      && apt-get -y dist-upgrade \
-     && apt-get -y install temurin-17-jdk
+     && apt-get -y install temurin-17-jdk \
+     && export JAVA_HOME="/usr/lib/jvm/temurin-17-jdk-$(uname -m)"
 
 # Cleanup apt
 RUN apt-get -y --purge autoremove \
@@ -87,8 +88,7 @@ RUN pip3 install pyyaml==5.4.1
 # 4. /pulsar - hadoop writes to this directory
 RUN mkdir /pulsar && chmod g+w /pulsar
 
-ENV JAVA_HOME /usr/lib/jvm/temurin-17-jdk-amd64
-RUN echo networkaddress.cache.ttl=1 >> /usr/lib/jvm/temurin-17-jdk-amd64/conf/security/java.security
+RUN echo networkaddress.cache.ttl=1 >> ${JAVA_HOME}/conf/security/java.security
 ADD target/python-client/ /pulsar/pulsar-client
 
 ENV PULSAR_ROOT_LOGGER=INFO,CONSOLE
