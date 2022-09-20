@@ -138,46 +138,6 @@ components in the Pulsar ecosystem, including connectors, adapters, and other la
 > Note: this project includes a [Maven Wrapper](https://maven.apache.org/wrapper/) that can be used instead of a system installed Maven.
 > Use it by replacing `mvn` by `./mvnw` on Linux and `mvnw.cmd` on Windows in the commands below.
 
-### Install JDK on M1
-In the current version, Pulsar uses a BookKeeper version which in turn uses RocksDB. RocksDB is compiled to work on x86 architecture and not ARM. Therefore, Pulsar can only work with x86 JDK. This is planned to be fixed in future versions of Pulsar.
-
-One of the ways to easily install an x86 JDK is to use [SDKMan](http://sdkman.io) as outlined in the following steps:
-
-1. Install [SDKMan](http://sdkman.io).
-
-Follow the instructions on the SDKMan website.
-
-2. Turn on Rosetta2 compatibility for SDKMan by editing `~/.sdkman/etc/config` and changing the following property from `false` to `true`.
-
-```properties
-sdkman_rosetta2_compatible=true
-```
-
-3. Close the current shell / terminal window and open a new one.
-4. Make sure you don't have any previously installed JVM of the same version by listing existing installed versions.
-
-```shell
-sdk list java|grep installed
-```
-
-Example output:
-
-```text
-               | >>> | 17.0.3.6.1   | amzn    | installed  | 17.0.3.6.1-amzn
-```
-
-If you have any Java 17 version installed, uninstall it.
-
-```shell
-sdk uinstall java 17.0.3.6.1
-```
-
-5. Install any Java versions greater than Java 8.
-
-```shell
-sdk install java 17.0.3.6.1-amzn
-```
-
 ### Build
 Compile and install:
 
