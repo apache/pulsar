@@ -72,11 +72,14 @@ RUN mkdir -p /etc/apt/keyrings \
      && apt-get -y install temurin-17-jdk \
      && export architecture=$(uname -m | sed -r 's/aarch64/arm64/g' |  awk '!/arm64/{$0="amd64"}1') \
      && echo networkaddress.cache.ttl=1 >> /usr/lib/jvm/temurin-17-jdk-$architecture/conf/security/java.security \
-     && apt-get -y --purge autoremove \
+
+# Cleanup apt
+RUN apt-get -y --purge autoremove \
      && apt-get autoclean \
      && apt-get clean \
-     && rm -rf /var/lib/apt/lists/* \
-     && pip3 install pyyaml==5.4.1
+     && rm -rf /var/lib/apt/lists/*
+
+RUN pip3 install pyyaml==5.4.1
 
 # Pulsar currently writes to the below directories, assuming the default configuration.
 # Note that number 4 is the reason that pulsar components need write access to the /pulsar directory.
