@@ -6,7 +6,7 @@ original_id: io-connectors
 ---
 
 Pulsar distribution includes a set of common connectors that have been packaged and tested with the rest of Apache Pulsar.
-These connectors import and export data from some of the most commonly used data systems. Using any these connectors is
+These connectors import and export data from some of the most commonly used data systems. Using any of these connectors is
 as easy as writing a simple connector configuration and running the connector locally or submitting the connector to a
 Pulsar Functions cluster.
 
