@@ -69,13 +69,15 @@ In the above example, the mapping relationship is shown as below.
 - The `privateKey` file parameter in this plugin should at least contains the `client_id` and `client_secret` fields.
 - The `audience` parameter in this plugin is mapped to  `"audience":"https://dev-kt-aa9ne.us.auth0.com/api/v2/"`. This field is only used by some identity providers.
 
-## Client Configuration
+## Configure OAuth2 authentication in Pulsar clients
 
 You can use the OAuth2 authentication provider with the following Pulsar clients.
 
-### Java client
-
-You can use the factory method to configure authentication for Pulsar Java client.
+````mdx-code-block
+<Tabs groupId="lang-choice"
+  defaultValue="Java"
+  values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"},{"label":"C++","value":"C++"},{"label":"Node.js","value":"Node.js"},{"label":"Go","value":"Go"}]}>
+<TabItem value="Java">
 
 ```java
 import org.apache.pulsar.client.impl.auth.oauth2.AuthenticationFactoryOAuth2;
@@ -102,47 +104,8 @@ PulsarClient client = PulsarClient.builder()
     .build();
 ```
 
-### C++ client
-
-The C++ client is similar to the Java client. You need to provide the parameters of `issuerUrl`, `private_key` (the credentials file path), and `audience`.
-
-```cpp
-#include <pulsar/Client.h>
-
-pulsar::ClientConfiguration config;
-std::string params = R"({
-    "issuer_url": "https://dev-kt-aa9ne.us.auth0.com",
-    "private_key": "../../pulsar-broker/src/test/resources/authentication/token/cpp_credentials_file.json",
-    "audience": "https://dev-kt-aa9ne.us.auth0.com/api/v2/"})";
-
-config.setAuth(pulsar::AuthOauth2::create(params));
-
-pulsar::Client client("pulsar://broker.example.com:6650/", config);
-```
-
-### Go client
-
-To enable OAuth2 authentication in Go client, you need to configure OAuth2 authentication.
-This example shows how to configure OAuth2 authentication in Go client.
-
-```go
-oauth := pulsar.NewAuthenticationOAuth2(map[string]string{
-		"type":       "client_credentials",
-		"issuerUrl":  "https://dev-kt-aa9ne.us.auth0.com",
-		"audience":   "https://dev-kt-aa9ne.us.auth0.com/api/v2/",
-		"privateKey": "/path/to/privateKey",
-		"clientId":   "0Xx...Yyxeny",
-	})
-client, err := pulsar.NewClient(pulsar.ClientOptions{
-		URL:              "pulsar://my-cluster:6650",
-		Authentication:   oauth,
-})
-```
-
-### Python client
-
-To enable OAuth2 authentication in Python client, you need to configure OAuth2 authentication.
-This example shows how to configure OAuth2 authentication in Python client.
+</TabItem>
+<TabItem value="Python">
 
 ```python
 from pulsar import Client, AuthenticationOauth2
@@ -158,10 +121,25 @@ params = '''
 client = Client("pulsar://my-cluster:6650", authentication=AuthenticationOauth2(params))
 ```
 
-### Node.js client
+</TabItem>
+<TabItem value="C++">
 
-To enable OAuth2 authentication in Node.js client, you need to configure OAuth2 authentication.
-This example shows how to configure OAuth2 authentication in Node.js client.
+```cpp
+#include <pulsar/Client.h>
+
+pulsar::ClientConfiguration config;
+std::string params = R"({
+    "issuer_url": "https://dev-kt-aa9ne.us.auth0.com",
+    "private_key": "../../pulsar-broker/src/test/resources/authentication/token/cpp_credentials_file.json",
+    "audience": "https://dev-kt-aa9ne.us.auth0.com/api/v2/"})";
+
+config.setAuth(pulsar::AuthOauth2::create(params));
+
+pulsar::Client client("pulsar://broker.example.com:6650/", config);
+```
+
+</TabItem>
+<TabItem value="Node.js">
 
 ```javascript
     const Pulsar = require('pulsar-client');
@@ -205,6 +183,27 @@ The support for OAuth2 authentication is only available in Node.js client 1.6.2 
 
 :::
 
+</TabItem>
+<TabItem value="Go">
+
+```go
+oauth := pulsar.NewAuthenticationOAuth2(map[string]string{
+		"type":       "client_credentials",
+		"issuerUrl":  "https://dev-kt-aa9ne.us.auth0.com",
+		"audience":   "https://dev-kt-aa9ne.us.auth0.com/api/v2/",
+		"privateKey": "/path/to/privateKey",
+		"clientId":   "0Xx...Yyxeny",
+	})
+client, err := pulsar.NewClient(pulsar.ClientOptions{
+		URL:              "pulsar://my-cluster:6650",
+		Authentication:   oauth,
+})
+```
+
+</TabItem>
+</Tabs>
+````
+
 ## Broker configuration
 To enable OAuth2 authentication in brokers, add the following parameters to the `broker.conf` or `standalone.conf` file.
 
@@ -220,7 +219,7 @@ brokerClientAuthenticationParameters={"privateKey":"/path/to/privateKey",\
   "audience":"https://dev-kt-aa9ne.us.auth0.com/api/v2/","issuerUrl":"https://dev-kt-aa9ne.us.auth0.com"}
 ```
 
-## CLI configuration
+## Configure OAuth2 authentication in CLI tools
 
 This section describes how to use Pulsar CLI tools to connect a cluster through OAuth2 authentication plugin.
 
