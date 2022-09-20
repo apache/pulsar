@@ -21,8 +21,10 @@ package org.apache.pulsar.client.impl;
 import static org.testng.AssertJUnit.assertFalse;
 import static org.testng.AssertJUnit.assertTrue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Schema;
@@ -64,12 +66,19 @@ public class ReaderImplTest {
     }
 
     @Test
-    void shouldSupportCancellingReadNextAsync() {
+    void shouldSupportCancellingReadNextAsync() throws IllegalAccessException {
         // given
-        CompletableFuture<Message<byte[]>> future = reader.readNextAsync();
+        reader.readNextAsync();
         Awaitility.await().untilAsserted(() -> {
             assertTrue(reader.getConsumer().hasNextPendingReceive());
         });
+
+        ConsumerBase consumer = (ConsumerBase)
+                FieldUtils.readDeclaredField(reader, "consumer", true);
+        ConcurrentLinkedQueue<CompletableFuture<Message<byte[]>>>
+                pendingReceives = (ConcurrentLinkedQueue<CompletableFuture<Message<byte[]>>>)
+                FieldUtils.readField(consumer, "pendingReceives", true);
+        CompletableFuture<Message<byte[]>> future = pendingReceives.peek();
 
         // when
         future.cancel(false);
