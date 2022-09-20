@@ -176,14 +176,14 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
                 }
             }
 
-            log.info("[{}] [{}] Pending messages: {} --- Publish throughput: {} msg/s --- {} Mbit/s --- "
+            log.info("[{}] [{}] --- Publish throughput: {} msg/s --- {} Mbit/s --- "
                             + "Latency: med: {} ms - 95pct: {} ms - 99pct: {} ms - 99.9pct: {} ms - max: {} ms --- "
                             + "BatchSize: med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - max: {} --- "
                             + "MsgSize: med: {} bytes - 95pct: {} bytes - 99pct: {} bytes - 99.9pct: {} bytes "
                             + "- max: {} bytes --- "
                             + "Ack received rate: {} ack/s --- Failed messages: {} --- Pending messages: {}",
                     producer.getTopic(),
-                    producer.getProducerName(), producer.getPendingQueueSize(),
+                    producer.getProducerName(),
                     THROUGHPUT_FORMAT.format(sendMsgsRate),
                     THROUGHPUT_FORMAT.format(sendBytesRate / 1024 / 1024 * 8),
                     DEC.format(latencyPctValues[0]), DEC.format(latencyPctValues[2]),

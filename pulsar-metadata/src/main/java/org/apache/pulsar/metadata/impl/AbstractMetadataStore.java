@@ -409,14 +409,19 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     protected void receivedSessionEvent(SessionEvent event) {
         isConnected = event.isConnected();
-
-        sessionListeners.forEach(l -> {
-            try {
-                l.accept(event);
-            } catch (Throwable t) {
-                log.warn("Error in processing session event", t);
-            }
-        });
+        try {
+            executor.execute(() -> {
+                sessionListeners.forEach(l -> {
+                    try {
+                        l.accept(event);
+                    } catch (Throwable t) {
+                        log.warn("Error in processing session event " + event, t);
+                    }
+                });
+            });
+        } catch (RejectedExecutionException e) {
+            log.warn("Error in processing session event " + event, e);
+        }
     }
 
     @Override

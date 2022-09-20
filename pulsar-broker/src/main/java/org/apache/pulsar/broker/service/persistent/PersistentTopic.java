@@ -381,6 +381,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
     }
 
+    @VisibleForTesting
+    public AtomicLong getPendingWriteOps() {
+        return pendingWriteOps;
+    }
+
     private PersistentSubscription createPersistentSubscription(String subscriptionName, ManagedCursor cursor,
             boolean replicated, Map<String, String> subscriptionProperties) {
         Objects.requireNonNull(compactedTopic);
@@ -2345,8 +2350,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         return;
                     }
                     if (System.currentTimeMillis() - sub.cursor.getLastActive() > expirationTimeMillis) {
-                        sub.delete().thenAccept(v -> log.info("[{}][{}] The subscription was deleted due to expiration",
-                                topic, subName));
+                        sub.delete().thenAccept(v -> log.info("[{}][{}] The subscription was deleted due to expiration "
+                                + "with last active [{}]", topic, subName, sub.cursor.getLastActive()));
                     }
                 });
             }

@@ -1073,6 +1073,11 @@ void ClientConnection::handleIncomingCommand() {
                         if (producerSuccess.has_schema_version()) {
                             data.schemaVersion = producerSuccess.schema_version();
                         }
+                        if (producerSuccess.has_topic_epoch()) {
+                            data.topicEpoch = Optional<uint64_t>::of(producerSuccess.topic_epoch());
+                        } else {
+                            data.topicEpoch = Optional<uint64_t>::empty();
+                        }
                         requestData.promise.setValue(data);
                         requestData.timer->cancel();
                     }
