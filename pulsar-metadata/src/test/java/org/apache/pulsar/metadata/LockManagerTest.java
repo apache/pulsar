@@ -328,9 +328,14 @@ public class LockManagerTest extends BaseMetadataStoreTest {
         ResourceLock<String> lock1 = lm1.acquireLock(path1, "value-1").join();
         AtomicReference<ResourceLock<String>> lock2 = new AtomicReference<>();
         // lock 2 will steal the distributed lock first.
-        Awaitility.await().untilAsserted(()-> {
+        Awaitility.await().until(()-> {
             // Ensure steal the lock success.
-           lock2.set(lm2.acquireLock(path1, "value-1").join());
+            try {
+                lock2.set(lm2.acquireLock(path1, "value-1").join());
+                return true;
+            } catch (Exception ex) {
+                return false;
+            }
         });
 
         // Since we can steal the lock repeatedly, we don't know which one will get it.
