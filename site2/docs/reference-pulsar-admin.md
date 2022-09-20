@@ -2429,6 +2429,15 @@ Usage
 pulsar-admin topics stats topic
 ```
 
+Options
+
+|Flag|Description|Default|
+|---|---|---|
+|`-etb`,`--get-earliest-time-in-backlog` | Set true to get earliest time in backlog | false |
+|`-gpb`,`--get-precise-backlog`| Set true to get precise backlog | false |
+|`-sbs`,` --get-subscription-backlog-size`| Set true to get backlog size for each subscription, locking required | false | 
+
+
 :::note
 
 The unit of `storageSize` and `averageMsgSize` is Byte.
@@ -2466,7 +2475,10 @@ Options
 
 |Flag|Description|Default|
 |---|---|---|
+|`-gpb`,`--get-precise-backlog`| Set true to get precise backlog | false |
+|`-sbs`,` --get-subscription-backlog-size`| Set true to get backlog size for each subscription, locking required | false | 
 |`--per-partition`|Get per-partition stats|false|
+
 
 ### `partitioned-stats-internal`
 Get the internal stats for the partitioned topic and its connected producers and consumers. All the rates are computed over a 1 minute window and are relative the last completed 1 minute period.
