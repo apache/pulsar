@@ -1952,9 +1952,9 @@ flexible messaging model and an intuitive client API.</description>
                   <goal>report</goal>
                 </goals>
                 <configuration>
-                  <excludes>
-                    <exclude>**/*.jar</exclude>
-                  </excludes>
+                  <includes>
+                    <include>**/apache/pulsar/**</include>
+                  </includes>
                 </configuration>
               </execution>
             </executions>
