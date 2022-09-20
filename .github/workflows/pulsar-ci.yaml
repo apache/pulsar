@@ -218,9 +218,6 @@ jobs:
         if: ${{ always() }}
         uses: ./.github/actions/copy-test-reports
 
-      - name: Generate jacoco reports
-        run: mvn -Pcoverage org.jacoco:jacoco-maven-plugin:0.8.8:report
-
       - name: Upload to Codecov
         uses: codecov/codecov-action@v3
         continue-on-error: true
