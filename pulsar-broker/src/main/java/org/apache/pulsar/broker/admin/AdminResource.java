@@ -157,13 +157,28 @@ public abstract class AdminResource extends PulsarWebResource {
         }
         List<CompletableFuture<Void>> futures = new ArrayList<>(numPartitions);
         for (int i = 0; i < numPartitions; i++) {
-            futures.add(tryCreatePartitionAsync(i, null));
+            futures.add(tryCreatePartitionAsync(i));
         }
         return FutureUtil.waitForAll(futures);
     }
 
-    private CompletableFuture<Void> tryCreatePartitionAsync(final int partition, CompletableFuture<Void> reuseFuture) {
-        CompletableFuture<Void> result = reuseFuture == null ? new CompletableFuture<>() : reuseFuture;
+    protected CompletableFuture<Void> tryCreateExtendedPartitionsAsync(int oldNumPartitions, int numPartitions) {
+        if (!topicName.isPersistent()) {
+            return CompletableFuture.completedFuture(null);
+        }
+        if (numPartitions <= oldNumPartitions) {
+            return CompletableFuture.failedFuture(new RestException(Status.NOT_ACCEPTABLE,
+                    "Number of new partitions must be greater than existing number of partitions"));
+        }
+        List<CompletableFuture<Void>> futures = new ArrayList<>(numPartitions - oldNumPartitions);
+        for (int i = oldNumPartitions; i < numPartitions; i++) {
+            futures.add(tryCreatePartitionAsync(i));
+        }
+        return FutureUtil.waitForAll(futures);
+    }
+
+    private CompletableFuture<Void> tryCreatePartitionAsync(final int partition) {
+        CompletableFuture<Void> result = new CompletableFuture<>();
         getPulsarResources().getTopicResources().createPersistentTopicAsync(topicName.getPartition(partition))
                 .thenAccept(r -> {
                     if (log.isDebugEnabled()) {
@@ -355,17 +370,21 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     protected boolean checkBacklogQuota(BacklogQuota quota, RetentionPolicies retention) {
-        if (retention == null || retention.getRetentionSizeInMB() <= 0 || retention.getRetentionTimeInMinutes() <= 0) {
+        if (retention == null
+                || (retention.getRetentionSizeInMB() <= 0 && retention.getRetentionTimeInMinutes() <= 0)) {
             return true;
         }
         if (quota == null) {
             quota = pulsar().getBrokerService().getBacklogQuotaManager().getDefaultQuota();
         }
-        if (quota.getLimitSize() >= (retention.getRetentionSizeInMB() * 1024 * 1024)) {
+
+        if (retention.getRetentionSizeInMB() > 0
+                && quota.getLimitSize() >= (retention.getRetentionSizeInMB() * 1024 * 1024)) {
             return false;
         }
         // time based quota is in second
-        if (quota.getLimitTime() >= (retention.getRetentionTimeInMinutes() * 60)) {
+        if (retention.getRetentionTimeInMinutes() > 0
+                && quota.getLimitTime() >= retention.getRetentionTimeInMinutes() * 60) {
             return false;
         }
         return true;

@@ -72,3 +72,9 @@ pulsar_authentication_t *pulsar_authentication_oauth2_create(const char *authPar
     authentication->auth = pulsar::AuthOauth2::create(authParamsString);
     return authentication;
 }
+
+pulsar_authentication_t *pulsar_authentication_basic_create(const char *username, const char *password) {
+    pulsar_authentication_t *authentication = new pulsar_authentication_t;
+    authentication->auth = pulsar::AuthBasic::create(username, password);
+    return authentication;
+}

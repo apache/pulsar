@@ -265,6 +265,9 @@ Result HTTPLookupService::sendHTTPRequest(std::string completeUrl, std::string &
                 }
                 break;
             case CURLE_COULDNT_CONNECT:
+                LOG_ERROR("Response failed for url " << completeUrl << ". Error Code " << res);
+                retResult = ResultRetryable;
+                break;
             case CURLE_COULDNT_RESOLVE_PROXY:
             case CURLE_COULDNT_RESOLVE_HOST:
             case CURLE_HTTP_RETURNED_ERROR:

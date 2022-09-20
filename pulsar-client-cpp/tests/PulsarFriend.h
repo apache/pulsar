@@ -25,6 +25,7 @@
 #include "lib/ConsumerImpl.h"
 #include "lib/MultiTopicsConsumerImpl.h"
 #include "lib/ReaderImpl.h"
+#include "lib/RetryableLookupService.h"
 
 using std::string;
 
@@ -117,6 +118,16 @@ class PulsarFriend {
 
     static boost::posix_time::ptime& getFirstBackoffTime(Backoff& backoff) {
         return backoff.firstBackoffTime_;
+    }
+
+    static void setServiceUrlIndex(ServiceNameResolver& resolver, size_t index) { resolver.index_ = index; }
+
+    static void setServiceUrlIndex(const Client& client, size_t index) {
+        setServiceUrlIndex(client.impl_->serviceNameResolver_, index);
+    }
+
+    static size_t getNumberOfPendingTasks(const RetryableLookupService& lookupService) {
+        return lookupService.backoffTimers_.size();
     }
 };
 }  // namespace pulsar

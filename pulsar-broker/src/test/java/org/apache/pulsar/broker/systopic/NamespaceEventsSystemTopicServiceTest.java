@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.systopic;
 
 import static org.apache.pulsar.broker.systopic.TopicPoliciesSystemTopicClient.TopicPolicyWriter.getEventKey;
 import com.google.common.collect.Sets;
+import java.util.HashSet;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.BrokerService;
@@ -152,7 +153,7 @@ public class NamespaceEventsSystemTopicServiceTest extends MockedPulsarServiceBa
     private void prepareData() throws PulsarAdminException {
         admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
         admin.tenants().createTenant("system-topic",
-            new TenantInfoImpl(Sets.newHashSet(), Sets.newHashSet("test")));
+            new TenantInfoImpl(new HashSet<>(), Sets.newHashSet("test")));
         admin.namespaces().createNamespace(NAMESPACE1);
         admin.namespaces().createNamespace(NAMESPACE2);
         admin.namespaces().createNamespace(NAMESPACE3);

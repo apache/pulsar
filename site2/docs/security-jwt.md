@@ -33,125 +33,6 @@ Always use TLS transport encryption when you connect to the Pulsar service, beca
 
 :::
 
-### CLI Tools
-
-[Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](/tools/pulsar-admin/), [`pulsar-perf`](reference-cli-tools.md#pulsar-perf), and [`pulsar-client`](reference-cli-tools.md#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
-
-You need to add the following parameters to that file to use the token authentication with CLI tools of Pulsar:
-
-```conf
-webServiceUrl=http://broker.example.com:8080/
-brokerServiceUrl=pulsar://broker.example.com:6650/
-authPlugin=org.apache.pulsar.client.impl.auth.AuthenticationToken
-authParams=token:eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL62SY
-```
-
-The token string can also be read from a file, for example:
-
-```conf
-authParams=file:///path/to/token/file
-```
-
-### Pulsar client
-
-You can use tokens to authenticate the following Pulsar clients.
-
-````mdx-code-block
-<Tabs groupId="lang-choice"
-  defaultValue="Java"
-  values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"},{"label":"Go","value":"Go"},{"label":"C++","value":"C++"},{"label":"C#","value":"C#"}]}>
-<TabItem value="Java">
-
-```java
-PulsarClient client = PulsarClient.builder()
-    .serviceUrl("pulsar://broker.example.com:6650/")
-    .authentication(
-        AuthenticationFactory.token("eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL62SY")）
-    .build();
-```
-
-Similarly, you can also pass a `Supplier`:
-
-```java
-PulsarClient client = PulsarClient.builder()
-    .serviceUrl("pulsar://broker.example.com:6650/")
-    .authentication(
-        AuthenticationFactory.token(() -> {
-            // Read token from custom source
-            return readToken();
-        }))
-    .build();
-```
-
-</TabItem>
-<TabItem value="Python">
-
-```python
-from pulsar import Client, AuthenticationToken
-
-client = Client('pulsar://broker.example.com:6650/'
-                authentication=AuthenticationToken('eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL62SY'))
-```
-
-Alternatively, you can also pass a `Supplier`:
-
-```python
-def read_token():
-    with open('/path/to/token.txt') as tf:
-        return tf.read().strip()
-
-client = Client('pulsar://broker.example.com:6650/'
-                authentication=AuthenticationToken(read_token))
-```
-
-</TabItem>
-<TabItem value="Go">
-
-```go
-client, err := NewClient(ClientOptions{
-	URL:            "pulsar://localhost:6650",
-	Authentication: NewAuthenticationToken("eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL62SY"),
-})
-```
-
-Similarly, you can also pass a `Supplier`:
-
-```go
-client, err := NewClient(ClientOptions{
-	URL:            "pulsar://localhost:6650",
-	Authentication: NewAuthenticationTokenSupplier(func () string {
-        // Read token from custom source
-		return readToken()
-	}),
-})
-```
-
-</TabItem>
-<TabItem value="C++">
-
-```cpp
-#include <pulsar/Client.h>
-
-pulsar::ClientConfiguration config;
-config.setAuth(pulsar::AuthToken::createWithToken("eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL62SY"));
-
-pulsar::Client client("pulsar://broker.example.com:6650/", config);
-```
-
-</TabItem>
-<TabItem value="C#">
-
-```csharp
-var client = PulsarClient.Builder()
-                         .AuthenticateUsingToken("eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL62SY")
-                         .Build();
-```
-
-</TabItem>
-
-</Tabs>
-````
-
 ## Enable token authentication
 
 JWT supports two different kinds of keys to generate and validate the tokens:
@@ -225,7 +106,7 @@ The token itself does not have any permission associated. The authorization engi
 
 :::
 
-### Enable token authentication on Brokers
+### Enable token authentication on brokers
 
 To configure brokers to authenticate clients, add the following parameters to the `conf/broker.conf` or `conf/standalone.conf` file.
 
@@ -262,7 +143,7 @@ Equivalent to `brokerClientAuthenticationParameters`, you need to configure `aut
 
 :::
 
-### Enable token authentication on Proxies
+### Enable token authentication on proxies
 
 To configure proxies to authenticate clients, add the following parameters to the `conf/proxy.conf` file.
 
@@ -282,3 +163,122 @@ brokerClientAuthenticationParameters={"token":"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0
 ```
 
 The proxy uses its own token when connecting to brokers. You need to configure the role token for this key pair in the `proxyRoles` of the brokers. For more details, see [authorization](security-authorization.md).
+
+### Configure JWT authentication in CLI Tools
+
+[Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](/tools/pulsar-admin/), [`pulsar-perf`](reference-cli-tools.md#pulsar-perf), and [`pulsar-client`](reference-cli-tools.md#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
+
+You need to add the following parameters to that file to use the token authentication with CLI tools of Pulsar:
+
+```conf
+webServiceUrl=http://broker.example.com:8080/
+brokerServiceUrl=pulsar://broker.example.com:6650/
+authPlugin=org.apache.pulsar.client.impl.auth.AuthenticationToken
+authParams=token:eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL62SY
+```
+
+The token string can also be read from a file, for example:
+
+```conf
+authParams=file:///path/to/token/file
+```
+
+### Configure JWT authentication in Pulsar clients
+
+You can use tokens to authenticate the following Pulsar clients.
+
+````mdx-code-block
+<Tabs groupId="lang-choice"
+  defaultValue="Java"
+  values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"},{"label":"Go","value":"Go"},{"label":"C++","value":"C++"},{"label":"C#","value":"C#"}]}>
+<TabItem value="Java">
+
+```java
+PulsarClient client = PulsarClient.builder()
+    .serviceUrl("pulsar://broker.example.com:6650/")
+    .authentication(
+        AuthenticationFactory.token("eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL62SY")）
+    .build();
+```
+
+Similarly, you can also pass a `Supplier`:
+
+```java
+PulsarClient client = PulsarClient.builder()
+    .serviceUrl("pulsar://broker.example.com:6650/")
+    .authentication(
+        AuthenticationFactory.token(() -> {
+            // Read token from custom source
+            return readToken();
+        }))
+    .build();
+```
+
+</TabItem>
+<TabItem value="Python">
+
+```python
+from pulsar import Client, AuthenticationToken
+
+client = Client('pulsar://broker.example.com:6650/'
+                authentication=AuthenticationToken('eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL62SY'))
+```
+
+Alternatively, you can also pass a `Supplier`:
+
+```python
+def read_token():
+    with open('/path/to/token.txt') as tf:
+        return tf.read().strip()
+
+client = Client('pulsar://broker.example.com:6650/'
+                authentication=AuthenticationToken(read_token))
+```
+
+</TabItem>
+<TabItem value="Go">
+
+```go
+client, err := pulsar.NewClient(pulsar.ClientOptions{
+	URL:            "pulsar://localhost:6650",
+	Authentication: NewAuthenticationToken("eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL62SY"),
+})
+```
+
+Similarly, you can also pass a `Supplier`:
+
+```go
+client, err := pulsar.NewClient(pulsar.ClientOptions{
+	URL:            "pulsar://localhost:6650",
+	Authentication: pulsar.NewAuthenticationTokenSupplier(func () string {
+        // Read token from custom source
+		return readToken()
+	}),
+})
+```
+
+</TabItem>
+<TabItem value="C++">
+
+```cpp
+#include <pulsar/Client.h>
+
+pulsar::ClientConfiguration config;
+config.setAuth(pulsar::AuthToken::createWithToken("eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL62SY"));
+
+pulsar::Client client("pulsar://broker.example.com:6650/", config);
+```
+
+</TabItem>
+<TabItem value="C#">
+
+```csharp
+var client = PulsarClient.Builder()
+                         .AuthenticateUsingToken("eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL62SY")
+                         .Build();
+```
+
+</TabItem>
+
+</Tabs>
+````

@@ -322,4 +322,25 @@ public class ServiceConfigurationTest {
             assertEquals(configuration.getTransactionPendingAckBatchedWriteMaxDelayInMillis(), 20);
         }
     }
+
+    @Test
+    public void testTransactionMultipleSnapshot() throws Exception {
+        ServiceConfiguration configuration = null;
+        // broker.conf.
+        try (FileInputStream inputStream = new FileInputStream("../conf/broker.conf")) {
+            configuration = PulsarConfigurationLoader.create(inputStream, ServiceConfiguration.class);
+            assertEquals(configuration.getTransactionBufferSnapshotSegmentSize(), 262144);
+            assertFalse(configuration.isTransactionBufferSegmentedSnapshotEnabled());
+        }
+        // string input stream.
+        StringBuilder stringBuilder = new StringBuilder();
+        stringBuilder.append("transactionBufferSnapshotSegmentSize=262144").append(System.lineSeparator());
+        stringBuilder.append("transactionBufferSegmentedSnapshotEnabled = false").append(System.lineSeparator());
+        try(ByteArrayInputStream inputStream =
+                    new ByteArrayInputStream(stringBuilder.toString().getBytes(StandardCharsets.UTF_8))){
+            configuration = PulsarConfigurationLoader.create(inputStream, ServiceConfiguration.class);
+            assertEquals(configuration.getTransactionBufferSnapshotSegmentSize(), 262144);
+            assertFalse(configuration.isTransactionBufferSegmentedSnapshotEnabled());
+        }
+    }
 }

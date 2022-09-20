@@ -27,6 +27,7 @@ import com.beust.jcommander.Parameter;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.configuration.VipStatus;
 import org.apache.pulsar.common.util.CmdGenerateDocs;
+import org.apache.pulsar.common.util.ShutdownUtil;
 import org.apache.pulsar.websocket.WebSocketConsumerServlet;
 import org.apache.pulsar.websocket.WebSocketPingPongServlet;
 import org.apache.pulsar.websocket.WebSocketProducerServlet;
@@ -82,7 +83,7 @@ public class WebSocketServiceStarter {
             start(proxyServer, service);
         } catch (Exception e) {
             log.error("Failed to start WebSocket service", e);
-            Runtime.getRuntime().halt(1);
+            ShutdownUtil.triggerImmediateForcefulShutdown();
         }
     }
 

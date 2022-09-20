@@ -49,6 +49,7 @@ import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.io.JsonEncoder;
 import org.apache.avro.reflect.ReflectDatumWriter;
 import org.apache.avro.util.Utf8;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
@@ -88,7 +89,6 @@ import org.apache.pulsar.websocket.data.ProducerMessages;
 import org.mockito.ArgumentCaptor;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import org.powermock.reflect.Whitebox;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -320,7 +320,7 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         doReturn(false).when(topics).isRequestHttps();
         UriInfo uriInfo = mock(UriInfo.class);
         doReturn(requestPath).when(uriInfo).getRequestUri();
-        Whitebox.setInternalState(topics, "uri", uriInfo);
+        FieldUtils.writeField(topics, "uri", uriInfo, true);
         //do produce on another broker
         topics.setPulsar(pulsar2);
         AsyncResponse asyncResponse = mock(AsyncResponse.class);

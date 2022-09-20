@@ -21,7 +21,7 @@
 
 #include <pulsar/Client.h>
 #include "ExecutorService.h"
-#include "BinaryProtoLookupService.h"
+#include "LookupService.h"
 #include "MemoryLimitController.h"
 #include "ConnectionPool.h"
 #include "LookupDataResult.h"
