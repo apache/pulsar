@@ -2006,18 +2006,13 @@ public class BrokerService implements Closeable {
         return authorizationService;
     }
 
-    public CompletableFuture<Void> removeTopicFromCache(String topicNameString, Topic topic) {
-        if (topic == null){
-            return removeTopicFutureFromCache(topicNameString, null);
-        }
-        final CompletableFuture<Optional<Topic>> createTopicFuture = topics.get(topicNameString);
-        // If not exists in cache, do nothing.
+    public CompletableFuture<Void> removeTopicFromCache(String topicName) {
+        return removeTopicFutureFromCache(topicName, null);
+    }
+
+    public CompletableFuture<Void> removeTopicFromCache(Topic topic) {
+        CompletableFuture<Optional<Topic>> createTopicFuture = findTopicFutureInCache(topic);
         if (createTopicFuture == null){
-            return CompletableFuture.completedFuture(null);
-        }
-        // If the future in cache is not yet complete, the topic instance in the cache is not the same with the topic
-        // in the argument. Do nothing.
-        if (!createTopicFuture.isDone()){
             return CompletableFuture.completedFuture(null);
         }
         return createTopicFuture.thenCompose(topicOptional -> {
@@ -2027,11 +2022,31 @@ public class BrokerService implements Closeable {
                 return CompletableFuture.completedFuture(null);
             } else {
                 // Do remove.
-                return removeTopicFutureFromCache(topicNameString, createTopicFuture);
+                return removeTopicFutureFromCache(topic.getName(), createTopicFuture);
             }
-            // If the future in cache has exception complete,
-            // the topic instance in the cache is not the same with the topic.
-        }).exceptionally(ex -> null);
+        });
+    }
+
+    private CompletableFuture<Optional<Topic>> findTopicFutureInCache(Topic topic){
+        if (topic == null){
+            return null;
+        }
+        final CompletableFuture<Optional<Topic>> createTopicFuture = topics.get(topic.getName());
+        // If not exists in cache, do nothing.
+        if (createTopicFuture == null){
+            return null;
+        }
+        // If the future in cache is not yet complete, the topic instance in the cache is not the same with the topic
+        // in the argument. Do nothing.
+        if (!createTopicFuture.isDone()){
+            return null;
+        }
+        // If the future in cache has exception complete,
+        // the topic instance in the cache is not the same with the topic.
+        if (createTopicFuture.isCompletedExceptionally()){
+            return null;
+        }
+        return createTopicFuture;
     }
 
     private CompletableFuture<Void> removeTopicFutureFromCache(String topic,
