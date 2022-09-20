@@ -29,7 +29,8 @@ RUN apt-get install -y procps curl git build-essential
 
 ENV GOLANG_VERSION 1.15.8
 
-RUN curl -sSL https://golang.org/dl/go$GOLANG_VERSION.linux-$(uname -m).tar.gz | tar -C /usr/local -xz
+RUN export architecture=$(uname -m | sed -r 's/aarch64/arm64/g' |  awk '!/arm64/{$0="amd64"}1') \
+     && curl -sSL https://golang.org/dl/go$GOLANG_VERSION.linux-$architecture.tar.gz | tar -C /usr/local -xz
 ENV PATH /usr/local/go/bin:$PATH
 
 RUN mkdir -p /go/src /go/bin && chmod -R 777 /go
