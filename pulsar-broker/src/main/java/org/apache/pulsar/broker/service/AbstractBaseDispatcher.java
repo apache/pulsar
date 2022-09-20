@@ -19,6 +19,8 @@
 
 package org.apache.pulsar.broker.service;
 
+import com.google.common.collect.Collections2;
+import com.google.common.collect.Lists;
 import io.netty.buffer.ByteBuf;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -31,6 +33,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.tuple.Pair;
@@ -41,6 +44,7 @@ import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.plugin.EntryFilter;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
@@ -89,6 +93,25 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
             ManagedCursor cursor, boolean isReplayRead, Consumer consumer) {
         return filterEntriesForConsumer(Optional.empty(), 0, entries, batchSizes, sendMessageInfo, indexesAcks, cursor,
                 isReplayRead, consumer);
+    }
+
+    /**
+     * 1. Acknowledge skipped messages;
+     * 2. Filter out skipped messages;
+     */
+    public List<Entry> filterAndAcknowledgeSkippedEntry(List<Entry> entries) {
+        List<Position> skippedPositions = new ArrayList<>();
+        List<Entry> filterEntries = Lists.newArrayList(Collections2.filter(entries, entry -> {
+            if (entry instanceof EntryImpl) {
+                if (((EntryImpl) entry).skipped()) {
+                    skippedPositions.add(new PositionImpl(entry.getLedgerId(), entry.getEntryId()));
+                    return false;
+                }
+            }
+            return true;
+        }));
+        subscription.acknowledgeMessage(skippedPositions, CommandAck.AckType.Individual, Collections.emptyMap());
+        return filterEntries;
     }
 
     /**

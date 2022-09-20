@@ -43,6 +43,7 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
     private long ledgerId;
     private long entryId;
     ByteBuf data;
+    private boolean skipped;
 
     public static EntryImpl create(LedgerEntry ledgerEntry) {
         EntryImpl entry = RECYCLER.get();
@@ -62,6 +63,17 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
         entry.ledgerId = ledgerId;
         entry.entryId = entryId;
         entry.data = Unpooled.wrappedBuffer(data);
+        entry.setRefCnt(1);
+        return entry;
+    }
+
+    public static EntryImpl create(long ledgerId, long entryId, boolean skipped) {
+        EntryImpl entry = RECYCLER.get();
+        entry.timestamp = System.nanoTime();
+        entry.ledgerId = ledgerId;
+        entry.entryId = entryId;
+        entry.skipped = skipped;
+        entry.data = Unpooled.wrappedBuffer(new byte[0]);
         entry.setRefCnt(1);
         return entry;
     }
@@ -144,6 +156,10 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
     @Override
     public long getEntryId() {
         return entryId;
+    }
+
+    public boolean skipped() {
+        return skipped;
     }
 
     @Override

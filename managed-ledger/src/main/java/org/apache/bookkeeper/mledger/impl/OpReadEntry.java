@@ -116,6 +116,15 @@ class OpReadEntry implements ReadEntriesCallback {
                 recycle();
                 return;
             }
+            List<Entry> skippedEntries = new ArrayList<>();
+            PositionImpl startPosition = readPosition;
+            PositionImpl endPosition = (PositionImpl) nexReadPosition;
+            while (startPosition.compareTo(endPosition) < 0) {
+                skippedEntries.add(EntryImpl.create(startPosition.ledgerId, startPosition.entryId, true));
+                startPosition = cursor.ledger.getNextValidPosition(startPosition);
+            }
+            List<Entry> filteredEntries = cursor.filterReadEntries(skippedEntries);
+            entries.addAll(filteredEntries);
             updateReadPosition(nexReadPosition);
             checkReadCompletion();
         } else {
