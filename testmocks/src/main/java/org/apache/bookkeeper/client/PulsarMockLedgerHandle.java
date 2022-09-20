@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.client;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 
 import io.netty.buffer.ByteBuf;
@@ -31,7 +32,7 @@ import java.util.Enumeration;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
-
+import lombok.Getter;
 import org.apache.bookkeeper.client.AsyncCallback.AddCallback;
 import org.apache.bookkeeper.client.AsyncCallback.CloseCallback;
 import org.apache.bookkeeper.client.AsyncCallback.ReadCallback;
@@ -44,7 +45,6 @@ import org.apache.bookkeeper.client.api.WriteFlag;
 import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.bookkeeper.net.BookieId;
-import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.apache.bookkeeper.versioning.LongVersion;
 import org.apache.bookkeeper.versioning.Versioned;
 import org.slf4j.Logger;
@@ -62,6 +62,8 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
     final byte[] passwd;
     final ReadHandle readHandle;
     long lastEntry = -1;
+    @VisibleForTesting
+    @Getter
     boolean fenced = false;
 
     public PulsarMockLedgerHandle(PulsarMockBookKeeper bk, long id,
