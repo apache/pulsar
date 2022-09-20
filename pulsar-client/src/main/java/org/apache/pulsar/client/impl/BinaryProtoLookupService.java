@@ -43,6 +43,7 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -141,19 +142,21 @@ public class BinaryProtoLookupService implements LookupService {
                         // (2) redirect to given address if response is: redirect
                         if (r.redirect) {
                             findBroker(responseBrokerAddress, r.authoritative, topicName, redirectCount + 1)
-                                .thenAccept(addressFuture::complete).exceptionally((lookupException) -> {
-                                // lookup failed
-                                if (redirectCount > 0) {
-                                    if (log.isDebugEnabled()) {
-                                        log.debug("[{}] lookup redirection failed ({}) : {}", topicName,
-                                                redirectCount, lookupException.getMessage());
+                                .thenAccept(addressFuture::complete)
+                                .exceptionally((lookupException) -> {
+                                    Throwable cause = FutureUtil.unwrapCompletionException(lookupException);
+                                    // lookup failed
+                                    if (redirectCount > 0) {
+                                        if (log.isDebugEnabled()) {
+                                            log.debug("[{}] lookup redirection failed ({}) : {}", topicName,
+                                                    redirectCount, cause.getMessage());
+                                        }
+                                    } else {
+                                        log.warn("[{}] lookup failed : {}", topicName,
+                                                cause.getMessage(), cause);
                                     }
-                                } else {
-                                    log.warn("[{}] lookup failed : {}", topicName,
-                                            lookupException.getMessage(), lookupException);
-                                }
-                                addressFuture.completeExceptionally(lookupException);
-                                return null;
+                                    addressFuture.completeExceptionally(cause);
+                                    return null;
                             });
                         } else {
                             // (3) received correct broker to connect
@@ -176,7 +179,7 @@ public class BinaryProtoLookupService implements LookupService {
                 client.getCnxPool().releaseConnection(clientCnx);
             });
         }).exceptionally(connectionException -> {
-            addressFuture.completeExceptionally(connectionException);
+            addressFuture.completeExceptionally(FutureUtil.unwrapCompletionException(connectionException));
             return null;
         });
         return addressFuture;
@@ -209,7 +212,7 @@ public class BinaryProtoLookupService implements LookupService {
                 client.getCnxPool().releaseConnection(clientCnx);
             });
         }).exceptionally(connectionException -> {
-            partitionFuture.completeExceptionally(connectionException);
+            partitionFuture.completeExceptionally(FutureUtil.unwrapCompletionException(connectionException));
             return null;
         });
 
@@ -245,7 +248,7 @@ public class BinaryProtoLookupService implements LookupService {
                 client.getCnxPool().releaseConnection(clientCnx);
             });
         }).exceptionally(ex -> {
-            schemaFuture.completeExceptionally(ex);
+            schemaFuture.completeExceptionally(FutureUtil.unwrapCompletionException(ex));
             return null;
         });
 
