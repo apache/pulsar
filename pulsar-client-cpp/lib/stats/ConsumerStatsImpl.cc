@@ -80,10 +80,10 @@ void ConsumerStatsImpl::receivedMessage(Message& msg, Result res) {
     totalReceivedMsgMap_[res] += 1;
 }
 
-void ConsumerStatsImpl::messageAcknowledged(Result res, proto::CommandAck_AckType ackType) {
+void ConsumerStatsImpl::messageAcknowledged(Result res, proto::CommandAck_AckType ackType, uint32_t ackNums) {
     Lock lock(mutex_);
-    ackedMsgMap_[std::make_pair(res, ackType)] += 1;
-    totalAckedMsgMap_[std::make_pair(res, ackType)] += 1;
+    ackedMsgMap_[std::make_pair(res, ackType)] += ackNums;
+    totalAckedMsgMap_[std::make_pair(res, ackType)] += ackNums;
 }
 
 std::ostream& operator<<(std::ostream& os,

@@ -77,6 +77,16 @@ void AckGroupingTrackerEnabled::addAcknowledge(const MessageId& msgId) {
     }
 }
 
+void AckGroupingTrackerEnabled::addAcknowledgeList(const MessageIdList& msgIds) {
+    std::lock_guard<std::recursive_mutex> lock(this->rmutexPendingIndAcks_);
+    for (const auto& msgId : msgIds) {
+        this->pendingIndividualAcks_.emplace(msgId);
+    }
+    if (this->ackGroupingMaxSize_ > 0 && this->pendingIndividualAcks_.size() >= this->ackGroupingMaxSize_) {
+        this->flush();
+    }
+}
+
 void AckGroupingTrackerEnabled::addAcknowledgeCumulative(const MessageId& msgId) {
     std::lock_guard<std::mutex> lock(this->mutexCumulativeAckMsgId_);
     if (msgId > this->nextCumulativeAckMsgId_) {
