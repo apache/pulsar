@@ -38,7 +38,7 @@ public class MockManagedCursor implements ManagedCursor {
 
     private final String name;
 
-    private Map<String, String> cursorProperties;
+    private final Map<String, String> cursorProperties;
 
     public MockManagedCursor(String name) {
         this.name = name;
@@ -73,6 +73,11 @@ public class MockManagedCursor implements ManagedCursor {
     @Override
     public CompletableFuture<Void> putCursorProperty(String key, String value) {
         cursorProperties.put(key, value);
+        return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
+    public CompletableFuture<Void> setCursorProperties(Map<String, String> cursorProperties) {
         return CompletableFuture.completedFuture(null);
     }
 

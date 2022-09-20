@@ -61,7 +61,7 @@ import org.apache.pulsar.common.util.collections.TripleLongPriorityQueue;
 @ThreadSafe
 public class BucketDelayedDeliveryTracker extends InMemoryDelayedDeliveryTracker {
 
-    public static final String DELAYED_BUCKET_KEY_PREFIX = "#pulsar_internal.delayed.bucket";
+    public static final String DELAYED_BUCKET_KEY_PREFIX = "#pulsar.internal.delayed.bucket";
 
     public static final String DELIMITER = "_";
 

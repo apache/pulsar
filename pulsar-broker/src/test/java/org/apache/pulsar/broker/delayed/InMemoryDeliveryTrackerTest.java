@@ -310,7 +310,6 @@ public class InMemoryDeliveryTrackerTest {
         // Wait longer than the tick time plus the HashedWheelTimer's tick time to ensure that enough time has
         // passed where it would have been triggered if the tick time was doing the triggering.
         Thread.sleep(1000);
-        verify(dispatcher).getCursor();
 
         // Not wait for the message delivery to get triggered.
         Awaitility.await().atMost(10, TimeUnit.SECONDS)
