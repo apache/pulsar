@@ -447,9 +447,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             }
             message = incomingMessages.take();
             messageProcessed(message);
-            if (!isValidConsumerEpoch(message)) {
-                return internalReceive();
-            }
             return beforeConsume(message);
         } catch (InterruptedException e) {
             stats.incrementNumReceiveFailed();
@@ -473,11 +470,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 cancellationHandler.setCancelAction(() -> pendingReceives.remove(result));
             } else {
                 messageProcessed(message);
-                if (!isValidConsumerEpoch(message)) {
-                    pendingReceives.add(result);
-                    cancellationHandler.setCancelAction(() -> pendingReceives.remove(result));
-                    return;
-                }
                 result.complete(beforeConsume(message));
             }
         });
@@ -498,15 +490,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 return null;
             }
             messageProcessed(message);
-            if (!isValidConsumerEpoch(message)) {
-                long executionTime = System.nanoTime() - callTime;
-                long timeoutInNanos = unit.toNanos(timeout);
-                if (executionTime >= timeoutInNanos) {
-                    return null;
-                } else {
-                    return internalReceive(timeoutInNanos - executionTime, TimeUnit.NANOSECONDS);
-                }
-            }
             return beforeConsume(message);
         } catch (InterruptedException e) {
             State state = getState();
@@ -1877,7 +1860,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         // smaller than broker epoch forever. client will not receive message anymore.
         // Second : we should synchronized `ClientCnx cnx = cnx()` to
         // prevent use old cnx to send redeliverUnacknowledgedMessages to a old broker
-        synchronized (ConsumerImpl.this) {
+        synchronized (this) {
             ClientCnx cnx = cnx();
             // V1 don't support redeliverUnacknowledgedMessages
             if (cnx != null && cnx.getRemoteEndpointProtocolVersion() < ProtocolVersion.v2.getValue()) {
@@ -1920,13 +1903,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         + "so don't need to send redeliver command to broker", this);
             }
         }
-    }
-
-    public int clearIncomingMessagesAndGetMessageNumber() {
-        int messagesNumber = incomingMessages.size();
-        clearIncomingMessages();
-        unAckedMessageTracker.clear();
-        return messagesNumber;
     }
 
     @Override

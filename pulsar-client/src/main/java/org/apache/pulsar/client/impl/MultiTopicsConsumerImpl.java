@@ -364,11 +364,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             message = incomingMessages.take();
             decreaseIncomingMessageSize(message);
             checkState(message instanceof TopicMessageImpl);
-            if (!isValidConsumerEpoch(message)) {
-                resumeReceivingFromPausedConsumersIfNeeded();
-                message.release();
-                return internalReceive();
-            }
             unAckedMessageTracker.add(message.getMessageId(), message.getRedeliveryCount());
             resumeReceivingFromPausedConsumersIfNeeded();
             return message;
@@ -390,16 +385,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             if (message != null) {
                 decreaseIncomingMessageSize(message);
                 checkArgument(message instanceof TopicMessageImpl);
-                if (!isValidConsumerEpoch(message)) {
-                    long executionTime = System.nanoTime() - callTime;
-                    long timeoutInNanos = unit.toNanos(timeout);
-                    if (executionTime >= timeoutInNanos) {
-                        return null;
-                    } else {
-                        resumeReceivingFromPausedConsumersIfNeeded();
-                        return internalReceive(timeoutInNanos - executionTime, TimeUnit.NANOSECONDS);
-                    }
-                }
                 unAckedMessageTracker.add(message.getMessageId(), message.getRedeliveryCount());
             }
             resumeReceivingFromPausedConsumersIfNeeded();
