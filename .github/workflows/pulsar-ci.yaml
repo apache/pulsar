@@ -478,7 +478,7 @@ jobs:
           gh-actions-artifact-client.js delete pulsar-java-test-image.zst
 
   cpp-tests:
-    name:
+    name: CI - CPP, Python Tests
     runs-on: ubuntu-20.04
     timeout-minutes: 120
     needs: [
