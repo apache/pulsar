@@ -265,4 +265,33 @@
       </extension>
     </extensions>
   </build>
+  <profiles>
+    <profile>
+      <id>jdk11</id>
+      <activation>
+        <jdk>[11,)</jdk>
+      </activation>
+      <properties>
+        <!-- required for running tests on JDK11+ -->
+        <test.additional.args>
+          --add-opens java.base/jdk.internal.loader=ALL-UNNAMED
+          --add-opens java.base/java.lang=ALL-UNNAMED <!--Mockito-->
+        </test.additional.args>
+      </properties>
+    </profile>
+  </profiles>
+
+
+  <distributionManagement>
+    <repository>
+      <id>datastax-releases</id>
+      <name>DataStax Local Releases</name>
+      <url>https://repo.aws.dsinternal.org/artifactory/datastax-public-releases-local/</url>
+    </repository>
+    <snapshotRepository>
+      <id>datastax-snapshots-local</id>
+      <name>DataStax Local Snapshots</name>
+      <url>https://repo.aws.dsinternal.org/artifactory/datastax-snapshots-local/</url>
+    </snapshotRepository>
+  </distributionManagement>
 </project>
