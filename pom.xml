@@ -1955,6 +1955,9 @@ flexible messaging model and an intuitive client API.</description>
                   <includes>
                     <include>**/apache/pulsar/**</include>
                   </includes>
+                  <excludes>
+                    <exclude>**/bundled-dependencies/**</exclude>
+                  </excludes>
                 </configuration>
               </execution>
             </executions>
