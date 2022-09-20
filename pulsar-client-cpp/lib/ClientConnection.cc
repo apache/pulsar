@@ -810,6 +810,10 @@ void ClientConnection::handleIncomingCommand() {
         }
 
         case Ready: {
+            // Since we are receiving data from the connection, we are assuming that for now the connection is
+            // still working well.
+            havePendingPingRequest_ = false;
+
             // Handle normal commands
             switch (incomingCmd_.type()) {
                 case BaseCommand::SEND_RECEIPT: {
@@ -1165,7 +1169,6 @@ void ClientConnection::handleIncomingCommand() {
 
                 case BaseCommand::PONG: {
                     LOG_DEBUG(cnxString_ << "Received response to ping message");
-                    havePendingPingRequest_ = false;
                     break;
                 }
 

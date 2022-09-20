@@ -38,6 +38,7 @@ import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataExcep
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.protocol.schema.DeleteSchemaResponse;
 import org.apache.pulsar.common.protocol.schema.GetAllVersionsSchemaResponse;
 import org.apache.pulsar.common.protocol.schema.GetSchemaResponse;
@@ -83,7 +84,7 @@ public class SchemasResourceBase extends AdminResource {
     }
 
     public void getSchema(boolean authoritative, AsyncResponse response) {
-        validateDestinationAndAdminOperation(authoritative);
+        validateOwnershipAndOperation(authoritative, TopicOperation.GET_METADATA);
         String schemaId = getSchemaId();
         pulsar().getSchemaRegistryService().getSchema(schemaId).handle((schema, error) -> {
             handleGetSchemaResponse(response, schema, error);
@@ -92,7 +93,7 @@ public class SchemasResourceBase extends AdminResource {
     }
 
     public void getSchema(boolean authoritative, String version, AsyncResponse response) {
-        validateDestinationAndAdminOperation(authoritative);
+        validateOwnershipAndOperation(authoritative, TopicOperation.GET_METADATA);
         String schemaId = getSchemaId();
         ByteBuffer bbVersion = ByteBuffer.allocate(Long.BYTES);
         bbVersion.putLong(Long.parseLong(version));
@@ -104,7 +105,7 @@ public class SchemasResourceBase extends AdminResource {
     }
 
     public void getAllSchemas(boolean authoritative, AsyncResponse response) {
-        validateDestinationAndAdminOperation(authoritative);
+        validateOwnershipAndOperation(authoritative, TopicOperation.GET_METADATA);
 
         String schemaId = getSchemaId();
         pulsar().getSchemaRegistryService().trimDeletedSchemaAndGetList(schemaId).handle((schema, error) -> {
@@ -208,7 +209,7 @@ public class SchemasResourceBase extends AdminResource {
     public void getVersionBySchema(
 
             PostSchemaPayload payload, boolean authoritative, AsyncResponse response) {
-        validateDestinationAndAdminOperation(authoritative);
+        validateOwnershipAndOperation(authoritative, TopicOperation.GET_METADATA);
 
         String schemaId = getSchemaId();
 
@@ -293,6 +294,19 @@ public class SchemasResourceBase extends AdminResource {
         try {
             validateAdminAccessForTenant(topicName.getTenant());
             validateTopicOwnership(topicName, authoritative);
+        } catch (RestException e) {
+            if (e.getResponse().getStatus() == Response.Status.UNAUTHORIZED.getStatusCode()) {
+                throw new RestException(Response.Status.UNAUTHORIZED, e.getMessage());
+            } else {
+                throw e;
+            }
+        }
+    }
+
+    private void validateOwnershipAndOperation(boolean authoritative, TopicOperation operation) {
+        try {
+            validateTopicOwnership(topicName, authoritative);
+            validateTopicOperation(topicName, operation);
         } catch (RestException e) {
             if (e.getResponse().getStatus() == Response.Status.UNAUTHORIZED.getStatusCode()) {
                 throw new RestException(Response.Status.UNAUTHORIZED, e.getMessage());
