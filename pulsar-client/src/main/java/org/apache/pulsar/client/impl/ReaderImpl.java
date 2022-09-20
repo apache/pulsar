@@ -177,17 +177,16 @@ public class ReaderImpl<T> implements Reader<T> {
 
     @Override
     public CompletableFuture<Message<T>> readNextAsync() {
-        CompletableFuture<Message<T>> receiveFuture = consumer.receiveAsync();
-        receiveFuture.whenComplete((msg, t) -> {
-           if (msg != null) {
-               consumer.acknowledgeCumulativeAsync(msg).exceptionally(ex -> {
-                   log.warn("[{}][{}] acknowledge message {} cumulative fail.", getTopic(),
-                           getConsumer().getSubscription(), msg.getMessageId(), ex);
-                   return null;
-               });
-           }
-        });
-        return receiveFuture;
+        return consumer.receiveAsync()
+                .whenComplete((msg, t) -> {
+                    if (msg != null) {
+                        consumer.acknowledgeCumulativeAsync(msg).exceptionally(ex -> {
+                            log.error("[{}][{}] acknowledge message {} cumulative fail.", getTopic(),
+                                    getConsumer().getSubscription(), msg.getMessageId(), ex);
+                            return null;
+                        });
+                    }
+                });
     }
 
     @Override
