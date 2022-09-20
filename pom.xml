@@ -1952,11 +1952,8 @@ flexible messaging model and an intuitive client API.</description>
                   <goal>report</goal>
                 </goals>
                 <configuration>
-                  <includes>
-                    <include>**/apache/pulsar/**</include>
-                  </includes>
                   <excludes>
-                    <exclude>**/bundled-dependencies/**</exclude>
+                    <exclude>META-INF/**</exclude>
                   </excludes>
                 </configuration>
               </execution>
