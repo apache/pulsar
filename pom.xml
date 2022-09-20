@@ -109,6 +109,9 @@ flexible messaging model and an intuitive client API.</description>
     <testRetryCount>1</testRetryCount>
     <testJacocoAgentArgument></testJacocoAgentArgument>
     <testHeapDumpPath>/tmp</testHeapDumpPath>
+    <!-- This property is used to generate reproducible builds. We do not use it, but we do not want to inherit
+    this time property from dependencies. By setting it to null, we get "now" as the build time. -->
+    <project.build.outputTimestamp></project.build.outputTimestamp>
     <docker.organization>apachepulsar</docker.organization>
     <skipSourceReleaseAssembly>false</skipSourceReleaseAssembly>
     <skipBuildDistribution>false</skipBuildDistribution>
