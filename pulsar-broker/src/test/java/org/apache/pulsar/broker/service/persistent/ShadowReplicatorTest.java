@@ -34,14 +34,14 @@ import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.assertj.core.util.Lists;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Slf4j
+@Test(groups = "broker-replication")
 public class ShadowReplicatorTest extends BrokerTestBase {
 
-    @BeforeMethod(alwaysRun = true)
+    @BeforeClass(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         super.baseSetup();
@@ -51,7 +51,7 @@ public class ShadowReplicatorTest extends BrokerTestBase {
         admin.namespaces().createNamespace("prop1/ns-shadow");
     }
 
-    @AfterMethod(alwaysRun = true)
+    @BeforeClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();

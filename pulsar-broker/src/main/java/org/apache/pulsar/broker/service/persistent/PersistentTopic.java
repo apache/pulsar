@@ -1403,7 +1403,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
 
         List<String> configuredClusters = topicPolicies.getReplicationClusters().get();
-        int newMessageTTLinSeconds = topicPolicies.getMessageTTLInSeconds().get();
+        int newMessageTTLInSeconds = topicPolicies.getMessageTTLInSeconds().get();
 
         String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
 
@@ -1430,7 +1430,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         // Check for replicators to be stopped
         replicators.forEach((cluster, replicator) -> {
             // Update message TTL
-            ((PersistentReplicator) replicator).updateMessageTTL(newMessageTTLinSeconds);
+            ((PersistentReplicator) replicator).updateMessageTTL(newMessageTTLInSeconds);
             if (!cluster.equals(localCluster)) {
                 if (!configuredClusters.contains(cluster)) {
                     futures.add(removeReplicator(cluster));
@@ -1448,7 +1448,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             return CompletableFuture.completedFuture(null);
         }
         List<String> configuredShadowTopics = shadowTopics;
-        int newMessageTTLinSeconds = topicPolicies.getMessageTTLInSeconds().get();
+        int newMessageTTLInSeconds = topicPolicies.getMessageTTLInSeconds().get();
 
         if (log.isDebugEnabled()) {
             log.debug("[{}] Checking shadow replication status, shadowTopics={}", topic, configuredShadowTopics);
@@ -1465,7 +1465,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         // Check for replicators to be stopped
         shadowReplicators.forEach((shadowTopic, replicator) -> {
             // Update message TTL
-            ((PersistentReplicator) replicator).updateMessageTTL(newMessageTTLinSeconds);
+            ((PersistentReplicator) replicator).updateMessageTTL(newMessageTTLInSeconds);
             if (!configuredShadowTopics.contains(shadowTopic)) {
                 futures.add(removeShadowReplicator(shadowTopic));
             }
@@ -1629,29 +1629,21 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     CompletableFuture<Void> startShadowReplicator(String shadowTopic) {
-        log.info("[{}] Starting replicator to remote: {}", topic, shadowTopic);
-        final CompletableFuture<Void> future = new CompletableFuture<>();
+        log.info("[{}] Starting shadow topic replicator to remote: {}", topic, shadowTopic);
 
         String name = ShadowReplicator.getShadowReplicatorName(replicatorPrefix, shadowTopic);
-        ledger.asyncOpenCursor(name, new OpenCursorCallback() {
-            @Override
-            public void openCursorComplete(ManagedCursor cursor, Object ctx) {
-                addShadowReplicationCluster(shadowTopic, cursor).whenComplete((__, ex) -> {
-                    if (ex == null) {
-                        future.complete(null);
-                    } else {
-                        future.completeExceptionally(ex);
-                    }
-                });
-            }
-
-            @Override
-            public void openCursorFailed(ManagedLedgerException exception, Object ctx) {
-                future.completeExceptionally(new PersistenceException(exception));
-            }
-
-        }, null);
-
+        ManagedCursor cursor;
+        try {
+            cursor = ledger.newNonDurableCursor(PositionImpl.LATEST, name);
+        } catch (ManagedLedgerException e) {
+            log.error("[{}]Open non-durable cursor for shadow replicator failed, name={}", topic, name, e);
+            return FutureUtil.failedFuture(e);
+        }
+        CompletableFuture<Void> future = addShadowReplicationCluster(shadowTopic, cursor);
+        future.exceptionally(ex -> {
+            log.error("[{}] Add shadow replication cluster failed, shadowTopic={}", topic, shadowTopic, ex);
+            return null;
+        });
         return future;
     }
 
@@ -1680,7 +1672,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     CompletableFuture<Void> removeShadowReplicator(String shadowTopic) {
-        log.info("[{}] Removing replicator to {}", topic, shadowTopic);
+        log.info("[{}] Removing shadow topic replicator to {}", topic, shadowTopic);
         final CompletableFuture<Void> future = new CompletableFuture<>();
         String name = ShadowReplicator.getShadowReplicatorName(replicatorPrefix, shadowTopic);
         shadowReplicators.get(shadowTopic).disconnect().thenRun(() -> {
@@ -1694,13 +1686,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
                 @Override
                 public void deleteCursorFailed(ManagedLedgerException exception, Object ctx) {
-                    log.error("[{}] Failed to delete cursor {} {}", topic, name, exception.getMessage(), exception);
+                    log.error("[{}] Failed to delete shadow topic replication cursor {} {}",
+                            topic, name, exception.getMessage(), exception);
                     future.completeExceptionally(new PersistenceException(exception));
                 }
             }, null);
 
         }).exceptionally(e -> {
-            log.error("[{}] Failed to close replication producer {} {}", topic, name, e.getMessage(), e);
+            log.error("[{}] Failed to close shadow topic replication producer {} {}", topic, name, e.getMessage(), e);
             future.completeExceptionally(e);
             return null;
         });

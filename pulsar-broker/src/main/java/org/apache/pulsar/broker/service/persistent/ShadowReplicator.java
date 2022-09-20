@@ -23,14 +23,10 @@ package org.apache.pulsar.broker.service.persistent;
 import io.netty.buffer.ByteBuf;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
-import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.BrokerService;
-import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -56,24 +52,6 @@ public class ShadowReplicator extends PersistentReplicator {
     @Override
     protected String getProducerName() {
         return replicatorPrefix + "-" + localTopicName + REPL_PRODUCER_NAME_DELIMITER + remoteTopicName;
-    }
-
-    @Override
-    protected void readEntries(Producer<byte[]> producer) {
-        // Shadow replicator should skip all backlog
-        this.cursor.asyncResetCursor(PositionImpl.LATEST, false, new AsyncCallbacks.ResetCursorCallback() {
-            @Override
-            public void resetComplete(Object ctx) {
-                ShadowReplicator.super.readEntries(producer);
-            }
-
-            @Override
-            public void resetFailed(ManagedLedgerException exception, Object ctx) {
-                log.warn("[{}}] Reset replicator cursor failed.", replicatorId, exception);
-                ShadowReplicator.super.readEntries(producer);
-            }
-        });
-
     }
 
     @Override
