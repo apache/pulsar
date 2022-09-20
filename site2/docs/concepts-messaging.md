@@ -794,7 +794,7 @@ Non-persistent messaging is usually faster than persistent messaging because bro
 
 ### Client API
 
-Producers and consumers can connect to non-persistent topics in the same way as persistent topics, with the crucial difference that the topic name must start with `non-persistent`. All three subscription types---[exclusive](#exclusive), [shared](#shared), and [failover](#failover)---are supported for non-persistent topics.
+Producers and consumers can connect to non-persistent topics in the same way as persistent topics, with the crucial difference that the topic name must start with `non-persistent`. All the subscription types---[exclusive](#exclusive), [shared](#shared), [key-shared](#key_shared) and [failover](#failover)---are supported for non-persistent topics.
 
 Here's an example [Java consumer](client-libraries-java.md#consumers) for a non-persistent topic:
 
