@@ -1737,16 +1737,6 @@ public class ManagedCursorImpl implements ManagedCursor {
         PositionImpl oldMarkDeletePosition = markDeletePosition;
 
         if (!newMarkDeletePosition.equals(oldMarkDeletePosition)) {
-            long skippedEntries = 0;
-            if (newMarkDeletePosition.getLedgerId() == oldMarkDeletePosition.getLedgerId()
-                    && newMarkDeletePosition.getEntryId() == oldMarkDeletePosition.getEntryId() + 1) {
-                // Mark-deleting the position next to current one
-                skippedEntries = individualDeletedMessages.contains(newMarkDeletePosition.getLedgerId(),
-                        newMarkDeletePosition.getEntryId()) ? 0 : 1;
-            } else {
-                skippedEntries = getNumberOfEntries(Range.openClosed(oldMarkDeletePosition, newMarkDeletePosition));
-            }
-
             PositionImpl positionAfterNewMarkDelete = ledger.getNextValidPosition(newMarkDeletePosition);
             // sometime ranges are connected but belongs to different ledgers so, they are placed sequentially
             // eg: (2:10..3:15] can be returned as (2:10..2:15],[3:0..3:15]. So, try to iterate over connected range and
@@ -1764,6 +1754,15 @@ public class ManagedCursorImpl implements ManagedCursor {
                 break;
             }
 
+            long skippedEntries = 0;
+            if (newMarkDeletePosition.getLedgerId() == oldMarkDeletePosition.getLedgerId()
+                    && newMarkDeletePosition.getEntryId() == oldMarkDeletePosition.getEntryId() + 1) {
+                // Mark-deleting the position next to current one
+                skippedEntries = individualDeletedMessages.contains(newMarkDeletePosition.getLedgerId(),
+                        newMarkDeletePosition.getEntryId()) ? 0 : 1;
+            } else {
+                skippedEntries = getNumberOfEntries(Range.openClosed(oldMarkDeletePosition, newMarkDeletePosition));
+            }
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Moved ack position from: {} to: {} -- skipped: {}", ledger.getName(),
                         oldMarkDeletePosition, newMarkDeletePosition, skippedEntries);
