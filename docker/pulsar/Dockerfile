@@ -70,8 +70,8 @@ RUN mkdir -p /etc/apt/keyrings \
      && apt-get update \
      && apt-get -y dist-upgrade \
      && apt-get -y install temurin-17-jdk \
-     && export architecture=$(uname -m | sed -r 's/aarch64/arm64/g' |  awk '!/arm64/{$0="amd64"}1') \
-     && echo networkaddress.cache.ttl=1 >> /usr/lib/jvm/temurin-17-jdk-$architecture/conf/security/java.security \
+     && export ARCH=$(uname -m | sed -r 's/aarch64/arm64/g' |  awk '!/arm64/{$0="amd64"}1') \
+     && echo networkaddress.cache.ttl=1 >> /usr/lib/jvm/temurin-17-jdk-$ARCH/conf/security/java.security \
 
 # Cleanup apt
 RUN apt-get -y --purge autoremove \
