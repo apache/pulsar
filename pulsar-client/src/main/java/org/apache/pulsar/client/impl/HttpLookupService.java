@@ -142,10 +142,11 @@ public class HttpLookupService implements LookupService {
                         result.add(filtered);
                     }
                 });
-                future.complete(result);})
-            .exceptionally(ex -> {
-                log.warn("Failed to getTopicsUnderNamespace namespace {} {}.", namespace, ex.getMessage());
-                future.completeExceptionally(ex);
+                future.complete(result);
+            }).exceptionally(ex -> {
+                Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                log.warn("Failed to getTopicsUnderNamespace namespace {} {}.", namespace, cause.getMessage());
+                future.completeExceptionally(cause);
                 return null;
             });
         return future;
@@ -188,14 +189,15 @@ public class HttpLookupService implements LookupService {
                 future.complete(Optional.of(SchemaInfoUtil.newSchemaInfo(schemaName, response)));
             }
         }).exceptionally(ex -> {
-            if (ex.getCause() instanceof NotFoundException) {
+            Throwable cause = FutureUtil.unwrapCompletionException(ex);
+            if (cause instanceof NotFoundException) {
                 future.complete(Optional.empty());
             } else {
                 log.warn("Failed to get schema for topic {} version {}",
                         topicName,
                         version != null ? Base64.getEncoder().encodeToString(version) : null,
-                        ex.getCause());
-                future.completeExceptionally(ex);
+                        cause);
+                future.completeExceptionally(cause);
             }
             return null;
         });
