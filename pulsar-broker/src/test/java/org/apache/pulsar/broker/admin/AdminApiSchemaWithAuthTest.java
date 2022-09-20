@@ -39,6 +39,7 @@ import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
+import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
@@ -118,10 +119,12 @@ public class AdminApiSchemaWithAuthTest extends MockedPulsarServiceBaseTest {
 
         assertThrows(PulsarAdminException.class, () -> adminWithoutPermission.schemas().getSchemaInfo(topicName));
         SchemaInfo readSi = adminWithConsumePermission.schemas().getSchemaInfo(topicName);
+        ((SchemaInfoImpl) readSi).setTimestamp(0);
         assertEquals(readSi, si);
 
         assertThrows(PulsarAdminException.class, () -> adminWithoutPermission.schemas().getSchemaInfo(topicName, 0));
         readSi = adminWithConsumePermission.schemas().getSchemaInfo(topicName, 0);
+        ((SchemaInfoImpl) readSi).setTimestamp(0);
         assertEquals(readSi, si);
         List<SchemaInfo> allSchemas = adminWithConsumePermission.schemas().getAllSchemas(topicName);
         assertEquals(allSchemas.size(), 1);
