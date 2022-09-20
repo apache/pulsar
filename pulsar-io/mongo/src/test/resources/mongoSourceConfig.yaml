@@ -16,9 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-name: mongo
-description: MongoDB source and sink connector
-sinkClass: org.apache.pulsar.io.mongodb.MongoSink
-sourceClass: org.apache.pulsar.io.mongodb.MongoSource
-sourceConfigClass: org.apache.pulsar.io.mongodb.MongoSourceConfig
-sinkConfigClass: org.apache.pulsar.io.mongodb.MongoSinkConfig
+
+{
+   "mongoUri": "mongodb://localhost",
+   "database": "pulsar",
+   "collection": "messages",
+   "syncType": "full_sync",
+   "batchSize": 2,
+   "batchTimeMs": 500
+}
