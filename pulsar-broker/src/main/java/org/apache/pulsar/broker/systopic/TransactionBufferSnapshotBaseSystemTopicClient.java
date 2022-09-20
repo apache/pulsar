@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.service.SystemTopicTxnBufferSnapshotService;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -61,6 +62,37 @@ public abstract class TransactionBufferSnapshotBaseSystemTopicClient<T> extends
                                                     transactionBufferSnapshotBaseSystemTopicClient) {
             this.producer = producer;
             this.transactionBufferSnapshotBaseSystemTopicClient = transactionBufferSnapshotBaseSystemTopicClient;
+        }
+
+        @Override
+        public MessageId write(T t, String key)
+                throws PulsarClientException {
+            return producer.newMessage().key(key)
+                    .value(t).send();
+        }
+
+        @Override
+        public CompletableFuture<MessageId> writeAsync(T t, String key) {
+            return producer.newMessage()
+                    .key(key)
+                    .value(t).sendAsync();
+        }
+
+        @Override
+        public MessageId delete(T t, String key)
+                throws PulsarClientException {
+            return producer.newMessage()
+                    .key(key)
+                    .value(null)
+                    .send();
+        }
+
+        @Override
+        public CompletableFuture<MessageId> deleteAsync(T t, String key) {
+            return producer.newMessage()
+                    .key(key)
+                    .value(null)
+                    .sendAsync();
         }
 
         @Override

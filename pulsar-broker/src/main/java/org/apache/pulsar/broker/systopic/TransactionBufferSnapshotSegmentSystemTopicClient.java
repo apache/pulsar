@@ -23,10 +23,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.SystemTopicTxnBufferSnapshotService;
 import org.apache.pulsar.broker.transaction.buffer.matadata.v2.TransactionBufferSnapshotIndexes;
-import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -35,6 +33,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 public class TransactionBufferSnapshotSegmentSystemTopicClient extends
         TransactionBufferSnapshotBaseSystemTopicClient<TransactionBufferSnapshotIndexes.TransactionBufferSnapshot> {
 
+    private static final String prefix = "multiple-";
     public <T> TransactionBufferSnapshotSegmentSystemTopicClient(PulsarClient client, TopicName topicName,
               SystemTopicTxnBufferSnapshotService<TransactionBufferSnapshotIndexes.TransactionBufferSnapshot>
                                                                      transactionBufferSnapshotSegmentService) {
@@ -62,8 +61,8 @@ public class TransactionBufferSnapshotSegmentSystemTopicClient extends
                 .NotAllowedException("Do not allow to get reader for segment topic reader"));
     }
 
-    protected static String buildKey(TransactionBufferSnapshotIndexes.TransactionBufferSnapshot snapshot) {
-        return "multiple-" + snapshot.getSequenceId() + "-" + snapshot.getTopicName();
+    public static String buildKey(TransactionBufferSnapshotIndexes.TransactionBufferSnapshot snapshot) {
+        return prefix + snapshot.getSequenceId() + "-" + snapshot.getTopicName();
     }
 
 
@@ -74,40 +73,6 @@ public class TransactionBufferSnapshotSegmentSystemTopicClient extends
                 .TransactionBufferSnapshot> producer, TransactionBufferSnapshotSegmentSystemTopicClient
                                                              transactionBufferSnapshotSegmentSystemTopicClient) {
             super(producer, transactionBufferSnapshotSegmentSystemTopicClient);
-        }
-
-        @Override
-        public MessageId write(TransactionBufferSnapshotIndexes.TransactionBufferSnapshot transactionBufferSnapshot)
-                throws PulsarClientException {
-            return producer.newMessage()
-                    .key(buildKey(transactionBufferSnapshot))
-                    .value(transactionBufferSnapshot).send();
-        }
-
-        @Override
-        public CompletableFuture<MessageId> writeAsync(TransactionBufferSnapshotIndexes.TransactionBufferSnapshot
-                                                                       transactionBufferSnapshot) {
-            return producer.newMessage()
-                    .key(buildKey(transactionBufferSnapshot))
-                    .value(transactionBufferSnapshot).sendAsync();
-        }
-
-        @Override
-        public MessageId delete(TransactionBufferSnapshotIndexes.TransactionBufferSnapshot transactionBufferSnapshot)
-                throws PulsarClientException {
-            return producer.newMessage()
-                    .key(buildKey(transactionBufferSnapshot))
-                    .value(null)
-                    .send();
-        }
-
-        @Override
-        public CompletableFuture<MessageId> deleteAsync(TransactionBufferSnapshotIndexes.TransactionBufferSnapshot
-                                                                transactionBufferSnapshot) {
-            return producer.newMessage()
-                    .key(buildKey(transactionBufferSnapshot))
-                    .value(null)
-                    .sendAsync();
         }
     }
 

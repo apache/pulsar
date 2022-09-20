@@ -19,38 +19,40 @@
 package org.apache.pulsar.broker.service;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
-import org.apache.pulsar.broker.transaction.buffer.matadata.TransactionBufferSnapshot;
+import org.apache.pulsar.broker.transaction.buffer.matadata.v2.TransactionBufferSnapshotIndexes;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException.InvalidTopicNameException;
 import org.apache.pulsar.common.events.EventType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 
-public class SystemTopicBaseTxnBufferSnapshotService
-        extends SystemTopicBaseTxnBufferSnapshotBaseService<TransactionBufferSnapshot> {
+public class SystemTopicTxnBufferSnapshotIndexServiceImpl extends
+        SystemTopicTxnBufferSnapshotBaseService<TransactionBufferSnapshotIndexes> {
 
     private final NamespaceEventsSystemTopicFactory namespaceEventsSystemTopicFactory;
 
-    public SystemTopicBaseTxnBufferSnapshotService(PulsarClient client) {
-        super(new ConcurrentHashMap<>());
+    public SystemTopicTxnBufferSnapshotIndexServiceImpl(PulsarClient client) {
+        super();
         this.namespaceEventsSystemTopicFactory = new NamespaceEventsSystemTopicFactory(client);
     }
 
     @Override
-    protected CompletableFuture<SystemTopicClient<TransactionBufferSnapshot>> getTransactionBufferSystemTopicClient(
+    protected CompletableFuture<SystemTopicClient<TransactionBufferSnapshotIndexes>>
+    getTransactionBufferSystemTopicClient(
             TopicName topicName) {
         TopicName systemTopicName = NamespaceEventsSystemTopicFactory
                 .getSystemTopicName(topicName.getNamespaceObject(), EventType.TRANSACTION_BUFFER_SNAPSHOT);
         if (systemTopicName == null) {
             return FutureUtil.failedFuture(
-                    new InvalidTopicNameException("Can't create SystemTopicBaseTxnBufferSnapshotService, "
+                    new InvalidTopicNameException("Can't create SystemTopicBaseTxnBufferSnapshotIndexService, "
                             + "because the topicName is null!"));
         }
         return CompletableFuture.completedFuture(clients.computeIfAbsent(systemTopicName,
                 (v) -> namespaceEventsSystemTopicFactory
-                        .createTransactionBufferSystemTopicClient(topicName.getNamespaceObject(), this)));
+                        .createTransactionBufferSnapshotIndexSystemTopicClient(topicName.getNamespaceObject(),
+                                this)));
     }
+
 }

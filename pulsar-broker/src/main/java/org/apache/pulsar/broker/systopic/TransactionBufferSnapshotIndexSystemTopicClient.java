@@ -26,7 +26,6 @@ import org.apache.pulsar.broker.transaction.buffer.matadata.v2.TransactionBuffer
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicName;
 
@@ -81,39 +80,6 @@ public class TransactionBufferSnapshotIndexSystemTopicClient extends
                                                      TransactionBufferSnapshotIndexSystemTopicClient
                                                              transactionBufferSnapshotIndexSystemTopicClient) {
             super(producer, transactionBufferSnapshotIndexSystemTopicClient);
-        }
-
-        @Override
-        public MessageId write(TransactionBufferSnapshotIndexes transactionBufferSnapshotIndexes)
-                throws PulsarClientException {
-            return producer.newMessage().key(transactionBufferSnapshotIndexes.getTopicName())
-                    .value(transactionBufferSnapshotIndexes).send();
-        }
-
-        @Override
-        public CompletableFuture<MessageId> writeAsync(TransactionBufferSnapshotIndexes
-                                                                       transactionBufferSnapshotIndexes) {
-            return producer.newMessage()
-                    .key(transactionBufferSnapshotIndexes.getTopicName())
-                    .value(transactionBufferSnapshotIndexes).sendAsync();
-        }
-
-        @Override
-        public MessageId delete(TransactionBufferSnapshotIndexes transactionBufferSnapshotIndexes)
-                throws PulsarClientException {
-            return producer.newMessage()
-                    .key(transactionBufferSnapshotIndexes.getTopicName())
-                    .value(null)
-                    .send();
-        }
-
-        @Override
-        public CompletableFuture<MessageId> deleteAsync(TransactionBufferSnapshotIndexes
-                                                                        transactionBufferSnapshotIndexes) {
-            return producer.newMessage()
-                    .key(transactionBufferSnapshotIndexes.getTopicName())
-                    .value(null)
-                    .sendAsync();
         }
     }
 

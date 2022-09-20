@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.transaction;
 
+import static org.apache.pulsar.broker.systopic.TransactionBufferSnapshotSegmentSystemTopicClient.buildKey;
 import static org.apache.pulsar.common.naming.SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
@@ -56,10 +57,10 @@ import org.apache.commons.lang3.RandomUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.AbstractTopic;
 import org.apache.pulsar.broker.service.BrokerService;
-import org.apache.pulsar.broker.service.SystemTopicBaseTxnBufferSnapshotService;
+import org.apache.pulsar.broker.service.SystemTopicTxnBufferSnapshotServiceImpl;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.SystemTopicTxnBufferSnapshotService;
-import org.apache.pulsar.broker.service.TransactionBufferSnapshotSegmentServiceImpl;
+import org.apache.pulsar.broker.service.TransactionBufferSnapshotServiceImpl;
 import org.apache.pulsar.broker.service.TransactionBufferSnapshotService;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
@@ -490,8 +491,8 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
 
         PersistentTopic originalTopic = (PersistentTopic) getPulsarServiceList().get(0)
                 .getBrokerService().getTopic(TopicName.get(topic).toString(), false).get().get();
-        SystemTopicBaseTxnBufferSnapshotService systemTopicTxnBufferSnapshotService =
-                mock(SystemTopicBaseTxnBufferSnapshotService.class);
+        SystemTopicTxnBufferSnapshotServiceImpl systemTopicTxnBufferSnapshotService =
+                mock(SystemTopicTxnBufferSnapshotServiceImpl.class);
         SystemTopicClient.Reader<TransactionBufferSnapshot> reader = mock(SystemTopicClient.Reader.class);
         SystemTopicClient.Writer<TransactionBufferSnapshot> writer = mock(SystemTopicClient.Writer.class);
 
@@ -592,7 +593,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
     @Test
     public void testTransactionBufferIndexSystemTopic() throws Exception {
         SystemTopicTxnBufferSnapshotService<TransactionBufferSnapshotIndexes> transactionBufferSnapshotIndexService =
-                new TransactionBufferSnapshotSegmentServiceImpl(pulsarClient).getTxnBufferSnapshotIndexService();
+                new TransactionBufferSnapshotServiceImpl(pulsarClient, true).getTxnBufferSnapshotIndexService();
 
         SystemTopicClient.Writer<TransactionBufferSnapshotIndexes> indexesWriter =
                 transactionBufferSnapshotIndexService.createWriter(TopicName.get(SNAPSHOT_INDEX)).get();
@@ -611,7 +612,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
                 new TransactionBufferSnapshotIndexes(SNAPSHOT_INDEX, TransactionBufferSnapshotIndexes.Type.Indexes,
                         indexList, null);
 
-        indexesWriter.write(transactionBufferTransactionBufferSnapshotIndexes);
+        indexesWriter.write(transactionBufferTransactionBufferSnapshotIndexes, SNAPSHOT_INDEX);
 
         assertTrue(indexesReader.hasMoreEvents());
         transactionBufferTransactionBufferSnapshotIndexes = indexesReader.readNext().getValue();
@@ -650,7 +651,8 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         // create snapshot sgement writer
         SystemTopicTxnBufferSnapshotService<TransactionBufferSnapshotIndexes.TransactionBufferSnapshot>
                 transactionBufferSnapshotSegmentService =
-                new TransactionBufferSnapshotSegmentServiceImpl(pulsarClient).getTxnBufferSnapshotSegmentService();
+                new TransactionBufferSnapshotServiceImpl(pulsarClient, true)
+                        .getTxnBufferSnapshotSegmentService();
 
         SystemTopicClient.Writer<TransactionBufferSnapshotIndexes.TransactionBufferSnapshot>
                 segmentWriter = transactionBufferSnapshotSegmentService.createWriter(snapshotSegmentTopicName).get();
@@ -665,12 +667,12 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         snapshot.setMaxReadPositionLedgerId(2L);
         snapshot.setMaxReadPositionEntryId(3L);
         snapshot.setAborts(Collections.singletonList(
-                new org.apache.pulsar.broker.transaction.buffer.matadata.v2.TxnID(1, 1)));
+                new TxnID(1, 1)));
 
-        segmentWriter.write(snapshot);
+        segmentWriter.write(snapshot, buildKey(snapshot));
         snapshot.setSequenceId(2L);
 
-        MessageIdImpl messageId = (MessageIdImpl) segmentWriter.write(snapshot);
+        MessageIdImpl messageId = (MessageIdImpl) segmentWriter.write(snapshot, buildKey(snapshot));
 
         //create read-only managed ledger
         CompletableFuture<ReadOnlyManagedLedgerImpl> readOnlyManagedLedgerCompletableFuture = new CompletableFuture<>();
@@ -721,8 +723,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         assertEquals(snapshot.getSequenceId(), 2L);
         assertEquals(snapshot.getMaxReadPositionLedgerId(), 2L);
         assertEquals(snapshot.getMaxReadPositionEntryId(), 3L);
-        assertEquals(snapshot.getAborts().get(0),
-                new org.apache.pulsar.broker.transaction.buffer.matadata.v2.TxnID(1, 1));
+        assertEquals(snapshot.getAborts().get(0), new TxnID(1, 1));
     }
 
 }

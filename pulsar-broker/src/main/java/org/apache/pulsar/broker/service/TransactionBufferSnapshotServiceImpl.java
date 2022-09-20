@@ -21,31 +21,52 @@ package org.apache.pulsar.broker.service;
 
 import org.apache.pulsar.client.api.PulsarClient;
 
-public class TransactionBufferSnapshotServiceImpl implements TransactionBufferSnapshotService{
+public class TransactionBufferSnapshotServiceImpl implements TransactionBufferSnapshotService {
 
-    private final SystemTopicBaseTxnBufferSnapshotService txnBufferSnapshotService;
+    private SystemTopicTxnBufferSnapshotServiceImpl txnBufferSnapshotService;
 
-    public TransactionBufferSnapshotServiceImpl(PulsarClient pulsarClient) {
-        this.txnBufferSnapshotService = new SystemTopicBaseTxnBufferSnapshotService(pulsarClient);
+    private SystemTopicTxnBufferSnapshotSegmentServiceImpl txnBufferSnapshotSegmentService;
+
+    private SystemTopicTxnBufferSnapshotIndexServiceImpl txnBufferSnapshotIndexService;
+
+    public TransactionBufferSnapshotServiceImpl(PulsarClient pulsarClient,
+                                                boolean transactionBufferSegmentedSnapshotEnabled) {
+        if (transactionBufferSegmentedSnapshotEnabled) {
+            this.txnBufferSnapshotSegmentService = new SystemTopicTxnBufferSnapshotSegmentServiceImpl(pulsarClient);
+            this.txnBufferSnapshotIndexService = new SystemTopicTxnBufferSnapshotIndexServiceImpl(pulsarClient);
+        } else {
+            this.txnBufferSnapshotService = new SystemTopicTxnBufferSnapshotServiceImpl(pulsarClient);
+        }
     }
 
     @Override
-    public SystemTopicBaseTxnBufferSnapshotIndexService getTxnBufferSnapshotIndexService() {
-        return null;
+    public SystemTopicTxnBufferSnapshotIndexServiceImpl getTxnBufferSnapshotIndexService() {
+        return this.txnBufferSnapshotIndexService;
     }
 
     @Override
-    public SystemTopicBaseTxnBufferSnapshotSegmentService getTxnBufferSnapshotSegmentService() {
-        return null;
+    public SystemTopicTxnBufferSnapshotSegmentServiceImpl getTxnBufferSnapshotSegmentService() {
+        return this.txnBufferSnapshotSegmentService;
     }
 
     @Override
-    public SystemTopicBaseTxnBufferSnapshotService getTxnBufferSnapshotService() {
+    public SystemTopicTxnBufferSnapshotServiceImpl getTxnBufferSnapshotService() {
         return this.txnBufferSnapshotService;
     }
 
     @Override
     public void close() throws Exception {
-        this.txnBufferSnapshotService.close();
+        if (this.txnBufferSnapshotIndexService != null) {
+            this.txnBufferSnapshotIndexService.close();
+            this.txnBufferSnapshotIndexService = null;
+        }
+        if (this.txnBufferSnapshotSegmentService != null) {
+            this.txnBufferSnapshotSegmentService.close();
+            this.txnBufferSnapshotSegmentService = null;
+        }
+        if (this.txnBufferSnapshotService != null) {
+            this.txnBufferSnapshotService.close();
+            this.txnBufferSnapshotService = null;
+        }
     }
 }

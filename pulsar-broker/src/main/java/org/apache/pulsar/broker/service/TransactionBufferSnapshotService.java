@@ -25,19 +25,19 @@ public interface TransactionBufferSnapshotService {
      * Get the systemTopicBaseTxnBufferSnapshotIndexService.
      * @return systemTopicBaseTxnBufferSnapshotIndexService
      */
-    SystemTopicBaseTxnBufferSnapshotIndexService getTxnBufferSnapshotIndexService ();
+    SystemTopicTxnBufferSnapshotIndexServiceImpl getTxnBufferSnapshotIndexService ();
 
     /**
      * Get the systemTopicBaseTxnBufferSnapshotSegmentService.
      * @return systemTopicBaseTxnBufferSnapshotSegmentService
      */
-    SystemTopicBaseTxnBufferSnapshotSegmentService getTxnBufferSnapshotSegmentService();
+    SystemTopicTxnBufferSnapshotSegmentServiceImpl getTxnBufferSnapshotSegmentService();
 
     /**
      * Get the systemTopicBaseTxnBufferSnapshotService.
      * @return
      */
-    SystemTopicBaseTxnBufferSnapshotService getTxnBufferSnapshotService();
+    SystemTopicTxnBufferSnapshotServiceImpl getTxnBufferSnapshotService();
 
     /**
      * Close the systemTopicBaseTxnBufferSnapshotxxService in TransactionBufferSnapshotService .

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.systopic;
 
+import static org.apache.pulsar.broker.systopic.TopicPoliciesSystemTopicClient.TopicPolicyWriter.getEventKey;
 import com.google.common.collect.Sets;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -107,7 +108,7 @@ public class NamespaceEventsSystemTopicServiceTest extends MockedPulsarServiceBa
                 .policies(policies)
                 .build())
             .build();
-        systemTopicClientForNamespace1.newWriter().write(event);
+        systemTopicClientForNamespace1.newWriter().write(event, getEventKey(event));
         SystemTopicClient.Reader reader = systemTopicClientForNamespace1.newReader();
         Message<PulsarEvent> received = reader.readNext();
         log.info("Receive pulsar event from system topic : {}", received.getValue());

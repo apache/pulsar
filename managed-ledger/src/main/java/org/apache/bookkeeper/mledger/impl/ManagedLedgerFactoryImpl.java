@@ -430,20 +430,14 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                         .get(new EnsemblePlacementPolicyConfig(config.getBookKeeperEnsemblePlacementPolicyClassName(),
                                 config.getBookKeeperEnsemblePlacementPolicyProperties())),
                 store, config, scheduledExecutor, managedLedgerName);
-
-        roManagedLedger.initialize(new ManagedLedgerInitializeLedgerCallback() {
-            @Override
-            public void initializeComplete() {
-                log.info("[{}] Successfully initialize Read-only managed ledger", managedLedgerName);
-                callback.openLedgerComplete(roManagedLedger, ctx);
-            }
-
-            @Override
-            public void initializeFailed(ManagedLedgerException e) {
-                log.error("[{}] Failed to initialize Read-only managed ledger", managedLedgerName, e);
-                callback.openLedgerFailed(e, ctx);
-            }
-        }, ctx);
+        roManagedLedger.initialize().thenRun(() -> {
+            log.info("[{}] Successfully initialize Read-only managed ledger", managedLedgerName);
+            callback.openLedgerComplete(roManagedLedger, ctx);
+        }).exceptionally(e -> {
+            log.error("[{}] Failed to initialize Read-only managed ledger", managedLedgerName, e);
+            callback.openLedgerFailed((ManagedLedgerException) e, ctx);
+            return null;
+        });
     }
 
     @Override

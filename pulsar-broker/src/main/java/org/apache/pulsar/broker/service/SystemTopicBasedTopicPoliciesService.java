@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.apache.pulsar.broker.systopic.TopicPoliciesSystemTopicClient.TopicPolicyWriter.getEventKey;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -118,7 +119,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             } else {
                 PulsarEvent event = getPulsarEvent(topicName, actionType, policies);
                 CompletableFuture<MessageId> actionFuture =
-                        ActionType.DELETE.equals(actionType) ? writer.deleteAsync(event) : writer.writeAsync(event);
+                        ActionType.DELETE.equals(actionType) ? writer.deleteAsync(event, getEventKey(event))
+                                : writer.writeAsync(event, getEventKey(event));
                 actionFuture.whenComplete(((messageId, e) -> {
                             if (e != null) {
                                 result.completeExceptionally(e);
@@ -444,7 +446,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                     SystemTopicClient<PulsarEvent> systemTopicClient = namespaceEventsSystemTopicFactory
                             .createTopicPoliciesSystemTopicClient(topicName.getNamespaceObject());
                     systemTopicClient.newWriterAsync().thenAccept(writer
-                            -> writer.deleteAsync(getPulsarEvent(topicName, ActionType.DELETE, null))
+                            -> writer.deleteAsync(getPulsarEvent(topicName, ActionType.DELETE, null),
+                                    getEventKey(topicName))
                             .whenComplete((result, e) -> writer.closeAsync().whenComplete((res, ex) -> {
                                 if (ex != null) {
                                     log.error("close writer failed ", ex);

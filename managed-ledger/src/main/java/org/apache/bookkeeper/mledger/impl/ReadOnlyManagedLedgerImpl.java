@@ -47,6 +47,12 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
 
     CompletableFuture<ReadOnlyCursor> initializeAndCreateCursor(PositionImpl startPosition) {
         CompletableFuture<ReadOnlyCursor> future = new CompletableFuture<>();
+        initialize().thenRun(() -> future.complete(createReadOnlyCursor(startPosition)));
+        return future;
+    }
+
+    CompletableFuture<Void> initialize() {
+        CompletableFuture<Void> future = new CompletableFuture<>();
 
         // Fetch the list of existing ledgers in the managed ledger
         store.getManagedLedgerInfo(name, false, new MetaStoreCallback<ManagedLedgerInfo>() {
@@ -72,7 +78,7 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
                                             .setTimestamp(clock.millis()).build();
                                     ledgers.put(lastLedgerId, info);
 
-                                    future.complete(createReadOnlyCursor(startPosition));
+                                    future.complete(null);
                                 }).exceptionally(ex -> {
                                     if (ex instanceof CompletionException
                                             && ex.getCause() instanceof IllegalArgumentException) {
@@ -80,7 +86,7 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
                                         LedgerInfo info = LedgerInfo.newBuilder().setLedgerId(lastLedgerId)
                                                 .setEntries(0).setSize(0).setTimestamp(clock.millis()).build();
                                         ledgers.put(lastLedgerId, info);
-                                        future.complete(createReadOnlyCursor(startPosition));
+                                        future.complete(null);
                                     } else {
                                         future.completeExceptionally(new ManagedLedgerException(ex));
                                     }
@@ -93,7 +99,7 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
                                     LedgerInfo info = LedgerInfo.newBuilder().setLedgerId(lastLedgerId).setEntries(0)
                                             .setSize(0).setTimestamp(clock.millis()).build();
                                     ledgers.put(lastLedgerId, info);
-                                    future.complete(createReadOnlyCursor(startPosition));
+                                    future.complete(null);
                                 } else {
                                     future.completeExceptionally(new ManagedLedgerException(ex));
                                 }
@@ -101,7 +107,7 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
                             });
                 } else {
                     // The read-only managed ledger is ready to use
-                    future.complete(createReadOnlyCursor(startPosition));
+                    future.complete(null);
                 }
             }
 

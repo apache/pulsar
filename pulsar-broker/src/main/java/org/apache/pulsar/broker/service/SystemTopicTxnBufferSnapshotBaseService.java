@@ -20,18 +20,17 @@ package org.apache.pulsar.broker.service;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.systopic.SystemTopicClientBase;
 import org.apache.pulsar.common.naming.TopicName;
 
-public abstract class  SystemTopicBaseTxnBufferSnapshotBaseService<T> implements
-        SystemTopicTxnBufferSnapshotService<T> {
+public abstract class SystemTopicTxnBufferSnapshotBaseService<T> implements SystemTopicTxnBufferSnapshotService<T> {
 
     protected final Map<TopicName, SystemTopicClient<T>> clients;
 
-    public SystemTopicBaseTxnBufferSnapshotBaseService(
-            Map<TopicName, SystemTopicClient<T>> clients) {
-        this.clients = clients;
+    public SystemTopicTxnBufferSnapshotBaseService() {
+        this.clients = new ConcurrentHashMap<>();
     }
 
     @Override

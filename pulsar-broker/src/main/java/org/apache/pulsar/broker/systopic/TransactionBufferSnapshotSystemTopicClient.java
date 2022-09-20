@@ -26,7 +26,6 @@ import org.apache.pulsar.broker.transaction.buffer.matadata.TransactionBufferSna
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicName;
 
@@ -76,34 +75,6 @@ public class TransactionBufferSnapshotSystemTopicClient extends
         private TransactionBufferSnapshotWriter(Producer<TransactionBufferSnapshot> producer,
                 TransactionBufferSnapshotSystemTopicClient transactionBufferSnapshotSystemTopicClient) {
             super(producer, transactionBufferSnapshotSystemTopicClient);
-        }
-
-        @Override
-        public MessageId write(TransactionBufferSnapshot transactionBufferSnapshot) throws PulsarClientException {
-            return producer.newMessage().key(transactionBufferSnapshot.getTopicName())
-                    .value(transactionBufferSnapshot).send();
-        }
-
-        @Override
-        public CompletableFuture<MessageId> writeAsync(TransactionBufferSnapshot transactionBufferSnapshot) {
-            return producer.newMessage().key(transactionBufferSnapshot.getTopicName())
-                    .value(transactionBufferSnapshot).sendAsync();
-        }
-
-        @Override
-        public MessageId delete(TransactionBufferSnapshot transactionBufferSnapshot) throws PulsarClientException {
-            return producer.newMessage()
-                    .key(transactionBufferSnapshot.getTopicName())
-                    .value(null)
-                    .send();
-        }
-
-        @Override
-        public CompletableFuture<MessageId> deleteAsync(TransactionBufferSnapshot transactionBufferSnapshot) {
-            return producer.newMessage()
-                    .key(transactionBufferSnapshot.getTopicName())
-                    .value(null)
-                    .sendAsync();
         }
     }
 

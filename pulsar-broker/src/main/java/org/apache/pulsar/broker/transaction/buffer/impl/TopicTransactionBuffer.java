@@ -485,7 +485,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                 });
                 snapshot.setAborts(list);
             }
-            return writer.writeAsync(snapshot).thenAccept(messageId-> {
+            return writer.writeAsync(snapshot, snapshot.getTopicName()).thenAccept(messageId-> {
                 this.lastSnapshotTimestamps = System.currentTimeMillis();
                 if (log.isDebugEnabled()) {
                     log.debug("[{}]Transaction buffer take snapshot success! "
@@ -533,7 +533,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         return this.takeSnapshotWriter.thenCompose(writer -> {
             TransactionBufferSnapshot snapshot = new TransactionBufferSnapshot();
             snapshot.setTopicName(topic.getName());
-            return writer.deleteAsync(snapshot);
+            return writer.deleteAsync(snapshot, snapshot.getTopicName());
         }).thenCompose(__ -> CompletableFuture.completedFuture(null));
     }
 

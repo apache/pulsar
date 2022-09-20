@@ -25,6 +25,7 @@ import lombok.Data;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.apache.pulsar.client.api.transaction.TxnID;
 
 @AllArgsConstructor
 @NoArgsConstructor

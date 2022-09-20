@@ -104,9 +104,8 @@ import org.apache.pulsar.broker.service.PulsarMetadataEventSynchronizer;
 import org.apache.pulsar.broker.service.SystemTopicBasedTopicPoliciesService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TopicPoliciesService;
-import org.apache.pulsar.broker.service.TransactionBufferSnapshotSegmentServiceImpl;
-import org.apache.pulsar.broker.service.TransactionBufferSnapshotService;
 import org.apache.pulsar.broker.service.TransactionBufferSnapshotServiceImpl;
+import org.apache.pulsar.broker.service.TransactionBufferSnapshotService;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.SchemaStorageFactory;
 import org.apache.pulsar.broker.stats.MetricsGenerator;
@@ -819,10 +818,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             // Register pulsar system namespaces and start transaction meta store service
             if (config.isTransactionCoordinatorEnabled()) {
-//                if (transactionBufferSegmentedSnapshotEnabled)
-                this.transactionBufferSnapshotService = new TransactionBufferSnapshotSegmentServiceImpl(getClient());
-//                  else
-                this.transactionBufferSnapshotService = new TransactionBufferSnapshotServiceImpl(getClient());
+                this.transactionBufferSnapshotService = new TransactionBufferSnapshotServiceImpl(getClient(), false);
 
                 this.transactionTimer =
                         new HashedWheelTimer(new DefaultThreadFactory("pulsar-transaction-timer"));
