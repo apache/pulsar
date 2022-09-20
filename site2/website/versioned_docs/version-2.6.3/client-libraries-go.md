@@ -640,7 +640,7 @@ defer readerInclusive.Close()
 | StartMessageIDInclusive | If true, the reader will start at the `StartMessageID`, included. Default is `false` and the reader will start from the "next" message | false |
 | MessageChannel | MessageChannel sets a `MessageChannel` for the consumer When a message is received, it will be pushed to the channel for consumption| |
 | ReceiverQueueSize | ReceiverQueueSize sets the size of the consumer receive queue. | 1000 |
-| SubscriptionRolePrefix| SubscriptionRolePrefix set the subscription role prefix. | “reader” | 
+| SubscriptionRolePrefix| SubscriptionRolePrefix set the subscription role prefix. | "reader" | 
 | ReadCompacted | If enabled, the reader will read messages from the compacted topic rather than reading the full message backlog of the topic.  ReadCompacted can only be enabled when reading from a persistent topic. | false|
 
 ## Messages

@@ -373,6 +373,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
 
     @Override
     public void acknowledgeMessage(List<Position> positions, AckType ackType, Map<String, Long> properties) {
+        cursor.updateLastActive();
         Position previousMarkDeletePosition = cursor.getMarkDeletedPosition();
 
         if (ackType == AckType.Cumulative) {
@@ -1278,6 +1279,11 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
     @VisibleForTesting
     public ManagedCursor getCursor() {
         return cursor;
+    }
+
+    @VisibleForTesting
+    public PendingAckHandle getPendingAckHandle() {
+        return pendingAckHandle;
     }
 
     public void syncBatchPositionBitSetForPendingAck(PositionImpl position) {

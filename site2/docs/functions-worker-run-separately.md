@@ -76,7 +76,6 @@ You must configure both the function worker authentication and authorization for
 For example, if you use token authentication, you need to configure the following properties in the `conf/function-worker.yml` file.
 
 ```yaml
-
 brokerClientAuthenticationPlugin: org.apache.pulsar.client.impl.auth.AuthenticationToken
 brokerClientAuthenticationParameters: file:///etc/pulsar/token/admin-token.txt
 configurationMetadataStoreUrl: zk:zookeeper-cluster:2181 # auth requires a connection to zookeeper
@@ -90,7 +89,6 @@ superUserRoles:
 properties:
   tokenSecretKey: file:///etc/pulsar/jwt/secret # if using a secret token, key file must be DER-encoded
   tokenPublicKey: file:///etc/pulsar/jwt/public.key # if using public/private key tokens, key file must be DER-encoded
-
 ```
 
 You can enable the following security settings on function workers.
@@ -105,7 +103,6 @@ You can enable the following security settings on function workers.
 To enable TLS encryption, configure the following settings.
 
 ```yaml
-
 useTLS: true
 pulsarServiceUrl: pulsar+ssl://localhost:6651/
 pulsarWebServiceUrl: https://localhost:8443
@@ -117,7 +114,6 @@ tlsTrustCertsFilePath:  /path/to/ca.cert.pem
 
 // The path to trusted certificates used by the Pulsar client to authenticate with Pulsar brokers
 brokerClientTrustCertsFilePath: /path/to/ca.cert.pem
-
 ```
 
 For more details on TLS encryption, refer to [Transport Encryption using TLS](security-tls-transport.md).
@@ -128,43 +124,35 @@ For more details on TLS encryption, refer to [Transport Encryption using TLS](se
 To enable authentication providers on function workers, substitute the `authenticationProviders` parameter with the providers you want to enable.
 
 ```properties
-
 authenticationEnabled: true
 authenticationProviders: [provider1, provider2]
-
 ```
 
 For [TLS authentication](security-tls-authentication.md) provider, follow the example below to add the required settings.
 
 ```properties
-
 brokerClientAuthenticationPlugin: org.apache.pulsar.client.impl.auth.AuthenticationTls
 brokerClientAuthenticationParameters: tlsCertFile:/path/to/admin.cert.pem,tlsKeyFile:/path/to/admin.key-pk8.pem
 
 authenticationEnabled: true
 authenticationProviders: ['org.apache.pulsar.broker.authentication.AuthenticationProviderTls']
-
 ```
 
 For SASL authentication provider, add `saslJaasClientAllowedIds` and `saslJaasServerSectionName` under `properties`.
 
 ```properties
-
 properties:
   saslJaasClientAllowedIds: .*pulsar.*
   saslJaasServerSectionName: Broker
-
 ```
 
 For [token authentication](security-jwt.md) provider, add the required settings under `properties`.
 
 ```properties
-
 properties:
   tokenSecretKey:       file://my/secret.key
   # If using public/private
-  # tokenPublicKey:     file://path/to/public.key
-
+  # tokenPublicKey:     file://path/to/public.key 
 ```
 
 :::note
@@ -180,22 +168,18 @@ To enable authorization on function workers, complete the following steps.
 1. Configure `authorizationEnabled`, `authorizationProvider` and `configurationMetadataStoreUrl` in the `functions_worker.yml` file. The authentication provider connects to `configurationMetadataStoreUrl` to receive namespace policies.
 
    ```yaml
-
    authorizationEnabled: true
    authorizationProvider: org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider
    configurationMetadataStoreUrl: <meta-type>:<configuration-metadata-store-url>
-
    ```
 
 2. Configure a list of superuser roles. The superuser roles can access any admin API. The following configuration is an example.
 
    ```yaml
-
    superUserRoles:
      - role1
      - role2
      - role3
-
    ```
 
 ### Configure BookKeeper authentication
@@ -216,17 +200,13 @@ Before starting function workers, make sure [function runtime](functions-runtime
 * You can start a function worker in the background by using [nohup](https://en.wikipedia.org/wiki/Nohup) with the [`pulsar-daemon`](reference-cli-tools.md#pulsar-daemon) CLI tool:
 
   ```bash
-
   bin/pulsar-daemon start functions-worker
-
   ```
 
 * To start a function worker in the foreground, you can use the [`pulsar-admin`](/tools/pulsar-admin/) CLI as follows.
 
   ```bash
-
   bin/pulsar functions-worker
-
   ```
 
 ## Configure proxies for standalone function workers
@@ -243,9 +223,7 @@ If you haven't set up a proxy cluster yet, follow the [instructions](administrat
 
 To enable a proxy for routing function-related admin requests to function workers, you can edit the `conf/proxy.conf` file to modify the following settings:
 
-```properties
-
+```conf
 functionWorkerWebServiceURL=<pulsar-functions-worker-web-service-url>
 functionWorkerWebServiceURLTLS=<pulsar-functions-worker-web-service-url>
-
 ```

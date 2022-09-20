@@ -56,18 +56,18 @@ in the `bookkeeper.conf` configuration file.
 | Name | Type | Description |
 |---|---|---|
 | bookie_SERVER_STATUS | Gauge | The server status for bookie server. <br /><ul><li>1: the bookie is running in writable mode.</li><li>0: the bookie is running in readonly mode.</li></ul> |
-| bookkeeper_server_ADD_ENTRY_count | Counter | The total number of ADD_ENTRY requests received at the bookie. The `success` label is used to distinguish successes and failures. |
-| bookkeeper_server_READ_ENTRY_count | Counter | The total number of READ_ENTRY requests received at the bookie. The `success` label is used to distinguish successes and failures. |
+| bookkeeper_server_ADD_ENTRY_count | Counter | The total number of ADD_ENTRY requests received at the bookie. The `success` label is used to distinguish between successes and failures. |
+| bookkeeper_server_READ_ENTRY_count | Counter | The total number of READ_ENTRY requests received at the bookie. The `success` label is used to distinguish between successes and failures. |
 | bookie_WRITE_BYTES | Counter | The total number of bytes written to the bookie. |
 | bookie_READ_BYTES | Counter | The total number of bytes read from the bookie. |
-| bookkeeper_server_ADD_ENTRY_REQUEST | Summary | The summary of request latency of ADD_ENTRY requests at the bookie. The `success` label is used to distinguish successes and failures. | 
-| bookkeeper_server_READ_ENTRY_REQUEST | Summary | The summary of request latency of READ_ENTRY requests at the bookie. The `success` label is used to distinguish successes and failures. | 
+| bookkeeper_server_ADD_ENTRY_REQUEST | Summary | The summary of request latency of ADD_ENTRY requests at the bookie. The `success` label is used to distinguish between successes and failures. | 
+| bookkeeper_server_READ_ENTRY_REQUEST | Summary | The summary of request latency of READ_ENTRY requests at the bookie. The `success` label is used to distinguish between successes and failures. | 
 
 ### Journal metrics
 
 | Name | Type | Description |
 |---|---|---|
-| bookie_journal_JOURNAL_SYNC_count | Counter | The total number of journal fsync operations happening at the bookie. The `success` label is used to distinguish successes and failures. |
+| bookie_journal_JOURNAL_SYNC_count | Counter | The total number of journal fsync operations happening at the bookie. The `success` label is used to distinguish between successes and failures. |
 | bookie_journal_JOURNAL_QUEUE_SIZE | Gauge | The total number of requests pending in the journal queue. |
 | bookie_journal_JOURNAL_FORCE_WRITE_QUEUE_SIZE | Gauge | The total number of force write (fsync) requests pending in the force-write queue. |
 | bookie_journal_JOURNAL_CB_QUEUE_SIZE | Gauge | The total number of callbacks pending in the callback queue. |
@@ -306,8 +306,8 @@ All the loadbalancing metrics are labelled with the following labels:
 
 | Name | Type | Description |
 | --- | --- | --- |
-| pulsar_lb_bandwidth_in_usage | Gauge | The broker bandwith in usage |
-| pulsar_lb_bandwidth_out_usage | Gauge | The broker bandwith out usage |
+| pulsar_lb_bandwidth_in_usage | Gauge | The broker bandwidth in usage |
+| pulsar_lb_bandwidth_out_usage | Gauge | The broker bandwidth out usage |
 | pulsar_lb_cpu_usage | Gauge | The broker cpu usage |
 | pulsar_lb_directMemory_usage | Gauge | The broker process direct memory usage |
 | pulsar_lb_memory_usage | Gauge | The broker process memory usage  |

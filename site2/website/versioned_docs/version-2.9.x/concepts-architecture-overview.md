@@ -17,7 +17,7 @@ The diagram below provides an illustration of a Pulsar cluster:
 
 ![Pulsar architecture diagram](/assets/pulsar-system-architecture.png)
 
-At the broader instance level, an instance-wide ZooKeeper cluster called the configuration store handles coordination tasks involving multiple clusters, for example [geo-replication](concepts-replication.md).
+At the broader instance level, an instance-wide ZooKeeper cluster called the configuration store handles coordination tasks involving multiple clusters, for example, [geo-replication](concepts-replication.md).
 
 ## Brokers
 
@@ -40,7 +40,7 @@ A Pulsar instance consists of one or more Pulsar *clusters*. Clusters, in turn, 
 * A ZooKeeper quorum used for cluster-level configuration and coordination
 * An ensemble of bookies used for [persistent storage](#persistent-storage) of messages
 
-Clusters can replicate amongst themselves using [geo-replication](concepts-replication.md).
+Clusters can replicate among themselves using [geo-replication](concepts-replication.md).
 
 > For a guide to managing Pulsar clusters, see the [clusters](admin-api-clusters.md) guide.
 
@@ -55,13 +55,13 @@ In a Pulsar instance:
 
 ## Configuration store
 
-The configuration store maintains all the configurations of a Pulsar instance, such as clusters, tenants, namespaces, partitioned topic related configurations, and so on. A Pulsar instance can have a single local cluster, multiple local clusters, or multiple cross-region clusters. Consequently, the configuration store can share the configurations across multiple clusters under a Pulsar instance. The configuration store can be deployed on a separate ZooKeeper cluster or deployed on an existing ZooKeeper cluster.
+The configuration store maintains all the configurations of a Pulsar instance, such as clusters, tenants, namespaces, partitioned topic-related configurations, and so on. A Pulsar instance can have a single local cluster, multiple local clusters, or multiple cross-region clusters. Consequently, the configuration store can share the configurations across multiple clusters under a Pulsar instance. The configuration store can be deployed on a separate ZooKeeper cluster or deployed on an existing ZooKeeper cluster.
 
 ## Persistent storage
 
 Pulsar provides guaranteed message delivery for applications. If a message successfully reaches a Pulsar broker, it will be delivered to its intended target.
 
-This guarantee requires that non-acknowledged messages are stored in a durable manner until they can be delivered to and acknowledged by consumers. This mode of messaging is commonly called *persistent messaging*. In Pulsar, N copies of all messages are stored and synced on disk, for example 4 copies across two servers with mirrored [RAID](https://en.wikipedia.org/wiki/RAID) volumes on each server.
+This guarantee requires that non-acknowledged messages are stored in a durable manner until they can be delivered to and acknowledged by consumers. This mode of messaging is commonly called *persistent messaging*. In Pulsar, N copies of all messages are stored and synced on disk, for example, 4 copies across two servers with mirrored [RAID](https://en.wikipedia.org/wiki/RAID) volumes on each server.
 
 ### Apache BookKeeper
 
@@ -72,7 +72,7 @@ Pulsar uses a system called [Apache BookKeeper](http://bookkeeper.apache.org/) f
 * It guarantees read consistency of ledgers in the presence of various system failures.
 * It offers even distribution of I/O across bookies.
 * It's horizontally scalable in both capacity and throughput. Capacity can be immediately increased by adding more bookies to a cluster.
-* Bookies are designed to handle thousands of ledgers with concurrent reads and writes. By using multiple disk devices---one for journal and another for general storage--bookies are able to isolate the effects of read operations from the latency of ongoing write operations.
+* Bookies are designed to handle thousands of ledgers with concurrent reads and writes. By using multiple disk devices---one for journal and another for general storage--bookies are able to isolate the effects of reading operations from the latency of ongoing write operations.
 
 In addition to message data, *cursors* are also persistently stored in BookKeeper. Cursors are [subscription](reference-terminology.md#subscription) positions for [consumers](reference-terminology.md#consumer). BookKeeper enables Pulsar to store consumer position in a scalable fashion.
 

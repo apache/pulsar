@@ -257,7 +257,7 @@ For more information about implementation details, see [PR-6077](https://github.
 
 ### Add a flag to skip broker shutdown on transient OOM
 
-A high dispatch rate on one of the topics may cause a broker to go OOM temporarily. It is a transient error and the broker can recover within a few seconds as soon as some memory gets released. However, in 2.4 release ([#4196](https://github.com/apache/pulsar/pull/4196)), the “restarted broker on OOM” feature can cause huge instability in a cluster, where a topic moves from one broker to another and restarts multiple brokers and disrupts other topics as well. So this PR provides a dynamic flag to skip broker shutdown on OOM to avoid instability in a cluster.
+A high dispatch rate on one of the topics may cause a broker to go OOM temporarily. It is a transient error and the broker can recover within a few seconds as soon as some memory gets released. However, in 2.4 release ([#4196](https://github.com/apache/pulsar/pull/4196)), the "restarted broker on OOM" feature can cause huge instability in a cluster, where a topic moves from one broker to another and restarts multiple brokers and disrupts other topics as well. So this PR provides a dynamic flag to skip broker shutdown on OOM to avoid instability in a cluster.
 
 For more information about implementation details, see [PR-6634](https://github.com/apache/pulsar/pull/6634).
 

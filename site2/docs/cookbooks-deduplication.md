@@ -21,7 +21,7 @@ To use message deduplication in Pulsar, you need to configure your Pulsar broker
 
 You can enable or disable message deduplication at broker, namespace, or topic level. By default, it is disabled on all brokers, namespaces, or topics. You can enable it in the following ways:
 
-* Enable deduplication for all namespaces/topics at the broker-level.
+* Enable deduplication for all namespaces/topics at the broker level.
 * Enable deduplication for a specific namespace with the `pulsar-admin namespaces` interface.
 * Enable deduplication for a specific topic with the `pulsar-admin topics` interface.
 
@@ -39,9 +39,9 @@ Parameter | Description | Default
 
 ### Set default value at the broker-level
 
-By default, message deduplication is *disabled* on all Pulsar namespaces/topics. To enable it on all namespaces/topics, set the `brokerDeduplicationEnabled` parameter to `true` and re-start the broker.
+By default, message deduplication is *disabled* on all Pulsar namespaces/topics. To enable it on all namespaces/topics, set the `brokerDeduplicationEnabled` parameter to `true` and restart the broker.
 
-Even if you set the value for `brokerDeduplicationEnabled`, enabling or disabling via Pulsar admin CLI overrides the default settings at the broker-level.
+Even if you set the value for `brokerDeduplicationEnabled`, enabling or disabling via Pulsar admin CLI overrides the default settings at the broker level.
 
 ### Enable message deduplication at namespace or topic level
 
@@ -50,11 +50,9 @@ Though message deduplication is disabled by default at the broker level, you can
 The following example shows how to enable message deduplication at the namespace level.
 
 ```bash
-
-$ bin/pulsar-admin namespaces set-deduplication \
-  public/default \
-  --enable # or just -e
-
+bin/pulsar-admin namespaces set-deduplication \
+public/default \
+--enable # or just -e
 ```
 
 ### Disable message deduplication at namespace or topic level
@@ -64,11 +62,9 @@ Even if you enable message deduplication at the broker level, you can disable me
 The following example shows how to disable message deduplication at the namespace level.
 
 ```bash
-
-$ bin/pulsar-admin namespaces set-deduplication \
-  public/default \
-  --disable # or just -d
-
+bin/pulsar-admin namespaces set-deduplication \
+public/default \
+--disable # or just -d
 ```
 
 ## Pulsar clients
@@ -91,7 +87,6 @@ The instructions for Java, Python, and C++ clients are different.
 To ensure the guarantee order on a [Java producer](client-libraries-java.md#producers) sending to a topic with message deduplication enabled, set the producer name using the `producerName` setter, and set the timeout to `0` using the `sendTimeout` setter. 
 
 ```java
-
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import java.util.concurrent.TimeUnit;
@@ -104,7 +99,6 @@ Producer producer = pulsarClient.newProducer()
         .topic("persistent://public/default/topic-1")
         .sendTimeout(0, TimeUnit.SECONDS)
         .create();
-
 ```
 
 </TabItem>
@@ -113,7 +107,6 @@ Producer producer = pulsarClient.newProducer()
 Not to break the guarantee order on a [Python producer](client-libraries-python.md#producers) sending to a topic with message deduplication active, set the producer name using `producer_name`, and set the timeout to `0` using `send_timeout_millis`. 
 
 ```python
-
 import pulsar
 
 client = pulsar.Client("pulsar://localhost:6650")
@@ -121,7 +114,6 @@ producer = client.create_producer(
     "persistent://public/default/topic-1",
     producer_name="producer-1",
     send_timeout_millis=0)
-
 ```
 
 </TabItem>
@@ -129,7 +121,6 @@ producer = client.create_producer(
 Not to break the guarantee order on a [C++ producer](client-libraries-cpp.md#producer) sending to a topic with message deduplication active, set the producer name using `producer_name`, and set the timeout to `0` using `send_timeout_millis`. 
 
 ```cpp
-
 #include <pulsar/Client.h>
 
 std::string serviceUrl = "pulsar://localhost:6650";
@@ -145,7 +136,6 @@ producerConfig.setProducerName(producerName);
 Producer producer;
 
 Result result = client.createProducer(topic, producerConfig, producer);
-
 ```
 
 </TabItem>

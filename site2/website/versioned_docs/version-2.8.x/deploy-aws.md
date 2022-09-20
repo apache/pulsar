@@ -190,7 +190,7 @@ $ terraform destroy
 
 ## Setup Disks
 
-Before you run the Pulsar playbook, you need to mount the disks to the correct directories on those bookie nodes. Since different type of machines have different disk layout, you need to update the task defined in `setup-disk.yaml` file after changing the `instance_types` in your terraform config,
+Before you run the Pulsar playbook, you need to mount the disks to the correct directories on those bookie nodes. Since different types of machines have different disk layouts, you need to update the task defined in `setup-disk.yaml` file after changing the `instance_types` in your terraform config,
 
 To setup disks on bookie nodes, enter this command:
 
@@ -203,7 +203,7 @@ $ ansible-playbook \
 
 ```
 
-After that, the disks is mounted under `/mnt/journal` as journal disk, and `/mnt/storage` as ledger disk.
+After that, the disks are mounted under `/mnt/journal` as journal disk, and `/mnt/storage` as ledger disk.
 Remember to enter this command just only once. If you attempt to enter this command again after you have run Pulsar playbook, your disks might potentially be erased again, causing the bookies to fail to start up.
 
 ## Run the Pulsar playbook

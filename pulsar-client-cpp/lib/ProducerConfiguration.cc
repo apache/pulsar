@@ -258,4 +258,12 @@ ProducerConfiguration& ProducerConfiguration::setChunkingEnabled(bool chunkingEn
 
 bool ProducerConfiguration::isChunkingEnabled() const { return impl_->chunkingEnabled; }
 
+ProducerConfiguration& ProducerConfiguration::setAccessMode(const ProducerAccessMode& accessMode) {
+    impl_->accessMode = accessMode;
+    return *this;
+}
+ProducerConfiguration::ProducerAccessMode ProducerConfiguration::getAccessMode() const {
+    return impl_->accessMode;
+}
+
 }  // namespace pulsar

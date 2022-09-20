@@ -35,7 +35,7 @@ When ledgers are offloaded to long term storage, you can still query data in the
 
 ## Configuring the offload driver
 
-Offloading is configured in ```broker.conf```.
+Offloading is configured in `broker.conf`.
 
 At a minimum, the administrator must configure the driver, the bucket and the authenticating credentials.
 There is also some other knobs to configure, like the bucket region, the max block size in backed storage, etc.
@@ -50,10 +50,8 @@ Currently we support driver of types:
 > though it requires that you specify an endpoint url using `s3ManagedLedgerOffloadServiceEndpoint`. This is useful if
 > using a S3 compatible data store, other than AWS.
 
-```properties
-
+```conf
 managedLedgerOffloadDriver=aws-s3
-
 ```
 
 ### "aws-s3" Driver configuration
@@ -65,10 +63,8 @@ Everything that you store in Cloud Storage must be contained in a bucket.
 You can use buckets to organize your data and control access to your data,
 but unlike directories and folders, you cannot nest buckets.
 
-```properties
-
+```conf
 s3ManagedLedgerOffloadBucket=pulsar-topic-offload
-
 ```
 
 Bucket Region is the region where bucket located. Bucket Region is not a required
@@ -76,10 +72,8 @@ but a recommended configuration. If it is not configured, It will use the defaul
 
 With AWS S3, the default region is `US East (N. Virginia)`. Page [AWS Regions and Endpoints](https://docs.aws.amazon.com/general/latest/gr/rande.html) contains more information.
 
-```properties
-
+```conf
 s3ManagedLedgerOffloadRegion=eu-west-3
-
 ```
 
 #### Authentication with AWS
@@ -98,10 +92,8 @@ if no other mechanism is provided
 2. Set the environment variables **AWS_ACCESS_KEY_ID** and **AWS_SECRET_ACCESS_KEY** in ```conf/pulsar_env.sh```.
 
 ```bash
-
 export AWS_ACCESS_KEY_ID=ABC123456789
 export AWS_SECRET_ACCESS_KEY=ded7db27a4558e2ea8bbf0bf37ae0e8521618f366c
-
 ```
 
 > \"export\" is important so that the variables are made available in the environment of spawned processes.
@@ -110,30 +102,24 @@ export AWS_SECRET_ACCESS_KEY=ded7db27a4558e2ea8bbf0bf37ae0e8521618f366c
 3. Add the Java system properties *aws.accessKeyId* and *aws.secretKey* to **PULSAR_EXTRA_OPTS** in `conf/pulsar_env.sh`.
 
 ```bash
-
 PULSAR_EXTRA_OPTS="${PULSAR_EXTRA_OPTS} ${PULSAR_MEM} ${PULSAR_GC} -Daws.accessKeyId=ABC123456789 -Daws.secretKey=ded7db27a4558e2ea8bbf0bf37ae0e8521618f366c -Dio.netty.leakDetectionLevel=disabled -Dio.netty.recycler.maxCapacityPerThread=4096"
-
 ```
 
 4. Set the access credentials in ```~/.aws/credentials```.
 
-```properties
-
+```conf
 [default]
 aws_access_key_id=ABC123456789
 aws_secret_access_key=ded7db27a4558e2ea8bbf0bf37ae0e8521618f366c
-
 ```
 
 5. Assuming an IAM role
 
 If you want to assume an IAM role, this can be done via specifying the following:
 
-```properties
-
+```conf
 s3ManagedLedgerOffloadRole=<aws role arn>
 s3ManagedLedgerOffloadRoleSessionName=pulsar-s3-offload
-
 ```
 
 This will use the `DefaultAWSCredentialsProviderChain` for assuming this role.
@@ -157,10 +143,8 @@ Buckets are the basic containers that hold your data. Everything that you store 
 Cloud Storage must be contained in a bucket. You can use buckets to organize your data and
 control access to your data, but unlike directories and folders, you cannot nest buckets.
 
-```properties
-
+```conf
 gcsManagedLedgerOffloadBucket=pulsar-topic-offload
-
 ```
 
 Bucket Region is the region where bucket located. Bucket Region is not a required but
@@ -169,10 +153,8 @@ a recommended configuration. If it is not configured, It will use the default re
 Regarding GCS, buckets are default created in the `us multi-regional location`,
 page [Bucket Locations](https://cloud.google.com/storage/docs/bucket-locations) contains more information.
 
-```properties
-
+```conf
 gcsManagedLedgerOffloadRegion=europe-west3
-
 ```
 
 #### Authentication with GCS
@@ -192,12 +174,14 @@ To generate service account credentials or view the public credentials that you'
 4. In the **Create service account** window, type a name for the service account, and select **Furnish a new private key**. If you want to [grant G Suite domain-wide authority](https://developers.google.com/identity/protocols/OAuth2ServiceAccount#delegatingauthority) to the service account, also select **Enable G Suite Domain-wide Delegation**.
 5. Click **Create**.
 
-> Notes: Make ensure that the service account you create has permission to operate GCS, you need to assign **Storage Admin** permission to your service account in [here](https://cloud.google.com/storage/docs/access-control/iam).
+:::note
 
-```properties
+Make ensure that the service account you create has permission to operate GCS, you need to assign **Storage Admin** permission to your service account in [here](https://cloud.google.com/storage/docs/access-control/iam).
 
+:::
+
+```conf
 gcsManagedLedgerOffloadServiceAccountKeyFile="/Users/hello/Downloads/project-804d5e6a6f33.json"
-
 ```
 
 #### Configuring the size of block read/write
@@ -218,28 +202,23 @@ In both cases, these should not be touched unless you know what you are doing.
 
 You can configure the connection address in the `broker.conf` file.
 
-```properties
-
+```conf
 fileSystemURI="hdfs://127.0.0.1:9000"
-
 ```
 
 #### Configure Hadoop profile path
 
 The configuration file is stored in the Hadoop profile path. It contains various settings, such as base path, authentication, and so on.
 
-```properties
-
+```conf
 fileSystemProfilePath="../conf/filesystem_offload_core_site.xml"
-
 ```
 
 The model for storing topic data uses `org.apache.hadoop.io.MapFile`. You can use all of the configurations in `org.apache.hadoop.io.MapFile` for Hadoop.
 
 **Example**
 
-```properties
-
+```xml
     <property>
         <name>fs.defaultFS</name>
         <value></value>
@@ -269,18 +248,16 @@ The model for storing topic data uses `org.apache.hadoop.io.MapFile`. You can us
         <name>io.map.index.interval</name>
         <value>128</value>
     </property>
-
 ```
 
 For more information about the configurations in `org.apache.hadoop.io.MapFile`, see [Filesystem Storage](http://hadoop.apache.org/).
+
 ## Configuring offload to run automatically
 
 Namespace policies can be configured to offload data automatically once a threshold is reached. The threshold is based on the size of data that the topic has stored on the pulsar cluster. Once the topic reaches the threshold, an offload operation will be triggered. Setting a negative value to the threshold will disable automatic offloading. Setting the threshold to 0 will cause the broker to offload data as soon as it possiby can.
 
 ```bash
-
-$ bin/pulsar-admin namespaces set-offload-threshold --size 10M my-tenant/my-namespace
-
+bin/pulsar-admin namespaces set-offload-threshold --size 10M my-tenant/my-namespace
 ```
 
 > Automatic offload runs when a new segment is added to a topic log. If you set the threshold on a namespace, but few messages are being produced to the topic, offload will not until the current segment is full.
@@ -291,11 +268,9 @@ By default, once messages were offloaded to long term storage, brokers will read
 messages exists in both bookkeeper and long term storage, if they are preferred to read from bookkeeper, you can use command to change this configuration.
 
 ```bash
-
 # default value for -orp is tiered-storage-first
-$ bin/pulsar-admin namespaces set-offload-policies my-tenant/my-namespace -orp bookkeeper-first
-$ bin/pulsar-admin topics set-offload-policies my-tenant/my-namespace/topic1 -orp bookkeeper-first
-
+bin/pulsar-admin namespaces set-offload-policies my-tenant/my-namespace -orp bookkeeper-first
+bin/pulsar-admin topics set-offload-policies my-tenant/my-namespace/topic1 -orp bookkeeper-first
 ```
 
 ## Triggering offload manually
@@ -305,39 +280,31 @@ Offloading can manually triggered through a REST endpoint on the Pulsar broker. 
 When triggering offload, you must specify the maximum size, in bytes, of backlog which will be retained locally on the bookkeeper. The offload mechanism will offload segments from the start of the topic backlog until this condition is met.
 
 ```bash
-
-$ bin/pulsar-admin topics offload --size-threshold 10M my-tenant/my-namespace/topic1
+bin/pulsar-admin topics offload --size-threshold 10M my-tenant/my-namespace/topic1
 Offload triggered for persistent://my-tenant/my-namespace/topic1 for messages before 2:0:-1
-
 ```
 
 The command to triggers an offload will not wait until the offload operation has completed. To check the status of the offload, use offload-status.
 
 ```bash
-
-$ bin/pulsar-admin topics offload-status my-tenant/my-namespace/topic1
+bin/pulsar-admin topics offload-status my-tenant/my-namespace/topic1
 Offload is currently running
-
 ```
 
 To wait for offload to complete, add the -w flag.
 
 ```bash
-
-$ bin/pulsar-admin topics offload-status -w my-tenant/my-namespace/topic1
+bin/pulsar-admin topics offload-status -w my-tenant/my-namespace/topic1
 Offload was a success
-
 ```
 
 If there is an error offloading, the error will be propagated to the offload-status command.
 
 ```bash
-
-$ bin/pulsar-admin topics offload-status persistent://public/default/topic1
+bin/pulsar-admin topics offload-status persistent://public/default/topic1
 Error in offload
 null
 
 Reason: Error offloading: org.apache.bookkeeper.mledger.ManagedLedgerException: java.util.concurrent.CompletionException: com.amazonaws.services.s3.model.AmazonS3Exception: Anonymous users cannot initiate multipart uploads.  Please authenticate. (Service: Amazon S3; Status Code: 403; Error Code: AccessDenied; Request ID: 798758DE3F1776DF; S3 Extended Request ID: dhBFz/lZm1oiG/oBEepeNlhrtsDlzoOhocuYMpKihQGXe6EG8puRGOkK6UwqzVrMXTWBxxHcS+g=), S3 Extended Request ID: dhBFz/lZm1oiG/oBEepeNlhrtsDlzoOhocuYMpKihQGXe6EG8puRGOkK6UwqzVrMXTWBxxHcS+g=
-
 ```
 

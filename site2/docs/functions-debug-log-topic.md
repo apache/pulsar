@@ -9,7 +9,6 @@ When using Pulsar Functions, you can generate logs predefined in functions to a 
 For example, the following function logs either a WARNING-level or INFO-level log based on whether the incoming string contains the word `danger` or not.
 
 ```java
-
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 import org.slf4j.Logger;
@@ -29,7 +28,6 @@ public class LoggingFunction implements Function<String, Void> {
         return null;
     }
 }
-
 ```
 
 As shown in the example, you can get the logger via `context.getLogger()` and assign the logger to the `LOG` variable of `slf4j`, so you can define your desired logs in a function using the `LOG` variable. 
@@ -37,11 +35,9 @@ As shown in the example, you can get the logger via `context.getLogger()` and as
 Meanwhile, you need to specify the topic that the logs can be produced to. The following is an example.
 
 ```bash
-
 bin/pulsar-admin functions create \
   --log-topic persistent://public/default/logging-function-logs \
   # Other function configs
-
 ```
 
 The message published to a log topic contains several properties: 

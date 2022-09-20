@@ -26,6 +26,7 @@
         "concepts-architecture-overview",
         "concepts-clients",
         "concepts-replication",
+        "concepts-cluster-level-failover",
         "concepts-multi-tenancy",
         "concepts-authentication",
         "concepts-topic-compaction",
@@ -60,7 +61,7 @@
           "items": [
             "functions-worker-corun",
             "functions-worker-run-separately",
-            "functions-worker-tmp-file-path",
+            "functions-worker-temp-file-path",
             "functions-worker-stateful",
             "functions-worker-for-geo-replication",
             "functions-worker-troubleshooting"
@@ -198,7 +199,13 @@
     {
       "type": "category",
       "label": "Transactions",
-      "items": ["txn-why", "txn-what", "txn-how", "txn-use", "txn-monitor"]
+      "items": [
+        "txn-why",
+        "txn-what",
+        "txn-how",
+        "txn-use",
+        "txn-monitor"
+      ]
     },
     {
       "type": "category",
@@ -256,25 +263,41 @@
       "label": "Security",
       "items": [
         "security-overview",
-        "security-policy-and-supported-versions",
-        "security-tls-transport",
-        "security-tls-authentication",
-        "security-tls-keystore",
-        "security-jwt",
-        "security-athenz",
-        "security-kerberos",
-        "security-oauth2",
-        "security-basic-auth",
+        {
+          "type": "category",
+          "label": "Encryption",
+          "link": {
+            "type": "doc",
+            "id": "security-encryption"
+          },
+          "items": [
+            "security-tls-transport",
+            "security-bouncy-castle"
+          ]
+        },
+        {
+          "type": "category",
+          "label": "Authentication",
+          "items": [
+            "security-tls-authentication",
+            "security-jwt",
+            "security-athenz",
+            "security-kerberos",
+            "security-oauth2",
+            "security-basic-auth"
+          ]
+        },
         "security-authorization",
-        "security-encryption",
         "security-extending",
-        "security-bouncy-castle"
+        "security-policy-and-supported-versions"
       ]
     },
     {
       "type": "category",
       "label": "Performance",
-      "items": ["performance-pulsar-perf"]
+      "items": [
+        "performance-pulsar-perf"
+      ]
     },
     {
       "type": "category",
@@ -293,7 +316,7 @@
     },
     {
       "type": "category",
-      "label": "Admin API",
+      "label": "Admin Interfaces",
       "items": [
         "admin-api-overview",
         "admin-api-clusters",
@@ -310,7 +333,11 @@
     {
       "type": "category",
       "label": "Adaptors",
-      "items": ["adaptors-kafka", "adaptors-spark", "adaptors-storm"]
+      "items": [
+        "adaptors-kafka",
+        "adaptors-spark",
+        "adaptors-storm"
+      ]
     },
     {
       "type": "category",
@@ -341,9 +368,18 @@
       "items": [
         "reference-terminology",
         "reference-cli-tools",
-        "reference-configuration",
+        {
+          "type": "link",
+          "href": "https://pulsar.apache.org/reference",
+          "label": "Pulsar configuration"
+        },
         "reference-metrics",
-        "reference-rest-api-overview"
+        "reference-rest-api-overview",
+        {
+          "type": "link",
+          "href": "/release-notes/",
+          "label": "Release notes"
+        }
       ]
     }
   ]

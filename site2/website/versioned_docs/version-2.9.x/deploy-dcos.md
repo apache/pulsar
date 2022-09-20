@@ -69,7 +69,7 @@ To monitor the status of the BookKeeper cluster deployment, click the **bookkeep
 
 ![DC/OS bookkeeper status](/assets/dcos_bookkeeper_status.png)
 
-At this point, the status of the 3 [bookies](reference-terminology.md#bookie) are green, which means that the bookies have been deployed successfully and are running.
+At this point, the status of the 3 [bookies](reference-terminology.md#bookie) is green, which means that the bookies have been deployed successfully and are running.
  
 ![DC/OS bookkeeper running](/assets/dcos_bookkeeper_run.png)
  

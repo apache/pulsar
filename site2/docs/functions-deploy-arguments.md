@@ -23,12 +23,10 @@ Tenant | N/A <br />The value is derived from the name of the input topics. For e
 Take the `create` command for example. The following function has default values for the function name (`MyFunction`), tenant (`public`), namespace (`default`), subscription type (`SHARED`), processing guarantees (`ATLEAST_ONCE`), and Pulsar service URL (`pulsar://localhost:6650`).
 
 ```bash
-
 bin/pulsar-admin functions create \
   --jar my-pulsar-functions.jar \
   --classname org.example.MyFunction \
   --inputs my-function-input-topic1,my-function-input-topic2
-
 ```
 
 
