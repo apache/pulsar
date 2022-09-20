@@ -32,7 +32,7 @@ import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-public class FlowControllableReadHandleTest {
+public class OffloadReadHandleTest {
 
     @Test
     public void test() throws Exception {
@@ -47,7 +47,7 @@ public class FlowControllableReadHandleTest {
         Mockito.doAnswer(inv -> CompletableFuture.completedFuture(entries)).when(handle).readAsync(1, 1);
 
         long start = System.currentTimeMillis();
-        CompletableFuture<ReadHandle> future = FlowControllableReadHandle.create(handle, 100);
+        CompletableFuture<ReadHandle> future = OffloadReadHandle.create(handle, 100);
         ReadHandle h = future.get();
         h.readAsync(1, 1);
         h.readAsync(1, 1);

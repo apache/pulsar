@@ -93,7 +93,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.TerminateCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.UpdatePropertiesCallback;
 import org.apache.bookkeeper.mledger.Entry;
-import org.apache.bookkeeper.mledger.FlowControllableReadHandle;
+import org.apache.bookkeeper.mledger.OffloadReadHandle;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -2995,7 +2995,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
             prepareLedgerInfoForOffloaded(ledgerId, uuid, driverName, driverMetadata)
                     .thenCompose((ignore) -> getLedgerHandle(ledgerId))
-                    .thenCompose(handle -> FlowControllableReadHandle.create(handle, flowPermits))
+                    .thenCompose(handle -> OffloadReadHandle.create(handle, flowPermits))
                     .thenCompose(readHandle -> config.getLedgerOffloader().offload(readHandle, uuid, extraMetadata))
                     .thenCompose((ignore) -> {
                         return Retries.run(Backoff.exponentialJittered(TimeUnit.SECONDS.toMillis(1),

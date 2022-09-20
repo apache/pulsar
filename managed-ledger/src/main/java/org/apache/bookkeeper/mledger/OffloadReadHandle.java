@@ -18,69 +18,73 @@
  */
 package org.apache.bookkeeper.mledger;
 
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.LockSupport;
 import org.apache.bookkeeper.client.api.LastConfirmedAndEntry;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.client.api.ReadHandle;
+import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.util.TimeWindow;
 import org.apache.bookkeeper.mledger.util.WindowWrap;
 
-public class FlowControllableReadHandle implements ReadHandle {
+public class OffloadReadHandle implements ReadHandle {
     private static final AtomicBoolean INITIALIZED = new AtomicBoolean(false);
     private static volatile long permittedBytes0;
     private static volatile TimeWindow<AtomicLong> window0;
+    private static final int MAX_PROCESSING_CMDS = 1024;
+    private static final AtomicInteger PROCESSING_CMDS = new AtomicInteger(0);
 
     private final ReadHandle delegator;
+    private final OrderedScheduler scheduler;
 
-    private FlowControllableReadHandle(ReadHandle handle, long permittedBytes) {
+    private OffloadReadHandle(ReadHandle handle, long permittedBytes, OrderedScheduler scheduler) {
         this.delegator = handle;
         if (INITIALIZED.compareAndSet(false, true)) {
             permittedBytes0 = permittedBytes;
             window0 = new TimeWindow<>(2, Long.valueOf(TimeUnit.SECONDS.toMillis(1)).intValue());
         }
+
+        this.scheduler = Objects.requireNonNull(scheduler);
     }
 
-    public static CompletableFuture<ReadHandle> create(ReadHandle handle, long permitBytes) {
-        return CompletableFuture.completedFuture(new FlowControllableReadHandle(handle, permitBytes));
+    public static CompletableFuture<ReadHandle> create(ReadHandle handle, long permitBytes, OrderedScheduler scheduler) {
+        return CompletableFuture.completedFuture(new OffloadReadHandle(handle, permitBytes, scheduler));
     }
 
     @Override
     public CompletableFuture<LedgerEntries> readAsync(long firstEntry, long lastEntry) {
-        if (!checkFlow()) {
-            return this.readAsync(firstEntry, lastEntry);
+        final long delayMills = calculateDelayMillis();
+        if (delayMills > 0) {
+            if (PROCESSING_CMDS.get() > MAX_PROCESSING_CMDS) {
+                LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(delayMills));
+                return readAsync(firstEntry, lastEntry);
+            } else {
+                CompletableFuture<LedgerEntries> f = new CompletableFuture<>();
+                Runnable cmd = new ReadAsyncCommand(firstEntry, lastEntry, f);
+                scheduler.schedule(cmd, delayMills, TimeUnit.MILLISECONDS);
+                PROCESSING_CMDS.incrementAndGet();
+                return f;
+            }
         }
 
         return this.delegator
                 .readAsync(firstEntry, lastEntry)
                 .whenComplete((v, t) -> {
                     if (t == null) {
-                        AtomicLong total = new AtomicLong(0);
-                        v.forEach(entry -> total.addAndGet(entry.getLength()));
-                        recordReadBytes(total.get());
+                        recordReadBytes(v);
                     }
                 });
     }
 
     @Override
     public CompletableFuture<LedgerEntries> readUnconfirmedAsync(long firstEntry, long lastEntry) {
-        if (!checkFlow()) {
-            return this.readUnconfirmedAsync(firstEntry, lastEntry);
-        }
-
-        return this.delegator
-                .readUnconfirmedAsync(firstEntry, lastEntry)
-                .whenComplete((v, t) -> {
-                    if (t == null) {
-                        AtomicLong total = new AtomicLong(0);
-                        v.forEach(entry -> total.addAndGet(entry.getLength()));
-                        recordReadBytes(total.get());
-                    }
-                });
+        return this.delegator.readUnconfirmedAsync(firstEntry, lastEntry);
     }
 
     @Override
@@ -111,17 +115,7 @@ public class FlowControllableReadHandle implements ReadHandle {
     @Override
     public CompletableFuture<LastConfirmedAndEntry> readLastAddConfirmedAndEntryAsync(
             long entryId, long timeOutInMillis, boolean parallel) {
-        if (!checkFlow()) {
-            return this.readLastAddConfirmedAndEntryAsync(entryId, timeOutInMillis, parallel);
-        }
-
-        return this.delegator
-                .readLastAddConfirmedAndEntryAsync(entryId, timeOutInMillis, parallel)
-                .whenComplete((v, t) -> {
-                    if (t == null) {
-                        recordReadBytes(v.getEntry().getLength());
-                    }
-                });
+        return this.delegator.readLastAddConfirmedAndEntryAsync(entryId, timeOutInMillis, parallel);
     }
 
     @Override
@@ -140,32 +134,37 @@ public class FlowControllableReadHandle implements ReadHandle {
     }
 
 
-    private static boolean checkFlow() {
+    private static long calculateDelayMillis() {
         if (permittedBytes0 <= 0) {
-            return true;
+            return 0;
         }
 
         WindowWrap<AtomicLong> wrap = window0.current(__ -> new AtomicLong(0));
         if (wrap == null) {
             // it should never goes here
-            return true;
+            return 0;
         }
 
         if (wrap.value().get() >= permittedBytes0) {
             // park until next window start
             long end = wrap.start() + wrap.interval();
-            long parkMillis = end - System.currentTimeMillis();
-            LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(parkMillis));
-            return false;
+            return end - System.currentTimeMillis();
         }
 
-        return true;
+        return 0;
     }
 
-    private static void recordReadBytes(long bytes) {
+    private static void recordReadBytes(LedgerEntries entries) {
         if (permittedBytes0 <= 0) {
             return;
         }
+
+        if (entries == null) {
+            return;
+        }
+
+        AtomicLong num = new AtomicLong(0);
+        entries.forEach(en -> num.addAndGet(en.getLength()));
 
         WindowWrap<AtomicLong> wrap = window0.current(__ -> new AtomicLong(0));
         if (wrap == null) {
@@ -173,6 +172,39 @@ public class FlowControllableReadHandle implements ReadHandle {
             return;
         }
 
-        wrap.value().addAndGet(bytes);
+        wrap.value().addAndGet(num.get());
+    }
+
+
+    private final class ReadAsyncCommand implements Runnable {
+
+        private final long firstEntry;
+        private final long lastEntry;
+        private final CompletableFuture<LedgerEntries> f;
+
+        ReadAsyncCommand(long firstEntry, long lastEntry, CompletableFuture<LedgerEntries> f) {
+            this.firstEntry = firstEntry;
+            this.lastEntry = lastEntry;
+            this.f = f;
+        }
+
+        @Override
+        public void run() {
+            long delayMillis = calculateDelayMillis();
+            if (delayMillis > 0) {
+                scheduler.schedule(this, delayMillis, TimeUnit.MILLISECONDS);
+                return;
+            }
+
+            delegator.readAsync(firstEntry, lastEntry)
+                    .whenComplete((entries, e) -> {
+                        if (e != null) {
+                            f.completeExceptionally(e);
+                        } else {
+                            f.complete(entries);
+                            recordReadBytes(entries);
+                        }
+                    });
+        }
     }
 }
