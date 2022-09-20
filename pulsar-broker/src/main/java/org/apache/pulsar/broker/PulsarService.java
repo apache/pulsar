@@ -362,6 +362,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         .batchingMaxDelayMillis(config.getMetadataStoreBatchingMaxDelayMillis())
                         .batchingMaxOperations(config.getMetadataStoreBatchingMaxOperations())
                         .batchingMaxSizeKb(config.getMetadataStoreBatchingMaxSizeKb())
+                        .metadataStoreName(MetadataStoreConfig.CONFIGURATION_METADATA_STORE)
                         .synchronizer(synchronizer)
                         .build());
     }
@@ -1045,6 +1046,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         .batchingMaxOperations(config.getMetadataStoreBatchingMaxOperations())
                         .batchingMaxSizeKb(config.getMetadataStoreBatchingMaxSizeKb())
                         .synchronizer(synchronizer)
+                        .metadataStoreName(MetadataStoreConfig.METADATA_STORE)
                         .build());
     }
 
