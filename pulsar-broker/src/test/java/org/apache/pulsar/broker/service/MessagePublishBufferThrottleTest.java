@@ -43,7 +43,6 @@ public class MessagePublishBufferThrottleTest extends BrokerTestBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
-        resetConfig();
     }
 
     @Test

@@ -353,7 +353,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     protected void setupBrokerMocks(PulsarService pulsar) throws Exception {
         // Override default providers with mocked ones
         doReturn(mockBookKeeperClientFactory).when(pulsar).newBookKeeperClientFactory();
-        
+
         PulsarMetadataEventSynchronizer synchronizer = StringUtils
                 .isNotBlank(pulsar.getConfig().getMetadataSyncEventTopic())
                         ? new PulsarMetadataEventSynchronizer(pulsar, pulsar.getConfig().getMetadataSyncEventTopic())
@@ -517,7 +517,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         field.set(classObj, fieldValue);
     }
 
-    protected static ServiceConfiguration getDefaultConf() {
+    protected ServiceConfiguration getDefaultConf() {
         ServiceConfiguration configuration = new ServiceConfiguration();
         configuration.setAdvertisedAddress("localhost");
         configuration.setClusterName(configClusterName);
