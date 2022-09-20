@@ -96,6 +96,7 @@ import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.metadata.cache.impl.MetadataCacheImpl;
 import org.apache.pulsar.metadata.impl.AbstractMetadataStore;
 import org.apache.pulsar.metadata.impl.MetadataStoreFactoryImpl;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.MockZooKeeper;
@@ -246,7 +247,8 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         final InternalConfigurationData newData = ObjectMapperFactory.getThreadLocal()
                 .convertValue(oldDataJson, InternalConfigurationData.class);
 
-        assertEquals(newData.getMetadataStoreUrl(), conf.getMetadataStoreUrl());
+        assertEquals(newData.getMetadataStoreUrl(),
+                ZKMetadataStore.ZK_SCHEME_IDENTIFIER + conf.getMetadataStoreUrl());
         assertEquals(newData.getConfigurationMetadataStoreUrl(), oldDataModel.getConfigurationStoreServers());
         assertEquals(newData.getLedgersRootPath(), oldDataModel.getLedgersRootPath());
         assertEquals(newData.getBookkeeperMetadataServiceUri(), oldDataModel.getBookkeeperMetadataServiceUri());
