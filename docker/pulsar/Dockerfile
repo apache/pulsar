@@ -70,15 +70,12 @@ RUN mkdir -p /etc/apt/keyrings \
      && apt-get update \
      && apt-get -y dist-upgrade \
      && apt-get -y install temurin-17-jdk \
-     && export JAVA_HOME="/usr/lib/jvm/temurin-17-jdk-$(uname -m)"
-
-# Cleanup apt
-RUN apt-get -y --purge autoremove \
+     && echo networkaddress.cache.ttl=1 >> /usr/lib/jvm/temurin-17-jdk-$(uname -m)/conf/security/java.security \
+     && apt-get -y --purge autoremove \
      && apt-get autoclean \
      && apt-get clean \
-     && rm -rf /var/lib/apt/lists/*
-
-RUN pip3 install pyyaml==5.4.1
+     && rm -rf /var/lib/apt/lists/* \
+     && pip3 install pyyaml==5.4.1
 
 # Pulsar currently writes to the below directories, assuming the default configuration.
 # Note that number 4 is the reason that pulsar components need write access to the /pulsar directory.
@@ -88,11 +85,9 @@ RUN pip3 install pyyaml==5.4.1
 # 4. /pulsar - hadoop writes to this directory
 RUN mkdir /pulsar && chmod g+w /pulsar
 
-RUN echo networkaddress.cache.ttl=1 >> ${JAVA_HOME}/conf/security/java.security
 ADD target/python-client/ /pulsar/pulsar-client
 
 ENV PULSAR_ROOT_LOGGER=INFO,CONSOLE
-
 
 COPY --from=pulsar /pulsar /pulsar
 WORKDIR /pulsar
