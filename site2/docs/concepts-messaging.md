@@ -541,7 +541,7 @@ In the *Failover* type, multiple consumers can attach to the same subscription. 
 * For partitioned topics, the broker will sort consumers by priority level and lexicographical order of consumer name. The broker will try to evenly assign partitions to consumers with the highest priority level.
 * For non-partitioned topics, the broker will pick consumers in the order they subscribe to the non-partitioned topics.
 
-For example, a partitioned topic has 15 partitions, and 3 consumers. Each consumer will be active for 5 partitions. Each partition will have 1 active consumer and 4 stand-by consumers.
+For example, a partitioned topic has 3 partitions, and 15 consumers. Each partition will have 1 active consumer and 4 stand-by consumers.
 
 In the diagram below, **Consumer-B-0** is the master consumer while **Consumer-B-1** would be the next consumer in line to receive messages if **Consumer-B-0** is disconnected.
 
