@@ -159,9 +159,22 @@ function ci_check_ready_to_test() {
     >&2 echo "GITHUB_EVENT_PATH isn't set"
     return 1
   fi
+
+  PR_JSON=$(jq '.pull_request' "${GITHUB_EVENT_PATH}")
+
+  # when re-running, the event doesn't get updated, fetch the PR JSON
+  if [[ $GITHUB_RUN_ATTEMPT -gt 1 ]]; then
+    PR_JSON_URL=$(jq -r '.pull_request.url' "${GITHUB_EVENT_PATH}")
+    echo "Refreshing $PR_JSON_URL..."
+    PR_JSON=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" "${PR_JSON_URL}")
+  fi
+
   # check ready-to-test label
-  if jq -e '.pull_request.labels[] | .name | select(. == "ready-to-test")' "$GITHUB_EVENT_PATH" &> /dev/null; then
+  if printf "%s" "${PR_JSON}" | jq -e '.labels[] | .name | select(. == "ready-to-test")' &> /dev/null; then
+    echo "Found ready-to-test label."
     return 0
+  else
+    echo "There is no ready-to-test label on the PR."
   fi
 
   # check if the PR has been approved
@@ -179,7 +192,7 @@ function ci_check_ready_to_test() {
   FORK_REPO_URL=$(jq -r '.pull_request.head.repo.html_url' "$GITHUB_EVENT_PATH")
   PR_BRANCH_LABEL=$(jq -r '.pull_request.head.label' "$GITHUB_EVENT_PATH")
   PR_URL=$(jq -r '.pull_request.html_url' "$GITHUB_EVENT_PATH")
-  FORK_PR_TITLE_URL_ENCODED=$(jq -r '"[run-tests] " + .pull_request.title | @uri' "$GITHUB_EVENT_PATH")
+  FORK_PR_TITLE_URL_ENCODED=$(printf "%s" "${PR_JSON}" | jq -r '"[run-tests] " + .title | @uri')
   FORK_PR_BODY_URL_ENCODED=$(jq -n -r "\"This PR is for running tests for upstream PR ${PR_URL}.\n\n<!-- Before creating this PR, please ensure that the fork $FORK_REPO_URL is up to date with https://github.com/apache/pulsar -->\" | @uri")
   >&2 tee -a "$GITHUB_STEP_SUMMARY" <<EOF
 

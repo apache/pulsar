@@ -381,21 +381,27 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     }
 
     protected MetadataStoreExtended createLocalMetadataStore(PulsarMetadataEventSynchronizer synchronizer) {
-        return new ZKMetadataStore(mockZooKeeper, MetadataStoreConfig.builder().synchronizer(synchronizer).build());
+        return new ZKMetadataStore(mockZooKeeper, MetadataStoreConfig.builder()
+                .metadataStoreName(MetadataStoreConfig.METADATA_STORE)
+                .synchronizer(synchronizer).build());
     }
 
     protected MetadataStoreExtended createLocalMetadataStore() throws MetadataStoreException {
-        return new ZKMetadataStore(mockZooKeeper);
+        return new ZKMetadataStore(mockZooKeeper, MetadataStoreConfig.builder()
+                .metadataStoreName(MetadataStoreConfig.METADATA_STORE).build());
     }
 
     protected MetadataStoreExtended createConfigurationMetadataStore(PulsarMetadataEventSynchronizer synchronizer) {
         return new ZKMetadataStore(mockZooKeeperGlobal,
-                MetadataStoreConfig.builder().synchronizer(synchronizer).build());
+                MetadataStoreConfig.builder()
+                        .metadataStoreName(MetadataStoreConfig.CONFIGURATION_METADATA_STORE)
+                        .synchronizer(synchronizer).build());
 
     }
 
     protected MetadataStoreExtended createConfigurationMetadataStore() throws MetadataStoreException {
-        return new ZKMetadataStore(mockZooKeeperGlobal);
+        return new ZKMetadataStore(mockZooKeeperGlobal, MetadataStoreConfig.builder()
+                .metadataStoreName(MetadataStoreConfig.CONFIGURATION_METADATA_STORE).build());
     }
 
     private void mockConfigBrokerInterceptors(PulsarService pulsarService) {

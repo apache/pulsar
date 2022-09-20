@@ -77,7 +77,7 @@ public class MongoSourceTest {
     @BeforeMethod
     public void setUp() {
 
-        map = TestHelper.createMap(true);
+        map = TestHelper.createCommonConfigMap();
 
         mockSourceContext = mock(SourceContext.class);
         mockMongoClient = mock(MongoClient.class);

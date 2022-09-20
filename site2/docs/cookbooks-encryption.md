@@ -1,46 +1,230 @@
 ---
 id: cookbooks-encryption
-title: Pulsar Encryption
-sidebar_label: "Encryption "
+title: Configure end-to-end encryption
+sidebar_label: "Configure end-to-end encryption"
 ---
 
-Pulsar encryption allows applications to encrypt messages at the producer and decrypt at the consumer. Encryption is performed using the public/private key pair configured by the application. Encrypted messages can only be decrypted by consumers with a valid key.
+````mdx-code-block
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+````
 
-## Asymmetric and symmetric encryption
+[Pulsar encryption](security-encryption.md) allows clients to encrypt messages at producers and decrypt messages at consumers.
 
-Pulsar uses a dynamically generated symmetric AES key to encrypt messages(data). The AES key(data key) is encrypted using the application-provided ECDSA/RSA key pair. As a result, there is no need to share the secret with everyone.
+## Prerequisites
 
-Key is a public/private key pair used for encryption/decryption. The producer key is the public key, and the consumer key is the private key of the key pair.
+* Pulsar Java/Python/C++/Node.js client 2.7.1 or later versions.
+* Pulsar Go client 0.6.0 or later versions.
 
-The application configures the producer with the public key. This key is used to encrypt the AES data key. The encrypted data key is sent as part of the message header. Only entities with the private key(in this case the consumer) will be able to decrypt the data key which is used to decrypt the message.
+## Configure end-to-end encryption
 
-A message can be encrypted with more than one key.  Any one of the keys used for encrypting the message is sufficient to decrypt the message
+1. Create both public and private key pairs.
+   * ECDSA（for Java and Go clients)
+     ```shell
+     openssl ecparam -name secp521r1 -genkey -param_enc explicit -out test_ecdsa_privkey.pem
+     openssl ec -in test_ecdsa_privkey.pem -pubout -outform pem -out test_ecdsa_pubkey.pem
+     ```
 
-Pulsar does not store the encryption key anywhere in the pulsar service. If you lose/delete the private key, your message is irretrievably lost, and is unrecoverable
+   * RSA (for Python, C++ and Node.js clients)
+     ```shell
+     openssl genrsa -out test_rsa_privkey.pem 2048
+     openssl rsa -in test_rsa_privkey.pem -pubout -outform pkcs8 -out test_rsa_pubkey.pem
+     ```
 
-## Producer
-![alt text](/assets/pulsar-encryption-producer.jpg "Pulsar Encryption Producer")
+2. Configure a `CryptoKeyReader` on producers, consumers or readers.
 
-## Consumer
-![alt text](/assets/pulsar-encryption-consumer.jpg "Pulsar Encryption Consumer")
+   ````mdx-code-block
+   <Tabs groupId="lang-choice"
+     defaultValue="Java"
+     values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"},{"label":"C++","value":"C++"},{"label":"Go","value":"Go"},{"label":"Node.js","value":"Node.js"}]}>
+   <TabItem value="Java">
 
-## Here are the steps to get started:
+   ```java
+   PulsarClient pulsarClient = PulsarClient.builder().serviceUrl("pulsar://localhost:6650").build();
+   String topic = "persistent://my-tenant/my-ns/my-topic";
+   // RawFileKeyReader is just an example implementation that's not provided by Pulsar
+   CryptoKeyReader keyReader = new RawFileKeyReader("test_ecdsa_pubkey.pem", "test_ecdsa_privkey.pem");
 
-1. Create your ECDSA or RSA public/private key pair.
+   Producer<byte[]> producer = pulsarClient.newProducer()
+        .topic(topic)
+        .cryptoKeyReader(keyReader)
+        .addEncryptionKey("myappkey")
+        .create();
 
-```shell
-openssl ecparam -name secp521r1 -genkey -param_enc explicit -out test_ecdsa_privkey.pem
-openssl ec -in test_ecdsa_privkey.pem -pubout -outform pkcs8 -out test_ecdsa_pubkey.pem
-```
+   Consumer<byte[]> consumer = pulsarClient.newConsumer()
+        .topic(topic)
+        .subscriptionName("my-subscriber-name")
+        .cryptoKeyReader(keyReader)
+        .subscribe();
 
-2. Add the public and private key to the key management and configure your producers to retrieve public keys and consumers clients to retrieve private keys.
-3. Implement CryptoKeyReader::getPublicKey() interface from producer and CryptoKeyReader::getPrivateKey() interface from consumer, which will be invoked by Pulsar client to load the key.
-4. Add encryption key to producer configuration: conf.addEncryptionKey("myapp.key")
-5. Add CryptoKeyReader implementation to producer/consumer config: conf.setCryptoKeyReader(keyReader)
-6. Sample producer application:
+   Reader<byte[]> reader = pulsarClient.newReader()
+        .topic(topic)
+        .startMessageId(MessageId.earliest)
+        .cryptoKeyReader(keyReader)
+        .create();
+   ```
 
-```java
-class RawFileKeyReader implements CryptoKeyReader {
+   </TabItem>
+   <TabItem value="Python">
+
+   ```python
+   from pulsar import Client, CryptoKeyReader
+
+   client = Client('pulsar://localhost:6650')
+   topic = 'my-topic'
+   # CryptoKeyReader is a built-in implementation that reads public key and private key from files
+   key_reader = CryptoKeyReader('test_rsa_pubkey.pem', 'test_rsa_privkey.pem')
+
+   producer = client.create_producer(
+       topic=topic,
+       encryption_key='myappkey',
+       crypto_key_reader=key_reader
+   )
+
+   consumer = client.subscribe(
+       topic=topic,
+       subscription_name='my-subscriber-name',
+       crypto_key_reader=key_reader
+   )
+
+   reader = client.create_reader(
+       topic=topic,
+       start_message_id=MessageId.earliest,
+       crypto_key_reader=key_reader
+   )
+
+   client.close()
+   ```
+
+   </TabItem>
+   <TabItem value="C++">
+
+   ```cpp
+   Client client("pulsar://localhost:6650");
+   std::string topic = "persistent://my-tenant/my-ns/my-topic";
+   // DefaultCryptoKeyReader is a built-in implementation that reads public key and private key from files
+   auto keyReader = std::make_shared<DefaultCryptoKeyReader>("test_rsa_pubkey.pem", "test_rsa_privkey.pem");
+
+   Producer producer;
+   ProducerConfiguration producerConf;
+   producerConf.setCryptoKeyReader(keyReader);
+   producerConf.addEncryptionKey("myappkey");
+   client.createProducer(topic, producerConf, producer);
+
+   Consumer consumer;
+   ConsumerConfiguration consumerConf;
+   consumerConf.setCryptoKeyReader(keyReader);
+   client.subscribe(topic, "my-subscriber-name", consumerConf, consumer);
+
+   Reader reader;
+   ReaderConfiguration readerConf;
+   readerConf.setCryptoKeyReader(keyReader);
+   client.createReader(topic, MessageId::earliest(), readerConf, reader);
+   ```
+
+   </TabItem>
+   <TabItem value="Go">
+
+   ```go
+   client, err := pulsar.NewClient(pulsar.ClientOptions{
+	 URL: "pulsar://localhost:6650",
+   })
+   if err != nil {
+	   log.Fatal(err)
+   }
+
+   defer client.Close()
+
+   topic := "persistent://my-tenant/my-ns/my-topic"
+   keyReader := crypto.NewFileKeyReader("test_ecdsa_pubkey.pem", "test_ecdsa_privkey.pem")
+   producer, err := client.CreateProducer(pulsar.ProducerOptions{
+	   Topic: topic,
+	   Encryption: &pulsar.ProducerEncryptionInfo{
+	   	KeyReader: keyReader,
+	   	Keys:      []string{"myappkey"},
+	   },
+   })
+   if err != nil {
+   	log.Fatal(err)
+   }
+   defer producer.Close()
+
+   consumer, err := client.Subscribe(pulsar.ConsumerOptions{
+	   Topic:            topic,
+	   SubscriptionName: "my-subscriber-name",
+	   Decryption: &pulsar.MessageDecryptionInfo{
+		   KeyReader: keyReader,
+	   },
+   })
+   if err != nil {
+	   log.Fatal(err)
+   }
+   defer consumer.Close()
+
+   reader, err := client.CreateReader(pulsar.ReaderOptions{
+	   Topic: topic,
+	   Decryption: &pulsar.MessageDecryptionInfo{
+		   KeyReader: keyReader,
+	   },
+   })
+   if err != nil {
+	   log.Fatal(err)
+   }
+   defer reader.Close()
+   ```
+
+   </TabItem>
+   <TabItem value="Node.js">
+
+   ```javascript
+   const Pulsar = require('pulsar-client');
+
+   const topic = 'persistent://my-tenant/my-ns/my-topic';
+
+   (async () => {
+   // Create a client
+   const client = new Pulsar.Client({
+       serviceUrl: 'pulsar://localhost:6650',
+       operationTimeoutSeconds: 30,
+   });
+
+   // Create a producer
+   const producer = await client.createProducer({
+       topic: topic,
+       sendTimeoutMs: 30000,
+       batchingEnabled: true,
+       publicKeyPath: "test_rsa_pubkey.pem",
+       encryptionKey: "encryption-key"
+   });
+
+   // Create a consumer
+   const consumer = await client.subscribe({
+       topic: topic,
+       subscription: 'my-subscriber-name',
+       subscriptionType: 'Shared',
+       ackTimeoutMs: 10000,
+       privateKeyPath: "test_rsa_privkey.pem"
+   });
+   await consumer.close();
+   await producer.close();
+   await client.close();
+   })();
+   ```
+
+   </TabItem>
+   </Tabs>
+   ````
+
+3. Optional: customize the `CryptoKeyReader` implementation.
+   
+   ````mdx-code-block
+   <Tabs groupId="lang-choice"
+     defaultValue="Java"
+     values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"},{"label":"C++","value":"C++"},{"label":"Go","value":"Go"},{"label":"Node.js","value":"Node.js"}]}>
+   <TabItem value="Java">
+
+   ```java
+   class RawFileKeyReader implements CryptoKeyReader {
 
     String publicKeyFile = "";
     String privateKeyFile = "";
@@ -73,104 +257,78 @@ class RawFileKeyReader implements CryptoKeyReader {
         }
         return keyInfo;
     }
-}
-PulsarClient pulsarClient = PulsarClient.create("http://localhost:8080");
+   }
+   ```
 
-ProducerConfiguration prodConf = new ProducerConfiguration();
-prodConf.setCryptoKeyReader(new RawFileKeyReader("test_ecdsa_pubkey.pem", "test_ecdsa_privkey.pem"));
-prodConf.addEncryptionKey("myappkey");
+   </TabItem>
+   <TabItem value="Python">
 
-Producer producer = pulsarClient.createProducer("persistent://my-tenant/my-ns/my-topic", prodConf);
+   Currently, customizing the `CryptoKeyReader` implementation is not supported in Python. However, you can use the default implementation by specifying the path of the private key and public keys.
 
-for (int i = 0; i < 10; i++) {
-    producer.send("my-message".getBytes());
-}
+   </TabItem>
+   <TabItem value="C++">
 
-pulsarClient.close();
-```
+   ```cpp
+   class CustomCryptoKeyReader : public CryptoKeyReader {
+    public:
+    Result getPublicKey(const std::string& keyName, std::map<std::string, std::string>& metadata,
+                        EncryptionKeyInfo& encKeyInfo) const override {
+        // TODO
+        return ResultOk;
+    }
 
-7. Sample Consumer Application:
+    Result getPrivateKey(const std::string& keyName, std::map<std::string, std::string>& metadata,
+                        EncryptionKeyInfo& encKeyInfo) const override {
+        // TODO
+        return ResultOk;
+    }
+   };
+   ```
+
+   </TabItem>
+   <TabItem value="Go">
+
+   ```go
+   type CustomKeyReader struct {
+	   publicKeyPath  string
+	   privateKeyPath string
+   }
+
+   func (c *CustomKeyReader) PublicKey(keyName string, keyMeta map[string]string) (*EncryptionKeyInfo, error) {
+	   keyInfo := &EncryptionKeyInfo{}
+	   // TODO
+	   return keyInfo, nil
+   }
+
+   // PrivateKey read private key from the given path
+   func (c *CustomKeyReader) PrivateKey(keyName string, keyMeta map[string]string) (*EncryptionKeyInfo, error) {
+	   keyInfo := &EncryptionKeyInfo{}
+	   // TODO
+	   return keyInfo, nil
+   }
+   ```
+
+   </TabItem>
+   <TabItem value="Node.js">
+
+   Currently, customizing the `CryptoKeyReader` implementation is not supported in Python. However, you can use the default implementation by specifying the path of the private key and public keys.
+
+   </TabItem>
+   </Tabs>
+   ````
+
+## Encrypt a message with multiple keys
+
+:::note
+
+This is only available for Java clients.
+
+:::
+
+You can encrypt a message with more than one key. Producers add all such keys to the config and consumers can decrypt the message as long as they have access to at least one of the keys. Any one of the keys used for encrypting the message is sufficient to decrypt the message. 
+
+For example, encrypt the messages using 2 keys (`myapp.messagekey1` and `myapp.messagekey2`):
 
 ```java
-class RawFileKeyReader implements CryptoKeyReader {
-
-    String publicKeyFile = "";
-    String privateKeyFile = "";
-
-    RawFileKeyReader(String pubKeyFile, String privKeyFile) {
-        publicKeyFile = pubKeyFile;
-        privateKeyFile = privKeyFile;
-    }
-
-    @Override
-    public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
-        EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
-        try {
-            keyInfo.setKey(Files.readAllBytes(Paths.get(publicKeyFile)));
-        } catch (IOException e) {
-            System.out.println("ERROR: Failed to read public key from file " + publicKeyFile);
-            e.printStackTrace();
-        }
-        return keyInfo;
-    }
-
-    @Override
-    public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> keyMeta) {
-        EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
-        try {
-            keyInfo.setKey(Files.readAllBytes(Paths.get(privateKeyFile)));
-        } catch (IOException e) {
-            System.out.println("ERROR: Failed to read private key from file " + privateKeyFile);
-            e.printStackTrace();
-        }
-        return keyInfo;
-    }
-}
-
-ConsumerConfiguration consConf = new ConsumerConfiguration();
-consConf.setCryptoKeyReader(new RawFileKeyReader("test_ecdsa_pubkey.pem", "test_ecdsa_privkey.pem"));
-PulsarClient pulsarClient = PulsarClient.create("http://localhost:8080");
-Consumer consumer = pulsarClient.subscribe("persistent://my-tenant//my-ns/my-topic", "my-subscriber-name", consConf);
-Message msg = null;
-
-for (int i = 0; i < 10; i++) {
-    msg = consumer.receive();
-    // do something
-    System.out.println("Received: " + new String(msg.getData()));
-}
-
-// Acknowledge the consumption of all messages at once
-consumer.acknowledgeCumulative(msg);
-pulsarClient.close();
+PulsarClient.newProducer().addEncryptionKey("myapp.messagekey1").addEncryptionKey("myapp.messagekey2");
 ```
-
-## Key rotation
-Pulsar generates a new AES data key every 4 hours or after a certain number of messages are published. The asymmetric public key is automatically fetched by producers every 4 hours by calling CryptoKeyReader::getPublicKey() to retrieve the latest version.
-
-## Enabling encryption at the producer application:
-If you produce messages that are consumed across application boundaries, you need to ensure that consumers in other applications have access to one of the private keys that can decrypt the messages.  This can be done in two ways:
-1. The consumer application provides you access to their public key, which you add to your producer keys
-1. You grant access to one of the private keys from the pairs used by producers
-
-In some cases, the producer may want to encrypt the messages with multiple keys. For this, add all such keys to the config. Consumers will be able to decrypt the message, as long as it has access to at least one of the keys.
-
-For example, to encrypt messages using 2 keys `myapp.messagekey1` and `myapp.messagekey2`, do the following:
-
-```java
-
-conf.addEncryptionKey("myapp.messagekey1");
-conf.addEncryptionKey("myapp.messagekey2");
-
-```
-
-## Decrypting encrypted messages at the consumer application:
-Consumers require to access one of the private keys to decrypt messages produced by the producer. If you would like to receive encrypted messages, create a public/private key and give your public key to the producer application to encrypt messages using your public key.
-
-## Handling Failures:
-* Producer/ Consumer loses access to the key
-  * Producer action will fail to indicate the cause of the failure. The application has the option to proceed with sending unencrypted messages in such cases. Call `conf.setCryptoFailureAction`(ProducerCryptoFailureAction) to control the producer behavior. The default behavior is to fail the request.
-  * If consumption failed due to decryption failure or missing keys in consumers, the application has the option to consume the encrypted message or discard it. Call conf.setCryptoFailureAction(ConsumerCryptoFailureAction) to control the consumer behavior. The default behavior is to fail the request. The application will never be able to decrypt the messages if the private key is permanently lost.
-* Batch messaging
-  * If decryption fails and the message contains batch messages, the client will not be able to retrieve individual messages in the batch, hence message consumption fails even if conf.setCryptoFailureAction() is set to CONSUME.
-* If decryption fails, the message consumption stops and the application will notice backlog growth in addition to decryption failure messages in the client log. If the application does not have access to the private key to decrypt the message, the only option is to skip/discard backlogged messages. 
-
