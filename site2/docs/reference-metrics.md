@@ -608,7 +608,7 @@ All the web service executor metrics are labeled with the following labels:
 All the metadata store metrics are labelled with the following labels:
 
 - *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you configured in `broker.conf`.
-- *name*: `name=${metadata-store-x}`. `${name}` is the metadata store name.
+- *name*: `name=${metadata-store|configuration-metadata-store|state-metadata-store}`. `${name}` is the metadata store name.
 
 | Name                                   | Type      | Description                                                                                  |
 |----------------------------------------|-----------|----------------------------------------------------------------------------------------------|
