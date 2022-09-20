@@ -567,9 +567,6 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         Producer<byte[]> producer1 = pulsarClient.newProducer().topic(topicName1).create();
         Producer<byte[]> producer2 = pulsarClient.newProducer().topic(topicName2).create();
 
-        boolean isMessageRateUpdate = false;
-        DispatchRateLimiter dispatchRateLimiter;
-
         Awaitility.await().atMost(Duration.ofMillis(500)).untilAsserted(() -> {
             DispatchRateLimiter rateLimiter = pulsar.getBrokerService().getBrokerDispatchRateLimiter();
             Assert.assertTrue(rateLimiter != null
