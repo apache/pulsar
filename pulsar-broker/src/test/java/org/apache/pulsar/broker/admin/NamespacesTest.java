@@ -38,6 +38,7 @@ import java.net.URI;
 import java.net.URL;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
@@ -47,6 +48,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Stream;
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.WebApplicationException;
@@ -268,13 +270,16 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testGetNamespaces() throws Exception {
-        List<String> expectedList = List.of(this.testLocalNamespaces.get(0).toString(),
+        List<String> expectedList = Arrays.asList(this.testLocalNamespaces.get(0).toString(),
                 this.testLocalNamespaces.get(1).toString());
         expectedList.sort(null);
         assertEquals(namespaces.getNamespacesForCluster(this.testTenant, this.testLocalCluster), expectedList);
-        expectedList = List.of(this.testLocalNamespaces.get(0).toString(),
-                this.testLocalNamespaces.get(1).toString(), this.testLocalNamespaces.get(2).toString(),
-                this.testGlobalNamespaces.get(0).toString());
+        expectedList = Arrays.asList(
+                this.testLocalNamespaces.get(0).toString(),
+                this.testLocalNamespaces.get(1).toString(),
+                this.testLocalNamespaces.get(2).toString(),
+                this.testGlobalNamespaces.get(0).toString()
+        );
         expectedList.sort(null);
         AsyncResponse response = mock(AsyncResponse.class);
         namespaces.getTenantNamespaces(response, this.testTenant);
@@ -782,8 +787,10 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         assertEquals(responseCaptor.getValue().getStatus(), Status.NO_CONTENT.getStatusCode());
-        List<String> nsList = List.of(this.testLocalNamespaces.get(1).toString(),
-                this.testLocalNamespaces.get(2).toString());
+        List<String> nsList = Arrays.asList(
+                this.testLocalNamespaces.get(1).toString(),
+                this.testLocalNamespaces.get(2).toString()
+        );
         nsList.sort(null);
         assertEquals(asyncRequests(ctx -> namespaces.getTenantNamespaces(ctx, this.testTenant)), nsList);
 
