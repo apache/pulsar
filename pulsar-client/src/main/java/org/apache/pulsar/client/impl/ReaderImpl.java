@@ -42,6 +42,7 @@ import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.CompletableFutureCancellationHandler;
 
 @Slf4j
 public class ReaderImpl<T> implements Reader<T> {
@@ -177,7 +178,8 @@ public class ReaderImpl<T> implements Reader<T> {
 
     @Override
     public CompletableFuture<Message<T>> readNextAsync() {
-        return consumer.receiveAsync().thenApply(msg -> {
+        CompletableFuture<Message<T>> originalFuture = consumer.receiveAsync();
+        CompletableFuture<Message<T>> result = originalFuture.thenApply(msg -> {
             consumer.acknowledgeCumulativeAsync(msg)
                     .exceptionally(ex -> {
                         log.error("[{}][{}] acknowledge message {} cumulative fail.", getTopic(),
@@ -186,6 +188,10 @@ public class ReaderImpl<T> implements Reader<T> {
                     });
             return msg;
         });
+        CompletableFutureCancellationHandler handler = new CompletableFutureCancellationHandler();
+        handler.attachToFuture(result);
+        handler.setCancelAction(() -> originalFuture.cancel(false));
+        return result;
     }
 
     @Override
