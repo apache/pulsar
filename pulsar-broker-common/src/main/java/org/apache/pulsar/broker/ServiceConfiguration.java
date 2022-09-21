@@ -2759,14 +2759,33 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_TRANSACTION,
             doc = "Transaction buffer take snapshot transaction count"
+                    + "If transaction buffer enables snapshot segment, transaction buffer updates snapshot metadata"
+                    + "after the number of transaction operations reaches this value."
     )
     private int transactionBufferSnapshotMaxTransactionCount = 1000;
 
     @FieldContext(
             category = CATEGORY_TRANSACTION,
-            doc = "Transaction buffer take snapshot min interval time"
+            doc = "The interval time for transaction buffer to take snapshots."
+                    + "If transaction buffer enables snapshot segment, "
+                    + "it is the interval time for transaction buffer to update snapshot metadata."
     )
     private int transactionBufferSnapshotMinTimeInMillis = 5000;
+
+    @FieldContext(
+            category = CATEGORY_TRANSACTION,
+            doc = "Transaction buffer stores the transaction ID of aborted transactions and takes snapshots."
+                    + "This configuration determines the size of the snapshot segment. "
+                    + "The default value is 256 KB (262144 bytes)."
+    )
+    private int transactionBufferSnapshotSegmentSize = 262144;
+
+    @FieldContext(
+            category = CATEGORY_TRANSACTION,
+            doc = "Whether to enable segmented transaction buffer snapshot "
+                    + "to handle a large number of aborted transactions."
+    )
+    private boolean transactionBufferSegmentedSnapshotEnabled = false;
 
     @FieldContext(
             category = CATEGORY_TRANSACTION,

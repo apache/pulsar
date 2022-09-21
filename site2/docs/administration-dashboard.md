@@ -62,6 +62,6 @@ bin/pulsar standalone --advertised-address 1.2.3.4
 
 :::note
 
-Currently, only Pulsar Token [authentication](security-overview.md#authentication-providers) is supported.
+Currently, only Pulsar Token [authentication](security-overview.md#authentication) is supported.
 
 :::

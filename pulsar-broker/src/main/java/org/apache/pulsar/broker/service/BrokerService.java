@@ -2152,7 +2152,12 @@ public class BrokerService implements Closeable {
                         }
                         Map<String, String> data = optMap.get();
                         data.forEach((configKey, value) -> {
-                            Field configField = dynamicConfigurationMap.get(configKey).field;
+                            ConfigField configFieldWrapper = dynamicConfigurationMap.get(configKey);
+                            if (configFieldWrapper == null) {
+                                log.warn("{} does not exist in dynamicConfigurationMap, skip this config.", configKey);
+                                return;
+                            }
+                            Field configField = configFieldWrapper.field;
                             Object newValue = FieldParser.value(data.get(configKey), configField);
                             if (configField != null) {
                                 Consumer listener = configRegisteredListeners.get(configKey);
