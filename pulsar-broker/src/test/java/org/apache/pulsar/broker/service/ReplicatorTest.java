@@ -28,6 +28,7 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.scurrilous.circe.checksum.Crc32cIntChecksum;
 import io.netty.buffer.ByteBuf;
@@ -1320,7 +1321,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         // expected topic list didn't contain non-persistent-non-partitioned topic,
         // because this model topic didn't create path in local metadata store.
-        List<String> expectedTopicList = List.of(
+        List<String> expectedTopicList = Lists.newArrayList(
                 persistentNonPartitionedTopic, nonPersistentNonPartitionedTopic);
         TopicName pt = TopicName.get(persistentPartitionedTopic);
         for (int i = 0; i < numPartitions; i++) {

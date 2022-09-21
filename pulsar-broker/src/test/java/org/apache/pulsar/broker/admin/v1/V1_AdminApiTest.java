@@ -30,6 +30,7 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.BoundType;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.google.common.hash.Hashing;
 import java.lang.reflect.Field;
@@ -270,9 +271,9 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
             parameters2.put("usage_threshold", "100");
 
             NamespaceIsolationData nsPolicyData2 = NamespaceIsolationData.builder()
-                    .namespaces(List.of("other/use/other.*"))
-                    .primary(List.of("prod1-broker[4-6].messaging.use.example.com"))
-                    .secondary(List.of("prod1-broker.*.messaging.use.example.com"))
+                    .namespaces(Lists.newArrayList("other/use/other.*"))
+                    .primary(Lists.newArrayList("prod1-broker[4-6].messaging.use.example.com"))
+                    .secondary(Lists.newArrayList("prod1-broker.*.messaging.use.example.com"))
                     .autoFailoverPolicy(AutoFailoverPolicyData.builder()
                             .policyType(AutoFailoverPolicyType.min_available)
                             .parameters(parameters1)
