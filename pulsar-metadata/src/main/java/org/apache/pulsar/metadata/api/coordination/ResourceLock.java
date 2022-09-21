@@ -38,7 +38,7 @@ public interface ResourceLock<T> {
     /**
      * Update the value of the lock.
      *
-     * @return a future to track when the release operation is complete
+     * @return a future to track when the update operation is complete
      */
     CompletableFuture<Void> updateValue(T newValue);
 

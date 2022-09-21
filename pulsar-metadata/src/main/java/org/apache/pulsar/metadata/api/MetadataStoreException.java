@@ -133,6 +133,22 @@ public class MetadataStoreException extends IOException {
         }
     }
 
+    public static class LockExpiredException extends MetadataStoreException {
+
+        public LockExpiredException(Throwable t) {
+            super(t);
+        }
+
+        public LockExpiredException(String msg) {
+            super(msg);
+        }
+
+        public LockExpiredException(String msg, Throwable t) {
+            super(msg, t);
+        }
+    }
+
+
     /**
      * The store was already closed.
      */

@@ -31,12 +31,15 @@ import java.util.Optional;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import lombok.Cleanup;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.LockBusyException;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
 import org.apache.pulsar.metadata.api.coordination.LockManager;
@@ -45,6 +48,7 @@ import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.coordination.impl.CoordinationServiceImpl;
 import org.awaitility.Awaitility;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 public class LockManagerTest extends BaseMetadataStoreTest {
@@ -328,7 +332,7 @@ public class LockManagerTest extends BaseMetadataStoreTest {
         ResourceLock<String> lock1 = lm1.acquireLock(path1, "value-1").join();
         AtomicReference<ResourceLock<String>> lock2 = new AtomicReference<>();
         // lock 2 will steal the distributed lock first.
-        Awaitility.await().until(()-> {
+        Awaitility.await().until(() -> {
             // Ensure steal the lock success.
             try {
                 lock2.set(lm2.acquireLock(path1, "value-1").join());
@@ -352,4 +356,36 @@ public class LockManagerTest extends BaseMetadataStoreTest {
             }
         });
     }
+
+    @Test(dataProvider = "impl")
+    public void testExpiredLockCannotReacquire(String provider, Supplier<String> urlSupplier)
+            throws Exception {
+
+        @Cleanup
+        MetadataStoreExtended store1 = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().build());
+
+        @Cleanup
+        CoordinationService cs1 = new CoordinationServiceImpl(store1);
+        @Cleanup
+        LockManager<String> lm1 = cs1.getLockManager(String.class);
+
+        String path1 = newKey();
+
+        AtomicInteger counter = new AtomicInteger(0);
+        ResourceLock<String> lock = lm1.acquireLock(path1, "value-1").join();
+        lock.getLockExpiredFuture().thenAccept(__ -> counter.incrementAndGet());
+        lock.updateValue("value-2").join();
+        Assert.assertEquals(lock.getValue(), "value-2");
+        lock.release().join();
+        try {
+            lock.updateValue("value-3").join();
+            fail();
+        } catch (Throwable ex) {
+            Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+            Assert.assertTrue(realCause instanceof MetadataStoreException.LockExpiredException);
+        }
+        Assert.assertEquals(counter.get(), 1);
+    }
+
 }

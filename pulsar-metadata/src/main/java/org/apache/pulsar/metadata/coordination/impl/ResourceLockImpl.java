@@ -29,6 +29,7 @@ import org.apache.pulsar.metadata.api.MetadataSerde;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.LockBusyException;
+import org.apache.pulsar.metadata.api.MetadataStoreException.LockExpiredException;
 import org.apache.pulsar.metadata.api.coordination.ResourceLock;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
@@ -49,6 +50,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
     private enum State {
         Init,
         Valid,
+        Revalidating,
         Releasing,
         Released,
     }
@@ -71,7 +73,14 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
 
     @Override
     public synchronized CompletableFuture<Void> updateValue(T newValue) {
-       return acquire(newValue);
+        if (state == State.Revalidating) {
+            return revalidateFuture
+                    // ignore revalidate result
+                    .exceptionally(ignore -> null)
+                    .thenCompose(__ -> acquire(newValue));
+        } else {
+            return acquire(newValue);
+        }
     }
 
     @Override
@@ -82,7 +91,6 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
 
         state = State.Releasing;
         CompletableFuture<Void> result = new CompletableFuture<>();
-
         store.delete(path, Optional.of(version))
                 .thenRun(() -> {
                     synchronized (ResourceLockImpl.this) {
@@ -145,6 +153,10 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
 
     // Simple operation of acquiring the lock with no retries, or checking for the lock content
     private CompletableFuture<Void> acquireWithNoRevalidation(T newValue) {
+        if (state == State.Released) {
+            return FutureUtil.failedFuture(new LockExpiredException(
+                    String.format("Unable acquire the released lock %s", path)));
+        }
         if (log.isDebugEnabled()) {
             log.debug("acquireWithNoRevalidation,newValue={},version={}", newValue, version);
         }
@@ -219,6 +231,11 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
         }
         revalidateFuture.exceptionally(ex -> {
             synchronized (ResourceLockImpl.this) {
+                if (state != State.Revalidating) {
+                    log.warn("Lock {} has been modified to state {} when revalidate fails. skip state cleanup.",
+                            path, state);
+                    return null;
+                }
                 Throwable realCause = FutureUtil.unwrapCompletionException(ex);
                 if (!revalidateAfterReconnection || realCause instanceof BadVersionException
                         || realCause instanceof LockBusyException) {
@@ -244,6 +261,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
         if (log.isDebugEnabled()) {
             log.debug("doRevalidate with newValue={}, version={}", newValue, version);
         }
+        state = State.Revalidating;
         return store.get(path)
                 .thenCompose(optGetResult -> {
                     if (!optGetResult.isPresent()) {
@@ -278,6 +296,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
                                 // need to recreate it.
                                 version = res.getStat().getVersion();
                                 value = newValue;
+                                state = State.Valid;
                                 return CompletableFuture.completedFuture(null);
                             } else {
                                 // The lock needs to get recreated since it belong to an earlier
