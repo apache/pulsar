@@ -202,7 +202,7 @@ function ci_check_ready_to_test() {
    If ${FORK_REPO_URL}/tree/${PR_BASE_BRANCH} is missing, you must sync the branch ${PR_BASE_BRANCH} on the command line.
    \`\`\`
    git fetch https://github.com/apache/pulsar ${PR_BASE_BRANCH}
-   git push ${FORK_REPO_URL} FETCH_HEAD:${PR_BASE_BRANCH}
+   git push ${FORK_REPO_URL} FETCH_HEAD:refs/heads/${PR_BASE_BRANCH}
    \`\`\`
 EOF
 )
