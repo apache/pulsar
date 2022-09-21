@@ -7,7 +7,7 @@ original_id: administration-dashboard
 
 :::note
 
-Pulsar dashboard is deprecated. If you want to manage and monitor the stats of your topics, use [Pulsar Manager](administration-pulsar-manager). 
+Pulsar dashboard is deprecated. If you want to manage and monitor the stats of your topics, use [Pulsar Manager](administration-pulsar-manager.md). 
 
 :::
 

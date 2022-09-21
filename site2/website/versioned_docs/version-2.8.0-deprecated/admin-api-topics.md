@@ -1309,7 +1309,7 @@ admin.topics().removeOffloadPolicies(topic)
 
 
 ## Manage non-partitioned topics
-You can use Pulsar [admin API](admin-api-overview) to create, delete and check status of non-partitioned topics.
+You can use Pulsar [admin API](admin-api-overview.md) to create, delete and check status of non-partitioned topics.
 
 ### Create
 Non-partitioned topics must be explicitly created. When creating a new non-partitioned topic, you need to provide a name for the topic.
@@ -1504,7 +1504,7 @@ admin.topics().getStats(topic, false /* is precise backlog */);
 ````
 
 ## Manage partitioned topics
-You can use Pulsar [admin API](admin-api-overview) to create, update, delete and check status of partitioned topics.
+You can use Pulsar [admin API](admin-api-overview.md) to create, update, delete and check status of partitioned topics.
 
 ### Create
 
@@ -2022,7 +2022,7 @@ If a message has a key, it supersedes the round robin routing policy. The follow
 ```
 
 ## Manage subscriptions
-You can use [Pulsar admin API](admin-api-overview) to create, check, and delete subscriptions.
+You can use [Pulsar admin API](admin-api-overview.md) to create, check, and delete subscriptions.
 ### Create subscription
 You can create a subscription for a topic using one of the following methods.
 ````mdx-code-block

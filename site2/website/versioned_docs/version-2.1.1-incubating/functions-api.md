@@ -5,9 +5,9 @@ sidebar_label: "API"
 original_id: functions-api
 ---
 
-[Pulsar Functions](functions-overview) provides an easy-to-use API that developers can use to create and manage processing logic for the Apache Pulsar messaging system. With Pulsar Functions, you can write functions of any level of complexity in [Java](#functions-for-java) or [Python](#functions-for-python) and run them in conjunction with a Pulsar cluster without needing to run a separate stream processing engine.
+[Pulsar Functions](functions-overview.md) provides an easy-to-use API that developers can use to create and manage processing logic for the Apache Pulsar messaging system. With Pulsar Functions, you can write functions of any level of complexity in [Java](#functions-for-java) or [Python](#functions-for-python) and run them in conjunction with a Pulsar cluster without needing to run a separate stream processing engine.
 
-> For a more in-depth overview of the Pulsar Functions feature, see the [Pulsar Functions overview](functions-overview).
+> For a more in-depth overview of the Pulsar Functions feature, see the [Pulsar Functions overview](functions-overview.md).
 
 ## Core programming model
 
@@ -45,7 +45,7 @@ Some things to note about this Pulsar Function:
 
 ### Example deployment
 
-Deploying Pulsar Functions is handled by the [`pulsar-admin`](reference-pulsar-admin) CLI tool, in particular the [`functions`](reference-pulsar-admin.md#functions) command. Here's an example command that would run our [sanitizer](#example-function) function from above in [local run](functions-deploying.md#local-run-mode) mode:
+Deploying Pulsar Functions is handled by the [`pulsar-admin`](reference-pulsar-admin.md) CLI tool, in particular the [`functions`](reference-pulsar-admin.md#functions) command. Here's an example command that would run our [sanitizer](#example-function) function from above in [local run](functions-deploying.md#local-run-mode) mode:
 
 ```bash
 
@@ -61,7 +61,7 @@ $ bin/pulsar-admin functions localrun \
 
 ```
 
-For instructions on running functions in your Pulsar cluster, see the [Deploying Pulsar Functions](functions-deploying) guide.
+For instructions on running functions in your Pulsar cluster, see the [Deploying Pulsar Functions](functions-deploying.md) guide.
 
 ### Available APIs
 
@@ -542,7 +542,7 @@ public class MetricRecorderFunction implements Function<Integer, Void> {
 
 ```
 
-> For instructions on reading and using metrics, see the [Monitoring](deploy-monitoring) guide.
+> For instructions on reading and using metrics, see the [Monitoring](deploy-monitoring.md) guide.
 
 
 ## Functions for Python
@@ -554,7 +554,7 @@ Writing Pulsar Functions in Python entails implementing one of two things:
 
 ### Getting started
 
-Regardless of which [deployment mode](functions-deploying) you're using, you'll need to install the following Python libraries on any machine that's running Pulsar Functions written in Python:
+Regardless of which [deployment mode](functions-deploying.md) you're using, you'll need to install the following Python libraries on any machine that's running Pulsar Functions written in Python:
 
 That could be your local machine for [local run mode](functions-deploying.md#local-run-mode) or a machine running a Pulsar [broker](reference-terminology.md#broker) for [cluster mode](functions-deploying.md#cluster-mode). To install those libraries using pip:
 

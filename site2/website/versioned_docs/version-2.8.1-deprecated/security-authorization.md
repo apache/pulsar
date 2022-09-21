@@ -27,7 +27,7 @@ superUserRoles=my-super-user-1,my-super-user-2
 > A full list of parameters is available in the `conf/broker.conf` file.
 > You can also find the default values for those parameters in [Broker Configuration](reference-configuration.md#broker). 
 
-Typically, you use superuser roles for administrators, clients as well as broker-to-broker authorization. When you use [geo-replication](concepts-replication), every broker needs to be able to publish to all the other topics of clusters.
+Typically, you use superuser roles for administrators, clients as well as broker-to-broker authorization. When you use [geo-replication](concepts-replication.md), every broker needs to be able to publish to all the other topics of clusters.
 
 You can also enable the authorization for the proxy in the proxy configuration file (`conf/proxy.conf`). Once you enable the authorization on the proxy, the proxy does an additional authorization check before forwarding the request to a broker. 
 If you enable authorization on the broker, the broker checks the authorization of the request when the broker receives the forwarded request.
@@ -59,7 +59,7 @@ superUserRoles=my-super-user-1,my-super-user-2,my-proxy-role
 
 Pulsar [instance](reference-terminology.md#instance) administrators or some kind of self-service portal typically provisions a Pulsar [tenant](reference-terminology.md#tenant). 
 
-You can manage tenants using the [`pulsar-admin`](reference-pulsar-admin) tool. 
+You can manage tenants using the [`pulsar-admin`](reference-pulsar-admin.md) tool. 
 
 ### Create a new tenant
 
@@ -87,7 +87,7 @@ persistent://tenant/namespace/topic
 
 ### Manage permissions
 
-You can use [Pulsar Admin Tools](admin-api-permissions) for managing permission in Pulsar.
+You can use [Pulsar Admin Tools](admin-api-permissions.md) for managing permission in Pulsar.
 
 ### Pulsar admin authentication
 
@@ -117,7 +117,7 @@ PulsarAdmin admin = PulsarAdmin.builder()
 When a client is identified with multiple roles in a token (the type of role claim in the token is an array) during the authentication process, Pulsar supports to check the permissions of all the roles and further authorize the client as long as one of its roles has the required permissions.
 
 > **Note**<br />
-> This authorization method is only compatible with [JWT authentication](security-jwt).
+> This authorization method is only compatible with [JWT authentication](security-jwt.md).
 
 To enable this authorization method, configure the authorization provider as `MultiRolesTokenAuthorizationProvider` in the `conf/broker.conf` file.
 
