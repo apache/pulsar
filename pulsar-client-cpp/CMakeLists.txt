@@ -345,9 +345,14 @@ include_directories(
   ${CURL_INCLUDE_DIRS}
   ${Protobuf_INCLUDE_DIRS}
   ${LOG4CXX_INCLUDE_PATH}
-  ${GTEST_INCLUDE_PATH}
-  ${GMOCK_INCLUDE_PATH}
 )
+
+if(BUILD_TESTS)
+  include_directories(
+    ${GTEST_INCLUDE_PATH}
+    ${GMOCK_INCLUDE_PATH}
+  )
+endif()
 
 set(COMMON_LIBS
   ${COMMON_LIBS}
