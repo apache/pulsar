@@ -45,9 +45,7 @@ import java.util.stream.Collectors;
 import lombok.Getter;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
-import org.apache.bookkeeper.common.util.Backoff;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
-import org.apache.bookkeeper.common.util.Retries;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
@@ -891,26 +889,6 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         }, ctx);
     }
 
-    private CompletableFuture<Void> cleanupOffloaded(long ledgerId, UUID uuid, ManagedLedgerConfig mlConfig,
-                                     Map<String, String> offloadDriverMetadata, String cleanupReason, String name) {
-        log.info("[{}] Cleanup offload for ledgerId {} uuid {} because of the reason {}.",
-                name, ledgerId, uuid.toString(), cleanupReason);
-        Map<String, String> metadataMap = new HashMap();
-        metadataMap.putAll(offloadDriverMetadata);
-        metadataMap.put("ManagedLedgerName", name);
-
-        return Retries.run(Backoff.exponentialJittered(TimeUnit.SECONDS.toMillis(1),
-                        TimeUnit.SECONDS.toHours(1)).limit(10),
-                Retries.NonFatalPredicate,
-                () -> mlConfig.getLedgerOffloader().deleteOffloaded(ledgerId, uuid, metadataMap),
-                scheduledExecutor, name).whenComplete((ignored, exception) -> {
-            if (exception != null) {
-                log.warn("[{}] Error cleaning up offload for {}, (cleanup reason: {})",
-                        name, ledgerId, cleanupReason, exception);
-            }
-        });
-    }
-
     private void deleteManagedLedgerData(BookKeeper bkc, String managedLedgerName, ManagedLedgerInfo info,
                                          CompletableFuture<ManagedLedgerConfig> mlConfigFuture,
                                          DeleteLedgerCallback callback, Object ctx) {
@@ -961,10 +939,10 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
                                 UUID uuid = new UUID(ls.getOffloadContext().getUidMsb(),
                                         ls.getOffloadContext().getUidLsb());
-                                return cleanupOffloaded(li.ledgerId, uuid, mlConfig,
+                                return OffloadUtils.cleanupOffloaded(li.ledgerId, uuid, mlConfig,
                                         OffloadUtils.getOffloadDriverMetadata(ls,
                                                 mlConfig.getLedgerOffloader().getOffloadDriverMetadata()),
-                                        "Deletion", managedLedgerName);
+                                        "Deletion", managedLedgerName, scheduledExecutor);
                             }
 
                             return CompletableFuture.completedFuture(null);

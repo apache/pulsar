@@ -171,10 +171,8 @@ public interface ManagedLedgerFactory {
      * @throws InterruptedException
      * @throws ManagedLedgerException
      */
-    default void asyncDelete(String name, CompletableFuture<ManagedLedgerConfig> mlConfigFuture,
-                             DeleteLedgerCallback callback, Object ctx) {
-        asyncDelete(name, callback, ctx);
-    }
+    void asyncDelete(String name, CompletableFuture<ManagedLedgerConfig> mlConfigFuture,
+                             DeleteLedgerCallback callback, Object ctx);
 
     /**
      * Releases all the resources maintained by the ManagedLedgerFactory.
