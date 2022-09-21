@@ -22,18 +22,26 @@ import static org.apache.bookkeeper.util.BookKeeperConstants.AVAILABLE_NODE;
 import static org.apache.bookkeeper.util.BookKeeperConstants.COOKIE_NODE;
 import static org.apache.bookkeeper.util.BookKeeperConstants.READONLY;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import org.apache.bookkeeper.client.BKException;
+import org.apache.bookkeeper.discover.BookieServiceInfo;
 import org.apache.bookkeeper.discover.RegistrationClient;
 import org.apache.bookkeeper.net.BookieId;
+import org.apache.bookkeeper.versioning.LongVersion;
 import org.apache.bookkeeper.versioning.Version;
 import org.apache.bookkeeper.versioning.Versioned;
+import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
@@ -152,5 +160,49 @@ public class PulsarRegistrationClient implements RegistrationClient {
             newBookieAddrs.add(bookieAddr);
         }
         return newBookieAddrs;
+    }
+
+    @Override
+    public CompletableFuture<Versioned<BookieServiceInfo>> getBookieServiceInfo(BookieId bookieId) {
+        String asWritable = bookieRegistrationPath + "/" + bookieId;
+        return store.get(asWritable)
+                .thenCompose((Optional<GetResult> getResult) -> {
+                    if (getResult.isPresent()) {
+                        try {
+                            BookieServiceInfo deserialize = BookieServiceInfoSerde.INSTANCE
+                                    .deserialize(asWritable,
+                                            getResult.get().getValue(),
+                                            getResult.get().getStat());
+                            return CompletableFuture.completedFuture(new Versioned<>(deserialize,
+                                    new LongVersion(getResult.get().getStat().getVersion())));
+                        } catch (IOException err) {
+                            return FutureUtil.failedFuture(err);
+                        }
+                    } else {
+                        return readBookieInfoAsReadonlyBookie(bookieId);
+                    }
+                }
+        );
+    }
+
+    final CompletableFuture<Versioned<BookieServiceInfo>> readBookieInfoAsReadonlyBookie(BookieId bookieId) {
+        String asReadonly = bookieReadonlyRegistrationPath + "/" + bookieId;
+        return store.get(asReadonly)
+                .thenApply((Optional<GetResult> getResultAsReadOnly) -> {
+                    if (getResultAsReadOnly.isPresent()) {
+                        try {
+                            BookieServiceInfo deserialize = BookieServiceInfoSerde.INSTANCE
+                                    .deserialize(asReadonly,
+                                            getResultAsReadOnly.get().getValue(),
+                                            getResultAsReadOnly.get().getStat());
+                            return new Versioned<>(deserialize,
+                                    new LongVersion(getResultAsReadOnly.get().getStat().getVersion()));
+                        } catch (IOException err) {
+                            throw new CompletionException(err);
+                        }
+                    } else {
+                        throw new CompletionException(new BKException.BKBookieHandleNotAvailableException());
+                    }
+                });
     }
 }
