@@ -22,14 +22,14 @@
 using namespace pulsar;
 
 TEST(KeyValueTest, testEncodeAndDeCode) {
-    const std::string keyContent = "keyContent";
-    const std::string valueContent = "valueContent";
+    const char* keyContent = "keyContent";
+    const char* valueContent = "valueContent";
 
     {
         // test inline encode
-        KeyValueImpl keyValue((std::string(keyContent)), std::string(valueContent));
+        KeyValueImpl keyValue(keyContent, valueContent);
         const SharedBuffer content = keyValue.getContent(KeyValueEncodingType::INLINE);
-        ASSERT_EQ(content.readableBytes(), 8 + keyContent.size() + valueContent.size());
+        ASSERT_EQ(content.readableBytes(), 8 + strlen(keyContent) + strlen(valueContent));
 
         // test inline decode
         KeyValueImpl deCodeKeyValue(content.data(), content.readableBytes(), KeyValueEncodingType::INLINE);
@@ -42,7 +42,7 @@ TEST(KeyValueTest, testEncodeAndDeCode) {
 
     {
         // test separated encode
-        KeyValueImpl sepKeyValue((std::string(keyContent)), std::string(valueContent));
+        KeyValueImpl sepKeyValue(keyContent, valueContent);
         const SharedBuffer content = sepKeyValue.getContent(KeyValueEncodingType::SEPARATED);
         ASSERT_EQ(sepKeyValue.getKey(), keyContent);
         ASSERT_EQ(sepKeyValue.getValueAsString(), valueContent);
@@ -58,14 +58,14 @@ TEST(KeyValueTest, testEncodeAndDeCode) {
 }
 
 TEST(KeyValueTest, testKeyIsEmpty) {
-    const std::string keyContent;
-    const std::string valueContent = "valueContent";
+    const char* keyContent = "";
+    const char* valueContent = "valueContent";
 
     {
         // test inline encode
-        KeyValueImpl keyValue((std::string(keyContent)), std::string(valueContent));
+        KeyValueImpl keyValue(keyContent, valueContent);
         const SharedBuffer content = keyValue.getContent(KeyValueEncodingType::INLINE);
-        ASSERT_EQ(content.readableBytes(), 8 + keyContent.size() + valueContent.size());
+        ASSERT_EQ(content.readableBytes(), 8 + strlen(keyContent) + strlen(valueContent));
 
         // test inline decode
         KeyValueImpl deCodeKeyValue(content.data(), content.readableBytes(), KeyValueEncodingType::INLINE);
@@ -78,7 +78,7 @@ TEST(KeyValueTest, testKeyIsEmpty) {
 
     {
         // test separated type
-        KeyValueImpl sepKeyValue((std::string(keyContent)), std::string(valueContent));
+        KeyValueImpl sepKeyValue(keyContent, valueContent);
         const SharedBuffer content = sepKeyValue.getContent(KeyValueEncodingType::SEPARATED);
         ASSERT_EQ(sepKeyValue.getKey(), keyContent);
         ASSERT_EQ(sepKeyValue.getValueAsString(), valueContent);
@@ -87,27 +87,26 @@ TEST(KeyValueTest, testKeyIsEmpty) {
 }
 
 TEST(KeyValueTest, testValueIsEmpty) {
-    const std::string keyContent = "keyContent";
-    const std::string valueContent;
+    const char* keyContent = "keyContent";
+    const char* valueContent = "";
 
     {
         // test inline encode
-        KeyValueImpl keyValue((std::string(keyContent)), std::string(valueContent));
+        KeyValueImpl keyValue(keyContent, valueContent);
         const SharedBuffer content = keyValue.getContent(KeyValueEncodingType::INLINE);
-        ASSERT_EQ(content.readableBytes(), 8 + keyContent.size() + valueContent.size());
+        ASSERT_EQ(content.readableBytes(), 8 + strlen(keyContent) + strlen(valueContent));
 
         // test inline decode
         KeyValueImpl deCodeKeyValue(content.data(), content.readableBytes(), KeyValueEncodingType::INLINE);
         const SharedBuffer deCodeContent = keyValue.getContent(KeyValueEncodingType::INLINE);
         ASSERT_EQ(deCodeKeyValue.getKey(), keyContent);
         ASSERT_EQ(deCodeKeyValue.getValueAsString(), valueContent);
-        ASSERT_TRUE(std::string(deCodeContent.data(), deCodeContent.readableBytes()).compare(valueContent) !=
-                    0);
+        ASSERT_NE(std::string(deCodeContent.data(), deCodeContent.readableBytes()), valueContent);
     }
 
     {
         // test separated type
-        KeyValueImpl sepKeyValue((std::string(keyContent)), std::string(valueContent));
+        KeyValueImpl sepKeyValue(keyContent, valueContent);
         const SharedBuffer content = sepKeyValue.getContent(KeyValueEncodingType::SEPARATED);
         ASSERT_EQ(sepKeyValue.getKey(), keyContent);
         ASSERT_EQ(sepKeyValue.getValueAsString(), valueContent);

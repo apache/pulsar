@@ -102,8 +102,8 @@ TEST(MessageTest, testMessageBuilder) {
 }
 
 TEST(MessageTest, testMessageImplKeyValuePayloadCovert) {
-    std::string keyContent = "keyContent";
-    std::string valueContent = "valueContent";
+    const char* keyContent = "keyContent";
+    const char* valueContent = "valueContent";
 
     std::string jsonSchema =
         R"({"type":"record","name":"cpx","fields":[{"name":"re","type":"double"},{"name":"im","type":"double"}]})";
@@ -114,8 +114,7 @@ TEST(MessageTest, testMessageImplKeyValuePayloadCovert) {
     {
         SchemaInfo keyValueSchema(keySchema, valueSchema, KeyValueEncodingType::INLINE);
         MessageImpl msgImpl;
-        std::shared_ptr<KeyValueImpl> keyValuePtr =
-            std::make_shared<KeyValueImpl>(std::string(keyContent), std::string(valueContent));
+        std::shared_ptr<KeyValueImpl> keyValuePtr = std::make_shared<KeyValueImpl>(keyContent, valueContent);
         msgImpl.keyValuePtr = keyValuePtr;
         msgImpl.convertKeyValueToPayload(keyValueSchema);
         ASSERT_EQ(msgImpl.payload.readableBytes(), 30);
@@ -133,8 +132,7 @@ TEST(MessageTest, testMessageImplKeyValuePayloadCovert) {
     {
         SchemaInfo keyValueSchema(keySchema, valueSchema, KeyValueEncodingType::SEPARATED);
         MessageImpl msgImpl;
-        std::shared_ptr<KeyValueImpl> keyValuePtr =
-            std::make_shared<KeyValueImpl>(std::string(keyContent), std::string(valueContent));
+        std::shared_ptr<KeyValueImpl> keyValuePtr = std::make_shared<KeyValueImpl>(keyContent, valueContent);
         msgImpl.keyValuePtr = keyValuePtr;
         msgImpl.convertKeyValueToPayload(keyValueSchema);
         ASSERT_EQ(msgImpl.payload.readableBytes(), 12);

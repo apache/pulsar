@@ -73,8 +73,8 @@ class MessageImpl {
     bool hasSchemaVersion() const;
     const std::string& getSchemaVersion() const;
     void setSchemaVersion(const std::string& value);
-    void convertKeyValueToPayload(SchemaInfo schemaInfo);
-    void convertPayloadToKeyValue(SchemaInfo schemaInfo);
+    void convertKeyValueToPayload(const SchemaInfo& schemaInfo);
+    void convertPayloadToKeyValue(const SchemaInfo& schemaInfo);
     KeyValueEncodingType getKeyValueEncodingType(SchemaInfo schemaInfo);
 
     friend class PulsarWrapper;

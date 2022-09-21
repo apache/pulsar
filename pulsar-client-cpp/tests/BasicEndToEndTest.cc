@@ -4131,8 +4131,8 @@ TEST(BasicEndToEndTest, testKeyValueSchemaWithInline) {
     ASSERT_EQ(ResultOk, client.subscribe(topicName, subName, configConsumer, consumer));
 
     // Sending and receiving messages.
-    std::string jsonData = "{\"re\":2.1,\"im\":1.23}";
-    KeyValue keyValue((std::string(jsonData)), std::string(jsonData));
+    const char *jsonData = "{\"re\":2.1,\"im\":1.23}";
+    KeyValue keyValue(jsonData, jsonData);
     Message msg = MessageBuilder().setContent(keyValue).setProperty("x", "1").build();
     ASSERT_EQ(ResultOk, producer.send(msg));
 
@@ -4174,8 +4174,8 @@ TEST(BasicEndToEndTest, testKeyValueSchemaWithSeparated) {
     ASSERT_EQ(ResultOk, client.subscribe(topicName, subName, configConsumer, consumer));
 
     // Sending and receiving messages.
-    std::string jsonData = "{\"re\":2.1,\"im\":1.23}";
-    KeyValue keyValue((std::string(jsonData)), std::string(jsonData));
+    const char *jsonData = "{\"re\":2.1,\"im\":1.23}";
+    KeyValue keyValue(jsonData, jsonData);
     Message msg = MessageBuilder().setContent(keyValue).setProperty("x", "1").build();
     ASSERT_EQ(ResultOk, producer.send(msg));
 

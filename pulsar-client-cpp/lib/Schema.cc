@@ -61,9 +61,9 @@ PULSAR_PUBLIC const char *strEncodingType(KeyValueEncodingType encodingType) {
 }
 
 PULSAR_PUBLIC const KeyValueEncodingType enumEncodingType(std::string encodingTypeStr) {
-    if (encodingTypeStr.compare("INLINE") == 0) {
+    if (encodingTypeStr == "INLINE") {
         return KeyValueEncodingType::INLINE;
-    } else if (encodingTypeStr.compare("SEPARATED") == 0) {
+    } else if (encodingTypeStr == "SEPARATED") {
         return KeyValueEncodingType::SEPARATED;
     } else {
         throw std::invalid_argument("No match encoding type: " + encodingTypeStr);
@@ -135,15 +135,15 @@ SchemaInfo::SchemaInfo(const SchemaInfo &keySchema, const SchemaInfo &valueSchem
                        const KeyValueEncodingType &keyValueEncodingType) {
     std::string keySchemaStr = keySchema.getSchema();
     std::string valueSchemaStr = valueSchema.getSchema();
-    int keySize = keySchemaStr.size();
-    int valueSize = valueSchemaStr.size();
+    auto keySize = keySchemaStr.size();
+    auto valueSize = valueSchemaStr.size();
 
-    int buffSize = sizeof keySize + keySize + sizeof valueSize + valueSize;
+    auto buffSize = sizeof keySize + keySize + sizeof valueSize + valueSize;
     SharedBuffer buffer = SharedBuffer::allocate(buffSize);
-    buffer.writeUnsignedInt(keySize == 0 ? -1 : keySize);
-    buffer.write(keySchemaStr.c_str(), keySize);
-    buffer.writeUnsignedInt(valueSize == 0 ? -1 : valueSize);
-    buffer.write(valueSchemaStr.c_str(), valueSize);
+    buffer.writeUnsignedInt(keySize == 0 ? -1 : static_cast<uint32_t>(keySize));
+    buffer.write(keySchemaStr.c_str(), static_cast<uint32_t>(keySize));
+    buffer.writeUnsignedInt(valueSize == 0 ? -1 : static_cast<uint32_t>(valueSize));
+    buffer.write(valueSchemaStr.c_str(), static_cast<uint32_t>(valueSize));
 
     auto writeJson = [](const StringMap &properties) {
         ptree pt;
@@ -152,7 +152,9 @@ SchemaInfo::SchemaInfo(const SchemaInfo &keySchema, const SchemaInfo &valueSchem
         }
         std::ostringstream buf;
         write_json(buf, pt, false);
-        return buf.str();
+        auto s = buf.str();
+        s.pop_back();
+        return s;
     };
 
     StringMap properties;

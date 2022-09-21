@@ -41,7 +41,7 @@ class PULSAR_PUBLIC KeyValueImpl {
    private:
     std::string key_;
     SharedBuffer valueBuffer_;
-    Optional<SharedBuffer> contentBufferCache_;
+    static constexpr uint32_t INVALID_SIZE = 0xFFFFFFFF;
 };
 
 } /* namespace pulsar */

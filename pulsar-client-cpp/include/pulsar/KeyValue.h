@@ -19,7 +19,6 @@
 #ifndef KEY_VALUE_HPP_
 #define KEY_VALUE_HPP_
 
-#include <map>
 #include <string>
 #include <memory>
 #include "defines.h"

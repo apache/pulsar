@@ -20,8 +20,7 @@
 
 namespace pulsar {
 
-MessageImpl::MessageImpl()
-    : metadata(), payload(), keyValuePtr(), messageId(), cnx_(0), topicName_(), redeliveryCount_() {}
+MessageImpl::MessageImpl() : metadata(), payload(), messageId(), cnx_(0), topicName_(), redeliveryCount_() {}
 
 const Message::StringMap& MessageImpl::properties() {
     if (properties_.size() == 0) {
@@ -103,7 +102,7 @@ void MessageImpl::setSchemaVersion(const std::string& schemaVersion) { schemaVer
 
 const std::string& MessageImpl::getSchemaVersion() const { return metadata.schema_version(); }
 
-void MessageImpl::convertKeyValueToPayload(pulsar::SchemaInfo schemaInfo) {
+void MessageImpl::convertKeyValueToPayload(const pulsar::SchemaInfo& schemaInfo) {
     if (schemaInfo.getSchemaType() != KEY_VALUE) {
         // ignore not key_value schema.
         return;
@@ -115,7 +114,7 @@ void MessageImpl::convertKeyValueToPayload(pulsar::SchemaInfo schemaInfo) {
     }
 }
 
-void MessageImpl::convertPayloadToKeyValue(pulsar::SchemaInfo schemaInfo) {
+void MessageImpl::convertPayloadToKeyValue(const pulsar::SchemaInfo& schemaInfo) {
     if (schemaInfo.getSchemaType() != KEY_VALUE) {
         // ignore not key_value schema.
         return;
