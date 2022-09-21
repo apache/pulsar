@@ -166,7 +166,7 @@ public class FilterEntryTest extends BrokerTestBase {
         EntryFilterWithClassLoader loader1 = spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter1, narClassLoader);
         EntryFilter filter2 = new EntryFilter2Test();
         EntryFilterWithClassLoader loader2 = spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter2, narClassLoader);
-        field.set(dispatcher, Map.of(loader1, loader2));
+        field.set(dispatcher, List.of(loader1, loader2));
 
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                 .enableBatching(false).topic(topic).create();
@@ -291,7 +291,7 @@ public class FilterEntryTest extends BrokerTestBase {
             EntryFilterWithClassLoader loader1 = spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter1, narClassLoader);
             EntryFilter filter2 = new EntryFilter2Test();
             EntryFilterWithClassLoader loader2 = spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter2, narClassLoader);
-            field.set(dispatcher, Map.of(loader1, loader2));
+            field.set(dispatcher, List.of(loader1, loader2));
 
             for (int i = 0; i < 10; i++) {
                 producer.send("test");
