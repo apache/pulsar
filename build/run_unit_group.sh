@@ -58,7 +58,7 @@ alias echo='{ [[ $- =~ .*x.* ]] && trace_enabled=1 || trace_enabled=0; set +x; }
 
 # Test Groups  -- start --
 function test_group_broker_group_1() {
-  mvn_test -pl pulsar-broker -Dgroups='broker' -DtestReuseFork=true -DskipAfterFailureCount=1
+  mvn_test -pl pulsar-broker -Dgroups='broker' -DskipAfterFailureCount=1
 }
 
 function test_group_broker_group_2() {
@@ -134,7 +134,7 @@ function test_group_other() {
            -Dexclude='**/ManagedLedgerTest.java,
                    **/OffloadersCacheTest.java
                   **/PrimitiveSchemaTest.java,
-                  BlobStoreManagedLedgerOffloaderTest.java' -DtestReuseFork=false
+                  BlobStoreManagedLedgerOffloaderTest.java'
 
   mvn_test -pl managed-ledger -Dinclude='**/ManagedLedgerTest.java,
                                                   **/OffloadersCacheTest.java'
@@ -163,7 +163,7 @@ function test_group_pulsar_io() {
     echo "::endgroup::"
 
     echo "::group::Running pulsar-sql tests"
-    mvn_test --install -Ppulsar-sql-tests,-main -DtestForkCount=1
+    mvn_test --install -Ppulsar-sql-tests,-main
     echo "::endgroup::"
 }
 
