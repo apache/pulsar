@@ -50,7 +50,12 @@ public interface EntryFilter {
         REJECT,
         /**
          * postpone message, it should not go to this conmumer.
+         * @deprecated This is a beta API, make sure you know enough about the behavior to use it.
+         * If use Key_Shared/Exclusive/Failover subscription type, do not return {@link #RESCHEDULE},
+         * because there has no other candidate consumers.And if use Shared subscription type and maybe return
+         * {@link #RESCHEDULE}, make sure that at least one consumer can consume that entry.
          */
+        @Deprecated
         RESCHEDULE
     }
 
