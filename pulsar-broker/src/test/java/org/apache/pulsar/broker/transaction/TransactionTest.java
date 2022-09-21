@@ -647,7 +647,7 @@ public class TransactionTest extends TransactionTestBase {
         TransactionBuffer buffer3 = new TopicTransactionBuffer(persistentTopic);
         Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() ->
                 assertEquals(buffer3.getStats(false).state, "Ready"));
-        persistentTopic.getInternalStats(false, true).thenAccept(internalStats -> {
+        persistentTopic.getInternalStats(false, false).thenAccept(internalStats -> {
             assertTrue(internalStats.cursors.isEmpty());
         });
         managedCursors.removeCursor("transaction-buffer-sub");

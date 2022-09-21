@@ -123,7 +123,7 @@ public class PulsarBrokerStatsClientTest extends ProducerConsumerBase {
         }
 
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
-        PersistentTopicInternalStats internalStats = topic.getInternalStats(true, true).get();
+        PersistentTopicInternalStats internalStats = topic.getInternalStats(true, false).get();
         assertNotNull(internalStats.ledgers.get(0).metadata);
         // For the mock test, the default ensembles is ["192.0.2.1:1234","192.0.2.2:1234","192.0.2.3:1234"]
         // The registed bookie ID is 192.168.1.1:5000

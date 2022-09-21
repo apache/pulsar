@@ -652,7 +652,7 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public CompletableFuture<PersistentTopicInternalStats> getInternalStatsAsync(String topic) {
-        return getInternalStatsAsync(topic, false, true);
+        return getInternalStatsAsync(topic, false, false);
     }
 
     @Override
