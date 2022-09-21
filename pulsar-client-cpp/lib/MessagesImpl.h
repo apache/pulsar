@@ -21,7 +21,6 @@
 
 #include <vector>
 #include <pulsar/Message.h>
-#include <pulsar/Messages.h>
 
 using namespace pulsar;
 

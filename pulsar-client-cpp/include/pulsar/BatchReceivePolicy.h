@@ -50,6 +50,9 @@ struct BatchReceivePolicyImpl;
  */
 class PULSAR_PUBLIC BatchReceivePolicy {
    public:
+    /**
+     * Default value: {maxNumMessage: -1, maxNumBytes: 10 * 1024 * 1024, timeoutMs: 100}
+     */
     BatchReceivePolicy();
 
     /**

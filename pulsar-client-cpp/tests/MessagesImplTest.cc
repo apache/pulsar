@@ -17,13 +17,12 @@
  * under the License.
  */
 #include <gtest/gtest.h>
-#include <pulsar/Messages.h>
 #include <MessagesImpl.h>
 #include "pulsar/MessageBuilder.h"
 
 using namespace pulsar;
 
-TEST(MessagesTest, testMessage) {
+TEST(MessagesImplTest, testMessage) {
     // 0. test not limits
     {
         MessagesImpl messages(-1, -1);

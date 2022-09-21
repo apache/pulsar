@@ -31,7 +31,6 @@
 #include <pulsar/InitialPosition.h>
 #include <pulsar/KeySharedPolicy.h>
 #include <pulsar/ConsumerEventListener.h>
-#include <pulsar/Messages.h>
 #include "BatchReceivePolicy.h"
 
 namespace pulsar {
@@ -40,6 +39,7 @@ class Consumer;
 class PulsarWrapper;
 
 /// Callback definition for non-data operation
+typedef std::vector<Message> Messages;
 typedef std::function<void(Result result)> ResultCallback;
 typedef std::function<void(Result, const Message& msg)> ReceiveCallback;
 typedef std::function<void(Result, const Messages& msgs)> BatchReceiveCallback;
@@ -384,7 +384,8 @@ class PULSAR_PUBLIC ConsumerConfiguration {
     /**
      * Set batch receive policy.
      *
-     * @param batchReceivePolicy the default is xxx
+     * @param batchReceivePolicy the default is
+     * {maxNumMessage: -1, maxNumBytes: 10 * 1024 * 1024, timeoutMs: 100}
      */
     void setBatchReceivePolicy(const BatchReceivePolicy& batchReceivePolicy);
 

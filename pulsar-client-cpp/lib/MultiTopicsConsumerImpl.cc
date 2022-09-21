@@ -873,10 +873,8 @@ void MultiTopicsConsumerImpl::notifyBatchPendingReceivedCallback(const BatchRece
         messages->add(msg);
     }
     auto self = get_shared_this_ptr();
-    listenerExecutor_->postWork([callback, messages, self]() {
-        Messages msgs(messages);
-        callback(ResultOk, msgs);
-    });
+    listenerExecutor_->postWork(
+        [callback, messages, self]() { callback(ResultOk, messages->getMessageList()); });
 }
 
 void MultiTopicsConsumerImpl::messageProcessed(Message& msg) {

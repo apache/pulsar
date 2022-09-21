@@ -23,7 +23,6 @@
 #include <pulsar/defines.h>
 #include <pulsar/BrokerConsumerStats.h>
 #include <pulsar/ConsumerConfiguration.h>
-#include <pulsar/Messages.h>
 
 namespace pulsar {
 class PulsarWrapper;

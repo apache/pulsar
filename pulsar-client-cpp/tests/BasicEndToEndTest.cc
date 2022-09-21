@@ -4157,13 +4157,13 @@ void testBatchReceive(bool multiConsumer) {
     Messages messages;
     Result receive = consumer.batchReceive(messages);
     ASSERT_EQ(receive, ResultOk);
-    ASSERT_EQ(messages.getMessageList().size(), numOfMessages);
+    ASSERT_EQ(messages.size(), numOfMessages);
 
     // async batch receive test
     Latch latch(1);
     BatchReceiveCallback batchReceiveCallback = [&latch, numOfMessages](Result result, Messages messages) {
         ASSERT_EQ(result, ResultOk);
-        ASSERT_EQ(messages.getMessageList().size(), numOfMessages);
+        ASSERT_EQ(messages.size(), numOfMessages);
         latch.countdown();
     };
     consumer.batchReceiveAsync(batchReceiveCallback);
@@ -4233,7 +4233,7 @@ void testBatchReceiveTimeout(bool multiConsumer) {
     Latch latch(1);
     BatchReceiveCallback batchReceiveCallback = [&latch, numOfMessages](Result result, Messages messages) {
         ASSERT_EQ(result, ResultOk);
-        ASSERT_EQ(messages.getMessageList().size(), numOfMessages);
+        ASSERT_EQ(messages.size(), numOfMessages);
         latch.countdown();
     };
     consumer.batchReceiveAsync(batchReceiveCallback);

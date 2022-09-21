@@ -22,12 +22,7 @@
 using namespace pulsar;
 
 TEST(BatchReceivePolicyTest, testBatchReceivePolicy) {
-    try {
-        BatchReceivePolicy batchReceivePolicy(-1, -1, -1);
-        FAIL() << "Should be failed.";
-    } catch (const std::invalid_argument& e) {
-        ASSERT_TRUE(true);
-    }
+    ASSERT_THROW(BatchReceivePolicy(-1, -1, -1), std::invalid_argument);
 
     {
         BatchReceivePolicy batchReceivePolicy;
