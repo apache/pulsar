@@ -32,6 +32,7 @@ import lombok.AllArgsConstructor;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
+import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 
@@ -215,7 +216,10 @@ public class TopicSubscriptionsVisualizer {
                 persistentTopicInternalStats.ledgers, totalEntries, entriesStatsByStatus);
 
         Map<String, Map<String, Object>> details = new LinkedHashMap<>();
-        details.put("Subscription", mapper.convertValue(persistentTopicStats.getSubscriptions().get(name), Map.class));
+        final SubscriptionStats subscriptionStats = persistentTopicStats.getSubscriptions().get(name);
+        if (subscriptionStats != null) {
+            details.put("Subscription", mapper.convertValue(subscriptionStats, Map.class));
+        }
         details.put("Cursor", mapper.convertValue(cursor, Map.class));
         final String description = TopicSubscriptionsVisualizerHtmlUtil.genSubscriptionDescription(name,
                 entriesStatsByStatus.totalAhead, details);
