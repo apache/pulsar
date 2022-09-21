@@ -59,7 +59,6 @@ public class AdminApiMaxUnackedMessages extends MockedPulsarServiceBaseTest {
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
-        resetConfig();
     }
 
     @Test(timeOut = 30000)
