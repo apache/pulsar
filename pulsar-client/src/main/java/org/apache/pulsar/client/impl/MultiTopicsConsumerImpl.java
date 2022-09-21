@@ -364,11 +364,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             message = incomingMessages.take();
             decreaseIncomingMessageSize(message);
             checkState(message instanceof TopicMessageImpl);
-            if (!isValidConsumerEpoch(message)) {
-                resumeReceivingFromPausedConsumersIfNeeded();
-                message.release();
-                return internalReceive();
-            }
             unAckedMessageTracker.add(message.getMessageId(), message.getRedeliveryCount());
             resumeReceivingFromPausedConsumersIfNeeded();
             return message;
@@ -380,8 +375,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     @Override
     protected Message<T> internalReceive(long timeout, TimeUnit unit) throws PulsarClientException {
         Message<T> message;
-
-        long callTime = System.nanoTime();
         try {
             if (incomingMessages.isEmpty()) {
                 expectMoreIncomingMessages();
@@ -390,16 +383,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             if (message != null) {
                 decreaseIncomingMessageSize(message);
                 checkArgument(message instanceof TopicMessageImpl);
-                if (!isValidConsumerEpoch(message)) {
-                    long executionTime = System.nanoTime() - callTime;
-                    long timeoutInNanos = unit.toNanos(timeout);
-                    if (executionTime >= timeoutInNanos) {
-                        return null;
-                    } else {
-                        resumeReceivingFromPausedConsumersIfNeeded();
-                        return internalReceive(timeoutInNanos - executionTime, TimeUnit.NANOSECONDS);
-                    }
-                }
                 unAckedMessageTracker.add(message.getMessageId(), message.getRedeliveryCount());
             }
             resumeReceivingFromPausedConsumersIfNeeded();
@@ -683,13 +666,15 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     @Override
     public void redeliverUnacknowledgedMessages() {
         internalPinnedExecutor.execute(() -> {
-            CONSUMER_EPOCH.incrementAndGet(this);
-            consumers.values().stream().forEach(consumer -> {
-                consumer.redeliverUnacknowledgedMessages();
-                consumer.unAckedChunkedMessageIdSequenceMap.clear();
-            });
-            clearIncomingMessages();
-            unAckedMessageTracker.clear();
+            synchronized (incomingQueueLock) {
+                CONSUMER_EPOCH.incrementAndGet(this);
+                consumers.values().stream().forEach(consumer -> {
+                    consumer.redeliverUnacknowledgedMessages();
+                    consumer.unAckedChunkedMessageIdSequenceMap.clear();
+                });
+                clearIncomingMessages();
+                unAckedMessageTracker.clear();
+            }
         });
         resumeReceivingFromPausedConsumersIfNeeded();
     }
