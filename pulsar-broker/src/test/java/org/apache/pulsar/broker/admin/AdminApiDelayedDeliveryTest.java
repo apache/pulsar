@@ -39,7 +39,7 @@ import static org.testng.Assert.*;
 
 @Test(groups = "broker-admin")
 @Slf4j
-public class AdminApiDelayedDelivery extends MockedPulsarServiceBaseTest {
+public class AdminApiDelayedDeliveryTest extends MockedPulsarServiceBaseTest {
 
     @BeforeMethod
     @Override
