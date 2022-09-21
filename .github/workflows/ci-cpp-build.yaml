@@ -33,12 +33,11 @@ concurrency:
 
 jobs:
   changed_files_job:
-    name: 'Changed files check'
+    name: Preconditions
     runs-on: ubuntu-20.04
     outputs:
       docs_only: ${{ needs.changed_files_job.outputs.docs_only }}
       cpp_only: ${{ needs.changed_files_job.outputs.cpp_only }}
-      changed_tests: ${{ steps.changes.outputs.tests_files }}
     steps:
       - name: checkout
         uses: actions/checkout@v2
@@ -55,10 +54,18 @@ jobs:
         run: |
           echo "::set-output name=docs_only::${{ fromJSON(steps.changes.outputs.all_count) == fromJSON(steps.changes.outputs.docs_count) && fromJSON(steps.changes.outputs.docs_count) > 0 }}"
 
+      - name: Check if the PR has been approved for testing
+        if: ${{ steps.check_changes.outputs.docs_only != 'true' && github.repository == 'apache/pulsar' && github.event_name == 'pull_request' }}
+        env:
+          GITHUB_RUN_ATTEMPT: ${{ github.run_attempt }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          build/pulsar_ci_tool.sh check_ready_to_test
+
   cpp-build-centos7:
     needs: changed_files_job
-    name:
-    runs-on: ubuntu-latest
+    name: Build CPP Client on CentOS7
+    runs-on: ubuntu-20.04
     if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
     timeout-minutes: 120
 
@@ -77,7 +84,7 @@ jobs:
   cpp-build-windows:
     needs: changed_files_job
     timeout-minutes: 120
-    name: ${{ matrix.name }}
+    name: Build CPP Client on ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
     env:
@@ -184,8 +191,8 @@ jobs:
           fi
   cpp-deb-rpm-packaging:
     needs: changed_files_job
-    name:
-    runs-on: ubuntu-latest
+    name: Build CPP Client on RPM
+    runs-on: ubuntu-20.04
     timeout-minutes: 120
     if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
 
@@ -233,8 +240,8 @@ jobs:
 
   build-python-wheel:
     needs: changed_files_job
-    name:
-    runs-on: ubuntu-latest
+    name: Build Python Client
+    runs-on: ubuntu-20.04
     timeout-minutes: 120
     if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
 
