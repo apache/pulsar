@@ -218,7 +218,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
 
         // subscriptionRole doesn't have topic-level authorization, so it will fail to get topic stats-internal info
         try {
-            sub1Admin.topics().getInternalStats(topicName, true);
+            sub1Admin.topics().getInternalStats(topicName, true, false);
             fail("should have failed with authorization exception");
         } catch (Exception e) {
             assertTrue(e.getMessage().startsWith(
@@ -252,7 +252,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         assertEquals(subscriptions.size(), 2);
 
         // now, subscriptionRole have consume authorization on topic, so it will successfully get topic internal stats
-        PersistentTopicInternalStats internalStats = sub1Admin.topics().getInternalStats(topicName, true);
+        PersistentTopicInternalStats internalStats = sub1Admin.topics().getInternalStats(topicName, true, false);
         assertNotNull(internalStats);
         Long backlogSize = sub1Admin.topics().getBacklogSizeByMessageId(topicName, MessageId.earliest);
         assertEquals(backlogSize.longValue(), 0);

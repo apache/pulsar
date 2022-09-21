@@ -1592,9 +1592,9 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 log.info("Output topic stats: {}",
                         Json.pretty(pulsarAdmin.topics().getStats(outputTopic, true)));
                 log.info("Input topic internal-stats: {}",
-                        Json.pretty(pulsarAdmin.topics().getInternalStats(inputTopic, true)));
+                        Json.pretty(pulsarAdmin.topics().getInternalStats(inputTopic, true, false)));
                 log.info("Output topic internal-stats: {}",
-                        Json.pretty(pulsarAdmin.topics().getInternalStats(outputTopic, true)));
+                        Json.pretty(pulsarAdmin.topics().getInternalStats(outputTopic, true, false)));
             } else {
                 String logMsg = new String(msg.getValue(), UTF_8);
                 log.info("Received message: '{}'", logMsg);

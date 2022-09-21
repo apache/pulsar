@@ -367,7 +367,8 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         assertEquals(topicStats.getOwnerBroker(),
                 pulsar.getAdvertisedAddress() + ":" + pulsar.getConfiguration().getWebServicePort().get());
 
-        PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(nonPersistentTopicName, false);
+        PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(nonPersistentTopicName, false,
+                false);
         assertEquals(internalStats.cursors.keySet(), new TreeSet<>(Lists.newArrayList("my-sub")));
 
         consumer.close();

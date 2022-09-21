@@ -811,7 +811,7 @@ public class PulsarFunctionLocalRunTest {
         Assert.assertTrue(retryStrategically((test) -> {
             try {
                 return (admin.topics().getStats(sinkTopic).getPublishers().size() == parallelism)
-                        && (admin.topics().getInternalStats(sinkTopic, false).numberOfEntries > 4);
+                        && (admin.topics().getInternalStats(sinkTopic, false, false).numberOfEntries > 4);
             } catch (PulsarAdminException e) {
                 return false;
             }

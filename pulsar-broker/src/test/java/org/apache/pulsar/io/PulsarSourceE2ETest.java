@@ -99,7 +99,8 @@ public class PulsarSourceE2ETest extends AbstractPulsarE2ETest {
 
         retryStrategically((test) -> {
             try {
-                return (admin.topics().getStats(sinkTopic2).getPublishers().size() == 1) && (admin.topics().getInternalStats(sinkTopic2, false).numberOfEntries > 4);
+                return (admin.topics().getStats(sinkTopic2).getPublishers().size() == 1) && (admin.topics().getInternalStats(sinkTopic2, false,
+                        false).numberOfEntries > 4);
             } catch (PulsarAdminException e) {
                 return false;
             }

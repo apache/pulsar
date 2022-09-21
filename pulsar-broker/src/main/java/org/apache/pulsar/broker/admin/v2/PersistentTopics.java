@@ -1246,9 +1246,10 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-            @QueryParam("metadata") @DefaultValue("false") boolean metadata) {
+            @QueryParam("metadata") @DefaultValue("false") boolean metadata,
+            @QueryParam("noLedger") @DefaultValue("false") boolean noLedger) {
         validateTopicName(tenant, namespace, encodedTopic);
-        internalGetInternalStatsAsync(authoritative, metadata)
+        internalGetInternalStatsAsync(authoritative, metadata, noLedger)
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
                     if (!isRedirectException(ex)) {
@@ -1345,10 +1346,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @QueryParam("metadata") @DefaultValue("false") boolean metadata,
+            @QueryParam("noLedger") @DefaultValue("false") boolean noLedger) {
         try {
             validateTopicName(tenant, namespace, encodedTopic);
-            internalGetPartitionedStatsInternal(asyncResponse, authoritative);
+            internalGetPartitionedStatsInternal(asyncResponse, authoritative, metadata, noLedger);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
         } catch (Exception e) {

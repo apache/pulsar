@@ -455,9 +455,10 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-            @QueryParam("metadata") @DefaultValue("false") boolean metadata) {
+            @QueryParam("metadata") @DefaultValue("false") boolean metadata,
+            @QueryParam("noLedger") @DefaultValue("false") boolean noLedger) {
         validateTopicName(property, cluster, namespace, encodedTopic);
-        internalGetInternalStatsAsync(authoritative, metadata)
+        internalGetInternalStatsAsync(authoritative, metadata, noLedger)
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
                     if (!isRedirectException(ex)) {
@@ -518,10 +519,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("property") String property,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @QueryParam("metadata") @DefaultValue("false") boolean metadata,
+            @QueryParam("noLedger") @DefaultValue("false") boolean noLedger) {
         try {
             validateTopicName(property, cluster, namespace, encodedTopic);
-            internalGetPartitionedStatsInternal(asyncResponse, authoritative);
+            internalGetPartitionedStatsInternal(asyncResponse, authoritative, metadata, noLedger);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
         } catch (Exception e) {

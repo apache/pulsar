@@ -1189,6 +1189,7 @@ public interface Topics {
      *            topic name
      * @param metadata
      *            flag to include ledger metadata
+     * @param noLedger
      * @return the topic statistics
      *
      * @throws NotAuthorizedException
@@ -1198,7 +1199,8 @@ public interface Topics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    PersistentTopicInternalStats getInternalStats(String topic, boolean metadata) throws PulsarAdminException;
+    PersistentTopicInternalStats getInternalStats(String topic, boolean metadata, boolean noLedger)
+            throws PulsarAdminException;
 
     /**
      * Get the internal stats for the topic.
@@ -1225,9 +1227,11 @@ public interface Topics {
      *            topic Name
      * @param metadata
      *            flag to include ledger metadata
+     * @param ledger
      * @return a future that can be used to track when the internal topic statistics are returned
      */
-    CompletableFuture<PersistentTopicInternalStats> getInternalStatsAsync(String topic, boolean metadata);
+    CompletableFuture<PersistentTopicInternalStats> getInternalStatsAsync(String topic, boolean metadata,
+                                                                          boolean ledger);
 
     /**
      * Get the internal stats for the topic asynchronously.
@@ -1376,10 +1380,12 @@ public interface Topics {
      *
      * @param topic
      *            topic name
+     * @param metadata
+     * @param noLedger
      * @return
      * @throws PulsarAdminException
      */
-    PartitionedTopicInternalStats getPartitionedInternalStats(String topic)
+    PartitionedTopicInternalStats getPartitionedInternalStats(String topic, boolean metadata, boolean noLedger)
             throws PulsarAdminException;
 
     /**
@@ -1389,7 +1395,9 @@ public interface Topics {
      *            topic Name
      * @return a future that can be used to track when the partitioned topic statistics are returned
      */
-    CompletableFuture<PartitionedTopicInternalStats> getPartitionedInternalStatsAsync(String topic);
+    CompletableFuture<PartitionedTopicInternalStats> getPartitionedInternalStatsAsync(String topic,
+                                                                                      boolean metadata,
+                                                                                      boolean ledger);
 
     /**
      * Delete a subscription.

@@ -641,24 +641,27 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public PersistentTopicInternalStats getInternalStats(String topic) throws PulsarAdminException {
-        return getInternalStats(topic, false);
+        return getInternalStats(topic, false, false);
     }
 
     @Override
-    public PersistentTopicInternalStats getInternalStats(String topic, boolean metadata) throws PulsarAdminException {
-        return sync(() -> getInternalStatsAsync(topic, metadata));
+    public PersistentTopicInternalStats getInternalStats(String topic, boolean metadata, boolean noLedger)
+            throws PulsarAdminException {
+        return sync(() -> getInternalStatsAsync(topic, metadata, noLedger));
     }
 
     @Override
     public CompletableFuture<PersistentTopicInternalStats> getInternalStatsAsync(String topic) {
-        return getInternalStatsAsync(topic, false);
+        return getInternalStatsAsync(topic, false, true);
     }
 
     @Override
-    public CompletableFuture<PersistentTopicInternalStats> getInternalStatsAsync(String topic, boolean metadata) {
+    public CompletableFuture<PersistentTopicInternalStats> getInternalStatsAsync(String topic, boolean metadata,
+                                                                                 boolean noLedger) {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "internalStats");
         path = path.queryParam("metadata", metadata);
+        path = path.queryParam("noLedger", noLedger);
         return asyncGetRequest(path, new FutureCallback<PersistentTopicInternalStats>(){});
     }
 
@@ -736,15 +739,19 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public PartitionedTopicInternalStats getPartitionedInternalStats(String topic)
+    public PartitionedTopicInternalStats getPartitionedInternalStats(String topic, boolean metadata, boolean noLedger)
             throws PulsarAdminException {
-        return sync(() -> getPartitionedInternalStatsAsync(topic));
+        return sync(() -> getPartitionedInternalStatsAsync(topic, metadata, noLedger));
     }
 
     @Override
-    public CompletableFuture<PartitionedTopicInternalStats> getPartitionedInternalStatsAsync(String topic) {
+    public CompletableFuture<PartitionedTopicInternalStats> getPartitionedInternalStatsAsync(String topic,
+                                                                                             boolean metadata,
+                                                                                             boolean noLedger) {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "partitioned-internalStats");
+        path = path.queryParam("metadata", metadata);
+        path = path.queryParam("noLedger", noLedger);
         return asyncGetRequest(path, new FutureCallback<PartitionedTopicInternalStats>(){});
     }
 

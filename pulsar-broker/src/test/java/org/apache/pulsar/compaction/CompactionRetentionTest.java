@@ -109,7 +109,7 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
         compactor.compact(topic).join();
 
         log.info(" ---- X 1: {}", mapper.writeValueAsString(
-                admin.topics().getInternalStats(topic, false)));
+                admin.topics().getInternalStats(topic, false, false)));
 
         int round = 1;
 
@@ -121,14 +121,14 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
         }
 
         log.info(" ---- X 2: {}", mapper.writeValueAsString(
-                admin.topics().getInternalStats(topic, false)));
+                admin.topics().getInternalStats(topic, false, false)));
 
         validateMessages(pulsarClient, true, topic, round, allKeys);
 
         compactor.compact(topic).join();
 
         log.info(" ---- X 3: {}", mapper.writeValueAsString(
-                admin.topics().getInternalStats(topic, false)));
+                admin.topics().getInternalStats(topic, false, false)));
 
         validateMessages(pulsarClient, true, topic, round, allKeys);
 
@@ -155,7 +155,7 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
         compactor.compact(topic).join();
 
         log.info(" ---- X 4: {}", mapper.writeValueAsString(
-                admin.topics().getInternalStats(topic, false)));
+                admin.topics().getInternalStats(topic, false, false)));
 
         validateMessages(pulsarClient, true, topic, round, keys);
 
@@ -224,7 +224,7 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
         Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
 
         log.info(" ---- X 1: {}", mapper.writeValueAsString(
-                admin.topics().getInternalStats(topic, false)));
+                admin.topics().getInternalStats(topic, false, false)));
 
         int round = 1;
 
@@ -236,14 +236,14 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
         }
 
         log.info(" ---- X 2: {}", mapper.writeValueAsString(
-                admin.topics().getInternalStats(topic, false)));
+                admin.topics().getInternalStats(topic, false, false)));
 
         validateMessages(pulsarClient, true, topic, round, allKeys);
 
         compactor.compact(topic).join();
 
         log.info(" ---- X 3: {}", mapper.writeValueAsString(
-                admin.topics().getInternalStats(topic, false)));
+                admin.topics().getInternalStats(topic, false, false)));
 
         validateMessages(pulsarClient, true, topic, round, allKeys);
     }

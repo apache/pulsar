@@ -803,14 +803,16 @@ public class CmdTopics extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "-m",
-        "--metadata" }, description = "Flag to include ledger metadata")
+        @Parameter(names = { "-nl", "--no-ledger" }, description = "Flag to include ledgers list")
+        private boolean noLedger = false;
+
+        @Parameter(names = { "-m",  "--metadata" }, description = "Flag to include ledger metadata")
         private boolean metadata = false;
 
         @Override
         void run() throws PulsarAdminException {
             String topic = validateTopicName(params);
-            print(getTopics().getInternalStats(topic, metadata));
+            print(getTopics().getInternalStats(topic, metadata, noLedger));
         }
     }
 
@@ -871,10 +873,16 @@ public class CmdTopics extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = { "-nl", "--no-ledger" }, description = "Flag to include ledgers list")
+        private boolean noLedger = false;
+
+        @Parameter(names = { "-m",  "--metadata" }, description = "Flag to include ledger metadata")
+        private boolean metadata = false;
+
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
-            print(getTopics().getPartitionedInternalStats(topic));
+            print(getTopics().getPartitionedInternalStats(topic, metadata, noLedger));
         }
     }
 
@@ -1456,7 +1464,7 @@ public class CmdTopics extends CmdBase {
             String persistentTopic = validatePersistentTopic(params);
             long sizeThreshold = validateSizeString(sizeThresholdStr);
 
-            PersistentTopicInternalStats stats = getTopics().getInternalStats(persistentTopic, false);
+            PersistentTopicInternalStats stats = getTopics().getInternalStats(persistentTopic, false, false);
             if (stats.ledgers.size() < 1) {
                 throw new PulsarAdminException("Topic doesn't have any data");
             }

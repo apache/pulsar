@@ -267,7 +267,8 @@ public interface Topic {
                                                               boolean subscriptionBacklogSize,
                                                               boolean getEarliestTimeInBacklog);
 
-    CompletableFuture<PersistentTopicInternalStats> getInternalStats(boolean includeLedgerMetadata);
+    CompletableFuture<PersistentTopicInternalStats> getInternalStats(boolean includeLedgerMetadata,
+                                                                     boolean noLedger);
 
     Position getLastPosition();
 

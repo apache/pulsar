@@ -1990,7 +1990,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     @Override
-    public CompletableFuture<PersistentTopicInternalStats> getInternalStats(boolean includeLedgerMetadata) {
+    public CompletableFuture<PersistentTopicInternalStats> getInternalStats(boolean includeLedgerMetadata,
+                                                                            boolean noLedger) {
 
         CompletableFuture<PersistentTopicInternalStats> statFuture = new CompletableFuture<>();
         PersistentTopicInternalStats stats = new PersistentTopicInternalStats();
@@ -2014,42 +2015,48 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         stats.ledgers = Lists.newArrayList();
         Set<CompletableFuture<?>> futures = Sets.newConcurrentHashSet();
-        CompletableFuture<Set<String>> availableBookiesFuture =
-                brokerService.pulsar().getPulsarResources().getBookieResources().listAvailableBookiesAsync();
-        futures.add(
-            availableBookiesFuture
-                .whenComplete((bookies, e) -> {
-                    if (e != null) {
-                        log.error("[{}] Failed to fetch available bookies.", topic, e);
-                        statFuture.completeExceptionally(e);
-                    } else {
-                        ml.getLedgersInfo().forEach((id, li) -> {
-                            LedgerInfo info = new LedgerInfo();
-                            info.ledgerId = li.getLedgerId();
-                            info.entries = li.getEntries();
-                            info.size = li.getSize();
-                            info.offloaded = li.hasOffloadContext() && li.getOffloadContext().getComplete();
-                            stats.ledgers.add(info);
-                            if (includeLedgerMetadata) {
-                                futures.add(ml.getLedgerMetadata(li.getLedgerId()).handle((lMetadata, ex) -> {
-                                    if (ex == null) {
-                                        info.metadata = lMetadata;
-                                    }
-                                    return null;
-                                }));
-                                futures.add(ml.getEnsemblesAsync(li.getLedgerId()).handle((ensembles, ex) -> {
-                                    if (ex == null) {
-                                        info.underReplicated =
-                                            !bookies.containsAll(ensembles.stream().map(BookieId::toString)
-                                                .collect(Collectors.toList()));
-                                    }
-                                    return null;
-                                }));
-                            }
-                        });
-                    }
-                })
-        );
+        if (!noLedger) {
+            CompletableFuture<Set<String>> availableBookiesFuture =
+                    brokerService.pulsar().getPulsarResources().getBookieResources().listAvailableBookiesAsync();
+            futures.add(
+                    availableBookiesFuture
+                            .whenComplete((bookies, e) -> {
+                                if (e != null) {
+                                    log.error("[{}] Failed to fetch available bookies.", topic, e);
+                                    statFuture.completeExceptionally(e);
+                                } else {
+                                    ml.getLedgersInfo().forEach((id, li) -> {
+                                        LedgerInfo info = new LedgerInfo();
+                                        info.ledgerId = li.getLedgerId();
+                                        info.entries = li.getEntries();
+                                        info.size = li.getSize();
+                                        info.offloaded = li.hasOffloadContext() && li.getOffloadContext().getComplete();
+                                        stats.ledgers.add(info);
+                                        if (includeLedgerMetadata) {
+                                            futures.add(
+                                                    ml.getLedgerMetadata(li.getLedgerId()).handle((lMetadata, ex) -> {
+                                                if (ex == null) {
+                                                    info.metadata = lMetadata;
+                                                }
+                                                return null;
+                                            }));
+                                            futures.add(
+                                                    ml.getEnsemblesAsync(li.getLedgerId()).handle((ensembles, ex) -> {
+                                                if (ex == null) {
+                                                    info.underReplicated =
+                                                            !bookies.containsAll(
+                                                                    ensembles.stream().map(BookieId::toString)
+                                                                    .collect(Collectors.toList()));
+                                                }
+                                                return null;
+                                            }));
+                                        }
+                                    });
+                                }
+                            })
+            );
+        }
+
 
         // Add ledger info for compacted topic ledger if exist.
         LedgerInfo info = new LedgerInfo();

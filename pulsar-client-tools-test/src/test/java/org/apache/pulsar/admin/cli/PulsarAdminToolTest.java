@@ -74,7 +74,6 @@ import org.apache.pulsar.client.admin.TopicPolicies;
 import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.admin.Transactions;
 import org.apache.pulsar.client.admin.internal.OffloadProcessStatusImpl;
-import org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl;
 import org.apache.pulsar.client.admin.internal.PulsarAdminImpl;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -1479,7 +1478,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics).getStats("persistent://myprop/clust/ns1/ds1", false, false, false);
 
         cmdTopics.run(split("stats-internal persistent://myprop/clust/ns1/ds1"));
-        verify(mockTopics).getInternalStats("persistent://myprop/clust/ns1/ds1", false);
+        verify(mockTopics).getInternalStats("persistent://myprop/clust/ns1/ds1", false, false);
 
         cmdTopics.run(split("get-backlog-quotas persistent://myprop/clust/ns1/ds1 -ap"));
         verify(mockTopics).getBacklogQuotaMap("persistent://myprop/clust/ns1/ds1", true);
@@ -1527,7 +1526,7 @@ public class PulsarAdminToolTest {
                 true, false, false, false);
 
         cmdTopics.run(split("partitioned-stats-internal persistent://myprop/clust/ns1/ds1"));
-        verify(mockTopics).getPartitionedInternalStats("persistent://myprop/clust/ns1/ds1");
+        verify(mockTopics).getPartitionedInternalStats("persistent://myprop/clust/ns1/ds1", false, false);
 
         cmdTopics.run(split("clear-backlog persistent://myprop/clust/ns1/ds1 -s sub1"));
         verify(mockTopics).skipAllMessages("persistent://myprop/clust/ns1/ds1", "sub1");
@@ -1864,7 +1863,7 @@ public class PulsarAdminToolTest {
         stats.ledgers.add(newLedger(0, 10, 1000));
         stats.ledgers.add(newLedger(1, 10, 2000));
         stats.ledgers.add(newLedger(2, 10, 3000));
-        when(mockTopics.getInternalStats("persistent://myprop/clust/ns1/ds1", false)).thenReturn(stats);
+        when(mockTopics.getInternalStats("persistent://myprop/clust/ns1/ds1", false, false)).thenReturn(stats);
         cmdTopics.run(split("offload persistent://myprop/clust/ns1/ds1 -s 1k"));
         verify(mockTopics).triggerOffload("persistent://myprop/clust/ns1/ds1", new MessageIdImpl(2, 0, -1));
 
@@ -1986,7 +1985,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics).getStats("persistent://myprop/clust/ns1/ds1", false);
 
         topics.run(split("stats-internal persistent://myprop/clust/ns1/ds1"));
-        verify(mockTopics).getInternalStats("persistent://myprop/clust/ns1/ds1", false);
+        verify(mockTopics).getInternalStats("persistent://myprop/clust/ns1/ds1", false, false);
 
         topics.run(split("info-internal persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getInternalInfo("persistent://myprop/clust/ns1/ds1");
@@ -1995,7 +1994,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics).getPartitionedStats("persistent://myprop/clust/ns1/ds1", true);
 
         topics.run(split("partitioned-stats-internal persistent://myprop/clust/ns1/ds1"));
-        verify(mockTopics).getPartitionedInternalStats("persistent://myprop/clust/ns1/ds1");
+        verify(mockTopics).getPartitionedInternalStats("persistent://myprop/clust/ns1/ds1", false, false);
 
         topics.run(split("skip-all persistent://myprop/clust/ns1/ds1 -s sub1"));
         verify(mockTopics).skipAllMessages("persistent://myprop/clust/ns1/ds1", "sub1");
@@ -2074,7 +2073,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics).getStats("non-persistent://myprop/ns1/ds1", false, false, false);
 
         topics.run(split("stats-internal non-persistent://myprop/ns1/ds1"));
-        verify(mockTopics).getInternalStats("non-persistent://myprop/ns1/ds1", false);
+        verify(mockTopics).getInternalStats("non-persistent://myprop/ns1/ds1", false, false);
 
         topics.run(split("create-partitioned-topic non-persistent://myprop/ns1/ds1 --partitions 32"));
         verify(mockTopics).createPartitionedTopic("non-persistent://myprop/ns1/ds1", 32, null);

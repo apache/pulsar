@@ -230,7 +230,7 @@ public class BacklogQuotaManagerTest {
             Awaitility.await().untilAsserted(() -> {
                 // make sure ledgers are trimmed
                 PersistentTopicInternalStats internalStats =
-                        admin.topics().getInternalStats(topic1, false);
+                        admin.topics().getInternalStats(topic1, false, false);
 
                 // check there is only one ledger left
                 assertEquals(internalStats.ledgers.size(), 1);
@@ -302,7 +302,7 @@ public class BacklogQuotaManagerTest {
             MessageIdImpl finalMessageId = messageId;
             Awaitility.await().untilAsserted(() -> {
                 // make sure ledgers are trimmed
-                PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(topic1, false);
+                PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(topic1, false, false);
 
                 // check there is only one ledger left
                 assertEquals(internalStats.ledgers.size(), 1);
@@ -367,7 +367,7 @@ public class BacklogQuotaManagerTest {
                     .pollDelay(Duration.ofSeconds(TIME_TO_CHECK_BACKLOG_QUOTA))
                     .pollInterval(Duration.ofSeconds(1)).untilAsserted(() -> {
                 // make sure ledgers are trimmed
-                PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(topic1, false);
+                PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(topic1, false, false);
 
                 // check that there are 2 ledgers
                 assertEquals(internalStats.ledgers.size(), 2);

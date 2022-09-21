@@ -356,6 +356,9 @@ public class CmdPersistentTopics extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = { "-nl", "--no-ledger" }, description = "Flag to include ledgers list")
+        private boolean noLedger = false;
+
         @Parameter(names = { "-m",
         "--metadata" }, description = "Flag to include ledger metadata")
         private boolean metadata = false;
@@ -363,7 +366,7 @@ public class CmdPersistentTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            print(getPersistentTopics().getInternalStats(persistentTopic, metadata));
+            print(getPersistentTopics().getInternalStats(persistentTopic, metadata, noLedger));
         }
     }
 
@@ -405,10 +408,16 @@ public class CmdPersistentTopics extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = { "-nl", "--no-ledger" }, description = "Flag to include ledgers list")
+        private boolean noLedger = false;
+
+        @Parameter(names = { "-m",  "--metadata" }, description = "Flag to include ledger metadata")
+        private boolean metadata = false;
+
         @Override
         void run() throws Exception {
             String persistentTopic = validatePersistentTopic(params);
-            print(getPersistentTopics().getPartitionedInternalStats(persistentTopic));
+            print(getPersistentTopics().getPartitionedInternalStats(persistentTopic, metadata, noLedger));
         }
     }
 

@@ -479,7 +479,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         Assert.assertNull(message);
 
         String checkTopic = TopicName.get(topic).getPartition(0).toString();
-        PersistentTopicInternalStats stats = admin.topics().getInternalStats(checkTopic, false);
+        PersistentTopicInternalStats stats = admin.topics().getInternalStats(checkTopic, false, false);
 
         Assert.assertNotEquals(stats.cursors.get(subName).markDeletePosition, stats.lastConfirmedEntry);
 
@@ -653,7 +653,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             PersistentTopicInternalStats stats = null;
             String checkTopic = TopicName.get(topic).getPartition(i).toString();
             for (int j = 0; j < 10; j++) {
-                stats = admin.topics().getInternalStats(checkTopic, false);
+                stats = admin.topics().getInternalStats(checkTopic, false, false);
                 if (stats.lastConfirmedEntry.equals(stats.cursors.get(subName).markDeletePosition)) {
                     break;
                 }

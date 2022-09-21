@@ -341,17 +341,17 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
             .create();
 
         Assert.assertEquals(admin.topics().getStats(topic).getSubscriptions().size(), 2);
-        Assert.assertEquals(admin.topics().getInternalStats(topic, false).cursors.size(), 2);
+        Assert.assertEquals(admin.topics().getInternalStats(topic, false, false).cursors.size(), 2);
 
         reader1.close();
 
         Assert.assertEquals(admin.topics().getStats(topic).getSubscriptions().size(), 1);
-        Assert.assertEquals(admin.topics().getInternalStats(topic, false).cursors.size(), 1);
+        Assert.assertEquals(admin.topics().getInternalStats(topic, false, false).cursors.size(), 1);
 
         reader2.close();
 
         Assert.assertEquals(admin.topics().getStats(topic).getSubscriptions().size(), 0);
-        Assert.assertEquals(admin.topics().getInternalStats(topic, false).cursors.size(), 0);
+        Assert.assertEquals(admin.topics().getInternalStats(topic, false, false).cursors.size(), 0);
 
     }
 

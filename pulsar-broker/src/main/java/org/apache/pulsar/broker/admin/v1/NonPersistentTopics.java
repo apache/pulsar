@@ -99,14 +99,15 @@ public class NonPersistentTopics extends PersistentTopics {
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-            @QueryParam("metadata") @DefaultValue("false") boolean metadata) {
+            @QueryParam("metadata") @DefaultValue("false") boolean metadata,
+            @QueryParam("noLedger") @DefaultValue("false") boolean noLedger) {
         validateTopicName(property, cluster, namespace, encodedTopic);
         validateTopicOwnershipAsync(topicName, authoritative)
                 .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.GET_STATS))
                 .thenCompose(__ -> {
                     Topic topic = getTopicReference(topicName);
                     boolean includeMetadata = metadata && hasSuperUserAccess();
-                    return topic.getInternalStats(includeMetadata);
+                    return topic.getInternalStats(includeMetadata, noLedger);
                 })
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {

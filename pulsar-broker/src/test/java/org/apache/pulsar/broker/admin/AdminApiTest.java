@@ -885,7 +885,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(topicStats.getOwnerBroker(),
                 pulsar.getAdvertisedAddress() + ":" + pulsar.getConfiguration().getWebServicePort().get());
 
-        PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(persistentTopicName, false);
+        PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(persistentTopicName, false, false);
         assertEquals(internalStats.cursors.keySet(), new TreeSet<>(Lists.newArrayList(Codec.encode(subName))));
 
         List<Message<byte[]>> messages = admin.topics().peekMessages(persistentTopicName, subName, 3);
@@ -1237,10 +1237,10 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         Thread.sleep(1000);
 
-        PersistentTopicInternalStats internalStats0 = admin.topics().getInternalStats(partitionTopic0, false);
+        PersistentTopicInternalStats internalStats0 = admin.topics().getInternalStats(partitionTopic0, false, false);
         assertEquals(internalStats0.cursors.keySet(), new TreeSet<>(Lists.newArrayList(Codec.encode(subName))));
 
-        PersistentTopicInternalStats internalStats1 = admin.topics().getInternalStats(partitionTopic1, false);
+        PersistentTopicInternalStats internalStats1 = admin.topics().getInternalStats(partitionTopic1, false, false);
         assertEquals(internalStats1.cursors.keySet(), new TreeSet<>(Lists.newArrayList(Codec.encode(subName))));
 
         // expected internal stats
@@ -1250,7 +1250,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         expectedInternalStats.partitions.put(partitionTopic1, internalStats1);
 
         // partitioned internal stats
-        PartitionedTopicInternalStats partitionedInternalStats = admin.topics().getPartitionedInternalStats(partitionedTopicName);
+        PartitionedTopicInternalStats partitionedInternalStats = admin.topics().getPartitionedInternalStats(partitionedTopicName,
+                false, false);
 
         String expectedResult = ObjectMapperFactory.getThreadLocal().writeValueAsString(expectedInternalStats);
         String result = ObjectMapperFactory.getThreadLocal().writeValueAsString(partitionedInternalStats);
@@ -3309,7 +3310,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.topics().unload(topicName);
         publishMessagesOnPersistentTopic(topicName, 10);
         admin.topics().truncate(topicName);
-        PartitionedTopicInternalStats stats = admin.topics().getPartitionedInternalStats(topicName);
+        PartitionedTopicInternalStats stats = admin.topics().getPartitionedInternalStats(topicName, false, false);
         for (Map.Entry<String, PersistentTopicInternalStats> statsEntry : stats.partitions.entrySet()) {
             assertTrue(statsEntry.getValue().ledgers.size() <= 2);
         }

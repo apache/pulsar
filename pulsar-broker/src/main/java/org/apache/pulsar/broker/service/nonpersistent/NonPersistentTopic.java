@@ -901,7 +901,8 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
     }
 
     @Override
-    public CompletableFuture<PersistentTopicInternalStats> getInternalStats(boolean includeLedgerMetadata) {
+    public CompletableFuture<PersistentTopicInternalStats> getInternalStats(boolean includeLedgerMetadata,
+                                                                            boolean noLedger) {
 
         PersistentTopicInternalStats stats = new PersistentTopicInternalStats();
         stats.entriesAddedCounter = ENTRIES_ADDED_COUNTER_UPDATER.get(this);

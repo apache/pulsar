@@ -297,21 +297,21 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
                 .create();
 
         Assert.assertEquals(admin.topics().getSubscriptions(topic).size(), 2);
-        for (PersistentTopicInternalStats value : admin.topics().getPartitionedInternalStats(topic).partitions.values()) {
+        for (PersistentTopicInternalStats value : admin.topics().getPartitionedInternalStats(topic, false, false).partitions.values()) {
             Assert.assertEquals(value.cursors.size(), 2);
         }
 
         reader1.close();
 
         Assert.assertEquals(admin.topics().getSubscriptions(topic).size(), 1);
-        for (PersistentTopicInternalStats value : admin.topics().getPartitionedInternalStats(topic).partitions.values()) {
+        for (PersistentTopicInternalStats value : admin.topics().getPartitionedInternalStats(topic, false, false).partitions.values()) {
             Assert.assertEquals(value.cursors.size(), 1);
         }
 
         reader2.close();
 
         Assert.assertEquals(admin.topics().getSubscriptions(topic).size(), 0);
-        for (PersistentTopicInternalStats value : admin.topics().getPartitionedInternalStats(topic).partitions.values()) {
+        for (PersistentTopicInternalStats value : admin.topics().getPartitionedInternalStats(topic, false, false).partitions.values()) {
             Assert.assertEquals(value.cursors.size(), 0);
         }
 

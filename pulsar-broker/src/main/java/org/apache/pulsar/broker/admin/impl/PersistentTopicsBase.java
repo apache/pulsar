@@ -1274,7 +1274,8 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<PersistentTopicInternalStats> internalGetInternalStatsAsync(boolean authoritative,
-                                                                                            boolean metadata) {
+                                                                                            boolean metadata,
+                                                                                            boolean noLedger) {
         CompletableFuture<Void> ret;
         if (topicName.isGlobal()) {
             ret = validateGlobalNamespaceOwnershipAsync(namespaceName);
@@ -1290,7 +1291,7 @@ public class PersistentTopicsBase extends AdminResource {
                     return CompletableFuture.completedFuture(null);
                 })
                 .thenCompose(__ -> getTopicReferenceAsync(topicName))
-                .thenCompose(topic -> topic.getInternalStats(metadata));
+                .thenCompose(topic -> topic.getInternalStats(metadata, noLedger));
     }
 
     protected void internalGetManagedLedgerInfo(AsyncResponse asyncResponse, boolean authoritative) {
@@ -1492,7 +1493,8 @@ public class PersistentTopicsBase extends AdminResource {
         });
     }
 
-    protected void internalGetPartitionedStatsInternal(AsyncResponse asyncResponse, boolean authoritative) {
+    protected void internalGetPartitionedStatsInternal(AsyncResponse asyncResponse,
+                                                       boolean authoritative, boolean metadata, boolean noLedger) {
         CompletableFuture<Void> future;
         if (topicName.isGlobal()) {
             future = validateGlobalNamespaceOwnershipAsync(namespaceName);
@@ -1513,7 +1515,7 @@ public class PersistentTopicsBase extends AdminResource {
             for (int i = 0; i < partitionMetadata.partitions; i++) {
                 try {
                     topicStatsFutureList.add(pulsar().getAdminClient().topics()
-                            .getInternalStatsAsync((topicName.getPartition(i).toString()), false));
+                            .getInternalStatsAsync((topicName.getPartition(i).toString()), metadata, noLedger));
                 } catch (PulsarServerException e) {
                     asyncResponse.resume(new RestException(e));
                     return;
