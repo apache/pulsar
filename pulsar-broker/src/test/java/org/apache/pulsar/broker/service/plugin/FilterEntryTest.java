@@ -29,6 +29,7 @@ import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertNotNull;
 import java.lang.reflect.Field;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -365,7 +366,7 @@ public class FilterEntryTest extends BrokerTestBase {
             EntryFilter filter2 = new EntryFilterTest();
             EntryFilterWithClassLoader loader2 =
                     spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter2, narClassLoader);
-            field.set(dispatcher, Map.of(loader1, loader2));
+            field.set(dispatcher, List.of(loader1, loader2));
 
             for (int i = 0; i < numMessages; i++) {
                 if (i % 2 == 0) {
