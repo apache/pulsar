@@ -61,8 +61,8 @@ public class TransactionImpl implements Transaction , TimerTask {
     private final Map<Pair<String, String>, CompletableFuture<Void>> registerSubscriptionMap;
     private final TransactionCoordinatorClientImpl tcClient;
 
-    private final ArrayList<CompletableFuture<MessageId>> sendFutureList;
-    private final ArrayList<CompletableFuture<Void>> ackFutureList;
+    private CompletableFuture<MessageId> sendFuture;
+    private CompletableFuture<Void> ackFuture;
     private volatile State state;
     private static final AtomicReferenceFieldUpdater<TransactionImpl, State> STATE_UPDATE =
         AtomicReferenceFieldUpdater.newUpdater(TransactionImpl.class, State.class, "state");
@@ -97,8 +97,8 @@ public class TransactionImpl implements Transaction , TimerTask {
         this.registerSubscriptionMap = new ConcurrentHashMap<>();
         this.tcClient = client.getTcClient();
 
-        this.sendFutureList = new ArrayList<>();
-        this.ackFutureList = new ArrayList<>();
+        this.sendFuture = new CompletableFuture<>();
+        this.ackFuture = new CompletableFuture<>();
         this.timeout = client.getTimer().newTimeout(this, transactionTimeoutMs, TimeUnit.MILLISECONDS);
 
     }
@@ -123,8 +123,8 @@ public class TransactionImpl implements Transaction , TimerTask {
         return completableFuture;
     }
 
-    public synchronized void registerSendOp(CompletableFuture<MessageId> sendFuture) {
-        sendFutureList.add(sendFuture);
+    public synchronized void registerSendOp(CompletableFuture<MessageId> newSendFuture) {
+        sendFuture = sendFuture.thenCompose(ignore -> newSendFuture);
     }
 
     // register the topics that will be modified by this transaction
@@ -147,8 +147,8 @@ public class TransactionImpl implements Transaction , TimerTask {
         return completableFuture;
     }
 
-    public synchronized void registerAckOp(CompletableFuture<Void> ackFuture) {
-        ackFutureList.add(ackFuture);
+    public synchronized void registerAckOp(CompletableFuture<Void> newAckFuture) {
+        ackFuture = ackFuture.thenCompose(ignore -> newAckFuture);
     }
 
     @Override
@@ -251,8 +251,8 @@ public class TransactionImpl implements Transaction , TimerTask {
 
     private CompletableFuture<Void> allOpComplete() {
         List<CompletableFuture<?>> futureList = new ArrayList<>();
-        futureList.addAll(sendFutureList);
-        futureList.addAll(ackFutureList);
+        futureList.add(ackFuture);
+        futureList.add(sendFuture);
         return CompletableFuture.allOf(futureList.toArray(new CompletableFuture[0]));
     }
 }
