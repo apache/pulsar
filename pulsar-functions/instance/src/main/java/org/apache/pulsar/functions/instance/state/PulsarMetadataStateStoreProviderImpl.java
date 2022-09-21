@@ -47,7 +47,8 @@ public class PulsarMetadataStateStoreProviderImpl implements StateStoreProvider 
             shouldCloseStore = false;
         } else {
             String metadataUrl = (String) config.get(METADATA_URL);
-            store = MetadataStoreFactory.create(metadataUrl, MetadataStoreConfig.builder().build());
+            store = MetadataStoreFactory.create(metadataUrl, MetadataStoreConfig.builder()
+                    .metadataStoreName(MetadataStoreConfig.STATE_METADATA_STORE).build());
             shouldCloseStore = true;
         }
     }

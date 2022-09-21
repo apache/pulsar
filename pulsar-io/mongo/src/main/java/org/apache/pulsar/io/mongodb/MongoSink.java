@@ -57,12 +57,12 @@ import org.reactivestreams.Subscription;
     name = "mongo",
     type = IOType.SINK,
     help = "A sink connector that sends pulsar messages to mongodb",
-    configClass = MongoConfig.class
+    configClass = MongoSinkConfig.class
 )
 @Slf4j
 public class MongoSink implements Sink<byte[]> {
 
-    private MongoConfig mongoConfig;
+    private MongoSinkConfig mongoSinkConfig;
 
     private MongoClient mongoClient;
 
@@ -86,22 +86,22 @@ public class MongoSink implements Sink<byte[]> {
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
         log.info("Open MongoDB Sink");
 
-        mongoConfig = MongoConfig.load(config);
-        mongoConfig.validate(true, true);
+        mongoSinkConfig = MongoSinkConfig.load(config);
+        mongoSinkConfig.validate();
 
         if (clientProvider != null) {
             mongoClient = clientProvider.get();
         } else {
-            mongoClient = MongoClients.create(mongoConfig.getMongoUri());
+            mongoClient = MongoClients.create(mongoSinkConfig.getMongoUri());
         }
 
-        final MongoDatabase db = mongoClient.getDatabase(mongoConfig.getDatabase());
-        collection = db.getCollection(mongoConfig.getCollection());
+        final MongoDatabase db = mongoClient.getDatabase(mongoSinkConfig.getDatabase());
+        collection = db.getCollection(mongoSinkConfig.getCollection());
 
         incomingList = Lists.newArrayList();
         flushExecutor = Executors.newScheduledThreadPool(1);
         flushExecutor.scheduleAtFixedRate(() -> flush(),
-                mongoConfig.getBatchTimeMs(), mongoConfig.getBatchTimeMs(), TimeUnit.MILLISECONDS);
+                mongoSinkConfig.getBatchTimeMs(), mongoSinkConfig.getBatchTimeMs(), TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -119,7 +119,7 @@ public class MongoSink implements Sink<byte[]> {
             currentSize = incomingList.size();
         }
 
-        if (currentSize == mongoConfig.getBatchSize()) {
+        if (currentSize == mongoSinkConfig.getBatchSize()) {
             flushExecutor.execute(() -> flush());
         }
     }

@@ -263,19 +263,33 @@
       "label": "Security",
       "items": [
         "security-overview",
-        "security-policy-and-supported-versions",
-        "security-tls-transport",
-        "security-tls-authentication",
-        "security-tls-keystore",
-        "security-jwt",
-        "security-athenz",
-        "security-kerberos",
-        "security-oauth2",
-        "security-basic-auth",
+        {
+          "type": "category",
+          "label": "Encryption",
+          "link": {
+            "type": "doc",
+            "id": "security-encryption"
+          },
+          "items": [
+            "security-tls-transport",
+            "security-bouncy-castle"
+          ]
+        },
+        {
+          "type": "category",
+          "label": "Authentication",
+          "items": [
+            "security-tls-authentication",
+            "security-jwt",
+            "security-athenz",
+            "security-kerberos",
+            "security-oauth2",
+            "security-basic-auth"
+          ]
+        },
         "security-authorization",
-        "security-encryption",
         "security-extending",
-        "security-bouncy-castle"
+        "security-policy-and-supported-versions"
       ]
     },
     {
