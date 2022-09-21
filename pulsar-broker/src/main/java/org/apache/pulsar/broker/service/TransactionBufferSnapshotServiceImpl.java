@@ -31,12 +31,9 @@ public class TransactionBufferSnapshotServiceImpl implements TransactionBufferSn
 
     public TransactionBufferSnapshotServiceImpl(PulsarClient pulsarClient,
                                                 boolean transactionBufferSegmentedSnapshotEnabled) {
-        if (transactionBufferSegmentedSnapshotEnabled) {
-            this.txnBufferSnapshotSegmentService = new SystemTopicTxnBufferSnapshotSegmentServiceImpl(pulsarClient);
-            this.txnBufferSnapshotIndexService = new SystemTopicTxnBufferSnapshotIndexServiceImpl(pulsarClient);
-        } else {
-            this.txnBufferSnapshotService = new SystemTopicTxnBufferSnapshotServiceImpl(pulsarClient);
-        }
+        this.txnBufferSnapshotSegmentService = new SystemTopicTxnBufferSnapshotSegmentServiceImpl(pulsarClient);
+        this.txnBufferSnapshotIndexService = new SystemTopicTxnBufferSnapshotIndexServiceImpl(pulsarClient);
+        this.txnBufferSnapshotService = new SystemTopicTxnBufferSnapshotServiceImpl(pulsarClient);
     }
 
     @Override

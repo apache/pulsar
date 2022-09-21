@@ -26,6 +26,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ManagedLedgerInfoCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenReadOnlyCursorCallback;
+import org.apache.bookkeeper.mledger.impl.ReadOnlyManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.cache.EntryCacheManager;
 
 /**
@@ -120,11 +121,10 @@ public interface ManagedLedgerFactory {
      * Asynchronous open a Read-only managedLedger.
      * @param managedLedgerName the unique name that identifies the managed ledger
      * @param config the managed ledegr configuratiion.
-     * @param callback callback object
      * @param ctx opaque context
      */
-    void asyncOpenReadOnlyManagedLedger(String managedLedgerName, ManagedLedgerConfig config,
-                                        OpenLedgerCallback callback, Object ctx);
+    CompletableFuture<ReadOnlyManagedLedgerImpl> asyncOpenReadOnlyManagedLedger(String managedLedgerName,
+                               ManagedLedgerConfig config, Object ctx);
 
     /**
      * Get the current metadata info for a managed ledger.

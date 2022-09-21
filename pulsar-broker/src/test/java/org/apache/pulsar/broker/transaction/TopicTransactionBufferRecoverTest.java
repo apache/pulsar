@@ -675,24 +675,9 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         MessageIdImpl messageId = (MessageIdImpl) segmentWriter.write(snapshot, buildKey(snapshot));
 
         //create read-only managed ledger
-        CompletableFuture<ReadOnlyManagedLedgerImpl> readOnlyManagedLedgerCompletableFuture = new CompletableFuture<>();
-        pulsarService.getManagedLedgerFactory()
+        ReadOnlyManagedLedgerImpl readOnlyManagedLedger = pulsarService.getManagedLedgerFactory()
                 .asyncOpenReadOnlyManagedLedger(snapshotSegmentTopicName.getPersistenceNamingEncoding(),
-                        brokerService.getManagedLedgerConfig(snapshotSegmentTopicName).get(),
-                        new AsyncCallbacks.OpenLedgerCallback() {
-                            @Override
-                            public void openLedgerComplete(ManagedLedger ledger, Object ctx) {
-                                readOnlyManagedLedgerCompletableFuture.complete((ReadOnlyManagedLedgerImpl) ledger);
-                            }
-
-                            @Override
-                            public void openLedgerFailed(ManagedLedgerException exception, Object ctx) {
-                                readOnlyManagedLedgerCompletableFuture.completeExceptionally(exception);
-                            }
-                        }, null);
-
-
-        ReadOnlyManagedLedgerImpl readOnlyManagedLedger = readOnlyManagedLedgerCompletableFuture.get();
+                        brokerService.getManagedLedgerConfig(snapshotSegmentTopicName).get(),null).get();
 
         //read the entry and decode entry to snapshot
         CompletableFuture<Entry> entryCompletableFuture = new CompletableFuture<>();

@@ -28,8 +28,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.TopicName;
 
-public abstract class TransactionBufferSnapshotBaseSystemTopicClient<T> extends
-        SystemTopicClientBase<T> {
+public abstract class TransactionBufferSnapshotBaseSystemTopicClient<T> extends SystemTopicClientBase<T> {
 
     protected final SystemTopicTxnBufferSnapshotService<T> systemTopicTxnBufferSnapshotService;
     public TransactionBufferSnapshotBaseSystemTopicClient(PulsarClient client,

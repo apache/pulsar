@@ -21,22 +21,25 @@ package org.apache.pulsar.broker.service;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.systopic.SystemTopicClientBase;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.naming.TopicName;
 
 public abstract class SystemTopicTxnBufferSnapshotBaseService<T> implements SystemTopicTxnBufferSnapshotService<T> {
 
     protected final Map<TopicName, SystemTopicClient<T>> clients;
+    protected final NamespaceEventsSystemTopicFactory namespaceEventsSystemTopicFactory;
 
-    public SystemTopicTxnBufferSnapshotBaseService() {
+    public SystemTopicTxnBufferSnapshotBaseService(PulsarClient client) {
+        this.namespaceEventsSystemTopicFactory = new NamespaceEventsSystemTopicFactory(client);
         this.clients = new ConcurrentHashMap<>();
     }
 
     @Override
     public CompletableFuture<SystemTopicClient.Writer<T>> createWriter(TopicName topicName) {
         return getTransactionBufferSystemTopicClient(topicName).thenCompose(SystemTopicClient::newWriterAsync);
-
     }
 
     @Override

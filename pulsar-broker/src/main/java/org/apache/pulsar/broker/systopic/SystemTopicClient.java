@@ -87,9 +87,11 @@ public interface SystemTopicClient<T> {
      * Writer for system topic.
      */
     interface Writer<T> {
+
         /**
          * Write event to the system topic.
          * @param t pulsar event
+         * @param key the key of the event
          * @return message id
          * @throws PulsarClientException exception while write event cause
          */
@@ -98,6 +100,7 @@ public interface SystemTopicClient<T> {
         /**
          * Async write event to the system topic.
          * @param t pulsar event
+         * @param key the key of the event
          * @return message id future
          */
         CompletableFuture<MessageId> writeAsync(T t, String key);

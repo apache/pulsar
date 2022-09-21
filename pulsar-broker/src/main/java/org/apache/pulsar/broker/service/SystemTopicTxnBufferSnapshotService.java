@@ -25,7 +25,7 @@ import org.apache.pulsar.broker.systopic.SystemTopicClientBase;
 import org.apache.pulsar.broker.systopic.TransactionBufferSnapshotBaseSystemTopicClient;
 import org.apache.pulsar.common.naming.TopicName;
 
-public interface  SystemTopicTxnBufferSnapshotService<T> {
+public interface SystemTopicTxnBufferSnapshotService<T> {
 
     /**
      * Create a transaction buffer snapshot writer.

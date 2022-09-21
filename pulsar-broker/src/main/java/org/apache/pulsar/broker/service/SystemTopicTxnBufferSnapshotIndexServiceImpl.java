@@ -31,11 +31,8 @@ import org.apache.pulsar.common.util.FutureUtil;
 public class SystemTopicTxnBufferSnapshotIndexServiceImpl extends
         SystemTopicTxnBufferSnapshotBaseService<TransactionBufferSnapshotIndexes> {
 
-    private final NamespaceEventsSystemTopicFactory namespaceEventsSystemTopicFactory;
-
     public SystemTopicTxnBufferSnapshotIndexServiceImpl(PulsarClient client) {
-        super();
-        this.namespaceEventsSystemTopicFactory = new NamespaceEventsSystemTopicFactory(client);
+        super(client);
     }
 
     @Override
