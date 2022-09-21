@@ -13,7 +13,7 @@ original_id: deploy-bare-metal-multi-cluster
 
 :::
 
-A Pulsar instance consists of multiple Pulsar clusters working in unison. You can distribute clusters across data centers or geographical regions and replicate the clusters amongst themselves using [geo-replication](administration-geo.md).Deploying a  multi-cluster Pulsar instance consists of the following steps:
+A Pulsar instance consists of multiple Pulsar clusters working in unison. You can distribute clusters across data centers or geographical regions and replicate the clusters amongst themselves using [geo-replication](administration-geo.md). Deploying a  multi-cluster Pulsar instance consists of the following steps:
 
 1. Deploying two separate ZooKeeper quorums: a local quorum for each cluster in the instance and a configuration store quorum for instance-wide tasks
 2. Initializing cluster metadata for each cluster
