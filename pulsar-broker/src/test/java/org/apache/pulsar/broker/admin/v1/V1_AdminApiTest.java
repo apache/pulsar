@@ -254,9 +254,9 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
             parameters1.put("usage_threshold", "100");
 
             NamespaceIsolationData nsPolicyData1 = NamespaceIsolationData.builder()
-                    .namespaces(List.of("other/use/other.*"))
-                    .primary(List.of(".*")) // match all broker. make it easy to verify `getBrokersWithNamespaceIsolationPolicy` later
-                    .secondary(List.of("prod1-broker.*.messaging.use.example.com"))
+                    .namespaces(Lists.newArrayList("other/use/other.*"))
+                    .primary(Lists.newArrayList(".*")) // match all broker. make it easy to verify `getBrokersWithNamespaceIsolationPolicy` later
+                    .secondary(Lists.newArrayList("prod1-broker.*.messaging.use.example.com"))
                     .autoFailoverPolicy(AutoFailoverPolicyData.builder()
                             .policyType(AutoFailoverPolicyType.min_available)
                             .parameters(parameters1)
