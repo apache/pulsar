@@ -670,6 +670,11 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
     }
 
     @Override
+    public ConcurrentOpenHashMap<String, ? extends Replicator> getShadowReplicators() {
+        return ConcurrentOpenHashMap.emptyMap();
+    }
+
+    @Override
     public Subscription getSubscription(String subscription) {
         return subscriptions.get(subscription);
     }
@@ -1089,6 +1094,11 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
     @Override
     public boolean isReplicated() {
         return replicators.size() > 1;
+    }
+
+    @Override
+    public boolean isShadowReplicated() {
+        return false;
     }
 
     @Override

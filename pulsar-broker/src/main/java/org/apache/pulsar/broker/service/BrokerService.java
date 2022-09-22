@@ -1058,6 +1058,14 @@ public class BrokerService implements Closeable {
                         new IllegalStateException("Delete forbidden topic is replicated on clusters " + clusters));
             }
 
+            // shadow topic should be deleted first.
+            if (t.isShadowReplicated()) {
+                final List<String> shadowTopics = t.getShadowReplicators().keys();
+                log.error("Delete forbidden. Topic {} is replicated to shadow topics: {}", topic, shadowTopics);
+                return FutureUtil.failedFuture(new IllegalStateException(
+                        "Delete forbidden. Topic " + topic + " is replicated to shadow topics."));
+            }
+
             return t.delete();
         }
 
@@ -2599,6 +2607,8 @@ public class BrokerService implements Closeable {
                         ((AbstractTopic) topic).updateBrokerReplicatorDispatchRate();
                     }
                     topic.getReplicators().forEach((name, persistentReplicator) ->
+                        persistentReplicator.updateRateLimiter());
+                    topic.getShadowReplicators().forEach((name, persistentReplicator) ->
                         persistentReplicator.updateRateLimiter());
                 }
             );
