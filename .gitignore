@@ -46,6 +46,7 @@ target/
 
 # Python
 *.pyc
+.python-version
 
 # Perf tools
 *.hgrm
