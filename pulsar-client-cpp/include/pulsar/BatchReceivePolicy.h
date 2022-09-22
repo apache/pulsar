@@ -33,8 +33,8 @@ struct BatchReceivePolicyImpl;
  * <p>Batch receive policy can limit the number and bytes of messages in a single batch, and can specify a
  * timeout for waiting for enough messages for this batch.
  *
- * <p>This batch receive will be completed as long as any one of the
- * conditions(has enough number of messages, has enough size of messages, wait timeout) are met.
+ * <p>A batch receive action is completed as long as any one of the
+ * conditions (the batch has enough number or size of messages, or the waiting timeout is passed) are met.
  *
  * <p>Examples:
  * 1.If set maxNumMessages = 10, maxSizeOfMessages = 1MB and without timeout, it
@@ -71,7 +71,7 @@ class PULSAR_PUBLIC BatchReceivePolicy {
     long getTimeoutMs() const;
 
     /**
-     * Get max num messages.
+     * Get the maximum number of messages.
      * @return
      */
     int getMaxNumMessages() const;
