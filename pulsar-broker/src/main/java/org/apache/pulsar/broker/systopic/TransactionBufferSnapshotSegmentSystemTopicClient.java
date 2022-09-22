@@ -49,7 +49,7 @@ public class TransactionBufferSnapshotSegmentSystemTopicClient extends
                         log.debug("[{}] A new transactionBufferSnapshot segment writer is created", topicName);
                     }
                     return CompletableFuture.completedFuture(
-                            new TransactionBufferSnapshotBaseWriter<>(producer, this));
+                            new TransactionBufferSnapshotWriter<>(producer, this));
                 });
     }
 

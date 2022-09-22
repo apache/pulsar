@@ -33,14 +33,7 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 @Setter
 @Builder
 public class TransactionBufferSnapshotIndexes {
-    public enum Type {
-        Indexes,
-        UnsealedSnapshot
-    }
-
     private String topicName;
-
-    private Type type;
 
     private List<TransactionBufferSnapshotIndex> indexList;
 

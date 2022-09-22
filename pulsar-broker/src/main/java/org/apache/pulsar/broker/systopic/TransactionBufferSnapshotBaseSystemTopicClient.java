@@ -39,7 +39,6 @@ public abstract class TransactionBufferSnapshotBaseSystemTopicClient<T> extends 
         this.systemTopicTxnBufferSnapshotService = systemTopicTxnBufferSnapshotService;
     }
 
-
     protected void removeWriter(Writer<T> writer) {
         writers.remove(writer);
         this.systemTopicTxnBufferSnapshotService.removeClient(topicName, this);
@@ -50,14 +49,14 @@ public abstract class TransactionBufferSnapshotBaseSystemTopicClient<T> extends 
         this.systemTopicTxnBufferSnapshotService.removeClient(topicName, this);
     }
 
-    protected static class TransactionBufferSnapshotBaseWriter<T> implements Writer<T> {
+    protected static class TransactionBufferSnapshotWriter<T> implements Writer<T> {
 
         protected final Producer<T> producer;
         protected final TransactionBufferSnapshotBaseSystemTopicClient
                 transactionBufferSnapshotBaseSystemTopicClient;
 
-        protected TransactionBufferSnapshotBaseWriter(Producer<T> producer,
-                                            TransactionBufferSnapshotBaseSystemTopicClient
+        protected TransactionBufferSnapshotWriter(Producer<T> producer,
+                                                  TransactionBufferSnapshotBaseSystemTopicClient
                                                     transactionBufferSnapshotBaseSystemTopicClient) {
             this.producer = producer;
             this.transactionBufferSnapshotBaseSystemTopicClient = transactionBufferSnapshotBaseSystemTopicClient;
@@ -121,12 +120,12 @@ public abstract class TransactionBufferSnapshotBaseSystemTopicClient<T> extends 
         }
     }
 
-    protected static class TransactionBufferSnapshotBaseReader<T> implements Reader<T> {
+    protected static class TransactionBufferSnapshotReader<T> implements Reader<T> {
 
         private final org.apache.pulsar.client.api.Reader<T> reader;
         private final TransactionBufferSnapshotBaseSystemTopicClient transactionBufferSnapshotBaseSystemTopicClient;
 
-        protected TransactionBufferSnapshotBaseReader(
+        protected TransactionBufferSnapshotReader(
                 org.apache.pulsar.client.api.Reader<T> reader,
                 TransactionBufferSnapshotBaseSystemTopicClient<T> transactionBufferSnapshotBaseSystemTopicClient) {
             this.reader = reader;

@@ -47,7 +47,7 @@ public class TransactionBufferSnapshotSystemTopicClient extends
                         log.debug("[{}] A new transactionBufferSnapshot writer is created", topicName);
                     }
                     return CompletableFuture.completedFuture(
-                            new TransactionBufferSnapshotBaseWriter(producer, this));
+                            new TransactionBufferSnapshotWriter(producer, this));
                 });
     }
 
@@ -63,7 +63,7 @@ public class TransactionBufferSnapshotSystemTopicClient extends
                         log.debug("[{}] A new transactionBufferSnapshot buffer reader is created", topicName);
                     }
                     return CompletableFuture.completedFuture(
-                            new TransactionBufferSnapshotBaseReader<>(reader, this));
+                            new TransactionBufferSnapshotReader<>(reader, this));
                 });
     }
 }
