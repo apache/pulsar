@@ -21,6 +21,7 @@ package org.apache.bookkeeper.mledger.impl;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.ImmutableSet;
@@ -49,6 +50,8 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.Ledge
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
@@ -126,6 +129,51 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
                             .filter(e -> e.getOffloadContext().getComplete())
                             .map(e -> e.getLedgerId()).collect(Collectors.toSet()),
                             offloader.offloadedLedgers());
+
+        // ledgers should be marked as offloaded
+        ledger.getLedgersInfoAsList().stream().allMatch(l -> l.hasOffloadContext());
+    }
+
+    @Test
+    public void testOffloadFenced() throws Exception {
+        MockLedgerOffloader offloader = new MockLedgerOffloader();
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(10);
+        config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
+        config.setRetentionTime(10, TimeUnit.MINUTES);
+        config.setRetentionSizeInMB(10);
+        config.setLedgerOffloader(offloader);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl)factory.open("my_test_ledger", config);
+
+        int i = 0;
+        for (; i < 25; i++) {
+            String content = "entry-" + i;
+            ledger.addEntry(content.getBytes());
+        }
+        assertEquals(ledger.getLedgersInfoAsList().size(), 3);
+
+        metadataStore.failConditional(new MetadataStoreException.BadVersionException("err"), (op, path) ->
+                path.equals("/managed-ledgers/my_test_ledger")
+                        && op == FaultInjectionMetadataStore.OperationType.PUT
+        );
+
+        assertThrows(ManagedLedgerException.ManagedLedgerFencedException.class, () ->
+            ledger.offloadPrefix(ledger.getLastConfirmedEntry()));
+
+        assertEquals(ledger.getLedgersInfoAsList().size(), 3);
+
+        // the offloader actually wrote the data on the storage
+        assertEquals(ledger.getLedgersInfoAsList().stream()
+                        .filter(e -> e.getOffloadContext().getComplete())
+                        .map(e -> e.getLedgerId()).collect(Collectors.toSet()),
+                offloader.offloadedLedgers());
+
+        // but the ledgers should not be marked as offloaded in local memory, as the write to metadata failed
+        ledger.getLedgersInfoAsList().stream().allMatch(l -> !l.hasOffloadContext());
+
+        // check that the ledger is fenced
+        assertEquals(ManagedLedgerImpl.State.Fenced, ledger.getState());
+
     }
 
     @Test
