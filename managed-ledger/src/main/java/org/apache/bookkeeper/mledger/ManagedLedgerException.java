@@ -80,6 +80,10 @@ public class ManagedLedgerException extends Exception {
             super(new Exception("Attempted to use a fenced managed ledger"));
         }
 
+        public ManagedLedgerFencedException(String message) {
+            super(message);
+        }
+
         public ManagedLedgerFencedException(Exception e) {
             super(e);
         }

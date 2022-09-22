@@ -368,8 +368,6 @@ public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
             producer.send(message.getBytes());
         }
 
-        ml.delete();
-
         // Admin should be able to truncate the topic
         admin.topics().truncate(topic1);
 
