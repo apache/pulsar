@@ -135,8 +135,8 @@ SchemaInfo::SchemaInfo(const SchemaInfo &keySchema, const SchemaInfo &valueSchem
                        const KeyValueEncodingType &keyValueEncodingType) {
     std::string keySchemaStr = keySchema.getSchema();
     std::string valueSchemaStr = valueSchema.getSchema();
-    auto keySize = keySchemaStr.size();
-    auto valueSize = valueSchemaStr.size();
+    uint32_t keySize = keySchemaStr.size();
+    uint32_t valueSize = valueSchemaStr.size();
 
     auto buffSize = sizeof keySize + keySize + sizeof valueSize + valueSize;
     SharedBuffer buffer = SharedBuffer::allocate(buffSize);
