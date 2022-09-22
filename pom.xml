@@ -278,6 +278,7 @@ flexible messaging model and an intuitive client API.</description>
     <j2objc-annotations.version>1.3</j2objc-annotations.version>
     <lightproto-maven-plugin.version>0.4</lightproto-maven-plugin.version>
     <dependency-check-maven.version>7.1.0</dependency-check-maven.version>
+    <roaringbitmap.version>0.9.15</roaringbitmap.version>
 
     <!-- Used to configure rename.netty.native. Libs -->
     <rename.netty.native.libs>rename-netty-native-libs.sh</rename.netty.native.libs>
@@ -1294,6 +1295,13 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>reload4j</artifactId>
         <version>${reload4j.version}</version>
       </dependency>
+
+      <dependency>
+        <groupId>org.roaringbitmap</groupId>
+        <artifactId>RoaringBitmap</artifactId>
+        <version>${roaringbitmap.version}</version>
+      </dependency>
+
     </dependencies>
   </dependencyManagement>
 
