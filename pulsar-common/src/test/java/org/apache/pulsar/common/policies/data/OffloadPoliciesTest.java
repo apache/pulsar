@@ -305,4 +305,23 @@ public class OffloadPoliciesTest {
         Assert.assertNull(offloadPolicies.getS3ManagedLedgerOffloadRegion());
     }
 
+
+    @Test
+    public void brokerPropertyCompatibleTest() {
+        final Long brokerOffloadThreshold = 0L;
+        final Long brokerDeletionLag = 2000L;
+        final String brokerReadPriority = "bookkeeper-first";
+        Properties brokerProperties = new Properties();
+        brokerProperties.setProperty("managedLedgerOffloadAutoTriggerSizeThresholdBytes", "" + brokerOffloadThreshold);
+        brokerProperties.setProperty("managedLedgerOffloadDeletionLagMs", "" + brokerDeletionLag);
+        brokerProperties.setProperty("managedLedgerDataReadPriority", "" + brokerReadPriority);
+
+        OffloadPoliciesImpl offloadPolicies =
+          OffloadPoliciesImpl.mergeConfiguration(null, null, brokerProperties);
+        Assert.assertNotNull(offloadPolicies);
+        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadThresholdInBytes(), brokerOffloadThreshold);
+        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis(), brokerDeletionLag);
+        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadedReadPriority().toString(), "bookkeeper-first");
+        Assert.assertNull(offloadPolicies.getS3ManagedLedgerOffloadRegion());
+    }
 }
