@@ -36,17 +36,13 @@ import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.protocol.schema.PostSchemaPayload;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
 @Test(groups = "broker-admin")
-public class AdminApiSchemaValidationEnforced extends MockedPulsarServiceBaseTest {
-
-    private static final Logger LOG = LoggerFactory.getLogger(AdminApiSchemaValidationEnforced.class);
+public class AdminApiSchemaValidationEnforcedTest extends MockedPulsarServiceBaseTest {
 
     @BeforeMethod
     @Override
@@ -82,8 +78,9 @@ public class AdminApiSchemaValidationEnforced extends MockedPulsarServiceBaseTes
         admin.namespaces().setSchemaValidationEnforced(namespace, false);
         try {
             admin.schemas().getSchemaInfo(topicName);
+            fail();
         } catch (PulsarAdminException.NotFoundException e) {
-            assertTrue(e.getMessage().contains("HTTP 404 Not Found"));
+            assertEquals(e.getMessage(), "Schema not found");
         }
         try (Producer p = pulsarClient.newProducer().topic(topicName).create()) {
             p.send("test schemaValidationEnforced".getBytes());
@@ -99,14 +96,16 @@ public class AdminApiSchemaValidationEnforced extends MockedPulsarServiceBaseTes
         admin.namespaces().setSchemaValidationEnforced(namespace, false);
         try {
             admin.schemas().getSchemaInfo(topicName);
+            fail();
         } catch (PulsarAdminException.NotFoundException e) {
-            assertTrue(e.getMessage().contains("HTTP 404 Not Found"));
+            assertEquals(e.getMessage(), "Schema not found");
         }
         Map<String, String> properties = new HashMap<>();
         SchemaInfo schemaInfo = SchemaInfo.builder()
                 .type(SchemaType.STRING)
                 .properties(properties)
                 .name("test")
+                .timestamp(1L)
                 .schema("".getBytes())
                 .build();
         PostSchemaPayload postSchemaPayload = new PostSchemaPayload("STRING", "", properties);
@@ -114,7 +113,15 @@ public class AdminApiSchemaValidationEnforced extends MockedPulsarServiceBaseTes
         try (Producer p = pulsarClient.newProducer().topic(topicName).create()) {
             p.send("test schemaValidationEnforced".getBytes());
         }
-        assertEquals(admin.schemas().getSchemaInfo(topicName), schemaInfo);
+        assertSchemaInfoEquals(admin.schemas().getSchemaInfo(topicName), schemaInfo);
+    }
+
+    private static void assertSchemaInfoEquals(SchemaInfo actual, SchemaInfo expected) {
+        assertEquals(actual.getName(), expected.getName());
+        assertEquals(actual.getSchema(), expected.getSchema());
+        assertEquals(actual.getType(), expected.getType());
+        assertEquals(actual.getProperties(), expected.getProperties());
+        assertEquals(actual.getSchemaDefinition(), expected.getSchemaDefinition());
     }
 
 
@@ -127,8 +134,9 @@ public class AdminApiSchemaValidationEnforced extends MockedPulsarServiceBaseTes
         admin.namespaces().setSchemaValidationEnforced(namespace,true);
         try {
             admin.schemas().getSchemaInfo(topicName);
+            fail();
         } catch (PulsarAdminException.NotFoundException e) {
-            assertTrue(e.getMessage().contains("HTTP 404 Not Found"));
+            assertEquals(e.getMessage(), "Schema not found");
         }
         try (Producer p = pulsarClient.newProducer().topic(topicName).create()) {
             p.send("test schemaValidationEnforced".getBytes());
@@ -147,8 +155,9 @@ public class AdminApiSchemaValidationEnforced extends MockedPulsarServiceBaseTes
         admin.topics().getStats(topicName);
         try {
             admin.schemas().getSchemaInfo(topicName);
+            fail();
         } catch (PulsarAdminException.NotFoundException e) {
-            assertTrue(e.getMessage().contains("HTTP 404 Not Found"));
+            assertEquals(e.getMessage(), "Schema not found");
         }
         Map<String, String> properties = new HashMap<>();
         properties.put("key1", "value1");
@@ -177,8 +186,9 @@ public class AdminApiSchemaValidationEnforced extends MockedPulsarServiceBaseTes
         assertFalse(admin.namespaces().getSchemaValidationEnforced(namespace));
         try {
             admin.schemas().getSchemaInfo(topicName);
+            fail();
         } catch (PulsarAdminException.NotFoundException e) {
-            assertTrue(e.getMessage().contains("HTTP 404 Not Found"));
+            assertEquals(e.getMessage(), "Schema not found");
         }
         admin.namespaces().setSchemaValidationEnforced(namespace,true);
         Map<String, String> properties = new HashMap<>();

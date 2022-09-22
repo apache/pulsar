@@ -43,7 +43,7 @@ import org.testng.annotations.Test;
 
 @Slf4j
 @Test(groups = "broker-admin")
-public class AdminApiMaxUnackedMessages extends MockedPulsarServiceBaseTest {
+public class AdminApiMaxUnackedMessagesTest extends MockedPulsarServiceBaseTest {
 
     @BeforeMethod
     @Override
