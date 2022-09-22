@@ -50,7 +50,7 @@ public abstract class TransactionBufferSnapshotBaseSystemTopicClient<T> extends 
         this.systemTopicTxnBufferSnapshotService.removeClient(topicName, this);
     }
 
-    protected abstract static class TransactionBufferSnapshotBaseWriter<T> implements Writer<T> {
+    protected static class TransactionBufferSnapshotBaseWriter<T> implements Writer<T> {
 
         protected final Producer<T> producer;
         protected final TransactionBufferSnapshotBaseSystemTopicClient

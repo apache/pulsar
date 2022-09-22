@@ -24,7 +24,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.service.SystemTopicTxnBufferSnapshotService;
 import org.apache.pulsar.broker.transaction.buffer.matadata.v2.TransactionBufferSnapshotIndexes;
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicName;
@@ -33,14 +32,10 @@ import org.apache.pulsar.common.naming.TopicName;
 public class TransactionBufferSnapshotIndexSystemTopicClient extends
         TransactionBufferSnapshotBaseSystemTopicClient<TransactionBufferSnapshotIndexes> {
 
-    private final SystemTopicTxnBufferSnapshotService<TransactionBufferSnapshotIndexes>
-            transactionBufferSnapshotIndexService;
-
     public TransactionBufferSnapshotIndexSystemTopicClient(PulsarClient client, TopicName topicName,
            SystemTopicTxnBufferSnapshotService<TransactionBufferSnapshotIndexes>
                    transactionBufferSnapshotIndexService) {
         super(client, topicName, transactionBufferSnapshotIndexService);
-        this.transactionBufferSnapshotIndexService = transactionBufferSnapshotIndexService;
     }
 
     @Override
@@ -52,7 +47,7 @@ public class TransactionBufferSnapshotIndexSystemTopicClient extends
                         log.debug("[{}] A new transactionBufferSnapshot writer is created", topicName);
                     }
                     return CompletableFuture.completedFuture(
-                            new TransactionBufferSnapshotIndexWriter(producer, this));
+                            new TransactionBufferSnapshotBaseWriter<>(producer, this));
                 });
     }
 
@@ -68,28 +63,9 @@ public class TransactionBufferSnapshotIndexSystemTopicClient extends
                         log.debug("[{}] A new transactionBufferSnapshot buffer reader is created", topicName);
                     }
                     return CompletableFuture.completedFuture(
-                            new TransactionBufferSnapshotIndexReader(reader, this));
+                            new TransactionBufferSnapshotBaseReader<>(reader, this));
                 });
     }
 
-    private static class TransactionBufferSnapshotIndexWriter extends
-            TransactionBufferSnapshotBaseWriter<TransactionBufferSnapshotIndexes> {
-
-
-        private TransactionBufferSnapshotIndexWriter(Producer<TransactionBufferSnapshotIndexes> producer,
-                                                     TransactionBufferSnapshotIndexSystemTopicClient
-                                                             transactionBufferSnapshotIndexSystemTopicClient) {
-            super(producer, transactionBufferSnapshotIndexSystemTopicClient);
-        }
-    }
-
-    private static class TransactionBufferSnapshotIndexReader extends TransactionBufferSnapshotBaseSystemTopicClient
-            .TransactionBufferSnapshotBaseReader<TransactionBufferSnapshotIndexes> {
-        private TransactionBufferSnapshotIndexReader(
-                org.apache.pulsar.client.api.Reader<TransactionBufferSnapshotIndexes> reader,
-                TransactionBufferSnapshotIndexSystemTopicClient transactionBufferSnapshotIndexSystemTopicClient) {
-            super(reader, transactionBufferSnapshotIndexSystemTopicClient);
-        }
-    }
 }
 
