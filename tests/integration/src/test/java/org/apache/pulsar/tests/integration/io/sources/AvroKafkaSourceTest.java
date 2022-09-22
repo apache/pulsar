@@ -117,8 +117,8 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
         sourceConfig.put("topic", kafkaTopicName);
         sourceConfig.put("valueDeserializationClass", "io.confluent.kafka.serializers.KafkaAvroDeserializer");
         sourceConfig.put("consumerConfigProperties",
-                ImmutableMap.of("schema.registry.url", getRegistryAddressInDockerNetwork())
-        );
+                ImmutableMap.of("schema.registry.url", getRegistryAddressInDockerNetwork()));
+        sourceConfig.put("copyHeadersEnabled", true);
     }
 
     private class EnhancedKafkaContainer extends KafkaContainer {
@@ -263,6 +263,7 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
                 log.info("field {} value {}", field, valueRecord.getField(field));
             }
             assertEquals(beans.get(recordsNumber).field, valueRecord.getField("field"));
+            assertHeaders(msg, recordsNumber);
             consumer.acknowledge(msg);
             recordsNumber++;
             msg = consumer.receive(10, TimeUnit.SECONDS);
@@ -270,6 +271,21 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
 
         Assert.assertEquals(recordsNumber, beans.size());
         log.info("Stop {} server container. topic: {} has {} records.", kafkaContainerName, consumer.getTopic(), recordsNumber);
+    }
+
+    private void assertHeaders(Message<GenericRecord> msg, int recordsNumber) {
+        assertEquals(msg.getProperties().size(), 5);
+        assertTrue(msg.getProperties().containsKey("__kafka_topic"));
+        assertTrue(msg.getProperties().containsKey("__kafka_partition"));
+        assertTrue(msg.getProperties().containsKey("__kafka_offset"));
+        assertTrue(msg.getProperties().containsKey("header1"));
+        assertTrue(msg.getProperties().containsKey("header2"));
+
+        assertEquals(msg.getProperties().get("__kafka_topic"), kafkaTopicName);
+        assertEquals(msg.getProperties().get("__kafka_partition"), "1");
+        assertEquals(msg.getProperties().get("__kafka_offset"), String.valueOf(recordsNumber));
+        assertEquals(msg.getProperties().get("header1"), "1_" + recordsNumber);
+        assertEquals(msg.getProperties().get("header2"), "2_" + recordsNumber);
     }
 
     protected void getSourceInfoSuccess(String tenant,
@@ -359,6 +375,9 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
             MyBean bean = new MyBean();
             bean.setField("value" + i);
             String serialized = serializeBeanUsingAvro(schema, bean);
+            String headers = "header1:1_" + i;
+            headers += ",header2:2_" + i;
+            payload.append(headers + " ");
             payload.append(serialized);
             if (i != numMessages - 1) {
                 // do not add a newline in the end of the file
@@ -376,6 +395,7 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
                 "--broker-list " + getBootstrapServersOnDockerNetwork() + " " +
                 "--property 'value.schema=" + schemaDef + "' " +
                 "--property schema.registry.url="+ getRegistryAddressInDockerNetwork() +" " +
+                "--property parse.headers=true " +
                 "--topic "+kafkaTopicName;
         String file = "/home/appuser/produceRecords.sh";
 
@@ -480,7 +500,7 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
     }
 
     public class SchemaRegistryContainer extends GenericContainer<SchemaRegistryContainer> {
-        public static final String CONFLUENT_PLATFORM_VERSION = "6.0.1";
+        public static final String CONFLUENT_PLATFORM_VERSION = "7.2.1";
         private static final int SCHEMA_REGISTRY_INTERNAL_PORT = 8081;
 
         public SchemaRegistryContainer(String boostrapServers) throws Exception {
