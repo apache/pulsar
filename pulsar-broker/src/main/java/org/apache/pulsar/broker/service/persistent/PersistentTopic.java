@@ -1321,31 +1321,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 @Override
                 public void closeComplete(Object ctx) {
                     // Everything is now closed, remove the topic from map
-                    brokerService.removeTopicFromCache(PersistentTopic.this)
-                            .thenRun(() -> {
-                                replicatedSubscriptionsController.ifPresent(ReplicatedSubscriptionsController::close);
-
-                                dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
-
-                                subscribeRateLimiter.ifPresent(SubscribeRateLimiter::close);
-
-                                unregisterTopicPolicyListener();
-                                log.info("[{}] Topic closed", topic);
-                                cancelFencedTopicMonitoringTask();
-                                closeFuture.complete(null);
-                            })
-                    .exceptionally(ex -> {
-                        closeFuture.completeExceptionally(ex);
-                        return null;
-                    });
+                    disposeTopic(closeFuture);
                 }
 
                 @Override
                 public void closeFailed(ManagedLedgerException exception, Object ctx) {
                     log.error("[{}] Failed to close managed ledger, proceeding anyway.", topic, exception);
-                    brokerService.removeTopicFromCache(PersistentTopic.this);
-                    unregisterTopicPolicyListener();
-                    closeFuture.complete(null);
+                    disposeTopic(closeFuture);
                 }
             }, null);
         }).exceptionally(exception -> {
@@ -1356,6 +1338,26 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         });
 
         return closeFuture;
+    }
+
+    private void disposeTopic(CompletableFuture<?> closeFuture) {
+        brokerService.removeTopicFromCache(topic)
+                .thenRun(() -> {
+                    replicatedSubscriptionsController.ifPresent(ReplicatedSubscriptionsController::close);
+
+                    dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
+
+                    subscribeRateLimiter.ifPresent(SubscribeRateLimiter::close);
+
+                    unregisterTopicPolicyListener();
+                    log.info("[{}] Topic closed", topic);
+                    cancelFencedTopicMonitoringTask();
+                    closeFuture.complete(null);
+                })
+                .exceptionally(ex -> {
+                    closeFuture.completeExceptionally(ex);
+                    return null;
+                });
     }
 
     @VisibleForTesting
