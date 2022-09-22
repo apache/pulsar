@@ -88,9 +88,17 @@ public class PulsarResources {
         this.configurationMetadataStore = Optional.ofNullable(configurationMetadataStore);
     }
 
-    public static MetadataStoreExtended createMetadataStore(String serverUrls, int sessionTimeoutMs)
+    public static MetadataStoreExtended createLocalMetadataStore(String serverUrls, int sessionTimeoutMs)
             throws MetadataStoreException {
         return MetadataStoreExtended.create(serverUrls, MetadataStoreConfig.builder()
-                .sessionTimeoutMillis(sessionTimeoutMs).allowReadOnlyOperations(false).build());
+                .sessionTimeoutMillis(sessionTimeoutMs).allowReadOnlyOperations(false)
+                .metadataStoreName(MetadataStoreConfig.METADATA_STORE).build());
+    }
+
+    public static MetadataStoreExtended createConfigMetadataStore(String serverUrls, int sessionTimeoutMs)
+            throws MetadataStoreException {
+        return MetadataStoreExtended.create(serverUrls, MetadataStoreConfig.builder()
+                .sessionTimeoutMillis(sessionTimeoutMs).allowReadOnlyOperations(false)
+                .metadataStoreName(MetadataStoreConfig.CONFIGURATION_METADATA_STORE).build());
     }
 }

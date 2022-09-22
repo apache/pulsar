@@ -51,7 +51,13 @@ As you probably know, we are working on a new user experience for our documentat
 ## Help Improve These Documents
 ***
 
-You’ll notice an Edit button at the bottom and top of each page. Click it to open a landing page with instructions for requesting changes to posted documents. These are your resources. Participation is not only welcomed – it’s essential!
+You’ll notice an Edit button at the bottom and top of each page. Click it to open a landing page with instructions for requesting changes to posted documents. These are your resources. Participation is not only welcomed – it’s essential! 
+
+:::tip
+
+For how to make contributions to documentation, see [Pulsar Documentation Contribution Guide](https://docs.google.com/document/d/11DTnNPpvcPrebLkMAFcDEIFlD8ARD-k6F-LXoIwdD9Y/edit#).
+
+:::
 
 ## Join the Community!
 ***

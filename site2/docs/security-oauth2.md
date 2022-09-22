@@ -32,7 +32,7 @@ The following table lists parameters supported for the `client credentials` auth
 | `issuerUrl` | URL of the authentication provider which allows the Pulsar client to obtain an access token | `https://accounts.google.com` | Required |
 | `privateKey` | URL to a JSON credentials file  | Support the following pattern formats: <br /> <li> `file:///path/to/file` </li><li>`file:/path/to/file` </li><li> `data:application/json;base64,<base64-encoded value>` </li>| Required |
 | `audience`  | An OAuth 2.0 "resource server" identifier for the Pulsar cluster | `https://broker.example.com` | Optional |
-| `scope` |  Scope of an access request. <br />For more more information, see [access token scope](https://datatracker.ietf.org/doc/html/rfc6749#section-3.3). | api://pulsar-cluster-1/.default | Optional |
+| `scope` |  Scope of an access request. <br />For more information, see [access token scope](https://datatracker.ietf.org/doc/html/rfc6749#section-3.3). | api://pulsar-cluster-1/.default | Optional |
 
 The credentials file contains service account credentials used with the client authentication type. The following shows an example of a credentials file `credentials_file.json`.
 

@@ -98,6 +98,7 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
                 int zkTimeout = Integer.parseInt((String) conf.getProperty("zkTimeout"));
                 store = MetadataStoreExtended.create(url,
                         MetadataStoreConfig.builder()
+                                .metadataStoreName(MetadataStoreConfig.METADATA_STORE)
                                 .sessionTimeoutMillis(zkTimeout)
                                 .build());
             } catch (MetadataStoreException e) {

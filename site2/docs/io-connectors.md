@@ -101,7 +101,13 @@ Pulsar has various source connectors, which are sorted alphabetically as below.
 * [Configuration](io-kinesis-source.md#configuration)
   
 * [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/kinesis/src/main/java/org/apache/pulsar/io/kinesis/KinesisSource.java)
-  
+
+### MongoDB
+
+* [Configuration](io-mongo-source.md#configuration)
+
+* [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/mongo/src/main/java/org/apache/pulsar/io/mongodb/MongoSource.java)
+
 ### Netty
 
 * [Configuration](io-netty-source.md#configuration)
