@@ -103,9 +103,11 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         admin.topics().createPartitionedTopic(TOPIC_MESSAGE_ACK_TEST, 1);
     }
 
-    private void resetTopicOutput() throws Exception {
+    protected void resetTopicOutput() throws Exception {
         admin.topics().deletePartitionedTopic(TOPIC_OUTPUT, true);
         admin.topics().createPartitionedTopic(TOPIC_OUTPUT, TOPIC_PARTITION);
+        admin.topics().deletePartitionedTopic(TOPIC_MESSAGE_ACK_TEST, true);
+        admin.topics().createPartitionedTopic(TOPIC_MESSAGE_ACK_TEST, 1);
     }
 
     @AfterClass(alwaysRun = true)
@@ -565,7 +567,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         // cleanup.
         producer.close();
         consumer.close();
-        admin.topics().delete(topic, true);
+        resetTopicOutput();
         log.info("receive transaction messages count: {}", receiveCnt);
     }
 
