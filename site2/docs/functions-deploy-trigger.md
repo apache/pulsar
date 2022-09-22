@@ -15,17 +15,14 @@ With the [`pulsar-admin`](/tools/pulsar-admin/) CLI, you can send messages to fu
 To learn how to trigger a function, you can start with a Python function that returns a simple string based on the input as follows.
 
 ```python
-
 # myfunc.py
 def process(input):
     return "This function has been triggered with a value of {0}".format(input)
-
 ```
 
 1. Run the function in cluster mode.
 
   ```bash
-
   bin/pulsar-admin functions create \
     --tenant public \
     --namespace default \
@@ -34,29 +31,24 @@ def process(input):
     --classname myfunc \
     --inputs persistent://public/default/in \
     --output persistent://public/default/out
-
   ```
 
 2. Assign a consumer to listen on the output topic for messages from the `myfunc` function with the [`pulsar-client consume`](reference-cli-tools.md#consume) command.
 
   ```bash
-
   bin/pulsar-client consume persistent://public/default/out \
     --subscription-name my-subscription \
     --num-messages 0 # Listen indefinitely
-
   ```
 
 3. Trigger the function.
 
    ```bash
-
    bin/pulsar-admin functions trigger \
      --tenant public \
      --namespace default \
      --name myfunc I am running a few minutes late; my previous meeting is running over.
      --trigger-value "hello world"
-
    ```
 
    :::tip
@@ -68,9 +60,7 @@ def process(input):
 The consumer listening on the output topic produces something as follows in the log.
 
 ```text
-
 ----- got message -----
 This function has been triggered with a value of hello world
-
 ```
 

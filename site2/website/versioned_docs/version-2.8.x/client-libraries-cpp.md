@@ -11,7 +11,7 @@ All the methods in producer, consumer, and reader of a C++ client are thread-saf
 
 ## Supported platforms
 
-Pulsar C++ client is supported on **Linux** and **MacOS** platforms.
+Pulsar C++ client is supported on **Linux** and **macOS** platforms.
 
 [Doxygen](http://www.doxygen.nl/)-generated API docs for the C++ client are available [here](/api/cpp).
 
@@ -129,7 +129,7 @@ The `libpulsarwithdeps.a` does not include library openssl related libraries `li
 
 ### Install RPM
 
-1. Download a RPM package from the links in the table. 
+1. Download an RPM package from the links in the table. 
 
 | Link | Crypto files |
 |------|--------------|
@@ -271,7 +271,7 @@ brew install libpulsar
 
 To connect Pulsar using client libraries, you need to specify a Pulsar protocol URL.
 
-Pulsar protocol URLs are assigned to specific clusters, you can use the Pulsar URI scheme. The default port is `6650`. The following is an example for localhost.
+Pulsar protocol URLs are assigned to specific clusters, you can use the Pulsar URI scheme. The default port is `6650`. The following is an example of localhost.
 
 ```http
 
@@ -299,7 +299,7 @@ pulsar+ssl://pulsar.us-west.example.com:6651
 
 To use Pulsar as a consumer, you need to create a consumer on the C++ client. The following is an example. 
 
-```c++
+```cpp
 
 Client client("pulsar://localhost:6650");
 
@@ -328,7 +328,7 @@ client.close();
 
 To use Pulsar as a producer, you need to create a producer on the C++ client. The following is an example. 
 
-```c++
+```cpp
 
 Client client("pulsar://localhost:6650");
 

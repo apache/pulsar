@@ -34,6 +34,7 @@ import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
+import org.apache.pulsar.common.policies.data.EntryFilters;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
@@ -1175,6 +1176,44 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
     public CompletableFuture<Void> removeSchemaCompatibilityStrategyAsync(String topic) {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "schemaCompatibilityStrategy");
+        return asyncDeleteRequest(path);
+    }
+
+    @Override
+    public EntryFilters getEntryFiltersPerTopic(String topic, boolean applied) throws PulsarAdminException {
+        return sync(() -> getEntryFiltersPerTopicAsync(topic, applied));
+    }
+
+    @Override
+    public CompletableFuture<EntryFilters> getEntryFiltersPerTopicAsync(String topic, boolean applied) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "entryFilters");
+        path = path.queryParam("applied", applied);
+        return asyncGetRequest(path, new FutureCallback<EntryFilters>(){});
+    }
+
+    @Override
+    public void setEntryFiltersPerTopic(String topic, EntryFilters entryFilters)
+            throws PulsarAdminException {
+        sync(() -> setEntryFiltersPerTopicAsync(topic, entryFilters));
+    }
+
+    @Override
+    public CompletableFuture<Void> setEntryFiltersPerTopicAsync(String topic, EntryFilters entryFilters) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "entryFilters");
+        return asyncPostRequest(path, Entity.entity(entryFilters, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public void removeEntryFiltersPerTopic(String topic) throws PulsarAdminException {
+        sync(() -> removeEntryFiltersPerTopicAsync(topic));
+    }
+
+    @Override
+    public CompletableFuture<Void> removeEntryFiltersPerTopicAsync(String topic) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "entryFilters");
         return asyncDeleteRequest(path);
     }
 

@@ -192,7 +192,7 @@ public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDi
                     havePendingReplayRead = false;
                     // We should not call readMoreEntries() recursively in the same thread
                     // as there is a risk of StackOverflowError
-                    topic.getBrokerService().executor().execute(() -> readMoreEntries());
+                    topic.getBrokerService().executor().execute(safeRun(this::readMoreEntries));
                 }
             } else if (BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.get(this) == TRUE) {
                 log.debug("[{}] Dispatcher read is blocked due to unackMessages {} reached to max {}", name,

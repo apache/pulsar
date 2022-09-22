@@ -78,18 +78,17 @@ public class AbstractBaseDispatcherTest {
 
 
     @Test
-    public void testFilterEntriesForConsumerOfEntryFilter() {
+    public void testFilterEntriesForConsumerOfEntryFilter() throws Exception {
         Topic mockTopic = mock(Topic.class);
         when(this.subscriptionMock.getTopic()).thenReturn(mockTopic);
 
         BrokerService mockBrokerService = mock(BrokerService.class);
         when(mockTopic.getBrokerService()).thenReturn(mockBrokerService);
-
         EntryFilterWithClassLoader mockFilter = mock(EntryFilterWithClassLoader.class);
         when(mockFilter.filterEntry(any(Entry.class), any(FilterContext.class))).thenReturn(
                 EntryFilter.FilterResult.REJECT);
         ImmutableMap<String, EntryFilterWithClassLoader> entryFilters = ImmutableMap.of("key", mockFilter);
-        when(mockBrokerService.getEntryFilters()).thenReturn(entryFilters);
+        when(mockTopic.getEntryFilters()).thenReturn(entryFilters);
 
         this.helper = new AbstractBaseDispatcherTestHelper(this.subscriptionMock, this.svcConfig);
 

@@ -48,7 +48,7 @@ pulsar.stats-provider-configs={}
 pulsar.namespace-delimiter-rewrite-enable=false
 
 # delimiter used to rewrite Pulsar's default delimiter '/', use if default is causing incompatibility with other system like Superset
-pulsar.rewrite-namespace-delimiter=“/”
+pulsar.rewrite-namespace-delimiter="/"
 
 # maximum number of thread pool size for ledger offloader.
 pulsar.managed-ledger-offload-max-threads=2

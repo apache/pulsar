@@ -328,12 +328,6 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         admin.topics().removeOffloadPolicies(topicName);
         Awaitility.await().untilAsserted(()
                 -> assertNull(admin.topics().getOffloadPolicies(topicName)));
-        // topic level offloader should be closed
-        if (isPartitioned) {
-            verify(topicOffloader, times(partitionNum)).close();
-        } else {
-            verify(topicOffloader).close();
-        }
         if (isPartitioned) {
             for (int i = 0; i < partitionNum; i++) {
                 PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService()

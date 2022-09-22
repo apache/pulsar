@@ -45,6 +45,11 @@
           <version>${project.parent.version}</version>
         </dependency>
         <dependency>
+          <groupId>org.apache.pulsar.tests</groupId>
+          <artifactId>java-test-plugins</artifactId>
+          <version>${project.parent.version}</version>
+        </dependency>
+        <dependency>
           <groupId>org.apache.pulsar</groupId>
           <artifactId>pulsar-all-docker-image</artifactId>
           <version>${project.parent.version}</version>
@@ -79,6 +84,15 @@
                       <overWrite>true</overWrite>
                       <outputDirectory>${project.build.directory}</outputDirectory>
                       <destFileName>java-test-functions.jar</destFileName>
+                    </artifactItem>
+                    <artifactItem>
+                      <groupId>org.apache.pulsar.tests</groupId>
+                      <artifactId>java-test-plugins</artifactId>
+                      <version>${project.parent.version}</version>
+                      <type>jar</type>
+                      <overWrite>true</overWrite>
+                      <outputDirectory>${project.build.directory}/plugins</outputDirectory>
+                      <destFileName>java-test-plugins.nar</destFileName>
                     </artifactItem>
                   </artifactItems>
                 </configuration>

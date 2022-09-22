@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -37,6 +36,7 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.common.component.ComponentStarter;
@@ -57,6 +57,7 @@ import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.CmdGenerateDocs;
 import org.apache.pulsar.common.util.DirectMemoryUtils;
+import org.apache.pulsar.common.util.ShutdownUtil;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.service.WorkerServiceLoader;
@@ -205,7 +206,7 @@ public class PulsarBrokerStarter {
                                               (exitCode) -> {
                                                   log.info("Halting broker process with code {}",
                                                            exitCode);
-                                                  Runtime.getRuntime().halt(exitCode);
+                                                  ShutdownUtil.triggerImmediateForcefulShutdown(exitCode);
                                               });
 
             // if no argument to run bookie in cmd line, read from pulsar config
@@ -240,8 +241,8 @@ public class PulsarBrokerStarter {
 
             // init bookie server
             if (starterArguments.runBookie) {
-                checkNotNull(bookieConfig, "No ServerConfiguration for Bookie");
-                checkNotNull(bookieStatsProvider, "No Stats Provider for Bookie");
+                Objects.requireNonNull(bookieConfig, "No ServerConfiguration for Bookie");
+                Objects.requireNonNull(bookieStatsProvider, "No Stats Provider for Bookie");
                 bookieServer = org.apache.bookkeeper.server.Main
                         .buildBookieServer(new BookieConfiguration(bookieConfig));
             } else {
@@ -250,7 +251,7 @@ public class PulsarBrokerStarter {
 
             // init bookie AutorecoveryMain
             if (starterArguments.runBookieAutoRecovery) {
-                checkNotNull(bookieConfig, "No ServerConfiguration for Bookie Autorecovery");
+                Objects.requireNonNull(bookieConfig, "No ServerConfiguration for Bookie Autorecovery");
                 autoRecoveryMain = new AutoRecoveryMain(bookieConfig);
             } else {
                 autoRecoveryMain = null;
@@ -354,8 +355,7 @@ public class PulsarBrokerStarter {
             starter.start();
         } catch (Throwable t) {
             log.error("Failed to start pulsar service.", t);
-            LogManager.shutdown();
-            Runtime.getRuntime().halt(1);
+            ShutdownUtil.triggerImmediateForcefulShutdown();
         } finally {
             starter.join();
         }

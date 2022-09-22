@@ -518,6 +518,9 @@ message CommandSend {
 
     // Specify if the message being published is a Pulsar marker or not
     optional bool marker = 8 [default = false];
+
+    // Message id of this message, currently is used in replicator for shadow topic.
+    optional MessageIdData message_id = 9;
 }
 
 message CommandSendReceipt {

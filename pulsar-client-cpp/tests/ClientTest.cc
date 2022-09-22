@@ -20,6 +20,7 @@
 
 #include "HttpHelper.h"
 #include "PulsarFriend.h"
+#include "WaitUtils.h"
 
 #include <future>
 #include <pulsar/Client.h>
@@ -61,15 +62,10 @@ TEST(ClientTest, testSwHwChecksum) {
     // (b) SW
     uint32_t swChecksum1 = crc32cSw(0, (char *)data.c_str(), data.length());
     uint32_t swChecksum2 = crc32cSw(0, (char *)doubleData.c_str() + 4, 4);
-    // (c) HW ARM
-    uint32_t hwArmChecksum1 = crc32cHwArm(0, (char *)data.c_str(), data.length());
-    uint32_t hwArmChecksum2 = crc32cHwArm(0, (char *)doubleData.c_str() + 4, 4);
 
     ASSERT_EQ(hwChecksum1, hwChecksum2);
     ASSERT_EQ(hwChecksum1, swChecksum1);
     ASSERT_EQ(hwChecksum2, swChecksum2);
-    ASSERT_EQ(hwArmChecksum1, swChecksum1);
-    ASSERT_EQ(hwArmChecksum2, swChecksum2);
 
     //(2) compute incremental checksum
     // (a.1) hw: checksum on full data
@@ -85,26 +81,19 @@ TEST(ClientTest, testSwHwChecksum) {
     uint32_t swIncrementalChecksum = crc32cSw(swChecksum1, (char *)data.c_str(), data.length());
     ASSERT_EQ(hwIncrementalChecksum, hwDoubleChecksum);
     ASSERT_EQ(hwIncrementalChecksum, swIncrementalChecksum);
-    // (c.1) hw arm: checksum on full data
-    uint32_t hwArmDoubleChecksum = crc32cHwArm(0, (char *)doubleData.c_str(), doubleData.length());
-    // (c.2) hw arm: incremental checksum on multiple partial data
-    hwArmChecksum1 = crc32cHwArm(0, (char *)data.c_str(), data.length());
-    uint32_t hwArmIncrementalChecksum = crc32cHw(hwArmChecksum1, (char *)data.c_str(), data.length());
-    ASSERT_EQ(swDoubleChecksum, hwArmDoubleChecksum);
-    ASSERT_EQ(hwArmIncrementalChecksum, hwArmDoubleChecksum);
-    ASSERT_EQ(hwArmIncrementalChecksum, swIncrementalChecksum);
+    ASSERT_EQ(hwIncrementalChecksum, swIncrementalChecksum);
 }
 
 TEST(ClientTest, testServerConnectError) {
     const std::string topic = "test-server-connect-error";
-    Client client("pulsar://localhost:65535");
+    Client client("pulsar://localhost:65535", ClientConfiguration().setOperationTimeoutSeconds(1));
     Producer producer;
-    ASSERT_EQ(ResultConnectError, client.createProducer(topic, producer));
+    ASSERT_EQ(ResultTimeout, client.createProducer(topic, producer));
     Consumer consumer;
-    ASSERT_EQ(ResultConnectError, client.subscribe(topic, "sub", consumer));
+    ASSERT_EQ(ResultTimeout, client.subscribe(topic, "sub", consumer));
     Reader reader;
     ReaderConfiguration readerConf;
-    ASSERT_EQ(ResultConnectError, client.createReader(topic, MessageId::earliest(), readerConf, reader));
+    ASSERT_EQ(ResultTimeout, client.createReader(topic, MessageId::earliest(), readerConf, reader));
     client.close();
 }
 
@@ -133,6 +122,9 @@ TEST(ClientTest, testConnectTimeout) {
 
     clientLow.close();
     clientDefault.close();
+
+    ASSERT_EQ(futureDefault.wait_for(std::chrono::milliseconds(10)), std::future_status::ready);
+    ASSERT_EQ(futureDefault.get(), ResultConnectError);
 }
 
 TEST(ClientTest, testGetNumberOfReferences) {
@@ -231,9 +223,13 @@ TEST(ClientTest, testReferenceCount) {
     ASSERT_EQ(producers.size(), 1);
     ASSERT_EQ(producers[0].use_count(), 0);
     ASSERT_EQ(consumers.size(), 2);
-    ASSERT_EQ(consumers[0].use_count(), 0);
-    ASSERT_EQ(consumers[1].use_count(), 0);
-    ASSERT_EQ(readerWeakPtr.use_count(), 0);
+
+    waitUntil(std::chrono::seconds(1), [&consumers, &readerWeakPtr] {
+        return consumers[0].use_count() == 0 && consumers[1].use_count() == 0 && readerWeakPtr.expired();
+    });
+    EXPECT_EQ(consumers[0].use_count(), 0);
+    EXPECT_EQ(consumers[1].use_count(), 0);
+    EXPECT_EQ(readerWeakPtr.use_count(), 0);
     client.close();
 }
 
@@ -262,6 +258,17 @@ TEST(ClientTest, testWrongListener) {
 
     client = Client(lookupUrl, ClientConfiguration().setListenerName("test"));
 
+    Consumer multiTopicsConsumer;
+    ASSERT_EQ(ResultServiceUnitNotReady,
+              client.subscribe({topic + "-partition-0", topic + "-partition-1", topic + "-partition-2"},
+                               "sub", multiTopicsConsumer));
+
+    ASSERT_EQ(PulsarFriend::getConsumers(client).size(), 0);
+    ASSERT_EQ(ResultOk, client.close());
+
+    // Currently Reader can only read a non-partitioned topic in C++ client
+    client = Client(lookupUrl, ClientConfiguration().setListenerName("test"));
+
     // Currently Reader can only read a non-partitioned topic in C++ client
     Reader reader;
     ASSERT_EQ(ResultServiceUnitNotReady,
@@ -269,4 +276,22 @@ TEST(ClientTest, testWrongListener) {
     ASSERT_EQ(ResultConsumerNotInitialized, reader.close());
     ASSERT_EQ(PulsarFriend::getConsumers(client).size(), 0);
     ASSERT_EQ(ResultOk, client.close());
+}
+
+TEST(ClientTest, testMultiBrokerUrl) {
+    const std::string topic = "client-test-multi-broker-url-" + std::to_string(time(nullptr));
+    Client client("pulsar://localhost:6000,localhost");  // the 1st address is not reachable
+
+    Producer producer;
+    PulsarFriend::setServiceUrlIndex(client, 0);
+    ASSERT_EQ(ResultOk, client.createProducer(topic, producer));
+
+    Consumer consumer;
+    PulsarFriend::setServiceUrlIndex(client, 0);
+    ASSERT_EQ(ResultOk, client.subscribe(topic, "sub", consumer));
+
+    Reader reader;
+    PulsarFriend::setServiceUrlIndex(client, 0);
+    ASSERT_EQ(ResultOk, client.createReader(topic, MessageId::earliest(), {}, reader));
+    client.close();
 }

@@ -109,7 +109,7 @@ You can configure the filesystem offloader driver in the `broker.conf` or `stand
   `managedLedgerOffloadDriver` | Offloader driver name, which is case-insensitive. | filesystem
   `fileSystemURI` | Connection address, which is the URI to access the default Hadoop distributed file system. | hdfs://127.0.0.1:9000
   `offloadersDirectory` | Offloader directory | offloaders
-  `fileSystemProfilePath` | Hadoop profile path. The configuration file is stored in the Hadoop profile path. It contains various settings for Hadoop performance tuning. | ../conf/filesystem_offload_core_site.xml
+  `fileSystemProfilePath` | Hadoop profile path. The configuration file is stored in the Hadoop profile path. It contains various settings for Hadoop performance tuning. | conf/filesystem_offload_core_site.xml
 
 
 - **Optional** configurations are as below.
@@ -128,7 +128,7 @@ You can configure the filesystem offloader driver in the `broker.conf` or `stand
   |---|---|---
   `managedLedgerOffloadDriver` | Offloader driver name, which is case-insensitive. | filesystem
   `offloadersDirectory` | Offloader directory | offloaders
-  `fileSystemProfilePath` | NFS profile path. The configuration file is stored in the NFS profile path. It contains various settings for performance tuning. | ../conf/filesystem_offload_core_site.xml
+  `fileSystemProfilePath` | NFS profile path. The configuration file is stored in the NFS profile path. It contains various settings for performance tuning. | conf/filesystem_offload_core_site.xml
 
 - **Optional** configurations are as below.
 
@@ -370,7 +370,7 @@ Set the following configurations in the `conf/standalone.conf` file.
 
 managedLedgerOffloadDriver=filesystem
 fileSystemURI=hdfs://127.0.0.1:9000
-fileSystemProfilePath=../conf/filesystem_offload_core_site.xml
+fileSystemProfilePath=conf/filesystem_offload_core_site.xml
 
 ```
 
@@ -421,7 +421,7 @@ As indicated in the [configuration](#configuration) section, you need to configu
    ```conf
    
    managedLedgerOffloadDriver=filesystem
-   fileSystemProfilePath=../conf/filesystem_offload_core_site.xml
+   fileSystemProfilePath=conf/filesystem_offload_core_site.xml
    
    ```
 

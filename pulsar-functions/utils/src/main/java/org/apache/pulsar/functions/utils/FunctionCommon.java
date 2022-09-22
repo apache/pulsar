@@ -56,6 +56,7 @@ import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.api.WindowFunction;
+import org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails.Runtime;
 import org.apache.pulsar.functions.utils.functions.FunctionUtils;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
@@ -103,42 +104,50 @@ public class FunctionCommon {
         return getFunctionTypes(functionClass, isWindowConfigPresent);
     }
 
-    public static Class<?>[] getFunctionTypes(Class userClass, boolean isWindowConfigPresent) {
-        Class<?>[] typeArgs;
+    public static Class<?>[] getFunctionTypes(Class<?> userClass, boolean isWindowConfigPresent) {
+        Class<?> classParent = getFunctionClassParent(userClass, isWindowConfigPresent);
+        Class<?>[] typeArgs = TypeResolver.resolveRawArguments(classParent, userClass);
         // if window function
         if (isWindowConfigPresent) {
-            if (WindowFunction.class.isAssignableFrom(userClass)) {
-                typeArgs = getFunctionTypesUnwrappingRecordIfNeeded(WindowFunction.class, userClass);
-            } else {
-                typeArgs = getFunctionTypesUnwrappingRecordIfNeeded(java.util.function.Function.class, userClass);
+            if (classParent.equals(java.util.function.Function.class)) {
                 if (!typeArgs[0].equals(Collection.class)) {
                     throw new IllegalArgumentException("Window function must take a collection as input");
                 }
-                Type type = TypeResolver.resolveGenericType(java.util.function.Function.class, userClass);
-                Type collectionType = ((ParameterizedType) type).getActualTypeArguments()[0];
-                Type actualInputType = ((ParameterizedType) collectionType).getActualTypeArguments()[0];
-                typeArgs[0] = (Class<?>) actualInputType;
+                typeArgs[0] = (Class<?>) unwrapType(classParent, userClass, 0);
             }
-        } else {
-            if (Function.class.isAssignableFrom(userClass)) {
-                typeArgs = getFunctionTypesUnwrappingRecordIfNeeded(Function.class, userClass);
-            } else {
-                typeArgs = getFunctionTypesUnwrappingRecordIfNeeded(java.util.function.Function.class, userClass);
-            }
+        }
+        if (typeArgs[1].equals(Record.class)) {
+            typeArgs[1] = (Class<?>) unwrapType(classParent, userClass, 1);
         }
 
         return typeArgs;
     }
 
-    private static Class<?>[] getFunctionTypesUnwrappingRecordIfNeeded(Class<?> type, Class<?> subType) {
-        Class<?>[] typeArgs = TypeResolver.resolveRawArguments(type, subType);
-        if (typeArgs[1].equals(Record.class)) {
-            Type genericType = TypeResolver.resolveGenericType(type, subType);
-            Type recordType = ((ParameterizedType) genericType).getActualTypeArguments()[1];
-            Type actualInputType = ((ParameterizedType) recordType).getActualTypeArguments()[0];
-            typeArgs[1] = (Class<?>) actualInputType;
+    public static Class<?>[] getRawFunctionTypes(Class<?> userClass, boolean isWindowConfigPresent) {
+        Class<?> classParent = getFunctionClassParent(userClass, isWindowConfigPresent);
+        return TypeResolver.resolveRawArguments(classParent, userClass);
+    }
+
+    public static Class<?> getFunctionClassParent(Class<?> userClass, boolean isWindowConfigPresent) {
+        if (isWindowConfigPresent) {
+            if (WindowFunction.class.isAssignableFrom(userClass)) {
+                return WindowFunction.class;
+            } else {
+                return java.util.function.Function.class;
+            }
+        } else {
+            if (Function.class.isAssignableFrom(userClass)) {
+                return Function.class;
+            } else {
+                return java.util.function.Function.class;
+            }
         }
-        return typeArgs;
+    }
+
+    private static Type unwrapType(Class<?> type, Class<?> subType, int position) {
+        Type genericType = TypeResolver.resolveGenericType(type, subType);
+        Type argType = ((ParameterizedType) genericType).getActualTypeArguments()[position];
+        return ((ParameterizedType) argType).getActualTypeArguments()[0];
     }
 
     public static Object createInstance(String userClassName, ClassLoader classLoader) {
@@ -401,7 +410,7 @@ public class FunctionCommon {
     }
 
     public static ClassLoader getClassLoaderFromPackage(
-            org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType componentType,
+            ComponentType componentType,
             String className,
             File packageFile,
             String narExtractionDirectory) {
@@ -437,11 +446,9 @@ public class FunctionCommon {
                             narClassLoaderException);
                 }
                 try {
-                    if (componentType
-                            == org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.FUNCTION) {
-                        connectorClassName = FunctionUtils.getFunctionClass((NarClassLoader) narClassLoader);
-                    } else if (componentType
-                            == org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.SOURCE) {
+                    if (componentType == ComponentType.FUNCTION) {
+                        connectorClassName = FunctionUtils.getFunctionClass(narClassLoader);
+                    } else if (componentType == ComponentType.SOURCE) {
                         connectorClassName = ConnectorUtils.getIOSourceClass((NarClassLoader) narClassLoader);
                     } else {
                         connectorClassName = ConnectorUtils.getIOSinkClass((NarClassLoader) narClassLoader);
@@ -532,26 +539,28 @@ public class FunctionCommon {
     }
 
     public static boolean isFunctionCodeBuiltin(
-            org.apache.pulsar.functions.proto.Function.FunctionDetailsOrBuilder functionDetails) {
-        if (functionDetails.hasSource()) {
+            org.apache.pulsar.functions.proto.Function.FunctionDetailsOrBuilder functionDetail) {
+        return isFunctionCodeBuiltin(functionDetail, functionDetail.getComponentType());
+    }
+
+    public static boolean isFunctionCodeBuiltin(
+            org.apache.pulsar.functions.proto.Function.FunctionDetailsOrBuilder functionDetails,
+            ComponentType componentType) {
+        if (componentType == ComponentType.SOURCE && functionDetails.hasSource()) {
             org.apache.pulsar.functions.proto.Function.SourceSpec sourceSpec = functionDetails.getSource();
             if (!isEmpty(sourceSpec.getBuiltin())) {
                 return true;
             }
         }
 
-        if (functionDetails.hasSink()) {
+        if (componentType == ComponentType.SINK && functionDetails.hasSink()) {
             org.apache.pulsar.functions.proto.Function.SinkSpec sinkSpec = functionDetails.getSink();
             if (!isEmpty(sinkSpec.getBuiltin())) {
                 return true;
             }
         }
 
-        if (!isEmpty(functionDetails.getBuiltin())) {
-            return true;
-        }
-
-        return false;
+        return componentType == ComponentType.FUNCTION && !isEmpty(functionDetails.getBuiltin());
     }
 
     public static SubscriptionInitialPosition convertFromFunctionDetailsSubscriptionPosition(

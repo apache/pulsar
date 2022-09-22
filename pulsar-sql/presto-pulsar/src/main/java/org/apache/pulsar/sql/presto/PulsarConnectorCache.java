@@ -74,7 +74,7 @@ public class PulsarConnectorCache {
 
     private PulsarConnectorCache(PulsarConnectorConfig pulsarConnectorConfig) throws Exception {
         this.metadataStore = MetadataStoreExtended.create(pulsarConnectorConfig.getZookeeperUri(),
-                MetadataStoreConfig.builder().build());
+                MetadataStoreConfig.builder().metadataStoreName(MetadataStoreConfig.METADATA_STORE).build());
         this.managedLedgerFactory = initManagedLedgerFactory(pulsarConnectorConfig);
         this.statsProvider = PulsarConnectorUtils.createInstance(pulsarConnectorConfig.getStatsProvider(),
                 StatsProvider.class, getClass().getClassLoader());

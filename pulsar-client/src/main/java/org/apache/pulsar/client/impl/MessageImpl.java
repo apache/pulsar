@@ -753,7 +753,7 @@ public class MessageImpl<T> implements Message<T> {
         return msgMetadata.hasReplicatedFrom();
     }
 
-    void setMessageId(MessageId messageId) {
+    public void setMessageId(MessageId messageId) {
         this.messageId = messageId;
     }
 

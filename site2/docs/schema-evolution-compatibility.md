@@ -61,12 +61,12 @@ Suppose that you have a topic containing three schemas (V1, V2, and V3), V1 is t
 | --- | --- | --- | --- | --- |
 |  `ALWAYS_COMPATIBLE`  |   Disable schema compatibility check.  |   All changes are allowed  |   All previous versions  |   Any order  | 
 |  `ALWAYS_INCOMPATIBLE`  |   Disable schema evolution.  |   All changes are disabled  |   None  |   None  | 
-|  `BACKWARD`  |   Consumers using the schema V3 can process data written by producers using the schema V3 or V2.  |   <li>Add optional fields </li><li>Delete fields </li> |   Latest version  |   Consumers  | 
-|  `BACKWARD_TRANSITIVE`  |   Consumers using the schema V3 can process data written by producers using the schema V3, V2 or V1.  |   <li>Add optional fields </li><li>Delete fields </li> |   All previous versions  |   Consumers  | 
-|  `FORWARD`  |   Consumers using the schema V3 or V2 can process data written by producers using the schema V3.  |   <li>Add fields </li><li>Delete optional fields </li> |   Latest version  |   Producers  | 
-|  `FORWARD_TRANSITIVE`  |   Consumers using the schema V3, V2 or V1 can process data written by producers using the schema V3.  |   <li>Add fields </li><li>Delete optional fields </li> |   All previous versions  |   Producers  | 
+|  `BACKWARD`  |   Consumers using schema V3 can process data written by producers using schema V3 or V2.  |   <li>Add optional fields </li><li>Delete fields </li> |   Latest version  |   Consumers  | 
+|  `BACKWARD_TRANSITIVE`  |   Consumers using schema V3 can process data written by producers using schema V3, V2 or V1.  |   <li>Add optional fields </li><li>Delete fields </li> |   All previous versions  |   Consumers  | 
+|  `FORWARD`  |   Consumers using schema V3 or V2 can process data written by producers using schema V3.  |   <li>Add fields </li><li>Delete optional fields </li> |   Latest version  |   Producers  | 
+|  `FORWARD_TRANSITIVE`  |   Consumers using schema V3, V2, or V1 can process data written by producers using schema V3.  |   <li>Add fields </li><li>Delete optional fields </li> |   All previous versions  |   Producers  | 
 |  `FULL`  |   Backward and forward compatible between the schema V3 and V2.  |   <li>Modify optional fields </li> |   Latest version  |   Any order  | 
-|  `FULL_TRANSITIVE`  |   Backward and forward compatible among the schema V3, V2, and V1.  |   <li>Modify optional fields </li> |   All previous versions  |   Any order  | 
+|  `FULL_TRANSITIVE`  |   Backward and forward compatible among schema V3, V2, and V1.  |   <li>Modify optional fields </li> |   All previous versions  |   Any order  | 
 
 ### ALWAYS_COMPATIBLE and ALWAYS_INCOMPATIBLE 
 

@@ -35,10 +35,8 @@ In the production environment, there may be some long-lasting transactions that 
 <TabItem value="pulsar-admin">
 
 ```shell
-
-$ pulsar-admin transactions slow-transactions \
- -c 1 -t 1s
-
+pulsar-admin transactions slow-transactions \
+-c 1 -t 1s
 ```
 
 </TabItem>
@@ -50,11 +48,9 @@ $ pulsar-admin transactions slow-transactions \
 <TabItem value="Java">
 
 ```java
-
 admin.transaction().getSlowTransactionsByCoordinatorId(coordinatorId, timeout, timeUnit)
 //Or get slow transactions from all coordinators
 admin.transaction().getSlowTransactions(timeout, timeUnit)
-
 ```
 
 </TabItem>
@@ -147,7 +143,6 @@ The following is an example of the returned values.
     "ackedPartitions": {}
   }
 }
-
 ```
 
 ### ScaleTransactionCoordinators
@@ -161,10 +156,8 @@ When the performance of transactions reaches a bottleneck due to the insufficien
 <TabItem value="pulsar-admin">
 
 ```shell
-
-$ pulsar-admin transactions scale-transactionCoordinators \
- -r 17
-
+pulsar-admin transactions scale-transactionCoordinators \
+-r 17
 ```
 
 </TabItem>
@@ -176,9 +169,7 @@ $ pulsar-admin transactions scale-transactionCoordinators \
 <TabItem value="Java">
 
 ```java
-
 admin.transaction().scaleTransactionCoordinators(replicas);
-
 ```
 
 </TabItem>
@@ -207,10 +198,8 @@ Use one of the following ways to get your transaction metadata.
 <TabItem value="pulsar-admin">
 
 ```shell
-
-$ pulsar-admin transactions transaction-metadata\
- -m 1 -l 1
-
+pulsar-admin transactions transaction-metadata\
+-m 1 -l 1
 ```
 
 </TabItem>
@@ -222,9 +211,7 @@ $ pulsar-admin transactions transaction-metadata\
 <TabItem value="Java">
 
 ```java
-
 admin.transactions().getTransactionMetadata(txnID);
-
 ```
 
 </TabItem>
@@ -235,7 +222,6 @@ admin.transactions().getTransactionMetadata(txnID);
 The following is an example of the returned values.
 
 ```shell
-
 {
  "txnId" : "(1,18)",
  "status" : "ABORTING",
@@ -255,7 +241,6 @@ The following is an example of the returned values.
    }
  }
 }
-
 ```
 
 ### Get transaction stats in transaction pending ack
@@ -272,10 +257,8 @@ Use one of the following ways to get transaction stats in pending ack:
 <TabItem value="pulsar-admin">
 
 ```shell
-
-$ pulsar-admin transactions transaction-in-pending-ack-stats \
- -m 1 -l 1 -t my-topic -s mysubname
-
+pulsar-admin transactions transaction-in-pending-ack-stats \
+-m 1 -l 1 -t my-topic -s mysubname
 ```
 
 </TabItem>
@@ -287,9 +270,7 @@ $ pulsar-admin transactions transaction-in-pending-ack-stats \
 <TabItem value="Java">
 
 ```java
-
 admin.transaction().getTransactionInPendingAckStats(txnID, topic, subname);
-
 ```
 
 </TabItem>
@@ -300,11 +281,9 @@ admin.transaction().getTransactionInPendingAckStats(txnID, topic, subname);
 The following is an example of the returned value.
 
 ```shell
-
 {
  "cumulativeAckPosition" : "137:49959"
  }
-
 ```
 
 ### Get transaction stats in transaction buffer
@@ -322,10 +301,8 @@ Use one of the following ways to get transaction stats in transaction buffer:
 <TabItem value="pulsar-admin">
 
 ```shell
-
-$ pulsar-admin transactions transaction-in-buffer-stats \
- -m 1 -l 1 -t my-topic
-
+pulsar-admin transactions transaction-in-buffer-stats \
+-m 1 -l 1 -t my-topic
 ```
 
 </TabItem>
@@ -337,9 +314,7 @@ $ pulsar-admin transactions transaction-in-buffer-stats \
 <TabItem value="Java">
 
 ```java
-
 admin.transaction().getTransactionInBufferStatsAsync(txnID, topic);
-
 ```
 
 </TabItem>
@@ -350,12 +325,10 @@ admin.transaction().getTransactionInBufferStatsAsync(txnID, topic);
 The following is an example of the returned values.
 
 ```shell
-
 {
  "startPosition" : "137:49759",
  "aborted" : false
 }
-
 ```
 
 ## Transaction coordinator stats
@@ -380,10 +353,8 @@ Use one of the following ways to get transaction coordinator stats:
 <TabItem value="pulsar-admin">
 
 ```shell
-
-$ pulsar-admin transactions coordinator-stats \
- -c 1
-
+pulsar-admin transactions coordinator-stats \
+-c 1
 ```
 
 </TabItem>
@@ -395,11 +366,9 @@ $ pulsar-admin transactions coordinator-stats \
 <TabItem value="Java">
 
 ```java
-
 admin.transaction().getCoordinatorStatsById(coordinatorId);
 //Or get all coordinator stats.
 admin.transaction().getCoordinatorStats();
-
 ```
 
 </TabItem>
@@ -410,7 +379,6 @@ admin.transaction().getCoordinatorStats();
 The following is an example of the returned values.
 
 ```shell
-
 {
   "state" : "Ready",
   "leastSigBits" : 1,
@@ -419,7 +387,6 @@ The following is an example of the returned values.
   "recoverStartTime" : 1657021892377,
   "recoverEndTime" : 1657021892378
 }
-
 ```
 
 ### Get coordinator internal stats
@@ -437,10 +404,8 @@ Use one of the following ways to get coordinator’s internal stats:
 <TabItem value="pulsar-admin">
 
 ```shell
-
-$ pulsar-admin transactions coordinator-internal-stats \
- -c 1 -m
-
+pulsar-admin transactions coordinator-internal-stats \
+-c 1 -m
 ```
 
 </TabItem>
@@ -452,9 +417,7 @@ $ pulsar-admin transactions coordinator-internal-stats \
 <TabItem value="Java">
 
 ```java
-
 admin.transaction().getCoordinatorInternalStats(coordinatorId, metadata);
-
 ```
 
 </TabItem>
@@ -465,7 +428,6 @@ admin.transaction().getCoordinatorInternalStats(coordinatorId, metadata);
 The following is an example of the returned values.
 
 ```shell
-
 {
  "transactionLogStats" : {
    "managedLedgerName" : "pulsar/system/persistent/__transaction_log_1",
@@ -510,7 +472,6 @@ The following is an example of the returned values.
    }
  }
 }
-
 ```
 
 ## Transaction pending ack stats
@@ -535,10 +496,8 @@ Use one of the following ways to get transaction pending ack stats:
 <TabItem value="pulsar-admin">
 
 ```shell
-
-$ pulsar-admin transactions pending-ack-stats \
- -t my-topic -s  mysubName -l
-
+pulsar-admin transactions pending-ack-stats \
+-t my-topic -s  mysubName -l
 ```
 
 </TabItem>
@@ -550,9 +509,7 @@ $ pulsar-admin transactions pending-ack-stats \
 <TabItem value="Java">
 
 ```java
-
 admin.transaction().getPendingAckStats(topic, subName, lowWaterMarks)
-
 ```
 
 </TabItem>
@@ -563,7 +520,6 @@ admin.transaction().getPendingAckStats(topic, subName, lowWaterMarks)
 The following is an example of the returned values.
 
 ```shell
-
 {
   "state" : "Ready",
   "lowWaterMarks" : {
@@ -573,7 +529,6 @@ The following is an example of the returned values.
   "recoverStartTime" : 1657021899202,
   "recoverEndTime" : 1657021899203
 }
-
 ```
 
 ### Get transaction pending ack internal stats
@@ -592,10 +547,8 @@ Use one of the following ways to get transaction pending ack internal stats:
 <TabItem value="pulsar-admin">
 
 ```shell
-
-$ pulsar-admin transactions pending-ack-internal-stats \
- -t my-topic -s  mysubName -m
-
+pulsar-admin transactions pending-ack-internal-stats \
+-t my-topic -s  mysubName -m
 ```
 
 </TabItem>
@@ -607,9 +560,7 @@ $ pulsar-admin transactions pending-ack-internal-stats \
 <TabItem value="Java">
 
 ```java
-
 admin.transaction().getPendingAckInternalStats(topic, subName, boolean metadata);
-
 ```
 
 </TabItem>
@@ -620,7 +571,6 @@ admin.transaction().getPendingAckInternalStats(topic, subName, boolean metadata)
 The following is an example of the returned values.
 
 ```shell
-
 {
  "pendingAckLogStats" : {
    "managedLedgerName" : "public/default/persistent/my-topic-mysubName__transaction_pending_ack",
@@ -672,7 +622,6 @@ The following is an example of the returned values.
    }
  }
 }
-
 ```
 
 ### Get position stats in pending ack
@@ -682,7 +631,7 @@ The position stats in pending ack include:
 * **MarkDelete** The position is already acknowledged.
 * **NotInPendingAck** The position is not acknowledged within a transaction.
 * **PendingAckNotReady** The pending ack has not been initialized.
-* **InvalidPosition** The position is an invalid position, for example, batch index > batch size.
+* **InvalidPosition** The position is invalid, for example, batch index > batch size.
 
 If you want to know whether the position has been acknowledged, you can use one of the following ways to get position stats pending ack:
 
@@ -693,11 +642,8 @@ If you want to know whether the position has been acknowledged, you can use one 
 <TabItem value="pulsar-admin">
 
 ```shell
-
-$ pulsar-admin transactions position-stats-in-pending-ack \
- -t my-topic -s  mysubName -l 15 -e 6
-
-
+pulsar-admin transactions position-stats-in-pending-ack \
+-t my-topic -s  mysubName -l 15 -e 6
 ```
 
 </TabItem>
@@ -710,9 +656,7 @@ $ pulsar-admin transactions position-stats-in-pending-ack \
 <TabItem value="Java">
 
 ```java
-
 admin.transaction().getPositionStatsInPendingAckAsync(topic, subName, ledgerId, entryId, lowWaterMarks);
-
 ```
 
 </TabItem>
@@ -723,11 +667,9 @@ admin.transaction().getPositionStatsInPendingAckAsync(topic, subName, ledgerId, 
 The following is an example of the returned values.
 
 ```shell
-
 {
-“State” : “MarkDelete”
+"State" : "MarkDelete"
 }
-
 ```
 
 ## Transaction buffer stats
@@ -755,10 +697,8 @@ Use one of the following ways to get transaction buffer stats:
 <TabItem value="pulsar-admin">
 
 ```shell
-
-$ pulsar-admin transactions transaction-buffer-stats \
- -t my-topic -l
-
+pulsar-admin transactions transaction-buffer-stats \
+-t my-topic -l
 ```
 
 </TabItem>
@@ -770,9 +710,7 @@ $ pulsar-admin transactions transaction-buffer-stats \
 <TabItem value="Java">
 
 ```java
-
 admin.transaction().getTransactionBufferStats(topic, lowWaterMarks);
-
 ```
 
 </TabItem>
@@ -783,7 +721,6 @@ admin.transaction().getTransactionBufferStats(topic, lowWaterMarks);
 The following is an example of the returned values.
 
 ```shell
-
 {
   "state" : "Ready",
   "maxReadPosition" : "38:101",
@@ -796,5 +733,4 @@ The following is an example of the returned values.
   "recoverStartTime" : 1657021892850,
   "recoverEndTime" : 1657021893372
 }
-
 ```

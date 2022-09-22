@@ -86,7 +86,6 @@ import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.assertj.core.api.Assertions;
 import org.awaitility.Awaitility;
-import org.testng.annotations.Test;
 
 /**
  * A test base for testing functions.
@@ -809,6 +808,11 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                     String outputSchemaType,
                                     SubscriptionInitialPosition subscriptionInitialPosition) throws Exception {
 
+        if (StringUtils.isNotEmpty(inputTopicName)) {
+            ensureSubscriptionCreated(
+                inputTopicName, String.format("public/default/%s", functionName), inputTopicSchema);
+        }
+
         CommandGenerator generator;
         log.info("------- INPUT TOPIC: '{}', customSchemaInputs: {}", inputTopicName, customSchemaInputs);
         if (inputTopicName.endsWith(".*")) {
@@ -854,11 +858,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
                 commands);
         assertTrue(result.getStdout().contains("Created successfully"));
-
-        if (StringUtils.isNotEmpty(inputTopicName)) {
-            ensureSubscriptionCreated(
-                    inputTopicName, String.format("public/default/%s", functionName), inputTopicSchema);
-        }
     }
 
     private void updateFunctionParallelism(String functionName, int parallelism) throws Exception {
@@ -1260,10 +1259,9 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         result.assertNoStderr();
     }
 
-    @Test(groups = "function")
-    public void testAutoSchemaFunction() throws Exception {
+    protected void testAutoSchemaFunction() throws Exception {
         String inputTopicName = "test-autoschema-input-" + randomName(8);
-        String outputTopicName = "test-autoshcema-output-" + randomName(8);
+        String outputTopicName = "test-autoschema-output-" + randomName(8);
         String functionName = "test-autoschema-fn-" + randomName(8);
         final int numMessages = 10;
 
@@ -1326,8 +1324,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         }
     }
 
-    @Test(groups = "function")
-    public void testAvroSchemaFunction() throws Exception {
+    protected void testAvroSchemaFunction() throws Exception {
         log.info("testAvroSchemaFunction start ...");
         final String inputTopic = "test-avroschema-input-" + randomName(8);
         final String outputTopic = "test-avroschema-output-" + randomName(8);
@@ -1536,6 +1533,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                            String logTopicName,
                                            String functionName,
                                            Schema<?> schema) throws Exception {
+        ensureSubscriptionCreated(inputTopicName, String.format("public/default/%s", functionName), schema);
+
         CommandGenerator generator;
         log.info("------- INPUT TOPIC: '{}'", inputTopicName);
         if (inputTopicName.endsWith(".*")) {
@@ -1556,8 +1555,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
                 commands);
         assertTrue(result.getStdout().contains("Created successfully"));
-
-        ensureSubscriptionCreated(inputTopicName, String.format("public/default/%s", functionName), schema);
     }
 
     private void publishAndConsumeMessages(String inputTopic,

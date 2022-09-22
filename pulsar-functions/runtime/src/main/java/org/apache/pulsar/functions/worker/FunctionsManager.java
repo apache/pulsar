@@ -20,8 +20,11 @@ package org.apache.pulsar.functions.worker;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.TreeMap;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.common.functions.FunctionDefinition;
 import org.apache.pulsar.functions.utils.functions.FunctionArchive;
 import org.apache.pulsar.functions.utils.functions.FunctionUtils;
 
@@ -40,6 +43,11 @@ public class FunctionsManager {
 
     public Path getFunctionArchive(String functionType) {
         return functions.get(functionType).getArchivePath();
+    }
+
+    public List<FunctionDefinition> getFunctionDefinitions() {
+        return functions.values().stream().map(FunctionArchive::getFunctionDefinition)
+                .collect(Collectors.toList());
     }
 
     public void reloadFunctions(WorkerConfig workerConfig) throws IOException {

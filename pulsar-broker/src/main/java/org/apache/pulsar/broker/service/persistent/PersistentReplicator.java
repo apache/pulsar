@@ -50,6 +50,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.TopicBusyExceptio
 import org.apache.pulsar.broker.service.Replicator;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.Type;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.client.impl.MessageImpl;
@@ -132,7 +133,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
     }
 
     @Override
-    protected void readEntries(org.apache.pulsar.client.api.Producer<byte[]> producer) {
+    protected void readEntries(Producer<byte[]> producer) {
         // Rewind the cursor to be sure to read again all non-acked messages sent while restarting
         cursor.rewind();
 

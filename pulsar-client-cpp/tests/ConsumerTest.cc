@@ -30,7 +30,6 @@
 #include "lib/Future.h"
 #include "lib/Utils.h"
 #include "lib/LogUtils.h"
-#include "lib/PartitionedConsumerImpl.h"
 #include "lib/MultiTopicsConsumerImpl.h"
 #include "HttpHelper.h"
 
@@ -406,8 +405,9 @@ TEST(ConsumerTest, testPartitionedConsumerUnAckedMessageRedelivery) {
     consumerConfig.setUnAckedMessagesTimeoutMs(unAckedMessagesTimeoutMs);
     consumerConfig.setTickDurationInMs(tickDurationInMs);
     ASSERT_EQ(ResultOk, client.subscribe(partitionedTopic, subName, consumerConfig, consumer));
-    PartitionedConsumerImplPtr partitionedConsumerImplPtr =
-        PulsarFriend::getPartitionedConsumerImplPtr(consumer);
+
+    MultiTopicsConsumerImplPtr partitionedConsumerImplPtr =
+        PulsarFriend::getMultiTopicsConsumerImplPtr(consumer);
     ASSERT_EQ(numPartitions, partitionedConsumerImplPtr->consumers_.size());
 
     // send messages
@@ -442,8 +442,10 @@ TEST(ConsumerTest, testPartitionedConsumerUnAckedMessageRedelivery) {
     ASSERT_EQ(numOfMessages, partitionedTracker->size());
     ASSERT_FALSE(partitionedTracker->isEmpty());
     for (auto i = 0; i < numPartitions; i++) {
+        auto topicName =
+            "persistent://public/default/" + partitionedTopic + "-partition-" + std::to_string(i);
         ASSERT_EQ(numOfMessages / numPartitions, messageIds[i].size());
-        auto subConsumerPtr = partitionedConsumerImplPtr->consumers_[i];
+        auto subConsumerPtr = partitionedConsumerImplPtr->consumers_.find(topicName).value();
         auto tracker =
             static_cast<UnAckedMessageTrackerEnabled*>(subConsumerPtr->unAckedMessageTrackerPtr_.get());
         ASSERT_EQ(0, tracker->size());
@@ -469,6 +471,77 @@ TEST(ConsumerTest, testPartitionedConsumerUnAckedMessageRedelivery) {
     Message msg;
     auto ret = consumer.receive(msg, 1000);
     ASSERT_EQ(ResultTimeout, ret) << "Received redundant message ID: " << msg.getMessageId();
+    consumer.close();
+    client.close();
+}
+
+TEST(ConsumerTest, testPartitionedConsumerUnexpectedAckTimeout) {
+    ClientConfiguration clientConfig;
+    clientConfig.setMessageListenerThreads(1);
+    Client client(lookupUrl, clientConfig);
+
+    const std::string partitionedTopic =
+        "testPartitionedConsumerUnexpectedAckTimeout" + std::to_string(time(nullptr));
+    std::string subName = "sub";
+    constexpr int numPartitions = 2;
+    constexpr int numOfMessages = 3;
+    constexpr int unAckedMessagesTimeoutMs = 10000;
+    constexpr int tickDurationInMs = 1000;
+    pulsar::Latch latch(numOfMessages);
+    std::vector<Message> messages;
+    std::mutex mtx;
+
+    int res =
+        makePutRequest(adminUrl + "admin/v2/persistent/public/default/" + partitionedTopic + "/partitions",
+                       std::to_string(numPartitions));
+    ASSERT_TRUE(res == 204 || res == 409) << "res: " << res;
+
+    Consumer consumer;
+    ConsumerConfiguration consumerConfig;
+    consumerConfig.setConsumerType(ConsumerShared);
+    consumerConfig.setUnAckedMessagesTimeoutMs(unAckedMessagesTimeoutMs);
+    consumerConfig.setTickDurationInMs(tickDurationInMs);
+    consumerConfig.setMessageListener([&](Consumer cons, const Message& msg) {
+        // acknowledge received messages immediately, so no ack timeout is expected
+        ASSERT_EQ(ResultOk, cons.acknowledge(msg.getMessageId()));
+        ASSERT_EQ(0, msg.getRedeliveryCount());
+
+        {
+            std::lock_guard<std::mutex> lock(mtx);
+            messages.emplace_back(msg);
+        }
+
+        if (latch.getCount() > 0) {
+            std::this_thread::sleep_for(
+                std::chrono::milliseconds(unAckedMessagesTimeoutMs + tickDurationInMs * 2));
+            latch.countdown();
+        }
+    });
+    ASSERT_EQ(ResultOk, client.subscribe(partitionedTopic, subName, consumerConfig, consumer));
+
+    // send messages
+    ProducerConfiguration producerConfig;
+    producerConfig.setBatchingEnabled(false);
+    producerConfig.setBlockIfQueueFull(true);
+    producerConfig.setPartitionsRoutingMode(ProducerConfiguration::UseSinglePartition);
+    Producer producer;
+    ASSERT_EQ(ResultOk, client.createProducer(partitionedTopic, producerConfig, producer));
+    std::string prefix = "message-";
+    for (int i = 0; i < numOfMessages; i++) {
+        std::string messageContent = prefix + std::to_string(i);
+        Message msg = MessageBuilder().setContent(messageContent).build();
+        ASSERT_EQ(ResultOk, producer.send(msg));
+    }
+    producer.close();
+
+    bool wasUnblocked = latch.wait(
+        std::chrono::milliseconds((unAckedMessagesTimeoutMs + tickDurationInMs * 2) * numOfMessages + 5000));
+    ASSERT_TRUE(wasUnblocked);
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(5000));
+    // messages are expected not to be redelivered
+    ASSERT_EQ(numOfMessages, messages.size());
+
     consumer.close();
     client.close();
 }
@@ -761,6 +834,38 @@ TEST(ConsumerTest, testPartitionsWithCloseUnblock) {
 
     ASSERT_TRUE(wasUnblocked);
     thread.join();
+}
+
+TEST(ConsumerTest, testGetLastMessageIdBlockWhenConnectionDisconnected) {
+    int operationTimeout = 5;
+    ClientConfiguration clientConfiguration;
+    clientConfiguration.setOperationTimeoutSeconds(operationTimeout);
+
+    Client client(lookupUrl, clientConfiguration);
+    const std::string topic =
+        "testGetLastMessageIdBlockWhenConnectionDisconnected-" + std::to_string(time(nullptr));
+
+    Consumer consumer;
+    ASSERT_EQ(ResultOk, client.subscribe(topic, "test-sub", consumer));
+
+    ConsumerImpl& consumerImpl = PulsarFriend::getConsumerImpl(consumer);
+    ClientConnectionWeakPtr conn = PulsarFriend::getClientConnection(consumerImpl);
+
+    PulsarFriend::setClientConnection(consumerImpl, std::weak_ptr<ClientConnection>());
+
+    pulsar::Latch latch(1);
+    auto start = TimeUtils::now();
+
+    consumerImpl.getLastMessageIdAsync([&latch](Result r, const GetLastMessageIdResponse&) -> void {
+        ASSERT_EQ(r, ResultNotConnected);
+        latch.countdown();
+    });
+
+    ASSERT_TRUE(latch.wait(std::chrono::seconds(20)));
+    auto elapsed = TimeUtils::now() - start;
+
+    // getLastMessageIdAsync should be blocked until operationTimeout when the connection is disconnected.
+    ASSERT_GE(elapsed.seconds(), operationTimeout);
 }
 
 }  // namespace pulsar

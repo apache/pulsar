@@ -197,7 +197,7 @@ The minimum configuration changes required in `conf/bookkeeper.conf` are as foll
 
 :::note
 
-Set `journalDirectory` and `ledgerDirectories` carefully. It is difficilt to change them later.
+Set `journalDirectory` and `ledgerDirectories` carefully. It is difficult to change them later.
 
 :::
 

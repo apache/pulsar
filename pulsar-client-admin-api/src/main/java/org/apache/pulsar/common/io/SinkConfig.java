@@ -91,4 +91,7 @@ public class SinkConfig {
     // to change behavior at runtime. Currently, this primarily used by the KubernetesManifestCustomizer
     // interface
     private String customRuntimeOptions;
+    private String transformFunction;
+    private String transformFunctionClassName;
+    private String transformFunctionConfig;
 }
