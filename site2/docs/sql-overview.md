@@ -15,3 +15,7 @@ The query performance is efficient and highly scalable, because Pulsar adopts [t
 Topics in Pulsar are stored as segments in [Apache BookKeeper](https://bookkeeper.apache.org/). Each topic segment is replicated to some BookKeeper nodes, which enables concurrent reads and high read throughput. In the Pulsar Trino connector, data is read directly from BookKeeper, so Trino workers can read concurrently from a horizontally scalable number of BookKeeper nodes.
 
 ![The Pulsar consumer and reader interfaces](/assets/pulsar-sql-arch-1.png)
+
+# Caveat
+
+If you're upgrading Pulsar SQL from 2.11 or early, you should copy config files from `conf/presto` to `trino/conf`. If you're downgrading Pulsar SQL to 2.11 or early from newer versions, do verse visa.
