@@ -26,10 +26,10 @@ import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap.Long
 
 public class InMemoryRedeliveryTracker implements RedeliveryTracker {
 
-    private ConcurrentLongLongPairHashMap trackerCache = new ConcurrentLongLongPairHashMap(256, 1);
+    protected ConcurrentLongLongPairHashMap trackerCache = new ConcurrentLongLongPairHashMap(256, 1);
 
     @Override
-    public int incrementAndGetRedeliveryCount(Position position) {
+    public int incrementAndGetRedeliveryCount(Position position, Consumer consumer) {
         PositionImpl positionImpl = (PositionImpl) position;
         LongPair count = trackerCache.get(positionImpl.getLedgerId(), positionImpl.getEntryId());
         int newCount = (int) (count != null ? count.first + 1 : 1);
@@ -45,15 +45,15 @@ public class InMemoryRedeliveryTracker implements RedeliveryTracker {
     }
 
     @Override
-    public void remove(Position position) {
+    public void remove(Position position, Position markDeletedPosition) {
         PositionImpl positionImpl = (PositionImpl) position;
         trackerCache.remove(positionImpl.getLedgerId(), positionImpl.getEntryId());
     }
 
     @Override
-    public void removeBatch(List<Position> positions) {
+    public void removeBatch(List<Position> positions, final Position markDeletedPosition) {
         if (positions != null) {
-            positions.forEach(this::remove);
+            positions.forEach(pos -> remove(pos, markDeletedPosition));
         }
     }
 

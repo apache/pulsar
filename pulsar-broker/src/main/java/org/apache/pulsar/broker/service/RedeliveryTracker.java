@@ -19,17 +19,30 @@
 package org.apache.pulsar.broker.service;
 
 import java.util.List;
+import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 
 public interface RedeliveryTracker {
 
-    int incrementAndGetRedeliveryCount(Position position);
+    int incrementAndGetRedeliveryCount(Position position, Consumer consumer);
 
     int getRedeliveryCount(Position position);
 
-    void remove(Position position);
+    void remove(Position position, Position markDeletedPosition);
 
-    void removeBatch(List<Position> positions);
+    void removeBatch(List<Position> positions, Position markDeletedPosition);
 
     void clear();
+
+    default boolean hasRedeliveredEntry(List<Entry> entries) {
+        for (Entry entry : entries) {
+            if (entry == null || entry.getPosition() == null || entry.getLedgerId() < 0 || entry.getEntryId() < 0) {
+                continue;
+            }
+            if (getRedeliveryCount(entry.getPosition()) > 0) {
+                return true;
+            }
+        }
+        return false;
+    }
 }

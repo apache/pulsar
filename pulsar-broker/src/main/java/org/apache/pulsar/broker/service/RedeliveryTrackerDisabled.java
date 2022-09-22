@@ -28,7 +28,7 @@ public class RedeliveryTrackerDisabled implements RedeliveryTracker {
     private RedeliveryTrackerDisabled() {}
 
     @Override
-    public int incrementAndGetRedeliveryCount(Position position) {
+    public int incrementAndGetRedeliveryCount(Position position, Consumer consumer) {
         return 0;
     }
 
@@ -38,12 +38,12 @@ public class RedeliveryTrackerDisabled implements RedeliveryTracker {
     }
 
     @Override
-    public void remove(Position position) {
+    public void remove(Position position, Position markDeletedPosition) {
         // no-op
     }
 
     @Override
-    public void removeBatch(List<Position> positions) {
+    public void removeBatch(List<Position> positions, Position markDeletedPosition) {
         // no-op
     }
 
