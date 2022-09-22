@@ -22,49 +22,36 @@ import io.prometheus.client.Collector;
 import io.prometheus.client.Collector.MetricFamilySamples;
 import io.prometheus.client.Collector.MetricFamilySamples.Sample;
 import io.prometheus.client.CollectorRegistry;
-import java.io.IOException;
-import java.io.Writer;
 import java.util.Enumeration;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
+import org.apache.pulsar.common.util.SimpleTextOutputStream;
 
 /**
  * Logic to write metrics in Prometheus text format.
  */
 public class PrometheusTextFormat {
-
-    Set<String> metricNameSet = new HashSet<>();
-
-    void writeGauge(Writer w, String name, SimpleGauge<? extends Number> gauge) {
+    public static void writeGauge(SimpleTextOutputStream w, String name, SimpleGauge<? extends Number> gauge) {
         // Example:
         // # TYPE bookie_storage_entries_count gauge
         // bookie_storage_entries_count 519
-        try {
-            writeType(w, name, "gauge");
-            w.append(name);
-            writeLabels(w, gauge.getLabels());
-            w.append(' ').append(gauge.getSample().toString()).append('\n');
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        w.write("# TYPE ").write(name).write(" gauge\n");
+        w.write(name);
+        writeLabels(w, gauge.getLabels());
+        w.write(' ').write(gauge.getSample().toString()).write('\n');
+
     }
 
-    void writeCounter(Writer w, String name, LongAdderCounter counter) {
+    public static void writeCounter(SimpleTextOutputStream w, String name, LongAdderCounter counter) {
         // Example:
         // # TYPE jvm_threads_started_total counter
         // jvm_threads_started_total 59
-        try {
-            writeType(w, name, "counter");
-            w.append(name);
-            writeLabels(w, counter.getLabels());
-            w.append(' ').append(counter.get().toString()).append('\n');
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        w.write("# TYPE ").write(name).write(" counter\n");
+        w.write(name);
+        writeLabels(w, counter.getLabels());
+        w.write(' ').write(counter.get().toString()).write('\n');
     }
 
-    void writeOpStat(Writer w, String name, DataSketchesOpStatsLogger opStat) {
+    public static void writeOpStat(SimpleTextOutputStream w, String name, DataSketchesOpStatsLogger opStat) {
         // Example:
         // # TYPE bookie_journal_JOURNAL_ADD_ENTRY summary
         // bookie_journal_JOURNAL_ADD_ENTRY{success="false",quantile="0.5",} NaN
@@ -85,98 +72,70 @@ public class PrometheusTextFormat {
         // bookie_journal_JOURNAL_ADD_ENTRY{success="true",quantile="1.0",} 10.902
         // bookie_journal_JOURNAL_ADD_ENTRY_count{success="true",} 658.0
         // bookie_journal_JOURNAL_ADD_ENTRY_sum{success="true",} 1265.0800000000002
-        try {
-            writeType(w, name, "summary");
-            writeQuantile(w, opStat, name, false, 0.5);
-            writeQuantile(w, opStat, name, false, 0.75);
-            writeQuantile(w, opStat, name, false, 0.95);
-            writeQuantile(w, opStat, name, false, 0.99);
-            writeQuantile(w, opStat, name, false, 0.999);
-            writeQuantile(w, opStat, name, false, 0.9999);
-            writeQuantile(w, opStat, name, false, 1.0);
-            writeCount(w, opStat, name, false);
-            writeSum(w, opStat, name, false);
+        w.write("# TYPE ").write(name).write(" summary\n");
+        writeQuantile(w, opStat, name, false, 0.5);
+        writeQuantile(w, opStat, name, false, 0.75);
+        writeQuantile(w, opStat, name, false, 0.95);
+        writeQuantile(w, opStat, name, false, 0.99);
+        writeQuantile(w, opStat, name, false, 0.999);
+        writeQuantile(w, opStat, name, false, 0.9999);
+        writeQuantile(w, opStat, name, false, 1.0);
+        writeCount(w, opStat, name, false);
+        writeSum(w, opStat, name, false);
 
-            writeQuantile(w, opStat, name, true, 0.5);
-            writeQuantile(w, opStat, name, true, 0.75);
-            writeQuantile(w, opStat, name, true, 0.95);
-            writeQuantile(w, opStat, name, true, 0.99);
-            writeQuantile(w, opStat, name, true, 0.999);
-            writeQuantile(w, opStat, name, true, 0.9999);
-            writeQuantile(w, opStat, name, true, 1.0);
-            writeCount(w, opStat, name, true);
-            writeSum(w, opStat, name, true);
-
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        writeQuantile(w, opStat, name, true, 0.5);
+        writeQuantile(w, opStat, name, true, 0.75);
+        writeQuantile(w, opStat, name, true, 0.95);
+        writeQuantile(w, opStat, name, true, 0.99);
+        writeQuantile(w, opStat, name, true, 0.999);
+        writeQuantile(w, opStat, name, true, 0.9999);
+        writeQuantile(w, opStat, name, true, 1.0);
+        writeCount(w, opStat, name, true);
+        writeSum(w, opStat, name, true);
     }
 
-    private void writeLabels(Writer w, Map<String, String> labels) throws IOException {
-        if (labels.isEmpty()) {
-            return;
-        }
-
-        w.append('{');
-        writeLabelsNoBraces(w, labels);
-        w.append('}');
-    }
-
-    private void writeLabelsNoBraces(Writer w, Map<String, String> labels) throws IOException {
-        if (labels.isEmpty()) {
-            return;
-        }
-
-        boolean isFirst = true;
-        for (Map.Entry<String, String> e : labels.entrySet()) {
-            if (!isFirst) {
-                w.append(',');
-            }
-            isFirst = false;
-            w.append(e.getKey())
-                    .append("=\"")
-                    .append(e.getValue())
-                    .append('"');
-        }
-    }
-
-    private void writeQuantile(Writer w, DataSketchesOpStatsLogger opStat, String name, Boolean success,
-                               double quantile) throws IOException {
-        w.append(name)
-                .append("{success=\"").append(success.toString())
-                .append("\",quantile=\"").append(Double.toString(quantile))
-                .append("\"");
+    private static void writeQuantile(SimpleTextOutputStream w, DataSketchesOpStatsLogger opStat, String name,
+                                      Boolean success, double quantile) {
+        w.write(name)
+                .write("{success=\"").write(success.toString())
+                .write("\",quantile=\"").write(Double.toString(quantile));
         if (!opStat.getLabels().isEmpty()) {
-            w.append(", ");
+            w.write("\", ");
             writeLabelsNoBraces(w, opStat.getLabels());
+        } else {
+            w.write("\"");
         }
-        w.append("} ")
-                .append(Double.toString(opStat.getQuantileValue(success, quantile))).append('\n');
+        w.write("} ")
+                .write(Double.toString(opStat.getQuantileValue(success, quantile))).write('\n');
     }
 
-    private void writeCount(Writer w, DataSketchesOpStatsLogger opStat, String name, Boolean success)
-            throws IOException {
-        w.append(name).append("_count{success=\"").append(success.toString()).append("\"");
+    private static void writeCount(SimpleTextOutputStream w, DataSketchesOpStatsLogger opStat, String name,
+                                   Boolean success) {
+        w.write(name).write("_count{success=\"").write(success.toString());
         if (!opStat.getLabels().isEmpty()) {
-            w.append(", ");
+            w.write("\", ");
             writeLabelsNoBraces(w, opStat.getLabels());
+        } else {
+            w.write("\"");
         }
-        w.append("} ")
-                .append(Long.toString(opStat.getCount(success))).append('\n');
+        w.write("} ")
+                .write(Long.toString(opStat.getCount(success))).write('\n');
     }
 
-    private void writeSum(Writer w, DataSketchesOpStatsLogger opStat, String name, Boolean success)
-            throws IOException {
-        w.append(name).append("_sum{success=\"").append(success.toString()).append("\"");
+    private static void writeSum(SimpleTextOutputStream w, DataSketchesOpStatsLogger opStat, String name,
+                                 Boolean success) {
+        w.write(name).write("_sum{success=\"").write(success.toString());
         if (!opStat.getLabels().isEmpty()) {
-            w.append(", ");
+            w.write("\", ");
             writeLabelsNoBraces(w, opStat.getLabels());
+        } else {
+            w.write("\"");
         }
-        w.append("} ")
-                .append(Double.toString(opStat.getSum(success))).append('\n');
+        w.write("} ")
+                .write(Double.toString(opStat.getSum(success))).write('\n');
     }
 
-    static void writeMetricsCollectedByPrometheusClient(Writer w, CollectorRegistry registry) throws IOException {
+    public static void writeMetricsCollectedByPrometheusClient(SimpleTextOutputStream w, CollectorRegistry registry) {
         Enumeration<MetricFamilySamples> metricFamilySamples = registry.metricFamilySamples();
         while (metricFamilySamples.hasMoreElements()) {
             MetricFamilySamples metricFamily = metricFamilySamples.nextElement();
@@ -202,12 +161,31 @@ public class PrometheusTextFormat {
         }
     }
 
-    void writeType(Writer w, String name, String type) throws IOException {
-        if (metricNameSet.contains(name)) {
+    private static void writeLabels(SimpleTextOutputStream w, Map<String, String> labels) {
+        if (labels.isEmpty()) {
             return;
         }
-        metricNameSet.add(name);
-        w.append("# TYPE ").append(name).append(" ").append(type).append("\n");
+
+        w.write('{');
+        writeLabelsNoBraces(w, labels);
+        w.write('}');
     }
 
+    private static void writeLabelsNoBraces(SimpleTextOutputStream w, Map<String, String> labels) {
+        if (labels.isEmpty()) {
+            return;
+        }
+
+        boolean isFirst = true;
+        for (Map.Entry<String, String> e : labels.entrySet()) {
+            if (!isFirst) {
+                w.write(',');
+            }
+            isFirst = false;
+            w.write(e.getKey())
+                    .write("=\"")
+                    .write(e.getValue())
+                    .write('"');
+        }
+    }
 }

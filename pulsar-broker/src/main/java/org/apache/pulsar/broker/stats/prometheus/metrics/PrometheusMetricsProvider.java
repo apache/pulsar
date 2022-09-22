@@ -18,10 +18,10 @@
  */
 package org.apache.pulsar.broker.stats.prometheus.metrics;
 
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.prometheus.client.Collector;
-import io.prometheus.client.CollectorRegistry;
 import java.io.IOException;
 import java.io.Writer;
 import java.util.Collections;
@@ -49,8 +49,9 @@ public class PrometheusMetricsProvider implements StatsProvider, PrometheusRawMe
     public static final String CLUSTER_NAME = "cluster";
     public static final String DEFAULT_CLUSTER_NAME = "pulsar";
 
-    private final CollectorRegistry registry;
     private Map<String, String> labels;
+    private final CachingStatsProvider cachingStatsProvider;
+
     /**
      * These acts a registry of the metrics defined in this provider.
      */
@@ -62,25 +63,46 @@ public class PrometheusMetricsProvider implements StatsProvider, PrometheusRawMe
     final ConcurrentMap<ScopeContext, ThreadScopedLongAdderCounter> threadScopedCounters =
         new ConcurrentHashMap<>();
 
-
     public PrometheusMetricsProvider() {
-        this(CollectorRegistry.defaultRegistry);
-    }
+        this.cachingStatsProvider = new CachingStatsProvider(new StatsProvider() {
+            @Override
+            public void start(Configuration conf) {
+                // nop
+            }
 
-    public PrometheusMetricsProvider(CollectorRegistry registry) {
-        this.registry = registry;
+            @Override
+            public void stop() {
+                // nop
+            }
+
+            @Override
+            public StatsLogger getStatsLogger(String scope) {
+                return new PrometheusStatsLogger(PrometheusMetricsProvider.this, scope, labels);
+            }
+
+            @Override
+            public String getStatsName(String... statsComponents) {
+                String completeName;
+                if (statsComponents.length == 0) {
+                    return "";
+                } else if (statsComponents[0].isEmpty()) {
+                    completeName = StringUtils.join(statsComponents, '_', 1, statsComponents.length);
+                } else {
+                    completeName = StringUtils.join(statsComponents, '_');
+                }
+                return Collector.sanitizeMetricName(completeName);
+            }
+        });
     }
 
     public void start(Configuration conf) {
-
         executor = Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("metrics"));
         int latencyRolloverSeconds = conf.getInt(PROMETHEUS_STATS_LATENCY_ROLLOVER_SECONDS,
                 DEFAULT_PROMETHEUS_STATS_LATENCY_ROLLOVER_SECONDS);
         labels = Collections.singletonMap(CLUSTER_NAME, conf.getString(CLUSTER_NAME, DEFAULT_CLUSTER_NAME));
 
-        executor.scheduleAtFixedRate(() -> {
-            rotateLatencyCollection();
-        }, 1, latencyRolloverSeconds, TimeUnit.SECONDS);
+        executor.scheduleAtFixedRate(catchingAndLoggingThrowables(this::rotateLatencyCollection),
+            1, latencyRolloverSeconds, TimeUnit.SECONDS);
 
     }
 
@@ -89,38 +111,24 @@ public class PrometheusMetricsProvider implements StatsProvider, PrometheusRawMe
     }
 
     public StatsLogger getStatsLogger(String scope) {
-        return new PrometheusStatsLogger(PrometheusMetricsProvider.this, scope, labels);
+        return cachingStatsProvider.getStatsLogger(scope);
     }
 
     @Override
     public void writeAllMetrics(Writer writer) throws IOException {
-        PrometheusTextFormat prometheusTextFormat = new PrometheusTextFormat();
-        PrometheusTextFormat.writeMetricsCollectedByPrometheusClient(writer, registry);
-
-        gauges.forEach((sc, gauge) -> prometheusTextFormat.writeGauge(writer, sc.getScope(), gauge));
-        counters.forEach((sc, counter) -> prometheusTextFormat.writeCounter(writer, sc.getScope(), counter));
-        opStats.forEach((sc, opStatLogger) ->
-            prometheusTextFormat.writeOpStat(writer, sc.getScope(), opStatLogger));
+        throw new UnsupportedOperationException("writeAllMetrics is not support yet");
     }
 
     @Override
     public void generate(SimpleTextOutputStream writer) {
-        gauges.forEach((sc, gauge) -> PrometheusTextFormatUtil.writeGauge(writer, sc.getScope(), gauge));
-        counters.forEach((sc, counter) -> PrometheusTextFormatUtil.writeCounter(writer, sc.getScope(), counter));
+        gauges.forEach((sc, gauge) -> PrometheusTextFormat.writeGauge(writer, sc.getScope(), gauge));
+        counters.forEach((sc, counter) -> PrometheusTextFormat.writeCounter(writer, sc.getScope(), counter));
         opStats.forEach((sc, opStatLogger) ->
-                PrometheusTextFormatUtil.writeOpStat(writer, sc.getScope(), opStatLogger));
+                PrometheusTextFormat.writeOpStat(writer, sc.getScope(), opStatLogger));
     }
 
     public String getStatsName(String... statsComponents) {
-        String completeName;
-        if (statsComponents.length == 0) {
-            return "";
-        } else if (statsComponents[0].isEmpty()) {
-            completeName = StringUtils.join(statsComponents, '_', 1, statsComponents.length);
-        } else {
-            completeName = StringUtils.join(statsComponents, '_');
-        }
-        return Collector.sanitizeMetricName(completeName);
+        return cachingStatsProvider.getStatsName(statsComponents);
     }
 
     @VisibleForTesting

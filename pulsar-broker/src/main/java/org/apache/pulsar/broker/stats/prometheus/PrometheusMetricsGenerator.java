@@ -31,8 +31,6 @@ import io.prometheus.client.Gauge.Child;
 import io.prometheus.client.hotspot.DefaultExports;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.io.StringWriter;
-import java.io.Writer;
 import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.Collections;
@@ -51,6 +49,7 @@ import org.apache.pulsar.broker.stats.WindowWrap;
 import org.apache.pulsar.broker.stats.metrics.ManagedCursorMetrics;
 import org.apache.pulsar.broker.stats.metrics.ManagedLedgerCacheMetrics;
 import org.apache.pulsar.broker.stats.metrics.ManagedLedgerMetrics;
+import org.apache.pulsar.broker.stats.prometheus.metrics.PrometheusMetricsProvider;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.DirectMemoryUtils;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
@@ -315,12 +314,6 @@ public class PrometheusMetricsGenerator {
             return;
         }
 
-        try {
-            Writer writer = new StringWriter();
-            statsProvider.writeAllMetrics(writer);
-            stream.write(writer.toString());
-        } catch (IOException e) {
-            // nop
-        }
+        ((PrometheusMetricsProvider) statsProvider).generate(stream);
     }
 }
