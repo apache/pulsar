@@ -76,7 +76,8 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
         // update synchronizer and register sync listener
         synchronizer = conf.getSynchronizer();
         registerSyncLister(Optional.ofNullable(synchronizer));
-        this.batchMetadataStoreStats = new BatchMetadataStoreStats(executor, this.readOps, this.writeOps);
+        this.batchMetadataStoreStats =
+                new BatchMetadataStoreStats(metadataStoreName, executor, this.readOps, this.writeOps);
     }
 
     @Override

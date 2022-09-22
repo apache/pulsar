@@ -24,39 +24,32 @@ import io.prometheus.client.Histogram;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.pulsar.metadata.impl.batching.MetadataOp;
 import org.jctools.queues.MessagePassingQueue;
 
 public final class BatchMetadataStoreStats implements AutoCloseable {
     private static final double[] BUCKETS = new double[]{1, 5, 10, 20, 50, 100, 200, 500, 1000};
-    private static final AtomicInteger COUNTER = new AtomicInteger(1);
-    private static final String LABEL_NAME = "name";
+    private static final String NAME = "name";
+    private static final String TYPE = "type";
+    private static final String OP_READ = "read";
+    private static final String OP_WRITE = "write";
 
-    private static final Gauge QUEUEING_READ_OPS = Gauge
-            .build("pulsar_batch_metadata_store_queueing_read", "-")
-            .labelNames(LABEL_NAME)
-            .register();
-    private static final Gauge QUEUEING_WRITE_OPS = Gauge
-            .build("pulsar_batch_metadata_store_queueing_write", "-")
-            .labelNames(LABEL_NAME)
+    private static final Gauge QUEUEING_OPS = Gauge
+            .build("pulsar_batch_metadata_store_queueing_ops", "-")
+            .labelNames(NAME, TYPE)
             .register();
     private static final Gauge EXECUTOR_QUEUE_SIZE = Gauge
             .build("pulsar_batch_metadata_store_executor_queue_size", "-")
-            .labelNames(LABEL_NAME)
+            .labelNames(NAME)
             .register();
-    private static final Counter READ_OPS_OVERFLOW = Counter
-            .build("pulsar_batch_metadata_store_read_overflow" , "-")
-            .labelNames(LABEL_NAME)
-            .register();
-    private static final Counter WRITE_OPS_OVERFLOW = Counter
-            .build("pulsar_batch_metadata_store_write_overflow" , "-")
-            .labelNames(LABEL_NAME)
+    private static final Counter OVERFLOW_OPS = Counter
+            .build("pulsar_batch_metadata_store_overflow_ops" , "-")
+            .labelNames(NAME, TYPE)
             .register();
     private static final Histogram BATCH_OPS_WAITING = Histogram
             .build("pulsar_batch_metadata_store_waiting", "-")
             .unit("ms")
-            .labelNames(LABEL_NAME)
+            .labelNames(NAME)
             .buckets(BUCKETS)
             .register();
 
@@ -70,8 +63,8 @@ public final class BatchMetadataStoreStats implements AutoCloseable {
     private final Counter.Child writeOpsOverflowChild;
     private final Histogram.Child batchOpsWaitingChild;
 
-    public BatchMetadataStoreStats(ExecutorService executor, MessagePassingQueue<MetadataOp> readOps,
-                                   MessagePassingQueue<MetadataOp> writeOps) {
+    public BatchMetadataStoreStats(String metadataStoreName, ExecutorService executor,
+                                   MessagePassingQueue<MetadataOp> readOps, MessagePassingQueue<MetadataOp> writeOps) {
         if (executor instanceof ThreadPoolExecutor tx) {
             this.executor = tx;
         } else {
@@ -79,22 +72,22 @@ public final class BatchMetadataStoreStats implements AutoCloseable {
         }
         this.readOps = readOps;
         this.writeOps = writeOps;
-        this.metadataStoreName = "metadata_store_" + COUNTER.getAndIncrement();
+        this.metadataStoreName = metadataStoreName;
 
 
-        QUEUEING_READ_OPS.setChild(new Gauge.Child() {
+        QUEUEING_OPS.setChild(new Gauge.Child() {
             @Override
             public double get() {
                 return BatchMetadataStoreStats.this.readOps.size();
             }
-        }, metadataStoreName);
+        }, metadataStoreName, OP_READ);
 
-        QUEUEING_WRITE_OPS.setChild(new Gauge.Child() {
+        QUEUEING_OPS.setChild(new Gauge.Child() {
             @Override
             public double get() {
                 return BatchMetadataStoreStats.this.writeOps.size();
             }
-        }, metadataStoreName);
+        }, metadataStoreName, OP_WRITE);
 
         EXECUTOR_QUEUE_SIZE.setChild(new Gauge.Child() {
             @Override
@@ -104,8 +97,8 @@ public final class BatchMetadataStoreStats implements AutoCloseable {
             }
         }, metadataStoreName);
 
-        this.readOpsOverflowChild = READ_OPS_OVERFLOW.labels(metadataStoreName);
-        this.writeOpsOverflowChild = WRITE_OPS_OVERFLOW.labels(metadataStoreName);
+        this.readOpsOverflowChild = OVERFLOW_OPS.labels(metadataStoreName, OP_READ);
+        this.writeOpsOverflowChild = OVERFLOW_OPS.labels(metadataStoreName, OP_WRITE);
         this.batchOpsWaitingChild = BATCH_OPS_WAITING.labels(metadataStoreName);
     }
 
@@ -124,12 +117,12 @@ public final class BatchMetadataStoreStats implements AutoCloseable {
     @Override
     public void close() throws Exception {
         if (closed.compareAndSet(false, true)) {
-            QUEUEING_READ_OPS.remove(this.metadataStoreName);
-            QUEUEING_WRITE_OPS.remove(this.metadataStoreName);
+            QUEUEING_OPS.remove(this.metadataStoreName, OP_READ);
+            QUEUEING_OPS.remove(this.metadataStoreName, OP_WRITE);
             EXECUTOR_QUEUE_SIZE.remove(this.metadataStoreName);
             BATCH_OPS_WAITING.remove(this.metadataStoreName);
-            READ_OPS_OVERFLOW.remove(this.metadataStoreName);
-            WRITE_OPS_OVERFLOW.remove(this.metadataStoreName);
+            OVERFLOW_OPS.remove(this.metadataStoreName, OP_READ);
+            OVERFLOW_OPS.remove(this.metadataStoreName, OP_WRITE);
         }
     }
 }
