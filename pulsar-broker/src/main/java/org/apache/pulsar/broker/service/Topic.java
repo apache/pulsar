@@ -245,6 +245,8 @@ public interface Topic {
 
     boolean isReplicated();
 
+    boolean isShadowReplicated();
+
     EntryFilters getEntryFiltersPolicy();
 
     Map<String, EntryFilterWithClassLoader> getEntryFilters();
@@ -258,6 +260,8 @@ public interface Topic {
     Subscription getSubscription(String subscription);
 
     ConcurrentOpenHashMap<String, ? extends Replicator> getReplicators();
+
+    ConcurrentOpenHashMap<String, ? extends Replicator> getShadowReplicators();
 
     TopicStatsImpl getStats(boolean getPreciseBacklog, boolean subscriptionBacklogSize,
                             boolean getEarliestTimeInBacklog);

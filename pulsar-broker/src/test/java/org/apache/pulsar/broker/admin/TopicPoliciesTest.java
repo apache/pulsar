@@ -130,7 +130,6 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
-        this.resetConfig();
     }
 
     @Test
