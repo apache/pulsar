@@ -299,7 +299,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
 
     @Test(timeOut = 10000)
     public void testNegativeAcksWithBatchAckEnabled() throws Exception {
-        stopBroker();
+        cleanup();
         conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
         setup();
         String topic = BrokerTestUtil.newUniqueName("testNegativeAcksWithBatchAckEnabled");

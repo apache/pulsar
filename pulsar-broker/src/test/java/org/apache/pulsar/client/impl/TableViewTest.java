@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
 
@@ -29,7 +33,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
@@ -42,6 +48,7 @@ import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
@@ -216,5 +223,58 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
 
         assertEquals(tv1.size(), 1);
         assertEquals(tv.get("key2"), "value2");
+    }
+
+    @DataProvider(name = "partitionedTopic")
+    public static Object[][] partitioned() {
+        return new Object[][] {{true}, {false}};
+    }
+
+    @Test(timeOut = 30 * 1000, dataProvider = "partitionedTopic")
+    public void testAck(boolean partitionedTopic) throws Exception {
+        String topic = null;
+        if (partitionedTopic) {
+            topic = "persistent://public/default/tableview-ack-test";
+            admin.topics().createPartitionedTopic(topic, 3);
+        } else {
+            topic = "persistent://public/default/tableview-no-partition-ack-test";
+            admin.topics().createNonPartitionedTopic(topic);
+        }
+
+        @Cleanup
+        TableView<String> tv1 = pulsarClient.newTableViewBuilder(Schema.STRING)
+                .topic(topic)
+                .autoUpdatePartitionsInterval(5, TimeUnit.SECONDS)
+                .create();
+
+        ConsumerBase consumerBase;
+        if (partitionedTopic) {
+            MultiTopicsReaderImpl<String> reader =
+                    ((CompletableFuture<MultiTopicsReaderImpl<String>>) FieldUtils
+                            .readDeclaredField(tv1, "reader", true)).get();
+            consumerBase = spy(reader.getMultiTopicsConsumer());
+            FieldUtils.writeDeclaredField(reader, "multiTopicsConsumer", consumerBase, true);
+        } else {
+            ReaderImpl<String> reader = ((CompletableFuture<ReaderImpl<String>>) FieldUtils
+                    .readDeclaredField(tv1, "reader", true)).get();
+            consumerBase = spy(reader.getConsumer());
+            FieldUtils.writeDeclaredField(reader, "consumer", consumerBase, true);
+        }
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+
+        int msgCount = 20;
+        for (int i = 0; i < msgCount; i++) {
+            producer.newMessage().key("key:" + i).value("value" + i).send();
+        }
+
+        Awaitility.await()
+                .pollInterval(1, TimeUnit.SECONDS)
+                .atMost(Duration.ofMillis(5000))
+                .untilAsserted(()
+                        -> verify(consumerBase, times(msgCount)).acknowledgeCumulativeAsync(any(MessageId.class)));
+
+
     }
 }

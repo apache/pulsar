@@ -38,6 +38,7 @@ import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.http.HttpStatus;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
@@ -80,13 +81,19 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-admin")
 public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
 
-    @BeforeMethod
     @Override
-    protected void setup() throws Exception {
+    protected ServiceConfiguration getDefaultConf() {
+        ServiceConfiguration conf = super.getDefaultConf();
         conf.setEnablePackagesManagement(true);
         conf.setPackagesManagementStorageProvider(MockedPackagesStorageProvider.class.getName());
         conf.setTransactionCoordinatorEnabled(true);
         conf.setTransactionBufferSnapshotMaxTransactionCount(1);
+        return conf;
+    }
+
+    @BeforeMethod
+    @Override
+    protected void setup() throws Exception {
         super.internalSetup();
         admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
@@ -566,9 +573,9 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
 
     @Test(timeOut = 20000)
     public void testTransactionNotEnabled() throws Exception {
-        stopBroker();
+        cleanup();
         conf.setTransactionCoordinatorEnabled(false);
-        super.internalSetup();
+        setup();
         try {
             admin.transactions().getCoordinatorInternalStats(1, false);
         } catch (PulsarAdminException ex) {

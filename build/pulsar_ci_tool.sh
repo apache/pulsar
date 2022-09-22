@@ -160,33 +160,34 @@ function ci_check_ready_to_test() {
     return 1
   fi
 
-  PR_JSON=$(jq '.pull_request' "${GITHUB_EVENT_PATH}")
+  PR_JSON_URL=$(jq -r '.pull_request.url' "${GITHUB_EVENT_PATH}")
+  echo "Refreshing $PR_JSON_URL..."
+  PR_JSON=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" "${PR_JSON_URL}")
 
-  # when re-running, the event doesn't get updated, fetch the PR JSON
-  if [[ $GITHUB_RUN_ATTEMPT -gt 1 ]]; then
-    PR_JSON_URL=$(jq -r '.pull_request.url' "${GITHUB_EVENT_PATH}")
-    echo "Refreshing $PR_JSON_URL..."
-    PR_JSON=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" "${PR_JSON_URL}")
-  fi
-
-  # check ready-to-test label
-  if printf "%s" "${PR_JSON}" | jq -e '.labels[] | .name | select(. == "ready-to-test")' &> /dev/null; then
-    echo "Found ready-to-test label."
-    return 0
+  if printf "%s" "${PR_JSON}" | jq -e '.draft | select(. == true)' &> /dev/null; then
+    echo "PR is draft."
+  elif ! ( printf "%s" "${PR_JSON}" | jq -e '.mergeable | select(. == true)' &> /dev/null ); then
+    echo "PR isn't mergeable."
   else
-    echo "There is no ready-to-test label on the PR."
-  fi
+    # check ready-to-test label
+    if printf "%s" "${PR_JSON}" | jq -e '.labels[] | .name | select(. == "ready-to-test")' &> /dev/null; then
+      echo "Found ready-to-test label."
+      return 0
+    else
+      echo "There is no ready-to-test label on the PR."
+    fi
 
-  # check if the PR has been approved
-  PR_NUM=$(jq -r '.pull_request.number' "${GITHUB_EVENT_PATH}")
-  REPO_FULL_NAME=$(jq -r '.repository.full_name' "${GITHUB_EVENT_PATH}")
-  REPO_NAME=$(basename "${REPO_FULL_NAME}")
-  REPO_OWNER=$(dirname "${REPO_FULL_NAME}")
-  # use graphql query to find out reviewDecision
-  PR_REVIEW_DECISION=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" -X POST -d '{"query": "query { repository(name: \"'${REPO_NAME}'\", owner: \"'${REPO_OWNER}'\") { pullRequest(number: '${PR_NUM}') { reviewDecision } } }"}' https://api.github.com/graphql |jq -r '.data.repository.pullRequest.reviewDecision')
-  echo "Review decision for PR #${PR_NUM} in repository ${REPO_OWNER}/${REPO_NAME} is ${PR_REVIEW_DECISION}"
-  if [[ "$PR_REVIEW_DECISION" == "APPROVED" ]]; then
-    return 0
+    # check if the PR has been approved
+    PR_NUM=$(jq -r '.pull_request.number' "${GITHUB_EVENT_PATH}")
+    REPO_FULL_NAME=$(jq -r '.repository.full_name' "${GITHUB_EVENT_PATH}")
+    REPO_NAME=$(basename "${REPO_FULL_NAME}")
+    REPO_OWNER=$(dirname "${REPO_FULL_NAME}")
+    # use graphql query to find out reviewDecision
+    PR_REVIEW_DECISION=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" -X POST -d '{"query": "query { repository(name: \"'${REPO_NAME}'\", owner: \"'${REPO_OWNER}'\") { pullRequest(number: '${PR_NUM}') { reviewDecision } } }"}' https://api.github.com/graphql |jq -r '.data.repository.pullRequest.reviewDecision')
+    echo "Review decision for PR #${PR_NUM} in repository ${REPO_OWNER}/${REPO_NAME} is ${PR_REVIEW_DECISION}"
+    if [[ "$PR_REVIEW_DECISION" == "APPROVED" ]]; then
+      return 0
+    fi
   fi
 
   FORK_REPO_URL=$(jq -r '.pull_request.head.repo.html_url' "$GITHUB_EVENT_PATH")
