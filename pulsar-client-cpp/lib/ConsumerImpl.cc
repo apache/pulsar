@@ -931,10 +931,7 @@ void ConsumerImpl::acknowledgeAsync(const MessageIdList& messageIdList, ResultCa
                                   callback, proto::CommandAck_AckType_Individual, messageIdList.size());
     // Currently not supported batch message id individual index ack.
     this->ackGroupingTrackerPtr_->addAcknowledgeList(messageIdList);
-    for (const auto& messageId : messageIdList) {
-        this->unAckedMessageTrackerPtr_->remove(messageId);
-        this->batchAcknowledgementTracker_.deleteAckedMessage(messageId, proto::CommandAck::Individual);
-    }
+    this->unAckedMessageTrackerPtr_->remove(messageIdList);
     cb(ResultOk);
 }
 

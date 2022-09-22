@@ -57,17 +57,20 @@ class PulsarFriend {
         return std::static_pointer_cast<ConsumerStatsImpl>(consumerImpl->consumerStatsBasePtr_);
     }
 
-    // just param is MultiTopicConsumerImpl
     static std::vector<ConsumerStatsImplPtr> getConsumerStatsPtrList(Consumer consumer) {
-        MultiTopicsConsumerImpl* multiTopicsConsumer =
-            static_cast<MultiTopicsConsumerImpl*>(consumer.impl_.get());
-        std::vector<ConsumerStatsImplPtr> consumerStatsList;
-        for (const auto& kv : multiTopicsConsumer->consumers_.toPairVector()) {
-            auto consumerStats =
-                std::static_pointer_cast<ConsumerStatsImpl>(kv.second->consumerStatsBasePtr_);
-            consumerStatsList.emplace_back(consumerStats);
+        if (MultiTopicsConsumerImpl* multiTopicsConsumer =
+                dynamic_cast<MultiTopicsConsumerImpl*>(consumer.impl_.get())) {
+            std::vector<ConsumerStatsImplPtr> consumerStatsList;
+            for (const auto& kv : multiTopicsConsumer->consumers_.toPairVector()) {
+                auto consumerStats =
+                    std::static_pointer_cast<ConsumerStatsImpl>(kv.second->consumerStatsBasePtr_);
+                consumerStatsList.emplace_back(consumerStats);
+            }
+            return consumerStatsList;
+
+        } else {
+            throw std::runtime_error("Consumer must is MultiTopicConsumer.");
         }
-        return consumerStatsList;
     }
 
     static ProducerImpl& getProducerImpl(Producer producer) {

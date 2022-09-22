@@ -578,32 +578,27 @@ void MultiTopicsConsumerImpl::acknowledgeAsync(const MessageIdList& messageIdLis
         return;
     }
 
-    std::map<std::string, MessageIdList> topicToMessageId;
+    std::unordered_map<std::string, MessageIdList> topicToMessageId;
     for (const MessageId& messageId : messageIdList) {
         auto topicName = messageId.getTopicName();
-        if (topicToMessageId.count(topicName) == 0) {
-            topicToMessageId.emplace(topicName, std::vector<MessageId>());
-        }
         topicToMessageId[topicName].emplace_back(messageId);
     }
 
-    std::shared_ptr<std::atomic<int>> needCallBack =
-        std::make_shared<std::atomic<int>>(topicToMessageId.size());
-    auto cb = [callback, needCallBack](Result result) {
+    auto needCallBack = std::make_shared<std::atomic<int>>(topicToMessageId.size());
+    Result res = ResultOk;
+    auto cb = [callback, needCallBack, &res](Result result) {
         if (result != ResultOk) {
-            callback(result);
+            res = result;
         }
         needCallBack->fetch_sub(1);
         if (needCallBack->load() == 0) {
-            callback(result);
+            callback(res);
         }
     };
     for (const auto& kv : topicToMessageId) {
         auto optConsumer = consumers_.find(kv.first);
         if (optConsumer.is_present()) {
-            for (const auto& msgId : kv.second) {
-                unAckedMessageTrackerPtr_->remove(msgId);
-            }
+            unAckedMessageTrackerPtr_->remove(kv.second);
             optConsumer.value()->acknowledgeAsync(kv.second, cb);
         } else {
             LOG_ERROR("Message of topic: " << kv.first << " not in unAckedMessageTracker");

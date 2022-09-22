@@ -39,7 +39,7 @@ void UnAckedMessageTrackerEnabled::timeoutHandler() {
 }
 
 void UnAckedMessageTrackerEnabled::timeoutHandlerHelper() {
-    std::unique_lock<std::mutex> acquire(lock_);
+    std::unique_lock<std::recursive_mutex> acquire(lock_);
     LOG_DEBUG("UnAckedMessageTrackerEnabled::timeoutHandlerHelper invoked for consumerPtr_ "
               << consumerReference_.getName().c_str());
 
@@ -90,7 +90,7 @@ UnAckedMessageTrackerEnabled::UnAckedMessageTrackerEnabled(long timeoutMs, long 
 }
 
 bool UnAckedMessageTrackerEnabled::add(const MessageId& msgId) {
-    std::lock_guard<std::mutex> acquire(lock_);
+    std::lock_guard<std::recursive_mutex> acquire(lock_);
     MessageId id(msgId.partition(), msgId.ledgerId(), msgId.entryId(), -1);
     if (messageIdPartitionMap.count(id) == 0) {
         std::set<MessageId>& partition = timePartitions.back();
@@ -102,12 +102,12 @@ bool UnAckedMessageTrackerEnabled::add(const MessageId& msgId) {
 }
 
 bool UnAckedMessageTrackerEnabled::isEmpty() {
-    std::lock_guard<std::mutex> acquire(lock_);
+    std::lock_guard<std::recursive_mutex> acquire(lock_);
     return messageIdPartitionMap.empty();
 }
 
 bool UnAckedMessageTrackerEnabled::remove(const MessageId& msgId) {
-    std::lock_guard<std::mutex> acquire(lock_);
+    std::lock_guard<std::recursive_mutex> acquire(lock_);
     MessageId id(msgId.partition(), msgId.ledgerId(), msgId.entryId(), -1);
     bool removed = false;
 
@@ -119,13 +119,20 @@ bool UnAckedMessageTrackerEnabled::remove(const MessageId& msgId) {
     return removed;
 }
 
+void UnAckedMessageTrackerEnabled::remove(const MessageIdList& msgIds) {
+    std::lock_guard<std::recursive_mutex> acquire(lock_);
+    for (const auto& msgId : msgIds) {
+        remove(msgId);
+    }
+}
+
 long UnAckedMessageTrackerEnabled::size() {
-    std::lock_guard<std::mutex> acquire(lock_);
+    std::lock_guard<std::recursive_mutex> acquire(lock_);
     return messageIdPartitionMap.size();
 }
 
 void UnAckedMessageTrackerEnabled::removeMessagesTill(const MessageId& msgId) {
-    std::lock_guard<std::mutex> acquire(lock_);
+    std::lock_guard<std::recursive_mutex> acquire(lock_);
     for (auto it = messageIdPartitionMap.begin(); it != messageIdPartitionMap.end();) {
         MessageId msgIdInMap = it->first;
         if (msgIdInMap <= msgId) {
@@ -139,7 +146,7 @@ void UnAckedMessageTrackerEnabled::removeMessagesTill(const MessageId& msgId) {
 
 // this is only for MultiTopicsConsumerImpl, when un-subscribe a single topic, should remove all it's message.
 void UnAckedMessageTrackerEnabled::removeTopicMessage(const std::string& topic) {
-    std::lock_guard<std::mutex> acquire(lock_);
+    std::lock_guard<std::recursive_mutex> acquire(lock_);
     for (auto it = messageIdPartitionMap.begin(); it != messageIdPartitionMap.end();) {
         MessageId msgIdInMap = it->first;
         if (msgIdInMap.getTopicName().compare(topic) == 0) {
@@ -152,7 +159,7 @@ void UnAckedMessageTrackerEnabled::removeTopicMessage(const std::string& topic) 
 }
 
 void UnAckedMessageTrackerEnabled::clear() {
-    std::lock_guard<std::mutex> acquire(lock_);
+    std::lock_guard<std::recursive_mutex> acquire(lock_);
     messageIdPartitionMap.clear();
     for (auto it = timePartitions.begin(); it != timePartitions.end(); it++) {
         it->clear();

@@ -38,6 +38,7 @@ class UnAckedMessageTrackerInterface {
     UnAckedMessageTrackerInterface() {}
     virtual bool add(const MessageId& m) = 0;
     virtual bool remove(const MessageId& m) = 0;
+    virtual void remove(const MessageIdList& msgIds) = 0;
     virtual void removeMessagesTill(const MessageId& msgId) = 0;
     virtual void clear() = 0;
     // this is only for MultiTopicsConsumerImpl, when un-subscribe a single topic, should remove all it's
