@@ -134,7 +134,7 @@ class PULSAR_PUBLIC Consumer {
      * batchReceiveAsync() should be called subsequently once callback gets completed with received message.
      * Else it creates <i> backlog of receive requests </i> in the application.
      * </p>
-     * @param BatchReceiveCallback will be completed when messages is available
+     * @param BatchReceiveCallback will be completed when messages are available.
      */
     void batchReceiveAsync(BatchReceiveCallback callback);
 

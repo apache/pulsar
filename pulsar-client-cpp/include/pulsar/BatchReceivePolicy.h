@@ -34,13 +34,13 @@ struct BatchReceivePolicyImpl;
  * timeout for waiting for enough messages for this batch.
  *
  * <p>This batch receive will be completed as long as any one of the
- * conditions(has enough number of messages, has enough of size of messages, wait timeout) is met.
+ * conditions(has enough number of messages, has enough size of messages, wait timeout) are met.
  *
  * <p>Examples:
  * 1.If set maxNumMessages = 10, maxSizeOfMessages = 1MB and without timeout, it
  * means {@link Consumer#batchReceive()} will always wait until there is enough messages.
  * 2.If set maxNumberOfMessages = 0, maxNumBytes = 0 and timeout = 100ms, it
- * means {@link Consumer#batchReceive()} will waiting for 100ms whether or not there is enough messages.
+ * means {@link Consumer#batchReceive()} will wait for 100ms no matter whether there are enough messages.
  *
  * <p>Note:
  * Must specify messages limitation(maxNumMessages, maxNumBytes) or wait timeout.
