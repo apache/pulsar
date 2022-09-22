@@ -18,15 +18,19 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.expectThrows;
 import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBuf;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import org.apache.bookkeeper.client.BKException;
@@ -385,6 +389,72 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
         } catch (ManagedLedgerFencedException e) {
             // ok
         }
+    }
+
+    @Test
+    public void recoverAfterZnodeVersionErrorWhileTrimming() throws Exception {
+        ManagedLedger ledger = factory.open("my_test_ledger_trim",
+                new ManagedLedgerConfig()
+                        .setMaxEntriesPerLedger(2));
+        ledger.addEntry("test".getBytes());
+        ledger.addEntry("test".getBytes());
+        ledger.addEntry("test".getBytes());
+
+        metadataStore.failConditional(new MetadataStoreException.BadVersionException("err"), (op, path) ->
+                path.equals("/managed-ledgers/my_test_ledger_trim")
+                        && op == FaultInjectionMetadataStore.OperationType.PUT
+        );
+
+        CompletableFuture<?> handle = new CompletableFuture<>();
+        ledger.trimConsumedLedgersInBackground(handle);
+        assertThat(expectThrows(ExecutionException.class, () -> handle.get()).getCause(),
+                instanceOf(ManagedLedgerException.BadVersionException.class));
+
+        assertEquals(ManagedLedgerImpl.State.Fenced, ((ManagedLedgerImpl) ledger).getState());
+
+        // if the task started after the ML moved to Fenced state, it must fail
+        CompletableFuture<?> handleAlreadyFenced = new CompletableFuture<>();
+        ledger.trimConsumedLedgersInBackground(handleAlreadyFenced);
+        assertThat(expectThrows(ExecutionException.class, () -> handleAlreadyFenced.get()).getCause(),
+                instanceOf(ManagedLedgerException.ManagedLedgerFencedException.class));
+
+        try {
+            ledger.addEntry("entry".getBytes());
+            fail("should fail");
+        } catch (ManagedLedgerFencedException e) {
+            assertEquals("Attempted to use a fenced managed ledger", e.getCause().getMessage());
+        }
+
+        assertFalse(factory.ledgers.isEmpty());
+        try {
+            ledger.close();
+        } catch (ManagedLedgerFencedException e) {
+            assertEquals("Attempted to use a fenced managed ledger", e.getCause().getMessage());
+        }
+
+        // verify that the ManagedLedger has been unregistered even if it was fenced
+        assertTrue(factory.ledgers.isEmpty());
+    }
+
+    @Test
+    public void badVersionErrorDuringTruncateLedger() throws Exception {
+        ManagedLedger ledger = factory.open("my_test_ledger_trim",
+                new ManagedLedgerConfig()
+                        .setMaxEntriesPerLedger(2));
+        ledger.addEntry("test".getBytes());
+        ledger.addEntry("test".getBytes());
+        ledger.addEntry("test".getBytes());
+
+        metadataStore.failConditional(new MetadataStoreException.BadVersionException("err"), (op, path) ->
+                path.equals("/managed-ledgers/my_test_ledger_trim")
+                        && op == FaultInjectionMetadataStore.OperationType.PUT
+        );
+
+        CompletableFuture<?> handle = ledger.asyncTruncate();
+        assertThat(expectThrows(ExecutionException.class, () -> handle.get()).getCause(),
+                instanceOf(ManagedLedgerException.BadVersionException.class));
+
+        assertEquals(ManagedLedgerImpl.State.Fenced, ((ManagedLedgerImpl) ledger).getState());
     }
 
     @Test
