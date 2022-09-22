@@ -204,6 +204,34 @@ for i := 0; i < 10; i++ {
 }
 ```
 
+#### How to use chunking in producer
+
+```go
+client, err := NewClient(pulsar.ClientOptions{
+	URL: serviceURL,
+})
+
+if err != nil {
+	log.Fatal(err)
+}
+defer client.Close()
+
+// The message chunking feature is OFF by default.
+// By default, producer chunks the large message based on max message size (maxMessageSize) configured at broker (eg: 5MB).
+// Client can also configure max chunked size using producer configuration ChunkMaxMessageSize.
+// Attention, to enable chunking, you need to disable batching (DisableBatching=true) concurrently.
+producer, err := client.CreateProducer(pulsar.ProducerOptions{
+  Topic:               "my-topic",
+  DisableBatching:     true,
+  EnableChunking:      true,
+})
+
+if err != nil {
+	log.Fatal(err)
+}
+defer producer.Close()
+```
+
 #### How to use schema interface in producer
 
 ```go
