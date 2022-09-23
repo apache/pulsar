@@ -88,7 +88,6 @@ brokerProxyAllowedIPAddresses=10.0.0.0/8
 
 Example: limiting by multiple host name patterns and multiple ip address ranges in a `proxy.conf` file for host deployment.
 ```properties
-```properties
 # require "broker" in host name
 brokerProxyAllowedHostNames=*broker*.localdomain,*broker*.otherdomain
 # limit target ip addresses to a specific network or range demonstrating multiple supported formats
