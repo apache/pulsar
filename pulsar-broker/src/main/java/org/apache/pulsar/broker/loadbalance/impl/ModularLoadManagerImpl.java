@@ -480,8 +480,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     }
 
     private void cleanupDeadBrokersData() {
-        if(pulsar.getLeaderElectionService() == null
-                || !pulsar.getLeaderElectionService().isLeader()){
+        if (pulsar.getLeaderElectionService() == null
+                || !pulsar.getLeaderElectionService().isLeader()) {
             return;
         }
         final Set<String> activeBrokers = getAvailableBrokers();
