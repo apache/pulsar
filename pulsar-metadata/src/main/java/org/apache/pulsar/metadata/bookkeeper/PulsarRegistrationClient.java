@@ -42,6 +42,7 @@ import org.apache.bookkeeper.versioning.Version;
 import org.apache.bookkeeper.versioning.Versioned;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
+import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
@@ -57,12 +58,14 @@ public class PulsarRegistrationClient implements RegistrationClient {
 
     private final Map<RegistrationListener, Boolean> writableBookiesWatchers = new ConcurrentHashMap<>();
     private final Map<RegistrationListener, Boolean> readOnlyBookiesWatchers = new ConcurrentHashMap<>();
+    private final MetadataCache<BookieServiceInfo> bookieServiceInfoMetadataCache;
     private final ScheduledExecutorService executor;
 
     public PulsarRegistrationClient(MetadataStore store,
                                     String ledgersRootPath) {
         this.store = store;
         this.ledgersRootPath = ledgersRootPath;
+        this.bookieServiceInfoMetadataCache = store.getMetadataCache(BookieServiceInfoSerde.INSTANCE);
 
         // Following Bookie Network Address Changes is an expensive operation
         // as it requires additional ZooKeeper watches
@@ -165,19 +168,12 @@ public class PulsarRegistrationClient implements RegistrationClient {
     @Override
     public CompletableFuture<Versioned<BookieServiceInfo>> getBookieServiceInfo(BookieId bookieId) {
         String asWritable = bookieRegistrationPath + "/" + bookieId;
-        return store.get(asWritable)
-                .thenCompose((Optional<GetResult> getResult) -> {
+
+        return bookieServiceInfoMetadataCache.get(asWritable)
+                .thenCompose((Optional<BookieServiceInfo> getResult) -> {
                     if (getResult.isPresent()) {
-                        try {
-                            BookieServiceInfo deserialize = BookieServiceInfoSerde.INSTANCE
-                                    .deserialize(asWritable,
-                                            getResult.get().getValue(),
-                                            getResult.get().getStat());
-                            return CompletableFuture.completedFuture(new Versioned<>(deserialize,
-                                    new LongVersion(getResult.get().getStat().getVersion())));
-                        } catch (IOException err) {
-                            return FutureUtil.failedFuture(err);
-                        }
+                        return CompletableFuture.completedFuture(new Versioned<>(getResult.get(),
+                                    new LongVersion(-1)));
                     } else {
                         return readBookieInfoAsReadonlyBookie(bookieId);
                     }
@@ -187,19 +183,10 @@ public class PulsarRegistrationClient implements RegistrationClient {
 
     final CompletableFuture<Versioned<BookieServiceInfo>> readBookieInfoAsReadonlyBookie(BookieId bookieId) {
         String asReadonly = bookieReadonlyRegistrationPath + "/" + bookieId;
-        return store.get(asReadonly)
-                .thenApply((Optional<GetResult> getResultAsReadOnly) -> {
+        return bookieServiceInfoMetadataCache.get(asReadonly)
+                .thenApply((Optional<BookieServiceInfo> getResultAsReadOnly) -> {
                     if (getResultAsReadOnly.isPresent()) {
-                        try {
-                            BookieServiceInfo deserialize = BookieServiceInfoSerde.INSTANCE
-                                    .deserialize(asReadonly,
-                                            getResultAsReadOnly.get().getValue(),
-                                            getResultAsReadOnly.get().getStat());
-                            return new Versioned<>(deserialize,
-                                    new LongVersion(getResultAsReadOnly.get().getStat().getVersion()));
-                        } catch (IOException err) {
-                            throw new CompletionException(err);
-                        }
+                        return new Versioned<>(getResultAsReadOnly.get(), new LongVersion(-1));
                     } else {
                         throw new CompletionException(new BKException.BKBookieHandleNotAvailableException());
                     }
