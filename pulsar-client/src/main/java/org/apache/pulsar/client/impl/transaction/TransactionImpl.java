@@ -134,16 +134,22 @@ public class TransactionImpl implements Transaction , TimerTask {
 
     public void registerSendOp(CompletableFuture<MessageId> newSendFuture) {
         sendLock.lock();
-        if (sendCount.getAndIncrement() == 0) {
-            sendFuture = new CompletableFuture<>();
+        try {
+            if (sendCount.getAndIncrement() == 0) {
+                sendFuture = new CompletableFuture<>();
+            }
+        } finally {
+            sendLock.unlock();
         }
-        sendLock.unlock();
         newSendFuture.thenRun(() -> {
             sendLock.lock();
-            if (sendCount.decrementAndGet() == 0) {
-                sendFuture.complete(null);
+            try {
+                if (sendCount.decrementAndGet() == 0) {
+                    sendFuture.complete(null);
+                }
+            } finally {
+                sendLock.unlock();
             }
-            sendLock.unlock();
         });
     }
 
@@ -169,16 +175,22 @@ public class TransactionImpl implements Transaction , TimerTask {
 
     public void registerAckOp(CompletableFuture<Void> newAckFuture) {
         ackLock.lock();
-        if (ackCount.getAndIncrement() == 0) {
-            ackFuture = new CompletableFuture<>();
+        try {
+            if (ackCount.getAndIncrement() == 0) {
+                ackFuture = new CompletableFuture<>();
+            }
+        } finally {
+            ackLock.unlock();
         }
-        ackLock.unlock();
         newAckFuture.thenRun(() -> {
             ackLock.lock();
-            if (ackCount.decrementAndGet() == 0) {
-                ackFuture.complete(null);
+            try {
+                if (ackCount.decrementAndGet() == 0) {
+                    ackFuture.complete(null);
+                }
+            } finally {
+                ackLock.unlock();
             }
-            ackLock.unlock();
         });
     }
 
