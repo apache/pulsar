@@ -44,6 +44,7 @@ public class LinuxInfoUtils {
     private static final String CGROUPS_CPU_USAGE_PATH = "/sys/fs/cgroup/cpu/cpuacct.usage";
     private static final String CGROUPS_CPU_LIMIT_QUOTA_PATH = "/sys/fs/cgroup/cpu/cpu.cfs_quota_us";
     private static final String CGROUPS_CPU_LIMIT_PERIOD_PATH = "/sys/fs/cgroup/cpu/cpu.cfs_period_us";
+    private static final String CGROUPS_CPU_USAGE_PER_CPU_PATH = "/sys/fs/cgroup/cpu/cpuacct.usage_percpu";
     // proc states
     private static final String PROC_STAT_PATH = "/proc/stat";
     private static final String NIC_PATH = "/sys/class/net/";
@@ -85,6 +86,8 @@ public class LinuxInfoUtils {
                 if (quota > 0) {
                     return 100.0 * quota / period;
                 }
+                int cpuCount = readTrimStringFromFile(Paths.get(CGROUPS_CPU_USAGE_PER_CPU_PATH)).split(" ").length;
+                return cpuCount * 100;
             } catch (IOException e) {
                 log.warn("[LinuxInfo] Failed to read CPU quotas from cgroups", e);
                 // Fallback to availableProcessors
