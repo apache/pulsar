@@ -1355,7 +1355,7 @@ admin.namespaces().removeDeduplicationSnapshotInterval(namespace)
 
 ### Namespace isolation
 
-You can use the [Pulsar isolation policy](administration-isolation) to allocate resources (broker and bookie) for a namespace. 
+You can use the [Pulsar isolation policy](administration-isolation.md) to allocate resources (broker and bookie) for a namespace. 
 
 ### Unload namespaces from a broker
 

@@ -42,7 +42,7 @@ $ wget pulsar:binary_release_url
 
 ## Deploying a new cluster
 
-Please note that the [Getting Started](sql-getting-started) guide shows you how to easily setup a standalone single node environment to experiment with.
+Please note that the [Getting Started](sql-getting-started.md) guide shows you how to easily setup a standalone single node environment to experiment with.
 
 Pulsar SQL is powered by [Presto](https://prestosql.io) thus many of the configurations for deployment is the same for the Pulsar SQL worker.
 

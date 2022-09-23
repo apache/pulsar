@@ -2093,6 +2093,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_LOAD_BALANCER,
+            doc = "When [current usage < average usage - threshold], "
+                    + "the broker with the highest load will be triggered to unload"
+    )
+    private boolean lowerBoundarySheddingEnabled = false;
+
+    @FieldContext(
+            category = CATEGORY_LOAD_BALANCER,
             doc = "load balance placement strategy"
     )
     private String loadBalancerLoadPlacementStrategy =

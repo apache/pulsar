@@ -372,7 +372,7 @@ For complete examples, refer to [C++ client examples](https://github.com/apache/
 
 ## Schema
 
-This section describes some examples about schema. For more information about schema, see [Pulsar schema](schema-get-started).
+This section describes some examples about schema. For more information about schema, see [Pulsar schema](schema-get-started.md).
 
 ### Create producer with Avro schema
 
