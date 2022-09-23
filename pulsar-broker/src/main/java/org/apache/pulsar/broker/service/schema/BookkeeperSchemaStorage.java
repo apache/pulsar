@@ -437,11 +437,14 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
         byte[] data
     ) {
         SchemaStorageFormat.SchemaEntry schemaEntry = newSchemaEntry(index, data);
-        return createLedger(schemaId).thenCompose(ledgerHandle ->
-            addEntry(ledgerHandle, schemaEntry).thenApply(entryId ->
-                Functions.newPositionInfo(ledgerHandle.getId(), entryId)
-            )
-        );
+        return createLedger(schemaId).thenCompose(ledgerHandle -> {
+            final long ledgerId = ledgerHandle.getId();
+            return addEntry(ledgerHandle, schemaEntry)
+                    .thenApply(entryId -> {
+                        ledgerHandle.closeAsync();
+                        return Functions.newPositionInfo(ledgerId, entryId);
+                    });
+        });
     }
 
     @NotNull

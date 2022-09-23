@@ -76,7 +76,7 @@ public class MongoSinkTest {
     @BeforeMethod
     public void setUp() {
 
-        map = TestHelper.createMap(true);
+        map = TestHelper.createCommonConfigMap();
 
         mockRecord = mock(Record.class);
         mockSinkContext = mock(SinkContext.class);

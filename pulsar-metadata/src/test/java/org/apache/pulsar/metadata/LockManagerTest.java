@@ -20,6 +20,8 @@ package org.apache.pulsar.metadata;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -29,6 +31,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import lombok.Cleanup;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -291,6 +294,62 @@ public class LockManagerTest extends BaseMetadataStoreTest {
             // On 'store1' we might see for a short amount of time an empty result still cached while the lock is
             // being reacquired.
             assertEquals(new String(store1.get(path2).join().get().getValue()), "\"value-1\"");
+        });
+    }
+
+    @Test(dataProvider = "impl")
+    public void testCleanUpStateWhenRevalidationGotLockBusy(String provider, Supplier<String> urlSupplier)
+            throws Exception {
+
+        if (provider.equals("Memory") || provider.equals("RocksDB")) {
+            // Local memory provider doesn't really have the concept of multiple sessions
+            return;
+        }
+
+        @Cleanup
+        MetadataStoreExtended store1 = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().build());
+        @Cleanup
+        MetadataStoreExtended store2 = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().build());
+
+        @Cleanup
+        CoordinationService cs1 = new CoordinationServiceImpl(store1);
+        @Cleanup
+        LockManager<String> lm1 = cs1.getLockManager(String.class);
+
+        @Cleanup
+        CoordinationService cs2 = new CoordinationServiceImpl(store2);
+        @Cleanup
+        LockManager<String> lm2 = cs2.getLockManager(String.class);
+
+        String path1 = newKey();
+
+        ResourceLock<String> lock1 = lm1.acquireLock(path1, "value-1").join();
+        AtomicReference<ResourceLock<String>> lock2 = new AtomicReference<>();
+        // lock 2 will steal the distributed lock first.
+        Awaitility.await().until(()-> {
+            // Ensure steal the lock success.
+            try {
+                lock2.set(lm2.acquireLock(path1, "value-1").join());
+                return true;
+            } catch (Exception ex) {
+                return false;
+            }
+        });
+
+        // Since we can steal the lock repeatedly, we don't know which one will get it.
+        // But we can verify the final state.
+        Awaitility.await().untilAsserted(() -> {
+            if (lock1.getLockExpiredFuture().isDone()) {
+                assertTrue(lm1.listLocks(path1).join().isEmpty());
+                assertFalse(lock2.get().getLockExpiredFuture().isDone());
+            } else if (lock2.get().getLockExpiredFuture().isDone()) {
+                assertTrue(lm2.listLocks(path1).join().isEmpty());
+                assertFalse(lock1.getLockExpiredFuture().isDone());
+            } else {
+                fail("unexpected behaviour");
+            }
         });
     }
 }

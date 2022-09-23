@@ -28,7 +28,7 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
-public class TlsHostVerification extends TlsProducerConsumerBase {
+public class TlsHostVerificationTest extends TlsProducerConsumerBase {
 
     @Test
     public void testTlsHostVerificationAdminClient() throws Exception {

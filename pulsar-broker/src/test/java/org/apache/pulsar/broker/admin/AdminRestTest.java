@@ -103,7 +103,6 @@ public class AdminRestTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
-        resetConfig();
         super.internalSetup();
         // Create tenant, namespace, topic
         admin.clusters().createCluster(clusterName, ClusterData.builder().serviceUrl(brokerUrl.toString()).build());

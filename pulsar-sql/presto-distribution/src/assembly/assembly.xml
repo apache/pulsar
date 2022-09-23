@@ -46,6 +46,10 @@
             <directory>${basedir}/../presto-pulsar-plugin/target/pulsar-presto-connector/</directory>
             <outputDirectory>plugin/</outputDirectory>
         </fileSet>
+        <fileSet>
+            <directory>${basedir}/src/main/resources/conf/</directory>
+            <outputDirectory>conf/</outputDirectory>
+        </fileSet>
     </fileSets>
     <dependencySets>
         <dependencySet>

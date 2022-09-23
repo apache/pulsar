@@ -128,6 +128,7 @@ class MultiTopicsConsumerImpl : public ConsumerImplBase,
     void internalListener(Consumer consumer);
     void receiveMessages();
     void failPendingReceiveCallback();
+    void notifyPendingReceivedCallback(Result result, Message& message, const ReceiveCallback& callback);
 
     void handleOneTopicSubscribed(Result result, Consumer consumer, const std::string& topic,
                                   std::shared_ptr<std::atomic<int>> topicsNeedCreate);

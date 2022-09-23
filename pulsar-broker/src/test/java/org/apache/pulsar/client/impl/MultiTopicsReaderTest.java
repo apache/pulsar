@@ -61,6 +61,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
+import org.testng.AssertJUnit;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -624,6 +625,29 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
         }
 
     }
+
+    @Test
+    void shouldSupportCancellingReadNextAsync() throws Exception {
+        String topic = "persistent://my-property/my-ns/my-reader-topic" + UUID.randomUUID();
+        admin.topics().createPartitionedTopic(topic, 3);
+        MultiTopicsReaderImpl<byte[]> reader = (MultiTopicsReaderImpl<byte[]>) pulsarClient.newReader()
+                .topic(topic)
+                .startMessageId(MessageId.earliest)
+                .readerName(subscription)
+                .create();
+        // given
+        CompletableFuture<Message<byte[]>> future = reader.readNextAsync();
+        Awaitility.await().untilAsserted(() -> {
+            AssertJUnit.assertTrue(reader.getMultiTopicsConsumer().hasNextPendingReceive());
+        });
+
+        // when
+        future.cancel(false);
+
+        // then
+        AssertJUnit.assertFalse(reader.getMultiTopicsConsumer().hasNextPendingReceive());
+    }
+
 
     private void testReadMessages(String topic, boolean enableBatch) throws Exception {
         int numKeys = 9;

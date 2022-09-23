@@ -173,26 +173,21 @@ public class FunctionsBase extends AdminResource {
                             value = {
                                 @ExampleProperty(
                                     mediaType = MediaType.TEXT_PLAIN,
-                                    value = " Example \n"
-                                            + "\n"
-                                            + " 1. Create a JSON object. \n"
-                                            + "\n"
-                                            + "{\n"
-                                            + "\t\"inputs\": \"persistent://public/default/input-topic\",\n"
-                                            + "\t\"parallelism\": \"4\",\n"
-                                            + "\t\"output\": \"persistent://public/default/output-topic\",\n"
-                                            + "\t\"log-topic\": \"persistent://public/default/log-topic\",\n"
-                                            + "\t\"classname\": \"org.example.test.ExclamationFunction\",\n"
-                                            + "\t\"jar\": \"java-function-1.0-SNAPSHOT.jar\"\n"
-                                            + "}\n"
-                                            + "\n"
-                                            + "\n"
-                                            + "2. Encapsulate the JSON object to a multipart object (in Python). \n"
-                                            + "\n"
-                                            + "from requests_toolbelt.multipart.encoder import MultipartEncoder \n"
-                                            + "mp_encoder = MultipartEncoder( \n"
-                                            + "\t[('functionConfig', "
-                                            + "(None, json.dumps(config), 'application/json'))])\n"
+                                        value = """
+                                            Examples
+                                            1. Create a JSON object
+                                             {
+                                               "inputs": "persistent://public/default/input-topic",
+                                               "parallelism": "4",
+                                               "output": "persistent://public/default/output-topic",
+                                               "log-topic": "persistent://public/default/log-topic",
+                                               "classname": "org.example.test.ExclamationFunction",
+                                               "jar": "java-function-1.0-SNAPSHOT.jar"
+                                             }
+                                            2. Encapsulate the JSON object to a multipart object (in Python)
+                                            from requests_toolbelt.multipart.encoder import MultipartEncoders
+                                            mp_encoder = MultipartEncoder([('functionConfig',(None, json.dumps(config),\
+                                             'application/json'))])"""
                                 )
                             }
                     )
@@ -309,14 +304,16 @@ public class FunctionsBase extends AdminResource {
                     examples = @Example(
                             value = @ExampleProperty(
                                     mediaType = MediaType.APPLICATION_JSON,
-                                    value = "{\n"
-                                            + "  \"inputs\": persistent://public/default/input-topic,\n"
-                                            + "  \"parallelism\": 4\n"
-                                            + "  \"output\": persistent://public/default/output-topic\n"
-                                            + "  \"log-topic\": persistent://public/default/log-topic\n"
-                                            + "  \"classname\": org.example.test.ExclamationFunction\n"
-                                            + "  \"jar\": java-function-1.0-SNAPSHOT.jar\n"
-                                            + "}\n"
+                                    value = """
+                                            {
+                                              "inputs": "persistent://public/default/input-topic",
+                                              "parallelism": 4,
+                                              "output": "persistent://public/default/output-topic",
+                                              "log-topic": "persistent://public/default/log-topic",
+                                              "classname": "org.example.test.ExclamationFunction",
+                                              "jar": "java-function-1.0-SNAPSHOT.jar"
+                                            }
+                                            """
                             )
                     )
             )

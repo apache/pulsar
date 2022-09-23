@@ -46,6 +46,13 @@
     </dependency>
 
     <dependency>
+      <groupId>org.apache.pulsar</groupId>
+      <artifactId>pulsar-broker-common</artifactId>
+      <version>${project.parent.version}</version>
+      <scope>compile</scope>
+    </dependency>
+
+    <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>bouncy-castle-bc</artifactId>
       <version>${project.parent.version}</version>

@@ -20,6 +20,7 @@ package org.apache.pulsar.client.api.v1;
 
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
@@ -47,8 +48,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
+import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.cache.EntryCache;
+import org.apache.bookkeeper.mledger.impl.cache.EntryCacheManager;
+import org.apache.commons.lang3.reflect.FieldUtils;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -71,7 +76,6 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
-import org.powermock.reflect.Whitebox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -608,6 +612,20 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
         }
     }
 
+    @Override
+    protected void beforePulsarStartMocks(PulsarService pulsar) throws Exception {
+        super.beforePulsarStartMocks(pulsar);
+        doAnswer(i0 -> {
+            ManagedLedgerFactory factory = (ManagedLedgerFactory) spy(i0.callRealMethod());
+            doAnswer(i1 -> {
+                EntryCacheManager manager = (EntryCacheManager) spy(i1.callRealMethod());
+                doAnswer(i2 -> spy(i2.callRealMethod())).when(manager).getEntryCache(any());
+                return manager;
+            }).when(factory).getEntryCacheManager();
+            return factory;
+        }).when(pulsar).getManagedLedgerFactory();
+    }
+
     /**
      * Usecase 1: Only 1 Active Subscription - 1 subscriber - Produce Messages - EntryCache should cache messages -
      * EntryCache should be cleaned : Once active subscription consumes messages
@@ -648,10 +666,9 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).get();
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) topicRef.getManagedLedger();
 
-        EntryCache entryCache = spy((EntryCache) Whitebox.getInternalState(ledger, "entryCache"));
-        Whitebox.setInternalState(ledger, "entryCache", entryCache);
+        EntryCache entryCache = (EntryCache) FieldUtils.readField(ledger, "entryCache", true);
 
-        Message<byte[]>msg = null;
+        Message<byte[]> msg = null;
         // 2. Produce messages
         for (int i = 0; i < 30; i++) {
             String message = "my-message-" + i;
