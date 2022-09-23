@@ -28,7 +28,7 @@
     </suppress>
     <suppress>
         <notes>Suppress all pulsar-presto-distribution vulnerabilities</notes>
-        <filePath regex="true">.*pulsar-presto-distribution-.*</filePath>
+        <filePath regex="true">.*pulsar-presto-distribution.*</filePath>
         <vulnerabilityName regex="true">.*</vulnerabilityName>
     </suppress>
     <suppress>
