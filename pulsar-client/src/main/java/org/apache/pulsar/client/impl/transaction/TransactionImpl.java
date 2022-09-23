@@ -27,7 +27,10 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
@@ -63,6 +66,12 @@ public class TransactionImpl implements Transaction , TimerTask {
 
     private CompletableFuture<MessageId> sendFuture;
     private CompletableFuture<Void> ackFuture;
+
+    private AtomicLong ackCount = new AtomicLong(0);
+    private Lock ackLock = new ReentrantLock();
+    private AtomicLong sendCount = new AtomicLong(0);
+    private Lock sendLock = new ReentrantLock();
+
     private volatile State state;
     private static final AtomicReferenceFieldUpdater<TransactionImpl, State> STATE_UPDATE =
         AtomicReferenceFieldUpdater.newUpdater(TransactionImpl.class, State.class, "state");
@@ -123,8 +132,19 @@ public class TransactionImpl implements Transaction , TimerTask {
         return completableFuture;
     }
 
-    public synchronized void registerSendOp(CompletableFuture<MessageId> newSendFuture) {
-        sendFuture = sendFuture.thenCompose(ignore -> newSendFuture);
+    public void registerSendOp(CompletableFuture<MessageId> newSendFuture) {
+        sendLock.lock();
+        if (sendCount.getAndIncrement() == 0) {
+            sendFuture = new CompletableFuture<>();
+        }
+        sendLock.unlock();
+        newSendFuture.thenRun(() -> {
+            sendLock.lock();
+            if (sendCount.decrementAndGet() == 0) {
+                sendFuture.complete(null);
+            }
+            sendLock.unlock();
+        });
     }
 
     // register the topics that will be modified by this transaction
@@ -147,8 +167,19 @@ public class TransactionImpl implements Transaction , TimerTask {
         return completableFuture;
     }
 
-    public synchronized void registerAckOp(CompletableFuture<Void> newAckFuture) {
-        ackFuture = ackFuture.thenCompose(ignore -> newAckFuture);
+    public void registerAckOp(CompletableFuture<Void> newAckFuture) {
+        ackLock.lock();
+        if (ackCount.getAndIncrement() == 0) {
+            ackFuture = new CompletableFuture<>();
+        }
+        ackLock.unlock();
+        newAckFuture.thenRun(() -> {
+            ackLock.lock();
+            if (ackCount.decrementAndGet() == 0) {
+                ackFuture.complete(null);
+            }
+            ackLock.unlock();
+        });
     }
 
     @Override
