@@ -48,7 +48,6 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
     protected void cleanup() throws Exception {
         super.internalCleanup();
         useStaticPorts = false;
-        resetConfig();
     }
 
     @Override
@@ -105,6 +104,7 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testAdvertisedAddress() throws Exception {
+        cleanup();
         useStaticPorts = true;
         setup();
         assertEquals(pulsar.getAdvertisedAddress(), "localhost");
@@ -117,6 +117,7 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testAdvertisedListeners() throws Exception {
+        cleanup();
         // don't use dynamic ports when using advertised listeners (#12079)
         useStaticPorts = true;
         conf.setAdvertisedListeners("internal:pulsar://gateway:6650, internal:pulsar+ssl://gateway:6651");
@@ -132,6 +133,7 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testDynamicBrokerPort() throws Exception {
+        cleanup();
         useStaticPorts = false;
         setup();
         assertEquals(pulsar.getAdvertisedAddress(), "localhost");

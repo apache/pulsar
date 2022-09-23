@@ -579,7 +579,7 @@ private void receiveMessageFromConsumer(Object consumer) {
 
 ### Subscription modes
 
-Pulsar has various [subscription modes](concepts-messaging#subscription-modes) to match different scenarios. A topic can have multiple subscriptions with different subscription modes. However, a subscription can only have one subscription mode at a time.
+Pulsar has various [subscription modes](concepts-messaging.md#subscription-modes) to match different scenarios. A topic can have multiple subscriptions with different subscription modes. However, a subscription can only have one subscription mode at a time.
 
 A subscription is identical to the subscription name which can specify only one subscription mode at a time. You cannot change the subscription mode unless all existing consumers of this subscription are offline.
 

@@ -34,6 +34,9 @@ using namespace pulsar;
 static const std::string serviceUrl = "pulsar://localhost:6650";
 static const std::string adminUrl = "http://localhost:8080/";
 
+// See the `maxMessageSize` config in test-conf/standalone-ssl.conf
+static constexpr size_t maxMessageSize = 1024000;
+
 TEST(ProducerTest, producerNotInitialized) {
     Producer producer;
 
@@ -211,6 +214,63 @@ TEST(ProducerTest, testBacklogQuotasExceeded) {
     client.close();
 }
 
+class ProducerTest : public ::testing::TestWithParam<bool> {};
+
+TEST_P(ProducerTest, testMaxMessageSize) {
+    Client client(serviceUrl);
+
+    const std::string topic = "ProducerTest-NoBatchMaxMessageSize-" + std::to_string(time(nullptr));
+
+    Consumer consumer;
+    ASSERT_EQ(ResultOk, client.subscribe(topic, "sub", consumer));
+
+    Producer producer;
+    ProducerConfiguration conf;
+    conf.setBatchingEnabled(GetParam());
+    ASSERT_EQ(ResultOk, client.createProducer(topic, conf, producer));
+
+    std::string msg = std::string(maxMessageSize / 2, 'a');
+    ASSERT_EQ(ResultOk, producer.send(MessageBuilder().setContent(msg).build()));
+    Message message;
+    ASSERT_EQ(ResultOk, consumer.receive(message));
+    ASSERT_EQ(msg, message.getDataAsString());
+
+    std::string orderKey = std::string(maxMessageSize, 'a');
+    ASSERT_EQ(ResultMessageTooBig, producer.send(MessageBuilder().setOrderingKey(orderKey).build()));
+
+    ASSERT_EQ(ResultMessageTooBig,
+              producer.send(MessageBuilder().setContent(std::string(maxMessageSize, 'b')).build()));
+
+    client.close();
+}
+
+TEST_P(ProducerTest, testChunkingMaxMessageSize) {
+    Client client(serviceUrl);
+
+    const std::string topic = "ProducerTest-ChunkingMaxMessageSize-" + std::to_string(time(nullptr));
+
+    Consumer consumer;
+    ASSERT_EQ(ResultOk, client.subscribe(topic, "sub", consumer));
+
+    Producer producer;
+    ProducerConfiguration conf;
+    conf.setBatchingEnabled(false);
+    conf.setChunkingEnabled(true);
+    ASSERT_EQ(ResultOk, client.createProducer(topic, conf, producer));
+
+    std::string orderKey = std::string(maxMessageSize, 'a');
+    ASSERT_EQ(ResultMessageTooBig, producer.send(MessageBuilder().setOrderingKey(orderKey).build()));
+
+    std::string msg = std::string(2 * maxMessageSize + 10, 'b');
+    Message message;
+    ASSERT_EQ(ResultOk, producer.send(MessageBuilder().setContent(msg).build()));
+    ASSERT_EQ(ResultOk, consumer.receive(message));
+    ASSERT_EQ(msg, message.getDataAsString());
+    ASSERT_LE(1L, message.getMessageId().entryId());
+
+    client.close();
+}
+
 TEST(ProducerTest, testExclusiveProducer) {
     Client client(serviceUrl);
 
@@ -234,3 +294,5 @@ TEST(ProducerTest, testExclusiveProducer) {
     producerConfiguration3.setProducerName("p-name-3");
     ASSERT_EQ(ResultProducerBusy, client.createProducer(topicName, producerConfiguration3, producer3));
 }
+
+INSTANTIATE_TEST_CASE_P(Pulsar, ProducerTest, ::testing::Values(true, false));

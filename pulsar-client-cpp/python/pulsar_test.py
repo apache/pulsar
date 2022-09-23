@@ -19,6 +19,8 @@
 #
 
 
+import threading
+import logging
 from unittest import TestCase, main
 import time
 import os
@@ -1248,6 +1250,35 @@ class PulsarTest(TestCase):
         first_encode = schema.encode(record)
         second_encode = schema.encode(record)
         self.assertEqual(first_encode, second_encode)
+
+    def test_logger_thread_leaks(self):
+        def _do_connect(close):
+            logger = logging.getLogger(str(threading.current_thread().ident))
+            logger.setLevel(logging.INFO)
+            client = pulsar.Client(
+                service_url="pulsar://localhost:6650",
+                io_threads=4,
+                message_listener_threads=4,
+                operation_timeout_seconds=1,
+                log_conf_file_path=None,
+                authentication=None,
+                logger=logger,
+            )
+            client.get_topic_partitions("persistent://public/default/partitioned_topic_name_test")
+            if close:
+                client.close()
+
+        for should_close in (True, False):
+            self.assertEqual(threading.active_count(), 1, "Explicit close: {}; baseline is 1 thread".format(should_close))
+            _do_connect(should_close)
+            self.assertEqual(threading.active_count(), 1, "Explicit close: {}; synchronous connect doesn't leak threads".format(should_close))
+            threads = []
+            for _ in range(10):
+                threads.append(threading.Thread(target=_do_connect, args=(should_close)))
+                threads[-1].start()
+            for thread in threads:
+                thread.join()
+            assert threading.active_count() == 1, "Explicit close: {}; threaded connect in parallel doesn't leak threads".format(should_close)
 
     def test_chunking(self):
         client = Client(self.serviceUrl)

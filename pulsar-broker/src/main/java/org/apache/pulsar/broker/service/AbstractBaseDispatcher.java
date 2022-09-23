@@ -107,8 +107,9 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
         long totalBytes = 0;
         int totalChunkedMessages = 0;
         int totalEntries = 0;
-        List<Position> entriesToFiltered = CollectionUtils.isNotEmpty(entryFilters) ? new ArrayList<>() : null;
-        List<PositionImpl> entriesToRedeliver = CollectionUtils.isNotEmpty(entryFilters) ? new ArrayList<>() : null;
+        final boolean hasFilter = CollectionUtils.isNotEmpty(entryFilters);
+        List<Position> entriesToFiltered = hasFilter ? new ArrayList<>() : null;
+        List<PositionImpl> entriesToRedeliver = hasFilter ? new ArrayList<>() : null;
         for (int i = 0, entriesSize = entries.size(); i < entriesSize; i++) {
             final Entry entry = entries.get(i);
             if (entry == null) {
@@ -123,18 +124,24 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                     );
 
             int entryMsgCnt = msgMetadata == null ? 1 : msgMetadata.getNumMessagesInBatch();
-            this.filterProcessedMsgs.add(entryMsgCnt);
+            if (hasFilter) {
+                this.filterProcessedMsgs.add(entryMsgCnt);
+            }
 
             EntryFilter.FilterResult filterResult = runFiltersForEntry(entry, msgMetadata, consumer);
             if (filterResult == EntryFilter.FilterResult.REJECT) {
                 entriesToFiltered.add(entry.getPosition());
                 entries.set(i, null);
+                // FilterResult will be always `ACCEPTED` when there is No Filter
+                // dont need to judge whether `hasFilter` is true or not.
                 this.filterRejectedMsgs.add(entryMsgCnt);
                 entry.release();
                 continue;
             } else if (filterResult == EntryFilter.FilterResult.RESCHEDULE) {
                 entriesToRedeliver.add((PositionImpl) entry.getPosition());
                 entries.set(i, null);
+                // FilterResult will be always `ACCEPTED` when there is No Filter
+                // dont need to judge whether `hasFilter` is true or not.
                 this.filterRescheduledMsgs.add(entryMsgCnt);
                 entry.release();
                 continue;
@@ -176,7 +183,9 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                 continue;
             }
 
-            this.filterAcceptedMsgs.add(entryMsgCnt);
+            if (hasFilter) {
+                this.filterAcceptedMsgs.add(entryMsgCnt);
+            }
 
             totalEntries++;
             int batchSize = msgMetadata.getNumMessagesInBatch();
