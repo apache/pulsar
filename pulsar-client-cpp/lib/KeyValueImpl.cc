@@ -51,10 +51,10 @@ SharedBuffer KeyValueImpl::getContent(KeyValueEncodingType keyValueEncodingType)
         auto valueSize = valueBuffer_.readableBytes();
         auto buffSize = sizeof(keySize) + keySize + sizeof(valueSize) + valueSize;
         SharedBuffer buffer = SharedBuffer::allocate(buffSize);
-        buffer.writeUnsignedInt(keySize == 0 ? -1 : keySize);
+        buffer.writeUnsignedInt(keySize == 0 ? INVALID_SIZE : keySize);
         buffer.write(key_.c_str(), keySize);
 
-        buffer.writeUnsignedInt(valueSize == 0 ? -1 : valueSize);
+        buffer.writeUnsignedInt(valueSize == 0 ? INVALID_SIZE : valueSize);
         buffer.write(valueBuffer_.data(), valueSize);
 
         return buffer;
