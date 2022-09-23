@@ -151,7 +151,7 @@ public abstract class BaseGenerateDocumentation {
             !> This page is automatically generated from code files.
             If you find something inaccurate, feel free to update `""";
     protected String suffix = """
-            `. Do NOT edit this markdown file manually. Manual changes will be overwritten by automatic generation.
+            `.
             """;
 
     protected String generateDocByFieldContext(String className, String type, StringBuilder sb) throws Exception {
