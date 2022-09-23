@@ -84,11 +84,6 @@ public class OwnershipCache {
     private final AsyncLoadingCache<NamespaceBundle, OwnedBundle> ownedBundlesCache;
 
     /**
-     * The <code>NamespaceBundleFactory</code> to construct <code>NamespaceBundles</code>.
-     */
-    private final NamespaceBundleFactory bundleFactory;
-
-    /**
      * The <code>NamespaceService</code> which using <code>OwnershipCache</code>.
      */
     private final NamespaceService namespaceService;
@@ -106,7 +101,7 @@ public class OwnershipCache {
                                 .thenRun(() -> {
                                     log.info("Resource lock for {} has expired", rl.getPath());
                                     namespaceService.unloadNamespaceBundle(namespaceBundle);
-                                    ownedBundlesCache.synchronous().invalidate(namespaceBundle);
+                                    invalidateLocalOwnerCache(namespaceBundle);
                                     namespaceService.onNamespaceBundleUnload(namespaceBundle);
                                 });
                         return new OwnedBundle(namespaceBundle);
@@ -131,7 +126,6 @@ public class OwnershipCache {
         this.selfOwnerInfoDisabled = new NamespaceEphemeralData(ownerBrokerUrl, ownerBrokerUrlTls,
                 pulsar.getSafeWebServiceAddress(), pulsar.getWebServiceAddressTls(),
                 true, pulsar.getAdvertisedListeners());
-        this.bundleFactory = bundleFactory;
         this.lockManager = pulsar.getCoordinationService().getLockManager(NamespaceEphemeralData.class);
         this.locallyAcquiredLocks = new ConcurrentHashMap<>();
         // ownedBundlesCache contains all namespaces that are owned by the local broker
@@ -328,6 +322,10 @@ public class OwnershipCache {
 
     public void invalidateLocalOwnerCache() {
         this.ownedBundlesCache.synchronous().invalidateAll();
+    }
+
+    public void invalidateLocalOwnerCache(NamespaceBundle namespaceBundle) {
+        this.ownedBundlesCache.synchronous().invalidate(namespaceBundle);
     }
 
     public synchronized boolean refreshSelfOwnerInfo() {

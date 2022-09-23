@@ -110,6 +110,9 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
         int filteredMessageCount = 0;
         int filteredEntryCount = 0;
         long filteredBytesCount = 0;
+        final boolean hasFilter = CollectionUtils.isNotEmpty(entryFilters);
+        List<Position> entriesToFiltered = hasFilter ? new ArrayList<>() : null;
+        List<PositionImpl> entriesToRedeliver = hasFilter ? new ArrayList<>() : null;
         List<Position> entriesToFiltered = CollectionUtils.isNotEmpty(entryFilters) ? new ArrayList<>() : null;
         List<PositionImpl> entriesToRedeliver = CollectionUtils.isNotEmpty(entryFilters) ? new ArrayList<>() : null;
         for (int i = 0, entriesSize = entries.size(); i < entriesSize; i++) {
@@ -126,12 +129,16 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                     );
 
             int entryMsgCnt = msgMetadata == null ? 1 : msgMetadata.getNumMessagesInBatch();
-            this.filterProcessedMsgs.add(entryMsgCnt);
+            if (hasFilter) {
+                this.filterProcessedMsgs.add(entryMsgCnt);
+            }
 
             EntryFilter.FilterResult filterResult = runFiltersForEntry(entry, msgMetadata, consumer);
             if (filterResult == EntryFilter.FilterResult.REJECT) {
                 entriesToFiltered.add(entry.getPosition());
                 entries.set(i, null);
+                // FilterResult will be always `ACCEPTED` when there is No Filter
+                // dont need to judge whether `hasFilter` is true or not.
                 this.filterRejectedMsgs.add(entryMsgCnt);
                 filteredEntryCount++;
                 filteredMessageCount += entryMsgCnt;
@@ -141,6 +148,8 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
             } else if (filterResult == EntryFilter.FilterResult.RESCHEDULE) {
                 entriesToRedeliver.add((PositionImpl) entry.getPosition());
                 entries.set(i, null);
+                // FilterResult will be always `ACCEPTED` when there is No Filter
+                // dont need to judge whether `hasFilter` is true or not.
                 this.filterRescheduledMsgs.add(entryMsgCnt);
                 filteredEntryCount++;
                 filteredMessageCount += entryMsgCnt;
@@ -185,7 +194,9 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                 continue;
             }
 
-            this.filterAcceptedMsgs.add(entryMsgCnt);
+            if (hasFilter) {
+                this.filterAcceptedMsgs.add(entryMsgCnt);
+            }
 
             totalEntries++;
             int batchSize = msgMetadata.getNumMessagesInBatch();
@@ -206,7 +217,9 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
 
             BrokerInterceptor interceptor = subscription.interceptor();
             if (null != interceptor) {
+                // keep for compatibility if users has implemented the old interface
                 interceptor.beforeSendMessage(subscription, entry, ackSet, msgMetadata);
+                interceptor.beforeSendMessage(subscription, entry, ackSet, msgMetadata, consumer);
             }
         }
         if (CollectionUtils.isNotEmpty(entriesToFiltered)) {

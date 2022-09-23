@@ -994,7 +994,7 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     @VisibleForTesting
-    void setLookup(LookupService lookup) {
+    public void setLookup(LookupService lookup) {
         this.lookup = lookup;
     }
 

@@ -119,7 +119,8 @@ public class BKCluster implements AutoCloseable {
         this.baseClientConf = newBaseClientConfiguration();
 
         this.store =
-                MetadataStoreExtended.create(clusterConf.metadataServiceUri, MetadataStoreConfig.builder().build());
+                MetadataStoreExtended.create(clusterConf.metadataServiceUri, MetadataStoreConfig.builder()
+                        .metadataStoreName(MetadataStoreConfig.METADATA_STORE).build());
         baseConf.setJournalRemovePagesFromCache(false);
         baseConf.setProperty(AbstractMetadataDriver.METADATA_STORE_INSTANCE, store);
         baseClientConf.setProperty(AbstractMetadataDriver.METADATA_STORE_INSTANCE, store);

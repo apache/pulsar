@@ -1258,92 +1258,18 @@ For examples of ProtobufNativeSchema, see [`SchemaDefinition` in `Complex type`]
 
 ## Authentication
 
-Pulsar currently supports three authentication schemes: [TLS](security-tls-authentication.md), [Athenz](security-athenz.md), and [Oauth2](security-oauth2.md). You can use the Pulsar Java client with all of them.
+Pulsar currently supports the following authentication mechansims:
+* [TLS](security-tls-authentication.md#configure-tls-authentication-in-pulsar-clients)
+* [JWT](security-jwt.md#configure-jwt-authentication-in-pulsar-clients)
+* [Athenz](security-athenz.md#configure-athenz-authentication-in-pulsar-clients)
+* [Kerberos](security-kerberos.md#java-client-and-java-admin-client)
+* [OAuth2](security-oauth2.md#configure-oauth2-authentication-in-pulsar-clients)
+* [HTTP basic](security-basic-auth.md#configure-basic-authentication-in-pulsar-clients)
 
-### TLS Authentication
-
-To use [TLS](security-tls-authentication.md), `enableTls` method is deprecated and you need to use "pulsar+ssl://" in serviceUrl to enable, point your Pulsar client to a TLS cert path, and provide paths to cert and key files.
-
-The following is an example.
-
-```java
-Map<String, String> authParams = new HashMap();
-authParams.put("tlsCertFile", "/path/to/client-cert.pem");
-authParams.put("tlsKeyFile", "/path/to/client-key.pem");
-
-Authentication tlsAuth = AuthenticationFactory
-        .create(AuthenticationTls.class.getName(), authParams);
-
-PulsarClient client = PulsarClient.builder()
-        .serviceUrl("pulsar+ssl://my-broker.com:6651")
-        .tlsTrustCertsFilePath("/path/to/cacert.pem")
-        .authentication(tlsAuth)
-        .build();
-```
-
-### Athenz
-
-To use [Athenz](security-athenz.md) as an authentication provider, you need to [use TLS](#tls-authentication.md) and provide values for four parameters in a hash:
-
-* `tenantDomain`
-* `tenantService`
-* `providerDomain`
-* `privateKey`
-
-You can also set an optional `keyId`. The following is an example.
-
-```java
-Map<String, String> authParams = new HashMap();
-authParams.put("tenantDomain", "shopping"); // Tenant domain name
-authParams.put("tenantService", "some_app"); // Tenant service name
-authParams.put("providerDomain", "pulsar"); // Provider domain name
-authParams.put("privateKey", "file:///path/to/private.pem"); // Tenant private key path
-authParams.put("keyId", "v1"); // Key id for the tenant private key (optional, default: "0")
-
-Authentication athenzAuth = AuthenticationFactory
-        .create(AuthenticationAthenz.class.getName(), authParams);
-
-PulsarClient client = PulsarClient.builder()
-        .serviceUrl("pulsar+ssl://my-broker.com:6651")
-        .tlsTrustCertsFilePath("/path/to/cacert.pem")
-        .authentication(athenzAuth)
-        .build();
-```
-
-#### Supported pattern formats
-The `privateKey` parameter supports the following three pattern formats:
-* `file:///path/to/file`
-* `file:/path/to/file`
-* `data:application/x-pem-file;base64,<base64-encoded value>`
-
-### Oauth2
-
-The following example shows how to use [Oauth2](security-oauth2.md) as an authentication provider for the Pulsar Java client.
-
-You can use the factory method to configure authentication for Pulsar Java client.
-
-```java
-PulsarClient client = PulsarClient.builder()
-    .serviceUrl("pulsar://broker.example.com:6650/")
-    .authentication(
-        AuthenticationFactoryOAuth2.clientCredentials(this.issuerUrl, this.credentialsUrl, this.audience))
-    .build();
-```
-
-In addition, you can also use the encoded parameters to configure authentication for Pulsar Java client.
-
-```java
-Authentication auth = AuthenticationFactory
-    .create(AuthenticationOAuth2.class.getName(), "{"type":"client_credentials","privateKey":"...","issuerUrl":"...","audience":"..."}");
-PulsarClient client = PulsarClient.builder()
-    .serviceUrl("pulsar://broker.example.com:6650/")
-    .authentication(auth)
-    .build();
-```
 
 ## Cluster-level failover
 
-For more concepts and reference information about cluster-level failover, including concept, benefits, use cases, constraints, usage and working principles, see [Cluster-level failover](concepts-cluster-level-failover.md). 
+For more concepts and reference information about cluster-level failover, including concepts, benefits, use cases, constraints, usage and working principles, see [Cluster-level failover](concepts-cluster-level-failover.md). 
 
 :::tip
 
