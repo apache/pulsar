@@ -480,16 +480,17 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     }
 
     private void cleanupDeadBrokersData() {
+        if(pulsar.getLeaderElectionService() == null
+                || !pulsar.getLeaderElectionService().isLeader()){
+            return;
+        }
         final Set<String> activeBrokers = getAvailableBrokers();
         final Set<String> knownBrokersCopy = new HashSet<>(this.knownBrokers);
         Collection<String> newBrokers = CollectionUtils.subtract(activeBrokers, knownBrokersCopy);
         this.knownBrokers.addAll(newBrokers);
         Collection<String> deadBrokers = CollectionUtils.subtract(knownBrokersCopy, activeBrokers);
         this.knownBrokers.removeAll(deadBrokers);
-        if (pulsar.getLeaderElectionService() != null
-                && pulsar.getLeaderElectionService().isLeader()) {
-            deadBrokers.forEach(this::deleteTimeAverageDataFromMetadataStoreAsync);
-        }
+        deadBrokers.forEach(this::deleteTimeAverageDataFromMetadataStoreAsync);
     }
 
     // As the leader broker, update the broker data map in loadData by querying metadata store for the broker data put
