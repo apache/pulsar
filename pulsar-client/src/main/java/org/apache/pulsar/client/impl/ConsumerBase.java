@@ -58,6 +58,7 @@ import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.util.ConsumerName;
 import org.apache.pulsar.client.util.ExecutorProvider;
+import org.apache.pulsar.client.util.NoOpLock;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
@@ -96,7 +97,9 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected volatile long incomingMessagesSize = 0;
     protected volatile Timeout batchReceiveTimeout = null;
     protected final Lock reentrantLock = new ReentrantLock();
-    protected final Object incomingQueueLock = new Object();
+
+    // Only work when subscription type is Failover or Exclusive
+    protected final Lock incomingQueueLock;
 
     protected static final AtomicLongFieldUpdater<ConsumerBase> CONSUMER_EPOCH =
             AtomicLongFieldUpdater.newUpdater(ConsumerBase.class, "consumerEpoch");
@@ -162,6 +165,11 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             }
         } else {
             this.batchReceivePolicy = BatchReceivePolicy.DEFAULT_POLICY;
+        }
+        if (getSubType() == CommandSubscribe.SubType.Failover || getSubType() == CommandSubscribe.SubType.Exclusive) {
+            incomingQueueLock = new ReentrantLock();
+        } else {
+            incomingQueueLock = new NoOpLock();
         }
 
         initReceiverQueueSize();
@@ -840,8 +848,9 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     protected boolean enqueueMessageAndCheckBatchReceive(Message<T> message) {
         int messageSize = message.size();
-        // synchronize redeliverUnacknowledgedMessages()
-        synchronized (incomingQueueLock) {
+        // synchronize redeliverUnacknowledgedMessages().
+        incomingQueueLock.lock();
+        try {
             if (isValidConsumerEpoch(message) && canEnqueueMessage(message) && incomingMessages.offer(message)) {
                 // After we have enqueued the messages on `incomingMessages` queue, we cannot touch the message
                 // instance anymore, since for pooled messages, this instance was possibly already been released
@@ -850,6 +859,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                 getMemoryLimitController().ifPresent(limiter -> limiter.forceReserveMemory(messageSize));
                 updateAutoScaleReceiverQueueHint();
             }
+        } finally {
+            incomingQueueLock.unlock();
         }
         return hasEnoughMessagesForBatchReceive();
     }
