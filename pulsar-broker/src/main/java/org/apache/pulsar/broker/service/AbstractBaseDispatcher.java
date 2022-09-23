@@ -113,8 +113,6 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
         final boolean hasFilter = CollectionUtils.isNotEmpty(entryFilters);
         List<Position> entriesToFiltered = hasFilter ? new ArrayList<>() : null;
         List<PositionImpl> entriesToRedeliver = hasFilter ? new ArrayList<>() : null;
-        List<Position> entriesToFiltered = CollectionUtils.isNotEmpty(entryFilters) ? new ArrayList<>() : null;
-        List<PositionImpl> entriesToRedeliver = CollectionUtils.isNotEmpty(entryFilters) ? new ArrayList<>() : null;
         for (int i = 0, entriesSize = entries.size(); i < entriesSize; i++) {
             final Entry entry = entries.get(i);
             if (entry == null) {
