@@ -15,7 +15,7 @@ Both approaches are available in Pulsar, and you're free to adopt one or the oth
 1. For the "client-side" approach, producers and consumers can send and receive messages consisting of raw byte arrays and leave all type safety enforcement to the application on an "out-of-band" basis.
 1. For the "server-side" approach, Pulsar has a built-in **schema registry** that enables clients to upload data schemas on a per-topic basis. Those schemas dictate which data types are recognized as valid for that topic.
 
-> The Pulsar schema registry is currently available only for the [Java client](client-libraries-java).
+> The Pulsar schema registry is currently available only for the [Java client](client-libraries-java.md).
 
 ## Basic architecture
 
@@ -37,7 +37,7 @@ Pulsar schemas are fairly simple data structures that consist of:
 
 ## Schema versions
 
-In order to illustrate how schema versioning works, let's walk through an example. Imagine that the Pulsar [Java client](client-libraries-java) created using the code below attempts to connect to Pulsar and begin sending messages:
+In order to illustrate how schema versioning works, let's walk through an example. Imagine that the Pulsar [Java client](client-libraries-java.md) created using the code below attempts to connect to Pulsar and begin sending messages:
 
 ```java
 

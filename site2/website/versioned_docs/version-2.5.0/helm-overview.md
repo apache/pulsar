@@ -56,12 +56,12 @@ It includes support for:
 
 For those looking to get up and running with these charts as fast
 as possible, in a **non-production** use case, we provide
-a [quick start guide](getting-started-helm) for Proof of Concept (PoC) deployments.
+a [quick start guide](getting-started-helm.md) for Proof of Concept (PoC) deployments.
 
 This guide walks the user through deploying these charts with default
 values & features, but *does not* meet production ready requirements.
 If you wish to deploy these charts into production under sustained load,
-you should follow the complete [Installation Guide](helm-install).
+you should follow the complete [Installation Guide](helm-install.md).
 
 ## Troubleshooting
 
@@ -74,7 +74,7 @@ tips and tricks for troubleshooting common issues. Please examine these first be
 The Apache Pulsar Helm chart contains all required dependencies.
 
 If you are just looking to deploy a Proof of Concept for testing,
-we strongly suggest you follow our [Quick Start Guide](getting-started-helm) for your first iteration.
+we strongly suggest you follow our [Quick Start Guide](getting-started-helm.md) for your first iteration.
 
 1. [Preparation](helm-prepare.md)
 2. [Deployment](helm-deploy.md)
@@ -93,7 +93,7 @@ helm upgrade <pulsar-release-name> charts/pulsar -f pulsar.yaml
 
 ```
 
-For more detailed information, see [Upgrading](helm-upgrade).
+For more detailed information, see [Upgrading](helm-upgrade.md).
 
 ## Uninstall
 

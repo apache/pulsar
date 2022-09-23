@@ -5,7 +5,7 @@ sidebar_label: "Architecture"
 original_id: concepts-architecture-overview
 ---
 
-At the highest level, a Pulsar instance is composed of one or more Pulsar clusters. Clusters within an instance can [replicate](concepts-replication) data amongst themselves.
+At the highest level, a Pulsar instance is composed of one or more Pulsar clusters. Clusters within an instance can [replicate](concepts-replication.md) data amongst themselves.
 
 In a Pulsar cluster:
 
@@ -17,20 +17,20 @@ The diagram below provides an illustration of a Pulsar cluster:
 
 ![Pulsar architecture diagram](/assets/pulsar-system-architecture.png)
 
-At the broader instance level, an instance-wide ZooKeeper cluster called the configuration store handles coordination tasks involving multiple clusters, for example [geo-replication](concepts-replication).
+At the broader instance level, an instance-wide ZooKeeper cluster called the configuration store handles coordination tasks involving multiple clusters, for example [geo-replication](concepts-replication.md).
 
 ## Brokers
 
 The Pulsar message broker is a stateless component that's primarily responsible for running two other components:
 
 * An HTTP server that exposes a {@inject: rest:REST:/} API for both administrative tasks and [topic lookup](concepts-clients.md#client-setup-phase) for producers and consumers
-* A dispatcher, which is an asynchronous TCP server over a custom [binary protocol](developing-binary-protocol) used for all data transfers
+* A dispatcher, which is an asynchronous TCP server over a custom [binary protocol](developing-binary-protocol.md) used for all data transfers
 
 Messages are typically dispatched out of a [managed ledger](#managed-ledgers) cache for the sake of performance, *unless* the backlog exceeds the cache size. If the backlog grows too large for the cache, the broker will start reading entries from BookKeeper.
 
-Finally, to support geo-replication on global topics, the broker manages replicators that tail the entries published in the local region and republish them to the remote region using the Pulsar [Java client library](client-libraries-java).
+Finally, to support geo-replication on global topics, the broker manages replicators that tail the entries published in the local region and republish them to the remote region using the Pulsar [Java client library](client-libraries-java.md).
 
-> For a guide to managing Pulsar brokers, see the [brokers](admin-api-brokers) guide.
+> For a guide to managing Pulsar brokers, see the [brokers](admin-api-brokers.md) guide.
 
 ## Clusters
 
@@ -40,9 +40,9 @@ A Pulsar instance consists of one or more Pulsar *clusters*. Clusters, in turn, 
 * A ZooKeeper quorum used for cluster-level configuration and coordination
 * An ensemble of bookies used for [persistent storage](#persistent-storage) of messages
 
-Clusters can replicate amongst themselves using [geo-replication](concepts-replication).
+Clusters can replicate amongst themselves using [geo-replication](concepts-replication.md).
 
-> For a guide to managing Pulsar clusters, see the [clusters](admin-api-clusters) guide.
+> For a guide to managing Pulsar clusters, see the [clusters](admin-api-clusters.md) guide.
 
 ## Metadata store
 
@@ -130,17 +130,17 @@ $ bin/pulsar proxy \
 ```
 
 > #### Pulsar proxy docs
-> For documentation on using the Pulsar proxy, see the [Pulsar proxy admin documentation](administration-proxy).
+> For documentation on using the Pulsar proxy, see the [Pulsar proxy admin documentation](administration-proxy.md).
 
 
 Some important things to know about the Pulsar proxy:
 
 * Connecting clients don't need to provide *any* specific configuration to use the Pulsar proxy. You won't need to update the client configuration for existing applications beyond updating the IP used for the service URL (for example if you're running a load balancer over the Pulsar proxy).
-* [TLS encryption](security-tls-transport.md) and [authentication](security-tls-authentication) is supported by the Pulsar proxy
+* [TLS encryption](security-tls-transport.md) and [authentication](security-tls-authentication.md) is supported by the Pulsar proxy
 
 ## Service discovery
 
-[Clients](getting-started-clients) connecting to Pulsar brokers need to be able to communicate with an entire Pulsar instance using a single URL. Pulsar provides a built-in service discovery mechanism that you can set up using the instructions in the [Deploying a Pulsar instance](deploy-bare-metal.md#service-discovery-setup) guide.
+[Clients](getting-started-clients.md) connecting to Pulsar brokers need to be able to communicate with an entire Pulsar instance using a single URL. Pulsar provides a built-in service discovery mechanism that you can set up using the instructions in the [Deploying a Pulsar instance](deploy-bare-metal.md#service-discovery-setup) guide.
 
 You can use your own service discovery system if you'd like. If you use your own system, there is just one requirement: when a client performs an HTTP request to an endpoint, such as `http://pulsar.us-west.example.com:8080`, the client needs to be redirected to *some* active broker in the desired cluster, whether via DNS, an HTTP or IP redirect, or some other means.
 
@@ -148,7 +148,7 @@ The diagram below illustrates Pulsar service discovery:
 
 ![alt-text](/assets/pulsar-service-discovery.png)
 
-In this diagram, the Pulsar cluster is addressable via a single DNS name: `pulsar-cluster.acme.com`. A [Python client](client-libraries-python), for example, could access this Pulsar cluster like this:
+In this diagram, the Pulsar cluster is addressable via a single DNS name: `pulsar-cluster.acme.com`. A [Python client](client-libraries-python.md), for example, could access this Pulsar cluster like this:
 
 ```python
 
