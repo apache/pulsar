@@ -30,7 +30,7 @@ import java.lang.reflect.Field;
 import java.util.Set;
 import java.util.TreeSet;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.pulsar.utils.BitmapSortedLongPairSet;
+import org.apache.pulsar.utils.ConcurrentBitmapSortedLongPairSet;
 import org.apache.pulsar.common.util.collections.ConcurrentLongLongPairHashMap;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -48,7 +48,8 @@ public class MessageRedeliveryControllerTest {
 
         Field messagesToRedeliverField = MessageRedeliveryController.class.getDeclaredField("messagesToRedeliver");
         messagesToRedeliverField.setAccessible(true);
-        BitmapSortedLongPairSet messagesToRedeliver = (BitmapSortedLongPairSet) messagesToRedeliverField.get(controller);
+        ConcurrentBitmapSortedLongPairSet messagesToRedeliver =
+                (ConcurrentBitmapSortedLongPairSet) messagesToRedeliverField.get(controller);
 
         Field hashesToBeBlockedField = MessageRedeliveryController.class.getDeclaredField("hashesToBeBlocked");
         hashesToBeBlockedField.setAccessible(true);

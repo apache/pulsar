@@ -33,11 +33,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 @Test(groups = "utils")
-public class BitmapSortedLongPairSetTest {
+public class ConcurrentBitmapSortedLongPairSetTest {
 
     @Test
     public void testAdd() {
-        BitmapSortedLongPairSet set = new BitmapSortedLongPairSet();
+        ConcurrentBitmapSortedLongPairSet set = new ConcurrentBitmapSortedLongPairSet();
         int items = 10;
         for (int i = 0; i < items; i++) {
             set.add(1, i);
@@ -57,7 +57,7 @@ public class BitmapSortedLongPairSetTest {
 
     @Test
     public void testRemove() {
-        BitmapSortedLongPairSet set = new BitmapSortedLongPairSet();
+        ConcurrentBitmapSortedLongPairSet set = new ConcurrentBitmapSortedLongPairSet();
         int items = 10;
         for (int i = 0; i < items; i++) {
             set.add(1, i);
@@ -87,7 +87,7 @@ public class BitmapSortedLongPairSetTest {
 
     @Test
     public void testContains() {
-        BitmapSortedLongPairSet set = new BitmapSortedLongPairSet();
+        ConcurrentBitmapSortedLongPairSet set = new ConcurrentBitmapSortedLongPairSet();
         assertFalse(set.contains(1, 1));
 
         int items = 10;
@@ -104,7 +104,7 @@ public class BitmapSortedLongPairSetTest {
 
     @Test
     public void testRemoveUpTo() {
-        BitmapSortedLongPairSet set = new BitmapSortedLongPairSet();
+        ConcurrentBitmapSortedLongPairSet set = new ConcurrentBitmapSortedLongPairSet();
         set.removeUpTo(0, 1000);
         set.removeUpTo(10, 10000);
         assertTrue(set.isEmpty());
@@ -130,7 +130,7 @@ public class BitmapSortedLongPairSetTest {
 
     @Test
     public void testItems() {
-        BitmapSortedLongPairSet set = new BitmapSortedLongPairSet();
+        ConcurrentBitmapSortedLongPairSet set = new ConcurrentBitmapSortedLongPairSet();
         Set<ConcurrentLongPairSet.LongPair> items = set.items(10, ConcurrentLongPairSet.LongPair::new);
         assertEquals(items.size(), 0);
         for (int i = 0; i < 100; i++) {
@@ -177,7 +177,7 @@ public class BitmapSortedLongPairSetTest {
 
     @Test
     public void concurrentInsertions() throws Throwable {
-        BitmapSortedLongPairSet set = new BitmapSortedLongPairSet();
+        ConcurrentBitmapSortedLongPairSet set = new ConcurrentBitmapSortedLongPairSet();
 
         @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();

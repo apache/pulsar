@@ -30,7 +30,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import org.apache.pulsar.common.util.collections.LongPairSet;
 import org.roaringbitmap.RoaringBitmap;
 
-public class BitmapSortedLongPairSet {
+public class ConcurrentBitmapSortedLongPairSet {
 
     private final NavigableMap<Long, RoaringBitmap> map = new TreeMap<>();
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
@@ -70,7 +70,7 @@ public class BitmapSortedLongPairSet {
         }
     }
 
-    public synchronized void removeUpTo(long item1, long item2) {
+    public void removeUpTo(long item1, long item2) {
         lock.writeLock().lock();
         try {
             Map.Entry<Long, RoaringBitmap> firstEntry = map.firstEntry();

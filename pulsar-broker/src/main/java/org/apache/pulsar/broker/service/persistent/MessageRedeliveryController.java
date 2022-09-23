@@ -26,14 +26,14 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.common.util.collections.ConcurrentLongLongPairHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentLongLongPairHashMap.LongPair;
-import org.apache.pulsar.utils.BitmapSortedLongPairSet;
+import org.apache.pulsar.utils.ConcurrentBitmapSortedLongPairSet;
 
 public class MessageRedeliveryController {
-    private final BitmapSortedLongPairSet messagesToRedeliver;
+    private final ConcurrentBitmapSortedLongPairSet messagesToRedeliver;
     private final ConcurrentLongLongPairHashMap hashesToBeBlocked;
 
     public MessageRedeliveryController(boolean allowOutOfOrderDelivery) {
-        this.messagesToRedeliver = new BitmapSortedLongPairSet();
+        this.messagesToRedeliver = new ConcurrentBitmapSortedLongPairSet();
         this.hashesToBeBlocked = allowOutOfOrderDelivery
                 ? null
                 : ConcurrentLongLongPairHashMap
