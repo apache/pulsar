@@ -837,7 +837,7 @@ public class MetricRecorderFunction implements Function<Integer, Void> {
 
 ```
 
-> For instructions on reading and using metrics, see the [Monitoring](deploy-monitoring) guide.
+> For instructions on reading and using metrics, see the [Monitoring](deploy-monitoring.md) guide.
 
 </TabItem>
 <TabItem value="Python">
@@ -863,7 +863,7 @@ class MetricRecorderFunction(Function):
 ````
 
 ### Access metrics
-To access metrics created by Pulsar Functions, refer to [Monitoring](deploy-monitoring) in Pulsar. 
+To access metrics created by Pulsar Functions, refer to [Monitoring](deploy-monitoring.md) in Pulsar. 
 
 ## State storage
 Pulsar Functions use [Apache BookKeeper](https://bookkeeper.apache.org) as a state storage interface. Pulsar installation, including the local standalone installation, includes deployment of BookKeeper bookies.

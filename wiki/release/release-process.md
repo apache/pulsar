@@ -23,15 +23,22 @@
 
 This page contains instructions for Pulsar committers on how to perform a release.
 
+> **NOTE**: The term `major/minor releases` used throughout this document is defined as follows:
+>
+> * Major releases refer to feature releases, such as 2.10.0, 2.11.0, and so on.
+> 
+> * Minor releases refer to bug-fix releases, such as 2.10.1, 2.10.2, and so on.
+
+
 ## Preparation
 
 Open a discussion in dev@apache.org to notify others that you volunteer to be the release manager of a specific release. If there are no disagreements, you can start the release process.
 
-For major releases, you should create a new branch named `branch-2.X.0` once all PRs with the 2.X.0 milestone are merged. If some PRs with the 2.X.0 milestone are still working in progress and might take much time to complete, you can move them to the next milestone if they are not important. In this case, you'd better to notify the author in the PR.
+For major releases, you should create a new branch named `branch-2.X.0` once all PRs with the 2.X.0 milestone are merged. If some PRs with the 2.X.0 milestone are still working in progress and might take much time to complete, you can move them to the next milestone if they are not important. In this case, you'd better notify the author in the PR.
 
-For minor releases, if there are no disagreements, you should cherry-pick all merged PRs with the `release/X.Y.Z` labels into branch-X.Y. After these PRs are cherry-picked, you should add the `cherry-picked/branch-X.Y` labels.
+For minor releases, if there are no disagreements, you should cherry-pick all merged PRs with the `release/X.Y.Z` labels into `branch-X.Y`. After these PRs are cherry-picked, you should add the `cherry-picked/branch-X.Y` labels.
 
-Sometimes some PRs cannot be cherry-picked cleanly, you might need to create a separated PR and move the `release/X.Y.Z` label from the original PR to it. In this case, you can ask the author to help create the new PR.
+Sometimes some PRs cannot be cherry-picked cleanly, you might need to create a separate PR and move the `release/X.Y.Z` label from the original PR to it. In this case, you can ask the author to help create the new PR.
 
 For PRs that are still open, you can choose to delay them to the next release or ping others to review so that they can be merged.
 
@@ -56,15 +63,14 @@ where the tag will be generated and where new fixes will be
 applied as part of the maintenance for the release.
 
 The branch needs only to be created when creating major releases,
-and not for patch releases like `2.3.1`. For patch and minor release, goto next step.
+and not for minor releases like `2.3.1`. For minor releases, go to the next step.
 
-Eg: When creating `v2.3.0` release, the branch `branch-2.3` will be created; but for `v2.3.1`, we
+For example, when you create the `v2.3.0` release, the branch `branch-2.3` will be created; but for `v2.3.1`, we
 keep using the old `branch-2.3`.
 
 In these instructions, I'm referring to a fictitious release `2.X.0`. Change the release version in the examples accordingly with the real version.
 
-It is recommended to create a fresh clone of the repository to avoid any local files to interfere
-in the process:
+It is recommended to create a fresh clone of the repository to avoid any local files interfering in the process:
 
 ```shell
 git clone git@github.com:apache/pulsar.git
@@ -80,17 +86,17 @@ git worktree add ../pulsar.branch-2.X branch-2.X
 
 If you created a new branch, update the `CI - OWASP Dependency Check` workflow so that it will run on the new branch. At the time of writing, here is the file that should be updated: https://github.com/apache/pulsar/blob/master/.github/workflows/ci-owasp-dependency-check.yaml.
 
-(Note also that we should stop the GitHub action for Pulsar versions that are EOL.)
+Note also that you should stop the GitHub action for Pulsar versions that are EOL.
 
 Also, if you created a new branch, please update the `Security Policy and Supported Versions` page on the website. This page has a table for support timelines based on when minor releases take place.
 
 ## Update project version and tag
 
-During the release process, we are going to initially create
+During the release process, you are going to initially create
 "candidate" tags, that after verification and approval will
 get promoted to the "real" final tag.
 
-In this process the maven version of the project will always
+In this process, the maven version of the project will always
 be the final one.
 
 ```shell
@@ -117,7 +123,7 @@ git push origin branch-2.X
 git push origin v2.X.0-candidate-1
 ```
 
-For minor release, tag is like `2.3.1`.
+For minor releases, the tag is like `2.3.1`.
 
 ## Build and inspect the artifacts
 
@@ -201,7 +207,6 @@ svn ci -m 'Staging artifacts and signature for Pulsar release 2.X.0'
 Upload the artifacts to ASF Nexus:
 
 ```shell
-
 # remove CPP client binaries (they would file the license/RAT check in "deploy")
 cd pulsar-client-cpp
 git clean -xfd
@@ -220,7 +225,7 @@ mvn deploy -DskipTests -Papache-release --settings /tmp/mvn-apache-settings.xml 
 
 > **NOTE**: The `GPG_TTY` environment variable must be set for all the following steps. Otherwise, some operations might fail by `gpg failed to sign the data`.
 
-This will ask for the GPG key passphrase and then upload to the staging repository.
+This will ask for the GPG key passphrase and then upload it to the staging repository.
 
 > If you have deployed before, re-deploying might fail on pulsar-presto-connector-original.
 >
@@ -228,7 +233,7 @@ This will ask for the GPG key passphrase and then upload to the staging reposito
 >
 > You can run `mvn clean deploy` instead of `mvn deploy` as a workaround.
 
-Login to ASF Nexus repository at https://repository.apache.org
+Log in to the ASF Nexus repository at https://repository.apache.org
 
 Click on "Staging Repositories" on the left sidebar and then select the current
 Pulsar staging repo. This should be called something like `orgapachepulsar-XYZ`.
@@ -257,7 +262,7 @@ After that, the following images will be built and pushed to your own DockerHub 
 
 ## Run the vote
 
-Send an email on the Pulsar Dev mailing list:
+Send an email to the Pulsar Dev mailing list:
 
 ```
 To: dev@pulsar.apache.org
@@ -278,7 +283,6 @@ Source and binary files:
 https://dist.apache.org/repos/dist/dev/pulsar/pulsar-2.X.0-candidate-1/
 
 SHA-512 checksums:
-
 028313cbbb24c5647e85a6df58a48d3c560aacc9  apache-pulsar-2.X.0-SNAPSHOT-bin.tar.gz
 f7cc55137281d5257e3c8127e1bc7016408834b1  apache-pulsar-2.x.0-SNAPSHOT-src.tar.gz
 
@@ -289,7 +293,7 @@ The tag to be voted upon:
 v2.X.0-candidate-1 (21f4a4cffefaa9391b79d79a7849da9c539af834)
 https://github.com/apache/pulsar/releases/tag/v2.X.0-candidate-1
 
-Pulsar's KEYS file containing PGP keys we use to sign the release:
+Pulsar's KEYS file containing PGP keys you use to sign the release:
 https://dist.apache.org/repos/dist/dev/pulsar/KEYS
 
 Docker images:
@@ -306,13 +310,13 @@ The vote should be open for at least 72 hours (3 days). Votes from Pulsar PMC me
 will be considered binding, while anyone else is encouraged to verify the release and
 vote as well.
 
-If the release is approved here, we can then proceed to the next step. Otherwise, you should repeat the previous steps and prepare another candidate release to vote.
+If the release is approved here, you can then proceed to the next step. Otherwise, you should repeat the previous steps and prepare another candidate release to vote.
 
 ## Move master branch to next version
 
-> **NOTE**: This is for major releases only.
+> **NOTE**: This step is for major releases only.
 
-We need to move master version to the next iteration `Y` (`X + 1`).
+You need to move the master version to the next iteration `Y` (`X + 1`).
 
 ```shell
 git checkout master
@@ -364,7 +368,7 @@ If you don't have the permission, you can ask someone with access to apachepulsa
 
 ## Release Helm Chart
 
-**This step can be skipped if the major version number is not latest.**
+**This step can be skipped if the major version number is not the latest.**
 
 1. Bump the image version in the Helm Chart: [charts/pulsar/values.yaml](https://github.com/apache/pulsar-helm-chart/blob/master/charts/pulsar/values.yaml)
 
@@ -376,7 +380,7 @@ If you don't have the permission, you can ask someone with access to apachepulsa
 
 ## Publish Python Clients
 
-> **NOTES**
+> **NOTES**:
 >
 > 1. You need to create an account on PyPI: https://pypi.org/account/register/
 >
@@ -391,17 +395,17 @@ There is a script that builds and packages the Python client inside Docker image
 > Make sure you run following command at the release tag!!
 
 ```shell
-$ pulsar-client-cpp/docker/build-wheels.sh
+pulsar-client-cpp/docker/build-wheels.sh
 ```
 
-The wheel files will be left under `pulsar-client-cpp/python/wheelhouse`. Make sure all the files has `manylinux` in the filenames. Otherwise those files will not be able to upload to PyPI.
+The wheel files will be left under `pulsar-client-cpp/python/wheelhouse`. Make sure all the files have `manylinux` in the filenames. Otherwise, those files will not be able to upload to PyPI.
 
-Run following command to push the built wheel files.
+Run the following command to push the built wheel files.
 
 ```shell
-$ cd pulsar-client-cpp/python/wheelhouse
-$ pip install twine
-$ twine upload pulsar_client-*.whl
+cd pulsar-client-cpp/python/wheelhouse
+pip install twine
+twine upload pulsar_client-*.whl
 ```
 
 ### MacOS
@@ -409,7 +413,7 @@ $ twine upload pulsar_client-*.whl
 There is a script that builds and packages the Python client inside Docker images.
 
 ```shell
-$ pulsar-client-cpp/python/build-mac-wheels.sh
+pulsar-client-cpp/python/build-mac-wheels.sh
 ```
 
 The wheel files will be generated at each platform directory under `pulsar-client-cpp/python/pkg/osx/`.
@@ -429,14 +433,14 @@ Once the docs are generated, you can add them and submit them in a PR. The expec
 
 ## Publish Homebrew libpulsar package
 
-**This step can be skipped if the major version number is not latest.**
+**This step can be skipped if the major version number is not the latest.**
 
 Release a new version of libpulsar for Homebrew, You can follow the example [here](https://github.com/Homebrew/homebrew-core/pull/53514).
 
 ## Update swagger file
 
-> For major release, the swagger file update happen under `master` branch.
-> while for minor release, swagger file is created from branch-2.x, and need copy to a new branch based on master.
+> For major releases, the swagger file update happen under `master` branch.
+> while for minor releases, swagger file is created from branch-2.x, and need copy to a new branch based on master.
 
 ```shell
 git checkout branch-2.X
@@ -454,8 +458,9 @@ See [Pulsar Release Notes Guide](https://docs.google.com/document/d/1cwNkBefKyV6
 
 ## Update the site
 
-### Update the site for minor releases
-For minor releases, such as 2.10, the website is updated based on the `master` branch.
+> **NOTE**: This step is for major releases only.
+
+For major releases, such as 2.10.0, the website is updated based on the `master` branch.
 
 1. Create a new branch off master.
 
@@ -483,9 +488,7 @@ After you run this command, a new folder `version-<release-version>` is added in
   versioned_sidebars/version-<release-version>-sidebars.json 
   ```
 
-> **Note**
->
-> You can move the latest version under the old version in the `versions.json` file. Make sure the Algolia index works before moving 2.X.0 as the current stable.
+> **NOTE**: You can move the latest version under the old version in the `versions.json` file. Make sure the Algolia index works before moving 2.X.0 as the current stable.
 
 4. Update the `releases.json` file by adding `<release-version>` to the second of the list (this is to make the search work. After your PR is merged, the Pulsar website is built and tagged for search, you can change it to the first list).
 
@@ -500,18 +503,16 @@ After you run this command, a new folder `version-<release-version>` is added in
 
 8. Update the deploy version to the current release version in `deployment/terraform-ansible/deploy-pulsar.yaml`.
 
-9. Generate the doc set and sidebar file for the next minor release `2.X.x` based on the `site2/docs` folder. You can follow steps 1, 2, and 3, and submit those files to the `apache/pulsar` repository. This step is a preparation for the `2.X.x` release.
+9. Generate the doc set and sidebar file for the next major release `2.X.x` based on the `site2/docs` folder. You can follow steps 1, 2, and 3, and submit those files to the `apache/pulsar` repository. This step is a preparation for the `2.X.x` release.
 
-> **Note**
->
-> Starting from 2.8, you don't need to generate an independent doc set or update the Pulsar site for bug-fix releases, such as 2.8.1, 2.8.2, and so on. Instead, the generic doc set 2.8.x is used.
+> **NOTE**: Starting from 2.8.0, you don't need to generate an independent doc set or update the Pulsar site for minor releases, such as 2.8.1, 2.8.2, and so on. Instead, the generic doc set 2.8.x is used.
 
 ## Announce the release
 
 Once the release artifacts are available in the Apache Mirrors and the website is updated,
 we need to announce the release.
 
-Send an email on these lines:
+Send an email to these lines:
 
 ```
 To: dev@pulsar.apache.org, users@pulsar.apache.org, announce@apache.org
@@ -550,7 +551,7 @@ You can follow the example [here](https://github.com/apache/pulsar/pull/2308)
 
 ## Remove old releases
 
-Remove the old releases (if any). We only need the latest release there, older releases are
+Remove the old releases (if any). You only need the latest release there, and older releases are
 available through the Apache archive:
 
 ```shell
@@ -563,7 +564,7 @@ svn rm https://dist.apache.org/repos/dist/release/pulsar/pulsar-2.Y.0
 
 ## Move release branch to next version
 
-Run the following commands in release branches.
+Run the following commands in the release branches.
 
 ```shell
 ./src/set-project-version.sh 2.X.Y-SNAPSHOT

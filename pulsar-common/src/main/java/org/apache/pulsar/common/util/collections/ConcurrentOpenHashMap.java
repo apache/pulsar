@@ -42,6 +42,7 @@ public class ConcurrentOpenHashMap<K, V> {
 
     private static final Object EmptyKey = null;
     private static final Object DeletedKey = new Object();
+    private static final ConcurrentOpenHashMap EmptyMap = new ConcurrentOpenHashMap<>(1, 1);
 
     /**
      * This object is used to delete empty value in this map.
@@ -171,6 +172,10 @@ public class ConcurrentOpenHashMap<K, V> {
             sections[i] = new Section<>(perSectionCapacity, mapFillFactor, mapIdleFactor,
                     autoShrink, expandFactor, shrinkFactor);
         }
+    }
+
+    public static <K, V> ConcurrentOpenHashMap<K, V> emptyMap() {
+        return (ConcurrentOpenHashMap<K, V>) EmptyMap;
     }
 
     long getUsedBucketCount() {

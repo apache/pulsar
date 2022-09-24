@@ -547,6 +547,8 @@ The Apache Software License, Version 2.0
     - io.reactivex.rxjava3-rxjava-3.0.1.jar
   * RabbitMQ Java Client
     - com.rabbitmq-amqp-client-5.5.3.jar
+  * RoaringBitmap
+    - org.roaringbitmap-RoaringBitmap-0.9.15.jar
 
 BSD 3-clause "New" or "Revised" License
  * Google auth library
