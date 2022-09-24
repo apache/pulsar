@@ -52,7 +52,6 @@ public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     @Override
     public void setup() throws Exception {
-        resetConfig();
         super.internalSetup();
         admin.clusters().createCluster("test",
                 ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());

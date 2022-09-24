@@ -1058,6 +1058,14 @@ public class BrokerService implements Closeable {
                         new IllegalStateException("Delete forbidden topic is replicated on clusters " + clusters));
             }
 
+            // shadow topic should be deleted first.
+            if (t.isShadowReplicated()) {
+                final List<String> shadowTopics = t.getShadowReplicators().keys();
+                log.error("Delete forbidden. Topic {} is replicated to shadow topics: {}", topic, shadowTopics);
+                return FutureUtil.failedFuture(new IllegalStateException(
+                        "Delete forbidden. Topic " + topic + " is replicated to shadow topics."));
+            }
+
             return t.delete();
         }
 
@@ -2006,7 +2014,7 @@ public class BrokerService implements Closeable {
             TopicName topicName = TopicName.get(topic);
             if (serviceUnit.includes(topicName) && getTopicReference(topic).isPresent()) {
                 log.info("[{}][{}] Clean unloaded topic from cache.", serviceUnit.toString(), topic);
-                pulsar.getBrokerService().removeTopicFromCache(topicName.toString(), serviceUnit);
+                pulsar.getBrokerService().removeTopicFromCache(topicName.toString(), serviceUnit, null);
             }
         }
     }
@@ -2015,15 +2023,56 @@ public class BrokerService implements Closeable {
         return authorizationService;
     }
 
-    public CompletableFuture<Void> removeTopicFromCache(String topic) {
+    public CompletableFuture<Void> removeTopicFromCache(String topicName) {
+        return removeTopicFutureFromCache(topicName, null);
+    }
+
+    public CompletableFuture<Void> removeTopicFromCache(Topic topic) {
+        Optional<CompletableFuture<Optional<Topic>>> createTopicFuture = findTopicFutureInCache(topic);
+        if (createTopicFuture.isEmpty()){
+            return CompletableFuture.completedFuture(null);
+        }
+        return removeTopicFutureFromCache(topic.getName(), createTopicFuture.get());
+    }
+
+    private Optional<CompletableFuture<Optional<Topic>>> findTopicFutureInCache(Topic topic){
+        if (topic == null){
+            return Optional.empty();
+        }
+        final CompletableFuture<Optional<Topic>> createTopicFuture = topics.get(topic.getName());
+        // If not exists in cache, do nothing.
+        if (createTopicFuture == null){
+            return Optional.empty();
+        }
+        // If the future in cache is not yet complete, the topic instance in the cache is not the same with the topic.
+        if (!createTopicFuture.isDone()){
+            return Optional.empty();
+        }
+        // If the future in cache has exception complete,
+        // the topic instance in the cache is not the same with the topic.
+        if (createTopicFuture.isCompletedExceptionally()){
+            return Optional.empty();
+        }
+        Optional<Topic> optionalTopic = createTopicFuture.join();
+        Topic topicInCache = optionalTopic.orElse(null);
+        if (topicInCache == null || topicInCache != topic){
+            return Optional.empty();
+        } else {
+            return Optional.of(createTopicFuture);
+        }
+    }
+
+    private CompletableFuture<Void> removeTopicFutureFromCache(String topic,
+                                                        CompletableFuture<Optional<Topic>> createTopicFuture) {
         TopicName topicName = TopicName.get(topic);
         return pulsar.getNamespaceService().getBundleAsync(topicName)
                 .thenAccept(namespaceBundle -> {
-                    removeTopicFromCache(topic, namespaceBundle);
+                    removeTopicFromCache(topic, namespaceBundle, createTopicFuture);
                 });
     }
 
-    public void removeTopicFromCache(String topic, NamespaceBundle namespaceBundle) {
+    private void removeTopicFromCache(String topic, NamespaceBundle namespaceBundle,
+                                     CompletableFuture<Optional<Topic>> createTopicFuture) {
         String bundleName = namespaceBundle.toString();
         String namespaceName = TopicName.get(topic).getNamespaceObject().toString();
 
@@ -2050,7 +2099,12 @@ public class BrokerService implements Closeable {
                 }
             }
         }
-        topics.remove(topic);
+
+        if (createTopicFuture == null) {
+            topics.remove(topic);
+        } else {
+            topics.remove(topic, createTopicFuture);
+        }
 
         Compactor compactor = pulsar.getNullableCompactor();
         if (compactor != null) {
@@ -2161,7 +2215,12 @@ public class BrokerService implements Closeable {
                         }
                         Map<String, String> data = optMap.get();
                         data.forEach((configKey, value) -> {
-                            Field configField = dynamicConfigurationMap.get(configKey).field;
+                            ConfigField configFieldWrapper = dynamicConfigurationMap.get(configKey);
+                            if (configFieldWrapper == null) {
+                                log.warn("{} does not exist in dynamicConfigurationMap, skip this config.", configKey);
+                                return;
+                            }
+                            Field configField = configFieldWrapper.field;
                             Object newValue = FieldParser.value(data.get(configKey), configField);
                             if (configField != null) {
                                 Consumer listener = configRegisteredListeners.get(configKey);
@@ -2558,6 +2617,8 @@ public class BrokerService implements Closeable {
                     }
                     topic.getReplicators().forEach((name, persistentReplicator) ->
                         persistentReplicator.updateRateLimiter());
+                    topic.getShadowReplicators().forEach((name, persistentReplicator) ->
+                        persistentReplicator.updateRateLimiter());
                 }
             );
         });
@@ -2775,6 +2836,9 @@ public class BrokerService implements Closeable {
         if (pulsar.getNamespaceService() == null) {
             return FutureUtil.failedFuture(new NamingException("namespace service is not ready"));
         }
+        Optional<Policies> policies =
+                pulsar.getPulsarResources().getNamespaceResources()
+                        .getPoliciesIfCached(topicName.getNamespaceObject());
         return pulsar.getNamespaceService().checkTopicExists(topicName)
                 .thenCompose(topicExists -> {
                     return fetchPartitionedTopicMetadataAsync(topicName)
@@ -2789,10 +2853,12 @@ public class BrokerService implements Closeable {
                                     if (metadata.partitions == 0
                                             && !topicExists
                                             && !topicName.isPartitioned()
-                                            && pulsar.getBrokerService().isAllowAutoTopicCreation(topicName)
-                                            && pulsar.getBrokerService().isDefaultTopicTypePartitioned(topicName)) {
+                                            && pulsar.getBrokerService().isAllowAutoTopicCreation(topicName, policies)
+                                            && pulsar.getBrokerService()
+                                                            .isDefaultTopicTypePartitioned(topicName, policies)) {
 
-                                        pulsar.getBrokerService().createDefaultPartitionedTopicAsync(topicName)
+                                        pulsar.getBrokerService()
+                                                .createDefaultPartitionedTopicAsync(topicName, policies)
                                                 .thenAccept(md -> future.complete(md))
                                                 .exceptionally(ex -> {
                                                     if (ex.getCause()
@@ -2822,8 +2888,9 @@ public class BrokerService implements Closeable {
     }
 
     @SuppressWarnings("deprecation")
-    private CompletableFuture<PartitionedTopicMetadata> createDefaultPartitionedTopicAsync(TopicName topicName) {
-        final int defaultNumPartitions = pulsar.getBrokerService().getDefaultNumPartitions(topicName);
+    private CompletableFuture<PartitionedTopicMetadata> createDefaultPartitionedTopicAsync(TopicName topicName,
+                                                                                        Optional<Policies> policies) {
+        final int defaultNumPartitions = pulsar.getBrokerService().getDefaultNumPartitions(topicName, policies);
         final int maxPartitions = pulsar().getConfig().getMaxNumPartitionsPerPartitionedTopic();
         checkArgument(defaultNumPartitions > 0,
                 "Default number of partitions should be more than 0");
@@ -3009,11 +3076,23 @@ public class BrokerService implements Closeable {
     }
 
     public boolean isAllowAutoTopicCreation(final TopicName topicName) {
+        Optional<Policies> policies =
+                pulsar.getPulsarResources().getNamespaceResources()
+                        .getPoliciesIfCached(topicName.getNamespaceObject());
+        return isAllowAutoTopicCreation(topicName, policies);
+    }
+
+    public boolean isAllowAutoTopicCreation(final TopicName topicName, final Optional<Policies> policies) {
+        if (policies.isPresent() && policies.get().deleted) {
+            log.info("Preventing AutoTopicCreation on a namespace that is being deleted {}",
+                    topicName.getNamespaceObject());
+            return false;
+        }
         //System topic can always be created automatically
         if (pulsar.getConfiguration().isSystemTopicEnabled() && isSystemTopic(topicName)) {
             return true;
         }
-        AutoTopicCreationOverride autoTopicCreationOverride = getAutoTopicCreationOverride(topicName);
+        AutoTopicCreationOverride autoTopicCreationOverride = getAutoTopicCreationOverride(topicName, policies);
         if (autoTopicCreationOverride != null) {
             return autoTopicCreationOverride.isAllowAutoTopicCreation();
         } else {
@@ -3021,8 +3100,8 @@ public class BrokerService implements Closeable {
         }
     }
 
-    public boolean isDefaultTopicTypePartitioned(final TopicName topicName) {
-        AutoTopicCreationOverride autoTopicCreationOverride = getAutoTopicCreationOverride(topicName);
+    public boolean isDefaultTopicTypePartitioned(final TopicName topicName, final Optional<Policies> policies) {
+        AutoTopicCreationOverride autoTopicCreationOverride = getAutoTopicCreationOverride(topicName, policies);
         if (autoTopicCreationOverride != null) {
             return TopicType.PARTITIONED.toString().equals(autoTopicCreationOverride.getTopicType());
         } else {
@@ -3030,8 +3109,8 @@ public class BrokerService implements Closeable {
         }
     }
 
-    public int getDefaultNumPartitions(final TopicName topicName) {
-        AutoTopicCreationOverride autoTopicCreationOverride = getAutoTopicCreationOverride(topicName);
+    public int getDefaultNumPartitions(final TopicName topicName, final Optional<Policies> policies) {
+        AutoTopicCreationOverride autoTopicCreationOverride = getAutoTopicCreationOverride(topicName, policies);
         if (autoTopicCreationOverride != null) {
             return autoTopicCreationOverride.getDefaultNumPartitions();
         } else {
@@ -3039,10 +3118,8 @@ public class BrokerService implements Closeable {
         }
     }
 
-    private AutoTopicCreationOverride getAutoTopicCreationOverride(final TopicName topicName) {
-        Optional<Policies> policies =
-                pulsar.getPulsarResources().getNamespaceResources()
-                        .getPoliciesIfCached(topicName.getNamespaceObject());
+    private AutoTopicCreationOverride getAutoTopicCreationOverride(final TopicName topicName,
+                                                                   Optional<Policies> policies) {
         // If namespace policies have the field set, it will override the broker-level setting
         if (policies.isPresent() && policies.get().autoTopicCreationOverride != null) {
             return policies.get().autoTopicCreationOverride;

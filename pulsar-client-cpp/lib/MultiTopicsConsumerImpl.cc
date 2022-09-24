@@ -748,11 +748,12 @@ uint64_t MultiTopicsConsumerImpl::getNumberOfConnectedConsumer() {
 }
 void MultiTopicsConsumerImpl::runPartitionUpdateTask() {
     partitionsUpdateTimer_->expires_from_now(partitionsUpdateInterval_);
-    auto self = shared_from_this();
-    partitionsUpdateTimer_->async_wait([self](const boost::system::error_code& ec) {
+    std::weak_ptr<MultiTopicsConsumerImpl> weakSelf{shared_from_this()};
+    partitionsUpdateTimer_->async_wait([weakSelf](const boost::system::error_code& ec) {
         // If two requests call runPartitionUpdateTask at the same time, the timer will fail, and it
         // cannot continue at this time, and the request needs to be ignored.
-        if (!ec) {
+        auto self = weakSelf.lock();
+        if (self && !ec) {
             self->topicPartitionUpdate();
         }
     });

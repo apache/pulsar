@@ -92,7 +92,7 @@ Once you've created a geo-replication namespace, any topics that producers or co
 
 By default, messages are replicated to all clusters configured for the namespace. You can restrict replication selectively by specifying a replication list for a message, and then that message will be replicated only to the subset in the replication list.
 
-The following is an example for the [Java API](client-libraries-java). Note the use of the `setReplicationClusters` method when constructing the {@inject: javadoc:Message:/client/org/apache/pulsar/client/api/Message} object:
+The following is an example for the [Java API](client-libraries-java.md). Note the use of the `setReplicationClusters` method when constructing the {@inject: javadoc:Message:/client/org/apache/pulsar/client/api/Message} object:
 
 ```java
 
@@ -114,7 +114,7 @@ producer.newMessage()
 
 #### Topic stats
 
-Topic-specific statistics for geo-replication topics are available via the [`pulsar-admin`](reference-pulsar-admin) tool and {@inject: rest:REST:/} API:
+Topic-specific statistics for geo-replication topics are available via the [`pulsar-admin`](reference-pulsar-admin.md) tool and {@inject: rest:REST:/} API:
 
 ```shell
 

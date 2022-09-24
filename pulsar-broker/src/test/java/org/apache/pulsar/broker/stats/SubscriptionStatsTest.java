@@ -148,16 +148,21 @@ public class SubscriptionStatsTest extends ProducerConsumerBase {
     @DataProvider(name = "testSubscriptionMetrics")
     public Object[][] topicAndSubscription() {
         return new Object[][]{
-                {"persistent://my-property/my-ns/testSubscriptionStats-" + UUID.randomUUID(), "my-sub1", true},
-                {"non-persistent://my-property/my-ns/testSubscriptionStats-" + UUID.randomUUID(), "my-sub2", true},
-                {"persistent://my-property/my-ns/testSubscriptionStats-" + UUID.randomUUID(), "my-sub3", false},
-                {"non-persistent://my-property/my-ns/testSubscriptionStats-" + UUID.randomUUID(), "my-sub4", false},
+                {"persistent://my-property/my-ns/testSubscriptionStats-" + UUID.randomUUID(), "my-sub1", true, true},
+                {"non-persistent://my-property/my-ns/testSubscriptionStats-" + UUID.randomUUID(), "my-sub2", true, true},
+                {"persistent://my-property/my-ns/testSubscriptionStats-" + UUID.randomUUID(), "my-sub3", false, true},
+                {"non-persistent://my-property/my-ns/testSubscriptionStats-" + UUID.randomUUID(), "my-sub4", false, true},
+
+                {"persistent://my-property/my-ns/testSubscriptionStats-" + UUID.randomUUID(), "my-sub1", true, false},
+                {"non-persistent://my-property/my-ns/testSubscriptionStats-" + UUID.randomUUID(), "my-sub2", true, false},
+                {"persistent://my-property/my-ns/testSubscriptionStats-" + UUID.randomUUID(), "my-sub3", false, false},
+                {"non-persistent://my-property/my-ns/testSubscriptionStats-" + UUID.randomUUID(), "my-sub4", false, false},
         };
     }
 
     @Test(dataProvider = "testSubscriptionMetrics")
-    public void testSubscriptionStats(final String topic, final String subName, boolean enableTopicStats)
-            throws Exception {
+    public void testSubscriptionStats(final String topic, final String subName, boolean enableTopicStats,
+                                      boolean setFilter) throws Exception {
         @Cleanup
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                 .topic(topic)
@@ -175,12 +180,15 @@ public class SubscriptionStatsTest extends ProducerConsumerBase {
         Dispatcher dispatcher = pulsar.getBrokerService().getTopic(topic, false).get()
                 .get().getSubscription(subName).getDispatcher();
 
-        Field field = EntryFilterSupport.class.getDeclaredField("entryFilters");
-        field.setAccessible(true);
-        NarClassLoader narClassLoader = mock(NarClassLoader.class);
-        EntryFilter filter1 = new EntryFilterTest();
-        EntryFilterWithClassLoader loader1 = spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter1, narClassLoader);
-        field.set(dispatcher, ImmutableList.of(loader1));
+        if (setFilter) {
+            Field field = EntryFilterSupport.class.getDeclaredField("entryFilters");
+            field.setAccessible(true);
+            NarClassLoader narClassLoader = mock(NarClassLoader.class);
+            EntryFilter filter1 = new EntryFilterTest();
+            EntryFilterWithClassLoader loader1 =
+                    spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter1, narClassLoader);
+            field.set(dispatcher, ImmutableList.of(loader1));
+        }
 
         for (int i = 0; i < 100; i++) {
             producer.newMessage().property("ACCEPT", " ").value(UUID.randomUUID().toString()).send();
@@ -233,10 +241,18 @@ public class SubscriptionStatsTest extends ProducerConsumerBase {
                     .filter(m -> m.tags.get("subscription").equals(subName) && m.tags.get("topic").equals(topic))
                     .mapToDouble(m-> m.value).sum();
 
-            Assert.assertEquals(filterAccepted, 100);
-            if (isPersistent) {
-                Assert.assertEquals(filterRejected, 100);
-                Assert.assertEquals(throughFilter, filterAccepted + filterRejected + filterRescheduled, 0.01 * throughFilter);
+            if (setFilter) {
+                Assert.assertEquals(filterAccepted, 100);
+                if (isPersistent) {
+                    Assert.assertEquals(filterRejected, 100);
+                    // Only works on the test, if there are some markers, the filterProcessCount will be not equal with rejectedCount + rescheduledCount + acceptCount
+                    Assert.assertEquals(throughFilter, filterAccepted + filterRejected + filterRescheduled, 0.01 * throughFilter);
+                }
+            } else {
+                Assert.assertEquals(throughFilter, 0D);
+                Assert.assertEquals(filterAccepted, 0D);
+                Assert.assertEquals(filterRejected, 0D);
+                Assert.assertEquals(filterRescheduled, 0D);
             }
         } else {
             Assert.assertEquals(throughFilterMetrics.size(), 0);
@@ -245,22 +261,32 @@ public class SubscriptionStatsTest extends ProducerConsumerBase {
             Assert.assertEquals(rescheduledMetrics.size(), 0);
         }
 
-        testSubscriptionStatsAdminApi(topic, subName);
+        testSubscriptionStatsAdminApi(topic, subName, setFilter);
     }
 
-    private void testSubscriptionStatsAdminApi(String topic, String subName) throws Exception {
+    private void testSubscriptionStatsAdminApi(String topic, String subName, boolean setFilter) throws Exception {
         boolean persistent = TopicName.get(topic).isPersistent();
         TopicStats topicStats = admin.topics().getStats(topic);
         SubscriptionStats stats = topicStats.getSubscriptions().get(subName);
         Assert.assertNotNull(stats);
 
-        Assert.assertEquals(stats.getFilterAcceptedMsgCount(), 100);
-        if (persistent) {
-            Assert.assertEquals(stats.getFilterRejectedMsgCount(), 100);
-            Assert.assertEquals(stats.getFilterProcessedMsgCount(),
-                    stats.getFilterAcceptedMsgCount() + stats.getFilterRejectedMsgCount()
-                            + stats.getFilterRescheduledMsgCount(),
-                    0.01 * stats.getFilterProcessedMsgCount());
+        if (setFilter) {
+            Assert.assertEquals(stats.getFilterAcceptedMsgCount(), 100);
+            if (persistent) {
+                Assert.assertEquals(stats.getFilterRejectedMsgCount(), 100);
+                // Only works on the test, if there are some markers, the filterProcessCount will be not equal with rejectedCount + rescheduledCount + acceptCount
+                Assert.assertEquals(stats.getFilterProcessedMsgCount(),
+                        stats.getFilterAcceptedMsgCount() + stats.getFilterRejectedMsgCount()
+                                + stats.getFilterRescheduledMsgCount(),
+                        0.01 * stats.getFilterProcessedMsgCount());
+            }
+        } else {
+            Assert.assertEquals(stats.getFilterAcceptedMsgCount(), 0L);
+            if (persistent) {
+                Assert.assertEquals(stats.getFilterRejectedMsgCount(), 0L);
+                Assert.assertEquals(stats.getFilterAcceptedMsgCount(), 0L);
+                Assert.assertEquals(stats.getFilterRescheduledMsgCount(), 0L);
+            }
         }
     }
 }

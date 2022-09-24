@@ -159,7 +159,6 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     @Override
     @BeforeMethod
     public void setup() throws Exception {
-        resetConfig();
         conf.setTopicLevelPoliciesEnabled(false);
         conf.setSystemTopicEnabled(false);
         conf.setClusterName(testLocalCluster);
@@ -1557,10 +1556,9 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     public void testMaxTopicsPerNamespace() throws Exception {
         cleanup();
         conf.setMaxTopicsPerNamespace(15);
-        super.internalSetup();
+        setup();
 
-        String namespace = "testTenant/ns1";
-        admin.clusters().createCluster("use", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        String namespace = BrokerTestUtil.newUniqueName("testTenant/ns1");
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"),
                 Set.of("use"));
         admin.tenants().createTenant("testTenant", tenantInfo);
@@ -1572,7 +1570,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         assertEquals(10, admin.namespaces().getMaxTopicsPerNamespace(namespace));
 
         // check create partitioned/non-partitioned topics using namespace policy
-        String topic = "persistent://testTenant/ns1/test_create_topic_v";
+        String topic = "persistent://" + namespace + "/test_create_topic_v";
         admin.topics().createPartitionedTopic(topic + "1", 2);
         admin.topics().createPartitionedTopic(topic + "2", 3);
         admin.topics().createPartitionedTopic(topic + "3", 4);
@@ -1610,9 +1608,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         conf.setMaxTopicsPerNamespace(0);
         conf.setDefaultNumPartitions(3);
         conf.setAllowAutoTopicCreationType("partitioned");
-        super.internalSetup();
+        setup();
 
-        admin.clusters().createCluster("use", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
         admin.tenants().createTenant("testTenant", tenantInfo);
         admin.namespaces().createNamespace(namespace, Set.of("use"));
         admin.namespaces().setMaxTopicsPerNamespace(namespace, 10);
@@ -1640,9 +1637,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         conf.setMaxTopicsPerNamespace(0);
         conf.setDefaultNumPartitions(1);
         conf.setAllowAutoTopicCreationType("non-partitioned");
-        super.internalSetup();
+        setup();
 
-        admin.clusters().createCluster("use", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
         admin.tenants().createTenant("testTenant", tenantInfo);
         admin.namespaces().createNamespace(namespace, Set.of("use"));
         admin.namespaces().setMaxTopicsPerNamespace(namespace, 3);

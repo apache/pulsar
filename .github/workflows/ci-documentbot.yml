@@ -33,7 +33,7 @@ concurrency:
 
 jobs:
   label:
-    if: ${{ github.repository == 'apache/pulsar' }}
+    if: (github.repository == 'apache/pulsar') && (github.event.pull_request.state == 'open')
     permissions:
       pull-requests: write 
     runs-on: ubuntu-20.04

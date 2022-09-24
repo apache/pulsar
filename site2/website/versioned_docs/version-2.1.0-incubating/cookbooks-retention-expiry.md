@@ -15,7 +15,7 @@ In Pulsar, you can override both of these default behaviors, at the namespace le
 * You can persistently store messages that have already been consumed and acknowledged for a minimum time by setting [retention policies](#retention-policies).
 * Messages that are not acknowledged within a specified timeframe, can be automatically marked as consumed, by specifying the [time to live](#time-to-live-ttl) (TTL).
 
-Pulsar's [admin interface](admin-api-overview) enables you to manage both retention policies and TTL at the namespace level (and thus within a specific tenant and either on a specific cluster or in the [`global`](concepts-architecture-overview.md#global-cluster) cluster).
+Pulsar's [admin interface](admin-api-overview.md) enables you to manage both retention policies and TTL at the namespace level (and thus within a specific tenant and either on a specific cluster or in the [`global`](concepts-architecture-overview.md#global-cluster) cluster).
 
 
 > #### Retention and TTL are solving two different problems

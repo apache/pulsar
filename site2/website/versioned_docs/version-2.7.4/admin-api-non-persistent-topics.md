@@ -5,4 +5,4 @@ sidebar_label: "Non-Persistent topics"
 original_id: admin-api-non-persistent-topics
 ---
 
-For details of the content, refer to [manage topics](admin-api-topics).
+For details of the content, refer to [manage topics](admin-api-topics.md).

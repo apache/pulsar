@@ -101,16 +101,12 @@ public class CmdGenerateDocs {
     private String generateDocument(String module, JCommander commander) {
         JCommander cmd = commander.getCommands().get(module);
         StringBuilder sb = new StringBuilder();
-        sb.append("------------\n\n");
         sb.append("# ").append(module).append("\n\n");
-        sb.append("### Usage\n\n");
-        sb.append("`$").append(module).append("`\n\n");
-        sb.append("------------\n\n");
         String desc = commander.getUsageFormatter().getCommandDescription(module);
         if (null != desc && !desc.isEmpty()) {
             sb.append(desc).append("\n");
         }
-        sb.append("\n\n```bdocs-tab:example_shell\n")
+        sb.append("\n\n```shell\n")
                 .append("$ ");
         if (null != jcommander.getProgramName() && !jcommander.getProgramName().isEmpty()) {
             sb.append(jcommander.getProgramName()).append(" ");
@@ -133,16 +129,13 @@ public class CmdGenerateDocs {
                     if (null != subDesc && !subDesc.isEmpty()) {
                         sb.append(subDesc).append("\n");
                     }
-                    sb.append("### Usage\n\n");
-                    sb.append("------------\n\n\n");
-                    sb.append("```bdocs-tab:example_shell\n$ ");
+                    sb.append("```shell\n$ ");
                     if (null != jcommander.getProgramName() && !jcommander.getProgramName().isEmpty()) {
                         sb.append(jcommander.getProgramName()).append(" ");
                     }
                     sb.append(module).append(" ").append(subK).append(" options").append("\n```\n\n");
                     List<ParameterDescription> options = cmdObj.getCommands().get(subK).getParameters();
                     if (options.size() > 0) {
-                        sb.append("Options\n\n\n");
                         sb.append("|Flag|Description|Default|\n");
                         sb.append("|---|---|---|\n");
                     }

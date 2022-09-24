@@ -998,7 +998,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         consumer.close();
         admin.topics().deleteSubscription(topicName, subName);
         admin.topics().delete(topicName);
-        admin.namespaces().deleteNamespace(namespaceName);
+        deleteNamespaceGraceFully(namespaceName, false);
     }
 
     @Test
@@ -1090,7 +1090,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
             consumer.close();
             admin.topics().deleteSubscription(topicName, subName);
             admin.topics().delete(topicName);
-            admin.namespaces().deleteNamespace(namespaceName, true);
+            deleteNamespaceGraceFully(namespaceName, true);
         } catch (PulsarAdminException e) {
             Assert.assertEquals(e.getStatusCode(), 500);
         }
@@ -1327,7 +1327,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
             .create();
 
         // 2. Stop broker
-        super.internalCleanup();
+        cleanup();
 
         // 2. producer publish messages
         long startTime = System.nanoTime();
@@ -1374,7 +1374,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
             .create();
 
         // 2. Stop broker
-        super.internalCleanup();
+        cleanup();
 
         // 2. producer publish messages
         long startTime = System.nanoTime();
@@ -1930,7 +1930,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
     @Test
     public void testHttpLookupWithNotFoundError() throws Exception {
-        stopBroker();
+        cleanup();
         isTcpLookup = false;
         setup();
         try {
@@ -2017,7 +2017,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
                 if(topicClazz == NonPersistentTopic.class) {
                     return (T) new NonPersistentTopic(topic, brokerService);
                 }else {
-                    return (T) new PersistentTopic(topic, ledger, brokerService); 
+                    return (T) new PersistentTopic(topic, ledger, brokerService);
                 }
             } catch (Exception e) {
                 throw new IllegalStateException(e);
