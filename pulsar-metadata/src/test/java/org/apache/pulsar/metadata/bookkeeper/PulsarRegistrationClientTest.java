@@ -23,6 +23,8 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.mockito.Mockito.mock;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -112,6 +114,63 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
         Versioned<Set<BookieId>> result = result(rc.getReadOnlyBookies());
 
         assertEquals(result.getValue().size(), addresses.size());
+    }
+
+    @Test(dataProvider = "impl")
+    public void testGetBookieServiceInfo(String provider, Supplier<String> urlSupplier) throws Exception {
+        @Cleanup
+        MetadataStoreExtended store =
+                MetadataStoreExtended.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+
+        String ledgersRoot = "/test/ledgers-" + UUID.randomUUID();
+
+        @Cleanup
+        RegistrationManager rm = new PulsarRegistrationManager(store, ledgersRoot, mock(AbstractConfiguration.class));
+
+        @Cleanup
+        RegistrationClient rc = new PulsarRegistrationClient(store, ledgersRoot);
+
+        List<BookieId> addresses = new ArrayList<>(prepareNBookies(10));
+        List<BookieServiceInfo> bookieServiceInfos = new ArrayList<>();
+        int port = 223;
+        for (BookieId address : addresses) {
+            BookieServiceInfo info = new BookieServiceInfo();
+            BookieServiceInfo.Endpoint endpoint = new BookieServiceInfo.Endpoint();
+            endpoint.setAuth(Collections.emptyList());
+            endpoint.setExtensions(Collections.emptyList());
+            endpoint.setId("id");
+            endpoint.setHost("localhost");
+            endpoint.setPort(port++);
+            endpoint.setProtocol("bookie-rpc");
+            info.setEndpoints(Arrays.asList(endpoint));
+            bookieServiceInfos.add(info);
+            // some readonly, some writable
+            boolean readOnly = port % 2 == 0;
+            rm.registerBookie(address, readOnly, info);
+        }
+
+        int i = 0;
+        for (BookieId address : addresses) {
+            BookieServiceInfo bookieServiceInfo = rc.getBookieServiceInfo(address).get().getValue();
+            compareBookieServiceInfo(bookieServiceInfo, bookieServiceInfos.get(i++));
+        }
+
+    }
+
+    private void compareBookieServiceInfo(BookieServiceInfo a, BookieServiceInfo b) {
+        assertEquals(a.getProperties(), b.getProperties());
+        assertEquals(a.getEndpoints().size(), b.getEndpoints().size());
+        for (int i = 0; i < a.getEndpoints().size(); i++) {
+            BookieServiceInfo.Endpoint e1 = a.getEndpoints().get(i);
+            BookieServiceInfo.Endpoint e2 = b.getEndpoints().get(i);
+            assertEquals(e1.getHost(), e2.getHost());
+            assertEquals(e1.getPort(), e2.getPort());
+            assertEquals(e1.getId(), e2.getId());
+            assertEquals(e1.getProtocol(), e2.getProtocol());
+            assertEquals(e1.getExtensions(), e2.getExtensions());
+            assertEquals(e1.getAuth(), e2.getAuth());
+        }
+
     }
 
     @Test(dataProvider = "impl")
