@@ -66,7 +66,9 @@ public class AuthenticationProviderList implements AuthenticationProvider {
         } else {
             AuthenticationMetrics.authenticateFailure(
                     AuthenticationProviderList.class.getSimpleName(),
-                    "authentication-provider-list", authenticationException.getMessage());
+                    "authentication-provider-list",
+                    authenticationException.getMessage() != null
+                            ? authenticationException.getMessage(): "Authentication required");
             throw authenticationException;
         }
 
