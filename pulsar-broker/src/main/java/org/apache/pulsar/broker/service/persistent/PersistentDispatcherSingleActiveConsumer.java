@@ -146,8 +146,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
     @Override
     public void readEntriesComplete(final List<Entry> entries, Object obj) {
         topic.getBrokerService().getTopicOrderedExecutor().executeOrdered(topicName, SafeRun.safeRun(() -> {
-            List<Entry> filterEntries = filterAndAcknowledgeSkippedEntry(entries);
-            internalReadEntriesComplete(filterEntries, obj);
+            internalReadEntriesComplete(entries, obj);
         }));
     }
 

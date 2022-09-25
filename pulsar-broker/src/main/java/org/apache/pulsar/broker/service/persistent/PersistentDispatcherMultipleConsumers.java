@@ -564,8 +564,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     protected final synchronized boolean sendMessagesToConsumers(ReadType readType, List<Entry> entries) {
         sendInProgress = true;
         try {
-            List<Entry> filterEntries = filterAndAcknowledgeSkippedEntry(entries);
-            return trySendMessagesToConsumers(readType, filterEntries);
+            return trySendMessagesToConsumers(readType, entries);
         } finally {
             sendInProgress = false;
         }

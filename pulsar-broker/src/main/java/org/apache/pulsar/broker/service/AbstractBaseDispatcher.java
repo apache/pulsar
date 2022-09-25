@@ -96,25 +96,6 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
     }
 
     /**
-     * 1. Acknowledge skipped messages;
-     * 2. Filter out skipped messages;
-     */
-    public List<Entry> filterAndAcknowledgeSkippedEntry(List<Entry> entries) {
-        List<Position> skippedPositions = new ArrayList<>();
-        List<Entry> filterEntries = Lists.newArrayList(Collections2.filter(entries, entry -> {
-            if (entry instanceof EntryImpl) {
-                if (((EntryImpl) entry).skipped()) {
-                    skippedPositions.add(new PositionImpl(entry.getLedgerId(), entry.getEntryId()));
-                    return false;
-                }
-            }
-            return true;
-        }));
-        subscription.acknowledgeMessage(skippedPositions, CommandAck.AckType.Individual, Collections.emptyMap());
-        return filterEntries;
-    }
-
-    /**
      * Filter entries with prefetched message metadata range so that there is no need to peek metadata from Entry.
      *
      * @param optMetadataArray the optional message metadata array
@@ -139,6 +120,13 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
         for (int i = 0, entriesSize = entries.size(); i < entriesSize; i++) {
             final Entry entry = entries.get(i);
             if (entry == null) {
+                continue;
+            }
+            if (entry instanceof EntryImpl) {
+                EntryImpl entryImpl = (EntryImpl) entry;
+                if (entryImpl.skipped()) {
+                    entriesToFiltered.add(entryImpl.getPosition());
+                }
                 continue;
             }
             ByteBuf metadataAndPayload = entry.getDataBuffer();
