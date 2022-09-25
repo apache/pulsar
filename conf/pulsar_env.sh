@@ -45,22 +45,41 @@
 PULSAR_MEM=${PULSAR_MEM:-"-Xms2g -Xmx2g -XX:MaxDirectMemorySize=4g"}
 
 # Garbage collection options
-PULSAR_GC=${PULSAR_GC:-"-XX:+UseG1GC -XX:MaxGCPauseMillis=10 -XX:+ParallelRefProcEnabled -XX:+UnlockExperimentalVMOptions -XX:+DoEscapeAnalysis -XX:ParallelGCThreads=32 -XX:ConcGCThreads=32 -XX:G1NewSizePercent=50 -XX:+DisableExplicitGC"}
+PULSAR_GC=${PULSAR_GC:-"-XX:+UseZGC -XX:+PerfDisableSharedMem -XX:+AlwaysPreTouch"}
 
-# Garbage collection log.
-if [ -z "$JAVA_HOME" ]
-then
-  IS_JAVA_8=`java -version 2>&1 |grep version|grep '"1\.8'`
+if [ -z "$JAVA_HOME" ]; then
+  JAVA_BIN=java
 else
-  IS_JAVA_8=`$JAVA_HOME/bin/java -version 2>&1 |grep version|grep '"1\.8'`
+  JAVA_BIN="$JAVA_HOME/bin/java"
 fi
-# java version has space, use [[ -n $PARAM ]] to judge if variable exists
-PULSAR_GC_LOG_DIR=${PULSAR_LOG_DIR:-"logs"}
-if [[ -n $IS_JAVA_8 ]]; then
-  PULSAR_GC_LOG=${PULSAR_GC_LOG:-"-Xloggc:$PULSAR_GC_LOG_DIR/pulsar_gc_%p.log -XX:+PrintGCDetails -XX:+PrintGCDateStamps -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=10 -XX:GCLogFileSize=20M"}
-else
-# After jdk 9, gc log param should config like this. Ignoring version less than jdk 8
-  PULSAR_GC_LOG=${PULSAR_GC_LOG:-"-Xlog:gc*:$PULSAR_GC_LOG_DIR/pulsar_gc_%p.log:time,uptime:filecount=10,filesize=20M"}
+for token in $("$JAVA_BIN" -version 2>&1 | grep 'version "'); do
+    if [[ $token =~ \"([[:digit:]]+)\.([[:digit:]]+)(.*)\" ]]; then
+        if [[ ${BASH_REMATCH[1]} == "1" ]]; then
+          JAVA_MAJOR_VERSION=${BASH_REMATCH[2]}
+        else
+          JAVA_MAJOR_VERSION=${BASH_REMATCH[1]}
+        fi
+        break
+    elif [[ $token =~ \"([[:digit:]]+)(.*)\" ]]; then
+        # Process the java versions without dots, such as `17-internal`.
+        JAVA_MAJOR_VERSION=${BASH_REMATCH[1]}
+        break
+    fi
+done
+
+PULSAR_GC_LOG_DIR=${PULSAR_GC_LOG_DIR:-"${PULSAR_LOG_DIR}"}
+
+if [[ -z "$PULSAR_GC_LOG" ]]; then
+  if [[ $JAVA_MAJOR_VERSION -gt 8 ]]; then
+    PULSAR_GC_LOG="-Xlog:gc*,safepoint:${PULSAR_GC_LOG_DIR}/pulsar_gc_%p.log:time,uptime,tags:filecount=10,filesize=20M"
+    if [[ $JAVA_MAJOR_VERSION -ge 17 ]]; then
+      # Use async logging on Java 17+ https://bugs.openjdk.java.net/browse/JDK-8264323
+      PULSAR_GC_LOG="-Xlog:async ${PULSAR_GC_LOG}"
+    fi
+  else
+    # Java 8 gc log options
+    PULSAR_GC_LOG="-Xloggc:${PULSAR_GC_LOG_DIR}/pulsar_gc_%p.log -XX:+PrintGCDetails -XX:+PrintGCDateStamps -XX:+PrintGCApplicationStoppedTime -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=10 -XX:GCLogFileSize=20M"
+  fi
 fi
 
 # Extra options to be passed to the jvm

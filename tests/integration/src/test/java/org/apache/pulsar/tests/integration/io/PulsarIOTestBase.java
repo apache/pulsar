@@ -37,7 +37,7 @@ public abstract class PulsarIOTestBase extends PulsarFunctionsTestBase {
             try {
                 tester.close();
             } finally {
-                tester.stopServiceContainer(pulsarCluster);
+                tester.stopServiceContainer();
             }
         }
     }
@@ -63,7 +63,7 @@ public abstract class PulsarIOTestBase extends PulsarFunctionsTestBase {
             try {
                 sinkTester.close();
             } finally {
-                sinkTester.stopServiceContainer(pulsarCluster);
+                sinkTester.stopServiceContainer();
             }
         }
     }

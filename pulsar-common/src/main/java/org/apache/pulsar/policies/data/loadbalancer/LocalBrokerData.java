@@ -235,7 +235,8 @@ public class LocalBrokerData implements LoadManagerReport {
     }
 
     public double getMaxResourceUsage() {
-        return max(cpu.percentUsage(), memory.percentUsage(), directMemory.percentUsage(), bandwidthIn.percentUsage(),
+        // does not consider memory because it is noisy by gc.
+        return max(cpu.percentUsage(), directMemory.percentUsage(), bandwidthIn.percentUsage(),
                 bandwidthOut.percentUsage()) / 100;
     }
 
@@ -251,6 +252,16 @@ public class LocalBrokerData implements LoadManagerReport {
                                                 final double directMemoryWeight, final double bandwidthInWeight,
                                                 final double bandwidthOutWeight) {
         return max(cpu.percentUsage() * cpuWeight, memory.percentUsage() * memoryWeight,
+                directMemory.percentUsage() * directMemoryWeight, bandwidthIn.percentUsage() * bandwidthInWeight,
+                bandwidthOut.percentUsage() * bandwidthOutWeight) / 100;
+    }
+
+    public double getMaxResourceUsageWithWeightWithinLimit(final double cpuWeight, final double memoryWeight,
+                                                           final double directMemoryWeight,
+                                                           final double bandwidthInWeight,
+                                                           final double bandwidthOutWeight) {
+        return maxWithinLimit(100.0d,
+                cpu.percentUsage() * cpuWeight, memory.percentUsage() * memoryWeight,
                 directMemory.percentUsage() * directMemoryWeight, bandwidthIn.percentUsage() * bandwidthInWeight,
                 bandwidthOut.percentUsage() * bandwidthOutWeight) / 100;
     }
@@ -276,6 +287,16 @@ public class LocalBrokerData implements LoadManagerReport {
             }
         }
 
+        return max;
+    }
+
+    private static double maxWithinLimit(double limit, double...args) {
+        double max = 0.0;
+        for (double d : args) {
+            if (d > max && d <= limit) {
+                max = d;
+            }
+        }
         return max;
     }
 

@@ -141,7 +141,7 @@ This blog walks through the most noteworthy changes grouped by component. For th
 
 # What is Next?
 
-If you are interested in learning more about Pulsar 2.8.1, you can [download](https://pulsar.apache.org/en/download/) and try it out now! 
+If you are interested in learning more about Pulsar 2.8.1, you can [download](https://pulsar.apache.org/download/) and try it out now! 
 
 The first-ever Pulsar Virtual Summit Europe 2021 will take place in October. [Register now](https://hopin.com/events/pulsar-summit-europe-2021) and help us make it an even bigger success by spreading the word on social media!
 

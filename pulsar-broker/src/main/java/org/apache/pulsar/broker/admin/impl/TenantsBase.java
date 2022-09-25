@@ -124,6 +124,12 @@ public class TenantsBase extends PulsarWebResource {
         validateSuperUserAccessAsync()
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenCompose(__ -> validateClustersAsync(tenantInfo))
+                .thenCompose(__ -> tenantResources().tenantExistsAsync(tenant))
+                .thenAccept(exist -> {
+                    if (exist) {
+                        throw new RestException(Status.CONFLICT, "Tenant already exist");
+                    }
+                })
                 .thenCompose(__ -> tenantResources().listTenantsAsync())
                 .thenAccept(tenants -> {
                     int maxTenants = pulsar().getConfiguration().getMaxTenants();
@@ -133,12 +139,6 @@ public class TenantsBase extends PulsarWebResource {
                         if (tenants != null && tenants.size() >= maxTenants) {
                             throw new RestException(Status.PRECONDITION_FAILED, "Exceed the maximum number of tenants");
                         }
-                    }
-                })
-                .thenCompose(__ -> tenantResources().tenantExistsAsync(tenant))
-                .thenAccept(exist -> {
-                    if (exist) {
-                        throw new RestException(Status.CONFLICT, "Tenant already exist");
                     }
                 })
                 .thenCompose(__ -> tenantResources().createTenantAsync(tenant, tenantInfo))

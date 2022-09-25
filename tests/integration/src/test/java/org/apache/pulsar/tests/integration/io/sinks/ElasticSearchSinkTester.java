@@ -116,7 +116,7 @@ public abstract class ElasticSearchSinkTester extends SinkTester<ElasticsearchCo
     @Override
     public void validateSinkResult(Map<String, String> kvs) {
         Awaitility.await().untilAsserted(() -> {
-            SearchResponse searchResult = elasticClient.search(new SearchRequest.Builder().index("test-index")
+            SearchResponse<?> searchResult = elasticClient.search(new SearchRequest.Builder().index("test-index")
                     .q("*:*")
                     .build(), Map.class);
             assertTrue(searchResult.hits().total().value() > 0, searchResult.toString());

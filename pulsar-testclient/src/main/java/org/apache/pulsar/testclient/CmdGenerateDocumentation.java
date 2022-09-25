@@ -97,13 +97,9 @@ public class CmdGenerateDocumentation {
     private static String generateDocument(String module, JCommander parentCmd) {
         StringBuilder sb = new StringBuilder();
         JCommander cmd = parentCmd.getCommands().get(module);
-        sb.append("------------\n\n");
-        sb.append("# ").append(module).append("\n\n");
-        sb.append("### Usage\n\n");
-        sb.append("`$").append(module).append("`\n\n");
-        sb.append("------------\n\n");
+        sb.append("## ").append(module).append("\n\n");
         sb.append(parentCmd.getUsageFormatter().getCommandDescription(module)).append("\n");
-        sb.append("\n\n```bdocs-tab:example_shell\n")
+        sb.append("\n\n```shell\n")
                 .append("$ pulsar-perf ").append(module).append(" [options]")
                 .append("\n```");
         sb.append("\n\n");
@@ -113,7 +109,7 @@ public class CmdGenerateDocumentation {
         sb.append("|Flag|Description|Default|\n");
         sb.append("|---|---|---|\n");
         List<ParameterDescription> options = cmd.getParameters();
-        options.forEach((option) ->
+        options.stream().filter(ele -> !ele.getParameterAnnotation().hidden()).forEach((option) ->
                 sb.append("| `").append(option.getNames())
                         .append("` | ").append(option.getDescription().replace("\n", " "))
                         .append("|").append(option.getDefault()).append("|\n")

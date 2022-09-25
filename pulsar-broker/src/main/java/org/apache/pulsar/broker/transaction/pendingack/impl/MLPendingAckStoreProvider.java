@@ -18,12 +18,15 @@
  */
 package org.apache.pulsar.broker.transaction.pendingack.impl;
 
+import io.netty.util.Timer;
 import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.exception.pendingack.TransactionPendingAckException;
@@ -31,6 +34,7 @@ import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriterConfig;
 
 
 /**
@@ -49,7 +53,25 @@ public class MLPendingAckStoreProvider implements TransactionPendingAckStoreProv
                             .TransactionPendingAckStoreProviderException("The subscription is null."));
             return pendingAckStoreFuture;
         }
+
         PersistentTopic originPersistentTopic = (PersistentTopic) subscription.getTopic();
+        PulsarService pulsarService = originPersistentTopic.getBrokerService().getPulsar();
+
+        final Timer brokerClientSharedTimer =
+                pulsarService.getBrokerClientSharedTimer();
+        final ServiceConfiguration serviceConfiguration = pulsarService.getConfiguration();
+        final TxnLogBufferedWriterConfig txnLogBufferedWriterConfig = new TxnLogBufferedWriterConfig();
+        txnLogBufferedWriterConfig.setBatchEnabled(serviceConfiguration.isTransactionPendingAckBatchedWriteEnabled());
+        txnLogBufferedWriterConfig.setBatchedWriteMaxRecords(
+                serviceConfiguration.getTransactionPendingAckBatchedWriteMaxRecords()
+        );
+        txnLogBufferedWriterConfig.setBatchedWriteMaxSize(
+                serviceConfiguration.getTransactionPendingAckBatchedWriteMaxSize()
+        );
+        txnLogBufferedWriterConfig.setBatchedWriteMaxDelayInMillis(
+                serviceConfiguration.getTransactionPendingAckBatchedWriteMaxDelayInMillis()
+        );
+
         String pendingAckTopicName = MLPendingAckStore
                 .getTransactionPendingAckStoreSuffix(originPersistentTopic.getName(), subscription.getName());
         originPersistentTopic.getBrokerService().getManagedLedgerFactory()
@@ -81,7 +103,9 @@ public class MLPendingAckStoreProvider implements TransactionPendingAckStoreProv
                                                                         .getBrokerService()
                                                                         .getPulsar()
                                                                         .getConfiguration()
-                                                                        .getTransactionPendingAckLogIndexMinLag()));
+                                                                        .getTransactionPendingAckLogIndexMinLag(),
+                                                                txnLogBufferedWriterConfig,
+                                                                brokerClientSharedTimer));
                                                         if (log.isDebugEnabled()) {
                                                             log.debug("{},{} open MLPendingAckStore cursor success",
                                                                     originPersistentTopic.getName(),

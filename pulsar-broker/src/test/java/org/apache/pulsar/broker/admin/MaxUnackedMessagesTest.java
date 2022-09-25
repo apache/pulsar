@@ -22,8 +22,8 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.fail;
-import com.google.common.collect.Maps;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -67,7 +67,6 @@ public class MaxUnackedMessagesTest extends ProducerConsumerBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
-        resetConfig();
     }
 
     @Test(timeOut = 10000)
@@ -119,7 +118,7 @@ public class MaxUnackedMessagesTest extends ProducerConsumerBase {
 
         // (2) try to consume messages: but will be able to consume number of messages = unackMsgAllowed
         Message<?> msg = null;
-        Map<Message<?>, Consumer<?>> messages = Maps.newHashMap();
+        Map<Message<?>, Consumer<?>> messages = new HashMap<>();
         for (int i = 0; i < 3; i++) {
             for (int j = 0; j < totalProducedMsgs; j++) {
                 msg = consumers.get(i).receive(500, TimeUnit.MILLISECONDS);

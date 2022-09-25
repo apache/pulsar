@@ -47,7 +47,9 @@ if [ -f /gtest-parallel/gtest-parallel ]; then
     fi
     python3 /gtest-parallel/gtest-parallel $tests --dump_json_test_results=/tmp/gtest_parallel_results.json \
       --workers=$gtest_workers --retry_failed=$RETRY_FAILED -d /tmp \
-      ./main
+      ./main --gtest_filter='-CustomLoggerTest*'
+    # The customized logger might affect other tests
+    ./main --gtest_filter='CustomLoggerTest*'
     RES=$?
 else
     ./main

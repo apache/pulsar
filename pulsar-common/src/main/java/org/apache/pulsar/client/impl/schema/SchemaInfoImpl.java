@@ -60,6 +60,11 @@ public class SchemaInfoImpl implements SchemaInfo {
     private SchemaType type;
 
     /**
+     * The created time of schema.
+     */
+    private long timestamp;
+
+    /**
      * Additional properties of the schema definition (implementation defined).
      */
     @Builder.Default

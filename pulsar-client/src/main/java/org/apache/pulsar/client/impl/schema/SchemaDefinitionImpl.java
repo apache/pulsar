@@ -50,6 +50,8 @@ public class SchemaDefinitionImpl<T> implements SchemaDefinition<T> {
 
     private final String jsonDef;
 
+    private final ClassLoader classLoader;
+
     private final boolean supportSchemaVersioning;
 
     private final boolean jsr310ConversionEnabled;
@@ -58,13 +60,15 @@ public class SchemaDefinitionImpl<T> implements SchemaDefinition<T> {
 
     private final SchemaWriter<T> writer;
 
-    public SchemaDefinitionImpl(Class<T> pojo, String jsonDef, boolean alwaysAllowNull, Map<String, String> properties,
+    public SchemaDefinitionImpl(Class<T> pojo, String jsonDef, ClassLoader classLoader,
+                                boolean alwaysAllowNull, Map<String, String> properties,
                                 boolean supportSchemaVersioning, boolean jsr310ConversionEnabled,
                                 SchemaReader<T> reader, SchemaWriter<T> writer) {
         this.alwaysAllowNull = alwaysAllowNull;
         this.properties = properties;
         this.jsonDef = jsonDef;
         this.pojo = pojo;
+        this.classLoader = classLoader;
         this.supportSchemaVersioning = supportSchemaVersioning;
         this.jsr310ConversionEnabled = jsr310ConversionEnabled;
         this.reader = reader;
@@ -102,6 +106,11 @@ public class SchemaDefinitionImpl<T> implements SchemaDefinition<T> {
     @Override
     public Class<T> getPojo() {
         return pojo;
+    }
+
+    @Override
+    public ClassLoader getClassLoader() {
+        return this.classLoader;
     }
 
     @Override

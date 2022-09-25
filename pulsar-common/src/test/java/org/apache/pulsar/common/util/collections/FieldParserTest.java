@@ -32,6 +32,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -54,6 +55,10 @@ public class FieldParserTest {
         assertEquals(integerToString(1), String.valueOf(1));
         assertEquals(stringToList("1,2,3", Integer.class).get(2), Integer.valueOf(3));
         assertTrue(stringToSet("1,2,3", Integer.class).contains(3));
+        // the order of values should be preserved for a Set configuration item
+        assertEquals(new ArrayList<>(stringToSet("1,2,3", Integer.class)), Arrays.asList(1, 2, 3));
+        assertEquals(new ArrayList<>(stringToSet("2,3,1", Integer.class)), Arrays.asList(2, 3, 1));
+        assertEquals(new ArrayList<>(stringToSet("3,2,1", Integer.class)), Arrays.asList(3, 2, 1));
         assertEquals(stringToBoolean("true"), Boolean.TRUE);
         assertEquals(stringToDouble("2.2"), Double.valueOf(2.2));
         assertEquals(stringToLong("2"), Long.valueOf(2));

@@ -209,7 +209,7 @@ void pulsar_producer_configuration_set_default_crypto_key_reader(pulsar_producer
     conf->conf.setCryptoKeyReader(keyReader);
 }
 
-pulsar_producer_crypto_failure_action pulsar_producer_configuration_set_crypto_failure_action(
+pulsar_producer_crypto_failure_action pulsar_producer_configuration_get_crypto_failure_action(
     pulsar_producer_configuration_t *conf) {
     return (pulsar_producer_crypto_failure_action)conf->conf.getCryptoFailureAction();
 }
@@ -222,4 +222,13 @@ void pulsar_producer_configuration_set_crypto_failure_action(
 void pulsar_producer_configuration_set_encryption_key(pulsar_producer_configuration_t *conf,
                                                       const char *key) {
     conf->conf.addEncryptionKey(key);
+}
+
+void pulsar_producer_configuration_set_chunking_enabled(pulsar_producer_configuration_t *conf,
+                                                        int chunkingEnabled) {
+    conf->conf.setChunkingEnabled(chunkingEnabled);
+}
+
+int pulsar_producer_configuration_is_chunking_enabled(pulsar_producer_configuration_t *conf) {
+    return conf->conf.isChunkingEnabled();
 }

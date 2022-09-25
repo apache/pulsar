@@ -42,7 +42,7 @@ class PULSAR_PUBLIC ReaderImpl : public std::enable_shared_from_this<ReaderImpl>
     ReaderImpl(const ClientImplPtr client, const std::string& topic, const ReaderConfiguration& conf,
                const ExecutorServicePtr listenerExecutor, ReaderCallback readerCreatedCallback);
 
-    void start(const MessageId& startMessageId);
+    void start(const MessageId& startMessageId, std::function<void(const ConsumerImplBaseWeakPtr&)> callback);
 
     const std::string& getTopic() const;
 
@@ -65,8 +65,6 @@ class PULSAR_PUBLIC ReaderImpl : public std::enable_shared_from_this<ReaderImpl>
     bool isConnected() const;
 
    private:
-    void handleConsumerCreated(Result result, ConsumerImplBaseWeakPtr consumer);
-
     void messageListener(Consumer consumer, const Message& msg);
 
     void acknowledgeIfNecessary(Result result, const Message& msg);

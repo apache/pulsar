@@ -26,10 +26,12 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
+import java.util.TreeSet;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
 import org.apache.pulsar.broker.admin.v2.Namespaces;
@@ -39,10 +41,13 @@ import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.PolicyName;
 import org.apache.pulsar.common.policies.data.PolicyOperation;
+import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
@@ -50,7 +55,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker-admin-v2")
+@Test(groups = "broker-admin")
 public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
     private static final Logger log = LoggerFactory.getLogger(NamespacesV2Test.class);
 
@@ -71,7 +76,7 @@ public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
 
     @BeforeClass
     public void initNamespace() throws Exception {
-        testLocalNamespaces = Lists.newArrayList();
+        testLocalNamespaces = new ArrayList<>();
         testLocalNamespaces.add(NamespaceName.get(this.testTenant, this.testLocalCluster, this.testNamespace));
 
         uriField = PulsarWebResource.class.getDeclaredField("uri");
@@ -82,7 +87,6 @@ public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
     @Override
     @BeforeMethod
     public void setup() throws Exception {
-        resetConfig();
         conf.setClusterName(testLocalCluster);
         super.internalSetup();
 
@@ -93,13 +97,13 @@ public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
         doReturn("test").when(namespaces).clientAppId();
         doReturn(null).when(namespaces).originalPrincipal();
         doReturn(null).when(namespaces).clientAuthData();
-        doReturn(Sets.newTreeSet(Lists.newArrayList("use", "usw", "usc", "global"))).when(namespaces).clusters();
+        doReturn(new TreeSet<>(Lists.newArrayList("use", "usw", "usc", "global"))).when(namespaces).clusters();
 
         admin.clusters().createCluster("use", ClusterData.builder().serviceUrl("http://broker-use.com:8080").build());
         admin.clusters().createCluster("usw", ClusterData.builder().serviceUrl("http://broker-usw.com:8080").build());
         admin.clusters().createCluster("usc", ClusterData.builder().serviceUrl("http://broker-usc.com:8080").build());
         admin.tenants().createTenant(this.testTenant,
-                new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("use", "usc", "usw")));
+                new TenantInfoImpl(Set.of("role1", "role2"), Set.of("use", "usc", "usw")));
 
         createTestNamespaces(this.testLocalNamespaces);
 
@@ -159,4 +163,39 @@ public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
         }
     }
 
+    @Test
+    public void testOperationPublishRate() throws Exception {
+        // 1. set publish rate
+        asyncRequests(response -> namespaces.setPublishRate(response, this.testTenant, this.testNamespace,
+                new PublishRate()));
+
+        // 2. get publish rate and check
+        PublishRate publishRate = (PublishRate) asyncRequests(response -> namespaces.getPublishRate(response,
+                this.testTenant, this.testNamespace));
+        assertTrue(Objects.nonNull(publishRate));
+
+        // 3. remove publish rate and check
+        asyncRequests(responses -> namespaces.removePublishRate(responses, this.testTenant, this.testNamespace));
+        publishRate = (PublishRate) asyncRequests(response -> namespaces.getPublishRate(response,
+                this.testTenant, this.testNamespace));
+        assertTrue(Objects.isNull(publishRate));
+    }
+
+    @Test
+    public void testOperationDispatchRate() throws Exception {
+        // 1. set dispatch rate
+        asyncRequests(response -> namespaces.setDispatchRate(response, this.testTenant, this.testNamespace,
+                new DispatchRateImpl()));
+
+        // 2. get dispatch rate and check
+        DispatchRate dispatchRate = (DispatchRateImpl) asyncRequests(response -> namespaces.getDispatchRate(response,
+                this.testTenant, this.testNamespace));
+        assertTrue(Objects.nonNull(dispatchRate));
+
+        // 3. remove dispatch rate and check
+        asyncRequests(responses -> namespaces.deleteDispatchRate(responses, this.testTenant, this.testNamespace));
+        dispatchRate = (DispatchRateImpl) asyncRequests(response -> namespaces.getDispatchRate(response,
+                this.testTenant, this.testNamespace));
+        assertTrue(Objects.isNull(dispatchRate));
+    }
 }

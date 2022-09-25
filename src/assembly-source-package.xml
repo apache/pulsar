@@ -36,8 +36,10 @@
       <excludes>
         <!-- need special permissions -->
         <exclude>src/*.sh</exclude>
+        <exclude>src/*.py</exclude>
         <exclude>pulsar-client-cpp/docker/*.sh</exclude>
         <exclude>docker/pulsar/scripts/*.sh</exclude>
+        <exclude>docker/pulsar/scripts/*.py</exclude>
 
         <!-- Pulsar standalone -->
         <exclude>data/**</exclude>

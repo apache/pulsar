@@ -80,14 +80,22 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
             setDefaultEnsemblePlacementPolicy(bkConf, conf, store);
         }
         try {
-            return BookKeeper.forConfig(bkConf)
-                    .allocator(PulsarByteBufAllocator.DEFAULT)
-                    .eventLoopGroup(eventLoopGroup)
-                    .statsLogger(statsLogger)
-                    .build();
+            return getBookKeeperBuilder(conf, eventLoopGroup, statsLogger, bkConf).build();
         } catch (InterruptedException | BKException e) {
             throw new IOException(e);
         }
+    }
+
+    @VisibleForTesting
+    BookKeeper.Builder getBookKeeperBuilder(ServiceConfiguration conf, EventLoopGroup eventLoopGroup,
+                                            StatsLogger statsLogger, ClientConfiguration bkConf) {
+        BookKeeper.Builder builder = BookKeeper.forConfig(bkConf)
+                .allocator(PulsarByteBufAllocator.DEFAULT)
+                .statsLogger(statsLogger);
+        if (!conf.isBookkeeperClientSeparatedIoThreadsEnabled()) {
+            builder.eventLoopGroup(eventLoopGroup);
+        }
+        return builder;
     }
 
     @VisibleForTesting
@@ -150,6 +158,7 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
                 conf.getBookkeeperClientGetBookieInfoIntervalSeconds(), TimeUnit.SECONDS);
         bkConf.setGetBookieInfoRetryIntervalSeconds(
                 conf.getBookkeeperClientGetBookieInfoRetryIntervalSeconds(), TimeUnit.SECONDS);
+        bkConf.setNumIOThreads(conf.getBookkeeperClientNumIoThreads());
         PropertiesUtils.filterAndMapProperties(conf.getProperties(), "bookkeeper_")
                 .forEach((key, value) -> {
                     log.info("Applying BookKeeper client configuration setting {}={}", key, value);

@@ -48,7 +48,7 @@ public class PulsarContainer extends GenericContainer<PulsarContainer> {
     }
 
     public String getPlainTextPulsarBrokerUrl() {
-        return String.format("pulsar://%s:%s", this.getContainerIpAddress(), this.getMappedPort(PULSAR_PORT));
+        return String.format("pulsar://%s:%s", this.getHost(), this.getMappedPort(PULSAR_PORT));
     }
 
 }

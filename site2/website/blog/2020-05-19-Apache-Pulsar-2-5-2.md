@@ -122,7 +122,7 @@ JDBC sink does not handle `null` fields. The schema registered in Pulsar allows 
 
 ## Reference
 
-To download Apache Pulsar 2.5.2, click [here](https://pulsar.apache.org/en/download/).
+To download Apache Pulsar 2.5.2, click [here](https://pulsar.apache.org/download/).
 
 If you have any questions or suggestions, contact us with mailing lists or slack.
 

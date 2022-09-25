@@ -94,6 +94,7 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
                                     i, pulsarClient, getTCAssignTopicName(i), connectFuture);
                             handlers[i] = handler;
                             handlerMap.put(i, handler);
+                            handler.start();
                         }
                     } else {
                         handlers = new TransactionMetaStoreHandler[1];
@@ -103,6 +104,7 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
                                 getTCAssignTopicName(-1), connectFuture);
                         handlers[0] = handler;
                         handlerMap.put(0, handler);
+                        handler.start();
                     }
 
                     STATE_UPDATER.set(TransactionCoordinatorClientImpl.this, State.READY);

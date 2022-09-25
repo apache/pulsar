@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.tests.integration.presto;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import io.jsonwebtoken.SignatureAlgorithm;
 import java.time.Duration;
 import java.util.EnumSet;
@@ -37,7 +40,6 @@ import org.apache.pulsar.tests.integration.docker.ContainerExecException;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 import org.awaitility.Awaitility;
-import org.junit.Assert;
 import org.testng.annotations.Test;
 
 @Slf4j
@@ -119,9 +121,9 @@ public class TestPulsarSQLAuth extends TestPulsarSQLBase {
                                             "org.apache.pulsar.client.impl.auth.AuthenticationToken");
                                     put("auth-params", passToken);
                                 }});
-                        Assert.assertEquals(0, containerExecResult.getExitCode());
+                        assertEquals(containerExecResult.getExitCode(), 0);
                     } catch (ContainerExecException e) {
-                        Assert.fail(String.format("assertSQLExecution fail: %s", e.getLocalizedMessage()));
+                        fail(String.format("assertSQLExecution fail: %s", e.getLocalizedMessage()));
                     }
                 }
         );
@@ -134,12 +136,12 @@ public class TestPulsarSQLAuth extends TestPulsarSQLBase {
                                     "org.apache.pulsar.client.impl.auth.AuthenticationToken");
                             put("auth-params", "invalid-token");
                         }});
-                        Assert.fail("Should not pass");
+                        fail("Should not pass");
                     } catch (ContainerExecException e) {
                         // Authorization error
-                        Assert.assertEquals(1, e.getResult().getExitCode());
+                        assertEquals(e.getResult().getExitCode(), 1);
                         log.info(e.getResult().getStderr());
-                        Assert.assertTrue(e.getResult().getStderr().contains("Unable to authenticate"));
+                        assertTrue(e.getResult().getStderr().contains("Unable to authenticate"));
                     }
                 }
         );
@@ -152,12 +154,12 @@ public class TestPulsarSQLAuth extends TestPulsarSQLBase {
                                     "org.apache.pulsar.client.impl.auth.AuthenticationToken");
                             put("auth-params", deniedToken);
                         }});
-                        Assert.fail("Should not pass");
+                        fail("Should not pass");
                     } catch (ContainerExecException e) {
                         // Authorization error
-                        Assert.assertEquals(1, e.getResult().getExitCode());
+                        assertEquals(e.getResult().getExitCode(), 1);
                         log.info(e.getResult().getStderr());
-                        Assert.assertTrue(e.getResult().getStderr().contains("not authorized"));
+                        assertTrue(e.getResult().getStderr().contains("not authorized"));
                     }
                 }
         );
@@ -188,10 +190,10 @@ public class TestPulsarSQLAuth extends TestPulsarSQLBase {
                                     "org.apache.pulsar.client.impl.auth.AuthenticationToken");
                             put("auth-params", testToken);
                         }});
-                        Assert.fail("Should not pass");
+                        fail("Should not pass");
                     } catch (ContainerExecException e) {
                         // Authorization error
-                        Assert.assertEquals(1, e.getResult().getExitCode());
+                        assertEquals(e.getResult().getExitCode(), 1);
                         log.info(e.getResult().getStderr());
                     }
                 }
@@ -209,9 +211,9 @@ public class TestPulsarSQLAuth extends TestPulsarSQLBase {
                                     put("auth-params", testToken);
                                 }});
 
-                        Assert.assertEquals(0, containerExecResult.getExitCode());
+                        assertEquals(containerExecResult.getExitCode(), 0);
                     } catch (ContainerExecException e) {
-                        Assert.fail(String.format("assertSQLExecution fail: %s", e.getLocalizedMessage()));
+                        fail(String.format("assertSQLExecution fail: %s", e.getLocalizedMessage()));
                     }
                 }
         );

@@ -167,7 +167,7 @@ public class BatchSourceExecutor<T> implements Source<T> {
       discoverInProgress = true;
     }
     // Run this code asynchronous so it doesn't block processing of the tasks
-    discoveryThread.submit(() -> {
+    discoveryThread.execute(() -> {
       try {
         batchSource.discover(task -> taskEater(discoveredEvent, task));
       } catch (Exception e) {

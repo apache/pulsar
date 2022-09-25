@@ -90,7 +90,7 @@ affinity:
 
 ```
 
-If you are planning to use this chart in a development environment (e.g. minikue), you can disable `anti-affinity` by including this option in your Helm install command.
+If you are planning to use this chart in a development environment (e.g. Minikube), you can disable `anti-affinity` by including this option in your Helm install command.
 
 ```bash
 

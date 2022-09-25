@@ -93,27 +93,21 @@ static ReaderConfiguration& ReaderConfiguration_setCryptoKeyReader(ReaderConfigu
     return conf;
 }
 
-class LoggerWrapper : public Logger {
-    PyObject* const _pyLogger;
-    const int _pythonLogLevel;
+class LoggerWrapper : public Logger, public CaptivePythonObjectMixin {
     const std::unique_ptr<Logger> _fallbackLogger;
 
-    static constexpr int _getLogLevelValue(Level level) { return 10 + (level * 10); }
-
    public:
-    LoggerWrapper(PyObject* pyLogger, int pythonLogLevel, Logger* fallbackLogger)
-        : _pyLogger(pyLogger), _pythonLogLevel(pythonLogLevel), _fallbackLogger(fallbackLogger) {
-        Py_XINCREF(_pyLogger);
-    }
+    LoggerWrapper(PyObject* pyLogger, Logger* fallbackLogger)
+        : CaptivePythonObjectMixin(pyLogger), _fallbackLogger(fallbackLogger) {}
 
     LoggerWrapper(const LoggerWrapper&) = delete;
     LoggerWrapper(LoggerWrapper&&) noexcept = delete;
     LoggerWrapper& operator=(const LoggerWrapper&) = delete;
     LoggerWrapper& operator=(LoggerWrapper&&) = delete;
 
-    virtual ~LoggerWrapper() { Py_XDECREF(_pyLogger); }
-
-    bool isEnabled(Level level) { return _getLogLevelValue(level) >= _pythonLogLevel; }
+    bool isEnabled(Level level) {
+        return true;  // Python loggers are always enabled; they decide internally whether or not to log.
+    }
 
     void log(Level level, int line, const std::string& message) {
         if (!Py_IsInitialized()) {
@@ -121,66 +115,45 @@ class LoggerWrapper : public Logger {
             _fallbackLogger->log(level, line, message);
         } else {
             PyGILState_STATE state = PyGILState_Ensure();
-
+            PyObject *type, *value, *traceback;
+            PyErr_Fetch(&type, &value, &traceback);
             try {
                 switch (level) {
                     case Logger::LEVEL_DEBUG:
-                        py::call_method<void>(_pyLogger, "debug", message.c_str());
+                        py::call<void>(_captive, "DEBUG", message.c_str());
                         break;
                     case Logger::LEVEL_INFO:
-                        py::call_method<void>(_pyLogger, "info", message.c_str());
+                        py::call<void>(_captive, "INFO", message.c_str());
                         break;
                     case Logger::LEVEL_WARN:
-                        py::call_method<void>(_pyLogger, "warning", message.c_str());
+                        py::call<void>(_captive, "WARNING", message.c_str());
                         break;
                     case Logger::LEVEL_ERROR:
-                        py::call_method<void>(_pyLogger, "error", message.c_str());
+                        py::call<void>(_captive, "ERROR", message.c_str());
                         break;
                 }
-
             } catch (const py::error_already_set& e) {
+                PyErr_Print();
                 _fallbackLogger->log(level, line, message);
             }
-
+            PyErr_Restore(type, value, traceback);
             PyGILState_Release(state);
         }
     }
 };
 
-class LoggerWrapperFactory : public LoggerFactory {
+class LoggerWrapperFactory : public LoggerFactory, public CaptivePythonObjectMixin {
     std::unique_ptr<LoggerFactory> _fallbackLoggerFactory{new ConsoleLoggerFactory};
-    PyObject* _pyLogger;
-    Optional<int> _pythonLogLevel{Optional<int>::empty()};
-
-    void initializePythonLogLevel() {
-        PyGILState_STATE state = PyGILState_Ensure();
-
-        try {
-            int level = py::call_method<int>(_pyLogger, "getEffectiveLevel");
-            _pythonLogLevel = Optional<int>::of(level);
-        } catch (const py::error_already_set& e) {
-            // Failed to get log level from _pyLogger, set it to empty to fallback to _fallbackLogger
-            _pythonLogLevel = Optional<int>::empty();
-        }
-
-        PyGILState_Release(state);
-    }
 
    public:
-    LoggerWrapperFactory(py::object pyLogger) {
-        _pyLogger = pyLogger.ptr();
-        Py_XINCREF(_pyLogger);
-        initializePythonLogLevel();
-    }
-
-    virtual ~LoggerWrapperFactory() { Py_XDECREF(_pyLogger); }
+    LoggerWrapperFactory(py::object pyLogger) : CaptivePythonObjectMixin(pyLogger.ptr()) {}
 
     Logger* getLogger(const std::string& fileName) {
         const auto fallbackLogger = _fallbackLoggerFactory->getLogger(fileName);
-        if (_pythonLogLevel.is_present()) {
-            return new LoggerWrapper(_pyLogger, _pythonLogLevel.value(), fallbackLogger);
-        } else {
+        if (_captive == py::object().ptr()) {
             return fallbackLogger;
+        } else {
+            return new LoggerWrapper(_captive, fallbackLogger);
         }
     }
 };
@@ -259,6 +232,8 @@ void export_config() {
              return_value_policy<copy_const_reference>())
         .def("batching_max_publish_delay_ms", &ProducerConfiguration::setBatchingMaxPublishDelayMs,
              return_self<>())
+        .def("chunking_enabled", &ProducerConfiguration::isChunkingEnabled)
+        .def("chunking_enabled", &ProducerConfiguration::setChunkingEnabled, return_self<>())
         .def("property", &ProducerConfiguration::setProperty, return_self<>())
         .def("batching_type", &ProducerConfiguration::setBatchingType, return_self<>())
         .def("batching_type", &ProducerConfiguration::getBatchingType)
@@ -299,7 +274,14 @@ void export_config() {
         .def("replicate_subscription_state_enabled",
              &ConsumerConfiguration::setReplicateSubscriptionStateEnabled)
         .def("replicate_subscription_state_enabled",
-             &ConsumerConfiguration::isReplicateSubscriptionStateEnabled);
+             &ConsumerConfiguration::isReplicateSubscriptionStateEnabled)
+        .def("max_pending_chunked_message", &ConsumerConfiguration::getMaxPendingChunkedMessage)
+        .def("max_pending_chunked_message", &ConsumerConfiguration::setMaxPendingChunkedMessage,
+             return_self<>())
+        .def("auto_ack_oldest_chunked_message_on_queue_full",
+             &ConsumerConfiguration::isAutoAckOldestChunkedMessageOnQueueFull)
+        .def("auto_ack_oldest_chunked_message_on_queue_full",
+             &ConsumerConfiguration::setAutoAckOldestChunkedMessageOnQueueFull, return_self<>());
 
     class_<ReaderConfiguration>("ReaderConfiguration")
         .def("reader_listener", &ReaderConfiguration_setReaderListener, return_self<>())

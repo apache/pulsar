@@ -27,13 +27,17 @@ import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
+import com.google.common.hash.Hasher;
+import com.google.common.hash.Hashing;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.Message;
@@ -64,6 +68,8 @@ public class ElasticSearchSink implements Sink<GenericObject> {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private ObjectMapper sortedObjectMapper;
     private List<String> primaryFields = null;
+    private final Pattern nonPrintableCharactersPattern = Pattern.compile("[\\p{C}]");
+    private final Base64.Encoder base64Encoder = Base64.getEncoder().withoutPadding();
 
     @Override
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
@@ -94,6 +100,11 @@ public class ElasticSearchSink implements Sink<GenericObject> {
             elasticsearchClient.close();
             elasticsearchClient = null;
         }
+    }
+
+    @VisibleForTesting
+    void setElasticsearchClient(ElasticSearchClient elasticsearchClient) {
+        this.elasticsearchClient = elasticsearchClient;
     }
 
     @Override
@@ -194,7 +205,15 @@ public class ElasticSearchSink implements Sink<GenericObject> {
             String doc = null;
             if (value != null) {
                 if (valueSchema != null) {
-                    doc = stringifyValue(valueSchema, value);
+                    if (elasticSearchConfig.isCopyKeyFields()
+                            && (keySchema.getSchemaInfo().getType().equals(SchemaType.AVRO)
+                            || keySchema.getSchemaInfo().getType().equals(SchemaType.JSON))) {
+                        JsonNode keyNode = extractJsonNode(keySchema, key);
+                        JsonNode valueNode = extractJsonNode(valueSchema, value);
+                        doc = stringify(JsonConverter.topLevelMerge(keyNode, valueNode));
+                    } else {
+                        doc = stringifyValue(valueSchema, value);
+                    }
                 } else {
                     if (value.getNativeObject() instanceof byte[]) {
                         // for BWC with the ES-Sink
@@ -216,6 +235,27 @@ public class ElasticSearchSink implements Sink<GenericObject> {
                 }
             }
 
+            final ElasticSearchConfig.IdHashingAlgorithm idHashingAlgorithm =
+                    elasticSearchConfig.getIdHashingAlgorithm();
+            if (id != null
+                    && idHashingAlgorithm != null
+                    && idHashingAlgorithm != ElasticSearchConfig.IdHashingAlgorithm.NONE) {
+                Hasher hasher;
+                switch (idHashingAlgorithm) {
+                    case SHA256:
+                        hasher = Hashing.sha256().newHasher();
+                        break;
+                    case SHA512:
+                        hasher = Hashing.sha512().newHasher();
+                        break;
+                    default:
+                        throw new UnsupportedOperationException("Unsupported IdHashingAlgorithm: "
+                                + idHashingAlgorithm);
+                }
+                hasher.putString(id, StandardCharsets.UTF_8);
+                id = base64Encoder.encodeToString(hasher.hash().asBytes());
+            }
+
             if (log.isDebugEnabled()) {
                 SchemaType schemaType = null;
                 if (record.getSchema() != null && record.getSchema().getSchemaInfo() != null) {
@@ -227,13 +267,25 @@ public class ElasticSearchSink implements Sink<GenericObject> {
                         id,
                         doc);
             }
+            doc = sanitizeValue(doc);
             return Pair.of(id, doc);
     } else {
-        return Pair.of(null, new String(
-                record.getMessage()
-                        .orElseThrow(() -> new IllegalArgumentException("Record does not carry message information"))
-                        .getData(), StandardCharsets.UTF_8));
+            final byte[] data = record
+                    .getMessage()
+                    .orElseThrow(() -> new IllegalArgumentException("Record does not carry message information"))
+                    .getData();
+            String doc = new String(data, StandardCharsets.UTF_8);
+            doc = sanitizeValue(doc);
+            return Pair.of(null, doc);
         }
+    }
+
+    private String sanitizeValue(String value) {
+        if (value == null || !elasticSearchConfig.isStripNonPrintableCharacters()) {
+            return value;
+        }
+        return nonPrintableCharactersPattern.matcher(value).replaceAll("");
+
     }
 
     public String stringifyKey(Schema<?> schema, Object val) throws JsonProcessingException {
@@ -291,6 +343,10 @@ public class ElasticSearchSink implements Sink<GenericObject> {
 
     public String stringifyValue(Schema<?> schema, Object val) throws JsonProcessingException {
         JsonNode jsonNode = extractJsonNode(schema, val);
+        return stringify(jsonNode);
+    }
+
+    public String stringify(JsonNode jsonNode) throws JsonProcessingException {
         return elasticSearchConfig.isStripNulls()
                 ? objectMapper.writeValueAsString(stripNullNodes(jsonNode))
                 : objectMapper.writeValueAsString(jsonNode);
@@ -310,6 +366,9 @@ public class ElasticSearchSink implements Sink<GenericObject> {
     }
 
     public static JsonNode extractJsonNode(Schema<?> schema, Object val) {
+        if (val == null) {
+            return null;
+        }
         switch (schema.getSchemaInfo().getType()) {
             case JSON:
                 return (JsonNode) ((GenericRecord) val).getNativeObject();

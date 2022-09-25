@@ -30,7 +30,6 @@ import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.logging.log4j.LogManager;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.resources.ClusterResources;
@@ -42,6 +41,7 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.util.ShutdownUtil;
 import org.apache.pulsar.functions.instance.state.PulsarMetadataStateStoreProviderImpl;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
@@ -210,7 +210,7 @@ public class PulsarStandalone implements AutoCloseable {
         return help;
     }
 
-    @Parameter(names = { "-c", "--config" }, description = "Configuration file path", required = true)
+    @Parameter(names = { "-c", "--config" }, description = "Configuration file path")
     private String configFile;
 
     @Parameter(names = { "--wipe-data" }, description = "Clean up previous ZK/BK data")
@@ -443,6 +443,7 @@ public class PulsarStandalone implements AutoCloseable {
                 .bkPort(bkPort)
                 .numBookies(numOfBk)
                 .dataDir(bkDir)
+                .clearOldData(wipeData)
                 .build();
         config.setBookkeeperNumberOfChannelsPerBookie(1);
         config.setMetadataStoreUrl(metadataStoreUrl);
@@ -458,14 +459,12 @@ public class PulsarStandalone implements AutoCloseable {
                 this.getNumOfBk(), this.getZkPort(), this.getBkPort(), this.getStreamStoragePort(), this.getZkDir(),
                 this.getBkDir(), this.isWipeData(), "127.0.0.1");
         bkEnsemble.startStandalone(bkServerConf, !this.isNoStreamStorage());
-
-        config.setZookeeperServers("127.0.0.1:" + zkPort);
+        config.setMetadataStoreUrl("zk:127.0.0.1:" + zkPort);
     }
 
     private static void processTerminator(int exitCode) {
         log.info("Halting standalone process with code {}", exitCode);
-        LogManager.shutdown();
-        Runtime.getRuntime().halt(exitCode);
+        ShutdownUtil.triggerImmediateForcefulShutdown(exitCode);
     }
 
 

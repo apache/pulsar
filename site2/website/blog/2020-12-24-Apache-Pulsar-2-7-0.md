@@ -152,7 +152,7 @@ For more details, refer to https://github.com/apache/pulsar/pull/7388  and https
 
 ## More information
 
-- To download Apache Pulsar 2.7.0, click [here](https://pulsar.apache.org/en/download/).
+- To download Apache Pulsar 2.7.0, click [here](https://pulsar.apache.org/download/).
 - For more information about Apache Pulsar 2.7.0, see [2.7.0 release notes](https://pulsar.apache.org/release-notes/#2.7.0) and [2.7.0 PR list](https://github.com/apache/pulsar/pulls?q=milestone%3A2.7.0+-label%3Arelease%2F2.6.2+-label%3Arelease%2F2.6.1+).
 
 If you have any questions or suggestions, contact us with mailing lists or slack.

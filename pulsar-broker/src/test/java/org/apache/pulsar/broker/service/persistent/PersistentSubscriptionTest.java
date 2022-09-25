@@ -23,6 +23,7 @@ import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMo
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockZooKeeper;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -33,6 +34,7 @@ import static org.testng.Assert.fail;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import java.lang.reflect.Field;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -40,7 +42,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ExecutorService;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -68,6 +70,8 @@ import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
+import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
@@ -129,7 +133,7 @@ public class PersistentSubscriptionTest {
             public CompletableFuture<PendingAckStore> newPendingAckStore(PersistentSubscription subscription) {
                 return CompletableFuture.completedFuture(new PendingAckStore() {
                     @Override
-                    public void replayAsync(PendingAckHandleImpl pendingAckHandle, ScheduledExecutorService executorService) {
+                    public void replayAsync(PendingAckHandleImpl pendingAckHandle, ExecutorService executorService) {
                         try {
                             Field field = PendingAckHandleState.class.getDeclaredField("state");
                             field.setAccessible(true);
@@ -208,19 +212,14 @@ public class PersistentSubscriptionTest {
 
     @AfterMethod(alwaysRun = true)
     public void teardown() throws Exception {
-        brokerMock.close(); //to clear pulsarStats
-        try {
-            pulsarMock.close();
-        } catch (Exception e) {
-            log.warn("Failed to close pulsar service", e);
-            throw e;
-        }
-
+        brokerMock.close();
+        pulsarMock.close();
+        GracefulExecutorServicesShutdown.initiate()
+                .timeout(Duration.ZERO)
+                .shutdown(executor)
+                .handle().get();
+        EventLoopUtil.shutdownGracefully(eventLoopGroup).get();
         store.close();
-        executor.shutdownNow();
-        if (eventLoopGroup != null) {
-            eventLoopGroup.shutdownGracefully().get();
-        }
     }
 
     @Test
@@ -349,5 +348,26 @@ public class PersistentSubscriptionTest {
         positionsPair.add(new MutablePair(new PositionImpl(2, 1), 0));
 
         persistentSubscription.transactionIndividualAcknowledge(txnID2, positionsPair);
+    }
+
+    @Test
+    public void testAcknowledgeUpdateCursorLastActive() throws Exception {
+        doAnswer((invocationOnMock) -> {
+            ((AsyncCallbacks.DeleteCallback) invocationOnMock.getArguments()[1])
+                    .deleteComplete(invocationOnMock.getArguments()[2]);
+            return null;
+        }).when(cursorMock).asyncDelete(any(List.class), any(AsyncCallbacks.DeleteCallback.class), any());
+
+        doCallRealMethod().when(cursorMock).updateLastActive();
+        doCallRealMethod().when(cursorMock).getLastActive();
+
+        List<Position> positionList = new ArrayList<>();
+        positionList.add(new PositionImpl(1, 1));
+        long beforeAcknowledgeTimestamp = System.currentTimeMillis();
+        Thread.sleep(1);
+        persistentSubscription.acknowledgeMessage(positionList, AckType.Individual, Collections.emptyMap());
+
+        // `acknowledgeMessage` should update cursor last active
+        assertTrue(persistentSubscription.cursor.getLastActive() > beforeAcknowledgeTimestamp);
     }
 }

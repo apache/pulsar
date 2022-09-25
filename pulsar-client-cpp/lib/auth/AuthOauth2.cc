@@ -143,6 +143,8 @@ ClientCredentialFlow::ClientCredentialFlow(ParamMap& params)
       audience_(params["audience"]),
       scope_(params["scope"]) {}
 
+std::string ClientCredentialFlow::getTokenEndPoint() const { return tokenEndPoint_; }
+
 static size_t curlWriteCallback(void* contents, size_t size, size_t nmemb, void* responseDataPtr) {
     ((std::string*)responseDataPtr)->append((char*)contents, size * nmemb);
     return size * nmemb;
@@ -168,7 +170,12 @@ void ClientCredentialFlow::initialize() {
     curl_easy_setopt(handle, CURLOPT_CUSTOMREQUEST, "GET");
 
     // set URL: well-know endpoint
-    curl_easy_setopt(handle, CURLOPT_URL, (issuerUrl_ + "/.well-known/openid-configuration").c_str());
+    std::string wellKnownUrl = issuerUrl_;
+    if (wellKnownUrl.back() == '/') {
+        wellKnownUrl.pop_back();
+    }
+    wellKnownUrl.append("/.well-known/openid-configuration");
+    curl_easy_setopt(handle, CURLOPT_URL, wellKnownUrl.c_str());
 
     // Write callback
     curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, curlWriteCallback);
@@ -179,8 +186,6 @@ void ClientCredentialFlow::initialize() {
     curl_easy_setopt(handle, CURLOPT_FORBID_REUSE, 1L);
 
     curl_easy_setopt(handle, CURLOPT_FOLLOWLOCATION, 1L);
-    curl_easy_setopt(handle, CURLOPT_SSL_VERIFYPEER, 0L);
-    curl_easy_setopt(handle, CURLOPT_SSL_VERIFYHOST, 0L);
 
     char errorBuffer[CURL_ERROR_SIZE];
     curl_easy_setopt(handle, CURLOPT_ERRORBUFFER, errorBuffer);
@@ -305,8 +310,6 @@ Oauth2TokenResultPtr ClientCredentialFlow::authenticate() {
     curl_easy_setopt(handle, CURLOPT_FORBID_REUSE, 1L);
 
     curl_easy_setopt(handle, CURLOPT_FOLLOWLOCATION, 1L);
-    curl_easy_setopt(handle, CURLOPT_SSL_VERIFYPEER, 0L);
-    curl_easy_setopt(handle, CURLOPT_SSL_VERIFYHOST, 0L);
 
     curl_easy_setopt(handle, CURLOPT_POSTFIELDS, postData.c_str());
 

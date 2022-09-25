@@ -129,7 +129,6 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     @Test(dataProvider = "data")
     public void testSendAndReceiveWithHashRangeAutoSplitStickyKeyConsumerSelector(String topicType, boolean enableBatch)
             throws PulsarClientException {
-        this.conf.setSubscriptionKeySharedEnable(true);
         String topic = topicType + "://public/default/key_shared-" + UUID.randomUUID();
 
         @Cleanup
@@ -155,9 +154,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "data")
-    public void testSendAndReceiveWithBatching(String topicType, boolean enableBatch)
-            throws Exception {
-        this.conf.setSubscriptionKeySharedEnable(true);
+    public void testSendAndReceiveWithBatching(String topicType, boolean enableBatch) throws Exception {
         String topic = topicType + "://public/default/key_shared-" + UUID.randomUUID();
 
         @Cleanup
@@ -203,7 +200,6 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
     @Test(dataProvider = "batch")
     public void testSendAndReceiveWithHashRangeExclusiveStickyKeyConsumerSelector(boolean enableBatch) throws PulsarClientException {
-        this.conf.setSubscriptionKeySharedEnable(true);
         String topic = "persistent://public/default/key_shared_exclusive-" + UUID.randomUUID();
 
         @Cleanup
@@ -253,10 +249,10 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "data")
-    public void testConsumerCrashSendAndReceiveWithHashRangeAutoSplitStickyKeyConsumerSelector(String topicType,
-            boolean enableBatch) throws PulsarClientException, InterruptedException {
-
-        this.conf.setSubscriptionKeySharedEnable(true);
+    public void testConsumerCrashSendAndReceiveWithHashRangeAutoSplitStickyKeyConsumerSelector(
+        String topicType,
+        boolean enableBatch
+    ) throws PulsarClientException, InterruptedException {
         String topic = topicType + "://public/default/key_shared_consumer_crash-" + UUID.randomUUID();
 
         @Cleanup
@@ -297,10 +293,10 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "data")
-    public void testNonKeySendAndReceiveWithHashRangeAutoSplitStickyKeyConsumerSelector(String topicType,
-                                                                                        boolean enableBatch)
-            throws PulsarClientException {
-        this.conf.setSubscriptionKeySharedEnable(true);
+    public void testNonKeySendAndReceiveWithHashRangeAutoSplitStickyKeyConsumerSelector(
+        String topicType,
+        boolean enableBatch
+    ) throws PulsarClientException {
         String topic = topicType + "://public/default/key_shared_none_key-" + UUID.randomUUID();
 
         @Cleanup
@@ -327,7 +323,6 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     @Test(dataProvider = "batch")
     public void testNonKeySendAndReceiveWithHashRangeExclusiveStickyKeyConsumerSelector(boolean enableBatch)
             throws PulsarClientException {
-        this.conf.setSubscriptionKeySharedEnable(true);
         String topic = "persistent://public/default/key_shared_none_key_exclusive-" + UUID.randomUUID();
 
         @Cleanup
@@ -366,7 +361,6 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     @Test(dataProvider = "batch")
     public void testOrderingKeyWithHashRangeAutoSplitStickyKeyConsumerSelector(boolean enableBatch)
             throws PulsarClientException {
-        this.conf.setSubscriptionKeySharedEnable(true);
         String topic = "persistent://public/default/key_shared_ordering_key-" + UUID.randomUUID();
 
         @Cleanup
@@ -395,7 +389,6 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     @Test(dataProvider = "batch")
     public void testOrderingKeyWithHashRangeExclusiveStickyKeyConsumerSelector(boolean enableBatch)
             throws PulsarClientException {
-        this.conf.setSubscriptionKeySharedEnable(true);
         String topic = "persistent://public/default/key_shared_exclusive_ordering_key-" + UUID.randomUUID();
 
         @Cleanup
@@ -446,7 +439,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
     @Test(expectedExceptions = PulsarClientException.NotAllowedException.class)
     public void testDisableKeySharedSubscription() throws PulsarClientException {
-        this.conf.setSubscriptionKeySharedEnable(false);
+        this.conf.getSubscriptionTypesEnabled().remove("Key_Shared");
         String topic = "persistent://public/default/key_shared_disabled";
         pulsarClient.newConsumer()
             .topic(topic)
@@ -458,7 +451,6 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
     @Test
     public void testCannotUseAcknowledgeCumulative() throws PulsarClientException {
-        this.conf.setSubscriptionKeySharedEnable(true);
         String topic = "persistent://public/default/key_shared_ack_cumulative-" + UUID.randomUUID();
 
         @Cleanup
@@ -484,7 +476,6 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
     @Test(dataProvider = "batch")
     public void testMakingProgressWithSlowerConsumer(boolean enableBatch) throws Exception {
-        this.conf.setSubscriptionKeySharedEnable(true);
         String topic = "testMakingProgressWithSlowerConsumer-" + UUID.randomUUID();
 
         String slowKey = "slowKey";
@@ -553,7 +544,6 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
     @Test
     public void testOrderingWhenAddingConsumers() throws Exception {
-        this.conf.setSubscriptionKeySharedEnable(true);
         String topic = "testOrderingWhenAddingConsumers-" + UUID.randomUUID();
 
         @Cleanup
@@ -595,7 +585,6 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
     @Test
     public void testReadAheadWhenAddingConsumers() throws Exception {
-        this.conf.setSubscriptionKeySharedEnable(true);
         String topic = "testReadAheadWhenAddingConsumers-" + UUID.randomUUID();
 
         @Cleanup
@@ -649,7 +638,6 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
     @Test
     public void testRemoveFirstConsumer() throws Exception {
-        this.conf.setSubscriptionKeySharedEnable(true);
         String topic = "testReadAheadWhenAddingConsumers-" + UUID.randomUUID();
 
         @Cleanup
@@ -707,7 +695,6 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
     @Test
     public void testHashRangeConflict() throws PulsarClientException {
-        this.conf.setSubscriptionKeySharedEnable(true);
         final String topic = "persistent://public/default/testHashRangeConflict-" + UUID.randomUUID().toString();
         final String sub = "test";
 
@@ -796,9 +783,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
     @Test
-    public void testAttachKeyToMessageMetadata()
-            throws PulsarClientException {
-        this.conf.setSubscriptionKeySharedEnable(true);
+    public void testAttachKeyToMessageMetadata() throws PulsarClientException {
         String topic = "persistent://public/default/key_shared-" + UUID.randomUUID();
 
         @Cleanup

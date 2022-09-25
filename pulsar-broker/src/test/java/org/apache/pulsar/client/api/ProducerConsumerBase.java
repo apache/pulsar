@@ -31,6 +31,12 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 
 public abstract class ProducerConsumerBase extends MockedPulsarServiceBaseTest {
+    protected final String TLS_TRUST_CERT_FILE_PATH = "./src/test/resources/authentication/tls/cacert.pem";
+    protected final String TLS_CLIENT_CERT_FILE_PATH = "./src/test/resources/authentication/tls/client-cert.pem";
+    protected final String TLS_CLIENT_KEY_FILE_PATH = "./src/test/resources/authentication/tls/client-key.pem";
+    protected final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/authentication/tls/broker-cert.pem";
+    protected final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/authentication/tls/broker-key.pem";
+
     protected String methodName;
 
     @BeforeMethod(alwaysRun = true)

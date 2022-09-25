@@ -218,7 +218,7 @@ public class SchemasResource extends SchemasResourceBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") String topic,
-            @ApiParam(value = "A JSON value presenting a schema playload."
+            @ApiParam(value = "A JSON value presenting a schema payload."
                     + " An example of the expected schema can be found down here.",
                examples = @Example(value = @ExampleProperty(mediaType = MediaType.APPLICATION_JSON,
                value = "{\"type\": \"STRING\", \"schema\": \"\", \"properties\": { \"key1\" : \"value1\" + } }")))
@@ -264,7 +264,7 @@ public class SchemasResource extends SchemasResourceBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") String topic,
-            @ApiParam(value = "A JSON value presenting a schema playload."
+            @ApiParam(value = "A JSON value presenting a schema payload."
                             + " An example of the expected schema can be found down here.",
              examples = @Example(value = @ExampleProperty(mediaType = MediaType.APPLICATION_JSON,
              value = "{\"type\": \"STRING\", \"schema\": \"\"," + " \"properties\": { \"key1\" : \"value1\" + } }")))
@@ -304,7 +304,7 @@ public class SchemasResource extends SchemasResourceBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") String topic,
-            @ApiParam(value = "A JSON value presenting a schema playload."
+            @ApiParam(value = "A JSON value presenting a schema payload."
                             + " An example of the expected schema can be found down here.",
             examples = @Example(value = @ExampleProperty(mediaType = MediaType.APPLICATION_JSON,
             value = "{\"type\": \"STRING\", \"schema\": \"\"," + " \"properties\": { \"key1\" : \"value1\" + } }")))

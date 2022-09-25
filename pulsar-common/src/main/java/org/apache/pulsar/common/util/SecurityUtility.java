@@ -249,8 +249,11 @@ public class SecurityUtility {
         if (allowInsecureConnection) {
             sslContexBuilder.trustManager(InsecureTrustManagerFactory.INSTANCE);
         } else {
-            TrustManagerProxy trustManager = new TrustManagerProxy(trustCertsFilePath, refreshDurationSec, executor);
-            sslContexBuilder.trustManager(trustManager);
+            if (StringUtils.isNotBlank(trustCertsFilePath)) {
+                TrustManagerProxy trustManager =
+                        new TrustManagerProxy(trustCertsFilePath, refreshDurationSec, executor);
+                sslContexBuilder.trustManager(trustManager);
+            }
         }
         return sslContexBuilder.build();
     }

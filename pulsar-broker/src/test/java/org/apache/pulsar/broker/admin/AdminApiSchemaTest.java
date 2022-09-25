@@ -23,14 +23,15 @@ import static java.nio.charset.StandardCharsets.US_ASCII;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doReturn;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import com.google.common.collect.Sets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.api.DigestType;
@@ -41,6 +42,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
+import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.client.impl.schema.StringSchema;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
@@ -76,11 +78,11 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
 
         // Setup namespaces
         admin.clusters().createCluster(cluster, ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-        TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
         admin.tenants().createTenant("schematest", tenantInfo);
-        admin.namespaces().createNamespace("schematest/test", Sets.newHashSet("test"));
-        admin.namespaces().createNamespace("schematest/"+cluster+"/test", Sets.newHashSet("test"));
-        admin.namespaces().createNamespace(schemaCompatibilityNamespace, Sets.newHashSet("test"));
+        admin.namespaces().createNamespace("schematest/test", Set.of("test"));
+        admin.namespaces().createNamespace("schematest/"+cluster+"/test", Set.of("test"));
+        admin.namespaces().createNamespace(schemaCompatibilityNamespace, Set.of("test"));
     }
 
     @AfterMethod(alwaysRun = true)
@@ -172,11 +174,13 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
         SchemaInfo readSi = admin.schemas().getSchemaInfo(topicName);
         log.info("Read schema of topic {} : {}", topicName, readSi);
 
+        ((SchemaInfoImpl)readSi).setTimestamp(0);
         assertEquals(readSi, si);
 
         readSi = admin.schemas().getSchemaInfo(topicName + "-partition-0");
         log.info("Read schema of topic {} : {}", topicName, readSi);
 
+        ((SchemaInfoImpl)readSi).setTimestamp(0);
         assertEquals(readSi, si);
 
     }
@@ -225,12 +229,14 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
         SchemaInfoWithVersion readSi = admin.schemas().getSchemaInfoWithVersion(topicName);
         log.info("Read schema of topic {} : {}", topicName, readSi);
 
+        ((SchemaInfoImpl)readSi.getSchemaInfo()).setTimestamp(0);
         assertEquals(readSi.getSchemaInfo(), si);
         assertEquals(readSi.getVersion(), 0);
 
         readSi = admin.schemas().getSchemaInfoWithVersion(topicName + "-partition-0");
         log.info("Read schema of topic {} : {}", topicName, readSi);
 
+        ((SchemaInfoImpl)readSi.getSchemaInfo()).setTimestamp(0);
         assertEquals(readSi.getSchemaInfo(), si);
         assertEquals(readSi.getVersion(), 0);
 
@@ -242,11 +248,19 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
                 "test");
         String topicName = "persistent://"+namespace + "/test-key-value-schema";
         Schema keyValueSchema = Schema.KeyValue(Schema.AVRO(Foo.class), Schema.AVRO(Foo.class));
-        admin.schemas().createSchema(topicName,
-                keyValueSchema.getSchemaInfo());
+        admin.schemas().createSchema(topicName, keyValueSchema.getSchemaInfo());
         SchemaInfo schemaInfo = admin.schemas().getSchemaInfo(topicName);
 
+        long timestamp = schemaInfo.getTimestamp();
+        assertNotEquals(keyValueSchema.getSchemaInfo().getTimestamp(), timestamp);
+        assertNotEquals(0, timestamp);
+
+        ((SchemaInfoImpl)keyValueSchema.getSchemaInfo()).setTimestamp(schemaInfo.getTimestamp());
         assertEquals(keyValueSchema.getSchemaInfo(), schemaInfo);
+
+        admin.schemas().createSchema(topicName, keyValueSchema.getSchemaInfo());
+        SchemaInfo schemaInfo2 = admin.schemas().getSchemaInfo(topicName);
+        assertEquals(timestamp, schemaInfo2.getTimestamp());
     }
 
 

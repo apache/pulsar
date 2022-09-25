@@ -15,7 +15,7 @@ To ensure clients in both internal and external networks can connect to a Pulsar
 
 - The `internalListenerName` is used to specify the internal service URL that the broker uses. You can specify the `internalListenerName` by choosing one of the `advertisedListeners`. The broker uses the listener name of the first advertised listener as the `internalListenerName` if the `internalListenerName` is absent.
 
-After setting up the `advertisedListeners`, clients can choose one of the listeners as the service URL to create a connection to the broker as long as the network is accessible. However, if the client creates producers or consumer on a topic, the client must send a lookup requests to the broker for getting the owner broker, then connect to the owner broker to publish messages or consume messages. Therefore, You must allow the client to get the corresponding service URL with the same advertised listener name as the one used by the client. This helps keep client-side simple and secure.
+After setting up the `advertisedListeners`, clients can choose one of the listeners as the service URL to create a connection to the broker as long as the network is accessible. However, if the client creates producers or consumers on a topic, the client must send a lookup request to the broker for getting the owner broker, then connect to the owner broker to publish messages or consume messages. Therefore, You must allow the client to get the corresponding service URL with the same advertised listener name as the one used by the client. This helps keep the client side simple and secure.
 
 ## Use multiple advertised listeners
 
@@ -24,20 +24,16 @@ This example shows how a Pulsar client uses multiple advertised listeners.
 1. Configure multiple advertised listeners in the broker configuration file.
 
 ```shell
-
 advertisedListeners={listenerName}:pulsar://xxxx:6650,
 {listenerName}:pulsar+ssl://xxxx:6651
-
 ```
 
 2. Specify the listener name for the client.
 
 ```java
-
 PulsarClient client = PulsarClient.builder()
     .serviceUrl("pulsar://xxxx:6650")
     .listenerName("external")
     .build();
-
 ```
 

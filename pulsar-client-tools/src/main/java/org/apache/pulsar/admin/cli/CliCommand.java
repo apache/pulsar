@@ -36,7 +36,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 
-abstract class CliCommand {
+public abstract class CliCommand {
 
     static String[] validatePropertyCluster(List<String> params) {
         return splitParameter(params, 2);

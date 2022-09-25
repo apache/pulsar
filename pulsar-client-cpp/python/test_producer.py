@@ -18,6 +18,7 @@
 # under the License.
 #
 
+from pulsar import BatchingType
 import pulsar
 
 

@@ -214,6 +214,10 @@ public class BacklogQuotaManager {
                     ManagedCursor slowestConsumer = mLedger.getSlowestConsumer();
                     Position oldestPosition = slowestConsumer.getMarkDeletedPosition();
                     ManagedLedgerInfo.LedgerInfo ledgerInfo = mLedger.getLedgerInfo(oldestPosition.getLedgerId()).get();
+                    if (ledgerInfo == null) {
+                        slowestConsumer.resetCursor(mLedger.getNextValidPosition((PositionImpl) oldestPosition));
+                        continue;
+                    }
                     // Timestamp only > 0 if ledger has been closed
                     if (ledgerInfo.getTimestamp() > 0
                             && currentMillis - ledgerInfo.getTimestamp() > quota.getLimitTime()) {

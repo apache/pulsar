@@ -22,7 +22,7 @@ import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
 
 public class PulsarFunctionsJavaThreadTest extends PulsarFunctionsJavaTest {
 
-	public PulsarFunctionsJavaThreadTest() {
-		super(FunctionRuntimeType.THREAD);
-	}
+    public PulsarFunctionsJavaThreadTest() {
+        super(FunctionRuntimeType.THREAD);
+    }
 }

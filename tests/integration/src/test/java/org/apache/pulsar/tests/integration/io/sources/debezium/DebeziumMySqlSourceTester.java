@@ -125,11 +125,9 @@ public class DebeziumMySqlSourceTester extends SourceTester<DebeziumMySQLContain
 
     @Override
     public void close() {
-        if (pulsarCluster != null) {
-            if (debeziumMySqlContainer != null) {
-                pulsarCluster.stopService(DebeziumMySQLContainer.NAME, debeziumMySqlContainer);
-                debeziumMySqlContainer = null;
-            }
+        if (debeziumMySqlContainer != null) {
+            PulsarCluster.stopService(DebeziumMySQLContainer.NAME, debeziumMySqlContainer);
+            debeziumMySqlContainer = null;
         }
     }
 

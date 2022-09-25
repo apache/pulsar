@@ -351,7 +351,8 @@ SharedBuffer Commands::newProducer(const std::string& topic, uint64_t producerId
                                    const std::string& producerName, uint64_t requestId,
                                    const std::map<std::string, std::string>& metadata,
                                    const SchemaInfo& schemaInfo, uint64_t epoch,
-                                   bool userProvidedProducerName, bool encrypted) {
+                                   bool userProvidedProducerName, bool encrypted,
+                                   ProducerAccessMode accessMode, Optional<uint64_t> topicEpoch) {
     BaseCommand cmd;
     cmd.set_type(BaseCommand::PRODUCER);
     CommandProducer* producer = cmd.mutable_producer();
@@ -361,6 +362,10 @@ SharedBuffer Commands::newProducer(const std::string& topic, uint64_t producerId
     producer->set_epoch(epoch);
     producer->set_user_provided_producer_name(userProvidedProducerName);
     producer->set_encrypted(encrypted);
+    producer->set_producer_access_mode(accessMode);
+    if (topicEpoch.is_present()) {
+        producer->set_topic_epoch(topicEpoch.value());
+    }
 
     for (std::map<std::string, std::string>::const_iterator it = metadata.begin(); it != metadata.end();
          it++) {
@@ -668,6 +673,18 @@ std::string Commands::messageType(BaseCommand_Type type) {
             return "TC_CLIENT_CONNECT_REQUEST";
         case BaseCommand::TC_CLIENT_CONNECT_RESPONSE:
             return "TC_CLIENT_CONNECT_RESPONSE";
+            break;
+        case BaseCommand::WATCH_TOPIC_LIST:
+            return "WATCH_TOPIC_LIST";
+            break;
+        case BaseCommand::WATCH_TOPIC_LIST_SUCCESS:
+            return "WATCH_TOPIC_LIST_SUCCESS";
+            break;
+        case BaseCommand::WATCH_TOPIC_UPDATE:
+            return "WATCH_TOPIC_UPDATE";
+            break;
+        case BaseCommand::WATCH_TOPIC_LIST_CLOSE:
+            return "WATCH_TOPIC_LIST_CLOSE";
             break;
     };
     BOOST_THROW_EXCEPTION(std::logic_error("Invalid BaseCommand enumeration value"));

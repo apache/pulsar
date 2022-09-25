@@ -52,9 +52,9 @@ public class ManagedLedgerFactoryTest extends MockedBookKeeperTestCase {
         assertEquals(info.ledgers.size(), 4);
 
         assertEquals(info.ledgers.get(0).ledgerId, 3);
-        assertEquals(info.ledgers.get(1).ledgerId, 5);
-        assertEquals(info.ledgers.get(2).ledgerId, 6);
-        assertEquals(info.ledgers.get(3).ledgerId, 7);
+        assertEquals(info.ledgers.get(1).ledgerId, 4);
+        assertEquals(info.ledgers.get(2).ledgerId, 5);
+        assertEquals(info.ledgers.get(3).ledgerId, 6);
 
         assertEquals(info.cursors.size(), 1);
 

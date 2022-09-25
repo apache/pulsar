@@ -29,6 +29,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import javax.annotation.Nonnull;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.namespace.NamespaceBundleOwnershipListener;
@@ -245,27 +246,26 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 ownedBundlesCountPerNamespace.get(namespace).incrementAndGet();
                 result.complete(null);
             } else {
-                ownedBundlesCountPerNamespace.putIfAbsent(namespace, new AtomicInteger(1));
                 prepareInitPoliciesCache(namespace, result);
             }
         }
         return result;
     }
 
-    private void prepareInitPoliciesCache(NamespaceName namespace, CompletableFuture<Void> result) {
+    private void prepareInitPoliciesCache(@Nonnull NamespaceName namespace, CompletableFuture<Void> result) {
         if (policyCacheInitMap.putIfAbsent(namespace, false) == null) {
             CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerCompletableFuture =
                     createSystemTopicClientWithRetry(namespace);
             readerCaches.put(namespace, readerCompletableFuture);
-            readerCompletableFuture.whenComplete((reader, ex) -> {
-                if (ex != null) {
-                    log.error("[{}] Failed to create reader on __change_events topic", namespace, ex);
-                    result.completeExceptionally(ex);
-                    cleanCacheAndCloseReader(reader.getSystemTopic().getTopicName().getNamespaceObject(), false);
-                } else {
-                    initPolicesCache(reader, result);
-                    result.thenRun(() -> readMorePolicies(reader));
-                }
+            ownedBundlesCountPerNamespace.putIfAbsent(namespace, new AtomicInteger(1));
+            readerCompletableFuture.thenAccept(reader -> {
+                initPolicesCache(reader, result);
+                result.thenRun(() -> readMorePolicies(reader));
+            }).exceptionally(ex -> {
+                log.error("[{}] Failed to create reader on __change_events topic", namespace, ex);
+                cleanCacheAndCloseReader(namespace, false);
+                result.completeExceptionally(ex);
+                return null;
             });
         }
     }
@@ -367,36 +367,43 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         });
     }
 
-    private void cleanCacheAndCloseReader(NamespaceName namespace, boolean cleanOwnedBundlesCount) {
+    private void cleanCacheAndCloseReader(@Nonnull NamespaceName namespace, boolean cleanOwnedBundlesCount) {
         CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerFuture = readerCaches.remove(namespace);
         policiesCache.entrySet().removeIf(entry -> Objects.equals(entry.getKey().getNamespaceObject(), namespace));
         if (cleanOwnedBundlesCount) {
             ownedBundlesCountPerNamespace.remove(namespace);
         }
         if (readerFuture != null && !readerFuture.isCompletedExceptionally()) {
-            readerFuture.thenAccept(SystemTopicClient.Reader::closeAsync);
+            readerFuture.thenCompose(SystemTopicClient.Reader::closeAsync)
+                    .exceptionally(ex -> {
+                        log.warn("[{}] Close change_event reader fail.", namespace, ex);
+                        return null;
+                    });
         }
         policyCacheInitMap.remove(namespace);
     }
 
     private void readMorePolicies(SystemTopicClient.Reader<PulsarEvent> reader) {
-        reader.readNextAsync().whenComplete((msg, ex) -> {
-            if (ex == null) {
-                refreshTopicPoliciesCache(msg);
-                notifyListener(msg);
-                readMorePolicies(reader);
-            } else {
-                Throwable cause = FutureUtil.unwrapCompletionException(ex);
-                if (cause instanceof PulsarClientException.AlreadyClosedException) {
-                    log.error("Read more topic policies exception, close the read now!", ex);
-                    cleanCacheAndCloseReader(
-                            reader.getSystemTopic().getTopicName().getNamespaceObject(), false);
-                } else {
-                    log.warn("Read more topic polices exception, read again.", ex);
-                    readMorePolicies(reader);
-                }
-            }
-        });
+        reader.readNextAsync()
+              .thenAccept(msg -> {
+                  refreshTopicPoliciesCache(msg);
+                  notifyListener(msg);
+              })
+              .whenComplete((__, ex) -> {
+                  if (ex == null) {
+                      readMorePolicies(reader);
+                  } else {
+                      Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                      if (cause instanceof PulsarClientException.AlreadyClosedException) {
+                          log.error("Read more topic policies exception, close the read now!", ex);
+                          cleanCacheAndCloseReader(
+                                  reader.getSystemTopic().getTopicName().getNamespaceObject(), false);
+                      } else {
+                          log.warn("Read more topic polices exception, read again.", ex);
+                          readMorePolicies(reader);
+                      }
+                  }
+              });
     }
 
     private void refreshTopicPoliciesCache(Message<PulsarEvent> msg) {

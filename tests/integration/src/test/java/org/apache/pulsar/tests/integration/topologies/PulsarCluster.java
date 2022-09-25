@@ -84,7 +84,7 @@ public class PulsarCluster {
     @Getter
     private final String clusterName;
     private final Network network;
-    private final ZKContainer zkContainer;
+    private final ZKContainer<?> zkContainer;
     private final CSContainer csContainer;
     private final boolean sharedCsContainer;
     private final Map<String, BKContainer> bookieContainers;
@@ -186,6 +186,9 @@ public class PulsarCluster {
                     if (spec.brokerMountFiles != null) {
                         spec.brokerMountFiles.forEach(brokerContainer::withFileSystemBind);
                     }
+                    if (spec.brokerAdditionalPorts() != null) {
+                        spec.brokerAdditionalPorts().forEach(brokerContainer::addExposedPort);
+                    }
                     return brokerContainer;
                 }
             ));
@@ -214,7 +217,7 @@ public class PulsarCluster {
         Iterator<BrokerContainer> brokers = getBrokers().iterator();
         while (brokers.hasNext()) {
             BrokerContainer broker = brokers.next();
-            multiUrl += broker.getContainerIpAddress() + ":" + broker.getMappedPort(BROKER_HTTP_PORT);
+            multiUrl += broker.getHost() + ":" + broker.getMappedPort(BROKER_HTTP_PORT);
             if (brokers.hasNext()) {
                 multiUrl += ",";
             }
@@ -223,11 +226,11 @@ public class PulsarCluster {
     }
 
     public String getZKConnString() {
-        return zkContainer.getContainerIpAddress() + ":" + zkContainer.getMappedPort(ZK_PORT);
+        return zkContainer.getHost() + ":" + zkContainer.getMappedPort(ZK_PORT);
     }
 
     public String getCSConnString() {
-        return csContainer.getContainerIpAddress() + ":" + csContainer.getMappedPort(CS_PORT);
+        return csContainer.getHost() + ":" + csContainer.getMappedPort(CS_PORT);
     }
 
     public Network getNetwork() {
@@ -435,7 +438,7 @@ public class PulsarCluster {
                 .withEnv("pulsar.web-service-url", "http://pulsar-broker-0:8080")
                 .withEnv("SQL_PREFIX_pulsar.max-message-size", "" + spec.maxMessageSize)
                 .withClasspathResourceMapping(
-                        resourcePath, "/pulsar/conf/presto/config.properties", BindMode.READ_WRITE);
+                        resourcePath, "/pulsar/trino/conf/config.properties", BindMode.READ_WRITE);
         if (spec.queryLastMessage) {
             container.withEnv("pulsar.bookkeeper-use-v2-protocol", "false")
                     .withEnv("pulsar.bookkeeper-explicit-interval", "10");

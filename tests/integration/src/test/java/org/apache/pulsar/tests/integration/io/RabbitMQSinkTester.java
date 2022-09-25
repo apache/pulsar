@@ -66,7 +66,7 @@ public class RabbitMQSinkTester extends SinkTester<RabbitMQContainer> {
 
     static ConnectionFactory createConnectionFactory(RabbitMQContainer container) {
         ConnectionFactory connectionFactory = new ConnectionFactory();
-        connectionFactory.setHost(container.getContainerIpAddress());
+        connectionFactory.setHost(container.getHost());
         connectionFactory.setPort(container.getMappedPort(RabbitMQContainer.PORTS[0]));
 
         return connectionFactory;

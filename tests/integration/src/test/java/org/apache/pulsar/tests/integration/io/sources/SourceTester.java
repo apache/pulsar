@@ -87,6 +87,7 @@ public abstract class SourceTester<ServiceContainerT extends GenericContainer> i
 
     public abstract Map<String, String> produceSourceMessages(int numMessages) throws Exception;
 
+    @SuppressWarnings({"unchecked", "rawtypes"})
     public void validateSourceResult(Consumer consumer, int number,
                                      String eventType, String converterClassName) throws Exception {
         doPreValidationCheck(eventType);

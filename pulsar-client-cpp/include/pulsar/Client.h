@@ -50,6 +50,7 @@ class PULSAR_PUBLIC Client {
      * configuration.
      *
      * @param serviceUrl the Pulsar endpoint to use (eg: pulsar://localhost:6650)
+     * @throw std::invalid_argument if `serviceUrl` is invalid
      */
     Client(const std::string& serviceUrl);
 
@@ -60,6 +61,7 @@ class PULSAR_PUBLIC Client {
      * @param serviceUrl the Pulsar endpoint to use (eg:
      * http://brokerv2-pdev.messaging.corp.gq1.yahoo.com:4080 for Sandbox access)
      * @param clientConfiguration the client configuration to use
+     * @throw std::invalid_argument if `serviceUrl` is invalid
      */
     Client(const std::string& serviceUrl, const ClientConfiguration& clientConfiguration);
 

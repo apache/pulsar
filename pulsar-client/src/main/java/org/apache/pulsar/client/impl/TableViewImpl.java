@@ -155,7 +155,11 @@ public class TableViewImpl<T> implements TableView<T> {
 
                 try {
                     listenersMutex.lock();
-                    data.put(msg.getKey(), msg.getValue());
+                    if (null == msg.getValue()){
+                        data.remove(msg.getKey());
+                    } else {
+                        data.put(msg.getKey(), msg.getValue());
+                    }
 
                     for (BiConsumer<String, T> listener : listeners) {
                         try {
