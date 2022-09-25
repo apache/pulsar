@@ -27,9 +27,14 @@ void PeriodicTask::start() {
     }
     state_ = Ready;
     if (periodMs_ >= 0) {
-        auto self = shared_from_this();
+        std::weak_ptr<PeriodicTask> weakSelf{shared_from_this()};
         timer_.expires_from_now(boost::posix_time::millisec(periodMs_));
-        timer_.async_wait([this, self](const ErrorCode& ec) { handleTimeout(ec); });
+        timer_.async_wait([weakSelf](const ErrorCode& ec) {
+            auto self = weakSelf.lock();
+            if (self) {
+                self->handleTimeout(ec);
+            }
+        });
     }
 }
 

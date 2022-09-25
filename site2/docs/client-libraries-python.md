@@ -59,7 +59,7 @@ To install the built Python bindings:
 ```shell
 git clone https://github.com/apache/pulsar
 cd pulsar/pulsar-client-cpp/python
-sudo pip install .
+sudo python setup.py install
 ```
 
 ## Connection URLs
@@ -180,7 +180,7 @@ while True:
 
 In addition to subscribing a consumer to a single Pulsar topic, you can also subscribe to multiple topics simultaneously. To use multi-topic subscriptions, you can supply a regular expression (regex) or a `List` of topics. If you select topics via regex, all topics must be within the same Pulsar namespace.
 
-The following is an example: 
+The following is an example:
 
 ```python
 import re
@@ -306,7 +306,7 @@ The schema definition is like this.
 ```json
 {
   "name": "NamespaceDemo", "namespace": "xxx.xxx.xxx", "type": "record", "fields": [
-    {"name": "x", "type": ["null", "string"]}, 
+    {"name": "x", "type": ["null", "string"]},
     {"name": "y", "type": ["null", "int"]}
   ]
 }
@@ -343,7 +343,7 @@ while True:
 ```
 
 ````mdx-code-block
-<Tabs 
+<Tabs
   defaultValue="BytesSchema"
   values={[{"label":"BytesSchema","value":"BytesSchema"},{"label":"StringSchema","value":"StringSchema"},{"label":"AvroSchema","value":"AvroSchema"},{"label":"JsonSchema","value":"JsonSchema"}]}>
 
@@ -397,7 +397,7 @@ You can declare an `AvroSchema` using one of the following methods.
 
 You can declare an `AvroSchema` by passing a class that inherits
 from `pulsar.schema.Record` and defines the fields as
-class variables. 
+class variables.
 
 **Example**
 
@@ -426,7 +426,7 @@ You can declare an `AvroSchema` using JSON. In this case, Avro schemas are defin
 
 **Example**
 
-Below is an `AvroSchema` defined using a JSON file (_company.avsc_). 
+Below is an `AvroSchema` defined using a JSON file (_company.avsc_).
 
 ```json
 {
@@ -450,7 +450,7 @@ Below is an `AvroSchema` defined using a JSON file (_company.avsc_).
 }
 ```
 
-You can load a schema definition from file by using [`avro.schema`]((http://avro.apache.org/docs/current/gettingstartedpython.html) or [`fastavro.schema`](https://fastavro.readthedocs.io/en/latest/schema.html#fastavro._schema_py.load_schema).
+You can load a schema definition from file by using [`avro.schema`](https://avro.apache.org/docs/current/getting-started-python/) or [`fastavro.schema`](https://fastavro.readthedocs.io/en/latest/schema.html#fastavro._schema_py.load_schema).
 
 If you use the "JSON definition" method to declare an `AvroSchema`, pay attention to the following points:
 
@@ -515,100 +515,4 @@ consumer = client.subscribe(
 
 ## End-to-end encryption
 
-[End-to-end encryption](/cookbooks-encryption.md#docsNav) allows applications to encrypt messages at producers and decrypt messages at consumers.
-
-### Configuration
-
-To use the end-to-end encryption feature in the Python client, you need to configure `publicKeyPath` for producers and `privateKeyPath` for consumers.
-
-```
-publicKeyPath: "./public.pem"
-privateKeyPath: "./private.pem"
-```
-
-### Tutorial
-
-This section provides step-by-step instructions on how to use the end-to-end encryption feature in the Python client.
-
-**Prerequisite**
-
-- Pulsar Python client 2.7.1 or later 
-
-**Step**
-
-1. Create both public and private key pairs.
-
-   **Input**
-
-   ```shell
-   openssl genrsa -out private.pem 2048
-   openssl rsa -in private.pem -pubout -out public.pem
-   ```
-
-2. Create a producer to send encrypted messages.
-
-   **Input**
-
-   ```python
-   import pulsar
-
-   publicKeyPath = "./public.pem"
-   privateKeyPath = ""
-   crypto_key_reader = pulsar.CryptoKeyReader(publicKeyPath, privateKeyPath)
-   client = pulsar.Client('pulsar://localhost:6650')
-   producer = client.create_producer(topic='encryption', encryption_key='encryption', crypto_key_reader=crypto_key_reader)
-   producer.send('encryption message'.encode('utf8'))
-   print('sent message')
-   producer.close()
-   client.close()
-   ```
-
-3. Create a consumer to receive encrypted messages.
-
-   **Input**
-
-   ```python
-   import pulsar
-
-   publicKeyPath = ""
-   privateKeyPath = "./private.pem"
-   crypto_key_reader = pulsar.CryptoKeyReader(publicKeyPath, privateKeyPath)
-   client = pulsar.Client('pulsar://localhost:6650')
-   consumer = client.subscribe(topic='encryption', subscription_name='encryption-sub', crypto_key_reader=crypto_key_reader)
-   msg = consumer.receive()
-   print("Received msg '{}' id = '{}'".format(msg.data(), msg.message_id()))
-   consumer.close()
-   client.close()
-   ```
-
-4. Run the consumer to receive encrypted messages.
-
-   **Input**
-
-   ```shell
-   python consumer.py
-   ```
-
-5. In a new terminal tab, run the producer to produce encrypted messages.
-
-   **Input**
-
-   ```shell
-   python producer.py
-   ```
-
-   Now you can see the producer sends messages and the consumer receives messages successfully.
-
-   **Output**
-
-   This is from the producer side.
-
-   ```
-   sent message
-   ```
-
-   This is from the consumer side.
-
-   ```
-   Received msg 'encryption message' id = '(0,0,-1,-1)'
-   ```
+Pulsar encryption allows applications to encrypt messages at producers and decrypt messages at consumers. See [cookbook](cookbooks-encryption.md) for more details.

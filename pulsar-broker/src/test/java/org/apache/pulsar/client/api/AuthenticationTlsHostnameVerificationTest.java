@@ -141,6 +141,7 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
     public void testTlsSyncProducerAndConsumerWithInvalidBrokerHost(boolean hostnameVerificationEnabled)
             throws Exception {
         log.info("-- Starting {} test --", methodName);
+        cleanup();
 
         this.hostnameVerificationEnabled = hostnameVerificationEnabled;
         clientTrustCertFilePath = TLS_MIM_TRUST_CERT_FILE_PATH;
@@ -184,7 +185,7 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
     @Test
     public void testTlsSyncProducerAndConsumerCorrectBrokerHost() throws Exception {
         log.info("-- Starting {} test --", methodName);
-
+        cleanup();
         // setup broker cert which has CN = "localhost"
         conf.setBrokerServicePortTls(Optional.of(0));
         conf.setWebServicePortTls(Optional.of(0));

@@ -304,8 +304,7 @@ public class PrometheusMetricsGenerator {
                         appendedQuantile = true;
                     }
                 }
-                stream.write("} ").write(String.valueOf(entry.getValue()))
-                        .write(' ').write(System.currentTimeMillis()).write("\n");
+                stream.write("} ").write(String.valueOf(entry.getValue())).write("\n");
             }
         }
     }

@@ -32,7 +32,7 @@ import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.testng.annotations.Test;
 
-public class PulsarFunctionsJavaTest extends PulsarFunctionsTest {
+public abstract class PulsarFunctionsJavaTest extends PulsarFunctionsTest {
 
     PulsarFunctionsJavaTest(FunctionRuntimeType functionRuntimeType) {
         super(functionRuntimeType);
@@ -201,6 +201,16 @@ public class PulsarFunctionsJavaTest extends PulsarFunctionsTest {
     @Test(groups = {"java_function", "function"})
     public void testRecordFunctionTest() throws Exception {
         testRecordFunction();
+    }
+
+    @Test(groups = {"java_function", "function"})
+    public void testAutoSchemaFunctionTest() throws Exception {
+        testAutoSchemaFunction();
+    }
+
+    @Test(groups = {"java_function", "function"})
+    public void testAvroSchemaFunctionTest() throws Exception {
+        testAvroSchemaFunction();
     }
 
 }

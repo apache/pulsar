@@ -21,10 +21,10 @@ package org.apache.pulsar.broker.loadbalance.impl;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.common.stats.JvmMetrics.getJvmDirectMemoryUsed;
 import com.beust.jcommander.internal.Lists;
-import com.google.common.collect.Maps;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -75,9 +75,6 @@ public class LoadManagerShared {
             return new HashSet<>();
         }
     };
-
-    // update LoadReport at most every 5 seconds
-    public static final long LOAD_REPORT_UPDATE_MINIMUM_INTERVAL = TimeUnit.SECONDS.toMillis(5);
 
     private static final String DEFAULT_DOMAIN = "default";
 
@@ -392,7 +389,7 @@ public class LoadManagerShared {
             return;
         }
 
-        final Map<String, Integer> domainNamespaceCount = Maps.newHashMap();
+        final Map<String, Integer> domainNamespaceCount = new HashMap<>();
         int leastNamespaceCount = Integer.MAX_VALUE;
         candidates.forEach(broker -> {
             final String domain = brokerToDomainMap.getOrDefault(broker, DEFAULT_DOMAIN);

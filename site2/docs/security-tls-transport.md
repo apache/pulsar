@@ -4,6 +4,12 @@ title: Transport Encryption using TLS
 sidebar_label: "Transport Encryption using TLS"
 ---
 
+
+````mdx-code-block
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+````
+
 ## TLS overview
 
 By default, Apache Pulsar clients communicate with the Apache Pulsar service in plain text. This means that all data is sent in the clear. You can use TLS to encrypt this traffic to protect the traffic from the snooping of a man-in-the-middle attacker.
@@ -164,7 +170,7 @@ openssl ca -config openssl.cnf -extensions client_cert \
 
 At this point, you have a cert `client.cert.pem` and a key `client.key-pk8.pem`, which you can use along with `ca.cert.pem` to configure TLS encryption for your client.
 
-## Configure broker
+## Configure brokers
 
 To configure a Pulsar [broker](reference-terminology.md#broker) to use TLS transport encryption, you need to make some changes to `broker.conf`, which locates in the `conf` directory of your [Pulsar installation](getting-started-standalone.md).
 
@@ -186,7 +192,7 @@ brokerClientKeyFilePath=/path/to/client.key-pk8.pem
 
 > You can find a full list of parameters available in the `conf/broker.conf` file,
 > as well as the default values for those parameters, in [Broker Configuration](reference-configuration.md#broker)
->
+
 ### TLS Protocol Version and Cipher
 
 You can configure the broker (and proxy) to require specific TLS protocol versions and ciphers for TLS negiotation. You can use the TLS protocol versions and ciphers to stop clients from requesting downgraded TLS protocol versions or ciphers that may have weaknesses.
@@ -204,7 +210,7 @@ For JDK 11, you can obtain a list of supported values from the documentation:
 - [TLS protocol](https://docs.oracle.com/en/java/javase/11/security/oracle-providers.html#GUID-7093246A-31A3-4304-AC5F-5FB6400405E2__SUNJSSEPROVIDERPROTOCOLPARAMETERS-BBF75009)
 - [Ciphers](https://docs.oracle.com/en/java/javase/11/security/oracle-providers.html#GUID-7093246A-31A3-4304-AC5F-5FB6400405E2__SUNJSSE_CIPHER_SUITES)
 
-## Proxy Configuration
+## Configure proxies
 
 Proxies need to configure TLS in two directions, for clients connecting to the proxy, and for the proxy connecting to brokers.
 
@@ -225,7 +231,7 @@ brokerClientCertificateFilePath=/path/to/client.cert.pem
 brokerClientKeyFilePath=/path/to/client.key-pk8.pem
 ```
 
-## Client configuration
+## Configure clients
 
 When you enable the TLS transport encryption, you need to configure the client to use `https://` and port 8443 for the web service URL, and `pulsar+ssl://` and port 6651 for the broker service URL.
 
@@ -239,25 +245,13 @@ Moreover, as the administrator has full control of the certificate authority, a 
 
 One scenario where you may want to enable hostname verification is where you have multiple proxy nodes behind a VIP, and the VIP has a DNS record, for example, pulsar.mycompany.com. In this case, you can generate a TLS cert with pulsar.mycompany.com as the "CommonName," and then enable hostname verification on the client.
 
-The examples below show that hostname verification is disabled for the CLI tools/Java/Python/C++/Node.js/C# clients by default.
+The examples below show that hostname verification is disabled for Java/Python/C++/Node.js/C# clients by default.
 
-### CLI tools
-
-[Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](reference-cli-tools.md#pulsar-admin), [`pulsar-perf`](reference-cli-tools.md#pulsar-perf), and [`pulsar-client`](reference-cli-tools.md#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
-
-You need to add the following parameters to that file to use TLS transport with the CLI tools of Pulsar:
-
-```properties
-webServiceUrl=https://broker.example.com:8443/
-brokerServiceUrl=pulsar+ssl://broker.example.com:6651/
-tlsAllowInsecureConnection=false
-tlsTrustCertsFilePath=/path/to/ca.cert.pem
-tlsKeyFilePath=/path/to/client.key-pk8.pem
-tlsCertFile=/path/to/client-cert.pem
-tlsEnableHostnameVerification=false
-```
-
-#### Java client
+````mdx-code-block
+<Tabs groupId="lang-choice"
+  defaultValue="Java"
+  values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"},{"label":"C++","value":"C++"},{"label":"Node.js","value":"Node.js"},{"label":"C#","value":"C#"}]}>
+<TabItem value="Java">
 
 ```java
 import org.apache.pulsar.client.api.PulsarClient;
@@ -272,7 +266,8 @@ PulsarClient client = PulsarClient.builder()
     .build();
 ```
 
-#### Python client
+</TabItem>
+<TabItem value="Python">
 
 ```python
 from pulsar import Client
@@ -283,7 +278,8 @@ client = Client("pulsar+ssl://broker.example.com:6651/",
                 tls_allow_insecure_connection=False) // defaults to false from v2.2.0 onwards
 ```
 
-#### C++ client
+</TabItem>
+<TabItem value="C++">
 
 ```cpp
 #include <pulsar/Client.h>
@@ -296,7 +292,8 @@ config.setAuth(pulsar::AuthTls::create(clientPublicKeyPath, clientPrivateKeyPath
 config.setValidateHostName(false);
 ```
 
-#### Node.js client
+</TabItem>
+<TabItem value="Node.js">
 
 ```javascript
 const Pulsar = require('pulsar-client');
@@ -312,7 +309,8 @@ const Pulsar = require('pulsar-client');
 })();
 ```
 
-#### C# client
+</TabItem>
+<TabItem value="C#">
 
 ```csharp
 var certificate = new X509Certificate2("ca.cert.pem");
@@ -324,3 +322,258 @@ var client = PulsarClient.Builder()
 ```
 
 > Note that `VerifyCertificateName` refers to the configuration of hostname verification in the C# client.
+
+</TabItem>
+</Tabs>
+````
+
+## Configure TLS encryption in CLI tools
+
+[Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](reference-cli-tools.md#pulsar-admin), [`pulsar-perf`](reference-cli-tools.md#pulsar-perf), and [`pulsar-client`](reference-cli-tools.md#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
+
+To use TLS encryption with the CLI tools of Pulsar, you need to add the following parameters to the `conf/client.conf` file.
+
+```properties
+webServiceUrl=https://broker.example.com:8443/
+brokerServiceUrl=pulsar+ssl://broker.example.com:6651/
+tlsAllowInsecureConnection=false
+tlsTrustCertsFilePath=/path/to/ca.cert.pem
+tlsKeyFilePath=/path/to/client.key-pk8.pem
+tlsCertFile=/path/to/client-cert.pem
+tlsEnableHostnameVerification=false
+```
+
+## Configure TLS encryption with KeyStore
+
+Apache Pulsar supports [TLS encryption](security-tls-transport.md) and [TLS authentication](security-tls-authentication.md) between clients and Apache Pulsar service. By default, it uses PEM format file configuration. This section tries to describe how to use [KeyStore](https://en.wikipedia.org/wiki/Java_KeyStore) type to configure TLS.
+
+### Generate TLS key and certificate
+
+The first step of deploying TLS is to generate the key and the certificate for each machine in the cluster. You can use Java’s `keytool` utility to accomplish this task. We will generate the key into a temporary keystore initially for broker, so that we can export and sign it later with CA.
+
+```shell
+keytool -keystore broker.keystore.jks -alias localhost -validity {validity} -genkeypair -keyalg RSA
+```
+
+You need to specify two parameters in the above command:
+
+1. `keystore`: the keystore file that stores the certificate. The *keystore* file contains the private key of
+   the certificate; hence, it needs to be kept safely.
+2. `validity`: the valid time of the certificate in days.
+
+> Ensure that common name (CN) matches exactly with the fully qualified domain name (FQDN) of the server.
+The client compares the CN with the DNS domain name to ensure that it is indeed connecting to the desired server, not a malicious one.
+
+### Create your own CA
+
+After the first step, each broker in the cluster has a public-private key pair, and a certificate to identify the machine.
+The certificate, however, is unsigned, which means that an attacker can create such a certificate to pretend to be any machine.
+
+Therefore, it is important to prevent forged certificates by signing them for each machine in the cluster.
+A `certificate authority (CA)` is responsible for signing certificates. CA works like a government that issues passports —
+the government stamps (signs) each passport so that the passport becomes difficult to forge. Other governments verify the stamps
+to ensure the passport is authentic. Similarly, the CA signs the certificates, and the cryptography guarantees that a signed
+certificate is computationally difficult to forge. Thus, as long as the CA is a genuine and trusted authority, the clients have
+high assurance that they are connecting to authentic machines.
+
+```shell
+openssl req -new -x509 -keyout ca-key -out ca-cert -days 365
+```
+
+The generated CA is simply a *public-private* key pair and certificate, and it is intended to sign other certificates.
+
+The next step is to add the generated CA to the clients' truststore so that the clients can trust this CA:
+
+```shell
+keytool -keystore client.truststore.jks -alias CARoot -import -file ca-cert
+```
+
+:::note
+
+If you configure the brokers to require client authentication by setting `tlsRequireTrustedClientCertOnConnect` to `true` on the broker configuration, then you must also provide a truststore for the brokers and it should have all the CA certificates that clients keys were signed by.
+
+:::
+
+```shell
+keytool -keystore broker.truststore.jks -alias CARoot -import -file ca-cert
+```
+
+In contrast to the keystore, which stores each machine’s own identity, the truststore of a client stores all the certificates
+that the client should trust. Importing a certificate into one’s truststore also means trusting all certificates that are signed
+by that certificate. As the analogy above, trusting the government (CA) also means trusting all passports (certificates) that
+it has issued. This attribute is called the chain of trust, and it is particularly useful when deploying TLS on a large BookKeeper cluster.
+You can sign all certificates in the cluster with a single CA, and have all machines share the same truststore that trusts the CA.
+That way all machines can authenticate all other machines.
+
+
+### Sign the certificate
+
+The next step is to sign all certificates in the keystore with the CA we generated. 
+
+1. Export the certificate from the keystore:
+
+```shell
+keytool -keystore broker.keystore.jks -alias localhost -certreq -file cert-file
+keytool -keystore client.keystore.jks -alias localhost -certreq -file cert-file
+```
+
+2. Sign it with the CA:
+
+```shell
+openssl x509 -req -CA ca-cert -CAkey ca-key -in cert-file -out cert-signed -days {validity} -CAcreateserial -passin pass:{ca-password}
+```
+
+3. Import both the certificate of the CA and the signed certificate into the keystore:
+
+```shell
+keytool -keystore broker.keystore.jks -alias CARoot -import -file ca-cert
+keytool -keystore broker.keystore.jks -alias localhost -import -file cert-signed
+
+keytool -keystore client.keystore.jks -alias CARoot -import -file ca-cert
+keytool -keystore client.keystore.jks -alias localhost -import -file cert-signed
+```
+
+The definitions of the parameters are the following:
+
+1. `keystore`: the location of the keystore
+2. `ca-cert`: the certificate of the CA
+3. `ca-key`: the private key of the CA
+4. `ca-password`: the passphrase of the CA
+5. `cert-file`: the exported, unsigned certificate of the broker
+6. `cert-signed`: the signed certificate of the broker
+
+### Configure brokers
+
+Brokers enable TLS by providing valid `brokerServicePortTls` and `webServicePortTls`, and also set `tlsEnabledWithKeyStore` to `true` for using KeyStore type configuration. Besides this, KeyStore path,  KeyStore password, TrustStore path, and TrustStore password need to be provided. And since brokers create internal client/admin client to communicate with other brokers, users also need to provide config for them, this is similar to how users configure the outside client/admin-client. If `tlsRequireTrustedClientCertOnConnect` is `true`, brokers reject the Connection if the Client Certificate is not trusted. 
+
+The following TLS configs are needed on the broker side:
+
+```properties
+brokerServicePortTls=6651
+webServicePortTls=8081
+
+tlsRequireTrustedClientCertOnConnect=true
+tlsEnabledWithKeyStore=true
+# key store
+tlsKeyStoreType=JKS
+tlsKeyStore=/var/private/tls/broker.keystore.jks
+tlsKeyStorePassword=brokerpw
+
+# trust store
+tlsTrustStoreType=JKS
+tlsTrustStore=/var/private/tls/broker.truststore.jks
+tlsTrustStorePassword=brokerpw
+
+# internal client/admin-client config
+brokerClientTlsEnabled=true
+brokerClientTlsEnabledWithKeyStore=true
+brokerClientTlsTrustStoreType=JKS
+brokerClientTlsTrustStore=/var/private/tls/client.truststore.jks
+brokerClientTlsTrustStorePassword=clientpw
+brokerClientTlsKeyStoreType=JKS
+brokerClientTlsKeyStore=/var/private/tls/client.keystore.jks
+brokerClientTlsKeyStorePassword=clientpw
+```
+
+:::note
+
+It is important to restrict access to the store files via filesystem permissions.
+
+:::
+
+If you have configured TLS on the broker, to disable non-TLS ports, you can set the values of the following configurations to empty as below.
+
+```conf
+brokerServicePort=
+webServicePort=
+```
+
+In this case, you need to set the following configurations.
+
+```properties
+brokerClientTlsEnabled=true // Set this to true
+brokerClientTlsEnabledWithKeyStore=true  // Set this to true
+brokerClientTlsTrustStore= // Set this to your desired value
+brokerClientTlsTrustStorePassword= // Set this to your desired value
+```
+
+Optional settings that may worth considering:
+
+1. tlsClientAuthentication=false: Enable/Disable using TLS for authentication. This config when enabled will authenticate the other end
+   of the communication channel. It should be enabled on both brokers and clients for mutual TLS.
+2. tlsCiphers=[TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256], A cipher suite is a named combination of authentication, encryption, MAC and key exchange
+   algorithm used to negotiate the security settings for a network connection using TLS network protocol. By default,
+   it is null. [OpenSSL Ciphers](https://www.openssl.org/docs/man1.0.2/apps/ciphers.html)
+   [JDK Ciphers](http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#ciphersuites)
+3. tlsProtocols=[TLSv1.3,TLSv1.2] (list out the TLS protocols that you are going to accept from clients).
+   By default, it is not set.
+
+### Configure Clients
+
+This is similar to [TLS encryption configurations for clients with PEM type](security-tls-transport.md#configure-clients).
+For a minimal configuration, you need to provide the TrustStore information.
+
+For example:
+1. for [Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](reference-cli-tools#pulsar-admin), [`pulsar-perf`](reference-cli-tools#pulsar-perf), and [`pulsar-client`](reference-cli-tools#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
+
+   ```properties
+   webServiceUrl=https://broker.example.com:8443/
+   brokerServiceUrl=pulsar+ssl://broker.example.com:6651/
+   useKeyStoreTls=true
+   tlsTrustStoreType=JKS
+   tlsTrustStorePath=/var/private/tls/client.truststore.jks
+   tlsTrustStorePassword=clientpw
+   tlsKeyStoreType=JKS
+   tlsKeyStorePath=/var/private/tls/client.keystore.jks
+   keyStorePassword=clientpw
+   ```
+
+2. for Java client
+
+   ```java
+   import org.apache.pulsar.client.api.PulsarClient;
+
+   PulsarClient client = PulsarClient.builder()
+       .serviceUrl("pulsar+ssl://broker.example.com:6651/")
+       .useKeyStoreTls(true)
+       .tlsTrustStoreType("JKS")
+       .tlsTrustStorePath("/var/private/tls/client.truststore.jks")
+       .tlsTrustStorePassword("clientpw")
+       .tlsKeyStoreType("JKS")
+       .tlsKeyStorePath("/var/private/tls/client.keystore.jks")
+       .tlsKeyStorePassword("clientpw")
+       .enableTlsHostnameVerification(false) // false by default, in any case
+       .allowTlsInsecureConnection(false) // false by default, in any case
+       .build();
+   ```
+
+3. for Java admin client
+
+   ```java
+       PulsarAdmin amdin = PulsarAdmin.builder().serviceHttpUrl("https://broker.example.com:8443")
+           .tlsTrustStoreType("JKS")
+           .tlsTrustStorePath("/var/private/tls/client.truststore.jks")
+           .tlsTrustStorePassword("clientpw")
+           .tlsKeyStoreType("JKS")
+           .tlsKeyStorePath("/var/private/tls/client.keystore.jks")
+           .tlsKeyStorePassword("clientpw")
+           .enableTlsHostnameVerification(false) // false by default, in any case
+           .allowTlsInsecureConnection(false) // false by default, in any case
+           .build();
+   ```
+
+:::note
+
+Configure `tlsTrustStorePath` when you set `useKeyStoreTls` to `true`.
+
+:::
+
+## Enable TLS Logging
+
+You can enable TLS debug logging at the JVM level by starting the brokers and/or clients with `javax.net.debug` system property. For example:
+
+```shell
+-Djavax.net.debug=all
+```
+
+You can find more details on this in [Oracle documentation](http://docs.oracle.com/javase/8/docs/technotes/guides/security/jsse/ReadDebug.html) on [debugging SSL/TLS connections](http://docs.oracle.com/javase/8/docs/technotes/guides/security/jsse/ReadDebug.html).

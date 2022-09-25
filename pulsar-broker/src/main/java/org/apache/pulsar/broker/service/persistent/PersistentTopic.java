@@ -74,6 +74,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.net.BookieId;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -172,7 +173,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     // Subscriptions to this topic
     private final ConcurrentOpenHashMap<String, PersistentSubscription> subscriptions;
 
-    private final ConcurrentOpenHashMap<String, Replicator> replicators;
+    private final ConcurrentOpenHashMap<String/*RemoteCluster*/, Replicator> replicators;
+    private final ConcurrentOpenHashMap<String/*ShadowTopic*/, Replicator> shadowReplicators;
+    @Getter
+    private volatile List<String> shadowTopics;
 
     static final String DEDUPLICATION_CURSOR_NAME = "pulsar.dedup";
     private static final String TOPIC_EPOCH_PROPERTY_NAME = "pulsar.topic.epoch";
@@ -213,7 +217,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private volatile double lastUpdatedAvgPublishRateInMsg = 0;
     private volatile double lastUpdatedAvgPublishRateInByte = 0;
 
-    private volatile int maxUnackedMessagesOnSubscriptionApplied;
     private volatile boolean isClosingOrDeleting = false;
 
     private ScheduledFuture<?> fencedTopicMonitoringTask = null;
@@ -257,6 +260,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         .concurrencyLevel(1)
                         .build();
         this.replicators = ConcurrentOpenHashMap.<String, Replicator>newBuilder()
+                .expectedItems(16)
+                .concurrencyLevel(1)
+                .build();
+        this.shadowReplicators = ConcurrentOpenHashMap.<String, Replicator>newBuilder()
                 .expectedItems(16)
                 .concurrencyLevel(1)
                 .build();
@@ -361,6 +368,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 .expectedItems(16)
                 .concurrencyLevel(1)
                 .build();
+        this.shadowReplicators = ConcurrentOpenHashMap.<String, Replicator>newBuilder()
+                .expectedItems(16)
+                .concurrencyLevel(1)
+                .build();
         this.compactedTopic = new CompactedTopicImpl(brokerService.pulsar().getBookKeeperClient());
         this.backloggedCursorThresholdEntries =
                 brokerService.pulsar().getConfiguration().getManagedLedgerCursorBackloggedThreshold();
@@ -381,6 +392,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 this.dispatchRateLimiter = Optional.of(new DispatchRateLimiter(this, Type.TOPIC));
             }
         }
+    }
+
+    @VisibleForTesting
+    public AtomicLong getPendingWriteOps() {
+        return pendingWriteOps;
     }
 
     private PersistentSubscription createPersistentSubscription(String subscriptionName, ManagedCursor cursor,
@@ -655,12 +671,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     public CompletableFuture<Void> stopReplProducers() {
         List<CompletableFuture<Void>> closeFutures = Lists.newArrayList();
         replicators.forEach((region, replicator) -> closeFutures.add(replicator.disconnect()));
+        shadowReplicators.forEach((__, replicator) -> closeFutures.add(replicator.disconnect()));
         return FutureUtil.waitForAll(closeFutures);
     }
 
     private synchronized CompletableFuture<Void> closeReplProducersIfNoBacklog() {
         List<CompletableFuture<Void>> closeFutures = Lists.newArrayList();
         replicators.forEach((region, replicator) -> closeFutures.add(replicator.disconnect(true)));
+        shadowReplicators.forEach((__, replicator) -> closeFutures.add(replicator.disconnect(true)));
         return FutureUtil.waitForAll(closeFutures);
     }
 
@@ -1139,13 +1157,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                 .map(PersistentSubscription::getName).toList();
                 return FutureUtil.failedFuture(
                         new TopicBusyException("Topic has subscriptions did not catch up: " + backlogSubs));
-            } else if (TopicName.get(topic).isPartitioned()
-                    && (getProducers().size() > 0 || getNumberOfConsumers() > 0)
-                    && getBrokerService().isAllowAutoTopicCreation(topic)) {
-                // to avoid inconsistent metadata as a result
-                return FutureUtil.failedFuture(
-                        new TopicBusyException("Partitioned topic has active consumers or producers and "
-                                + "auto-creation of topic is allowed"));
             }
 
             fenceTopicToCloseOrDelete(); // Avoid clients reconnections while deleting
@@ -1153,6 +1164,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             if (closeIfClientsConnected) {
                 List<CompletableFuture<Void>> futures = Lists.newArrayList();
                 replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
+                shadowReplicators.forEach((__, replicator) -> futures.add(replicator.disconnect()));
                 producers.values().forEach(producer -> futures.add(producer.disconnect()));
                 subscriptions.forEach((s, sub) -> futures.add(sub.disconnect()));
                 FutureUtil.waitForAll(futures).thenRun(() -> {
@@ -1197,7 +1209,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                     ledger.asyncDelete(new AsyncCallbacks.DeleteLedgerCallback() {
                                         @Override
                                         public void deleteLedgerComplete(Object ctx) {
-                                            brokerService.removeTopicFromCache(topic);
+                                            brokerService.removeTopicFromCache(PersistentTopic.this);
 
                                             dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
 
@@ -1278,6 +1290,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         futures.add(transactionBuffer.closeAsync());
         replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
+        shadowReplicators.forEach((__, replicator) -> futures.add(replicator.disconnect()));
         producers.values().forEach(producer -> futures.add(producer.disconnect()));
         if (topicPublishRateLimiter != null) {
             topicPublishRateLimiter.close();
@@ -1308,30 +1321,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 @Override
                 public void closeComplete(Object ctx) {
                     // Everything is now closed, remove the topic from map
-                    brokerService.removeTopicFromCache(topic)
-                            .thenRun(() -> {
-                                replicatedSubscriptionsController.ifPresent(ReplicatedSubscriptionsController::close);
-
-                                dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
-
-                                subscribeRateLimiter.ifPresent(SubscribeRateLimiter::close);
-
-                                unregisterTopicPolicyListener();
-                                log.info("[{}] Topic closed", topic);
-                                cancelFencedTopicMonitoringTask();
-                                closeFuture.complete(null);
-                            })
-                    .exceptionally(ex -> {
-                        closeFuture.completeExceptionally(ex);
-                        return null;
-                    });
+                    disposeTopic(closeFuture);
                 }
 
                 @Override
                 public void closeFailed(ManagedLedgerException exception, Object ctx) {
                     log.error("[{}] Failed to close managed ledger, proceeding anyway.", topic, exception);
-                    brokerService.removeTopicFromCache(topic);
-                    closeFuture.complete(null);
+                    disposeTopic(closeFuture);
                 }
             }, null);
         }).exceptionally(exception -> {
@@ -1342,6 +1338,26 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         });
 
         return closeFuture;
+    }
+
+    private void disposeTopic(CompletableFuture<?> closeFuture) {
+        brokerService.removeTopicFromCache(topic)
+                .thenRun(() -> {
+                    replicatedSubscriptionsController.ifPresent(ReplicatedSubscriptionsController::close);
+
+                    dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
+
+                    subscribeRateLimiter.ifPresent(SubscribeRateLimiter::close);
+
+                    unregisterTopicPolicyListener();
+                    log.info("[{}] Topic closed", topic);
+                    cancelFencedTopicMonitoringTask();
+                    closeFuture.complete(null);
+                })
+                .exceptionally(ex -> {
+                    closeFuture.completeExceptionally(ex);
+                    return null;
+                });
     }
 
     @VisibleForTesting
@@ -1395,7 +1411,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
 
         List<String> configuredClusters = topicPolicies.getReplicationClusters().get();
-        int newMessageTTLinSeconds = topicPolicies.getMessageTTLInSeconds().get();
+        int newMessageTTLInSeconds = topicPolicies.getMessageTTLInSeconds().get();
 
         String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
 
@@ -1422,7 +1438,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         // Check for replicators to be stopped
         replicators.forEach((cluster, replicator) -> {
             // Update message TTL
-            ((PersistentReplicator) replicator).updateMessageTTL(newMessageTTLinSeconds);
+            ((PersistentReplicator) replicator).updateMessageTTL(newMessageTTLInSeconds);
             if (!cluster.equals(localCluster)) {
                 if (!configuredClusters.contains(cluster)) {
                     futures.add(removeReplicator(cluster));
@@ -1430,6 +1446,38 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             }
         });
 
+        futures.add(checkShadowReplication());
+
+        return FutureUtil.waitForAll(futures);
+    }
+
+    private CompletableFuture<Void> checkShadowReplication() {
+        if (CollectionUtils.isEmpty(shadowTopics)) {
+            return CompletableFuture.completedFuture(null);
+        }
+        List<String> configuredShadowTopics = shadowTopics;
+        int newMessageTTLInSeconds = topicPolicies.getMessageTTLInSeconds().get();
+
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] Checking shadow replication status, shadowTopics={}", topic, configuredShadowTopics);
+        }
+        List<CompletableFuture<Void>> futures = Lists.newArrayList();
+
+        // Check for missing replicators
+        for (String shadowTopic : configuredShadowTopics) {
+            if (!shadowReplicators.containsKey(shadowTopic)) {
+                futures.add(startShadowReplicator(shadowTopic));
+            }
+        }
+
+        // Check for replicators to be stopped
+        shadowReplicators.forEach((shadowTopic, replicator) -> {
+            // Update message TTL
+            ((PersistentReplicator) replicator).updateMessageTTL(newMessageTTLInSeconds);
+            if (!configuredShadowTopics.contains(shadowTopic)) {
+                futures.add(removeShadowReplicator(shadowTopic));
+            }
+        });
         return FutureUtil.waitForAll(futures);
     }
 
@@ -1439,6 +1487,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         if (messageTtlInSeconds != 0) {
             subscriptions.forEach((__, sub) -> sub.expireMessages(messageTtlInSeconds));
             replicators.forEach((__, replicator)
+                    -> ((PersistentReplicator) replicator).expireMessages(messageTtlInSeconds));
+            shadowReplicators.forEach((__, replicator)
                     -> ((PersistentReplicator) replicator).expireMessages(messageTtlInSeconds));
         }
     }
@@ -1586,6 +1636,79 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return future;
     }
 
+    CompletableFuture<Void> startShadowReplicator(String shadowTopic) {
+        log.info("[{}] Starting shadow topic replicator to remote: {}", topic, shadowTopic);
+
+        String name = ShadowReplicator.getShadowReplicatorName(replicatorPrefix, shadowTopic);
+        ManagedCursor cursor;
+        try {
+            cursor = ledger.newNonDurableCursor(PositionImpl.LATEST, name);
+        } catch (ManagedLedgerException e) {
+            log.error("[{}]Open non-durable cursor for shadow replicator failed, name={}", topic, name, e);
+            return FutureUtil.failedFuture(e);
+        }
+        CompletableFuture<Void> future = addShadowReplicationCluster(shadowTopic, cursor);
+        future.exceptionally(ex -> {
+            log.error("[{}] Add shadow replication cluster failed, shadowTopic={}", topic, shadowTopic, ex);
+            return null;
+        });
+        return future;
+    }
+
+    protected CompletableFuture<Void> addShadowReplicationCluster(String shadowTopic, ManagedCursor cursor) {
+        String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
+        return AbstractReplicator.validatePartitionedTopicAsync(PersistentTopic.this.getName(), brokerService)
+                .thenCompose(__ -> brokerService.pulsar().getPulsarResources().getClusterResources()
+                        .getClusterAsync(localCluster)
+                        .thenApply(clusterData -> brokerService.getReplicationClient(localCluster, clusterData)))
+                .thenAccept(replicationClient -> {
+                    Replicator replicator = shadowReplicators.computeIfAbsent(shadowTopic, r -> {
+                        try {
+                            return new ShadowReplicator(shadowTopic, PersistentTopic.this, cursor, brokerService,
+                                    (PulsarClientImpl) replicationClient);
+                        } catch (PulsarServerException e) {
+                            log.error("[{}] ShadowReplicator startup failed {}", topic, shadowTopic, e);
+                        }
+                        return null;
+                    });
+
+                    // clean up replicator if startup is failed
+                    if (replicator == null) {
+                        shadowReplicators.removeNullValue(shadowTopic);
+                    }
+                });
+    }
+
+    CompletableFuture<Void> removeShadowReplicator(String shadowTopic) {
+        log.info("[{}] Removing shadow topic replicator to {}", topic, shadowTopic);
+        final CompletableFuture<Void> future = new CompletableFuture<>();
+        String name = ShadowReplicator.getShadowReplicatorName(replicatorPrefix, shadowTopic);
+        shadowReplicators.get(shadowTopic).disconnect().thenRun(() -> {
+
+            ledger.asyncDeleteCursor(name, new DeleteCursorCallback() {
+                @Override
+                public void deleteCursorComplete(Object ctx) {
+                    shadowReplicators.remove(shadowTopic);
+                    future.complete(null);
+                }
+
+                @Override
+                public void deleteCursorFailed(ManagedLedgerException exception, Object ctx) {
+                    log.error("[{}] Failed to delete shadow topic replication cursor {} {}",
+                            topic, name, exception.getMessage(), exception);
+                    future.completeExceptionally(new PersistenceException(exception));
+                }
+            }, null);
+
+        }).exceptionally(e -> {
+            log.error("[{}] Failed to close shadow topic replication producer {} {}", topic, name, e.getMessage(), e);
+            future.completeExceptionally(e);
+            return null;
+        });
+
+        return future;
+    }
+
     public boolean isDeduplicationEnabled() {
         return messageDeduplication.isEnabled();
     }
@@ -1617,6 +1740,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     @Override
     public ConcurrentOpenHashMap<String, Replicator> getReplicators() {
         return replicators;
+    }
+
+    @Override
+    public ConcurrentOpenHashMap<String, Replicator> getShadowReplicators() {
+        return shadowReplicators;
     }
 
     public Replicator getPersistentReplicator(String remoteCluster) {
@@ -1952,6 +2080,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         stats.backlogSize = ledger.getEstimatedBacklogSize();
         stats.deduplicationStatus = messageDeduplication.getStatus().toString();
         stats.topicEpoch = topicEpoch.orElse(null);
+        stats.ownerBroker = brokerService.pulsar().getLookupServiceAddress();
         stats.offloadedStorageSize = ledger.getOffloadedSize();
         stats.lastOffloadLedgerId = ledger.getLastOffloadedLedgerId();
         stats.lastOffloadSuccessTimeStamp = ledger.getLastOffloadedSuccessTimestamp();
@@ -2352,8 +2481,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         return;
                     }
                     if (System.currentTimeMillis() - sub.cursor.getLastActive() > expirationTimeMillis) {
-                        sub.delete().thenAccept(v -> log.info("[{}][{}] The subscription was deleted due to expiration",
-                                topic, subName));
+                        sub.delete().thenAccept(v -> log.info("[{}][{}] The subscription was deleted due to expiration "
+                                + "with last active [{}]", topic, subName, sub.cursor.getLastActive()));
                     }
                 });
             }
@@ -2449,6 +2578,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return FutureUtil.waitForAll(producerCheckFutures).thenCompose((__) -> {
             return updateSubscriptionsDispatcherRateLimiter().thenCompose((___) -> {
                 replicators.forEach((name, replicator) -> replicator.updateRateLimiter());
+                shadowReplicators.forEach((name, replicator) -> replicator.updateRateLimiter());
                 checkMessageExpiry();
                 CompletableFuture<Void> replicationFuture = checkReplicationAndRetryOnFailure();
                 CompletableFuture<Void> dedupFuture = checkDeduplicationStatus();
@@ -2618,6 +2748,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return !replicators.isEmpty();
     }
 
+    @Override
+    public boolean isShadowReplicated() {
+        return !shadowReplicators.isEmpty();
+    }
+
     public CompletableFuture<MessageId> terminate() {
         CompletableFuture<MessageId> future = new CompletableFuture<>();
         ledger.asyncTerminate(new TerminateCallback() {
@@ -2673,6 +2808,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         List<CompletableFuture<Void>> futures = Lists.newArrayList();
         List<String> cursors = getSubscriptions().keys();
         cursors.addAll(getReplicators().keys());
+        cursors.addAll(getShadowReplicators().keys());
         for (String cursor : cursors) {
             futures.add(clearBacklog(cursor));
         }
@@ -2696,6 +2832,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
 
         PersistentReplicator repl = (PersistentReplicator) getPersistentReplicator(cursorName);
+        if (repl != null) {
+            return repl.clearBacklog();
+        }
+
+        repl = (PersistentReplicator) shadowReplicators.get(cursorName);
         if (repl != null) {
             return repl.clearBacklog();
         }
@@ -3070,12 +3211,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             return;
         }
         updateTopicPolicy(policies);
-
+        shadowTopics = policies.getShadowTopics();
         updateDispatchRateLimiter();
         updateSubscriptionsDispatcherRateLimiter().thenRun(() -> {
             updatePublishDispatcher();
             updateSubscribeRateLimiter();
             replicators.forEach((name, replicator) -> replicator.updateRateLimiter());
+            shadowReplicators.forEach((name, replicator) -> replicator.updateRateLimiter());
             checkMessageExpiry();
             checkReplicationAndRetryOnFailure();
 

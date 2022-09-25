@@ -396,8 +396,6 @@ public class AvroSchemaTest {
         // Because data does not conform to schema expect a crash
         Assert.assertThrows( SchemaSerializationException.class, () -> avroWriter.write(badNasaMissionData));
 
-        // Get the buffered data using powermock
-
         // Assert that the buffer position is reset to zero
         Assert.assertEquals(avroWriter.getEncoder().bytesBuffered(), 0);
     }

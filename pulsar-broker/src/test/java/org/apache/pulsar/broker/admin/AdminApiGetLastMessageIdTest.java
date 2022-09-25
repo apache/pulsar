@@ -22,7 +22,6 @@ import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
-import java.lang.reflect.Field;
 import java.util.Collection;
 import java.util.Date;
 import java.util.Map;
@@ -32,13 +31,11 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.TimeoutHandler;
-import javax.ws.rs.core.UriInfo;
 import org.apache.pulsar.broker.admin.v2.PersistentTopics;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
@@ -51,26 +48,16 @@ import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-admin")
 public class AdminApiGetLastMessageIdTest extends MockedPulsarServiceBaseTest {
 
-    private PersistentTopics persistentTopics;
-    private final String testTenant = "my-tenant";
-    private final String testLocalCluster = "use";
-    private final String testNamespace = "my-namespace";
-    protected Field uriField;
-    protected UriInfo uriInfo;
+    private static final String testTenant = "my-tenant";
+    private static final String testNamespace = "my-namespace";
 
-    @BeforeClass
-    public void initPersistentTopics() throws Exception {
-        uriField = PulsarWebResource.class.getDeclaredField("uri");
-        uriField.setAccessible(true);
-        uriInfo = mock(UriInfo.class);
-    }
+    private PersistentTopics persistentTopics;
 
     @Override
     @BeforeMethod

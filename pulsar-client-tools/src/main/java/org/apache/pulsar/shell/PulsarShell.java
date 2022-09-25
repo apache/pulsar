@@ -129,10 +129,9 @@ public class PulsarShell {
     private final JCommander mainCommander;
     private final MainOptions mainOptions;
     private JCommander shellCommander;
-    private final String[] args;
     private Function<Map<String, ShellCommandsProvider>, InteractiveLineReader> readerBuilder;
     private InteractiveLineReader reader;
-    private ConfigShell configShell;
+    private final ConfigShell configShell;
 
     public PulsarShell(String args[]) throws IOException {
         this(args, new Properties());
@@ -175,12 +174,14 @@ public class PulsarShell {
                 defaultConfig);
 
         final ConfigStore.ConfigEntry lastUsed = configStore.getLastUsed();
+        String configName = ConfigStore.DEFAULT_CONFIG;
         if (lastUsed != null) {
             properties.load(new StringReader(lastUsed.getValue()));
+            configName = lastUsed.getName();
         } else if (defaultConfig != null) {
             properties.load(new StringReader(defaultConfig.getValue()));
         }
-        this.args = args;
+        configShell = new ConfigShell(this, configName);
     }
 
     private static File computePulsarShellFile() {
@@ -266,7 +267,7 @@ public class PulsarShell {
                             new AttributedStringBuilder().style(AttributedStyle.BOLD).append("quit").toAnsi());
             output(welcomeMessage, terminal);
             String promptMessage;
-            if (configShell != null && configShell.getCurrentConfig() != null) {
+            if (configShell.getCurrentConfig() != null) {
                 promptMessage = String.format("%s(%s)",
                         configShell.getCurrentConfig(), getHostFromUrl(serviceUrl));
             } else {
@@ -567,9 +568,6 @@ public class PulsarShell {
         final Map<String, ShellCommandsProvider> providerMap = new HashMap<>();
         registerProvider(createAdminShell(properties), commander, providerMap);
         registerProvider(createClientShell(properties), commander, providerMap);
-        if (configShell == null) {
-            configShell = new ConfigShell(this);
-        }
         registerProvider(configShell, commander, providerMap);
         return providerMap;
     }

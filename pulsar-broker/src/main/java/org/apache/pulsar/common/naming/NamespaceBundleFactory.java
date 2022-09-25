@@ -54,7 +54,6 @@ import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.policies.data.loadbalancer.BundleData;
 import org.apache.pulsar.stats.CacheMetricsCollector;
@@ -69,7 +68,6 @@ public class NamespaceBundleFactory {
     private final AsyncLoadingCache<NamespaceName, NamespaceBundles> bundlesCache;
 
     private final PulsarService pulsar;
-    private final MetadataCache<Policies> policiesCache;
     private final Duration maxRetryDuration = Duration.ofSeconds(10);
 
     public NamespaceBundleFactory(PulsarService pulsar, HashFunction hashFunc) {
@@ -84,7 +82,6 @@ public class NamespaceBundleFactory {
         pulsar.getLocalMetadataStore().registerListener(this::handleMetadataStoreNotification);
 
         this.pulsar = pulsar;
-        this.policiesCache = pulsar.getConfigurationMetadataStore().getMetadataCache(Policies.class);
     }
 
     private CompletableFuture<NamespaceBundles> loadBundles(NamespaceName namespace, Executor executor) {
@@ -237,24 +234,25 @@ public class NamespaceBundleFactory {
         return bundles != null ? bundles.findBundle(topic) : null;
     }
 
-    public NamespaceBundle getBundleWithHighestThroughput(NamespaceName nsName) {
+    public CompletableFuture<NamespaceBundle> getBundleWithHighestThroughputAsync(NamespaceName nsName) {
         LoadManager loadManager = pulsar.getLoadManager().get();
         if (loadManager instanceof ModularLoadManagerWrapper) {
-            NamespaceBundles bundles = getBundles(nsName);
-            double maxMsgThroughput = -1;
-            NamespaceBundle bundleWithHighestThroughput = null;
-            for (NamespaceBundle bundle : bundles.getBundles()) {
-                BundleData bundleData = ((ModularLoadManagerWrapper) loadManager).getLoadManager()
-                        .getBundleDataOrDefault(bundle.toString());
-                if (bundleData.getTopics() > 0
-                        && bundleData.getLongTermData().totalMsgThroughput() > maxMsgThroughput) {
-                    maxMsgThroughput = bundleData.getLongTermData().totalMsgThroughput();
-                    bundleWithHighestThroughput = bundle;
+            return getBundlesAsync(nsName).thenApply(bundles -> {
+                double maxMsgThroughput = -1;
+                NamespaceBundle bundleWithHighestThroughput = null;
+                for (NamespaceBundle bundle : bundles.getBundles()) {
+                    BundleData bundleData = ((ModularLoadManagerWrapper) loadManager).getLoadManager()
+                            .getBundleDataOrDefault(bundle.toString());
+                    if (bundleData.getTopics() > 0
+                            && bundleData.getLongTermData().totalMsgThroughput() > maxMsgThroughput) {
+                        maxMsgThroughput = bundleData.getLongTermData().totalMsgThroughput();
+                        bundleWithHighestThroughput = bundle;
+                    }
                 }
-            }
-            return bundleWithHighestThroughput;
+                return bundleWithHighestThroughput;
+            });
         }
-        return getBundleWithHighestTopics(nsName);
+        return getBundleWithHighestTopicsAsync(nsName);
     }
 
     public NamespaceBundles getBundles(NamespaceName nsname) {

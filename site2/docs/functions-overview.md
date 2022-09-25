@@ -8,7 +8,7 @@ This section introduces the following content:
 * [What are Pulsar Functions](#what-are-pulsar-functions)
 * [Why use Pulsar Functions](#why-use-pulsar-functions)
 * [Use cases](#use-cases)
-* [User flow](#user-flow)
+* [What's next?](#whats-next)
 
 
 ## What are Pulsar Functions

@@ -51,6 +51,8 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.StreamingOutput;
 import javax.ws.rs.core.UriInfo;
+import lombok.AllArgsConstructor;
+import lombok.Data;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.proto.PendingBookieOpsStats;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -87,9 +89,11 @@ import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.stats.AllocatorStats;
 import org.apache.pulsar.common.stats.Metrics;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.metadata.cache.impl.MetadataCacheImpl;
 import org.apache.pulsar.metadata.impl.AbstractMetadataStore;
+import org.apache.pulsar.metadata.impl.MetadataStoreFactoryImpl;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.MockZooKeeper;
@@ -203,6 +207,49 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         Object response = asyncRequests(ctx -> brokers.getInternalConfigurationData(ctx));
         assertTrue(response instanceof InternalConfigurationData);
         assertEquals(response, expectedData);
+    }
+
+    @Data
+    @AllArgsConstructor
+    /**
+     * Internal configuration data model before  (before https://github.com/apache/pulsar/pull/14384).
+     */
+    private static class OldInternalConfigurationData {
+        private String zookeeperServers;
+        private String configurationStoreServers;
+        @Deprecated
+        private String ledgersRootPath;
+        private String bookkeeperMetadataServiceUri;
+        private String stateStorageServiceUrl;
+    }
+
+    /**
+     * This test verifies that the model data changes in InternalConfigurationData are retro-compatible.
+     * InternalConfigurationData is downloaded from the Function worker from a broker.
+     * The broker may be still serve an "old" version of InternalConfigurationData
+     * (before https://github.com/apache/pulsar/pull/14384) while the Worker already uses the new one.
+     * @throws Exception
+     */
+    @Test
+    public void internalConfigurationRetroCompatibility() throws Exception {
+        OldInternalConfigurationData oldDataModel = new OldInternalConfigurationData(
+                MetadataStoreFactoryImpl.removeIdentifierFromMetadataURL(conf.getMetadataStoreUrl()),
+                conf.getConfigurationMetadataStoreUrl(),
+                new ClientConfiguration().getZkLedgersRootPath(),
+                conf.isBookkeeperMetadataStoreSeparated() ? conf.getBookkeeperMetadataStoreUrl() : null,
+                pulsar.getWorkerConfig().map(WorkerConfig::getStateStorageServiceUrl).orElse(null));
+
+        final Map<String, Object> oldDataJson = ObjectMapperFactory
+                .getThreadLocal().convertValue(oldDataModel, Map.class);
+
+        final InternalConfigurationData newData = ObjectMapperFactory.getThreadLocal()
+                .convertValue(oldDataJson, InternalConfigurationData.class);
+
+        assertEquals(newData.getMetadataStoreUrl(), conf.getMetadataStoreUrl());
+        assertEquals(newData.getConfigurationMetadataStoreUrl(), oldDataModel.getConfigurationStoreServers());
+        assertEquals(newData.getLedgersRootPath(), oldDataModel.getLedgersRootPath());
+        assertEquals(newData.getBookkeeperMetadataServiceUri(), oldDataModel.getBookkeeperMetadataServiceUri());
+        assertEquals(newData.getStateStorageServiceUrl(), oldDataModel.getStateStorageServiceUrl());
     }
 
     @Test

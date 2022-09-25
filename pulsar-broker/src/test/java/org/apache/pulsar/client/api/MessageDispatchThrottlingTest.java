@@ -45,6 +45,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.impl.cache.PendingReadsManager;
 import org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheImpl;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
@@ -78,7 +79,6 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
-        super.resetConfig();
     }
 
     @DataProvider(name = "subscriptions")
@@ -1194,7 +1194,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
     /**
      * Validates that backlog consumers cache the reads and reused by other backlog consumers while draining the
      * backlog.
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -1235,6 +1235,13 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         cacheField.setAccessible(true);
         RangeEntryCacheImpl entryCache = spy((RangeEntryCacheImpl) cacheField.get(ledger));
         cacheField.set(ledger, entryCache);
+
+        Field pendingReadsManagerField = RangeEntryCacheImpl.class.getDeclaredField("pendingReadsManager");
+        pendingReadsManagerField.setAccessible(true);
+        PendingReadsManager pendingReadsManager = (PendingReadsManager) pendingReadsManagerField.get(entryCache);
+        Field cacheFieldInManager = PendingReadsManager.class.getDeclaredField("rangeEntryCache");
+        cacheFieldInManager.setAccessible(true);
+        cacheFieldInManager.set(pendingReadsManager, entryCache);
 
         // 2. Produce messages
         for (int i = 0; i < totalMessages; i++) {

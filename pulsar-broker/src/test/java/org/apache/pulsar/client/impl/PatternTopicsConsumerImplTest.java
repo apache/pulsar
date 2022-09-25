@@ -228,16 +228,15 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
 
     @Test(timeOut = testTimeout)
     public void testPubRateOnNonPersistent() throws Exception {
-        internalCleanup();
+        cleanup();
         conf.setMaxPublishRatePerTopicInBytes(10000L);
         conf.setMaxPublishRatePerTopicInMessages(100);
         Thread.sleep(500);
         isTcpLookup = true;
-        super.internalSetup();
-        super.producerBaseSetup();
+        setup();
         testBinaryProtoToGetTopicsOfNamespaceNonPersistent();
     }
-    
+
 	// verify consumer create success, and works well.
     @Test(timeOut = testTimeout)
     public void testBinaryProtoToGetTopicsOfNamespaceNonPersistent() throws Exception {
