@@ -222,7 +222,6 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         assertEquals(tv.get("key2"), "value2");
     }
 
-
     @Test(timeOut = 30 * 1000)
     // Regression test for making sure partition changes are always periodically checked even after a check returned
     // exceptionally.
