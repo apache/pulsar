@@ -94,6 +94,14 @@ public class PositionImpl implements Position, Comparable<PositionImpl> {
         }
     }
 
+    public PositionImpl getPositionAfterEntries(int entryNum) {
+        if (entryId < 0) {
+            return PositionImpl.get(ledgerId, entryNum);
+        } else {
+            return PositionImpl.get(ledgerId, entryId + entryNum);
+        }
+    }
+
     /**
      * String representation of virtual cursor - LedgerId:EntryId.
      */
