@@ -36,6 +36,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -84,7 +85,6 @@ import org.apache.pulsar.policies.data.loadbalancer.TimeAverageMessageData;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
-import org.powermock.reflect.Whitebox;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -449,20 +449,16 @@ public class ModularLoadManagerImplTest {
 
     /**
      * It verifies that deletion of broker-znode on broker-stop will invalidate availableBrokerCache list
-     *
-     * @throws Exception
      */
     @Test
     public void testBrokerStopCacheUpdate() throws Exception {
         ModularLoadManagerWrapper loadManagerWrapper = (ModularLoadManagerWrapper) pulsar1.getLoadManager().get();
-        ModularLoadManagerImpl lm = Whitebox.getInternalState(loadManagerWrapper, "loadManager");
+        ModularLoadManagerImpl lm = (ModularLoadManagerImpl) loadManagerWrapper.getLoadManager();
         assertEquals(lm.getAvailableBrokers().size(), 2);
 
         pulsar2.close();
 
-        Awaitility.await().untilAsserted(() -> {
-            assertEquals(lm.getAvailableBrokers().size(), 1);
-        });
+        Awaitility.await().untilAsserted(() -> assertEquals(lm.getAvailableBrokers().size(), 1));
     }
 
     /**
@@ -480,8 +476,6 @@ public class ModularLoadManagerImplTest {
      *     b. available-brokers: broker2, broker3          => result: broker2
      *     c. available-brokers: broker3                   => result: NULL
      * </pre>
-     *
-     * @throws Exception
      */
     @Test
     public void testNamespaceIsolationPoliciesForPrimaryAndSecondaryBrokers() throws Exception {
@@ -526,7 +520,7 @@ public class ModularLoadManagerImplTest {
         // (1) now we have isolation policy : primary=broker1, secondary=broker2, minLimit=1
 
         // test1: shared=1, primary=1, secondary=1 => It should return 1 primary broker only
-        Set<String> brokerCandidateCache = Sets.newHashSet();
+        Set<String> brokerCandidateCache = new HashSet<>();
         Set<String> availableBrokers = Sets.newHashSet(sharedBroker, broker1Address, broker2Address);
         LoadManagerShared.applyNamespacePolicies(serviceUnit, simpleResourceAllocationPolicies, brokerCandidateCache,
                 availableBrokers, brokerTopicLoadingPredicate);
@@ -534,7 +528,7 @@ public class ModularLoadManagerImplTest {
         assertTrue(brokerCandidateCache.contains(broker1Address));
 
         // test2: shared=1, primary=0, secondary=1 => It should return 1 secondary broker only
-        brokerCandidateCache = Sets.newHashSet();
+        brokerCandidateCache = new HashSet<>();
         availableBrokers = Sets.newHashSet(sharedBroker, broker2Address);
         LoadManagerShared.applyNamespacePolicies(serviceUnit, simpleResourceAllocationPolicies, brokerCandidateCache,
                 availableBrokers, brokerTopicLoadingPredicate);
@@ -542,7 +536,7 @@ public class ModularLoadManagerImplTest {
         assertTrue(brokerCandidateCache.contains(broker2Address));
 
         // test3: shared=1, primary=0, secondary=0 => It should return 0 broker
-        brokerCandidateCache = Sets.newHashSet();
+        brokerCandidateCache = new HashSet<>();
         availableBrokers = Sets.newHashSet(sharedBroker);
         LoadManagerShared.applyNamespacePolicies(serviceUnit, simpleResourceAllocationPolicies, brokerCandidateCache,
                 availableBrokers, brokerTopicLoadingPredicate);
@@ -556,7 +550,7 @@ public class ModularLoadManagerImplTest {
         admin1.clusters().createNamespaceIsolationPolicy("use", newPolicyName, nsPolicyData);
 
         // test1: shared=1, primary=1, secondary=1 => It should return primary + secondary
-        brokerCandidateCache = Sets.newHashSet();
+        brokerCandidateCache = new HashSet<>();
         availableBrokers = Sets.newHashSet(sharedBroker, broker1Address, broker2Address);
         LoadManagerShared.applyNamespacePolicies(serviceUnit, simpleResourceAllocationPolicies, brokerCandidateCache,
                 availableBrokers, brokerTopicLoadingPredicate);
@@ -565,7 +559,7 @@ public class ModularLoadManagerImplTest {
         assertTrue(brokerCandidateCache.contains(broker2Address));
 
         // test2: shared=1, secondary=1 => It should return secondary
-        brokerCandidateCache = Sets.newHashSet();
+        brokerCandidateCache = new HashSet<>();
         availableBrokers = Sets.newHashSet(sharedBroker, broker2Address);
         LoadManagerShared.applyNamespacePolicies(serviceUnit, simpleResourceAllocationPolicies, brokerCandidateCache,
                 availableBrokers, brokerTopicLoadingPredicate);
@@ -573,7 +567,7 @@ public class ModularLoadManagerImplTest {
         assertTrue(brokerCandidateCache.contains(broker2Address));
 
         // test3: shared=1, => It should return 0 broker
-        brokerCandidateCache = Sets.newHashSet();
+        brokerCandidateCache = new HashSet<>();
         availableBrokers = Sets.newHashSet(sharedBroker);
         LoadManagerShared.applyNamespacePolicies(serviceUnit, simpleResourceAllocationPolicies, brokerCandidateCache,
                 availableBrokers, brokerTopicLoadingPredicate);
@@ -663,27 +657,20 @@ public class ModularLoadManagerImplTest {
     @Test
     public void testRemoveDeadBrokerTimeAverageData() throws Exception {
         ModularLoadManagerWrapper loadManagerWrapper = (ModularLoadManagerWrapper) pulsar1.getLoadManager().get();
-        ModularLoadManagerImpl lm = Whitebox.getInternalState(loadManagerWrapper, "loadManager");
+        ModularLoadManagerImpl lm = (ModularLoadManagerImpl) loadManagerWrapper.getLoadManager();
         assertEquals(lm.getAvailableBrokers().size(), 2);
 
         pulsar2.close();
 
-        Awaitility.await().untilAsserted(() -> {
-            assertEquals(lm.getAvailableBrokers().size(), 1);
-        });
+        Awaitility.await().untilAsserted(() -> assertEquals(lm.getAvailableBrokers().size(), 1));
         lm.updateAll();
 
         List<String> data =  pulsar1.getLocalMetadataStore()
-                .getMetadataCache(TimeAverageBrokerData.class).getChildren(TIME_AVERAGE_BROKER_ZPATH).join();
+                .getMetadataCache(TimeAverageBrokerData.class)
+                .getChildren(TIME_AVERAGE_BROKER_ZPATH)
+                .join();
 
-        Awaitility.await().untilAsserted(() -> {
-            assertTrue(pulsar1.getLeaderElectionService().isLeader());
-        });
-
+        Awaitility.await().untilAsserted(() -> assertTrue(pulsar1.getLeaderElectionService().isLeader()));
         assertEquals(data.size(), 1);
-
-
-
-
     }
 }

@@ -82,3 +82,23 @@ struct CryptoKeyReaderWrapper {
     CryptoKeyReaderWrapper();
     CryptoKeyReaderWrapper(const std::string& publicKeyPath, const std::string& privateKeyPath);
 };
+
+class CaptivePythonObjectMixin {
+   protected:
+    PyObject* _captive;
+
+    CaptivePythonObjectMixin(PyObject* captive) {
+        _captive = captive;
+        PyGILState_STATE state = PyGILState_Ensure();
+        Py_XINCREF(_captive);
+        PyGILState_Release(state);
+    }
+
+    ~CaptivePythonObjectMixin() {
+        if (Py_IsInitialized()) {
+            PyGILState_STATE state = PyGILState_Ensure();
+            Py_XDECREF(_captive);
+            PyGILState_Release(state);
+        }
+    }
+};

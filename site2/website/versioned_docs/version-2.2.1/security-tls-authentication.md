@@ -7,7 +7,7 @@ original_id: security-tls-authentication
 
 ## TLS Authentication Overview
 
-TLS authentication is an extension of [TLS transport encryption](security-tls-transport), but instead of only servers having keys and certs which the client uses to verify the server's identity, clients also have keys and certs which the server uses to verify the client's identity. You must have TLS transport encryption configured on your cluster before you can use TLS authentication. This guide assumes you already have TLS transport encryption configured.
+TLS authentication is an extension of [TLS transport encryption](security-tls-transport.md), but instead of only servers having keys and certs which the client uses to verify the server's identity, clients also have keys and certs which the server uses to verify the client's identity. You must have TLS transport encryption configured on your cluster before you can use TLS authentication. This guide assumes you already have TLS transport encryption configured.
 
 ### Creating client certificates
 
@@ -80,7 +80,7 @@ brokerClientTrustCertsFilePath=/path/my-ca/certs/ca.cert.pem
 
 To configure proxies to authenticate clients, put the following in `proxy.conf`, alongside [the configuration to enable tls transport](security-tls-transport.md#proxy-configuration):
 
-The proxy should have its own client key pair for connecting to brokers. The role token for this key pair should be configured in the ``proxyRoles`` of the brokers. See the [authorization guide](security-authorization) for more details.
+The proxy should have its own client key pair for connecting to brokers. The role token for this key pair should be configured in the ``proxyRoles`` of the brokers. See the [authorization guide](security-authorization.md) for more details.
 
 ```properties
 
@@ -100,7 +100,7 @@ When TLS authentication, the client needs to connect via TLS transport, so you n
 
 ### CLI tools
 
-[Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](reference-pulsar-admin), [`pulsar-perf`](reference-cli-tools.md#pulsar-perf), and [`pulsar-client`](reference-cli-tools.md#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
+[Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](reference-pulsar-admin.md), [`pulsar-perf`](reference-cli-tools.md#pulsar-perf), and [`pulsar-client`](reference-cli-tools.md#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
 
 You'll need to add the following parameters to that file to use TLS authentication with Pulsar's CLI tools:
 

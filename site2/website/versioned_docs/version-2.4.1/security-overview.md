@@ -17,7 +17,7 @@ You'd better secure the service components in your Apache Pulsar deployment.
 
 In Pulsar, a *role* is a string, like `admin` or `app1`, which can represent one or more clients. You can use roles to control permission for clients to produce or consume from certain topics, administer the configuration for tenants, and so on.
 
-Apache Pulsar uses the [Authentication Provider](#authentication-providers) to establish the identity of a client and then assign a *role token* to that client. This role token is then used for [Authorization and ACLs](security-authorization) to determine what the client is authorized to do.
+Apache Pulsar uses the [Authentication Provider](#authentication-providers) to establish the identity of a client and then assign a *role token* to that client. This role token is then used for [Authorization and ACLs](security-authorization.md) to determine what the client is authorized to do.
 
 ## Authentication Providers
 
@@ -30,7 +30,7 @@ Currently Pulsar supports the following authentication providers:
 
 ## Contents
 
-- [Encryption](security-tls-transport.md) and [Authentication](security-tls-authentication) using TLS
+- [Encryption](security-tls-transport.md) and [Authentication](security-tls-authentication.md) using TLS
 - [Authentication using Athenz](security-athenz.md)
 - [Authentication using Kerberos](security-kerberos.md)
 - [Authorization and ACLs](security-authorization.md)

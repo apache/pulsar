@@ -23,6 +23,9 @@
     <test name="pulsar-plugin-test-suite" preserve-order="true" >
         <classes>
             <class name="org.apache.pulsar.tests.integration.plugins.TestProtocolHandlers" />
+            <class name="org.apache.pulsar.tests.integration.plugins.TestAdditionalServlets" />
+            <class name="org.apache.pulsar.tests.integration.plugins.TestBrokerInterceptors" />
+            <class name="org.apache.pulsar.tests.integration.plugins.TestEntryFilters" />
         </classes>
     </test>
 </suite>

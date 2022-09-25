@@ -31,6 +31,7 @@
   <packaging>pom</packaging>
 
   <properties>
+    <pythonClientBuildArch>x86_64</pythonClientBuildArch>
     <skipBuildPythonClient>false</skipBuildPythonClient>
     <skipCopyPythonClients>false</skipCopyPythonClients>
   </properties>
@@ -79,7 +80,7 @@
                   <executable>${project.basedir}/../../pulsar-client-cpp/docker/build-wheels.sh</executable>
                   <arguments>
                     <!-- build python 3.8 -->
-                    <argument>3.8 cp38-cp38 manylinux2014 x86_64</argument>
+                    <argument>3.8 cp38-cp38 manylinux2014 ${pythonClientBuildArch}</argument>
                   </arguments>
                 </configuration>
               </execution>

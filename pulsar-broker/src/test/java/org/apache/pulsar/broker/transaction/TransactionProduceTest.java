@@ -113,7 +113,7 @@ public class TransactionProduceTest extends TransactionTestBase {
         outProducer.newMessage(tnx).value(content.getBytes(UTF_8)).send();
 
         try {
-            admin.namespaces().deleteNamespace(NAMESPACE1, true);
+            deleteNamespaceGraceFully(NAMESPACE1, true);
         } catch (Exception ignore) {}
         tnx.commit().get();
     }

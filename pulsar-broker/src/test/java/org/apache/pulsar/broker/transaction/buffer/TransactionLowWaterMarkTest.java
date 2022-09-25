@@ -29,7 +29,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -61,7 +60,6 @@ import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreState;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore;
 import org.awaitility.Awaitility;
-import org.powermock.reflect.Whitebox;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -324,9 +322,11 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
         field.setAccessible(true);
         field.set(txn1, TransactionImpl.State.OPEN);
 
-        AtomicLong pendingWriteOps = Whitebox.getInternalState(getPulsarServiceList().get(0)
-                .getBrokerService().getTopic(TopicName.get(TOPIC).toString(),
-                        false).get().get(), "pendingWriteOps");
+        PersistentTopic t = (PersistentTopic) getPulsarServiceList().get(0)
+                .getBrokerService()
+                .getTopic(TopicName.get(TOPIC).toString(), false)
+                .get()
+                .orElseThrow();
         try {
             producer.newMessage(txn1).send();
             fail();
@@ -334,7 +334,7 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
             // no-op
         }
 
-        assertEquals(pendingWriteOps.get(), 0);
+        assertEquals(t.getPendingWriteOps().get(), 0);
     }
 
     @Test

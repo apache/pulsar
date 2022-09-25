@@ -50,7 +50,7 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
 
     @BeforeMethod
     protected void setup() throws Exception {
-        resetConfig();
+        //No-op
     }
 
     @AfterMethod(alwaysRun = true)
