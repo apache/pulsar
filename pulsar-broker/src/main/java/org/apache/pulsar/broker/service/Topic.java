@@ -101,6 +101,10 @@ public interface Topic {
             return  1L;
         }
 
+        default long getMsgSize() {
+            return  -1L;
+        }
+
         default boolean isMarkerMessage() {
             return false;
         }
@@ -114,6 +118,14 @@ public interface Topic {
 
         default boolean isChunked() {
             return false;
+        }
+
+        default long getEntryTimestamp() {
+            return -1L;
+        }
+
+        default void setEntryTimestamp(long entryTimestamp) {
+
         }
     }
 
@@ -234,6 +246,8 @@ public interface Topic {
 
     boolean isReplicated();
 
+    boolean isShadowReplicated();
+
     EntryFilters getEntryFiltersPolicy();
 
     ImmutableMap<String, EntryFilterWithClassLoader> getEntryFilters();
@@ -247,6 +261,8 @@ public interface Topic {
     Subscription getSubscription(String subscription);
 
     ConcurrentOpenHashMap<String, ? extends Replicator> getReplicators();
+
+    ConcurrentOpenHashMap<String, ? extends Replicator> getShadowReplicators();
 
     TopicStatsImpl getStats(boolean getPreciseBacklog, boolean subscriptionBacklogSize,
                             boolean getEarliestTimeInBacklog);

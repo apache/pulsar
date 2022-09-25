@@ -8,12 +8,12 @@ original_id: io-develop
 This guide describes how developers can write new connectors for Pulsar IO to move data
 between Pulsar and other systems. It describes how to create a Pulsar IO connector.
 
-Pulsar IO connectors are specialized [Pulsar Functions](functions-overview). So writing
+Pulsar IO connectors are specialized [Pulsar Functions](functions-overview.md). So writing
 a Pulsar IO connector is as simple as writing a Pulsar function. Pulsar IO connectors come
 in two flavors: {@inject: github:Source:/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java},
 which import data from another system, and {@inject: github:Sink:/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java},
-which export data to another system. For example, [KinesisSink](io-kinesis) would export
-the messages of a Pulsar topic to a Kinesis stream, and [RabbitmqSource](io-rabbitmq) would import
+which export data to another system. For example, [KinesisSink](io-kinesis.md) would export
+the messages of a Pulsar topic to a Kinesis stream, and [RabbitmqSource](io-rabbitmq.md) would import
 the messages of a RabbitMQ queue to a Pulsar topic.
 
 ### Developing
@@ -137,7 +137,7 @@ separate integration tests to verify end-to-end functionality. In Pulsar, we are
 ### Packaging
 
 Once you've developed and tested your connector, you must package it so that it can be submitted
-to a [Pulsar Functions](functions-overview) cluster. There are two approaches described
+to a [Pulsar Functions](functions-overview.md) cluster. There are two approaches described
 here work with Pulsar Functions' runtime.
 
 If you plan to package and distribute your connector for others to use, you are obligated to
@@ -153,7 +153,7 @@ The easiest approach to packaging a Pulsar IO connector is to create a NAR packa
 
 NAR stands for NiFi Archive. It is a custom packaging mechanism used by Apache NiFi, to provide
 a bit of Java ClassLoader isolation. For more details, you can read this [blog post](https://medium.com/hashmapinc/nifi-nar-files-explained-14113f7796fd) to understand
-how NAR works. Pulsar uses the same mechanism for packaging all the [builtin connectors](io-connectors).
+how NAR works. Pulsar uses the same mechanism for packaging all the [builtin connectors](io-connectors.md).
 
 All what you need is to include this [nifi-nar-maven-plugin](https://mvnrepository.com/artifact/org.apache.nifi/nifi-nar-maven-plugin) in your maven project for your connector. For example:
 

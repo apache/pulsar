@@ -305,6 +305,8 @@ You can check the following statistics of a given non-partitioned topic.
 
   -   **nonContiguousDeletedMessagesRangesSerializedSize**: The serialized size of non-contiguous deleted messages ranges.  
 
+  -   **ownerBroker**: The broker that owns this topic.
+
   -   **publishers**: The list of all local publishers on the topic. The list ranges from zero to thousands.
 
       -   **accessMode**: The type of access to the topic that the producer requires.
@@ -556,7 +558,8 @@ The following is an example of a topic status.
   "replication" : { },
   "deduplicationStatus" : "Disabled",
   "nonContiguousDeletedMessagesRanges" : 0,
-  "nonContiguousDeletedMessagesRangesSerializedSize" : 0
+  "nonContiguousDeletedMessagesRangesSerializedSize" : 0,
+  "ownerBroker" : "localhost:8080"
 }
 ```
 

@@ -30,8 +30,8 @@ import java.lang.reflect.Field;
 import java.util.Set;
 import java.util.TreeSet;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.utils.ConcurrentBitmapSortedLongPairSet;
 import org.apache.pulsar.common.util.collections.ConcurrentLongLongPairHashMap;
-import org.apache.pulsar.common.util.collections.LongPairSet;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -48,7 +48,8 @@ public class MessageRedeliveryControllerTest {
 
         Field messagesToRedeliverField = MessageRedeliveryController.class.getDeclaredField("messagesToRedeliver");
         messagesToRedeliverField.setAccessible(true);
-        LongPairSet messagesToRedeliver = (LongPairSet) messagesToRedeliverField.get(controller);
+        ConcurrentBitmapSortedLongPairSet messagesToRedeliver =
+                (ConcurrentBitmapSortedLongPairSet) messagesToRedeliverField.get(controller);
 
         Field hashesToBeBlockedField = MessageRedeliveryController.class.getDeclaredField("hashesToBeBlocked");
         hashesToBeBlockedField.setAccessible(true);
@@ -67,9 +68,8 @@ public class MessageRedeliveryControllerTest {
             assertEquals(hashesToBeBlocked.size(), 0);
         }
 
-        assertTrue(controller.add(1, 1));
-        assertTrue(controller.add(1, 2));
-        assertFalse(controller.add(1, 1));
+        controller.add(1, 1);
+        controller.add(1, 2);
 
         assertFalse(controller.isEmpty());
         assertEquals(messagesToRedeliver.size(), 2);
@@ -81,9 +81,8 @@ public class MessageRedeliveryControllerTest {
             assertFalse(hashesToBeBlocked.containsKey(1, 2));
         }
 
-        assertTrue(controller.remove(1, 1));
-        assertTrue(controller.remove(1, 2));
-        assertFalse(controller.remove(1, 1));
+        controller.remove(1, 1);
+        controller.remove(1, 2);
 
         assertTrue(controller.isEmpty());
         assertEquals(messagesToRedeliver.size(), 0);
@@ -93,10 +92,9 @@ public class MessageRedeliveryControllerTest {
             assertEquals(hashesToBeBlocked.size(), 0);
         }
 
-        assertTrue(controller.add(2, 1, 100));
-        assertTrue(controller.add(2, 2, 101));
-        assertTrue(controller.add(2, 3, 101));
-        assertFalse(controller.add(2, 1, 100));
+        controller.add(2, 1, 100);
+        controller.add(2, 2, 101);
+        controller.add(2, 3, 101);
 
         assertFalse(controller.isEmpty());
         assertEquals(messagesToRedeliver.size(), 3);

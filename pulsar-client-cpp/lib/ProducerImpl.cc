@@ -133,9 +133,10 @@ void ProducerImpl::connectionOpened(const ClientConnectionPtr& cnx) {
     ClientImplPtr client = client_.lock();
     int requestId = client->newRequestId();
 
-    SharedBuffer cmd = Commands::newProducer(topic_, producerId_, producerName_, requestId,
-                                             conf_.getProperties(), conf_.getSchema(), epoch_,
-                                             userProvidedProducerName_, conf_.isEncryptionEnabled());
+    SharedBuffer cmd = Commands::newProducer(
+        topic_, producerId_, producerName_, requestId, conf_.getProperties(), conf_.getSchema(), epoch_,
+        userProvidedProducerName_, conf_.isEncryptionEnabled(),
+        static_cast<proto::ProducerAccessMode>(conf_.getAccessMode()), topicEpoch);
     cnx->sendRequestWithId(cmd, requestId)
         .addListener(std::bind(&ProducerImpl::handleCreateProducer, shared_from_this(), cnx,
                                std::placeholders::_1, std::placeholders::_2));
@@ -145,7 +146,7 @@ void ProducerImpl::connectionFailed(Result result) {
     // Keep a reference to ensure object is kept alive
     ProducerImplPtr ptr = shared_from_this();
 
-    if (conf_.getLazyStartPartitionedProducers()) {
+    if (conf_.getLazyStartPartitionedProducers() && conf_.getAccessMode() == ProducerConfiguration::Shared) {
         // if producers are lazy, then they should always try to restart
         // so don't change the state and allow reconnections
         return;
@@ -177,6 +178,7 @@ void ProducerImpl::handleCreateProducer(const ClientConnectionPtr& cnx, Result r
         producerName_ = responseData.producerName;
         schemaVersion_ = responseData.schemaVersion;
         producerStr_ = "[" + topic_ + ", " + producerName_ + "] ";
+        topicEpoch = responseData.topicEpoch;
 
         if (lastSequenceIdPublished_ == -1 && conf_.getInitialSequenceId() == -1) {
             lastSequenceIdPublished_ = responseData.lastSequenceId;
@@ -204,7 +206,8 @@ void ProducerImpl::handleCreateProducer(const ClientConnectionPtr& cnx, Result r
         }
 
         // if the producer is lazy the send timeout timer is already running
-        if (!conf_.getLazyStartPartitionedProducers()) {
+        if (!(conf_.getLazyStartPartitionedProducers() &&
+              conf_.getAccessMode() == ProducerConfiguration::Shared)) {
             startSendTimeoutTimer();
         }
 
@@ -414,35 +417,16 @@ void ProducerImpl::sendAsyncWithStatsUpdate(const Message& msg, const SendCallba
         callback(result, {});
     };
 
+    auto& msgMetadata = msg.impl_->metadata;
     const bool compressed = !canAddToBatch(msg);
     const auto payload =
         compressed ? applyCompression(uncompressedPayload, conf_.getCompressionType()) : uncompressedPayload;
     const auto compressedSize = static_cast<uint32_t>(payload.readableBytes());
     const auto maxMessageSize = static_cast<uint32_t>(ClientConnection::getMaxMessageSize());
 
-    if (compressed && compressedSize > ClientConnection::getMaxMessageSize() && !chunkingEnabled_) {
-        LOG_WARN(getName() << " - compressed Message payload size " << payload.readableBytes()
-                           << " cannot exceed " << ClientConnection::getMaxMessageSize()
-                           << " bytes unless chunking is enabled");
-        handleFailedResult(ResultMessageTooBig);
-        return;
-    }
-
-    auto& msgMetadata = msg.impl_->metadata;
     if (!msgMetadata.has_replicated_from() && msgMetadata.has_producer_name()) {
         handleFailedResult(ResultInvalidMessage);
         return;
-    }
-
-    const int totalChunks =
-        canAddToBatch(msg) ? 1 : getNumOfChunks(compressedSize, ClientConnection::getMaxMessageSize());
-    // Each chunk should be sent individually, so try to acquire extra permits for chunks.
-    for (int i = 0; i < (totalChunks - 1); i++) {
-        const auto result = canEnqueueRequest(0);  // size is 0 because the memory has already reserved
-        if (result != ResultOk) {
-            handleFailedResult(result);
-            return;
-        }
     }
 
     Lock lock(mutex_);
@@ -453,6 +437,31 @@ void ProducerImpl::sendAsyncWithStatsUpdate(const Message& msg, const SendCallba
         sequenceId = msgMetadata.sequence_id();
     }
     setMessageMetadata(msg, sequenceId, uncompressedSize);
+
+    auto payloadChunkSize = maxMessageSize;
+    int totalChunks;
+    if (!compressed || !chunkingEnabled_) {
+        totalChunks = 1;
+    } else {
+        const auto metadataSize = static_cast<uint32_t>(msgMetadata.ByteSizeLong());
+        if (metadataSize >= maxMessageSize) {
+            LOG_WARN(getName() << " - metadata size " << metadataSize << " cannot exceed " << maxMessageSize
+                               << " bytes");
+            handleFailedResult(ResultMessageTooBig);
+            return;
+        }
+        payloadChunkSize = maxMessageSize - metadataSize;
+        totalChunks = getNumOfChunks(compressedSize, payloadChunkSize);
+    }
+
+    // Each chunk should be sent individually, so try to acquire extra permits for chunks.
+    for (int i = 0; i < (totalChunks - 1); i++) {
+        const auto result = canEnqueueRequest(0);  // size is 0 because the memory has already reserved
+        if (result != ResultOk) {
+            handleFailedResult(result);
+            return;
+        }
+    }
 
     if (canAddToBatch(msg)) {
         // Batching is enabled and the message is not delayed
@@ -505,7 +514,7 @@ void ProducerImpl::sendAsyncWithStatsUpdate(const Message& msg, const SendCallba
             if (sendChunks) {
                 msgMetadata.set_chunk_id(chunkId);
             }
-            const uint32_t endIndex = std::min(compressedSize, beginIndex + maxMessageSize);
+            const uint32_t endIndex = std::min(compressedSize, beginIndex + payloadChunkSize);
             auto chunkedPayload = payload.slice(beginIndex, endIndex - beginIndex);
             beginIndex = endIndex;
 
@@ -514,10 +523,26 @@ void ProducerImpl::sendAsyncWithStatsUpdate(const Message& msg, const SendCallba
                 handleFailedResult(ResultCryptoError);
                 return;
             }
+            OpSendMsg op{msgMetadata, encryptedPayload, (chunkId == totalChunks - 1) ? callback : nullptr,
+                         producerId_, sequenceId,       conf_.getSendTimeout(),
+                         1,           uncompressedSize};
 
-            sendMessage(OpSendMsg{msgMetadata, encryptedPayload,
-                                  (chunkId == totalChunks - 1) ? callback : nullptr, producerId_, sequenceId,
-                                  conf_.getSendTimeout(), 1, uncompressedSize});
+            if (!chunkingEnabled_) {
+                const uint32_t msgMetadataSize = op.metadata_.ByteSize();
+                const uint32_t payloadSize = op.payload_.readableBytes();
+                const uint32_t msgHeadersAndPayloadSize = msgMetadataSize + payloadSize;
+                if (msgHeadersAndPayloadSize > maxMessageSize) {
+                    lock.unlock();
+                    releaseSemaphoreForSendOp(op);
+                    LOG_WARN(getName()
+                             << " - compressed Message size " << msgHeadersAndPayloadSize << " cannot exceed "
+                             << maxMessageSize << " bytes unless chunking is enabled");
+                    handleFailedResult(ResultMessageTooBig);
+                    return;
+                }
+            }
+
+            sendMessage(op);
         }
     }
 }
@@ -542,7 +567,6 @@ Result ProducerImpl::canEnqueueRequest(uint32_t payloadSize) {
         if (semaphore_ && !semaphore_->tryAcquire()) {
             return ResultProducerQueueIsFull;
         }
-
         if (!memoryLimitController_.tryReserveMemory(payloadSize)) {
             if (semaphore_) {
                 semaphore_->release(1);
@@ -853,7 +877,7 @@ void ProducerImpl::disconnectProducer() {
 void ProducerImpl::start() {
     HandlerBase::start();
 
-    if (conf_.getLazyStartPartitionedProducers()) {
+    if (conf_.getLazyStartPartitionedProducers() && conf_.getAccessMode() == ProducerConfiguration::Shared) {
         // we need to kick it off now as it is possible that the connection may take
         // longer than sendTimeout to connect
         startSendTimeoutTimer();

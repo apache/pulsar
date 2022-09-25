@@ -126,6 +126,11 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
     Range<T> lastRange();
 
     /**
+     * Return the number bit sets to true from lower (inclusive) to upper (inclusive).
+     */
+    int cardinality(long lowerKey, long lowerValue, long upperKey, long upperValue);
+
+    /**
      * Represents a function that accepts two long arguments and produces a result.
      *
      * @param <T> the type of the result.
@@ -294,6 +299,11 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
             }
             List<Range<T>> list = Lists.newArrayList(set.asRanges().iterator());
             return list.get(list.size() - 1);
+        }
+
+        @Override
+        public int cardinality(long lowerKey, long lowerValue, long upperKey, long upperValue) {
+            throw new UnsupportedOperationException();
         }
 
         @Override

@@ -22,46 +22,43 @@ import com.google.common.collect.ComparisonChain;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Collectors;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.common.util.collections.ConcurrentLongLongPairHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentLongLongPairHashMap.LongPair;
-import org.apache.pulsar.common.util.collections.ConcurrentSortedLongPairSet;
-import org.apache.pulsar.common.util.collections.LongPairSet;
+import org.apache.pulsar.utils.ConcurrentBitmapSortedLongPairSet;
 
 public class MessageRedeliveryController {
-    private final LongPairSet messagesToRedeliver;
+    private final ConcurrentBitmapSortedLongPairSet messagesToRedeliver;
     private final ConcurrentLongLongPairHashMap hashesToBeBlocked;
 
     public MessageRedeliveryController(boolean allowOutOfOrderDelivery) {
-        this.messagesToRedeliver = new ConcurrentSortedLongPairSet(128, 2, true);
+        this.messagesToRedeliver = new ConcurrentBitmapSortedLongPairSet();
         this.hashesToBeBlocked = allowOutOfOrderDelivery
                 ? null
                 : ConcurrentLongLongPairHashMap
                     .newBuilder().concurrencyLevel(2).expectedItems(128).autoShrink(true).build();
     }
 
-    public boolean add(long ledgerId, long entryId) {
-        return messagesToRedeliver.add(ledgerId, entryId);
+    public void add(long ledgerId, long entryId) {
+        messagesToRedeliver.add(ledgerId, entryId);
     }
 
-    public boolean add(long ledgerId, long entryId, long stickyKeyHash) {
+    public void add(long ledgerId, long entryId, long stickyKeyHash) {
         if (hashesToBeBlocked != null) {
             hashesToBeBlocked.put(ledgerId, entryId, stickyKeyHash, 0);
         }
-        return messagesToRedeliver.add(ledgerId, entryId);
+        messagesToRedeliver.add(ledgerId, entryId);
     }
 
-    public boolean remove(long ledgerId, long entryId) {
+    public void remove(long ledgerId, long entryId) {
         if (hashesToBeBlocked != null) {
             hashesToBeBlocked.remove(ledgerId, entryId);
         }
-        return messagesToRedeliver.remove(ledgerId, entryId);
+        messagesToRedeliver.remove(ledgerId, entryId);
     }
 
-    public int removeAllUpTo(long markDeleteLedgerId, long markDeleteEntryId) {
+    public void removeAllUpTo(long markDeleteLedgerId, long markDeleteEntryId) {
         if (hashesToBeBlocked != null) {
             List<LongPair> keysToRemove = new ArrayList<>();
             hashesToBeBlocked.forEach((ledgerId, entryId, stickyKeyHash, none) -> {
@@ -73,10 +70,7 @@ public class MessageRedeliveryController {
             keysToRemove.forEach(longPair -> hashesToBeBlocked.remove(longPair.first, longPair.second));
             keysToRemove.clear();
         }
-        return messagesToRedeliver.removeIf((ledgerId, entryId) -> {
-            return ComparisonChain.start().compare(ledgerId, markDeleteLedgerId).compare(entryId, markDeleteEntryId)
-                    .result() <= 0;
-        });
+        messagesToRedeliver.removeUpTo(markDeleteLedgerId, markDeleteEntryId + 1);
     }
 
     public boolean isEmpty() {
@@ -107,17 +101,6 @@ public class MessageRedeliveryController {
     }
 
     public Set<PositionImpl> getMessagesToReplayNow(int maxMessagesToRead) {
-        if (hashesToBeBlocked != null) {
-            // allowOutOfOrderDelivery is false
-            return messagesToRedeliver.items().stream()
-                    .sorted((l1, l2) -> ComparisonChain.start().compare(l1.first, l2.first)
-                            .compare(l1.second, l2.second).result())
-                    .limit(maxMessagesToRead).map(longPair -> new PositionImpl(longPair.first, longPair.second))
-                    .collect(Collectors.toCollection(TreeSet::new));
-        } else {
-            // allowOutOfOrderDelivery is true
-            return messagesToRedeliver.items(maxMessagesToRead,
-                    (ledgerId, entryId) -> new PositionImpl(ledgerId, entryId));
-        }
+        return messagesToRedeliver.items(maxMessagesToRead, PositionImpl::new);
     }
 }

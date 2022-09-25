@@ -21,16 +21,25 @@ package org.apache.pulsar.metadata.bookkeeper;
 import static org.apache.bookkeeper.util.BookKeeperConstants.AVAILABLE_NODE;
 import static org.apache.bookkeeper.util.BookKeeperConstants.COOKIE_NODE;
 import static org.apache.bookkeeper.util.BookKeeperConstants.READONLY;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import org.apache.bookkeeper.client.BKException;
+import org.apache.bookkeeper.discover.BookieServiceInfo;
 import org.apache.bookkeeper.discover.RegistrationClient;
 import org.apache.bookkeeper.net.BookieId;
+import org.apache.bookkeeper.versioning.LongVersion;
 import org.apache.bookkeeper.versioning.Version;
 import org.apache.bookkeeper.versioning.Versioned;
+import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
@@ -46,11 +55,14 @@ public class PulsarRegistrationClient implements RegistrationClient {
 
     private final Map<RegistrationListener, Boolean> writableBookiesWatchers = new ConcurrentHashMap<>();
     private final Map<RegistrationListener, Boolean> readOnlyBookiesWatchers = new ConcurrentHashMap<>();
+    private final MetadataCache<BookieServiceInfo> bookieServiceInfoMetadataCache;
+    private final ScheduledExecutorService executor;
 
     public PulsarRegistrationClient(MetadataStore store,
                                     String ledgersRootPath) {
         this.store = store;
         this.ledgersRootPath = ledgersRootPath;
+        this.bookieServiceInfoMetadataCache = store.getMetadataCache(BookieServiceInfoSerde.INSTANCE);
 
         // Following Bookie Network Address Changes is an expensive operation
         // as it requires additional ZooKeeper watches
@@ -60,11 +72,15 @@ public class PulsarRegistrationClient implements RegistrationClient {
         this.bookieAllRegistrationPath = ledgersRootPath + "/" + COOKIE_NODE;
         this.bookieReadonlyRegistrationPath = this.bookieRegistrationPath + "/" + READONLY;
 
+        this.executor = Executors
+                .newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-registration-client"));
+
         store.registerListener(this::updatedBookies);
     }
 
     @Override
     public void close() {
+        executor.shutdownNow();
     }
 
     @Override
@@ -99,7 +115,7 @@ public class PulsarRegistrationClient implements RegistrationClient {
     public CompletableFuture<Void> watchWritableBookies(RegistrationListener registrationListener) {
         writableBookiesWatchers.put(registrationListener, Boolean.TRUE);
         return getWritableBookies()
-                .thenAccept(registrationListener::onBookiesChanged);
+                .thenAcceptAsync(registrationListener::onBookiesChanged, executor);
     }
 
     @Override
@@ -111,7 +127,7 @@ public class PulsarRegistrationClient implements RegistrationClient {
     public CompletableFuture<Void> watchReadOnlyBookies(RegistrationListener registrationListener) {
         readOnlyBookiesWatchers.put(registrationListener, Boolean.TRUE);
         return getReadOnlyBookies()
-                .thenAccept(registrationListener::onBookiesChanged);
+                .thenAcceptAsync(registrationListener::onBookiesChanged, executor);
     }
 
     @Override
@@ -124,11 +140,11 @@ public class PulsarRegistrationClient implements RegistrationClient {
             if (n.getPath().startsWith(bookieReadonlyRegistrationPath)) {
                 getReadOnlyBookies().thenAccept(bookies ->
                         readOnlyBookiesWatchers.keySet()
-                                .forEach(w -> w.onBookiesChanged(bookies)));
+                                .forEach(w -> executor.execute(() -> w.onBookiesChanged(bookies))));
             } else if (n.getPath().startsWith(bookieRegistrationPath)) {
                 getWritableBookies().thenAccept(bookies ->
                         writableBookiesWatchers.keySet()
-                                .forEach(w -> w.onBookiesChanged(bookies)));
+                                .forEach(w -> executor.execute(() -> w.onBookiesChanged(bookies))));
             }
         }
     }
@@ -144,5 +160,33 @@ public class PulsarRegistrationClient implements RegistrationClient {
             newBookieAddrs.add(bookieAddr);
         }
         return newBookieAddrs;
+    }
+
+    @Override
+    public CompletableFuture<Versioned<BookieServiceInfo>> getBookieServiceInfo(BookieId bookieId) {
+        String asWritable = bookieRegistrationPath + "/" + bookieId;
+
+        return bookieServiceInfoMetadataCache.get(asWritable)
+                .thenCompose((Optional<BookieServiceInfo> getResult) -> {
+                    if (getResult.isPresent()) {
+                        return CompletableFuture.completedFuture(new Versioned<>(getResult.get(),
+                                    new LongVersion(-1)));
+                    } else {
+                        return readBookieInfoAsReadonlyBookie(bookieId);
+                    }
+                }
+        );
+    }
+
+    final CompletableFuture<Versioned<BookieServiceInfo>> readBookieInfoAsReadonlyBookie(BookieId bookieId) {
+        String asReadonly = bookieReadonlyRegistrationPath + "/" + bookieId;
+        return bookieServiceInfoMetadataCache.get(asReadonly)
+                .thenApply((Optional<BookieServiceInfo> getResultAsReadOnly) -> {
+                    if (getResultAsReadOnly.isPresent()) {
+                        return new Versioned<>(getResultAsReadOnly.get(), new LongVersion(-1));
+                    } else {
+                        throw new CompletionException(new BKException.BKBookieHandleNotAvailableException());
+                    }
+                });
     }
 }

@@ -330,8 +330,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(category = CATEGORY_SERVER, doc = "Whether to enable the delayed delivery for messages.")
     private boolean delayedDeliveryEnabled = true;
 
-    @FieldContext(category = CATEGORY_SERVER, doc = "Class name of the factory that implements the delayed deliver "
-            + "tracker")
+    @FieldContext(category = CATEGORY_SERVER, doc = """
+            Class name of the factory that implements the delayed deliver tracker.
+            If value is "org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTrackerFactory", \
+            will create bucket based delayed message index tracker.
+            """)
     private String delayedDeliveryTrackerFactoryClassName = "org.apache.pulsar.broker.delayed"
             + ".InMemoryDelayedDeliveryTrackerFactory";
 
@@ -349,6 +352,25 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + "may be as late as the deliverAt time plus the tickTimeMillis for the topic plus the "
             + "delayedDeliveryTickTimeMillis.")
     private boolean isDelayedDeliveryDeliverAtTimeStrict = false;
+
+    @FieldContext(category = CATEGORY_SERVER, doc = """
+            The delayed message index bucket min index count. When the index count of the current bucket is more than \
+            this value and all message indexes of current ledger have already been added to the tracker \
+            we will seal the bucket.""")
+    private long delayedDeliveryMinIndexCountPerBucket = 50000;
+
+    @FieldContext(category = CATEGORY_SERVER, doc = """
+            The delayed message index bucket time step(in seconds) in per bucket snapshot segment, \
+            after reaching the max time step limitation, the snapshot segment will be cut off.""")
+    private long delayedDeliveryMaxTimeStepPerBucketSnapshotSegmentSeconds = 300;
+
+    @FieldContext(category = CATEGORY_SERVER, doc = """
+            The max number of delayed message index bucket, \
+            after reaching the max buckets limitation, the adjacent buckets will be merged.""")
+    private int delayedDeliveryMaxNumBuckets = 50;
+
+    @FieldContext(category = CATEGORY_SERVER, doc = "Enable share the delayed message index across subscriptions")
+    private boolean delayedDeliverySharedIndexEnabled = false;
 
     @FieldContext(category = CATEGORY_SERVER, doc = "Whether to enable the acknowledge of batch local index")
     private boolean acknowledgmentAtBatchIndexLevelEnabled = false;
@@ -2071,6 +2093,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_LOAD_BALANCER,
+            doc = "When [current usage < average usage - threshold], "
+                    + "the broker with the highest load will be triggered to unload"
+    )
+    private boolean lowerBoundarySheddingEnabled = false;
+
+    @FieldContext(
+            category = CATEGORY_LOAD_BALANCER,
             doc = "load balance placement strategy"
     )
     private String loadBalancerLoadPlacementStrategy =
@@ -2086,6 +2115,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
         dynamic = true,
         category = CATEGORY_LOAD_BALANCER,
         doc = "maximum interval to update load report"
+    )
+    private int loadBalancerReportUpdateMinIntervalMillis = 5000;
+    @FieldContext(
+            category = CATEGORY_LOAD_BALANCER,
+            dynamic = true,
+            doc = "Min delay of load report to collect, in milli-seconds"
     )
     private int loadBalancerReportUpdateMaxIntervalMinutes = 15;
     @FieldContext(
@@ -2731,14 +2766,33 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_TRANSACTION,
             doc = "Transaction buffer take snapshot transaction count"
+                    + "If transaction buffer enables snapshot segment, transaction buffer updates snapshot metadata"
+                    + "after the number of transaction operations reaches this value."
     )
     private int transactionBufferSnapshotMaxTransactionCount = 1000;
 
     @FieldContext(
             category = CATEGORY_TRANSACTION,
-            doc = "Transaction buffer take snapshot min interval time"
+            doc = "The interval time for transaction buffer to take snapshots."
+                    + "If transaction buffer enables snapshot segment, "
+                    + "it is the interval time for transaction buffer to update snapshot metadata."
     )
     private int transactionBufferSnapshotMinTimeInMillis = 5000;
+
+    @FieldContext(
+            category = CATEGORY_TRANSACTION,
+            doc = "Transaction buffer stores the transaction ID of aborted transactions and takes snapshots."
+                    + "This configuration determines the size of the snapshot segment. "
+                    + "The default value is 256 KB (262144 bytes)."
+    )
+    private int transactionBufferSnapshotSegmentSize = 262144;
+
+    @FieldContext(
+            category = CATEGORY_TRANSACTION,
+            doc = "Whether to enable segmented transaction buffer snapshot "
+                    + "to handle a large number of aborted transactions."
+    )
+    private boolean transactionBufferSegmentedSnapshotEnabled = false;
 
     @FieldContext(
             category = CATEGORY_TRANSACTION,

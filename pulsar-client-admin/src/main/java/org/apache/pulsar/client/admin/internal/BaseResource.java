@@ -25,6 +25,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.ServerErrorException;
@@ -34,6 +35,7 @@ import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.Invocation.Builder;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -184,6 +186,39 @@ public abstract class BaseResource {
     public <T> CompletableFuture<T> asyncGetRequest(final WebTarget target, FutureCallback<T> callback) {
         asyncGetRequest(target, (InvocationCallback<T>) callback);
         return callback.future();
+    }
+
+    protected <T> CompletableFuture<T> asyncGetRequest(final WebTarget target, Class<? extends T> type) {
+        return asyncGetRequest(target, response -> response.readEntity(type));
+    }
+
+    protected <T> CompletableFuture<T> asyncGetRequest(final WebTarget target, GenericType<T> type) {
+        return asyncGetRequest(target, response -> response.readEntity(type));
+    }
+
+    private <T> CompletableFuture<T> asyncGetRequest(final WebTarget target, Function<Response, T> readResponse) {
+        final CompletableFuture<T> future = new CompletableFuture<>();
+        asyncGetRequest(target,
+                new InvocationCallback<Response>() {
+                    @Override
+                    public void completed(Response response) {
+                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
+                            future.completeExceptionally(getApiException(response));
+                        } else {
+                            try {
+                                future.complete(readResponse.apply(response));
+                            } catch (Exception e) {
+                                future.completeExceptionally(getApiException(e));
+                            }
+                        }
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
     }
 
     public CompletableFuture<Void> asyncDeleteRequest(final WebTarget target) {

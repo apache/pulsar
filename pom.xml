@@ -98,7 +98,8 @@ flexible messaging model and an intuitive client API.</description>
       --add-opens java.base/java.io=ALL-UNNAMED <!--Bookkeeper NativeIO-->
       --add-opens java.base/java.util=ALL-UNNAMED <!--System Lambda-->
       --add-opens java.base/sun.net=ALL-UNNAMED <!--netty.DnsResolverUtil-->
-      --add-opens java.management/sun.management=ALL-UNNAMED <!--JvmDefaultGCMetricsLogger-->
+      --add-opens java.management/sun.management=ALL-UNNAMED <!--JvmDefaultGCMetricsLogger & MBeanStatsGenerator-->
+      --add-opens jdk.management/com.sun.management.internal=ALL-UNNAMED <!--MBeanStatsGenerator-->
     </test.additional.args>
     <testReuseFork>true</testReuseFork>
     <testForkCount>4</testForkCount>
@@ -224,7 +225,7 @@ flexible messaging model and an intuitive client API.</description>
     <apache-http-client.version>4.5.13</apache-http-client.version>
     <apache-httpcomponents.version>4.4.15</apache-httpcomponents.version>
     <jetcd.version>0.5.11</jetcd.version>
-    <snakeyaml.version>1.31</snakeyaml.version>
+    <snakeyaml.version>1.32</snakeyaml.version>
     <ant.version>1.10.12</ant.version>
     <seancfoley.ipaddress.version>5.3.3</seancfoley.ipaddress.version>
     <disruptor.version>3.4.3</disruptor.version>
@@ -240,11 +241,11 @@ flexible messaging model and an intuitive client API.</description>
     <kerby.version>1.1.1</kerby.version>
     <testng.version>7.3.0</testng.version>
     <mockito.version>3.12.4</mockito.version>
-    <powermock.version>2.0.9</powermock.version>
     <javassist.version>3.25.0-GA</javassist.version>
     <skyscreamer.version>1.5.0</skyscreamer.version>
     <objenesis.version>3.1</objenesis.version>
     <awaitility.version>4.2.0</awaitility.version>
+    <reload4j.version>1.2.22</reload4j.version>
 
     <!-- Plugin dependencies -->
     <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
@@ -260,7 +261,7 @@ flexible messaging model and an intuitive client API.</description>
     <maven-compiler-plugin.version>3.10.1</maven-compiler-plugin.version>
     <maven-dependency-plugin.version>3.3.0</maven-dependency-plugin.version>
     <maven-modernizer-plugin.version>2.3.0</maven-modernizer-plugin.version>
-    <maven-shade-plugin>3.3.0</maven-shade-plugin>
+    <maven-shade-plugin>3.4.0</maven-shade-plugin>
     <maven-antrun-plugin.version>3.0.0</maven-antrun-plugin.version>
     <properties-maven-plugin.version>1.0.0</properties-maven-plugin.version>
     <nifi-nar-maven-plugin.version>1.2.0</nifi-nar-maven-plugin.version>
@@ -277,6 +278,7 @@ flexible messaging model and an intuitive client API.</description>
     <j2objc-annotations.version>1.3</j2objc-annotations.version>
     <lightproto-maven-plugin.version>0.4</lightproto-maven-plugin.version>
     <dependency-check-maven.version>7.1.0</dependency-check-maven.version>
+    <roaringbitmap.version>0.9.15</roaringbitmap.version>
 
     <!-- Used to configure rename.netty.native. Libs -->
     <rename.netty.native.libs>rename-netty-native-libs.sh</rename.netty.native.libs>
@@ -337,12 +339,6 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.mockito</groupId>
         <artifactId>mockito-inline</artifactId>
         <version>${mockito.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.powermock</groupId>
-        <artifactId>powermock-reflect</artifactId>
-        <version>${powermock.version}</version>
       </dependency>
 
       <dependency>
@@ -1293,6 +1289,19 @@ flexible messaging model and an intuitive client API.</description>
           <artifactId>netty-reactive-streams</artifactId>
           <version>${netty-reactive-streams.version}</version>
       </dependency>
+
+      <dependency>
+        <groupId>ch.qos.reload4j</groupId>
+        <artifactId>reload4j</artifactId>
+        <version>${reload4j.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.roaringbitmap</groupId>
+        <artifactId>RoaringBitmap</artifactId>
+        <version>${roaringbitmap.version}</version>
+      </dependency>
+
     </dependencies>
   </dependencyManagement>
 
@@ -1327,12 +1336,6 @@ flexible messaging model and an intuitive client API.</description>
       <groupId>com.github.stefanbirkner</groupId>
       <artifactId>system-lambda</artifactId>
       <version>${system-lambda.version}</version>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.powermock</groupId>
-      <artifactId>powermock-reflect</artifactId>
       <scope>test</scope>
     </dependency>
 

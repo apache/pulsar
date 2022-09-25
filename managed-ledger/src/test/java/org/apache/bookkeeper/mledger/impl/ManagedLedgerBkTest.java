@@ -19,7 +19,6 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -50,6 +49,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.cache.EntryCacheManager;
+import org.apache.bookkeeper.mledger.util.ThrowableToStringUtil;
 import org.apache.bookkeeper.test.BookKeeperClusterTestCase;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.testng.annotations.Test;
@@ -312,7 +312,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         }
 
         final CountDownLatch counter = new CountDownLatch(positions.size());
-        final AtomicBoolean gotException = new AtomicBoolean(false);
+        final AtomicReference<Exception> gotException = new AtomicReference();
 
         for (Position p : positions) {
             cursor.asyncDelete(p, new DeleteCallback() {
@@ -324,8 +324,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
 
                 @Override
                 public void deleteFailed(ManagedLedgerException exception, Object ctx) {
-                    exception.printStackTrace();
-                    gotException.set(true);
+                    gotException.set(exception);
                     counter.countDown();
                 }
             }, null);
@@ -336,7 +335,10 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         cursor.close();
         ledger.close();
 
-        assertFalse(gotException.get());
+        // Add information to determine the problem.
+        if (gotException.get() != null){
+            fail(ThrowableToStringUtil.toString(gotException.get()));
+        }
     }
 
     /**

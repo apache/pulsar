@@ -373,7 +373,7 @@ Once a version is assigned/fetched to/for a schema, all subsequent messages prod
 
 The following example illustrates how the schema version works.
 
-Suppose that a Pulsar [Java client](client-libraries-java) created using the code below attempts to connect to Pulsar and begins to send messages:
+Suppose that a Pulsar [Java client](client-libraries-java.md) created using the code below attempts to connect to Pulsar and begins to send messages:
 
 ```text
 

@@ -344,6 +344,23 @@ class AuthenticationOauth2(Authentication):
         _check_type(str, auth_params_string, 'auth_params_string')
         self.auth = _pulsar.AuthenticationOauth2(auth_params_string)
 
+class AuthenticationBasic(Authentication):
+    """
+    Basic Authentication implementation
+    """
+    def __init__(self, username, password):
+        """
+        Create the Basic authentication provider instance.
+
+        **Args**
+
+        * `username`: Used to authentication as username
+        * `password`: Used to authentication as password
+        """
+        _check_type(str, username, 'username')
+        _check_type(str, password, 'password')
+        self.auth = _pulsar.AuthenticationBasic(username, password)
+
 class Client:
     """
     The Pulsar client. A single client instance can be used to create producers
@@ -444,8 +461,7 @@ class Client:
         conf.concurrent_lookup_requests(concurrent_lookup_requests)
         if log_conf_file_path:
             conf.log_conf_file_path(log_conf_file_path)
-        if logger:
-            conf.set_logger(logger)
+        conf.set_logger(self._prepare_logger(logger) if logger else None)
         if listener_name:
             conf.listener_name(listener_name)
         if use_tls or service_url.startswith('pulsar+ssl://') or service_url.startswith('https://'):
@@ -458,6 +474,16 @@ class Client:
         conf.tls_validate_hostname(tls_validate_hostname)
         self._client = _pulsar.Client(service_url, conf)
         self._consumers = []
+
+    @staticmethod
+    def _prepare_logger(logger):
+        import logging
+        def log(level, message):
+            old_threads = logging.logThreads
+            logging.logThreads = False
+            logger.log(logging.getLevelName(level), message)
+            logging.logThreads = old_threads
+        return log
 
     def create_producer(self, topic,
                         producer_name=None,
