@@ -2315,7 +2315,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 log.warn("Cursor: {} does not exist in the managed-ledger.", cursor);
             }
 
-            if (!lastAckedPosition.equals((PositionImpl) cursor.getMarkDeletedPosition())) {
+            if (!lastAckedPosition.equals(cursor.getMarkDeletedPosition())) {
                 try {
                     log.info("Reset cursor:{} to {} since ledger consumed completely", cursor, lastAckedPosition);
                     onCursorMarkDeletePositionUpdated((ManagedCursorImpl) cursor, lastAckedPosition);
@@ -2347,11 +2347,17 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     private void maybeOffloadInBackground(CompletableFuture<PositionImpl> promise) {
-        if (config.getLedgerOffloader() != null
-                && config.getLedgerOffloader() != NullLedgerOffloader.INSTANCE
-                && config.getLedgerOffloader().getOffloadPolicies() != null
-                && config.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes() != null
-                && config.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes() >= 0) {
+        if (config.getLedgerOffloader() == null || config.getLedgerOffloader() == NullLedgerOffloader.INSTANCE
+                || config.getLedgerOffloader().getOffloadPolicies() == null) {
+            return;
+        }
+
+        final OffloadPoliciesImpl policies = config.getLedgerOffloader().getOffloadPolicies();
+        final long offloadThresholdInBytes =
+                Optional.ofNullable(policies.getManagedLedgerOffloadThresholdInBytes()).orElse(-1L);
+        final long offloadThresholdInSeconds =
+                Optional.ofNullable(policies.getManagedLedgerOffloadThresholdInSeconds()).orElse(-1L);
+        if (offloadThresholdInBytes >= 0 || offloadThresholdInSeconds >= 0) {
             executor.executeOrdered(name, safeRun(() -> maybeOffload(promise)));
         }
     }
@@ -2389,8 +2395,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         final long offloadThresholdInBytes =
                 Optional.ofNullable(policies.getManagedLedgerOffloadThresholdInBytes()).orElse(-1L);
         final long offloadTimeThresholdMillis =
-                Optional.ofNullable(policies.getManagedLedgerOffloadTimeThresholdInSeconds())
-                        .filter(v -> v >= 0).map(TimeUnit.SECONDS::toMillis).orElse(-1L);
+                Optional.ofNullable(policies.getManagedLedgerOffloadThresholdInSeconds()).filter(v -> v >= 0)
+                        .map(TimeUnit.SECONDS::toMillis).orElse(-1L);
 
         //Skip the following steps if `offloadTimeThreshold` and `offloadThresholdInBytes` are null OR negative values.
         if (offloadThresholdInBytes < 0 && offloadTimeThresholdMillis < 0) {
@@ -2402,6 +2408,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         for (Map.Entry<Long, LedgerInfo> e : ledgers.descendingMap().entrySet()) {
             final LedgerInfo info = e.getValue();
+            // Skip current active ledger, an active ledger can't be offloaded.
+            // Can't `info.getLedgerId() == currentLedger.getId()` here, trigger offloading is before create ledger.
+            if (info.getTimestamp() == 0L) {
+                continue;
+            }
+
             final long size = info.getSize();
             final long timestamp = info.getTimestamp();
             final long now = System.currentTimeMillis();
@@ -2412,7 +2424,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 alreadyOffloadedSize += size;
             } else {
                 if ((offloadThresholdInBytes >= 0 && sizeSummed > offloadThresholdInBytes)
-                        || (offloadTimeThresholdMillis >= 0 && now - timestamp > offloadTimeThresholdMillis)) {
+                        || (offloadTimeThresholdMillis >= 0 && now - timestamp >= offloadTimeThresholdMillis)) {
                     toOffloadSize += size;
                     toOffload.addFirst(info);
                 }

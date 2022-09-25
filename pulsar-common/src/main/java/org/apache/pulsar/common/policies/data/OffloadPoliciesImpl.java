@@ -93,7 +93,7 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
     private Integer managedLedgerOffloadPrefetchRounds = DEFAULT_OFFLOAD_MAX_PREFETCH_ROUNDS;
     @Configuration
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
-    private Long managedLedgerOffloadTimeThresholdInSeconds = DEFAULT_OFFLOAD_TIME_THRESHOLD;
+    private Long managedLedgerOffloadThresholdInSeconds = DEFAULT_OFFLOAD_TIME_THRESHOLD;
     @Configuration
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private Long managedLedgerOffloadThresholdInBytes = DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES;
@@ -326,8 +326,8 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
                 this.getManagedLedgerOffloadPrefetchRounds());
         setProperty(properties, "managedLedgerOffloadThresholdInBytes",
                 this.getManagedLedgerOffloadThresholdInBytes());
-        setProperty(properties, "managedLedgerOffloadTimeThresholdInSeconds",
-                this.getManagedLedgerOffloadTimeThresholdInSeconds());
+        setProperty(properties, "managedLedgerOffloadThresholdInSeconds",
+                this.getManagedLedgerOffloadThresholdInSeconds());
         setProperty(properties, "managedLedgerOffloadDeletionLagInMillis",
                 this.getManagedLedgerOffloadDeletionLagInMillis());
 
@@ -518,8 +518,8 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
 
         @Override
         public OffloadPoliciesImplBuilder managedLedgerOffloadTimeThresholdInSeconds(
-                Long managedLedgerOffloadTimeThresholdInSeconds) {
-            impl.managedLedgerOffloadTimeThresholdInSeconds = managedLedgerOffloadTimeThresholdInSeconds;
+                Long managedLedgerOffloadThresholdInSeconds) {
+            impl.managedLedgerOffloadThresholdInSeconds = managedLedgerOffloadThresholdInSeconds;
             return this;
         }
 
