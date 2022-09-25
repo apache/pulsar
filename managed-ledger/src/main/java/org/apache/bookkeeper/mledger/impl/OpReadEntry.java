@@ -19,7 +19,6 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
-import com.google.common.collect.Range;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import java.util.ArrayList;
@@ -101,7 +100,7 @@ class OpReadEntry implements ReadEntriesCallback {
         } else if (cursor.config.isAutoSkipNonRecoverableData() && exception instanceof NonRecoverableLedgerException) {
             log.warn("[{}][{}] read failed from ledger at position:{} : {}", cursor.ledger.getName(), cursor.getName(),
                     readPosition, exception.getMessage());
-            // skip numOfEntriesToRead entries
+            // Skip this read operation
             PositionImpl nexReadPosition = cursor.ledger.getValidPositionAfterSkippedEntries(readPosition, count);
             // fail callback if it couldn't find next valid ledger
             if (nexReadPosition == null) {
