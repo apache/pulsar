@@ -19,7 +19,10 @@
 package org.apache.pulsar.broker.service;
 
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
-import static org.testng.Assert.*;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.fail;
 
 import java.lang.reflect.Field;
 import java.util.Map.Entry;
