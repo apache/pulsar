@@ -55,6 +55,7 @@ import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
@@ -111,6 +112,7 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -1430,6 +1432,37 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
         rec.put("structMap", map);
 
         return rec;
+    }
+
+    @Test
+    public void testGetMessageSequenceRefForBatchMessage() throws Exception {
+        long ledgerId = 123L;
+        long entryId = Long.MAX_VALUE;
+        int batchIdx = 16;
+
+        KafkaConnectSink.BatchMessageSequenceRef ref = KafkaConnectSink
+                .getMessageSequenceRefForBatchMessage(new MessageIdImpl(ledgerId, entryId, 0));
+        assertNull(ref);
+
+        ref = KafkaConnectSink.getMessageSequenceRefForBatchMessage(
+                        new TopicMessageIdImpl("topic-0", "topic", new MessageIdImpl(ledgerId, entryId, 0))
+        );
+        assertNull(ref);
+
+        ref = KafkaConnectSink.getMessageSequenceRefForBatchMessage(
+                new BatchMessageIdImpl(ledgerId, entryId, 0, batchIdx));
+
+        assertEquals(ref.getLedgerId(), ledgerId);
+        assertEquals(ref.getEntryId(), entryId);
+        assertEquals(ref.getBatchIdx(), batchIdx);
+
+        ref = KafkaConnectSink.getMessageSequenceRefForBatchMessage(
+                new TopicMessageIdImpl("topic-0", "topic", new BatchMessageIdImpl(ledgerId, entryId, 0, batchIdx))
+        );
+
+        assertEquals(ref.getLedgerId(), ledgerId);
+        assertEquals(ref.getEntryId(), entryId);
+        assertEquals(ref.getBatchIdx(), batchIdx);
     }
 
     @SneakyThrows
