@@ -121,7 +121,7 @@ Pulsar has various sink connectors, which are sorted alphabetically as below.
 
 ### HBase
 
-* [Configuration](io-hbase.md)
+* [Configuration](io-hbase-sink.md#configuration)
   
 * [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/hbase/src/main/java/org/apache/pulsar/io/hbase/HbaseAbstractConfig.java)
   
