@@ -28,6 +28,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 import org.apache.pulsar.common.api.AuthData;
 
 /**
@@ -58,8 +59,15 @@ public class AuthenticationProviderList implements AuthenticationProvider {
         }
 
         if (null == authenticationException) {
+            AuthenticationMetrics.authenticateFailure(
+                    AuthenticationProviderList.class.getSimpleName(),
+                    "authentication-provider-list", "Authentication required");
             throw new AuthenticationException("Authentication required");
         } else {
+            AuthenticationMetrics.authenticateFailure(AuthenticationProviderList.class.getSimpleName(),
+                    "authentication-provider-list",
+                    authenticationException.getMessage() != null
+                            ? authenticationException.getMessage() : "Authentication required");
             throw authenticationException;
         }
 
