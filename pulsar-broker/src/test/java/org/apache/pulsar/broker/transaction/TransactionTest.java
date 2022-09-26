@@ -52,6 +52,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -1468,5 +1469,64 @@ public class TransactionTest extends TransactionTestBase {
             Throwable t = executionException.getCause();
             Assert.assertTrue(t instanceof BrokerServiceException.ServiceUnitNotReadyException);
         }
+    }
+
+    @Test
+    public void testUpdateSequenceIdInSyncCodeSegment() throws Exception {
+        String topic = NAMESPACE1 + "/sequenceId";
+        int totalMessage = 10;
+        int threadSize = 30;
+        String topicName = "subscription";
+        ExecutorService executorService = Executors.newFixedThreadPool(threadSize);
+
+        //build producer/consumer
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .producerName("producer")
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .create();
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscriptionName(topicName)
+                .subscribe();
+
+        //send and ack messages with transaction
+        Transaction transaction = pulsarClient.newTransaction()
+                .withTransactionTimeout(10, TimeUnit.SECONDS)
+                .build()
+                .get();
+
+        for (int i = 0; i < totalMessage * threadSize; i++) {
+            producer.newMessage().send();
+        }
+
+        CountDownLatch countDownLatch = new CountDownLatch(threadSize);
+        new Thread(() -> {
+            for (int i = 0; i < threadSize; i++) {
+                executorService.submit(() -> {
+                    try {
+                        for (int j = 0; j < totalMessage; j++) {
+                            producer.newMessage(transaction).sendAsync();
+                            Message<byte[]> message = consumer.receive();
+                            consumer.acknowledgeAsync(message.getMessageId(),
+                                    transaction);
+                        }
+                        countDownLatch.countDown();
+                    } catch (Exception e) {
+                        log.error("Failed to send/ack messages with transaction.", e);
+                    }
+                });
+            }
+        }).start();
+        //wait the all send/ack op is excuted and store its futures in the arraylist.
+        countDownLatch.await(10, TimeUnit.SECONDS);
+        transaction.commit().get();
+
+        for (int i = 0; i < threadSize * totalMessage; i++) {
+            consumer.receive();
+        }
+
     }
 }
