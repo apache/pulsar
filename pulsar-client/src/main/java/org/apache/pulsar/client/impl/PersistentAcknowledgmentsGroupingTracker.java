@@ -166,7 +166,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         for (MessageId messageId : messageIds) {
             if (messageId instanceof BatchMessageIdImpl) {
                 BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) messageId;
-                addIndividualAcknowledgment(batchMessageId.getMessageIdImpl(),
+                addIndividualAcknowledgment(batchMessageId.toMessageIdImpl(),
                         batchMessageId,
                         this::doIndividualAckAsync,
                         this::doIndividualBatchAckAsync);
@@ -187,7 +187,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                                                      Map<String, Long> properties) {
         if (msgId instanceof BatchMessageIdImpl) {
             BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) msgId;
-            return addAcknowledgment(batchMessageId.getMessageIdImpl(), ackType, properties, batchMessageId);
+            return addAcknowledgment(batchMessageId.toMessageIdImpl(), ackType, properties, batchMessageId);
         } else {
             return addAcknowledgment(msgId, ackType, properties, null);
         }
@@ -340,7 +340,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
 
     private CompletableFuture<Void> doIndividualBatchAckAsync(BatchMessageIdImpl batchMessageId) {
         ConcurrentBitSetRecyclable bitSet = pendingIndividualBatchIndexAcks.computeIfAbsent(
-                batchMessageId.getMessageIdImpl(), __ -> {
+                batchMessageId.toMessageIdImpl(), __ -> {
                     ConcurrentBitSetRecyclable value;
                     if (batchMessageId.getAcker() != null
                             && !(batchMessageId.getAcker() instanceof BatchMessageAckerDisabled)) {

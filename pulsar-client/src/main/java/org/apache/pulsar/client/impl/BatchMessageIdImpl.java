@@ -149,7 +149,7 @@ public class BatchMessageIdImpl extends MessageIdImpl {
 
     // MessageIdImpl is widely used as the key of a hash map, in this case, we should convert the batch message id to
     // have the correct hash code.
-    public MessageIdImpl getMessageIdImpl() {
+    public MessageIdImpl toMessageIdImpl() {
         return new MessageIdImpl(ledgerId, entryId, partitionIndex);
     }
 
