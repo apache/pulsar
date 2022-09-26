@@ -19,7 +19,7 @@
 
 -->
 
-![logo](site2/website/static/img/pulsar.svg)
+![logo](https://pulsar.apache.org/img/pulsar.svg)
 
 [![docker pull](https://img.shields.io/docker/pulls/apachepulsar/pulsar-all.svg)](https://hub.docker.com/r/apachepulsar/pulsar)
 [![contributors](https://img.shields.io/github/contributors-anon/apache/pulsar)](https://github.com/apache/pulsar/graphs/contributors)
