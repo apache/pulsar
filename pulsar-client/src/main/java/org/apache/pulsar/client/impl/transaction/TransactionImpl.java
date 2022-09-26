@@ -68,9 +68,7 @@ public class TransactionImpl implements Transaction , TimerTask {
     private CompletableFuture<Void> ackFuture;
 
     private AtomicLong ackCount = new AtomicLong(0);
-    private Lock ackLock = new ReentrantLock();
     private AtomicLong sendCount = new AtomicLong(0);
-    private Lock sendLock = new ReentrantLock();
 
     private volatile State state;
     private static final AtomicReferenceFieldUpdater<TransactionImpl, State> STATE_UPDATE =
@@ -133,22 +131,13 @@ public class TransactionImpl implements Transaction , TimerTask {
     }
 
     public void registerSendOp(CompletableFuture<MessageId> newSendFuture) {
-        sendLock.lock();
-        try {
-            if (sendCount.getAndIncrement() == 0) {
-                sendFuture = new CompletableFuture<>();
-            }
-        } finally {
-            sendLock.unlock();
+        if (sendCount.getAndIncrement() == 0) {
+            sendFuture = new CompletableFuture<>();
         }
         newSendFuture.thenRun(() -> {
-            sendLock.lock();
-            try {
-                if (sendCount.decrementAndGet() == 0) {
-                    sendFuture.complete(null);
-                }
-            } finally {
-                sendLock.unlock();
+            CompletableFuture<MessageId> future = sendFuture;
+            if (sendCount.decrementAndGet() == 0) {
+                future.complete(null);
             }
         });
     }
@@ -174,22 +163,13 @@ public class TransactionImpl implements Transaction , TimerTask {
     }
 
     public void registerAckOp(CompletableFuture<Void> newAckFuture) {
-        ackLock.lock();
-        try {
-            if (ackCount.getAndIncrement() == 0) {
-                ackFuture = new CompletableFuture<>();
-            }
-        } finally {
-            ackLock.unlock();
+        if (ackCount.getAndIncrement() == 0) {
+            ackFuture = new CompletableFuture<>();
         }
         newAckFuture.thenRun(() -> {
-            ackLock.lock();
-            try {
-                if (ackCount.decrementAndGet() == 0) {
-                    ackFuture.complete(null);
-                }
-            } finally {
-                ackLock.unlock();
+            CompletableFuture<Void> future = ackFuture;
+            if (ackCount.decrementAndGet() == 0) {
+                future.complete(null);
             }
         });
     }

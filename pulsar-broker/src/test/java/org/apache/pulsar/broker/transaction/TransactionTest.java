@@ -319,6 +319,51 @@ public class TransactionTest extends TransactionTestBase {
     }
 
     @Test
+    public void testAsyncSendOrAckForSingleFuture() throws Exception {
+        String topic = NAMESPACE1 + "/testSingleFuture";
+        int totalMessage = 100;
+        String topicName = "subscription";
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .create();
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscriptionName(topicName)
+                .subscribe();
+
+        ArrayList<CompletableFuture<MessageId>> sendFutures = new ArrayList<>();
+        ArrayList<CompletableFuture<Void>> ackFutures = new ArrayList<>();
+
+        Transaction transaction = pulsarClient.newTransaction()
+                .withTransactionTimeout(10, TimeUnit.SECONDS)
+                .build()
+                .get();
+
+        for (int i = 0; i < totalMessage; i++) {
+            producer.newMessage().send();
+        }
+
+        for (int i = 0; i < totalMessage; i++) {
+            CompletableFuture<MessageId> sendFuture = producer.newMessage(transaction).sendAsync();
+            sendFutures.add(sendFuture);
+            Message<byte[]> message = consumer.receive();
+            CompletableFuture<Void> ackFuture = consumer.acknowledgeAsync(message.getMessageId(), transaction);
+            ackFutures.add(ackFuture);
+        }
+
+        transaction.commit().get();
+
+        for (int i = 0; i < totalMessage; i++) {
+            Assert.assertTrue(sendFutures.get(i).isDone());
+            Assert.assertTrue(ackFutures.get(i).isDone());
+        }
+    }
+
+    @Test
     public void testGetTxnID() throws Exception {
         Transaction transaction = pulsarClient.newTransaction()
                 .build().get();
