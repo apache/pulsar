@@ -76,6 +76,7 @@ components in the Pulsar ecosystem, including connectors, adapters, and other la
 - [.NET/C# Client](https://github.com/apache/pulsar-dotpulsar)
 - [Go Client](https://github.com/apache/pulsar-client-go)
 - [NodeJS Client](https://github.com/apache/pulsar-client-node)
+- [Reactive Java Client](https://github.com/apache/pulsar-client-reactive)
 - [Ruby Client](https://github.com/apache/pulsar-client-ruby)
 
 ### Dashboard & Management Tools
