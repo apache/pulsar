@@ -52,6 +52,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -321,11 +322,16 @@ public class TransactionTest extends TransactionTestBase {
     @Test
     public void testAsyncSendOrAckForSingleFuture() throws Exception {
         String topic = NAMESPACE1 + "/testSingleFuture";
-        int totalMessage = 100;
+        int totalMessage = 10;
+        int threadSize = 30;
         String topicName = "subscription";
+        getPulsarServiceList().get(0).getConfig().setBrokerDeduplicationEnabled(false);
+        ExecutorService executorService = Executors.newFixedThreadPool(threadSize);
 
+        //build producer/consumer
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topic)
+                .producerName("producer")
                 .sendTimeout(0, TimeUnit.SECONDS)
                 .create();
 
@@ -334,30 +340,58 @@ public class TransactionTest extends TransactionTestBase {
                 .subscriptionType(SubscriptionType.Exclusive)
                 .subscriptionName(topicName)
                 .subscribe();
-
+        //store the send/ack result  futures
         ArrayList<CompletableFuture<MessageId>> sendFutures = new ArrayList<>();
         ArrayList<CompletableFuture<Void>> ackFutures = new ArrayList<>();
 
+        //send and ack messages with transaction
         Transaction transaction = pulsarClient.newTransaction()
                 .withTransactionTimeout(10, TimeUnit.SECONDS)
                 .build()
                 .get();
 
-        for (int i = 0; i < totalMessage; i++) {
+        for (int i = 0; i < totalMessage * threadSize; i++) {
             producer.newMessage().send();
         }
 
-        for (int i = 0; i < totalMessage; i++) {
-            CompletableFuture<MessageId> sendFuture = producer.newMessage(transaction).sendAsync();
-            sendFutures.add(sendFuture);
-            Message<byte[]> message = consumer.receive();
-            CompletableFuture<Void> ackFuture = consumer.acknowledgeAsync(message.getMessageId(), transaction);
-            ackFutures.add(ackFuture);
-        }
-
+        CountDownLatch countDownLatch = new CountDownLatch(threadSize);
+        new Thread(() -> {
+            for (int i = 0; i < threadSize; i++) {
+                executorService.submit(() -> {
+                    try {
+                        for (int j = 0; j < totalMessage; j++) {
+                            CompletableFuture<MessageId> sendFuture = producer.newMessage(transaction).sendAsync();
+                            sendFutures.add(sendFuture);
+                            Message<byte[]> message = consumer.receive();
+                            CompletableFuture<Void> ackFuture = consumer.acknowledgeAsync(message.getMessageId(),
+                                    transaction);
+                            ackFutures.add(ackFuture);
+                        }
+                        countDownLatch.countDown();
+                    } catch (Exception e) {
+                        log.error("Failed to send/ack messages with transaction.", e);
+                    }
+                });
+            }
+        }).start();
+        //wait the all send/ack op is excuted and store its futures in the arraylist.
+        countDownLatch.await(10, TimeUnit.SECONDS);
         transaction.commit().get();
 
-        for (int i = 0; i < totalMessage; i++) {
+        //verify the final status is right.
+        Field ackCountField = TransactionImpl.class.getDeclaredField("ackCount");
+        Field sendCountField = TransactionImpl.class.getDeclaredField("sendCount");
+
+        ackCountField.setAccessible(true);
+        sendCountField.setAccessible(true);
+
+        AtomicLong ackCount = (AtomicLong) ackCountField.get(transaction);
+        AtomicLong sendCount = (AtomicLong) sendCountField.get(transaction);
+
+        Assert.assertEquals(ackCount.get(), 0L);
+        Assert.assertEquals(sendCount.get(), 0L);
+
+        for (int i = 0; i < totalMessage * threadSize; i++) {
             Assert.assertTrue(sendFutures.get(i).isDone());
             Assert.assertTrue(ackFutures.get(i).isDone());
         }
