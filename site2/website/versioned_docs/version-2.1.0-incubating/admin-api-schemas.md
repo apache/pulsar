@@ -5,7 +5,7 @@ sidebar_label: "Schemas"
 original_id: admin-api-schemas
 ---
 
-Schemas, like other entities in Pulsar, can be managed using the [admin API](admin-api-overview). 
+Schemas, like other entities in Pulsar, can be managed using the [admin API](admin-api-overview.md). 
 
 ## Schema resources
 

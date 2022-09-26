@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.admin;
 
-import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -94,7 +93,6 @@ import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.zookeeper.KeeperException;
 import org.awaitility.Awaitility;
 import org.mockito.ArgumentCaptor;
-import org.powermock.reflect.Whitebox;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
@@ -149,9 +147,8 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
         PulsarResources resources =
                 spy(new PulsarResources(pulsar.getLocalMetadataStore(), pulsar.getConfigurationMetadataStore()));
-        doReturn(spyWithClassAndConstructorArgs(TopicResources.class, pulsar.getLocalMetadataStore())).when(resources)
-                .getTopicResources();
-        Whitebox.setInternalState(pulsar, "pulsarResources", resources);
+        doReturn(spy(new TopicResources(pulsar.getLocalMetadataStore()))).when(resources).getTopicResources();
+        doReturn(resources).when(pulsar).getPulsarResources();
 
         admin.clusters().createCluster("use", ClusterData.builder().serviceUrl("http://broker-use.com:8080").build());
         admin.clusters().createCluster("test", ClusterData.builder().serviceUrl("http://broker-use.com:8080").build());

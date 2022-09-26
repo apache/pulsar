@@ -29,12 +29,12 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
@@ -72,6 +72,21 @@ public class ManagedCursorContainerTest {
         @Override
         public Map<String, String> getCursorProperties() {
             return Collections.emptyMap();
+        }
+
+        @Override
+        public CompletableFuture<Void> putCursorProperty(String key, String value) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public CompletableFuture<Void> setCursorProperties(Map<String, String> cursorProperties) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public CompletableFuture<Void> removeCursorProperty(String key) {
+            return CompletableFuture.completedFuture(null);
         }
 
         @Override

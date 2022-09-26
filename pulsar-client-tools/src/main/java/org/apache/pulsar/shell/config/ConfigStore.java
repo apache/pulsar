@@ -19,7 +19,10 @@
 package org.apache.pulsar.shell.config;
 
 import java.io.IOException;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Scanner;
+import java.util.Set;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -50,4 +53,73 @@ public interface ConfigStore {
     void setLastUsed(String name) throws IOException;
 
     ConfigEntry getLastUsed() throws IOException;
+
+    static void cleanupValue(ConfigEntry entry) {
+        StringBuilder builder = new StringBuilder();
+        try (Scanner scanner = new Scanner(entry.getValue());) {
+            while (scanner.hasNextLine()) {
+                String line = scanner.nextLine().trim();
+                if (line.isBlank() || line.startsWith("#")) {
+                    continue;
+                }
+                builder.append(line);
+                builder.append(System.lineSeparator());
+            }
+        }
+        entry.setValue(builder.toString());
+    }
+
+    static void setProperty(ConfigEntry entry, String propertyName, String propertyValue) {
+        Set<String> keys = new HashSet<>();
+        StringBuilder builder = new StringBuilder();
+        try (Scanner scanner = new Scanner(entry.getValue());) {
+            while (scanner.hasNextLine()) {
+                String line = scanner.nextLine().trim();
+                if (line.isBlank() || line.startsWith("#")) {
+                    continue;
+                }
+                final String[] split = line.split("=", 2);
+                if (split.length > 0) {
+                    final String property = split[0];
+                    if (!keys.add(property)) {
+                        continue;
+                    }
+                    if (property.equals(propertyName)) {
+                        line = property + "=" + propertyValue;
+                    }
+                }
+                builder.append(line);
+                builder.append(System.lineSeparator());
+            }
+            if (!keys.contains(propertyName)) {
+                builder.append(propertyName + "=" + propertyValue);
+                builder.append(System.lineSeparator());
+            }
+        }
+        entry.setValue(builder.toString());
+    }
+
+    static String getProperty(ConfigEntry entry, String propertyName) {
+        try (Scanner scanner = new Scanner(entry.getValue());) {
+            while (scanner.hasNextLine()) {
+                String line = scanner.nextLine().trim();
+                if (line.isBlank() || line.startsWith("#")) {
+                    continue;
+                }
+                final String[] split = line.split("=", 2);
+                if (split.length > 0) {
+                    final String property = split[0];
+                    if (property.equals(propertyName)) {
+                        if (split.length > 1) {
+                            return split[1];
+                        }
+                        return null;
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+
 }

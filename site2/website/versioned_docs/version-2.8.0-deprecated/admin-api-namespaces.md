@@ -15,7 +15,7 @@ Pulsar [namespaces](reference-terminology.md#namespace) are logical groupings of
 
 Namespaces can be managed via:
 
-* The [`namespaces`](reference-pulsar-admin.md#clusters) command of the [`pulsar-admin`](reference-pulsar-admin) tool
+* The [`namespaces`](reference-pulsar-admin.md#clusters) command of the [`pulsar-admin`](reference-pulsar-admin.md) tool
 * The `/admin/v2/namespaces` endpoint of the admin {@inject: rest:REST:/} API
 * The `namespaces` method of the {@inject: javadoc:PulsarAdmin:/admin/org/apache/pulsar/client/admin/PulsarAdmin} object in the [Java API](client-libraries-java.md)
 
@@ -1273,7 +1273,7 @@ admin.namespaces().removeDeduplicationSnapshotInterval(namespace)
 
 ### Namespace isolation
 
-You can use the [Pulsar isolation policy](administration-isolation) to allocate resources (broker and bookie) for a namespace. 
+You can use the [Pulsar isolation policy](administration-isolation.md) to allocate resources (broker and bookie) for a namespace. 
 
 ### Unload namespaces from a broker
 

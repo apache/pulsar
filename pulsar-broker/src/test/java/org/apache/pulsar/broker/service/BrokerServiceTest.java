@@ -134,7 +134,6 @@ public class BrokerServiceTest extends BrokerTestBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
-        resetConfig();
     }
 
     // method for resetting state explicitly

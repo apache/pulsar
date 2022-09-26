@@ -79,7 +79,6 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
-        super.resetConfig();
     }
 
     @DataProvider(name = "subscriptions")
@@ -1195,7 +1194,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
     /**
      * Validates that backlog consumers cache the reads and reused by other backlog consumers while draining the
      * backlog.
-     * 
+     *
      * @throws Exception
      */
     @Test
