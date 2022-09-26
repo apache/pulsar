@@ -198,7 +198,11 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             @Nullable BatchMessageIdImpl batchMessageId,
             Function<MessageIdImpl, CompletableFuture<Void>> individualAckFunction,
             Function<BatchMessageIdImpl, CompletableFuture<Void>> batchAckFunction) {
-        consumer.onAcknowledge(msgId, null);
+        if (batchMessageId != null) {
+            consumer.onAcknowledge(batchMessageId, null);
+        } else {
+            consumer.onAcknowledge(msgId, null);
+        }
         if (batchMessageId == null || batchMessageId.ackIndividual()) {
             consumer.getStats().incrementNumAcksSent((batchMessageId != null) ? batchMessageId.getBatchSize() : 1);
             consumer.getUnAckedMessageTracker().remove(msgId);
@@ -224,7 +228,11 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                         __ -> doIndividualAck(__, properties),
                         __ -> doIndividualBatchAck(__, properties));
             case Cumulative:
-                consumer.onAcknowledgeCumulative(msgId, null);
+                if (batchMessageId != null) {
+                    consumer.onAcknowledgeCumulative(batchMessageId, null);
+                } else {
+                    consumer.onAcknowledgeCumulative(msgId, null);
+                }
                 if (batchMessageId == null || batchMessageId.ackCumulative()) {
                     return doCumulativeAck(msgId, properties, null);
                 } else if (batchIndexAckEnabled) {
