@@ -25,19 +25,23 @@ import java.util.concurrent.locks.Lock;
 public final class NoOpLock implements Lock {
     public static final NoOpLock INSTANCE = new NoOpLock();
 
+    @Override
     public void lock() {
     }
 
+    @Override
     public void lockInterruptibly() throws InterruptedException {
         if (Thread.interrupted()) {
             throw new InterruptedException();
         }
     }
 
+    @Override
     public boolean tryLock() {
         return true;
     }
 
+    @Override
     public boolean tryLock(long l, TimeUnit tu) throws InterruptedException {
         if (Thread.interrupted()) {
             throw new InterruptedException();
@@ -46,9 +50,11 @@ public final class NoOpLock implements Lock {
         }
     }
 
+    @Override
     public void unlock() {
     }
 
+    @Override
     public Condition newCondition() {
         throw new UnsupportedOperationException();
     }
