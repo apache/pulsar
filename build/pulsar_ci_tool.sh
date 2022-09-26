@@ -192,9 +192,24 @@ function ci_check_ready_to_test() {
 
   FORK_REPO_URL=$(jq -r '.pull_request.head.repo.html_url' "$GITHUB_EVENT_PATH")
   PR_BRANCH_LABEL=$(jq -r '.pull_request.head.label' "$GITHUB_EVENT_PATH")
+  PR_BASE_BRANCH=$(jq -r '.pull_request.base.ref' "$GITHUB_EVENT_PATH")
   PR_URL=$(jq -r '.pull_request.html_url' "$GITHUB_EVENT_PATH")
   FORK_PR_TITLE_URL_ENCODED=$(printf "%s" "${PR_JSON}" | jq -r '"[run-tests] " + .title | @uri')
   FORK_PR_BODY_URL_ENCODED=$(jq -n -r "\"This PR is for running tests for upstream PR ${PR_URL}.\n\n<!-- Before creating this PR, please ensure that the fork $FORK_REPO_URL is up to date with https://github.com/apache/pulsar -->\" | @uri")
+  if [[ "$PR_BASE_BRANCH" != "master" ]]; then
+    sync_non_master_fork_docs=$(cat <<EOF
+ \\$('\n')
+   If ${FORK_REPO_URL}/tree/${PR_BASE_BRANCH} is missing, you must sync the branch ${PR_BASE_BRANCH} on the command line.
+   \`\`\`
+   git fetch https://github.com/apache/pulsar ${PR_BASE_BRANCH}
+   git push ${FORK_REPO_URL} FETCH_HEAD:refs/heads/${PR_BASE_BRANCH}
+   \`\`\`
+EOF
+)
+  else
+    sync_non_master_fork_docs=""
+  fi
+
   >&2 tee -a "$GITHUB_STEP_SUMMARY" <<EOF
 
 # Instructions for proceeding with the pull request:
@@ -203,11 +218,12 @@ apache/pulsar pull requests should be first tested in your own fork since the ap
 GitHub Actions has constrained resources and quota. GitHub Actions provides separate quota for
 pull requests that are executed in a forked repository.
 
-1. Go to ${FORK_REPO_URL} and ensure that your branch is up to date with https://github.com/apache/pulsar
-   Sync your fork if it's behind.
+1. Go to ${FORK_REPO_URL}/tree/${PR_BASE_BRANCH} and ensure that your ${PR_BASE_BRANCH} branch is up to date
+   with https://github.com/apache/pulsar \\
+   [Sync your fork if it's behind.](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/syncing-a-fork)${sync_non_master_fork_docs}
 2. Open a pull request to your own fork. You can use this link to create the pull request in
    your own fork:
-   [Create PR in fork for running tests](${FORK_REPO_URL}/compare/master...${PR_BRANCH_LABEL}?expand=1&title=${FORK_PR_TITLE_URL_ENCODED}&body=${FORK_PR_BODY_URL_ENCODED})
+   [Create PR in fork for running tests](${FORK_REPO_URL}/compare/${PR_BASE_BRANCH}...${PR_BRANCH_LABEL}?expand=1&title=${FORK_PR_TITLE_URL_ENCODED}&body=${FORK_PR_BODY_URL_ENCODED})
 3. Edit the description of the pull request ${PR_URL} and add the link to the PR that you opened to your own fork
    so that the reviewer can verify that tests pass in your own fork.
 4. Ensure that tests pass in your own fork. Your own fork will be used to run the tests during the PR review

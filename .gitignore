@@ -27,7 +27,8 @@ pulsar-functions/worker/src/test/resources/
 .factorypath
 
 # IntelliJ
-.idea/
+.idea/*
+!.idea/vcs.xml
 *.iml
 *.iws
 

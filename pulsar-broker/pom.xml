@@ -339,6 +339,11 @@
     </dependency>
 
     <dependency>
+      <groupId>org.roaringbitmap</groupId>
+      <artifactId>RoaringBitmap</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-functions-api-examples</artifactId>
       <version>${project.version}</version>
