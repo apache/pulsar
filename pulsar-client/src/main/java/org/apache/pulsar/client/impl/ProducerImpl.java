@@ -487,10 +487,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             return;
         }
 
-        // Update the message metadata before computing the payload chunk size to avoid a large message cannot be split
-        // into chunks.
-        final long sequenceId = updateMessageMetadata(msgMetadata, uncompressedSize);
-
         // send in chunks
         int totalChunks;
         int payloadChunkSize;
@@ -528,6 +524,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         try {
             synchronized (this) {
+                // Update the message metadata before computing the payload chunk size to avoid a large message cannot be split
+                // into chunks.
+                final long sequenceId = updateMessageMetadata(msgMetadata, uncompressedSize);
+
                 int readStartIndex = 0;
                 String uuid = totalChunks > 1 ? String.format("%s-%d", producerName, sequenceId) : null;
                 ChunkedMessageCtx chunkedMessageCtx = totalChunks > 1 ? ChunkedMessageCtx.get(totalChunks) : null;
