@@ -18,40 +18,40 @@
  */
 package org.apache.pulsar.broker.stats.prometheus.metrics;
 
-import io.prometheus.client.Collector;
-import io.prometheus.client.Collector.MetricFamilySamples;
-import io.prometheus.client.Collector.MetricFamilySamples.Sample;
-import io.prometheus.client.CollectorRegistry;
-import java.util.Enumeration;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
 
 /**
  * Logic to write metrics in Prometheus text format.
  */
 public class PrometheusTextFormat {
-    public static void writeGauge(SimpleTextOutputStream w, String name, SimpleGauge<? extends Number> gauge) {
+
+    Set<String> metricNameSet = new HashSet<>();
+
+    public void writeGauge(SimpleTextOutputStream w, String name, SimpleGauge<? extends Number> gauge) {
         // Example:
         // # TYPE bookie_storage_entries_count gauge
         // bookie_storage_entries_count 519
-        w.write("# TYPE ").write(name).write(" gauge\n");
+        writeType(w, name, "gauge");
         w.write(name);
         writeLabels(w, gauge.getLabels());
         w.write(' ').write(gauge.getSample().toString()).write('\n');
 
     }
 
-    public static void writeCounter(SimpleTextOutputStream w, String name, LongAdderCounter counter) {
+    public void writeCounter(SimpleTextOutputStream w, String name, LongAdderCounter counter) {
         // Example:
         // # TYPE jvm_threads_started_total counter
         // jvm_threads_started_total 59
-        w.write("# TYPE ").write(name).write(" counter\n");
+        writeType(w, name, "counter");
         w.write(name);
         writeLabels(w, counter.getLabels());
         w.write(' ').write(counter.get().toString()).write('\n');
     }
 
-    public static void writeOpStat(SimpleTextOutputStream w, String name, DataSketchesOpStatsLogger opStat) {
+    public void writeOpStat(SimpleTextOutputStream w, String name, DataSketchesOpStatsLogger opStat) {
         // Example:
         // # TYPE bookie_journal_JOURNAL_ADD_ENTRY summary
         // bookie_journal_JOURNAL_ADD_ENTRY{success="false",quantile="0.5",} NaN
@@ -72,7 +72,7 @@ public class PrometheusTextFormat {
         // bookie_journal_JOURNAL_ADD_ENTRY{success="true",quantile="1.0",} 10.902
         // bookie_journal_JOURNAL_ADD_ENTRY_count{success="true",} 658.0
         // bookie_journal_JOURNAL_ADD_ENTRY_sum{success="true",} 1265.0800000000002
-        w.write("# TYPE ").write(name).write(" summary\n");
+        writeType(w, name, "summary");
         writeQuantile(w, opStat, name, false, 0.5);
         writeQuantile(w, opStat, name, false, 0.75);
         writeQuantile(w, opStat, name, false, 0.95);
@@ -94,7 +94,7 @@ public class PrometheusTextFormat {
         writeSum(w, opStat, name, true);
     }
 
-    private static void writeQuantile(SimpleTextOutputStream w, DataSketchesOpStatsLogger opStat, String name,
+    private void writeQuantile(SimpleTextOutputStream w, DataSketchesOpStatsLogger opStat, String name,
                                       Boolean success, double quantile) {
         w.write(name)
                 .write("{success=\"").write(success.toString())
@@ -109,7 +109,7 @@ public class PrometheusTextFormat {
                 .write(Double.toString(opStat.getQuantileValue(success, quantile))).write('\n');
     }
 
-    private static void writeCount(SimpleTextOutputStream w, DataSketchesOpStatsLogger opStat, String name,
+    private void writeCount(SimpleTextOutputStream w, DataSketchesOpStatsLogger opStat, String name,
                                    Boolean success) {
         w.write(name).write("_count{success=\"").write(success.toString());
         if (!opStat.getLabels().isEmpty()) {
@@ -122,7 +122,7 @@ public class PrometheusTextFormat {
                 .write(Long.toString(opStat.getCount(success))).write('\n');
     }
 
-    private static void writeSum(SimpleTextOutputStream w, DataSketchesOpStatsLogger opStat, String name,
+    private void writeSum(SimpleTextOutputStream w, DataSketchesOpStatsLogger opStat, String name,
                                  Boolean success) {
         w.write(name).write("_sum{success=\"").write(success.toString());
         if (!opStat.getLabels().isEmpty()) {
@@ -135,33 +135,7 @@ public class PrometheusTextFormat {
                 .write(Double.toString(opStat.getSum(success))).write('\n');
     }
 
-    public static void writeMetricsCollectedByPrometheusClient(SimpleTextOutputStream w, CollectorRegistry registry) {
-        Enumeration<MetricFamilySamples> metricFamilySamples = registry.metricFamilySamples();
-        while (metricFamilySamples.hasMoreElements()) {
-            MetricFamilySamples metricFamily = metricFamilySamples.nextElement();
-
-            for (int i = 0; i < metricFamily.samples.size(); i++) {
-                Sample sample = metricFamily.samples.get(i);
-                w.write(sample.name);
-                w.write('{');
-                for (int j = 0; j < sample.labelNames.size(); j++) {
-                    if (j != 0) {
-                        w.write(", ");
-                    }
-                    w.write(sample.labelNames.get(j));
-                    w.write("=\"");
-                    w.write(sample.labelValues.get(j));
-                    w.write('"');
-                }
-
-                w.write("} ");
-                w.write(Collector.doubleToGoString(sample.value));
-                w.write('\n');
-            }
-        }
-    }
-
-    private static void writeLabels(SimpleTextOutputStream w, Map<String, String> labels) {
+    private void writeLabels(SimpleTextOutputStream w, Map<String, String> labels) {
         if (labels.isEmpty()) {
             return;
         }
@@ -171,7 +145,7 @@ public class PrometheusTextFormat {
         w.write('}');
     }
 
-    private static void writeLabelsNoBraces(SimpleTextOutputStream w, Map<String, String> labels) {
+    private void writeLabelsNoBraces(SimpleTextOutputStream w, Map<String, String> labels) {
         if (labels.isEmpty()) {
             return;
         }
@@ -187,5 +161,19 @@ public class PrometheusTextFormat {
                     .write(e.getValue())
                     .write('"');
         }
+    }
+
+    /**
+     * In order to avoid print multiple `# TYPE` header for the same metric name.
+     * @param w
+     * @param name
+     * @param type
+     */
+    void writeType(SimpleTextOutputStream w, String name, String type) {
+        if (metricNameSet.contains(name)) {
+            return;
+        }
+        metricNameSet.add(name);
+        w.write("# TYPE ").write(name).write(" ").write(type).write("\n");
     }
 }

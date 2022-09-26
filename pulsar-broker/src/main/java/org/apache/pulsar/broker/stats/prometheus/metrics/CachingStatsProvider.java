@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.stats.prometheus.metrics;
 
+import java.util.Collections;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import org.apache.bookkeeper.stats.StatsLogger;
@@ -37,7 +38,7 @@ public class CachingStatsProvider implements StatsProvider {
 
     public CachingStatsProvider(StatsProvider provider) {
         this.underlying = provider;
-        this.statsLoggers = new ConcurrentHashMap<String, StatsLogger>();
+        this.statsLoggers = new ConcurrentHashMap<>();
     }
 
     @Override
@@ -52,13 +53,8 @@ public class CachingStatsProvider implements StatsProvider {
 
     @Override
     public StatsLogger getStatsLogger(String scope) {
-        StatsLogger statsLogger = statsLoggers.get(scope);
-        if (null == statsLogger) {
-            StatsLogger newStatsLogger = underlying.getStatsLogger(scope);
-            StatsLogger oldStatsLogger = statsLoggers.putIfAbsent(scope, newStatsLogger);
-            statsLogger = (null == oldStatsLogger) ? newStatsLogger : oldStatsLogger;
-        }
-        return statsLogger;
+        return statsLoggers.computeIfAbsent(scope,
+            x -> new CachingStatsLogger(scope, underlying.getStatsLogger(scope), Collections.emptyMap()));
     }
 
     @Override

@@ -22,6 +22,7 @@ import com.google.common.base.Joiner;
 import io.prometheus.client.Collector;
 import java.util.Map;
 import java.util.TreeMap;
+import lombok.Getter;
 import org.apache.bookkeeper.stats.Counter;
 import org.apache.bookkeeper.stats.Gauge;
 import org.apache.bookkeeper.stats.OpStatsLogger;
@@ -33,7 +34,9 @@ import org.apache.bookkeeper.stats.StatsLogger;
 public class PrometheusStatsLogger implements StatsLogger {
 
     private final PrometheusMetricsProvider provider;
+    @Getter
     private final String scope;
+    @Getter
     private final Map<String, String> labels;
 
     PrometheusStatsLogger(PrometheusMetricsProvider provider, String scope, Map<String, String> labels) {

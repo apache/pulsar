@@ -121,10 +121,11 @@ public class PrometheusMetricsProvider implements StatsProvider, PrometheusRawMe
 
     @Override
     public void generate(SimpleTextOutputStream writer) {
-        gauges.forEach((sc, gauge) -> PrometheusTextFormat.writeGauge(writer, sc.getScope(), gauge));
-        counters.forEach((sc, counter) -> PrometheusTextFormat.writeCounter(writer, sc.getScope(), counter));
+        PrometheusTextFormat prometheusTextFormat = new PrometheusTextFormat();
+        gauges.forEach((sc, gauge) -> prometheusTextFormat.writeGauge(writer, sc.getScope(), gauge));
+        counters.forEach((sc, counter) -> prometheusTextFormat.writeCounter(writer, sc.getScope(), counter));
         opStats.forEach((sc, opStatLogger) ->
-                PrometheusTextFormat.writeOpStat(writer, sc.getScope(), opStatLogger));
+                prometheusTextFormat.writeOpStat(writer, sc.getScope(), opStatLogger));
     }
 
     public String getStatsName(String... statsComponents) {

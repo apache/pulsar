@@ -44,12 +44,15 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Random;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.crypto.SecretKey;
 import javax.naming.AuthenticationException;
 import lombok.Cleanup;
@@ -89,12 +92,14 @@ import org.testng.annotations.Test;
 
 @Test(groups = "flaky")
 public class PrometheusMetricsTest extends BrokerTestBase {
+    private static final int MANAGED_LEDGER_SCHEDULER_THREADS_NUM = 4;
 
     @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         conf.setTopicLevelPoliciesEnabled(false);
         conf.setSystemTopicEnabled(false);
+        conf.setManagedLedgerNumSchedulerThreads(MANAGED_LEDGER_SCHEDULER_THREADS_NUM);
         super.baseSetup();
         AuthenticationProviderToken.resetMetrics();
     }
@@ -1010,26 +1015,43 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
         List<Metric> cm = (List<Metric>) metrics.get(keyNameBySubstrings(metrics,
                 "pulsar_managedLedger_client", "bookkeeper_ml_scheduler_completed_tasks"));
-        assertEquals(cm.size(), 1);
+        assertEquals(cm.size(), MANAGED_LEDGER_SCHEDULER_THREADS_NUM);
         assertEquals(cm.get(0).tags.get("cluster"), "test");
+        // check thread labels
+        Set<String> threads = Stream.of("0", "1", "2", "3").collect(Collectors.toSet());
+        for (Metric metric : cm) {
+            threads.remove(metric.tags.get("thread"));
+        }
+        assertTrue(threads.isEmpty());
 
         cm = (List<Metric>) metrics.get(
                 keyNameBySubstrings(metrics,
                         "pulsar_managedLedger_client", "bookkeeper_ml_scheduler_queue"));
-        assertEquals(cm.size(), 1);
+        assertEquals(cm.size(), MANAGED_LEDGER_SCHEDULER_THREADS_NUM);
         assertEquals(cm.get(0).tags.get("cluster"), "test");
+        threads = Stream.of("0", "1", "2", "3").collect(Collectors.toSet());
+        for (Metric metric : cm) {
+            threads.remove(metric.tags.get("thread"));
+        }
+        assertTrue(threads.isEmpty());
 
         cm = (List<Metric>) metrics.get(
                 keyNameBySubstrings(metrics,
                         "pulsar_managedLedger_client", "bookkeeper_ml_scheduler_total_tasks"));
-        assertEquals(cm.size(), 1);
+        assertEquals(cm.size(), MANAGED_LEDGER_SCHEDULER_THREADS_NUM);
         assertEquals(cm.get(0).tags.get("cluster"), "test");
+        threads = Stream.of("0", "1", "2", "3").collect(Collectors.toSet());
+        for (Metric metric : cm) {
+            threads.remove(metric.tags.get("thread"));
+        }
+        assertTrue(threads.isEmpty());
 
         cm = (List<Metric>) metrics.get(
                 keyNameBySubstrings(metrics,
                         "pulsar_managedLedger_client", "bookkeeper_ml_scheduler_threads"));
         assertEquals(cm.size(), 1);
         assertEquals(cm.get(0).tags.get("cluster"), "test");
+        assertEquals((int) (cm.get(0).value), MANAGED_LEDGER_SCHEDULER_THREADS_NUM);
 
         cm = (List<Metric>) metrics.get(
                 keyNameBySubstrings(metrics,
@@ -1654,14 +1676,13 @@ public class PrometheusMetricsTest extends BrokerTestBase {
             final String metricsEndPoint = getPulsar().getWebServiceAddress() + "/metrics";
             HttpResponse response = httpClient.execute(new HttpGet(metricsEndPoint));
             Multimap<String, Metric> metrics = parseMetrics(EntityUtils.toString(response.getEntity()));
-            if (((List<Metric>) metrics.get("test_raw_writeLatency_count"))
-                .get(0).tags.get("success").equals("false")) {
-                assertEquals(((List<Metric>) metrics.get("test_raw_writeLatency_count")).get(1).value, 1);
+            List<Metric> subMetrics = (List<Metric>) metrics.get("test_raw_writeLatency_count");
+            if (subMetrics.get(0).tags.get("success").equals("false")) {
+                assertEquals(subMetrics.get(1).value, 1);
             } else {
-                assertEquals(((List<Metric>) metrics.get("test_raw_writeLatency_count")).get(0).value, 1);
+                assertEquals(subMetrics.get(0).value, 1);
             }
-            assertEquals(((List<Metric>) metrics.get("test_raw_writeLatency_count")).get(0).tags.get("topic"),
-                "persistent://public/default/test-v1");
+            assertEquals(subMetrics.get(0).tags.get("topic"), "persistent://public/default/test-v1");
         } finally {
             rawMetricsProvider.stop();
         }
