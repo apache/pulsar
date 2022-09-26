@@ -178,7 +178,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private final ConcurrentOpenHashMap<String/*ShadowTopic*/, Replicator> shadowReplicators;
     @Getter
     private volatile List<String> shadowTopics;
-    @Getter
     private final TopicName shadowSourceTopic;
 
     static final String DEDUPLICATION_CURSOR_NAME = "pulsar.dedup";
@@ -3336,5 +3335,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     public long getLastDataMessagePublishedTimestamp() {
         return lastDataMessagePublishedTimestamp;
+    }
+
+    public Optional<TopicName> getShadowSourceTopic() {
+        return Optional.ofNullable(shadowSourceTopic);
     }
 }

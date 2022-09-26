@@ -2738,7 +2738,7 @@ public class TopicsImpl extends BaseResource implements Topics {
                 shadowProperties.putAll(properties);
             }
             shadowProperties.put(PROPERTY_SHADOW_SOURCE_KEY, sourceTopic);
-            if (sourceTopicMeta.partitions == 0) {
+            if (sourceTopicMeta.partitions == PartitionedTopicMetadata.NON_PARTITIONED) {
                 return createNonPartitionedTopicAsync(shadowTopic, shadowProperties);
             } else {
                 return createPartitionedTopicAsync(shadowTopic, sourceTopicMeta.partitions, shadowProperties);

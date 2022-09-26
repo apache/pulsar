@@ -1415,7 +1415,7 @@ public class BrokerService implements Closeable {
             TopicName partitionedTopicName = TopicName.get(topicName.getPartitionedTopicName());
             return fetchPartitionedTopicMetadataAsync(partitionedTopicName)
                     .thenCompose(metadata -> {
-                        if (metadata.partitions == 0) {
+                        if (metadata.partitions == PartitionedTopicMetadata.NON_PARTITIONED) {
                             return managedLedgerFactory.getManagedLedgerPropertiesAsync(
                                     topicName.getPersistenceNamingEncoding());
                         }
@@ -1438,8 +1438,14 @@ public class BrokerService implements Closeable {
                         } else {
                             propertiesFuture = CompletableFuture.completedFuture(properties);
                         }
-                        propertiesFuture.thenAccept(finalProperties->
-                                createPersistentTopic(topic, createIfMissing, topicFuture, finalProperties));
+                        propertiesFuture.thenAccept(finalProperties ->
+                                createPersistentTopic(topic, createIfMissing, topicFuture, finalProperties)
+                        ).exceptionally(throwable -> {
+                            log.warn("[{}] Read topic property failed", topic, throwable);
+                            pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
+                            topicFuture.completeExceptionally(throwable);
+                            return null;
+                        });
                     } else {
                         // namespace is being unloaded
                         String msg = String.format("Namespace is being unloaded, cannot add topic %s", topic);

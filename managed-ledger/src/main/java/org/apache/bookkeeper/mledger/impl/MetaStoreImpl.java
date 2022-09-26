@@ -23,6 +23,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.Unpooled;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -154,7 +155,7 @@ public class MetaStoreImpl implements MetaStore {
         getManagedLedgerInfo(name, false, new MetaStoreCallback<>() {
             @Override
             public void operationComplete(MLDataFormats.ManagedLedgerInfo mlInfo, Stat stat) {
-                HashMap<String, String> propertiesMap = new HashMap<>();
+                HashMap<String, String> propertiesMap = new HashMap<>(mlInfo.getPropertiesCount());
                 if (mlInfo.getPropertiesCount() > 0) {
                     for (int i = 0; i < mlInfo.getPropertiesCount(); i++) {
                         MLDataFormats.KeyValue property = mlInfo.getProperties(i);
@@ -167,7 +168,7 @@ public class MetaStoreImpl implements MetaStore {
             @Override
             public void operationFailed(MetaStoreException e) {
                 if (e instanceof MetadataNotFoundException) {
-                    result.complete(null);
+                    result.complete(Collections.emptyMap());
                 } else {
                     result.completeExceptionally(e);
                 }
