@@ -3760,7 +3760,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         if (bkErrorCode == BKException.Code.TooManyRequestsException) {
             return new TooManyRequestsException("Too many request error from bookies");
         } else if (isBkErrorNotRecoverable(bkErrorCode)) {
-            return new NonRecoverableLedgerException(BKException.getMessage(bkErrorCode));
+            return new NonRecoverableLedgerException(BKException.getMessage(bkErrorCode), bkErrorCode);
         } else {
             return new ManagedLedgerException(BKException.getMessage(bkErrorCode));
         }

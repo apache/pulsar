@@ -142,8 +142,18 @@ public class ManagedLedgerException extends Exception {
     }
 
     public static class NonRecoverableLedgerException extends ManagedLedgerException {
+        private Integer bkErrorCode; // null means ledger not exists or deleted
         public NonRecoverableLedgerException(String msg) {
             super(msg);
+        }
+
+        public NonRecoverableLedgerException(String msg, Integer bkErrorCode) {
+            super(msg);
+            this.bkErrorCode = bkErrorCode;
+        }
+
+        public Integer getBkErrorCode() {
+            return bkErrorCode;
         }
     }
 

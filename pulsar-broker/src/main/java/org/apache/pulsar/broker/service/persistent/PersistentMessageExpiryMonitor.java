@@ -22,6 +22,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
+import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.FindEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -191,9 +192,38 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback {
                 && (exception instanceof NonRecoverableLedgerException)) {
             log.warn("[{}][{}] read failed from ledger at position:{} : {}", topicName, subName, failedReadPosition,
                     exception.getMessage());
-            findEntryComplete(failedReadPosition.get(), ctx);
+            if (isLedgerNotExistException(((NonRecoverableLedgerException) exception).getBkErrorCode())) {
+                try {
+                    long failedLedgerId = failedReadPosition.get().getLedgerId();
+                    Position lastPositionInLedger = PositionImpl.get(failedLedgerId,
+                            cursor.getManagedLedger().getLedgerInfo(failedLedgerId).get().getEntries() - 1);
+                    log.info("[{}][{}] ledger not existed, will complete the last position of the non-existed"
+                                    + " ledger:{}", topicName, subName, lastPositionInLedger);
+                    findEntryComplete(lastPositionInLedger, ctx);
+                } catch (Exception e) {
+                  log.warn("[{}][{}] failed to expire not existed ledger, try to just expire failed position:{} : {}",
+                          topicName, subName, failedReadPosition, e.getMessage());
+                    findEntryComplete(failedReadPosition.get(), ctx);
+                }
+            } else {
+                findEntryComplete(failedReadPosition.get(), ctx);
+            }
         }
         expirationCheckInProgress = FALSE;
         updateRates();
+    }
+
+    private boolean isLedgerNotExistException(Integer bkErrorCode) {
+        if (bkErrorCode == null) {
+            return true;
+        }
+        switch (bkErrorCode) {
+            case BKException.Code.NoSuchLedgerExistsException:
+            case BKException.Code.NoSuchLedgerExistsOnMetadataServerException:
+                return true;
+
+            default:
+                return false;
+        }
     }
 }
