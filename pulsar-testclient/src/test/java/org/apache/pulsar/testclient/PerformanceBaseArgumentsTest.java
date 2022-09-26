@@ -23,6 +23,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import static org.apache.pulsar.client.api.ProxyProtocol.SNI;
+
 
 public class PerformanceBaseArgumentsTest {
 
@@ -47,6 +49,8 @@ public class PerformanceBaseArgumentsTest {
         Assert.assertEquals(args.tlsTrustCertsFilePath, "./path");
         Assert.assertTrue(args.tlsAllowInsecureConnection);
         Assert.assertTrue(args.tlsHostnameVerificationEnable);
+        Assert.assertEquals(args.proxyServiceURL, "https://my-proxy-pulsar:4443/");
+        Assert.assertEquals(args.proxyProtocol, SNI);
     }
 
 }

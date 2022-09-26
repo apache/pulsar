@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.Properties;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
@@ -71,6 +72,8 @@ public class PerfClientUtilsTest {
         args.tlsTrustCertsFilePath = "path";
         args.tlsAllowInsecureConnection = true;
         args.maxLookupRequest = 100000;
+        args.proxyServiceURL = "pulsar+ssl://my-proxy-pulsar:4443";
+        args.proxyProtocol = ProxyProtocol.SNI;
 
         final ClientBuilderImpl builder = (ClientBuilderImpl)PerfClientUtils.createClientBuilderFromArguments(args);
         final ClientConfigurationData conf = builder.getClientConfigurationData();
@@ -88,6 +91,8 @@ public class PerfClientUtilsTest {
         Assert.assertEquals(conf.getTlsTrustCertsFilePath(), "path");
         Assert.assertTrue(conf.isTlsAllowInsecureConnection());
         Assert.assertEquals(conf.getMaxLookupRequest(), 100000);
+        Assert.assertEquals(conf.getProxyServiceUrl(), "pulsar+ssl://my-proxy-pulsar:4443");
+        Assert.assertEquals(conf.getProxyProtocol(), ProxyProtocol.SNI);
 
     }
 }
