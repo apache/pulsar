@@ -19,10 +19,10 @@
 
 -->
 <!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd" >
-<suite name="Pulsar (Proxy with WebSocket) Integration Tests" verbose="2" annotations="JDK">
+<suite name="WebSocket Integration Tests" verbose="2" annotations="JDK">
     <test name="messaging-test-suite" preserve-order="true">
         <classes>
-            <class name="org.apache.pulsar.tests.integration.proxy.TestProxyWithWebSocket" />
+            <class name="org.apache.pulsar.tests.integration.websocket.TestWebSocket" />
         </classes>
     </test>
 </suite>
