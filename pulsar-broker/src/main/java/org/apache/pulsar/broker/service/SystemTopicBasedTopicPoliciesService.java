@@ -395,7 +395,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                   } else {
                       Throwable cause = FutureUtil.unwrapCompletionException(ex);
                       if (cause instanceof PulsarClientException.AlreadyClosedException) {
-                          log.error("Read more topic policies exception, close the read now!", ex);
+                          log.warn("Read more topic policies exception, close the read now!", ex);
                           cleanCacheAndCloseReader(
                                   reader.getSystemTopic().getTopicName().getNamespaceObject(), false);
                       } else {
