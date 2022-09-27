@@ -60,11 +60,11 @@ Moreover, as the administrator has full control of the CA, a bad actor is unlike
 
 ## Configure TLS encryption with PEM
 
-By default, Pulsar uses [netty-tcnative](https://github.com/netty/netty-tcnative), which includes two implementations, `OpenSSL` (default) and `JDK`. When `OpenSSL` is unavailable, `JDK` is used.
+By default, Pulsar uses [netty-tcnative](https://github.com/netty/netty-tcnative). It includes two implementations, `OpenSSL` (default) and `JDK`. When `OpenSSL` is unavailable, `JDK` is used.
 
 ### Create TLS certificates
 
-Creating TLS certificates involves creating a [certificate authority](#create-a-certificate-authority), a [server certificate](#create-a-server-certificate), and a client certificate](#create-a-client-certificate).
+Creating TLS certificates involves creating a [certificate authority](#create-a-certificate-authority), a [server certificate](#create-a-server-certificate), and a [client certificate](#create-a-client-certificate).
 
 #### Create a certificate authority
 
@@ -105,7 +105,7 @@ Creating TLS certificates involves creating a [certificate authority](#create-a-
    export PATH="/usr/local/Cellar/openssl@3/3.0.1/bin:$PATH"
    ```
 
-   Use the actual path from the output of the `brew install` command. Note that version number `3.0.1`` might change. 
+   Use the actual path from the output of the `brew install` command. Note that version number `3.0.1` might change. 
 
    :::
 
@@ -377,7 +377,7 @@ keytool -importcert -keystore broker.truststore.jks ${BROKER_COMMON_PARAMS} -fil
  
 :::note
  
-To enable [hostname verification](#hostname-verification), configure the Subject Alternative Name (SAN) by appending `-ext SAN=IP:127.0.0.1,IP:192.168.20.2,DNS:broker.example.com` to `BROKER_COMMON_PARAMS`.
+To enable [hostname verification](#hostname-verification), configure the Subject Alternative Name (SAN) by appending ` -ext SAN=IP:127.0.0.1,IP:192.168.20.2,DNS:broker.example.com` to the value of `BROKER_COMMON_PARAMS`.
 
 :::
 
@@ -417,9 +417,7 @@ To disable non-TLS ports, you need to set the values of `brokerServicePort` and 
 
 Optional settings:
 1. `tlsRequireTrustedClientCertOnConnect=true`: Enable TLS authentication on both brokers and clients for mutual TLS. When enabled, it authenticates the other end of the communication channel.
-2. `tlsCiphers=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256`: A cipher suite is a named combination of authentication, encryption, MAC and key exchange algorithm used to negotiate the security settings for a network connection using TLS network protocol. 
-   By default, it is null. [OpenSSL Ciphers](https://www.openssl.org/docs/man1.0.2/apps/ciphers.html)
-   [JDK Ciphers](http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#ciphersuites)
+2. `tlsCiphers=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256`: A cipher suite is a named combination of authentication, encryption, MAC and key exchange algorithm used to negotiate the security settings for a network connection using TLS network protocol. By default, it is null. See [OpenSSL Ciphers](https://www.openssl.org/docs/man1.0.2/apps/ciphers.html) and [JDK Ciphers](http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#ciphersuites) for more details.
 3. `tlsProtocols=TLSv1.3,TLSv1.2`: List out the TLS protocols that you are going to accept from clients. By default, it is not set.
 
 ### Configure proxies

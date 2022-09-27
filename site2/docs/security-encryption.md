@@ -35,8 +35,6 @@ If produced messages are consumed across application boundaries, you need to ens
 
 ## Get started
 
-[Pulsar encryption](security-encryption.md) allows clients to encrypt messages at producers and decrypt messages at consumers.
-
 ## Prerequisites
 
 * Pulsar Java/Python/C++/Node.js client 2.7.1 or later versions.
