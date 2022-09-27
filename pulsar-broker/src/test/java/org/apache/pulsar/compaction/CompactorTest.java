@@ -86,7 +86,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
         BookKeeper bk = pulsar.getBookKeeperClientFactory().create(
                 this.conf, null, null, Optional.empty(), null);
         Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
-        long compactedLedgerId = compactor.compact(topic).get();
+        long compactedLedgerId = compactor.compact(topic, null).get();
 
         LedgerHandle ledger = bk.openLedger(compactedLedgerId,
                                             Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE,
@@ -230,7 +230,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
         BookKeeper bk = pulsar.getBookKeeperClientFactory().create(
                 this.conf, null, null, Optional.empty(), null);
         Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
-        compactor.compact(topic).get();
+        compactor.compact(topic, null).get();
     }
 
     @Test

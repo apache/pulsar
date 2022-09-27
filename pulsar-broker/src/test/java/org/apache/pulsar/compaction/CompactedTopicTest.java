@@ -665,7 +665,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
 
         producer.newMessage().key("k").value(("value").getBytes()).send();
         producer.newMessage().key("k").value(null).send();
-        pulsar.getCompactor().compact(topic).get();
+        pulsar.getCompactor().compact(topic, null).get();
 
         Awaitility.await()
                 .pollInterval(3, TimeUnit.SECONDS)

@@ -261,7 +261,7 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
                 new ThreadFactoryBuilder().setNameFormat("compactor").setDaemon(true).build());
         TwoPhaseCompactor twoPhaseCompactor = new TwoPhaseCompactor(config,
                 pulsarClient, pulsar.getBookKeeperClient(), compactionScheduler);
-        twoPhaseCompactor.compact(sourceTopic).get();
+        twoPhaseCompactor.compact(sourceTopic, null).get();
 
         // 4 Setup function
         // set source topic to null because we are setting the topic information separately

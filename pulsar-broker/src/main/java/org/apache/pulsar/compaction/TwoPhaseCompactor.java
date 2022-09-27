@@ -24,13 +24,17 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
+import org.apache.bookkeeper.client.api.ReadHandle;
+import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.impl.LedgerMetadataUtils;
 import org.apache.commons.lang3.tuple.ImmutableTriple;
 import org.apache.commons.lang3.tuple.Pair;
@@ -71,12 +75,12 @@ public class TwoPhaseCompactor extends Compactor {
     }
 
     @Override
-    protected CompletableFuture<Long> doCompaction(RawReader reader, BookKeeper bk) {
+    protected CompletableFuture<Long> doCompaction(RawReader reader, BookKeeper bk, LedgerOffloader offloader) {
         return reader.hasMessageAvailableAsync()
                 .thenCompose(available -> {
                     if (available) {
                         return phaseOne(reader).thenCompose(
-                                (r) -> phaseTwo(reader, r.from, r.to, r.lastReadId, r.latestForKey, bk));
+                                (r) -> phaseTwo(reader, r.from, r.to, r.lastReadId, r.latestForKey, bk, offloader));
                     } else {
                         log.info("Skip compaction of the empty topic {}", reader.getTopic());
                         return CompletableFuture.completedFuture(-1L);
@@ -184,24 +188,31 @@ public class TwoPhaseCompactor extends Compactor {
     }
 
     private CompletableFuture<Long> phaseTwo(RawReader reader, MessageId from, MessageId to, MessageId lastReadId,
-            Map<String, MessageId> latestForKey, BookKeeper bk) {
+            Map<String, MessageId> latestForKey, BookKeeper bk, LedgerOffloader offloader) {
         Map<String, byte[]> metadata =
                 LedgerMetadataUtils.buildMetadataForCompactedLedger(reader.getTopic(), to.toByteArray());
         return createLedger(bk, metadata).thenCompose((ledger) -> {
             log.info("Commencing phase two of compaction for {}, from {} to {}, compacting {} keys to ledger {}",
                     reader.getTopic(), from, to, latestForKey.size(), ledger.getId());
-            return phaseTwoSeekThenLoop(reader, from, to, lastReadId, latestForKey, bk, ledger);
+            return phaseTwoSeekThenLoop(reader, from, to, lastReadId, latestForKey, bk, ledger, offloader);
         });
     }
 
     private CompletableFuture<Long> phaseTwoSeekThenLoop(RawReader reader, MessageId from, MessageId to,
-            MessageId lastReadId, Map<String, MessageId> latestForKey, BookKeeper bk, LedgerHandle ledger) {
+            MessageId lastReadId, Map<String, MessageId> latestForKey, BookKeeper bk, LedgerHandle ledger,
+                                                         LedgerOffloader offloader) {
         CompletableFuture<Long> promise = new CompletableFuture<>();
 
         reader.seekAsync(from).thenCompose((v) -> {
             Semaphore outstanding = new Semaphore(MAX_OUTSTANDING);
             CompletableFuture<Void> loopPromise = new CompletableFuture<>();
-            phaseTwoLoop(reader, to, latestForKey, ledger, outstanding, loopPromise);
+            ReadHandle readHandle = null;
+            try {
+                readHandle = bk.newOpenLedgerOp().withLedgerId(ledger.getId()).execute().get();
+            } catch (InterruptedException | ExecutionException e) {
+                e.printStackTrace();
+            }
+            phaseTwoLoop(reader, to, latestForKey, ledger, outstanding, loopPromise, offloader, readHandle);
             return loopPromise;
         }).thenCompose((v) -> closeLedger(ledger))
                 .thenCompose((v) -> reader.acknowledgeCumulativeAsync(lastReadId,
@@ -223,7 +234,8 @@ public class TwoPhaseCompactor extends Compactor {
     }
 
     private void phaseTwoLoop(RawReader reader, MessageId to, Map<String, MessageId> latestForKey,
-                              LedgerHandle lh, Semaphore outstanding, CompletableFuture<Void> promise) {
+                              LedgerHandle lh, Semaphore outstanding, CompletableFuture<Void> promise ,
+                              LedgerOffloader offloader, ReadHandle readHandle) {
         if (promise.isDone()) {
             return;
         }
@@ -264,7 +276,8 @@ public class TwoPhaseCompactor extends Compactor {
                     RawMessage message = messageToAdd.get();
                     try {
                         outstanding.acquire();
-                        CompletableFuture<Void> addFuture = addToCompactedLedger(lh, message, reader.getTopic())
+                        CompletableFuture<Void> addFuture = addToCompactedLedger(lh, message, reader.getTopic()
+                                , offloader, readHandle)
                                 .whenComplete((res, exception2) -> {
                                     outstanding.release();
                                     if (exception2 != null) {
@@ -299,7 +312,7 @@ public class TwoPhaseCompactor extends Compactor {
                     }
                     return;
                 }
-                phaseTwoLoop(reader, to, latestForKey, lh, outstanding, promise);
+                phaseTwoLoop(reader, to, latestForKey, lh, outstanding, promise, offloader, readHandle);
             } finally {
                 m.close();
             }
@@ -365,12 +378,14 @@ public class TwoPhaseCompactor extends Compactor {
         return bkf;
     }
 
-    private CompletableFuture<Void> addToCompactedLedger(LedgerHandle lh, RawMessage m, String topic) {
+    private CompletableFuture<Void> addToCompactedLedger(LedgerHandle lh, RawMessage m, String topic,
+                                                         LedgerOffloader offloader, ReadHandle readHandle) {
         CompletableFuture<Void> bkf = new CompletableFuture<>();
         ByteBuf serialized = m.serialize();
         try {
             mxBean.addCompactionWriteOp(topic, m.getHeadersAndPayload().readableBytes());
             long start = System.nanoTime();
+            // todo 这儿刷盘
             lh.asyncAddEntry(serialized,
                     (rc, ledger, eid, ctx) -> {
                         mxBean.addCompactionLatencyOp(topic, System.nanoTime() - start, TimeUnit.NANOSECONDS);
@@ -380,6 +395,9 @@ public class TwoPhaseCompactor extends Compactor {
                             bkf.complete(null);
                         }
                     }, null);
+            if (offloader != null || readHandle != null) {
+                offloader.offload(readHandle, UUID.randomUUID(), Map.of("ManagedLedgerName", topic));
+            }
         } catch (Throwable t) {
             return FutureUtil.failedFuture(t);
         }

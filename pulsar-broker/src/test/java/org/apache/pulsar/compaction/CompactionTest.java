@@ -148,7 +148,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         }
 
         Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
-        compactor.compact(topic).get();
+        compactor.compact(topic, null).get();
 
         PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(topic, false);
         // Compacted topic ledger should have same number of entry equals to number of unique key.
@@ -214,7 +214,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         }
 
         Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
-        compactor.compact(topic).get();
+        compactor.compact(topic, null).get();
 
 
 
@@ -279,7 +279,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         }
 
         Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
-        compactor.compact(topic).get();
+        compactor.compact(topic, null).get();
 
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
                 .readCompacted(true).subscribe()) {
@@ -305,7 +305,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         producer.newMessage().key("key0").value("content2".getBytes()).send();
 
         Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
-        compactor.compact(topic).get();
+        compactor.compact(topic, null).get();
 
         producer.newMessage().key("key0").value("content3".getBytes()).send();
 
@@ -335,7 +335,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         producer.newMessage().key("key0").value("content2".getBytes()).send();
 
         Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
-        compactor.compact(topic).get();
+        compactor.compact(topic, null).get();
 
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
                 .readCompacted(true).subscribe()) {
@@ -379,7 +379,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         producer.newMessage().key("key0").value("content2".getBytes()).send();
 
         Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
-        compactor.compact(topic).get();
+        compactor.compact(topic, null).get();
 
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
                 .readCompacted(true).subscribe()) {
@@ -454,7 +454,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         // compact the topic
         Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
-        compactor.compact(topic).get();
+        compactor.compact(topic, null).get();
 
         // Check that messages after compaction have same ids
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
@@ -513,7 +513,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         // compact the topic
         Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
-        compactor.compact(topic).get();
+        compactor.compact(topic, null).get();
 
         // Check that messages after compaction have same ids
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
@@ -557,7 +557,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         // compact the topic
         Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
-        compactor.compact(topic).get();
+        compactor.compact(topic, null).get();
 
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
                 .subscriptionName("sub1").readCompacted(true).subscribe()){
@@ -594,7 +594,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         // compact the topic
         Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
-        compactor.compact(topic).get();
+        compactor.compact(topic, null).get();
 
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
                 .subscriptionName("sub1").readCompacted(true).subscribe()){
@@ -694,7 +694,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         // compact the topic
         Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
-        compactor.compact(topic).get();
+        compactor.compact(topic, null).get();
 
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
                 .subscriptionName("sub1").readCompacted(true).subscribe()){
@@ -774,7 +774,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         // compact the topic
         Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
-        compactor.compact(topic).get();
+        compactor.compact(topic, null).get();
 
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
                 .subscriptionName("sub1").readCompacted(true).subscribe()){
@@ -838,7 +838,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         // compact the topic
         Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
-        compactor.compact(topic).get();
+        compactor.compact(topic, null).get();
 
         // should have opened all except last to read
         Assert.assertTrue(ledgersOpened.contains(info.ledgers.get(0).ledgerId));
@@ -866,7 +866,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         ledgersOpened.clear();
 
         // compact the topic again
-        compactor.compact(topic).get();
+        compactor.compact(topic, null).get();
 
         // shouldn't have opened first ledger (already compacted), penultimate would have some uncompacted data.
         // last ledger already open for writing
@@ -917,7 +917,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         // compact the topic
         Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
-        compactor.compact(topic).get();
+        compactor.compact(topic, null).get();
 
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
                 .subscriptionName("sub1").readCompacted(true).subscribe()){
@@ -961,7 +961,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         // compact the topic
         Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
-        compactor.compact(topic).get();
+        compactor.compact(topic, null).get();
 
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
                 .subscriptionName("sub1").readCompacted(true).subscribe()){
@@ -1038,7 +1038,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         // compact the topic
         Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
-        compactor.compact(topic).get();
+        compactor.compact(topic, null).get();
 
         // Check that messages after compaction have same ids
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
@@ -1084,7 +1084,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         // compact the topic
         Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
-        compactor.compact(topic).get();
+        compactor.compact(topic, null).get();
 
         // with encryption, all messages are passed through compaction as it doesn't
         // have the keys to decrypt the batch payload
@@ -1133,7 +1133,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         // compact the topic
         Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
-        compactor.compact(topic).get();
+        compactor.compact(topic, null).get();
 
         // Check that messages after compaction have same ids
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
@@ -1180,7 +1180,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         // compact the topic
         Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
-        compactor.compact(topic).get();
+        compactor.compact(topic, null).get();
 
         // with encryption, all messages are passed through compaction as it doesn't
         // have the keys to decrypt the batch payload
@@ -1255,7 +1255,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         // compact the topic
         Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
-        compactor.compact(topic).get();
+        compactor.compact(topic, null).get();
 
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
                 .cryptoKeyReader(new EncKeyReader())
@@ -1304,7 +1304,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         producer.newMessage().key("2").value("".getBytes()).send();
 
         Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
-        compactor.compact(topic).get();
+        compactor.compact(topic, null).get();
 
         Set<String> expected = Sets.newHashSet("3");
         // consumer with readCompacted enabled only get compacted entries
@@ -1330,7 +1330,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         producer.newMessage().key("2").value("".getBytes()).send();
 
         Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
-        compactor.compact(topic).get();
+        compactor.compact(topic, null).get();
 
         // consumer with readCompacted enabled only get compacted entries
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
@@ -1365,7 +1365,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         // 2.compact the topic.
         Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
-        compactor.compact(topic).get();
+        compactor.compact(topic, null).get();
 
         // consumer with readCompacted enabled only get compacted entries
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
@@ -1410,7 +1410,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         // 2.compact the topic.
         Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
-        compactor.compact(topic).get();
+        compactor.compact(topic, null).get();
 
         // consumer with readCompacted enabled only get compacted entries
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
@@ -1466,7 +1466,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         // 2.compact the topic.
         Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
-        compactor.compact(topic).get();
+        compactor.compact(topic, null).get();
 
         // consumer with readCompacted enabled only get compacted entries
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
@@ -1520,7 +1520,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         // 2.compact the topic.
         Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
-        compactor.compact(topic).get();
+        compactor.compact(topic, null).get();
 
         // consumer with readCompacted enabled only get compacted entries
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
@@ -1560,7 +1560,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         // 2.compact the topic.
         Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
-        compactor.compact(topic).get();
+        compactor.compact(topic, null).get();
 
         // 3. Send more ten messages
         futures.clear();
@@ -1570,7 +1570,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         FutureUtil.waitForAll(futures).get();
 
         // 4.compact again.
-        compactor.compact(topic).get();
+        compactor.compact(topic, null).get();
 
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
                 .readCompacted(true).subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).subscribe()) {
@@ -1609,7 +1609,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         // 2.compact the topic.
         Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
-        compactor.compact(topic).get();
+        compactor.compact(topic, null).get();
 
         // 3. Send more ten messages
         futures.clear();
@@ -1638,7 +1638,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         producer.newMessage().key(key).value(("").getBytes()).send();
 
         // 5.compact the topic.
-        compactor.compact(topic).get();
+        compactor.compact(topic, null).get();
 
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(topic)

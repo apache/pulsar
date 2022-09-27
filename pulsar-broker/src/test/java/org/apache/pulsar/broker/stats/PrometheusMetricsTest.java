@@ -1417,7 +1417,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                     .send();
         }
         Compactor compactor = pulsar.getCompactor();
-        compactor.compact(topicName).get();
+        compactor.compact(topicName, null).get();
         statsOut = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
         metricsStr = statsOut.toString();

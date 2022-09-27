@@ -60,6 +60,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.TerminateCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.UpdatePropertiesCallback;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedCursor.IndividualDeletedEntries;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -2916,7 +2917,15 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     public synchronized void triggerCompaction()
             throws PulsarServerException, AlreadyRunningException {
         if (currentCompaction.isDone()) {
-            currentCompaction = brokerService.pulsar().getCompactor().compact(topic);
+            TopicName name = TopicName.get(topic);
+            LedgerOffloader offloader = null;
+            try {
+                offloader = brokerService.getManagedLedgerConfig(name).get().getLedgerOffloader();
+            } catch (ExecutionException | InterruptedException e) {
+                e.printStackTrace();
+            }
+
+            currentCompaction = brokerService.pulsar().getCompactor().compact(topic, offloader);
         } else {
             throw new AlreadyRunningException("Compaction already in progress");
         }
