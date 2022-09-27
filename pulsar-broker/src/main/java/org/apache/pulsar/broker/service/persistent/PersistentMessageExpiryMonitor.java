@@ -22,7 +22,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
-import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.FindEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -192,7 +191,7 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback {
                 && (exception instanceof NonRecoverableLedgerException)) {
             log.warn("[{}][{}] read failed from ledger at position:{} : {}", topicName, subName, failedReadPosition,
                     exception.getMessage());
-            if (isLedgerNotExistException(((NonRecoverableLedgerException) exception).getBkErrorCode())) {
+            if ((((NonRecoverableLedgerException) exception).isLedgerNotExistException())) {
                 try {
                     long failedLedgerId = failedReadPosition.get().getLedgerId();
                     Position lastPositionInLedger = PositionImpl.get(failedLedgerId,
@@ -211,19 +210,5 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback {
         }
         expirationCheckInProgress = FALSE;
         updateRates();
-    }
-
-    private boolean isLedgerNotExistException(Integer bkErrorCode) {
-        if (bkErrorCode == null) {
-            return true;
-        }
-        switch (bkErrorCode) {
-            case BKException.Code.NoSuchLedgerExistsException:
-            case BKException.Code.NoSuchLedgerExistsOnMetadataServerException:
-                return true;
-
-            default:
-                return false;
-        }
     }
 }

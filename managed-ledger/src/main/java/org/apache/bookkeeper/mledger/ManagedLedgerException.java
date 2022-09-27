@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger;
 
+import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
 
@@ -152,8 +153,17 @@ public class ManagedLedgerException extends Exception {
             this.bkErrorCode = bkErrorCode;
         }
 
-        public Integer getBkErrorCode() {
-            return bkErrorCode;
+        public boolean isLedgerNotExistException() {
+            if (bkErrorCode == null) {
+                return true;
+            }
+            switch (bkErrorCode) {
+                case BKException.Code.NoSuchLedgerExistsException:
+                case BKException.Code.NoSuchLedgerExistsOnMetadataServerException:
+                    return true;
+                default:
+                    return false;
+            }
         }
     }
 
