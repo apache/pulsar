@@ -240,15 +240,8 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
         @Override
         public void run() {
             phaser.register();
-            try {
-                internalRun();
-            } finally {
-                phaser.arriveAndDeregister();
-            }
-        }
-
-        private void internalRun() {
             if (closed) {
+                phaser.arriveAndDeregister();
                 return;
             }
             // if not in flushing state, do flush, else return;
@@ -257,6 +250,7 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
                     log.debug("Starting flush, queue size: {}", incomingList.size());
                 }
                 if (!swapList.isEmpty()) {
+                    phaser.arriveAndDeregister();
                     throw new IllegalStateException("swapList should be empty since last flush. swapList.size: "
                             + swapList.size());
                 }
@@ -309,6 +303,7 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
                             connection.rollback();
                         }
                     } catch (Exception ex) {
+                        phaser.arriveAndDeregister();
                         throw new RuntimeException(ex);
                     }
                 }
@@ -328,6 +323,7 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
                     log.debug("Already in flushing state, will not flush, queue size: {}", incomingList.size());
                 }
             }
+            phaser.arriveAndDeregister();
         }
 
         @Override
