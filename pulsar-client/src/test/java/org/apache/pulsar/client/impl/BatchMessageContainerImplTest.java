@@ -105,7 +105,7 @@ public class BatchMessageContainerImplTest {
         when(producer.getConfiguration()).thenReturn(producerConfigurationData);
         when(producer.encryptMessage(any(), any())).thenReturn(ByteBufAllocator.DEFAULT.buffer().writeBytes(payload));
 
-        final int initNum = 64;
+        final int initNum = 32;
         BatchMessageContainerImpl batchMessageContainer = new BatchMessageContainerImpl(producer);
         assertEquals(batchMessageContainer.getMaxMessagesNum(), initNum);
 
