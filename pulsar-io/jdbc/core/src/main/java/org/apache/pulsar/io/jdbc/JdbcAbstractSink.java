@@ -137,8 +137,9 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
 
     @Override
     public void close() throws Exception {
-        if (connection != null && jdbcSinkConfig.isUseTransactions()) {
-            connection.commit();
+        if (flushExecutor != null) {
+            flushExecutor.shutdown();
+            flushExecutor = null;
         }
         if (insertStatement != null) {
             insertStatement.close();
@@ -152,9 +153,8 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
         if (deleteStatement != null) {
             deleteStatement.close();
         }
-        if (flushExecutor != null) {
-            flushExecutor.shutdown();
-            flushExecutor = null;
+        if (connection != null && jdbcSinkConfig.isUseTransactions()) {
+            connection.commit();
         }
         if (connection != null) {
             connection.close();
