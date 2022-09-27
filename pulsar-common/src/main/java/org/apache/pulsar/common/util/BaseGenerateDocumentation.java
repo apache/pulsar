@@ -190,7 +190,7 @@ public abstract class BaseGenerateDocumentation {
     }
 
     protected String prefix = "\n"
-            + "!> This page is automatically generated from code files."
+            + "!> This page is automatically generated from code files.\n"
             + "If you find something inaccurate, feel free to update `";
     protected String suffix = "\n`.\n";
 
