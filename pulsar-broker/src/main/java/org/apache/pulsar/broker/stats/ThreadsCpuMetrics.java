@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.stats;
 
-import io.prometheus.client.Gauge;
+import io.prometheus.client.Counter;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
@@ -26,19 +26,19 @@ import java.lang.management.ThreadMXBean;
 public final class ThreadsCpuMetrics {
     private static boolean supportCpuTime = true;
 
-    private static final Gauge THREAD_TOTAL_CPU_USAGE = Gauge.build()
+    private static final Counter THREAD_TOTAL_CPU_USAGE = Counter.build()
             .name("pulsar_broker_thread_total_cpu_usage")
             .help("-")
             .labelNames("thread_name")
             .unit("ns")
             .register();
-    private static final Gauge THREAD_SYSTEM_CPU_USAGE = Gauge.build()
+    private static final Counter THREAD_SYSTEM_CPU_USAGE = Counter.build()
             .name("pulsar_broker_thread_system_cpu_usage")
             .help("-")
             .labelNames("thread_name")
             .unit("ns")
             .register();
-    private static final Gauge THREAD_USER_CPU_USAGE = Gauge.build()
+    private static final Counter THREAD_USER_CPU_USAGE = Counter.build()
             .name("pulsar_broker_thread_user_cpu_usage")
             .help("-")
             .labelNames("thread_name")
