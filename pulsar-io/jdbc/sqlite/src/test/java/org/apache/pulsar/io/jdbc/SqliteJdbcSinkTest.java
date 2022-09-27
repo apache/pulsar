@@ -64,7 +64,7 @@ import org.testng.annotations.Test;
  */
 @Slf4j
 public class SqliteJdbcSinkTest {
-    private final SqliteUtils sqliteUtils = new SqliteUtils(UUID.randomUUID().toString());
+    private SqliteUtils sqliteUtils;
     private BaseJdbcAutoSchemaSink jdbcSink;
     private final String tableName = "TestOpenAndWriteSink";
 
@@ -80,6 +80,7 @@ public class SqliteJdbcSinkTest {
 
     @BeforeMethod(alwaysRun = true)
     public void setUp() throws Exception {
+        sqliteUtils = new SqliteUtils(UUID.randomUUID().toString());
         sqliteUtils.setUp();
         sqliteUtils.createTable(
                 "CREATE TABLE " + tableName + "(" +
