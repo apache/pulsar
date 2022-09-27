@@ -138,7 +138,9 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
     @Override
     public void close() throws Exception {
         if (flushExecutor != null) {
+            int timeoutMs = jdbcSinkConfig.getTimeoutMs() * 2;
             flushExecutor.shutdown();
+            flushExecutor.awaitTermination(timeoutMs, TimeUnit.MILLISECONDS);
             flushExecutor = null;
         }
         if (insertStatement != null) {
@@ -267,7 +269,7 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
                 }
                 swapList.forEach(Record::ack);
             } catch (Exception e) {
-                log.error("Got exception ", e.getMessage(), e);
+                log.error("Got exception {}", e.getMessage(), e);
                 swapList.forEach(Record::fail);
                 try {
                     if (jdbcSinkConfig.isUseTransactions()) {
