@@ -122,9 +122,12 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
             if (entry instanceof EntryImpl) {
                 EntryImpl entryImpl = (EntryImpl) entry;
                 if (entryImpl.skipped()) {
+                    if (entriesToFiltered == null) {
+                        entriesToFiltered = new ArrayList<>();
+                    }
                     entriesToFiltered.add(entryImpl.getPosition());
+                    continue;
                 }
-                continue;
             }
             ByteBuf metadataAndPayload = entry.getDataBuffer();
             final int metadataIndex = i + startOffset;
