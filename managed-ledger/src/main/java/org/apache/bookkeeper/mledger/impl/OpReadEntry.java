@@ -101,7 +101,8 @@ class OpReadEntry implements ReadEntriesCallback {
             log.warn("[{}][{}] read failed from ledger at position:{} : {}", cursor.ledger.getName(), cursor.getName(),
                     readPosition, exception.getMessage());
             // Skip this read operation
-            PositionImpl nexReadPosition = cursor.ledger.getValidPositionAfterSkippedEntries(readPosition, count);
+            final ManagedLedgerImpl ledger = (ManagedLedgerImpl) cursor.getManagedLedger();
+            final PositionImpl nexReadPosition = ledger.getValidPositionAfterSkippedEntries(readPosition, count);
             // fail callback if it couldn't find next valid ledger
             if (nexReadPosition == null) {
                 callback.readEntriesFailed(exception, ctx);
