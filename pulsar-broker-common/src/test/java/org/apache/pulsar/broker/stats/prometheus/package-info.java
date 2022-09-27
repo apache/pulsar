@@ -16,26 +16,4 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-package org.apache.pulsar.io.kafka;
-
-import java.nio.charset.StandardCharsets;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.pulsar.client.api.Schema;
-
-/**
- * Simple Kafka Source that just transfers the value part of the kafka records as Strings.
- */
-public class KafkaStringSource extends KafkaAbstractSource<String> {
-
-
-    @Override
-    public KafkaRecord buildRecord(ConsumerRecord<Object, Object> consumerRecord) {
-        KafkaRecord record = new KafkaRecord(consumerRecord,
-                new String((byte[]) consumerRecord.value(), StandardCharsets.UTF_8),
-                Schema.STRING,
-                copyKafkaHeaders(consumerRecord));
-        return record;
-    }
-
-}
+package org.apache.pulsar.broker.stats.prometheus;
