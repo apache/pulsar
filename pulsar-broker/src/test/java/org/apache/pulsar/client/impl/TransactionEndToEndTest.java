@@ -31,6 +31,8 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.util.Collection;
 import java.util.Optional;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.ArrayList;
 import java.util.List;
@@ -1050,7 +1052,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .build().get();
         producer.newMessage().send();
         Awaitility.await().untilAsserted(() -> {
-            Assert.assertEquals(((TransactionImpl)transaction).getState(), TransactionImpl.State.TIMEOUT);
+            Assert.assertEquals(((TransactionImpl)transaction).getState(), TransactionImpl.State.TIME_OUT);
         });
 
         try {
@@ -1170,6 +1172,52 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         } catch (PulsarClientException ex) {
             assertTrue(ex instanceof PulsarClientException.TimeoutException);
         }
+    }
+
+    @Test
+    public void testAckWithTransactionReduceUnackCountNotInPendingAcks() throws Exception {
+        final String topic = "persistent://" + NAMESPACE1 + "/testAckWithTransactionReduceUnackCountNotInPendingAcks";
+        final String subName = "test";
+        @Cleanup
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
+                .topic(topic)
+                .batchingMaxPublishDelay(1, TimeUnit.SECONDS)
+                .sendTimeout(1, TimeUnit.SECONDS)
+                .create();
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName(subName)
+                .subscribe();
+
+        // send 5 messages with one batch
+        for (int i = 0; i < 5; i++) {
+            producer.sendAsync((i + "").getBytes(UTF_8));
+        }
+
+        List<MessageId> messageIds = new ArrayList<>();
+
+        // receive the batch messages add to a list
+        for (int i = 0; i < 5; i++) {
+            messageIds.add(consumer.receive().getMessageId());
+        }
+
+        MessageIdImpl messageId = (MessageIdImpl) messageIds.get(0);
+
+
+        // remove the message from the pendingAcks, in fact redeliver will remove the messageId from the pendingAck
+        getPulsarServiceList().get(0).getBrokerService().getTopic(topic, false)
+                .get().get().getSubscription(subName).getConsumers().get(0).getPendingAcks()
+                .remove(messageId.ledgerId, messageId.entryId);
+
+        Transaction txn = getTxn();
+        consumer.acknowledgeAsync(messageIds.get(1), txn).get();
+
+        // ack one message, the unack count is 4
+        assertEquals(getPulsarServiceList().get(0).getBrokerService().getTopic(topic, false)
+                .get().get().getSubscription(subName).getConsumers().get(0).getUnackedMessages(), 4);
     }
 
     @Test
@@ -1293,5 +1341,64 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
         assertEquals(value1, new String(deadLetterConsumer.receive(3, TimeUnit.SECONDS).getValue()));
         assertEquals(value2, new String(deadLetterConsumer.receive(3, TimeUnit.SECONDS).getValue()));
+    }
+
+    @Test
+    public void testDelayedTransactionMessages() throws Exception {
+        String topic = NAMESPACE1 + "/testDelayedTransactionMessages";
+
+        @Cleanup
+        Consumer<String> failoverConsumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("failover-sub")
+                .subscriptionType(SubscriptionType.Failover)
+                .subscribe();
+
+        @Cleanup
+        Consumer<String> sharedConsumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("shared-sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .enableBatching(false)
+                .create();
+
+        Transaction transaction = pulsarClient.newTransaction()
+                .withTransactionTimeout(10, TimeUnit.SECONDS).build().get();
+        for (int i = 0; i < 10; i++) {
+            producer.newMessage(transaction)
+                    .value("msg-" + i)
+                    .deliverAfter(5, TimeUnit.SECONDS)
+                    .sendAsync();
+        }
+
+        producer.flush();
+
+        transaction.commit().get();
+
+        // Failover consumer will receive the messages immediately while
+        // the shared consumer will get them after the delay
+        Message<String> msg = sharedConsumer.receive(1, TimeUnit.SECONDS);
+        assertNull(msg);
+
+        for (int i = 0; i < 10; i++) {
+            msg = failoverConsumer.receive(100, TimeUnit.MILLISECONDS);
+            assertEquals(msg.getValue(), "msg-" + i);
+        }
+
+        Set<String> receivedMsgs = new TreeSet<>();
+        for (int i = 0; i < 10; i++) {
+            msg = sharedConsumer.receive(10, TimeUnit.SECONDS);
+            receivedMsgs.add(msg.getValue());
+        }
+
+        assertEquals(receivedMsgs.size(), 10);
+        for (int i = 0; i < 10; i++) {
+            assertTrue(receivedMsgs.contains("msg-" + i));
+        }
     }
 }

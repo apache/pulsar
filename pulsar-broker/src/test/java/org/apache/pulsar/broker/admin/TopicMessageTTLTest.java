@@ -48,7 +48,6 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
-        resetConfig();
         this.conf.setTtlDurationDefaultInSeconds(3600);
         super.internalSetup();
 
@@ -125,15 +124,9 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testTopicPolicyDisabled() throws Exception {
-        super.internalCleanup();
+        cleanup();
         this.conf.setTopicLevelPoliciesEnabled(false);
-        super.internalSetup();
-
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-        TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
-        admin.tenants().createTenant(this.testTenant, tenantInfo);
-        admin.namespaces().createNamespace(testTenant + "/" + testNamespace, Set.of("test"));
-        admin.topics().createPartitionedTopic(testTopic, 2);
+        setup();
 
         try {
             admin.topics().getMessageTTL(testTopic);

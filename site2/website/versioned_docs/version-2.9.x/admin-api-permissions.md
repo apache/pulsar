@@ -112,7 +112,7 @@ You can see which permissions have been granted to which roles in a namespace.
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
-Use the [`permissions`](reference-pulsar-admin#permissions) subcommand and specify a namespace:
+Use the [`permissions`](reference-pulsar-admin.md#permissions) subcommand and specify a namespace:
 
 ```shell
 

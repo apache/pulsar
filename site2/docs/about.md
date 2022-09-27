@@ -19,7 +19,7 @@ This portal holds a variety of topics, tutorials, guides, and reference material
 Select one of the content blocks below to begin your Pulsar journey. If you ...
 * Are new to Pulsar, start with **About Pulsar** to learn about features and concepts.
 * Want to jump to the quickstart, select **Get Started**.
-* Are an operator responsible for architecting and supporting Apache Pulsar. start with **Install, Deploy, Upgrade**.
+* Are an operator responsible for architecting and supporting Apache Pulsar, start with **Install, Deploy, Upgrade**.
 * Are a developer who wants to master Apache Pulsar, select **Pulsar for Developers**. 
 * Want to try out Pulsar, select **How To** for access to the "hello world" tutorial.
 * An experienced Pulsar coder looking for API, metrics, or configuration documentation, go to **Reference**. 
@@ -28,7 +28,7 @@ Select one of the content blocks below to begin your Pulsar journey. If you ...
     <BlockLink title="About Pulsar" url="/docs/next/concepts-overview/" />
     <BlockLink title="Get Started" url="/docs/next/getting-started-home/" />
     <BlockLink title="Install, Deploy, Upgrade" url="/docs/next/deploy-aws/" />
-    <BlockLink title="Pulsar for Developers" url="/docs/next/develop-tools/" />
+    <BlockLink title="Pulsar for Developers" url="/docs/next/developers-landing/" />
     <BlockLink title="How To" url="/docs/next/functions-develop/" />
     <BlockLink title="Reference" url="/docs/next/reference-terminology/" />
 </BlockLinks>
@@ -51,12 +51,18 @@ As you probably know, we are working on a new user experience for our documentat
 ## Help Improve These Documents
 ***
 
-You’ll notice an Edit button at the bottom and top of each page. Click it to open a landing page with instructions for requesting changes to posted documents. These are your resources. Participation is not only welcomed – it’s essential!
+You’ll notice an Edit button at the bottom and top of each page. Click it to open a landing page with instructions for requesting changes to posted documents. These are your resources. Participation is not only welcomed – it’s essential! 
+
+:::tip
+
+For how to make contributions to documentation, see [Pulsar Documentation Contribution Guide](https://docs.google.com/document/d/11DTnNPpvcPrebLkMAFcDEIFlD8ARD-k6F-LXoIwdD9Y/edit#).
+
+:::
 
 ## Join the Community!
 ***
 
-The Pulsar community on github is active, passionate, and knowledgeable.  Join discussions, voice opinions, suggest features, and dive into the code itself. Find your Pulsar family here at [apache/pulsar](https://github.com/apache/pulsar).
+The Pulsar community on GitHub is active, passionate, and knowledgeable.  Join discussions, voice opinions, suggest features, and dive into the code itself. Find your Pulsar family here at [apache/pulsar](https://github.com/apache/pulsar).
 
 An equally passionate community can be found in the [Pulsar Slack channel](https://apache-pulsar.slack.com/). You’ll need an invitation to join, but many Github Pulsar community members are Slack members too.  Join, hang out, learn, and make some new friends.
 

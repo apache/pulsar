@@ -216,6 +216,8 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
      * 2. Update the topic partition number to 4.
      * 3. Use new producer/consumer with client role to process the topic.
      * 4. Broker should authorize producer/consumer normally.
+     * 5. revoke produce/consumer permission of topic
+     * 6. new producer/consumer should not be authorized
      * </pre>
      */
     @Test
@@ -297,6 +299,26 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
         Assert.assertEquals(messageSet, receivedMessageSet);
         consumer.close();
         producer.close();
+
+        // revoke produce/consume permission
+        admin.topics().revokePermissions(topicName, CLIENT_ROLE);
+
+        // produce/consume the topic should fail
+        try {
+            consumer = proxyClient.newConsumer()
+                    .topic(topicName)
+                    .subscriptionName(subscriptionName).subscribe();
+            Assert.fail("Should not pass");
+        } catch (PulsarClientException.AuthorizationException ex) {
+            // ok
+        }
+        try {
+            producer = proxyClient.newProducer(Schema.BYTES)
+                    .topic(topicName).create();
+            Assert.fail("Should not pass");
+        } catch (PulsarClientException.AuthorizationException ex) {
+            // ok
+        }
         log.info("-- Exiting {} test --", methodName);
     }
 

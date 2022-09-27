@@ -48,7 +48,6 @@ import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.client.admin.BrokerStats;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
@@ -415,11 +414,11 @@ public class ClientDeduplicationFailureTest {
             assertEquals(msgRecvd.get(i).getSequenceId(), i + 10);
         }
 
-        BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) lastMessageId;
+        MessageIdImpl lastMessageIdImpl = (MessageIdImpl) lastMessageId;
         MessageIdImpl messageId = (MessageIdImpl) consumer1.getLastMessageId();
 
-        assertEquals(messageId.getLedgerId(), batchMessageId.getLedgerId());
-        assertEquals(messageId.getEntryId(), batchMessageId.getEntryId());
+        assertEquals(messageId.getLedgerId(), lastMessageIdImpl.getLedgerId());
+        assertEquals(messageId.getEntryId(), lastMessageIdImpl.getEntryId());
         thread.interrupt();
     }
 }

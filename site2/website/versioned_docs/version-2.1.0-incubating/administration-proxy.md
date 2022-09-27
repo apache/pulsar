@@ -9,7 +9,7 @@ The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) is an optiona
 
 ## Running the proxy
 
-In order to run the Pulsar proxy, you need to have both a local [ZooKeeper](https://zookeeper.apache.org) and configuration store quorum set up for use by your Pulsar cluster. For instructions, see [this document](deploy-bare-metal). Once you have ZooKeeper set up and have connection strings for both ZooKeeper quorums, you can use the [`proxy`](reference-cli-tools.md#pulsar-proxy) command of the [`pulsar`](reference-cli-tools.md#pulsar) CLI tool to start up the proxy (preferably on its own machine or in its own VM):
+In order to run the Pulsar proxy, you need to have both a local [ZooKeeper](https://zookeeper.apache.org) and configuration store quorum set up for use by your Pulsar cluster. For instructions, see [this document](deploy-bare-metal.md). Once you have ZooKeeper set up and have connection strings for both ZooKeeper quorums, you can use the [`proxy`](reference-cli-tools.md#pulsar-proxy) command of the [`pulsar`](reference-cli-tools.md#pulsar) CLI tool to start up the proxy (preferably on its own machine or in its own VM):
 
 To start the proxy:
 
@@ -56,7 +56,7 @@ The Pulsar proxy can be configured using the [`proxy.conf`](reference-configurat
 |brokerClientAuthenticationPlugin|  The authentication plugin used by the Pulsar proxy to authenticate with Pulsar brokers  ||
 |brokerClientAuthenticationParameters|  The authentication parameters used by the Pulsar proxy to authenticate with Pulsar brokers  ||
 |brokerClientTrustCertsFilePath|  The path to trusted certificates used by the Pulsar proxy to authenticate with Pulsar brokers ||
-|superUserRoles|  Role names that are treated as “super-users,” meaning that they will be able to perform all admin ||
+|superUserRoles|  Role names that are treated as "super-users," meaning that they will be able to perform all admin ||
 |forwardAuthorizationCredentials| Whether client authorization credentials are forwarded to the broker for re-authorization. Authentication must be enabled via authenticationEnabled=true for this to take effect.  |false|
 |maxConcurrentInboundConnections| Max concurrent inbound connections. The proxy will reject requests beyond that. |10000|
 |maxConcurrentLookupRequests| Max concurrent outbound connections. The proxy will error out requests beyond that. |10000|

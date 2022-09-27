@@ -958,7 +958,7 @@ public class MetricRecorderFunction implements Function<Integer, Void> {
 
 ```
 
-> For instructions on reading and using metrics, see the [Monitoring](deploy-monitoring) guide.
+> For instructions on reading and using metrics, see the [Monitoring](deploy-monitoring.md) guide.
 
 </TabItem>
 <TabItem value="Python">
@@ -989,11 +989,11 @@ Currently, the feature is not available in Go.
 ````
 
 ### Access metrics
-To access metrics created by Pulsar Functions, refer to [Monitoring](deploy-monitoring) in Pulsar. 
+To access metrics created by Pulsar Functions, refer to [Monitoring](deploy-monitoring.md) in Pulsar. 
 
 ## Security
 
-If you want to enable security on Pulsar Functions, first you should enable security on [Functions Workers](functions-worker). For more details, refer to [Security settings](functions-worker.md#security-settings).
+If you want to enable security on Pulsar Functions, first you should enable security on [Functions Workers](functions-worker.md). For more details, refer to [Security settings](functions-worker.md#security-settings).
 
 Pulsar Functions can support the following providers:
 

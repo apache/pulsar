@@ -593,8 +593,8 @@ TEST(BasicEndToEndTest, testMessageTooBig) {
     result = producer.send(msg);
     ASSERT_EQ(ResultMessageTooBig, result);
 
-    // Anything up to MaxMessageSize should be allowed
-    size = ClientConnection::getMaxMessageSize();
+    // Anything up to MaxMessageSize - MetadataSize should be allowed
+    size = ClientConnection::getMaxMessageSize() - 32; /*the default message metadata size for string schema*/
     msg = MessageBuilder().setAllocatedContent(content, size).build();
     result = producer.send(msg);
     ASSERT_EQ(ResultOk, result);

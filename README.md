@@ -19,10 +19,9 @@
 
 -->
 
-![logo](site2/website/static/img/pulsar.svg)
+![logo](https://pulsar.apache.org/img/pulsar.svg)
 
-[![unit test](https://img.shields.io/github/workflow/status/apache/pulsar/CI%20-%20Unit?label=unit%20test)](https://github.com/apache/pulsar/actions/workflows/ci-unit.yaml)
-[![docker build](https://img.shields.io/github/workflow/status/apache/pulsar/CI%20-%20Docker%20Build?label=docker%20build)](https://hub.docker.com/r/apachepulsar/pulsar)
+[![docker pull](https://img.shields.io/docker/pulls/apachepulsar/pulsar-all.svg)](https://hub.docker.com/r/apachepulsar/pulsar)
 [![contributors](https://img.shields.io/github/contributors-anon/apache/pulsar)](https://github.com/apache/pulsar/graphs/contributors)
 [![last commit](https://img.shields.io/github/last-commit/apache/pulsar)](https://github.com/apache/pulsar/commits/master)
 [![release](https://img.shields.io/github/v/release/apache/pulsar)](https://github.com/apache/pulsar/releases)
@@ -77,6 +76,7 @@ components in the Pulsar ecosystem, including connectors, adapters, and other la
 - [.NET/C# Client](https://github.com/apache/pulsar-dotpulsar)
 - [Go Client](https://github.com/apache/pulsar-client-go)
 - [NodeJS Client](https://github.com/apache/pulsar-client-node)
+- [Reactive Java Client](https://github.com/apache/pulsar-client-reactive)
 - [Ruby Client](https://github.com/apache/pulsar-client-ruby)
 
 ### Dashboard & Management Tools
@@ -97,7 +97,7 @@ components in the Pulsar ecosystem, including connectors, adapters, and other la
 
 ## Pulsar Runtime Java Version Recommendation
 
-- pulsar master branch
+- pulsar ver > 2.10 and master branch
 
 | Pulsar Components | Java Version  |
 | ----------------- | :-----------: |
@@ -115,7 +115,7 @@ components in the Pulsar ecosystem, including connectors, adapters, and other la
 | CLI               |   8 or 11    |
 | Java Client       |   8 or 11    |
 
-- pulsar ver 2.8 <
+- pulsar ver < 2.8
 
 | Pulsar Components | Java Version |
 | ----------------- | :----------: |
@@ -125,7 +125,14 @@ components in the Pulsar ecosystem, including connectors, adapters, and other la
 
 Requirements:
 
-- Java [JDK 17](https://adoptium.net/?variant=openjdk17)
+- JDK
+
+  | Pulsar Version | JDK Version |
+  | ----------------- | :----------: |
+  | master and 2.11 + |   [JDK 17](https://adoptium.net/?variant=openjdk17)    |
+  | 2.8 / 2.9 / 2.10  |   [JDK 11](https://adoptium.net/?variant=openjdk11)    |
+  | 2.7 - |   [JDK 8](https://adoptium.net/?variant=openjdk8)    |
+
 - Maven 3.6.1+
 - zip
 

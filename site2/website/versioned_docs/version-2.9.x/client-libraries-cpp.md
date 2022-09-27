@@ -11,7 +11,7 @@ All the methods in producer, consumer, and reader of a C++ client are thread-saf
 
 ## Supported platforms
 
-Pulsar C++ client is supported on **Linux** ,**MacOS** and **Windows** platforms.
+Pulsar C++ client is supported on **Linux** ,**macOS** and **Windows** platforms.
 
 [Doxygen](http://www.doxygen.nl/)-generated API docs for the C++ client are available [here](/api/cpp).
 
@@ -358,7 +358,7 @@ The benefit of this approach is that it is the simplest code. Simply keeps calli
 
 This example starts a subscription at the earliest offset and consumes 100 messages.
 
-```c++
+```cpp
 
 #include <pulsar/Client.h>
 
@@ -402,7 +402,7 @@ You can avoid  running a loop with blocking calls with an event based style by u
 
 This example starts a subscription at the earliest offset and consumes 100 messages.
 
-```c++
+```cpp
 
 #include <pulsar/Client.h>
 #include <atomic>
@@ -458,7 +458,7 @@ To use Pulsar as a producer, you need to create a producer on the C++ client. Th
 
 This example sends 100 messages using the blocking style. While simple, it does not produce high throughput as it waits for each ack to come back before sending the next message.
 
-```c++
+```cpp
 
 #include <pulsar/Client.h>
 #include <thread>
@@ -506,7 +506,7 @@ The producer configuration `blockIfQueueFull` is useful here to avoid `ResultPro
 
 Without this configuration, the result code `ResultProducerQueueIsFull` is passed to the callback. You must decide how to deal with that (retry, discard etc).
 
-```c++
+```cpp
 
 #include <pulsar/Client.h>
 #include <thread>
@@ -573,7 +573,7 @@ With our example above, that reduces the number of internal producers spread out
 
 Note that there can be extra latency for the first message sent. If you set a low send timeout, this timeout could be reached if the initial connection handshake is slow to complete.
 
-```c++
+```cpp
 
 ProducerConfiguration producerConf;
 producerConf.setPartitionsRoutingMode(ProducerConfiguration::UseSinglePartition);
@@ -601,7 +601,7 @@ For complete examples, refer to [C++ client examples](https://github.com/apache/
 
 ## Schema
 
-This section describes some examples about schema. For more information about
+This section describes some examples of schema. For more information about
 schema, see [Pulsar schema](schema-get-started.md).
 
 ### Avro schema
@@ -663,7 +663,7 @@ The following example shows how to create a producer and a consumer with a Proto
 2. Include the `ProtobufNativeSchema.h` in your source code. Ensure the Protobuf dependency has been added to your project.
 ​
 
-   ```c++
+   ```cpp
    
    #include <pulsar/ProtobufNativeSchema.h>
    
@@ -673,7 +673,7 @@ The following example shows how to create a producer and a consumer with a Proto
 3. Create a producer to send a `User` instance.
 ​
 
-   ```c++
+   ```cpp
    
    ProducerConfiguration producerConf;
    producerConf.setSchema(createProtobufNativeSchema(User::GetDescriptor()));
@@ -692,7 +692,7 @@ The following example shows how to create a producer and a consumer with a Proto
 4. Create a consumer to receive a `User` instance.
 ​
 
-   ```c++
+   ```cpp
    
    ConsumerConfiguration consumerConf;
    consumerConf.setSchema(createProtobufNativeSchema(User::GetDescriptor()));

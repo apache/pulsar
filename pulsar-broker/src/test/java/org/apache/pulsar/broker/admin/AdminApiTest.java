@@ -271,7 +271,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         Awaitility.await()
                 .untilAsserted(() -> assertEquals(admin.clusters().getClusters(), Lists.newArrayList("test")));
 
-        admin.namespaces().deleteNamespace("prop-xyz/ns1");
+        deleteNamespaceGraceFully("prop-xyz/ns1", false);
         admin.clusters().deleteCluster("test");
         assertEquals(admin.clusters().getClusters(), new ArrayList<>());
 
@@ -500,7 +500,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                 String.format("%s:%d", parts[0], pulsar.getListenPortHTTPS().get()));
         Assert.assertEquals(nsMap2.size(), 2);
 
-        admin.namespaces().deleteNamespace("prop-xyz/ns1");
+        deleteNamespaceGraceFully("prop-xyz/ns1", false);
         admin.clusters().deleteCluster("test");
         assertEquals(admin.clusters().getClusters(), new ArrayList<>());
     }
@@ -534,6 +534,14 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         });
 
         // verify value is updated
+        assertEquals(pulsar.getManagedLedgerFactory().getEntryCacheManager().getMaxSize(), 1 * 1024L * 1024L);
+        assertEquals(pulsar.getManagedLedgerFactory().getEntryCacheManager().getCacheEvictionWatermark(), 0.8);
+        assertEquals(pulsar.getManagedLedgerFactory().getCacheEvictionTimeThreshold(), TimeUnit.MILLISECONDS
+                .toNanos(2000));
+
+        restartBroker();
+
+        // verify value again
         assertEquals(pulsar.getManagedLedgerFactory().getEntryCacheManager().getMaxSize(), 1 * 1024L * 1024L);
         assertEquals(pulsar.getManagedLedgerFactory().getEntryCacheManager().getCacheEvictionWatermark(), 0.8);
         assertEquals(pulsar.getManagedLedgerFactory().getCacheEvictionTimeThreshold(), TimeUnit.MILLISECONDS
@@ -694,7 +702,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void properties() throws PulsarAdminException {
+    public void properties() throws Exception {
         try {
             admin.tenants().getTenantInfo("does-not-exist");
             fail("should have failed");
@@ -723,7 +731,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             assertEquals(e.getStatusCode(), 409);
             assertEquals(e.getMessage(), "The tenant still has active namespaces");
         }
-        admin.namespaces().deleteNamespace("prop-xyz/ns1");
+        deleteNamespaceGraceFully("prop-xyz/ns1", false);
         admin.tenants().deleteTenant("prop-xyz");
         assertEquals(admin.tenants().getTenants(), new ArrayList<>());
 
@@ -752,7 +760,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(admin.namespaces().getPolicies("prop-xyz/ns3").bundles.getNumBundles(), 4);
         assertEquals(admin.namespaces().getPolicies("prop-xyz/ns3").bundles.getBoundaries().size(), 5);
 
-        admin.namespaces().deleteNamespace("prop-xyz/ns3");
+        deleteNamespaceGraceFully("prop-xyz/ns3", false);
 
         try {
             admin.namespaces().createNamespace("non-existing/ns1");
@@ -826,7 +834,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         }
         assertTrue(i < 10);
 
-        admin.namespaces().deleteNamespace("prop-xyz/ns1");
+        deleteNamespaceGraceFully("prop-xyz/ns1", false);
         assertEquals(admin.namespaces().getNamespaces("prop-xyz"), Lists.newArrayList("prop-xyz/ns2"));
 
         try {
@@ -874,6 +882,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(topicStats.getSubscriptions().get(subName).getConsumers().size(), 1);
         assertEquals(topicStats.getSubscriptions().get(subName).getMsgBacklog(), 10);
         assertEquals(topicStats.getPublishers().size(), 0);
+        assertEquals(topicStats.getOwnerBroker(),
+                pulsar.getAdvertisedAddress() + ":" + pulsar.getConfiguration().getWebServicePort().get());
 
         PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(persistentTopicName, false);
         assertEquals(internalStats.cursors.keySet(), new TreeSet<>(Lists.newArrayList(Codec.encode(subName))));
@@ -1250,7 +1260,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
     @Test(dataProvider = "numBundles")
     public void testDeleteNamespaceBundle(Integer numBundles) throws Exception {
-        admin.namespaces().deleteNamespace("prop-xyz/ns1");
+        deleteNamespaceGraceFully("prop-xyz/ns1", false);
         admin.namespaces().createNamespace("prop-xyz/ns1-bundles", numBundles);
         admin.namespaces().setNamespaceReplicationClusters("prop-xyz/ns1-bundles", Set.of("test"));
 
@@ -1262,7 +1272,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         assertEquals(admin.namespaces().getTopics("prop-xyz/ns1-bundles"), new ArrayList<>());
 
-        admin.namespaces().deleteNamespace("prop-xyz/ns1-bundles");
+        deleteNamespaceGraceFully("prop-xyz/ns1-bundles", false);
         assertEquals(admin.namespaces().getNamespaces("prop-xyz", "test"), new ArrayList<>());
     }
 
@@ -1349,14 +1359,14 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertFalse(admin.topics().getList(namespace).isEmpty());
 
         try {
-            admin.namespaces().deleteNamespace(namespace, false);
+            deleteNamespaceGraceFully(namespace, false);
             fail("should have failed due to namespace not empty");
         } catch (PulsarAdminException e) {
             // Expected: cannot delete non-empty tenant
         }
 
         // delete namespace forcefully
-        admin.namespaces().deleteNamespace(namespace, true);
+        deleteNamespaceGraceFully(namespace, true);
         assertFalse(admin.namespaces().getNamespaces(tenant).contains(namespace));
         assertTrue(admin.namespaces().getNamespaces(tenant).isEmpty());
 
@@ -2223,7 +2233,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(result.someNewIntField, 0);
         assertNull(result.someNewString);
 
-        admin.namespaces().deleteNamespace("prop-xyz/ns1");
+        deleteNamespaceGraceFully("prop-xyz/ns1", false);
         admin.tenants().deleteTenant("prop-xyz");
         assertEquals(admin.tenants().getTenants(), new ArrayList<>());
     }
@@ -3134,9 +3144,9 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.topics().delete(topic1);
         admin.topics().delete(topic2);
         admin.topics().delete(topic3);
-        admin.namespaces().deleteNamespace(namespace1);
-        admin.namespaces().deleteNamespace(namespace2);
-        admin.namespaces().deleteNamespace(namespace3);
+        deleteNamespaceGraceFully(namespace1, false);
+        deleteNamespaceGraceFully(namespace2, false);
+        deleteNamespaceGraceFully(namespace3, false);
     }
 
     @Test
@@ -3149,11 +3159,11 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         String ns = BrokerTestUtil.newUniqueName("prop-xyz/ns");
 
         admin.namespaces().createNamespace(ns, 24);
-        admin.namespaces().deleteNamespace(ns);
+        deleteNamespaceGraceFully(ns, false);
 
         // Re-create and re-delete
         admin.namespaces().createNamespace(ns, 32);
-        admin.namespaces().deleteNamespace(ns);
+        deleteNamespaceGraceFully(ns, false);
     }
 
     @Test
@@ -3395,5 +3405,37 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                 .subscribe();
         long value2 = partitionedStats.getEarliestMsgPublishTimeInBacklogs();
         Assert.assertNotEquals(value2, 0);
+    }
+
+    @Test
+    public void testRetentionAndBacklogQuotaCheck() throws PulsarAdminException {
+        String namespace = "prop-xyz/ns1";
+        //test size check.
+        admin.namespaces().setRetention(namespace, new RetentionPolicies(-1, 10));
+        admin.namespaces().setBacklogQuota(namespace, BacklogQuota.builder().limitSize(9 * 1024 * 1024).build());
+        Assert.expectThrows(PulsarAdminException.PreconditionFailedException.class, () -> {
+            admin.namespaces().setBacklogQuota(namespace, BacklogQuota.builder().limitSize(100 * 1024 * 1024).build());
+        });
+
+        //test time check
+        admin.namespaces().setRetention(namespace, new RetentionPolicies(10, -1));
+        admin.namespaces().setBacklogQuota(namespace, BacklogQuota.builder().limitTime(9 * 60).build());
+        Assert.expectThrows(PulsarAdminException.PreconditionFailedException.class, () -> {
+            admin.namespaces().setBacklogQuota(namespace, BacklogQuota.builder().limitTime(11 * 60).build());
+        });
+
+        // test both size and time.
+        admin.namespaces().setRetention(namespace, new RetentionPolicies(10, 10));
+        admin.namespaces().setBacklogQuota(namespace, BacklogQuota.builder().limitSize(9 * 1024 * 1024).build());
+        admin.namespaces().setBacklogQuota(namespace, BacklogQuota.builder().limitTime(9 * 60).build());
+        admin.namespaces().setBacklogQuota(namespace, BacklogQuota.builder().limitSize(9 * 1024 * 1024).
+                limitTime(9 * 60).build());
+        Assert.expectThrows(PulsarAdminException.PreconditionFailedException.class, () -> {
+            admin.namespaces().setBacklogQuota(namespace, BacklogQuota.builder().limitSize(100 * 1024 * 1024).build());
+        });
+        Assert.expectThrows(PulsarAdminException.PreconditionFailedException.class, () -> {
+            admin.namespaces().setBacklogQuota(namespace, BacklogQuota.builder().limitTime(100 * 60).build());
+        });
+
     }
 }

@@ -5,7 +5,7 @@ sidebar_label: "WebSocket"
 original_id: client-libraries-websocket
 ---
 
-Pulsar [WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API) API provides a simple way to interact with Pulsar using languages that do not have an official [client library](getting-started-clients.md). Through WebSocket, you can publish and consume messages and use features available on the [Client Features Matrix](https://github.com/apache/pulsar/wiki/Client-Features-Matrix) page.
+Pulsar [WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API) API provides a simple way to interact with Pulsar using languages that do not have an official [client library](client-libraries.md). Through WebSocket, you can publish and consume messages and use features available on the [Client Features Matrix](https://github.com/apache/pulsar/wiki/Client-Features-Matrix) page.
 
 
 > You can use Pulsar WebSocket API with any WebSocket client library. See examples for Python and Node.js [below](#client-examples).
@@ -81,7 +81,7 @@ All exchanges via the WebSocket API use JSON.
 
 #### Browser javascript WebSocket client
 
-Use the query param `token` transport the authentication token.
+Use the query param `token` to transport the authentication token.
 
 ```http
 
@@ -296,7 +296,7 @@ Key | Type | Required? | Explanation
 ##### Push Mode
 
 By default (`pullMode=false`), the consumer endpoint will use the `receiverQueueSize` parameter both to size its
-internal receive queue and to limit the number of unacknowledged messages that are passed to the WebSocket client.
+internal receive queue and limit the number of unacknowledged messages that are passed to the WebSocket client.
 In this mode, if you don't send acknowledgements, the Pulsar WebSocket service will stop sending messages after reaching
 `receiverQueueSize` unacked messages sent to the WebSocket client.
 
@@ -323,7 +323,7 @@ NB: in this mode it's possible to acknowledge messages in a different connection
 
 #### Check if reach end of topic
 
-Consumer can check if it has reached end of topic by sending `isEndOfTopic` request.
+Consumers can check if it has reached the end of a topic by sending the `isEndOfTopic` request.
 
 **Request**
 

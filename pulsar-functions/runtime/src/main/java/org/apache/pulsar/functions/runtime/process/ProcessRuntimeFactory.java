@@ -193,6 +193,8 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
     @Override
     public ProcessRuntime createContainer(InstanceConfig instanceConfig, String codeFile,
                                           String originalCodeFileName,
+                                          String transformFunctionFile,
+                                          String originalTransformFunctionFileName,
                                           Long expectedHealthCheckInterval) throws Exception {
         String instanceFile = null;
         switch (instanceConfig.getFunctionDetails().getRuntime()) {
@@ -223,6 +225,7 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
             narExtractionDirectory,
             logDirectory,
             codeFile,
+            transformFunctionFile,
             pulsarServiceUrl,
             stateStorageServiceUrl,
             authConfig,

@@ -52,6 +52,7 @@ public interface RuntimeFactory extends AutoCloseable {
      */
     Runtime createContainer(
             InstanceConfig instanceConfig, String codeFile, String originalCodeFileName,
+            String transformFunctionFile, String originalTransformFunctionFileName,
             Long expectedHealthCheckInterval) throws Exception;
 
     default boolean externallyManaged() {

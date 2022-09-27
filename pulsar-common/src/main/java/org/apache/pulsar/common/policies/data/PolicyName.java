@@ -51,5 +51,6 @@ public enum PolicyName {
     TTL,
     MAX_TOPICS,
     RESOURCEGROUP,
-    ENTRY_FILTERS
+    ENTRY_FILTERS,
+    SHADOW_TOPIC
 }

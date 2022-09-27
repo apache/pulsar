@@ -25,10 +25,10 @@ The configuration of Debezium source connector has the following properties.
 | `key.converter` | true | null | The converter provided by Kafka Connect to convert record key. |
 | `value.converter` | true | null | The converter provided by Kafka Connect to convert record value.  |
 | `database.history` | true | null | The name of the database history class. |
-| `database.history.pulsar.topic` | true | null | The name of the database history topic where the connector writes and recovers DDL statements. <br /><br />**Note: this topic is for internal use only and should not be used by consumers.** |
+| `database.history.pulsar.topic` | true | null | The name of the database history topic where the connector writes and recovers DDL statements. <br /><br />**Note: This topic is for internal use only and should not be used by consumers.** |
 | `database.history.pulsar.service.url` | true | null | Pulsar cluster service URL for history topic. |
 | `offset.storage.topic` | true | null | Record the last committed offsets that the connector successfully completes. |
-| `json-with-envelope` | false | false | Present the message only consist of payload.
+| `json-with-envelope` | false | false | Present the message that only consists of payload.|
 | `database.history.pulsar.reader.config` | false | null | The configs of the reader for the database schema history topic, in the form of a JSON string with key-value pairs. <br />**Note:** This property is only available in 2.10.2 and later versions. |
 | `offset.storage.reader.config` | false | null | The configs of the reader for the kafka connector offsets topic, in the form of a JSON string with key-value pairs. <br />**Note:** This property is only available in 2.10.2 and later versions.| 
 
@@ -684,7 +684,7 @@ For the full list of configuration properties supported by Debezium, see [Debezi
 ### Configuration
 
 Debezium [requires](https://debezium.io/documentation/reference/1.5/connectors/sqlserver.html#sqlserver-overview) SQL Server with CDC enabled.
-Steps outlined in the [documentation](https://debezium.io/documentation/reference/1.5/connectors/sqlserver.html#setting-up-sqlserver) and used in the [integration test](https://github.com/apache/pulsar/blob/master/tests/integration/src/test/java/org/apache/pulsar/tests/integration/src/test/java/org/apache/pulsar/tests/integration/io/sources/debezium/DebeziumMsSqlSourceTester.java).
+Steps outlined in the [documentation](https://debezium.io/documentation/reference/1.5/connectors/sqlserver.html#setting-up-sqlserver) and used in the [integration test](https://github.com/apache/pulsar/blob/master/tests/integration/src/test/java/org/apache/pulsar/tests/integration/io/sources/debezium/DebeziumMsSqlSourceTester.java).
 For more information, see [Enable and disable change data capture in Microsoft SQL Server](https://docs.microsoft.com/en-us/sql/relational-databases/track-changes/enable-and-disable-change-data-capture-sql-server).
 
 Similarly to other connectors, you can use JSON or YAMl to configure the connector.

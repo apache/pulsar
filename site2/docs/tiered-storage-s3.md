@@ -4,7 +4,7 @@ title: Use S3 offloader with Pulsar
 sidebar_label: "S3 offloader"
 ---
 
-S3 offloader is introduced to serve S3-compatible storage, which means that the storage employs the S3 API as its “language" and applications that speak the S3 API are able to plug and play with S3-compatible storage.
+S3 offloader is introduced to serve S3-compatible storage, which means that the storage employs the S3 API as its "language" and applications that speak the S3 API are able to plug and play with S3-compatible storage.
 
 This chapter guides you through every step of installing and configuring the S3 offloader and using it with Pulsar.
 
@@ -18,29 +18,8 @@ Follow the steps below to install the S3 offloader.
 
 ### Steps
 
-This example uses Pulsar 2.9.3.
-
-1. [Download the Pulsar tarball](getting-started-standalone.md#install-pulsar-using-binary-release).
-
-2. Download and untar the Pulsar offloaders package, then copy the Pulsar offloaders as `offloaders` in the Pulsar directory. See [Install tiered storage offloaders](getting-started-standalone.md#install-tiered-storage-offloaders-optional).
-
-   **Output**
-
-   As shown from the output, Pulsar uses [Apache jclouds](https://jclouds.apache.org) to support [AWS S3](https://aws.amazon.com/s3/), [GCS](https://cloud.google.com/storage/), [Azure](https://portal.azure.com/#home), and [Aliyun OSS](https://www.aliyun.com/product/oss) for long-term storage.
-
-   ```
-
-   tiered-storage-file-system-2.9.3.nar
-   tiered-storage-jcloud-2.9.3.nar
-
-   ```
-
-   :::note
-
-   * If you run Pulsar in a bare-metal cluster, ensure that `offloaders` tarball is unzipped in every broker's Pulsar directory.
-   * If you run Pulsar in Docker or deploy Pulsar using a Docker image (such as K8s and DCOS), you can use the `apachepulsar/pulsar-all` image. The `apachepulsar/pulsar-all` image has already bundled tiered storage offloaders.
-
-   :::
+1. [Download the Pulsar tarball](getting-started-standalone.md#step-1-download-pulsar-distribution).
+2. Download and untar the Pulsar offloaders package, then copy the Pulsar offloaders as `offloaders` in the Pulsar directory. See [Install tiered storage offloaders](tiered-storage-overview.md#how-to-install-tiered-storage-offloaders).
 
 ## Configuration
 
@@ -81,10 +60,8 @@ A bucket is a basic container that holds your data. Everything you store in S3-c
 
 This example names the bucket `pulsar-topic-offload`.
 
-```properties
-
+```conf
 managedLedgerOffloadBucket=pulsar-topic-offload
-
 ```
 
 #### Endpoint (required)
@@ -96,10 +73,8 @@ The endpoint is the region where a bucket is located.
 
 This example sets the endpoint as `localhost`.
 
-```
-
+```conf
 managedLedgerOffloadServiceEndpoint=http://localhost:9000
-
 ```
 
 #### Authentication (optional)
@@ -109,10 +84,8 @@ To be able to access S3-compatible storage, you need to authenticate with S3-com
 Set the environment variables `ACCESS_KEY_ID` and `ACCESS_KEY_SECRET` in `conf/pulsar_env.sh`.
 
 ```bash
-
 export ACCESS_KEY_ID=ABC123456789
 export ACCESS_KEY_SECRET=ded7db27a4558e2ea8bbf0bf37ae0e8521618f366c
-
 ```
 
 :::note
@@ -127,9 +100,9 @@ Namespace policy can be configured to offload data automatically once a threshol
 
 | Threshold value | Action |
 | --- | --- |
-| > 0 | It triggers the offloading operation if the topic storage reaches its threshold. |
+| &gt; 0 | It triggers the offloading operation if the topic storage reaches its threshold. |
 | = 0 | It causes a broker to offload data as soon as possible. |
-| < 0 | It disables automatic offloading operation. |
+| &lt; 0 | It disables automatic offloading operation. |
 
 Automatic offloading runs when a new segment is added to a topic log. If you set the threshold for a namespace, but few messages are being produced to the topic, the offloader does not work until the current segment is full.
 
@@ -142,9 +115,7 @@ The offload configurations in `broker.conf` and `standalone.conf` are used for t
 This example sets the S3 offloader threshold size to 10 MB using `pulsar-admin`.
 
 ```bash
-
 bin/pulsar-admin namespaces set-offload-threshold --size 10M my-tenant/my-namespace
-
 ```
 
 :::tip
@@ -168,17 +139,13 @@ For individual topics, you can trigger the S3 offloader manually using one of th
 - This example triggers the S3 offloader to run manually using `pulsar-admin`.
 
   ```bash
-
   bin/pulsar-admin topics offload --size-threshold 10M my-tenant/my-namespace/topic1
-
   ```
 
   **Output**
 
   ```bash
-
   Offload triggered for persistent://my-tenant/my-namespace/topic1 for messages before 2:0:-1
-
   ```
 
   :::tip
@@ -190,52 +157,40 @@ For individual topics, you can trigger the S3 offloader manually using one of th
 - This example checks the S3 offloader status using `pulsar-admin`.
 
   ```bash
-
   bin/pulsar-admin topics offload-status persistent://my-tenant/my-namespace/topic1
-
   ```
 
   **Output**
 
   ```bash
-
   Offload is currently running
-
   ```
 
   To wait for the S3 offloader to complete the job, add the `-w` flag.
 
   ```bash
-
   bin/pulsar-admin topics offload-status -w persistent://my-tenant/my-namespace/topic1
-
   ```
 
   **Output**
 
   ```
-
   Offload was a success
-
   ```
 
   If there is an error in offloading, the error is propagated to the `pulsar-admin topics offload-status` command.
 
   ```bash
-
   bin/pulsar-admin topics offload-status persistent://my-tenant/my-namespace/topic1
-
   ```
 
   **Output**
 
   ```
-
   Error in offload
   null
 
   Reason: Error offloading: org.apache.bookkeeper.mledger.ManagedLedgerException: java.util.concurrent.CompletionException: com.amazonaws.services.s3.model.AmazonS3Exception: Anonymous users cannot initiate multipart uploads.  Please authenticate. (Service: Amazon S3; Status Code: 403; Error Code: AccessDenied; Request ID: 798758DE3F1776DF; S3 Extended Request ID: dhBFz/lZm1oiG/oBEepeNlhrtsDlzoOhocuYMpKihQGXe6EG8puRGOkK6UwqzVrMXTWBxxHcS+g=), S3 Extended Request ID: dhBFz/lZm1oiG/oBEepeNlhrtsDlzoOhocuYMpKihQGXe6EG8puRGOkK6UwqzVrMXTWBxxHcS+g=
-
   ```
 
   :::tip

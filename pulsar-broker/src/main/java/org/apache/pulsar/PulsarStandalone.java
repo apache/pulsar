@@ -30,7 +30,6 @@ import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.logging.log4j.LogManager;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.resources.ClusterResources;
@@ -42,6 +41,7 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.util.ShutdownUtil;
 import org.apache.pulsar.functions.instance.state.PulsarMetadataStateStoreProviderImpl;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
@@ -223,6 +223,10 @@ public class PulsarStandalone implements AutoCloseable {
             description = "Directory for storing metadata")
     private String metadataDir = "data/metadata";
 
+    @Parameter(names = { "--metadata-url" },
+            description = "Metadata store url")
+    private String metadataStoreUrl = "";
+
     @Parameter(names = {"--zookeeper-port"}, description = "Local zookeeper's port",
             hidden = true)
     private int zkPort = 2181;
@@ -290,7 +294,7 @@ public class PulsarStandalone implements AutoCloseable {
 
         if (!this.isOnlyBroker()) {
             if (usingNewDefaultsPIP117) {
-                startBookieWithRocksDB();
+                startBookieWithMetadataStore();
             } else {
                 startBookieWithZookeeper();
             }
@@ -434,10 +438,13 @@ public class PulsarStandalone implements AutoCloseable {
         }
     }
 
-
-    private void startBookieWithRocksDB() throws Exception {
-        log.info("Starting BK with RocksDb metadata store");
-        String metadataStoreUrl = "rocksdb://" + Paths.get(metadataDir).toAbsolutePath();
+    private void startBookieWithMetadataStore() throws Exception {
+        if (StringUtils.isBlank(metadataStoreUrl)){
+            log.info("Starting BK with RocksDb metadata store");
+            metadataStoreUrl = "rocksdb://" + Paths.get(metadataDir).toAbsolutePath();
+        } else {
+            log.info("Starting BK with metadata store:", metadataStoreUrl);
+        }
         bkCluster = BKCluster.builder()
                 .metadataServiceUri(metadataStoreUrl)
                 .bkPort(bkPort)
@@ -464,8 +471,7 @@ public class PulsarStandalone implements AutoCloseable {
 
     private static void processTerminator(int exitCode) {
         log.info("Halting standalone process with code {}", exitCode);
-        LogManager.shutdown();
-        Runtime.getRuntime().halt(exitCode);
+        ShutdownUtil.triggerImmediateForcefulShutdown(exitCode);
     }
 
 

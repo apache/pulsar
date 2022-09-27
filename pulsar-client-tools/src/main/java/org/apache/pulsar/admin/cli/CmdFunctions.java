@@ -290,8 +290,10 @@ public class CmdFunctions extends CmdBase {
                 + "applied to the function", hidden = true)
         protected FunctionConfig.ProcessingGuarantees deprecatedProcessingGuarantees;
         @Parameter(names = "--processing-guarantees",
-                description = "The processing guarantees (aka delivery semantics) applied to the function"
-                        + " #Java, Python, Go")
+                description = "The processing guarantees (as known as delivery semantics) applied to the function."
+                    + " Available values are: `ATLEAST_ONCE`, `ATMOST_ONCE`, `EFFECTIVELY_ONCE`."
+                    + " If it is not specified, the `ATLEAST_ONCE` delivery guarantee is used."
+                    + " #Java, Python, Go")
         protected FunctionConfig.ProcessingGuarantees processingGuarantees;
         // for backwards compatibility purposes
         @Parameter(names = "--userConfig", description = "User-defined config key/values", hidden = true)
@@ -1171,6 +1173,10 @@ public class CmdFunctions extends CmdBase {
                 description = "Path or functionPkgUrl to store the content",
                 listConverter = StringConverter.class, required = false, hidden = true)
         protected String path;
+        @Parameter(
+                names = "--transform-function",
+                description = "Download the transform Function of the connector")
+        protected Boolean transformFunction = false;
 
         private void mergeArgs() {
             if (isBlank(destinationFile) && !isBlank(deprecatedDestinationFile)) {
@@ -1195,7 +1201,8 @@ public class CmdFunctions extends CmdBase {
             if (path != null) {
                 getAdmin().functions().downloadFunction(destinationFile, path);
             } else {
-                getAdmin().functions().downloadFunction(destinationFile, tenant, namespace, functionName);
+                getAdmin().functions()
+                        .downloadFunction(destinationFile, tenant, namespace, functionName, transformFunction);
             }
             print("Downloaded successfully");
         }

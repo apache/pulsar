@@ -758,6 +758,42 @@ public interface Functions {
             String destinationFile, String tenant, String namespace, String function);
 
     /**
+     * Download Function Code.
+     *
+     * @param destinationFile
+     *           file where data should be downloaded to
+     * @param tenant
+     *            Tenant name
+     * @param namespace
+     *            Namespace name
+     * @param function
+     *            Function name
+     * @param transformFunction
+     *            Whether to download the transform function (for sources and sinks)
+     * @throws PulsarAdminException
+     */
+    void downloadFunction(String destinationFile, String tenant, String namespace, String function,
+                          boolean transformFunction) throws PulsarAdminException;
+
+    /**
+     * Download Function Code asynchronously.
+     *
+     * @param destinationFile
+     *           file where data should be downloaded to
+     * @param tenant
+     *            Tenant name
+     * @param namespace
+     *            Namespace name
+     * @param function
+     *            Function name
+     * @param transformFunction
+     *            Whether to download the transform function (for sources and sinks)
+     */
+    CompletableFuture<Void> downloadFunctionAsync(
+            String destinationFile, String tenant, String namespace, String function, boolean transformFunction);
+
+
+    /**
      * Deprecated in favor of getting sources and sinks for their own APIs.
      * <p/>
      * Fetches a list of supported Pulsar IO connectors currently running in cluster mode

@@ -32,11 +32,11 @@ Application specifies the token when you create the client instance. An alternat
 
 > #### Always use TLS transport encryption
 > Sending a token is equivalent to sending a password over the wire. You had better use TLS encryption all the time when you connect to the Pulsar service. See
-> [Transport Encryption using TLS](security-tls-transport) for more details.
+> [Transport Encryption using TLS](security-tls-transport.md) for more details.
 
 ### CLI Tools
 
-[Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](reference-pulsar-admin), [`pulsar-perf`](reference-cli-tools.md#pulsar-perf), and [`pulsar-client`](reference-cli-tools.md#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
+[Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](reference-pulsar-admin.md), [`pulsar-perf`](reference-cli-tools.md#pulsar-perf), and [`pulsar-client`](reference-cli-tools.md#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
 
 You need to add the following parameters to that file to use the token authentication with CLI tools of Pulsar:
 
@@ -305,7 +305,7 @@ tokenSecretKey=file:///path/to/secret.key
 
 To configure proxies to authenticate clients, add the following parameters to `proxy.conf`:
 
-The proxy uses its own token when connecting to brokers. You need to configure the role token for this key pair in the `proxyRoles` of the brokers. For more details, see the [authorization guide](security-authorization).
+The proxy uses its own token when connecting to brokers. You need to configure the role token for this key pair in the `proxyRoles` of the brokers. For more details, see the [authorization guide](security-authorization.md).
 
 ```properties
 

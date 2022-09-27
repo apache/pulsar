@@ -14,30 +14,30 @@ Pulsar supports the following client libraries:
 
 ## Java client
 
-For instructions on how to use the Pulsar Java client to produce and consume messages, see [Pulsar Java client](client-libraries-java).
+For instructions on how to use the Pulsar Java client to produce and consume messages, see [Pulsar Java client](client-libraries-java.md).
 
 Two independent sets of Javadoc API docs are available.
 
 Library | Purpose
 :-------|:-------
-[`org.apache.pulsar.client.api`](/api/client) | The [Pulsar Java client](client-libraries-java) is used to produce and consume messages on Pulsar topics.
-[`org.apache.pulsar.client.admin`](/api/admin) | The Java client for the [Pulsar admin interface](admin-api-overview).
+[`org.apache.pulsar.client.api`](/api/client) | The [Pulsar Java client](client-libraries-java.md) is used to produce and consume messages on Pulsar topics.
+[`org.apache.pulsar.client.admin`](/api/admin) | The Java client for the [Pulsar admin interface](admin-api-overview.md).
 
 
 ## Go client
 
-For a tutorial on using the Pulsar Go client, see [Pulsar Go client](client-libraries-go).
+For a tutorial on using the Pulsar Go client, see [Pulsar Go client](client-libraries-go.md).
 
 
 ## Python client
 
-For a tutorial on using the Pulsar Python client, see [Pulsar Python client](client-libraries-python).
+For a tutorial on using the Pulsar Python client, see [Pulsar Python client](client-libraries-python.md).
 
 There are also [pdoc](https://github.com/BurntSushi/pdoc)-generated API docs for the Python client [here](/api/python).
 
 ## C++ client
 
-For a tutorial on using the Pulsar C++ clent, see [Pulsar C++ client](client-libraries-cpp).
+For a tutorial on using the Pulsar C++ clent, see [Pulsar C++ client](client-libraries-cpp.md).
 
 There are also [Doxygen](http://www.stack.nl/~dimitri/doxygen/)-generated API docs for the C++ client [here](/api/cpp).
 

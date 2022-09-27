@@ -51,12 +51,14 @@ RUN curl -O -L https://zlib.net/zlib-1.2.12.tar.gz  && \
     rm -rf /zlib-1.2.12.tar.gz /zlib-1.2.12
 
 # Compile OpenSSL
-RUN curl -O -L https://github.com/openssl/openssl/archive/OpenSSL_1_1_0j.tar.gz && \
-   tar xfz OpenSSL_1_1_0j.tar.gz && \
-   cd openssl-OpenSSL_1_1_0j/ && \
+RUN curl -O -L https://github.com/openssl/openssl/archive/OpenSSL_1_1_1n.tar.gz && \
+   tar xfz OpenSSL_1_1_1n.tar.gz && \
+   cd openssl-OpenSSL_1_1_1n/ && \
    ./Configure -fPIC no-shared linux-x86_64 && \
    make -j8 && make install && \
-   rm -rf /OpenSSL_1_1_0j.tar.gz /openssl-OpenSSL_1_1_0j
+   rm -rf /OpenSSL_1_1_1n.tar.gz /openssl-OpenSSL_1_1_1n
+
+ENV LD_LIBRARY_PATH /usr/local/ssl/lib/:
 
 # Download and copile protoubf
 RUN curl -O -L  https://github.com/google/protobuf/releases/download/v3.20.0/protobuf-cpp-3.20.0.tar.gz && \

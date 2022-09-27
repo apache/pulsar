@@ -47,6 +47,7 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
@@ -745,6 +746,19 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
                 .blockIfQueueFull(true)
                 .enableBatching(false)
                 .create();
+        // Create a consumer to generate a durable cursor, to avoid deleting the ledger before the reader receives.
+        @Cleanup
+        org.apache.pulsar.client.api.Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .subscriptionName("sub_" + UUID.randomUUID())
+                .topic(topic)
+                .subscribe();
+        @Cleanup
+        Reader<String> reader = pulsarClient.newReader(Schema.STRING)
+                .topic(topic)
+                .startMessageIdInclusive()
+                .startMessageId(MessageId.earliest)
+                .readCompacted(true)
+                .create();
         CompletableFuture<MessageId> lastMessage = null;
         for (int i = 0; i < numMessages; ++i) {
             lastMessage = producer.newMessage().key(i + "").value(String.format("msg [%d]", i)).sendAsync();
@@ -769,14 +783,6 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         producer.flush();
         lastMessage.join();
         // For now the topic has 1000 messages in the compacted ledger and 1000 messages in the original topic.
-        @Cleanup
-        Reader<String> reader = pulsarClient.newReader(Schema.STRING)
-                .topic(topic)
-                .startMessageIdInclusive()
-                .startMessageId(MessageId.earliest)
-                .readCompacted(true)
-                .create();
-
         // Unloading the topic during reading the data to make sure the reader will not miss any messages.
         for (int i = 0; i < numMessages / 2; ++i) {
             Assert.assertEquals(reader.readNext().getValue(), String.format("msg [%d]", i));

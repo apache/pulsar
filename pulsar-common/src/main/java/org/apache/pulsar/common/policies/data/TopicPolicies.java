@@ -47,6 +47,7 @@ public class TopicPolicies {
     @Builder.Default
     private List<SubType> subscriptionTypesEnabled = new ArrayList<>();
     private List<String> replicationClusters;
+    private List<String> shadowTopics;
     private Boolean isGlobal = false;
     private PersistencePolicies persistence;
     private RetentionPolicies retentionPolicies;

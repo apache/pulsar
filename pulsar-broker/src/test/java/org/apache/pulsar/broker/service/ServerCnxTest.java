@@ -102,6 +102,7 @@ import org.apache.pulsar.common.api.proto.CommandError;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespaceResponse;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
+import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadataResponse;
 import org.apache.pulsar.common.api.proto.CommandProducerSuccess;
 import org.apache.pulsar.common.api.proto.CommandSendError;
 import org.apache.pulsar.common.api.proto.CommandSendReceipt;
@@ -139,7 +140,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @SuppressWarnings("unchecked")
-@Test(groups = "broker")
+@Test(groups = "flaky")
 public class ServerCnxTest {
     protected EmbeddedChannel channel;
     private ServiceConfiguration svcConfig;
@@ -2287,5 +2288,39 @@ public class ServerCnxTest {
         stateUpdater.setAccessible(true);
         stateUpdater.set(serverCnx, ServerCnx.State.Failed);
         serverCnx.handleCommandWatchTopicListClose(any());
+    }
+
+    @Test(timeOut = 30000)
+    public void handleConnectWithServiceNotReady() throws Exception {
+        resetChannel();
+        doReturn(false).when(pulsar).isRunning();
+        assertTrue(channel.isActive());
+        assertEquals(serverCnx.getState(), State.Start);
+
+        // test server response to CONNECT
+        ByteBuf clientCommand = Commands.newConnect("none", "", null);
+        channel.writeInbound(clientCommand);
+
+        assertEquals(serverCnx.getState(), State.Start);
+        Object response = getResponse();
+        assertTrue(response instanceof CommandError);
+        CommandError error = (CommandError) response;
+        assertEquals(error.getError(), ServerError.ServiceNotReady);
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
+    public void handlePartitionMetadataRequestWithServiceNotReady() throws Exception {
+        resetChannel();
+        setChannelConnected();
+        doReturn(false).when(pulsar).isRunning();
+        assertTrue(channel.isActive());
+
+        ByteBuf clientCommand = Commands.newPartitionMetadataRequest(successTopicName, 1);
+        channel.writeInbound(clientCommand);
+        Object response = getResponse();
+        assertTrue(response instanceof CommandPartitionedTopicMetadataResponse);
+        assertEquals(((CommandPartitionedTopicMetadataResponse) response).getError(), ServerError.ServiceNotReady);
+        channel.finish();
     }
 }
