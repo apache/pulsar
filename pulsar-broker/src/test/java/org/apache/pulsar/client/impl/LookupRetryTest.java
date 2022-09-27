@@ -88,7 +88,7 @@ public class LookupRetryTest extends MockedPulsarServiceBaseTest {
         };
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
