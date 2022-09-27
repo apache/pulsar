@@ -8,7 +8,7 @@ original_id: standalone
 For the purposes of local development and testing, you can run Pulsar in standalone mode on your own machine. Standalone mode includes a Pulsar broker as well as the necessary ZooKeeper and BookKeeper components running inside of a single Java Virtual Machine (JVM) process.
 
 > #### Pulsar in production? 
-> If you're looking to run a full production Pulsar installation, see the [Deploying a Pulsar instance](deploy-bare-metal) guide.
+> If you're looking to run a full production Pulsar installation, see the [Deploying a Pulsar instance](deploy-bare-metal.md) guide.
 
 ## Run Pulsar Standalone Manually
 
@@ -112,7 +112,7 @@ pulsar-io-twitter-@pulsar:version@.nar
 > If you are running Pulsar in a bare metal cluster, you need to make sure `connectors` tarball is unzipped in every broker's pulsar directory
 > (or in every function-worker's pulsar directory if you are running a separate worker cluster for Pulsar functions).
 > 
-> If you are [running Pulsar in Docker](getting-started-docker.md) or deploying Pulsar using a docker image (e.g. [K8S](deploy-kubernetes) or [DC/OS](https://dcos.io/)),
+> If you are [running Pulsar in Docker](getting-started-docker.md) or deploying Pulsar using a docker image (e.g. [K8S](deploy-kubernetes.md) or [DC/OS](https://dcos.io/)),
 > you can use `apachepulsar/pulsar-all` image instead of `apachepulsar/pulsar` image. `apachepulsar/pulsar-all` image has already bundled [all builtin connectors](io-overview.md#working-with-connectors).
 
 ## Installing Tiered Storage Offloaders (optional)
@@ -121,7 +121,7 @@ pulsar-io-twitter-@pulsar:version@.nar
 > If you would like to enable tiered storage feature, you can follow the instructions as below; otherwise you can
 > skip this section for now.
 
-To get started using [tiered storage offloaders](concepts-tiered-storage), you'll need to download the offloaders tarball release on every broker node in
+To get started using [tiered storage offloaders](concepts-tiered-storage.md), you'll need to download the offloaders tarball release on every broker node in
 one of the following ways:
 
 * by clicking the link below and downloading the release from an Apache mirror:
@@ -161,7 +161,7 @@ For more details of how to configure tiered storage feature, you could reference
 >
 > If you are running Pulsar in a bare metal cluster, you need to make sure `offloaders` tarball is unzipped in every broker's pulsar directory
 > 
-> If you are [running Pulsar in Docker](getting-started-docker.md) or deploying Pulsar using a docker image (e.g. [K8S](deploy-kubernetes) or [DC/OS](https://dcos.io/)),
+> If you are [running Pulsar in Docker](getting-started-docker.md) or deploying Pulsar using a docker image (e.g. [K8S](deploy-kubernetes.md) or [DC/OS](https://dcos.io/)),
 > you can use `apachepulsar/pulsar-all` image instead of `apachepulsar/pulsar` image. `apachepulsar/pulsar-all` image has already bundled tiered storage offloaders.
 
 
@@ -229,12 +229,12 @@ If the message has been successfully published to the topic, you should see a co
 
 ## Using Pulsar clients locally
 
-Pulsar currently offers client libraries for [Java](client-libraries-java.md),  [Go](client-libraries-go.md), [Python](client-libraries-python.md) and [C++](client-libraries-cpp). If you're running a local standalone cluster, you can use one of these root URLs for interacting with your cluster:
+Pulsar currently offers client libraries for [Java](client-libraries-java.md),  [Go](client-libraries-go.md), [Python](client-libraries-python.md) and [C++](client-libraries-cpp.md). If you're running a local standalone cluster, you can use one of these root URLs for interacting with your cluster:
 
 * `http://localhost:8080`
 * `pulsar://localhost:6650`
 
-Here's an example producer for a Pulsar topic using the [Java](client-libraries-java) client:
+Here's an example producer for a Pulsar topic using the [Java](client-libraries-java.md) client:
 
 ```java
 
@@ -245,7 +245,7 @@ Producer<byte[]> producer = client.newProducer().topic("my-topic").create();
 
 ```
 
-Here's an example [Python](client-libraries-python) producer:
+Here's an example [Python](client-libraries-python.md) producer:
 
 ```python
 
@@ -256,7 +256,7 @@ producer = client.create_producer('my-topic')
 
 ```
 
-Finally, here's an example [C++](client-libraries-cpp) producer:
+Finally, here's an example [C++](client-libraries-cpp.md) producer:
 
 ```cpp
 

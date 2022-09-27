@@ -64,7 +64,6 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
-        super.resetConfig();
     }
 
     /**

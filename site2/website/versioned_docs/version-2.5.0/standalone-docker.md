@@ -46,8 +46,8 @@ For more information, see [Topics](concepts-messaging.md#topics).
 
 ## Use Pulsar in Docker
 
-Pulsar offers client libraries for [Java](client-libraries-java.md), [Go](client-libraries-go.md), [Python](client-libraries-python) 
-and [C++](client-libraries-cpp). If you're running a local standalone cluster, you can
+Pulsar offers client libraries for [Java](client-libraries-java.md), [Go](client-libraries-go.md), [Python](client-libraries-python.md) 
+and [C++](client-libraries-cpp.md). If you're running a local standalone cluster, you can
 use one of these root URLs to interact with your cluster:
 
 * `pulsar://localhost:6650`
@@ -106,7 +106,7 @@ client.close()
 ## Get the topic statistics
 
 In Pulsar, you can use REST, Java, or command-line tools to control every aspect of the system.
-For details on APIs, refer to [Admin API Overview](admin-api-overview).
+For details on APIs, refer to [Admin API Overview](admin-api-overview.md).
 
 In the simplest example, you can use curl to probe the stats for a particular topic:
 

@@ -89,7 +89,7 @@ For that reason we only collect time series of metrics aggregated at the namespa
 
 ### Pulsar per-topic dashboard
 
-The per-topic dashboard instructions are available at [Dashboard](administration-dashboard).
+The per-topic dashboard instructions are available at [Dashboard](administration-dashboard.md).
 
 ### Grafana
 

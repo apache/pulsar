@@ -67,7 +67,6 @@ public class MaxUnackedMessagesTest extends ProducerConsumerBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
-        resetConfig();
     }
 
     @Test(timeOut = 10000)
