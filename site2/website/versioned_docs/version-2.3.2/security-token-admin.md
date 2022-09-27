@@ -28,7 +28,7 @@ will need one.
 > #### Always use TLS transport encryption
 > Sending a token is equivalent to sending a password over the wire. It is strongly recommended to
 > always use TLS encryption when talking to the Pulsar service. See
-> [Transport Encryption using TLS](security-tls-transport)
+> [Transport Encryption using TLS](security-tls-transport.md)
 
 ## Secret vs Public/Private keys
 
@@ -162,7 +162,7 @@ tokenSecretKey=file:///path/to/secret.key
 To configure proxies to authenticate clients, put the following in `proxy.conf`:
 
 The proxy will have its own token used when talking to brokers. The role token for this
-key pair should be configured in the ``proxyRoles`` of the brokers. See the [authorization guide](security-authorization) for more details.
+key pair should be configured in the ``proxyRoles`` of the brokers. See the [authorization guide](security-authorization.md) for more details.
 
 ```properties
 

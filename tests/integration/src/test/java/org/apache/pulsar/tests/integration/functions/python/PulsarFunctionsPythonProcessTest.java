@@ -22,7 +22,7 @@ import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
 
 public class PulsarFunctionsPythonProcessTest extends PulsarFunctionsPythonTest {
 
-	public PulsarFunctionsPythonProcessTest() {
-		super(FunctionRuntimeType.PROCESS);
-	}
+    public PulsarFunctionsPythonProcessTest() {
+        super(FunctionRuntimeType.PROCESS);
+    }
 }

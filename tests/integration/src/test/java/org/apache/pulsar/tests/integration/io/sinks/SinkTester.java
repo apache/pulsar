@@ -34,7 +34,7 @@ import org.testng.collections.Maps;
  * A tester used for testing a specific sink.
  */
 @Getter
-public abstract class SinkTester<ServiceContainerT extends GenericContainer> {
+public abstract class SinkTester<ServiceContainerT extends GenericContainer> implements AutoCloseable {
 
     @Getter
     public enum SinkType {
@@ -89,9 +89,9 @@ public abstract class SinkTester<ServiceContainerT extends GenericContainer> {
         return serviceContainer;
     }
 
-    public void stopServiceContainer(PulsarCluster cluster) {
+    public void stopServiceContainer() {
         if (null != serviceContainer) {
-            cluster.stopService(networkAlias, serviceContainer);
+            PulsarCluster.stopService(networkAlias, serviceContainer);
         }
     }
 
@@ -127,6 +127,4 @@ public abstract class SinkTester<ServiceContainerT extends GenericContainer> {
                     .send();
         }
     }
-
-
 }

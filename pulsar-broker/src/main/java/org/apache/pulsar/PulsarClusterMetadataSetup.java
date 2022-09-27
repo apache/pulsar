@@ -44,6 +44,7 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.CmdGenerateDocs;
+import org.apache.pulsar.common.util.ShutdownUtil;
 import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
@@ -232,12 +233,23 @@ public class PulsarClusterMetadataSetup {
             System.exit(1);
         }
 
+        try {
+            initializeCluster(arguments);
+        } catch (Exception e) {
+            System.err.println("Unexpected error occured.");
+            e.printStackTrace(System.err);
+            System.err.println("Terminating JVM...");
+            ShutdownUtil.triggerImmediateForcefulShutdown();
+        }
+    }
+
+    private static void initializeCluster(Arguments arguments) throws Exception {
         log.info("Setting up cluster {} with metadata-store={} configuration-metadata-store={}", arguments.cluster,
                 arguments.metadataStoreUrl, arguments.configurationMetadataStore);
 
         MetadataStoreExtended localStore =
-                initMetadataStore(arguments.metadataStoreUrl, arguments.zkSessionTimeoutMillis);
-        MetadataStoreExtended configStore = initMetadataStore(arguments.configurationMetadataStore,
+                initLocalMetadataStore(arguments.metadataStoreUrl, arguments.zkSessionTimeoutMillis);
+        MetadataStoreExtended configStore = initConfigMetadataStore(arguments.configurationMetadataStore,
                 arguments.zkSessionTimeoutMillis);
 
         final String metadataStoreUrlNoIdentifer = MetadataStoreFactoryImpl
@@ -377,9 +389,22 @@ public class PulsarClusterMetadataSetup {
         }
     }
 
-    public static MetadataStoreExtended initMetadataStore(String connection, int sessionTimeout) throws Exception {
+    public static MetadataStoreExtended initLocalMetadataStore(String connection, int sessionTimeout) throws Exception {
         MetadataStoreExtended store = MetadataStoreExtended.create(connection, MetadataStoreConfig.builder()
                 .sessionTimeoutMillis(sessionTimeout)
+                .metadataStoreName(MetadataStoreConfig.METADATA_STORE)
+                .build());
+        if (store instanceof MetadataStoreLifecycle) {
+            ((MetadataStoreLifecycle) store).initializeCluster().get();
+        }
+        return store;
+    }
+
+    public static MetadataStoreExtended initConfigMetadataStore(String connection, int sessionTimeout)
+            throws Exception {
+        MetadataStoreExtended store = MetadataStoreExtended.create(connection, MetadataStoreConfig.builder()
+                .sessionTimeoutMillis(sessionTimeout)
+                .metadataStoreName(MetadataStoreConfig.CONFIGURATION_METADATA_STORE)
                 .build());
         if (store instanceof MetadataStoreLifecycle) {
             ((MetadataStoreLifecycle) store).initializeCluster().get();

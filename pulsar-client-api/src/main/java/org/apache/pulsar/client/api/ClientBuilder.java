@@ -127,6 +127,12 @@ public interface ClientBuilder extends Serializable, Cloneable {
     ClientBuilder listenerName(String name);
 
     /**
+     * Release the connection if it is not used for more than {@param connectionMaxIdleSeconds} seconds.
+     * @return the client builder instance
+     */
+    ClientBuilder connectionMaxIdleSeconds(int connectionMaxIdleSeconds);
+
+    /**
      * Set the authentication provider to use in the Pulsar client instance.
      *
      * <p>Example:
@@ -295,6 +301,22 @@ public interface ClientBuilder extends Serializable, Cloneable {
     ClientBuilder enableTls(boolean enableTls);
 
     /**
+     * Set the path to the TLS key file.
+     *
+     * @param tlsKeyFilePath
+     * @return the client builder instance
+     */
+    ClientBuilder tlsKeyFilePath(String tlsKeyFilePath);
+
+    /**
+     * Set the path to the TLS certificate file.
+     *
+     * @param tlsCertificateFilePath
+     * @return the client builder instance
+     */
+    ClientBuilder tlsCertificateFilePath(String tlsCertificateFilePath);
+
+    /**
      * Set the path to the trusted TLS certificate file.
      *
      * @param tlsTrustCertsFilePath
@@ -339,6 +361,30 @@ public interface ClientBuilder extends Serializable, Cloneable {
      * @return the client builder instance
      */
     ClientBuilder sslProvider(String sslProvider);
+
+    /**
+     * The file format of the key store file.
+     *
+     * @param tlsKeyStoreType
+     * @return the client builder instance
+     */
+    ClientBuilder tlsKeyStoreType(String tlsKeyStoreType);
+
+    /**
+     * The location of the key store file.
+     *
+     * @param tlsTrustStorePath
+     * @return the client builder instance
+     */
+    ClientBuilder tlsKeyStorePath(String tlsTrustStorePath);
+
+    /**
+     * The store password for the key store file.
+     *
+     * @param tlsKeyStorePassword
+     * @return the client builder instance
+     */
+    ClientBuilder tlsKeyStorePassword(String tlsKeyStorePassword);
 
     /**
      * The file format of the trust store file.

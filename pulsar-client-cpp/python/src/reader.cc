@@ -22,6 +22,8 @@ Message Reader_readNext(Reader& reader) {
     Message msg;
     Result res;
 
+    // TODO: There is currently no readNextAsync() version for the Reader.
+    // Once that's available, we should also convert these ad-hoc loops.
     while (true) {
         Py_BEGIN_ALLOW_THREADS
             // Use 100ms timeout to periodically check whether the
@@ -58,36 +60,25 @@ Message Reader_readNextTimeout(Reader& reader, int timeoutMs) {
 
 bool Reader_hasMessageAvailable(Reader& reader) {
     bool available = false;
-    Result res;
-    Py_BEGIN_ALLOW_THREADS res = reader.hasMessageAvailable(available);
-    Py_END_ALLOW_THREADS
 
-        CHECK_RESULT(res);
+    waitForAsyncValue(
+        std::function<void(HasMessageAvailableCallback)>(
+            [&](HasMessageAvailableCallback callback) { reader.hasMessageAvailableAsync(callback); }),
+        available);
+
     return available;
 }
 
 void Reader_close(Reader& reader) {
-    Result res;
-    Py_BEGIN_ALLOW_THREADS res = reader.close();
-    Py_END_ALLOW_THREADS
-
-        CHECK_RESULT(res);
+    waitForAsyncResult([&](ResultCallback callback) { reader.closeAsync(callback); });
 }
 
 void Reader_seek(Reader& reader, const MessageId& msgId) {
-    Result res;
-    Py_BEGIN_ALLOW_THREADS res = reader.seek(msgId);
-    Py_END_ALLOW_THREADS
-
-        CHECK_RESULT(res);
+    waitForAsyncResult([&](ResultCallback callback) { reader.seekAsync(msgId, callback); });
 }
 
 void Reader_seek_timestamp(Reader& reader, uint64_t timestamp) {
-    Result res;
-    Py_BEGIN_ALLOW_THREADS res = reader.seek(timestamp);
-    Py_END_ALLOW_THREADS
-
-        CHECK_RESULT(res);
+    waitForAsyncResult([&](ResultCallback callback) { reader.seekAsync(timestamp, callback); });
 }
 
 bool Reader_is_connected(Reader& reader) { return reader.isConnected(); }

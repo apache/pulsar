@@ -45,7 +45,7 @@ Configuring the compaction threshold on a namespace will apply to all topics wit
 
 ## Triggering compaction manually {#trigger}
 
-In order to run compaction on a topic, you need to use the [`topics compact`](reference-pulsar-admin.md#topics-compact) command for the [`pulsar-admin`](reference-pulsar-admin) CLI tool. Here's an example:
+In order to run compaction on a topic, you need to use the [`topics compact`](reference-pulsar-admin.md#topics-compact) command for the [`pulsar-admin`](reference-pulsar-admin.md) CLI tool. Here's an example:
 
 ```bash
 
@@ -85,7 +85,7 @@ How often you [trigger compaction](#trigger) will vary widely based on the use c
 
 ## Consumer configuration {#config}
 
-Pulsar consumers and readers need to be configured to read from compacted topics. The sections below show you how to enable compacted topic reads for Pulsar's language clients. If the
+Pulsar consumers and readers need to be configured to read from compacted topics. The sections below show you how to enable compacted topic reads for Pulsar's language clients.
 
 
 > #### Java only

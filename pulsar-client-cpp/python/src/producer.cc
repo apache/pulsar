@@ -23,12 +23,12 @@
 extern boost::python::object MessageId_serialize(const MessageId& msgId);
 
 boost::python::object Producer_send(Producer& producer, const Message& message) {
-    Result res;
     MessageId messageId;
-    Py_BEGIN_ALLOW_THREADS res = producer.send(message, messageId);
-    Py_END_ALLOW_THREADS
 
-        CHECK_RESULT(res);
+    waitForAsyncValue(std::function<void(SendCallback)>(
+                          [&](SendCallback callback) { producer.sendAsync(message, callback); }),
+                      messageId);
+
     return MessageId_serialize(messageId);
 }
 
@@ -60,19 +60,11 @@ void Producer_sendAsync(Producer& producer, const Message& message, py::object c
 }
 
 void Producer_flush(Producer& producer) {
-    Result res;
-    Py_BEGIN_ALLOW_THREADS res = producer.flush();
-    Py_END_ALLOW_THREADS
-
-        CHECK_RESULT(res);
+    waitForAsyncResult([&](ResultCallback callback) { producer.flushAsync(callback); });
 }
 
 void Producer_close(Producer& producer) {
-    Result res;
-    Py_BEGIN_ALLOW_THREADS res = producer.close();
-    Py_END_ALLOW_THREADS
-
-        CHECK_RESULT(res);
+    waitForAsyncResult([&](ResultCallback callback) { producer.closeAsync(callback); });
 }
 
 bool Producer_is_connected(Producer& producer) { return producer.isConnected(); }

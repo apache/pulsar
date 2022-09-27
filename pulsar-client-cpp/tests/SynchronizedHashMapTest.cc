@@ -40,9 +40,16 @@ inline PairVector sort(PairVector pairs) {
 }
 
 TEST(SynchronizedHashMap, testClear) {
-    SynchronizedHashMap<int, int> m({{1, 100}, {2, 200}});
+    SyncMapType m({{1, 100}, {2, 200}});
     m.clear();
     ASSERT_EQ(m.toPairVector(), PairVector{});
+
+    PairVector expectedPairs({{3, 300}, {4, 400}});
+    SyncMapType m2(expectedPairs);
+    PairVector pairs;
+    m2.clear([&pairs](const int& key, const int& value) { pairs.emplace_back(key, value); });
+    ASSERT_EQ(m2.toPairVector(), PairVector{});
+    ASSERT_EQ(sort(pairs), expectedPairs);
 }
 
 TEST(SynchronizedHashMap, testRemoveAndFind) {

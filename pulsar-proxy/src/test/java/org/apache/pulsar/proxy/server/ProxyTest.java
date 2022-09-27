@@ -34,7 +34,6 @@ import lombok.Cleanup;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
-
 import org.apache.avro.reflect.Nullable;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
@@ -70,8 +69,8 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
 
     private static final Logger log = LoggerFactory.getLogger(ProxyTest.class);
 
-    private ProxyService proxyService;
-    private ProxyConfiguration proxyConfig = new ProxyConfiguration();
+    protected ProxyService proxyService;
+    protected ProxyConfiguration proxyConfig = new ProxyConfiguration();
 
     @Data
     @ToString

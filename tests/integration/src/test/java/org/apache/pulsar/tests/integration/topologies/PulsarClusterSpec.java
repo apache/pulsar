@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.tests.integration.topologies;
 
-import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -110,7 +110,7 @@ public class PulsarClusterSpec {
      * @return the list of external services to start with the cluster.
      */
     @Singular
-    Map<String, GenericContainer<?>> externalServices = Collections.EMPTY_MAP;
+    Map<String, GenericContainer<?>> externalServices;
 
     /**
      * Returns the flag whether to enable/disable container log.
@@ -156,4 +156,9 @@ public class PulsarClusterSpec {
 
     @Default
     int maxMessageSize = Commands.DEFAULT_MAX_MESSAGE_SIZE;
+
+    /**
+     * Additional ports to expose on broker containers.
+     */
+    List<Integer> brokerAdditionalPorts;
 }

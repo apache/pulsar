@@ -30,9 +30,11 @@ import io.netty.resolver.AddressResolver;
 import io.netty.resolver.dns.DnsAddressResolverGroup;
 import io.netty.resolver.dns.DnsNameResolverBuilder;
 import io.netty.util.concurrent.Future;
+import io.netty.util.concurrent.ScheduledFuture;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -41,6 +43,7 @@ import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -54,6 +57,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ConnectionPool implements AutoCloseable {
+
+    public static final int IDLE_DETECTION_INTERVAL_SECONDS_MIN = 60;
+
     protected final ConcurrentHashMap<InetSocketAddress, ConcurrentMap<Integer, CompletableFuture<ClientCnx>>> pool;
 
     private final Bootstrap bootstrap;
@@ -65,6 +71,17 @@ public class ConnectionPool implements AutoCloseable {
 
     protected final AddressResolver<InetSocketAddress> addressResolver;
     private final boolean shouldCloseDnsResolver;
+
+
+    /** Maximum idle time, released if exceeded. **/
+    @VisibleForTesting
+    int connectionMaxIdleSeconds;
+    /** How often to check for idle connections. **/
+    private int idleDetectionIntervalSeconds;
+    /** Do you want to automatically clean up unused connections. **/
+    private boolean autoReleaseIdleConnectionsEnabled;
+    /** Async release useless connections task. **/
+    private ScheduledFuture asyncReleaseUselessConnectionsTask;
 
     public ConnectionPool(ClientConfigurationData conf, EventLoopGroup eventLoopGroup) throws PulsarClientException {
         this(conf, eventLoopGroup, () -> new ClientCnx(conf, eventLoopGroup));
@@ -104,6 +121,27 @@ public class ConnectionPool implements AutoCloseable {
 
         this.shouldCloseDnsResolver = !addressResolver.isPresent();
         this.addressResolver = addressResolver.orElseGet(() -> createAddressResolver(conf, eventLoopGroup));
+        // Auto release useless connections. see: https://github.com/apache/pulsar/issues/15516.
+        this.connectionMaxIdleSeconds = conf.getConnectionMaxIdleSeconds();
+        this.autoReleaseIdleConnectionsEnabled = connectionMaxIdleSeconds > 0;
+        if (autoReleaseIdleConnectionsEnabled) {
+            // Start async task for release useless connections.
+            this.idleDetectionIntervalSeconds = connectionMaxIdleSeconds;
+            if (this.idleDetectionIntervalSeconds < IDLE_DETECTION_INTERVAL_SECONDS_MIN){
+                log.warn("Connection idle detect interval seconds default same as max idle seconds, but max idle"
+                                + " seconds less than " + IDLE_DETECTION_INTERVAL_SECONDS_MIN + ", to avoid checking"
+                                + " connection status too much, use default value : "
+                                + IDLE_DETECTION_INTERVAL_SECONDS_MIN);
+                this.idleDetectionIntervalSeconds = IDLE_DETECTION_INTERVAL_SECONDS_MIN;
+            }
+            asyncReleaseUselessConnectionsTask = eventLoopGroup.scheduleWithFixedDelay(() -> {
+                try {
+                    doMarkAndReleaseUselessConnections();
+                } catch (Exception e) {
+                    log.error("Auto release useless connections failure.", e);
+                }
+            }, idleDetectionIntervalSeconds, idleDetectionIntervalSeconds, TimeUnit.SECONDS);
+        }
     }
 
     private static AddressResolver<InetSocketAddress> createAddressResolver(ClientConfigurationData conf,
@@ -171,8 +209,27 @@ public class ConnectionPool implements AutoCloseable {
 
         final int randomKey = signSafeMod(random.nextInt(), maxConnectionsPerHosts);
 
-        return pool.computeIfAbsent(logicalAddress, a -> new ConcurrentHashMap<>()) //
+        final ConcurrentMap<Integer, CompletableFuture<ClientCnx>> innerPool =
+                pool.computeIfAbsent(logicalAddress, a -> new ConcurrentHashMap<>());
+        CompletableFuture<ClientCnx> completableFuture = innerPool
                 .computeIfAbsent(randomKey, k -> createConnection(logicalAddress, physicalAddress, randomKey));
+        return completableFuture.thenCompose(clientCnx -> {
+            // If connection already release, create a new one.
+            if (clientCnx.getIdleState().isReleased()) {
+                cleanupConnection(logicalAddress, randomKey, completableFuture);
+                return innerPool
+                        .computeIfAbsent(randomKey, k -> createConnection(logicalAddress, physicalAddress, randomKey));
+            }
+            // Try use exists connection.
+            if (clientCnx.getIdleState().tryMarkUsingAndClearIdleTime()) {
+                return CompletableFuture.completedFuture(clientCnx);
+            } else {
+                // If connection already release, create a new one.
+                cleanupConnection(logicalAddress, randomKey, completableFuture);
+                return innerPool
+                        .computeIfAbsent(randomKey, k -> createConnection(logicalAddress, physicalAddress, randomKey));
+            }
+        });
     }
 
     private CompletableFuture<ClientCnx> createConnection(InetSocketAddress logicalAddress,
@@ -340,6 +397,9 @@ public class ConnectionPool implements AutoCloseable {
         if (shouldCloseDnsResolver) {
             addressResolver.close();
         }
+        if (asyncReleaseUselessConnectionsTask != null && !asyncReleaseUselessConnectionsTask.isCancelled()) {
+            asyncReleaseUselessConnectionsTask.cancel(false);
+        }
     }
 
     private void cleanupConnection(InetSocketAddress address, int connectionKey,
@@ -357,5 +417,41 @@ public class ConnectionPool implements AutoCloseable {
 
     private static final Logger log = LoggerFactory.getLogger(ConnectionPool.class);
 
+    public void doMarkAndReleaseUselessConnections(){
+        if (!autoReleaseIdleConnectionsEnabled){
+            return;
+        }
+        List<Runnable> releaseIdleConnectionTaskList = new ArrayList<>();
+        for (Map.Entry<InetSocketAddress, ConcurrentMap<Integer, CompletableFuture<ClientCnx>>> entry :
+                pool.entrySet()){
+            ConcurrentMap<Integer, CompletableFuture<ClientCnx>> innerPool = entry.getValue();
+            for (Map.Entry<Integer, CompletableFuture<ClientCnx>> entry0 : innerPool.entrySet()) {
+                CompletableFuture<ClientCnx> future = entry0.getValue();
+                // Ensure connection has been connected.
+                if (!future.isDone()) {
+                    continue;
+                }
+                if (future.isCompletedExceptionally()) {
+                    continue;
+                }
+                final ClientCnx clientCnx = future.join();
+                if (clientCnx == null) {
+                    continue;
+                }
+                // Detect connection idle-stat.
+                clientCnx.getIdleState().doIdleDetect(connectionMaxIdleSeconds);
+                // Try release useless connection.
+                if (clientCnx.getIdleState().isReleasing()) {
+                    releaseIdleConnectionTaskList.add(() -> {
+                        if (clientCnx.getIdleState().tryMarkReleasedAndCloseConnection()) {
+                            cleanupConnection(entry.getKey(), entry0.getKey(), future);
+                        }
+                    });
+                }
+            }
+        }
+        // Do release idle connections.
+        releaseIdleConnectionTaskList.forEach(Runnable::run);
+    }
 }
 

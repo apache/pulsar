@@ -29,13 +29,8 @@ RUN apt-get install -y procps curl git build-essential
 
 ENV GOLANG_VERSION 1.15.8
 
-RUN curl -sSL https://golang.org/dl/go$GOLANG_VERSION.linux-amd64.tar.gz \
-		| tar -C /usr/local -xz
-
-# RUN wget https://dl.google.com/go/go1.13.3.linux-amd64.tar.gz && tar -xvf go1.13.3.linux-amd64.tar.gz && mv go /usr/local
-# RUN export GOROOT=/usr/local/go && export GOPATH=$HOME/go && export PATH=$GOPATH/bin:$GOROOT/bin:$PATH
-# RUN echo "export GOROOT=/usr/local/go" >> ~/.profile && echo "export GOPATH=$HOME/go" >> ~/.profile && echo "export PATH=$GOPATH/bin:$GOROOT/bin:$PATH" >> ~/.profile
-
+RUN export ARCH=$(uname -m | sed -r 's/aarch64/arm64/g' |  awk '!/arm64/{$0="amd64"}1') \
+     && curl -sSL https://golang.org/dl/go$GOLANG_VERSION.linux-$ARCH.tar.gz | tar -C /usr/local -xz
 ENV PATH /usr/local/go/bin:$PATH
 
 RUN mkdir -p /go/src /go/bin && chmod -R 777 /go
@@ -89,7 +84,7 @@ COPY scripts/init-cluster.sh scripts/run-global-zk.sh scripts/run-local-zk.sh \
      scripts/run-standalone.sh \
      /pulsar/bin/
 
-COPY conf/presto/jvm.config /pulsar/conf/presto/
+COPY conf/presto/jvm.config /pulsar/trino/conf
 
 # copy python test examples
 RUN mkdir -p /pulsar/instances/deps
@@ -105,6 +100,9 @@ COPY target/java-test-functions.jar /pulsar/examples/
 
 # copy go test examples
 COPY --from=pulsar-function-go /go/bin /pulsar/examples/go-examples
+
+# copy broker plugins
+COPY target/plugins/ /pulsar/examples/
 
 # Include all offloaders
 COPY --from=pulsar-all /pulsar/offloaders /pulsar/offloaders

@@ -39,6 +39,9 @@ PULSAR_PUBLIC pulsar_authentication_t *pulsar_authentication_token_create(const 
 PULSAR_PUBLIC pulsar_authentication_t *pulsar_authentication_token_create_with_supplier(
     token_supplier tokenSupplier, void *ctx);
 
+PULSAR_PUBLIC pulsar_authentication_t *pulsar_authentication_basic_create(const char *username,
+                                                                          const char *password);
+
 PULSAR_PUBLIC pulsar_authentication_t *pulsar_authentication_athenz_create(const char *authParamsString);
 
 PULSAR_PUBLIC pulsar_authentication_t *pulsar_authentication_oauth2_create(const char *authParamsString);

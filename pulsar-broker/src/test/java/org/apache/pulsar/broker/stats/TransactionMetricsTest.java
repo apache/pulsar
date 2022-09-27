@@ -72,6 +72,9 @@ public class TransactionMetricsTest extends BrokerTestBase {
         ServiceConfiguration serviceConfiguration = getDefaultConf();
         serviceConfiguration.setTransactionCoordinatorEnabled(true);
         super.baseSetup(serviceConfiguration);
+    }
+
+    protected void afterSetup() throws Exception {
         admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
                 TenantInfo.builder()
                         .adminRoles(Sets.newHashSet("appid1"))
@@ -178,15 +181,15 @@ public class TransactionMetricsTest extends BrokerTestBase {
         String metricsStr = statsOut.toString();
         Multimap<String, PrometheusMetricsTest.Metric> metrics = parseMetrics(metricsStr);
 
-        Collection<PrometheusMetricsTest.Metric> metric = metrics.get("pulsar_txn_created_count");
+        Collection<PrometheusMetricsTest.Metric> metric = metrics.get("pulsar_txn_created_total");
         assertEquals(metric.size(), 1);
         metric.forEach(item -> assertEquals(item.value, txnCount));
 
-        metric = metrics.get("pulsar_txn_committed_count");
+        metric = metrics.get("pulsar_txn_committed_total");
         assertEquals(metric.size(), 1);
         metric.forEach(item -> assertEquals(item.value, txnCount / 2));
 
-        metric = metrics.get("pulsar_txn_aborted_count");
+        metric = metrics.get("pulsar_txn_aborted_total");
         assertEquals(metric.size(), 1);
         metric.forEach(item -> assertEquals(item.value, txnCount / 2));
 
@@ -208,11 +211,11 @@ public class TransactionMetricsTest extends BrokerTestBase {
         metricsStr = statsOut.toString();
         metrics = parseMetrics(metricsStr);
 
-        metric = metrics.get("pulsar_txn_timeout_count");
+        metric = metrics.get("pulsar_txn_timeout_total");
         assertEquals(metric.size(), 1);
         metric.forEach(item -> assertEquals(item.value, 1));
 
-        metric = metrics.get("pulsar_txn_append_log_count");
+        metric = metrics.get("pulsar_txn_append_log_total");
         assertEquals(metric.size(), 1);
         metric.forEach(item -> assertEquals(item.value, txnCount * 4 + 3));
 
@@ -224,6 +227,13 @@ public class TransactionMetricsTest extends BrokerTestBase {
 
     @Test
     public void testManagedLedgerMetrics() throws Exception{
+        cleanup();
+        ServiceConfiguration serviceConfiguration = getDefaultConf();
+        serviceConfiguration.setTopicLevelPoliciesEnabled(false);
+        serviceConfiguration.setSystemTopicEnabled(false);
+        serviceConfiguration.setTransactionCoordinatorEnabled(true);
+        super.baseSetup(serviceConfiguration);
+
         String ns1 = "prop/ns-abc1";
         admin.namespaces().createNamespace(ns1);
         String topic = "persistent://" + ns1 + "/test_managed_ledger_metrics";

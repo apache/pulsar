@@ -50,4 +50,10 @@ public interface PackagesStorageConfiguration {
      *          a group of the property
      */
     void setProperty(Properties properties);
+
+    /**
+     * Get all properties for the configuration.
+     * @return all properties for the configuration
+     */
+    Properties getProperties();
 }

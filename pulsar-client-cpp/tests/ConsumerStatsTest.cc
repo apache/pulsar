@@ -20,15 +20,12 @@
 #include <pulsar/Client.h>
 #include <lib/LogUtils.h>
 #include <lib/Commands.h>
-#include "CustomRoutingPolicy.h"
 #include "lib/Future.h"
 #include "lib/Utils.h"
 #include "PulsarFriend.h"
 #include "ConsumerTest.h"
 #include "HttpHelper.h"
 #include <lib/Latch.h>
-#include <lib/PartitionedConsumerImpl.h>
-#include <lib/TopicName.h>
 
 #include <functional>
 #include <thread>
@@ -42,8 +39,8 @@ static std::string adminUrl = "http://localhost:8080/";
 void partitionedCallbackFunction(Result result, BrokerConsumerStats brokerConsumerStats, long expectedBacklog,
                                  Latch& latch, int index, bool accurate) {
     ASSERT_EQ(result, ResultOk);
-    PartitionedBrokerConsumerStatsImpl* statsPtr =
-        (PartitionedBrokerConsumerStatsImpl*)(brokerConsumerStats.getImpl().get());
+    MultiTopicsBrokerConsumerStatsImpl* statsPtr =
+        (MultiTopicsBrokerConsumerStatsImpl*)(brokerConsumerStats.getImpl().get());
     LOG_DEBUG(statsPtr);
     if (accurate) {
         ASSERT_EQ(expectedBacklog, statsPtr->getBrokerConsumerStats(index).getMsgBacklog());

@@ -16,10 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
+#pragma once
+
 #include <boost/python.hpp>
 
 #include <pulsar/Client.h>
 #include <pulsar/MessageBatch.h>
+#include <lib/Utils.h>
 
 using namespace pulsar;
 
@@ -36,6 +40,35 @@ inline void CHECK_RESULT(Result res) {
     }
 }
 
+void waitForAsyncResult(std::function<void(ResultCallback)> func);
+
+template <typename T, typename Callback>
+inline void waitForAsyncValue(std::function<void(Callback)> func, T& value) {
+    Result res = ResultOk;
+    Promise<Result, T> promise;
+    Future<Result, T> future = promise.getFuture();
+
+    Py_BEGIN_ALLOW_THREADS func(WaitForCallbackValue<T>(promise));
+    Py_END_ALLOW_THREADS
+
+        bool isComplete;
+    while (true) {
+        // Check periodically for Python signals
+        Py_BEGIN_ALLOW_THREADS isComplete = future.get(res, std::ref(value), std::chrono::milliseconds(100));
+        Py_END_ALLOW_THREADS
+
+            if (isComplete) {
+            CHECK_RESULT(res);
+            return;
+        }
+
+        if (PyErr_CheckSignals() == -1) {
+            PyErr_SetInterrupt();
+            return;
+        }
+    }
+}
+
 struct AuthenticationWrapper {
     AuthenticationPtr auth;
 
@@ -48,4 +81,24 @@ struct CryptoKeyReaderWrapper {
 
     CryptoKeyReaderWrapper();
     CryptoKeyReaderWrapper(const std::string& publicKeyPath, const std::string& privateKeyPath);
+};
+
+class CaptivePythonObjectMixin {
+   protected:
+    PyObject* _captive;
+
+    CaptivePythonObjectMixin(PyObject* captive) {
+        _captive = captive;
+        PyGILState_STATE state = PyGILState_Ensure();
+        Py_XINCREF(_captive);
+        PyGILState_Release(state);
+    }
+
+    ~CaptivePythonObjectMixin() {
+        if (Py_IsInitialized()) {
+            PyGILState_STATE state = PyGILState_Ensure();
+            Py_XDECREF(_captive);
+            PyGILState_Release(state);
+        }
+    }
 };

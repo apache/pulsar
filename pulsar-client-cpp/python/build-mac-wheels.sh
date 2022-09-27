@@ -27,7 +27,7 @@ PYTHON_VERSIONS=(
    '3.10 3.10.2'
 )
 
-export MACOSX_DEPLOYMENT_TARGET=11.0
+export MACOSX_DEPLOYMENT_TARGET=10.15
 MACOSX_DEPLOYMENT_TARGET_MAJOR=${MACOSX_DEPLOYMENT_TARGET%%.*}
 
 ZLIB_VERSION=1.2.12
@@ -275,18 +275,16 @@ for line in "${PYTHON_VERSIONS[@]}"; do
         ARCHS='x86_64'
     fi
 
+    set -x
     cmake . \
             -DCMAKE_OSX_ARCHITECTURES=${ARCHS} \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET} \
-            -DCMAKE_OSX_SYSROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX${MACOSX_DEPLOYMENT_TARGET_MAJOR}.sdk \
             -DCMAKE_INSTALL_PREFIX=$PREFIX \
-            -DCMAKE_INSTALL_LIBDIR=$PREFIX/lib \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_PREFIX_PATH=$PREFIX \
             -DCMAKE_CXX_FLAGS=-I$PREFIX/include \
-            -DCMAKE_FIND_FRAMEWORK=$PREFIX \
             -DBoost_INCLUDE_DIR=$CACHE_DIR/boost-py-$PYTHON_VERSION/include \
-            -DBoost_LIBRARY_DIRS=$CACHE_DIR/boost-py-$PYTHON_VERSION/lib \
+            -DBoost_LIBRARY_DIR=$CACHE_DIR/boost-py-$PYTHON_VERSION/lib \
             -DPYTHON_INCLUDE_DIR=$PY_INCLUDE_DIR \
             -DPYTHON_LIBRARY=$PY_PREFIX/lib/libpython${PYTHON_VERSION}.dylib \
             -DLINK_STATIC=ON \

@@ -7,7 +7,7 @@ original_id: io-cassandra
 
 The Cassandra Sink connector is used to write messages to a Cassandra Cluster.
 
-The tutorial [Connecting Pulsar with Apache Cassandra](io-quickstart) shows an example how to use Cassandra Sink
+The tutorial [Connecting Pulsar with Apache Cassandra](io-quickstart.md) shows an example how to use Cassandra Sink
 connector to write messages to a Cassandra table.
 
 ## Sink Configuration Options

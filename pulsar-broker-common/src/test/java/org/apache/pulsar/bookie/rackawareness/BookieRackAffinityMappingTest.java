@@ -170,12 +170,12 @@ public class BookieRackAffinityMappingTest {
         bookieMapping.put("group2", secondaryBookieGroup);
         store.put(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, jsonMapper.writeValueAsBytes(bookieMapping),
                 Optional.empty()).join();
-
-        racks = mapping.resolve(Lists.newArrayList("127.0.0.1", "127.0.0.2", "127.0.0.3"));
-        assertEquals(racks.get(0), "/rack0");
-        assertEquals(racks.get(1), "/rack1");
-        assertEquals(racks.get(2), "/rack0");
-
+        Awaitility.await().untilAsserted(() -> {
+            List<String> r = mapping.resolve(Lists.newArrayList("127.0.0.1", "127.0.0.2", "127.0.0.3"));
+            assertEquals(r.get(0), "/rack0");
+            assertEquals(r.get(1), "/rack1");
+            assertEquals(r.get(2), "/rack0");
+        });
         store.put(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, "{}".getBytes(),
                 Optional.empty()).join();
 

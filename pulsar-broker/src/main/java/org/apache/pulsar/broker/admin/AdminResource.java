@@ -37,7 +37,6 @@ import javax.ws.rs.core.Response.Status;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.web.PulsarWebResource;
@@ -158,13 +157,28 @@ public abstract class AdminResource extends PulsarWebResource {
         }
         List<CompletableFuture<Void>> futures = new ArrayList<>(numPartitions);
         for (int i = 0; i < numPartitions; i++) {
-            futures.add(tryCreatePartitionAsync(i, null));
+            futures.add(tryCreatePartitionAsync(i));
         }
         return FutureUtil.waitForAll(futures);
     }
 
-    private CompletableFuture<Void> tryCreatePartitionAsync(final int partition, CompletableFuture<Void> reuseFuture) {
-        CompletableFuture<Void> result = reuseFuture == null ? new CompletableFuture<>() : reuseFuture;
+    protected CompletableFuture<Void> tryCreateExtendedPartitionsAsync(int oldNumPartitions, int numPartitions) {
+        if (!topicName.isPersistent()) {
+            return CompletableFuture.completedFuture(null);
+        }
+        if (numPartitions <= oldNumPartitions) {
+            return CompletableFuture.failedFuture(new RestException(Status.NOT_ACCEPTABLE,
+                    "Number of new partitions must be greater than existing number of partitions"));
+        }
+        List<CompletableFuture<Void>> futures = new ArrayList<>(numPartitions - oldNumPartitions);
+        for (int i = oldNumPartitions; i < numPartitions; i++) {
+            futures.add(tryCreatePartitionAsync(i));
+        }
+        return FutureUtil.waitForAll(futures);
+    }
+
+    private CompletableFuture<Void> tryCreatePartitionAsync(final int partition) {
+        CompletableFuture<Void> result = new CompletableFuture<>();
         getPulsarResources().getTopicResources().createPersistentTopicAsync(topicName.getPartition(partition))
                 .thenAccept(r -> {
                     if (log.isDebugEnabled()) {
@@ -196,7 +210,7 @@ public abstract class AdminResource extends PulsarWebResource {
         try {
             this.namespaceName = NamespaceName.get(property, namespace);
         } catch (IllegalArgumentException e) {
-            log.warn("[{}] Failed to create namespace with invalid name {}", clientAppId(), namespace, e);
+            log.warn("[{}] Invalid namespace name [{}/{}]", clientAppId(), property, namespace);
             throw new RestException(Status.PRECONDITION_FAILED, "Namespace name is not valid");
         }
     }
@@ -218,7 +232,7 @@ public abstract class AdminResource extends PulsarWebResource {
         try {
             this.namespaceName = NamespaceName.get(property, cluster, namespace);
         } catch (IllegalArgumentException e) {
-            log.warn("[{}] Failed to create namespace with invalid name {}", clientAppId(), namespace, e);
+            log.warn("[{}] Invalid namespace name [{}/{}/{}]", clientAppId(), property, cluster, namespace);
             throw new RestException(Status.PRECONDITION_FAILED, "Namespace name is not valid");
         }
     }
@@ -229,8 +243,7 @@ public abstract class AdminResource extends PulsarWebResource {
             this.namespaceName = NamespaceName.get(property, namespace);
             this.topicName = TopicName.get(domain(), namespaceName, topic);
         } catch (IllegalArgumentException e) {
-            log.warn("[{}] Failed to validate topic name {}://{}/{}/{}", clientAppId(), domain(), property, namespace,
-                    topic, e);
+            log.warn("[{}] Invalid topic name [{}://{}/{}/{}]", clientAppId(), domain(), property, namespace, topic);
             throw new RestException(Status.PRECONDITION_FAILED, "Topic name is not valid");
         }
     }
@@ -268,8 +281,8 @@ public abstract class AdminResource extends PulsarWebResource {
             this.namespaceName = NamespaceName.get(property, cluster, namespace);
             this.topicName = TopicName.get(domain(), namespaceName, topic);
         } catch (IllegalArgumentException e) {
-            log.warn("[{}] Failed to validate topic name {}://{}/{}/{}/{}", clientAppId(), domain(), property, cluster,
-                    namespace, topic, e);
+            log.warn("[{}] Invalid topic name {}://{}/{}/{}/{}", clientAppId(), domain(), property, cluster,
+                    namespace, topic);
             throw new RestException(Status.PRECONDITION_FAILED, "Topic name is not valid");
         }
     }
@@ -357,17 +370,21 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     protected boolean checkBacklogQuota(BacklogQuota quota, RetentionPolicies retention) {
-        if (retention == null || retention.getRetentionSizeInMB() <= 0 || retention.getRetentionTimeInMinutes() <= 0) {
+        if (retention == null
+                || (retention.getRetentionSizeInMB() <= 0 && retention.getRetentionTimeInMinutes() <= 0)) {
             return true;
         }
         if (quota == null) {
             quota = pulsar().getBrokerService().getBacklogQuotaManager().getDefaultQuota();
         }
-        if (quota.getLimitSize() >= (retention.getRetentionSizeInMB() * 1024 * 1024)) {
+
+        if (retention.getRetentionSizeInMB() > 0
+                && quota.getLimitSize() >= (retention.getRetentionSizeInMB() * 1024 * 1024)) {
             return false;
         }
         // time based quota is in second
-        if (quota.getLimitTime() >= (retention.getRetentionTimeInMinutes() * 60)) {
+        if (retention.getRetentionTimeInMinutes() > 0
+                && quota.getLimitTime() >= retention.getRetentionTimeInMinutes() * 60) {
             return false;
         }
         return true;
@@ -426,6 +443,15 @@ public abstract class AdminResource extends PulsarWebResource {
         }
     }
 
+    protected CompletableFuture<Set<String>> clustersAsync() {
+        return clusterResources().listAsync()
+                .thenApply(list ->
+                        list.stream()
+                                .filter(cluster -> !Constants.GLOBAL_CLUSTER.equals(cluster))
+                                .collect(Collectors.toSet())
+                );
+    }
+
     protected void setServletContext(ServletContext servletContext) {
         this.servletContext = servletContext;
     }
@@ -473,9 +499,6 @@ public abstract class AdminResource extends PulsarWebResource {
         } catch (Exception e) {
             if (e.getCause() instanceof RestException) {
                 throw (RestException) e.getCause();
-            }
-            if (e.getCause() instanceof PulsarServerException.InvalidTopicNameException) {
-                throw new RestException(Status.PRECONDITION_FAILED, e.getCause().getMessage());
             }
             throw new RestException(e);
         }
@@ -626,7 +649,7 @@ public abstract class AdminResource extends PulsarWebResource {
                 return;
             }
 
-            provisionPartitionedTopicPath(asyncResponse, numPartitions, createLocalTopicOnly, properties)
+            provisionPartitionedTopicPath(numPartitions, createLocalTopicOnly, properties)
                     .thenCompose(ignored -> tryCreatePartitionsAsync(numPartitions))
                     .whenComplete((ignored, ex) -> {
                         if (ex != null) {
@@ -704,7 +727,7 @@ public abstract class AdminResource extends PulsarWebResource {
                 });
     }
 
-    private CompletableFuture<Void> provisionPartitionedTopicPath(AsyncResponse asyncResponse, int numPartitions,
+    private CompletableFuture<Void> provisionPartitionedTopicPath(int numPartitions,
                                                                   boolean createLocalTopicOnly,
                                                                   Map<String, String> properties) {
         CompletableFuture<Void> future = new CompletableFuture<>();
@@ -788,8 +811,7 @@ public abstract class AdminResource extends PulsarWebResource {
         }
     }
 
-    protected boolean isManagedLedgerNotFoundException(Exception e) {
-        Throwable cause = e.getCause();
+    protected boolean isManagedLedgerNotFoundException(Throwable cause) {
         return cause instanceof ManagedLedgerException.MetadataNotFoundException
                 || cause instanceof MetadataStoreException.NotFoundException;
     }
@@ -812,7 +834,7 @@ public abstract class AdminResource extends PulsarWebResource {
         checkArgument(
                 (persistence.getBookkeeperEnsemble() >= persistence.getBookkeeperWriteQuorum())
                         && (persistence.getBookkeeperWriteQuorum() >= persistence.getBookkeeperAckQuorum()),
-                String.format("Bookkeeper Ensemble (%s) >= WriteQuorum (%s) >= AckQuoru (%s)",
+                String.format("Bookkeeper Ensemble (%s) >= WriteQuorum (%s) >= AckQuorum (%s)",
                         persistence.getBookkeeperEnsemble(), persistence.getBookkeeperWriteQuorum(),
                         persistence.getBookkeeperAckQuorum()));
 
@@ -841,5 +863,11 @@ public abstract class AdminResource extends PulsarWebResource {
 
     protected static String getSubNotFoundErrorMessage(String topic, String subscription) {
         return String.format("Subscription %s not found for topic %s", subscription, topic);
+    }
+
+    protected List<String> filterSystemTopic(List<String> topics, boolean includeSystemTopic) {
+        return topics.stream()
+                .filter(topic -> includeSystemTopic ? true : !pulsar().getBrokerService().isSystemTopic(topic))
+                .collect(Collectors.toList());
     }
 }

@@ -40,6 +40,10 @@ DATA_DIR=/tmp/pulsar-test-data
 rm -rf $DATA_DIR
 mkdir -p $DATA_DIR
 
+# Set up basic authentication
+cp $SRC_DIR/pulsar-client-cpp/test-conf/.htpasswd $DATA_DIR/.htpasswd
+export PULSAR_EXTRA_OPTS=-Dpulsar.auth.basic.conf=$DATA_DIR/.htpasswd
+
 # Copy TLS test certificates
 mkdir -p $DATA_DIR/certs
 cp $SRC_DIR/pulsar-broker/src/test/resources/authentication/tls/*.pem $DATA_DIR/certs
@@ -56,7 +60,6 @@ $PULSAR_DIR/bin/pulsar tokens create \
 export PULSAR_STANDALONE_CONF=$SRC_DIR/pulsar-client-cpp/test-conf/standalone-ssl.conf
 $PULSAR_DIR/bin/pulsar-daemon start standalone \
         --no-functions-worker --no-stream-storage \
-        --zookeeper-dir $DATA_DIR/zookeeper \
         --bookkeeper-dir $DATA_DIR/bookkeeper
 
 echo "-- Wait for Pulsar service to be ready"

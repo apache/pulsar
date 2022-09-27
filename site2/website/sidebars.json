@@ -7,6 +7,10 @@
     {
       "type": "category",
       "label": "Get Started",
+      "link": {
+        "type": "doc",
+        "id": "getting-started-home"
+      },
       "items": [
         "getting-started-standalone",
         "getting-started-docker",
@@ -22,6 +26,7 @@
         "concepts-architecture-overview",
         "concepts-clients",
         "concepts-replication",
+        "concepts-cluster-level-failover",
         "concepts-multi-tenancy",
         "concepts-authentication",
         "concepts-topic-compaction",
@@ -44,12 +49,113 @@
       "label": "Pulsar Functions",
       "items": [
         "functions-overview",
-        "functions-runtime",
-        "functions-worker",
-        "functions-develop",
-        "functions-package",
-        "functions-debug",
-        "functions-deploy",
+        "functions-concepts",
+        "functions-quickstart",
+        {
+          "type": "category",
+          "label": "Set up function workers",
+          "link": {
+            "type": "doc",
+            "id": "functions-worker"
+          },
+          "items": [
+            "functions-worker-corun",
+            "functions-worker-run-separately",
+            "functions-worker-temp-file-path",
+            "functions-worker-stateful",
+            "functions-worker-for-geo-replication",
+            "functions-worker-troubleshooting"
+          ]
+        },
+        {
+          "type": "category",
+          "label": "Configure function runtime",
+          "link": {
+            "type": "doc",
+            "id": "functions-runtime"
+          },
+          "items": [
+            "functions-runtime-thread",
+            "functions-runtime-process",
+            "functions-runtime-kubernetes",
+            "functions-runtime-java-options"
+          ]
+        },
+        {
+          "type": "category",
+          "label": "How-to: Deploy",
+          "link": {
+            "type": "doc",
+            "id": "functions-deploy"
+          },
+          "items": [
+            "functions-deploy-arguments",
+            "functions-deploy-localrun",
+            {
+              "type": "category",
+              "label": "Deploy a function in cluster mode",
+              "link": {
+                "type": "doc",
+                "id": "functions-deploy-cluster"
+              },
+              "items": [
+                "functions-deploy-cluster-resource",
+                "functions-deploy-cluster-parallelism",
+                "functions-deploy-cluster-encryption",
+                "functions-deploy-cluster-package"
+              ]
+            },
+            "functions-deploy-trigger"
+          ]
+        },
+        {
+          "type": "category",
+          "label": "How-to: Develop",
+          "link": {
+            "type": "doc",
+            "id": "functions-develop"
+          },
+          "items": [
+            "functions-develop-api",
+            "functions-develop-user-defined-configs",
+            "functions-develop-log",
+            "functions-develop-metrics",
+            "functions-develop-security",
+            "functions-develop-state",
+            "functions-develop-admin-api",
+            "functions-develop-schema-registry",
+            "functions-develop-serde",
+            "functions-develop-tutorial"
+          ]
+        },
+        {
+          "type": "category",
+          "label": "How-to: Debug",
+          "link": {
+            "type": "doc",
+            "id": "functions-debug"
+          },
+          "items": [
+            "functions-debug-stderr",
+            "functions-debug-unit-test",
+            "functions-debug-localrun",
+            "functions-debug-log-topic",
+            "functions-debug-cli"
+          ]
+        },
+        {
+          "type": "category",
+          "label": "How-to: Package",
+          "link": {
+            "type": "doc",
+            "id": "functions-package"
+          },
+          "items": [
+            "functions-package-java",
+            "functions-package-python",
+            "functions-package-go"
+          ]
+        },
         "functions-cli",
         "window-functions-context"
       ]
@@ -64,8 +170,7 @@
         "io-debug",
         "io-connectors",
         "io-cdc",
-        "io-develop",
-        "io-cli"
+        "io-develop"
       ]
     },
     {
@@ -87,13 +192,20 @@
         "tiered-storage-gcs",
         "tiered-storage-filesystem",
         "tiered-storage-azure",
-        "tiered-storage-aliyun"
+        "tiered-storage-aliyun",
+        "tiered-storage-s3"
       ]
     },
     {
       "type": "category",
       "label": "Transactions",
-      "items": ["txn-why", "txn-what", "txn-how", "txn-use", "txn-monitor"]
+      "items": [
+        "txn-why",
+        "txn-what",
+        "txn-how",
+        "txn-use",
+        "txn-monitor"
+      ]
     },
     {
       "type": "category",
@@ -124,13 +236,26 @@
       "label": "Administration",
       "items": [
         "administration-zk-bk",
+        "administration-metadata-store",
         "administration-geo",
         "administration-pulsar-manager",
+        "administration-pulsar-shell",
         "administration-stats",
         "administration-load-balance",
         "administration-proxy",
         "administration-upgrade",
-        "administration-isolation"
+        {
+          "type": "category",
+          "label": "Pulsar isolation",
+          "link": {
+            "type": "doc",
+            "id": "administration-isolation"
+          },
+          "items": [
+            "administration-isolation-broker",
+            "administration-isolation-bookie"
+          ]
+        }
       ]
     },
     {
@@ -138,24 +263,41 @@
       "label": "Security",
       "items": [
         "security-overview",
-        "security-policy-and-supported-versions",
-        "security-tls-transport",
-        "security-tls-authentication",
-        "security-tls-keystore",
-        "security-jwt",
-        "security-athenz",
-        "security-kerberos",
-        "security-oauth2",
+        {
+          "type": "category",
+          "label": "Encryption",
+          "link": {
+            "type": "doc",
+            "id": "security-encryption"
+          },
+          "items": [
+            "security-tls-transport",
+            "security-bouncy-castle"
+          ]
+        },
+        {
+          "type": "category",
+          "label": "Authentication",
+          "items": [
+            "security-tls-authentication",
+            "security-jwt",
+            "security-athenz",
+            "security-kerberos",
+            "security-oauth2",
+            "security-basic-auth"
+          ]
+        },
         "security-authorization",
-        "security-encryption",
         "security-extending",
-        "security-bouncy-castle"
+        "security-policy-and-supported-versions"
       ]
     },
     {
       "type": "category",
       "label": "Performance",
-      "items": ["performance-pulsar-perf"]
+      "items": [
+        "performance-pulsar-perf"
+      ]
     },
     {
       "type": "category",
@@ -174,7 +316,7 @@
     },
     {
       "type": "category",
-      "label": "Admin API",
+      "label": "Admin Interfaces",
       "items": [
         "admin-api-overview",
         "admin-api-clusters",
@@ -184,13 +326,18 @@
         "admin-api-permissions",
         "admin-api-topics",
         "admin-api-functions",
-        "admin-api-packages"
+        "admin-api-packages",
+        "admin-api-transactions"
       ]
     },
     {
       "type": "category",
       "label": "Adaptors",
-      "items": ["adaptors-kafka", "adaptors-spark", "adaptors-storm"]
+      "items": [
+        "adaptors-kafka",
+        "adaptors-spark",
+        "adaptors-storm"
+      ]
     },
     {
       "type": "category",
@@ -221,9 +368,18 @@
       "items": [
         "reference-terminology",
         "reference-cli-tools",
-        "reference-configuration",
+        {
+          "type": "link",
+          "href": "https://pulsar.apache.org/reference",
+          "label": "Pulsar configuration"
+        },
         "reference-metrics",
-        "reference-rest-api-overview"
+        "reference-rest-api-overview",
+        {
+          "type": "link",
+          "href": "/release-notes/",
+          "label": "Release notes"
+        }
       ]
     }
   ]

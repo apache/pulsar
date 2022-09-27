@@ -4,13 +4,13 @@ title: Pulsar 2.0
 sidebar_label: "Pulsar 2.0"
 ---
 
-Pulsar 2.0 is a major new release for Pulsar that brings some bold changes to the platform, including [simplified topic names](#topic-names), the addition of the [Pulsar Functions](functions-overview) feature, some terminology changes, and more.
+Pulsar 2.0 is a major new release for Pulsar that brings some bold changes to the platform, including [simplified topic names](#topic-names), the addition of the [Pulsar Functions](functions-overview.md) feature, some terminology changes, and more.
 
 ## New features in Pulsar 2.0
 
 Feature | Description
 :-------|:-----------
-[Pulsar Functions](functions-overview) | A lightweight compute option for Pulsar
+[Pulsar Functions](functions-overview.md) | A lightweight compute option for Pulsar
 
 ## Major changes
 

@@ -39,6 +39,7 @@ lib*.so*
 /examples/SampleConsumer
 /examples/SampleConsumerCApi
 /examples/SampleAsyncProducer
+/examples/SampleAsyncConsumerCApi
 /examples/SampleConsumerListener
 /examples/SampleConsumerListenerCApi
 /examples/SampleReaderCApi
@@ -71,6 +72,7 @@ apidocs/
 generated/
 
 # CMAKE
+.cmake
 Makefile
 cmake_install.cmake
 CMakeFiles

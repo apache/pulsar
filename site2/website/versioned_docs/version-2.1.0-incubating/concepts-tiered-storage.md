@@ -15,4 +15,4 @@ One way to alleviate this cost is to use Tiered Storage. With tiered storage, ol
 
 Pulsar currently supports S3 as a long term store. Offloading to S3 triggered via a Rest API or command line interface. The user passes in the amount of topic data they wish to retain on bookkeeper, and the broker will copy the backlog data to S3. The original data will then be deleted from bookkeeper after a configured delay (4 hours by default).
 
-> For a guide for setting up tiered storage, see the [Tiered storage cookbook](cookbooks-tiered-storage).
+> For a guide for setting up tiered storage, see the [Tiered storage cookbook](cookbooks-tiered-storage.md).

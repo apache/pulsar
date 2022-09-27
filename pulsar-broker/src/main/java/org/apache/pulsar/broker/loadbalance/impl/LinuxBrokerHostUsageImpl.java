@@ -113,12 +113,12 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
             usage.setBandwidthIn(new ResourceUsage(nicUsageRx, totalNicLimit));
             usage.setBandwidthOut(new ResourceUsage(nicUsageTx, totalNicLimit));
         }
+        usage.setCpu(new ResourceUsage(cpuUsage, totalCpuLimit));
 
         lastTotalNicUsageTx = totalNicUsageTx;
         lastTotalNicUsageRx = totalNicUsageRx;
         lastCollection = System.currentTimeMillis();
         this.usage = usage;
-        usage.setCpu(new ResourceUsage(cpuUsage, totalCpuLimit));
     }
 
     private double getTotalNicLimitWithConfiguration(List<String> nics) {

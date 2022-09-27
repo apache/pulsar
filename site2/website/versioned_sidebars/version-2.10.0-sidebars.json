@@ -163,10 +163,6 @@
         {
           "type": "doc",
           "id": "version-2.10.0/io-develop"
-        },
-        {
-          "type": "doc",
-          "id": "version-2.10.0/io-cli"
         }
       ]
     },
@@ -389,6 +385,10 @@
         {
           "type": "doc",
           "id": "version-2.10.0/security-oauth2"
+        },
+        {
+          "type": "doc",
+          "id": "version-2.10.0/security-basic-auth"
         },
         {
           "type": "doc",

@@ -1266,5 +1266,26 @@ class SchemaTest(TestCase):
 
         client.close()
 
+    def test_json_schema_encode_remove_reserved_key(self):
+        class SchemaB(Record):
+            field = String(required=True)
+
+        class SchemaA(Record):
+            field = SchemaB()
+
+        a = SchemaA(field=SchemaB(field="something"))
+        b = JsonSchema(SchemaA).encode(a)
+        # reserved field should not be in the encoded json
+        self.assertTrue(b'_default' not in b)
+        self.assertTrue(b'_required' not in b)
+        self.assertTrue(b'_required_default' not in b)
+
+    def test_schema_array_wrong_type(self):
+        class SomeSchema(Record):
+            some_field = Array(Integer(), required=False, default=[])
+        # descriptive error message
+        with self.assertRaises(TypeError) as e:
+            SomeSchema(some_field=["not", "integer"])
+        self.assertEqual(str(e.exception), "Array field some_field items should all be of type int")
 if __name__ == '__main__':
     main()

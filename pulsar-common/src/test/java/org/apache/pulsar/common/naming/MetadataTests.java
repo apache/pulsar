@@ -32,21 +32,21 @@ public class MetadataTests {
         Map<String, String> metadata = new HashMap<>();
 
         metadata.put(generateKey(1, 512), generateKey(1, 512));
-        Assert.assertTrue(validateMetadata(metadata));
+        Assert.assertTrue(validateMetadata(metadata, 1024));
 
         metadata.clear();
         metadata.put(generateKey(1, 512), generateKey(1, 511));
-        Assert.assertTrue(validateMetadata(metadata));
+        Assert.assertTrue(validateMetadata(metadata, 1024));
 
         metadata.clear();
         metadata.put(generateKey(1, 256), generateKey(1, 256));
         metadata.put(generateKey(2, 256), generateKey(2, 256));
-        Assert.assertTrue(validateMetadata(metadata));
+        Assert.assertTrue(validateMetadata(metadata, 1024));
 
         metadata.clear();
         metadata.put(generateKey(1, 256), generateKey(1, 256));
         metadata.put(generateKey(2, 256), generateKey(2, 255));
-        Assert.assertTrue(validateMetadata(metadata));
+        Assert.assertTrue(validateMetadata(metadata, 1024));
     }
 
     @Test
@@ -54,24 +54,27 @@ public class MetadataTests {
         Map<String, String> metadata = new HashMap<>();
 
         metadata.put(generateKey(1, 512), generateKey(1, 513));
-        Assert.assertFalse(validateMetadata(metadata));
+        Assert.assertFalse(validateMetadata(metadata, 1024));
 
         metadata.clear();
         metadata.put(generateKey(1, 256), generateKey(1, 256));
         metadata.put(generateKey(2, 256), generateKey(2, 257));
-        Assert.assertFalse(validateMetadata(metadata));
+        Assert.assertFalse(validateMetadata(metadata, 1024));
 
 
         metadata.clear();
         metadata.put(generateKey(1, 256), generateKey(1, 256));
         metadata.put(generateKey(2, 256), generateKey(2, 256));
         metadata.put(generateKey(3, 1), generateKey(3, 1));
-        Assert.assertFalse(validateMetadata(metadata));
+        Assert.assertFalse(validateMetadata(metadata, 1024));
+
+        // set bigger maxConsumerMetadataSize, now validation should pass
+        Assert.assertTrue(validateMetadata(metadata, 1024 * 10));
     }
 
-    private static boolean validateMetadata(Map<String, String> metadata) {
+    private static boolean validateMetadata(Map<String, String> metadata, int maxSize) {
         try {
-            Metadata.validateMetadata(metadata);
+            Metadata.validateMetadata(metadata, maxSize);
             return true;
         } catch (IllegalArgumentException ignore) {
             return false;

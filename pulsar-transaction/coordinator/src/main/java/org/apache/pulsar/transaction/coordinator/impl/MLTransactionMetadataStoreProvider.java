@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.transaction.coordinator.impl;
 
+import io.netty.util.Timer;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
@@ -26,30 +27,29 @@ import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreProvider;
 import org.apache.pulsar.transaction.coordinator.TransactionRecoverTracker;
 import org.apache.pulsar.transaction.coordinator.TransactionTimeoutTracker;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * The provider that offers managed ledger implementation of {@link TransactionMetadataStore}.
  */
 public class MLTransactionMetadataStoreProvider implements TransactionMetadataStoreProvider {
 
-    private static final Logger log = LoggerFactory.getLogger(MLTransactionMetadataStoreProvider.class);
-
     @Override
     public CompletableFuture<TransactionMetadataStore> openStore(TransactionCoordinatorID transactionCoordinatorId,
                                                                  ManagedLedgerFactory managedLedgerFactory,
                                                                  ManagedLedgerConfig managedLedgerConfig,
                                                                  TransactionTimeoutTracker timeoutTracker,
-                                                                 TransactionRecoverTracker recoverTracker) {
+                                                                 TransactionRecoverTracker recoverTracker,
+                                                                 long maxActiveTransactionsPerCoordinator,
+                                                                 TxnLogBufferedWriterConfig txnLogBufferedWriterConfig,
+                                                                 Timer timer) {
         MLTransactionSequenceIdGenerator mlTransactionSequenceIdGenerator = new MLTransactionSequenceIdGenerator();
         managedLedgerConfig.setManagedLedgerInterceptor(mlTransactionSequenceIdGenerator);
         MLTransactionLogImpl txnLog = new MLTransactionLogImpl(transactionCoordinatorId,
-                managedLedgerFactory, managedLedgerConfig);
+                managedLedgerFactory, managedLedgerConfig, txnLogBufferedWriterConfig, timer);
 
         // MLTransactionLogInterceptor will init sequenceId and update the sequenceId to managedLedger properties.
-        return txnLog.initialize().thenApply(__ ->
+        return txnLog.initialize().thenCompose(__ ->
                 new MLTransactionMetadataStore(transactionCoordinatorId, txnLog, timeoutTracker,
-                        recoverTracker, mlTransactionSequenceIdGenerator));
+                        mlTransactionSequenceIdGenerator, maxActiveTransactionsPerCoordinator).init(recoverTracker));
     }
 }

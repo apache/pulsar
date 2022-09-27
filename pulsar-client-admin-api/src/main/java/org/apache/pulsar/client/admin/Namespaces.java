@@ -36,6 +36,7 @@ import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
+import org.apache.pulsar.common.policies.data.EntryFilters;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
@@ -161,6 +162,51 @@ public interface Namespaces {
      *            Namespace name
      */
     CompletableFuture<List<String>> getTopicsAsync(String namespace);
+
+    /**
+     * Get the list of topics.
+     * <p/>
+     * Get the list of all the topics under a certain namespace.
+     * <p/>
+     * Response Example:
+     *
+     * <pre>
+     * <code>["persistent://my-tenant/use/namespace1/my-topic-1",
+     *  "persistent://my-tenant/use/namespace1/my-topic-2"]</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param options
+     *            List namespace topics options
+     *
+     * @throws NotAuthorizedException
+     *             You don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    List<String> getTopics(String namespace, ListNamespaceTopicsOptions options) throws PulsarAdminException;
+
+    /**
+     * Get the list of topics asynchronously.
+     * <p/>
+     * Get the list of all the topics under a certain namespace.
+     * <p/>
+     * Response Example:
+     *
+     * <pre>
+     * <code>["persistent://my-tenant/use/namespace1/my-topic-1",
+     *  "persistent://my-tenant/use/namespace1/my-topic-2"]</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param options
+     *            List namespace topics options
+     */
+    CompletableFuture<List<String>> getTopicsAsync(String namespace, ListNamespaceTopicsOptions options);
 
     /**
      * Get the list of bundles.
@@ -4122,7 +4168,6 @@ public interface Namespaces {
     CompletableFuture<Void> removeMaxTopicsPerNamespaceAsync(String namespace);
 
     /**
-<<<<<<< HEAD
      * Set key value pair property for a namespace.
      * If the property absents, a new property will added. Otherwise, the new value will overwrite.
      *
@@ -4422,4 +4467,50 @@ public interface Namespaces {
      * @return
      */
     CompletableFuture<Void> removeNamespaceResourceGroupAsync(String namespace);
+
+    /**
+     * Get entry filters for a namespace.
+     * @param namespace
+     * @return entry filters classes info.
+     * @throws PulsarAdminException
+     */
+    EntryFilters getNamespaceEntryFilters(String namespace) throws PulsarAdminException;
+
+    /**
+     * Get entry filters for a namespace asynchronously.
+     *
+     * @param namespace
+     * @return entry filters classes info.
+     */
+    CompletableFuture<EntryFilters> getNamespaceEntryFiltersAsync(String namespace);
+
+    /**
+     * Set entry filters on a namespace.
+     *
+     * @param namespace    Namespace name
+     * @param entryFilters The entry filters
+     */
+    void setNamespaceEntryFilters(String namespace, EntryFilters entryFilters) throws PulsarAdminException;
+
+    /**
+     * Set entry filters on a namespace asynchronously.
+     *
+     * @param namespace    Namespace name
+     * @param entryFilters The entry filters
+     */
+    CompletableFuture<Void> setNamespaceEntryFiltersAsync(String namespace, EntryFilters entryFilters);
+
+    /**
+     * remove entry filters of a namespace.
+     * @param namespace    Namespace name
+     * @throws PulsarAdminException
+     */
+    void removeNamespaceEntryFilters(String namespace) throws PulsarAdminException;
+
+    /**
+     * remove entry filters of a namespace asynchronously.
+     * @param namespace     Namespace name
+     * @return
+     */
+    CompletableFuture<Void> removeNamespaceEntryFiltersAsync(String namespace);
 }

@@ -176,7 +176,7 @@ class RoutingFunction(Function):
 
 ## Command-line interface
 
-Pulsar Functions are managed using the [`pulsar-admin`](reference-pulsar-admin) CLI tool (in particular the [`functions`](reference-pulsar-admin.md#functions) command). The following example runs a function in the [local run mode](#local-run-mode).
+Pulsar Functions are managed using the [`pulsar-admin`](reference-pulsar-admin.md) CLI tool (in particular the [`functions`](reference-pulsar-admin.md#functions) command). The following example runs a function in the [local run mode](#local-run-mode).
 
 ```bash
 
@@ -567,7 +567,7 @@ $ bin/pulsar-admin functions create \
 ```
 
 ## Metrics
-Pulsar Functions that use [Pulsar Functions SDK](#the-pulsar-functions-sdk) can publish metrics to Pulsar. For more information, see [Metrics for Pulsar Functions](functions-metrics).
+Pulsar Functions that use [Pulsar Functions SDK](#the-pulsar-functions-sdk) can publish metrics to Pulsar. For more information, see [Metrics for Pulsar Functions](functions-metrics.md).
 
 ## State storage
 Pulsar Functions use [Apache BookKeeper](https://bookkeeper.apache.org) as a state storage interface. Pulsar installation, including the local standalone installation, includes deployment of BookKeeper bookies.

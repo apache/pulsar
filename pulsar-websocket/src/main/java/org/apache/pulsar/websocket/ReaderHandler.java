@@ -102,6 +102,9 @@ public class ReaderHandler extends AbstractWebSocketHandler {
                     log.warn("Failed to configure cryptoFailureAction {}, {}", action, e.getMessage());
                 }
             }
+            if (service.getCryptoKeyReader().isPresent()) {
+                builder.cryptoKeyReader(service.getCryptoKeyReader().get());
+            }
 
             this.reader = builder.create();
             Consumer<?> consumer = getConsumer();

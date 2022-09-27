@@ -107,6 +107,7 @@ public class SslContextTest {
                 null,
                 false,
                 keyStoreType, brokerTrustStorePath, keyStorePassword,
+                null, null, null,
                 cipher, null, 0, new ClientAuthenticationData());
         contextAutoRefreshBuilder.update();
     }

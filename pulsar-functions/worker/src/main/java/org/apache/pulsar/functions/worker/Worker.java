@@ -74,7 +74,7 @@ public class Worker {
 
             log.info("starting configuration cache service");
             try {
-                configMetadataStore = PulsarResources.createMetadataStore(
+                configMetadataStore = PulsarResources.createConfigMetadataStore(
                         workerConfig.getConfigurationMetadataStoreUrl(),
                         (int) workerConfig.getMetadataStoreSessionTimeoutMillis());
             } catch (IOException e) {

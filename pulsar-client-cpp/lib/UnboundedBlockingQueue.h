@@ -55,27 +55,28 @@ class UnboundedBlockingQueue {
         }
     }
 
-    void pop() {
+    bool pop(T& value) {
         Lock lock(mutex_);
         // If the queue is empty, wait until an element is available to be popped
         queueEmptyCondition_.wait(lock, QueueNotEmpty<UnboundedBlockingQueue<T> >(*this));
-        queue_.pop_front();
-        lock.unlock();
-    }
 
-    void pop(T& value) {
-        Lock lock(mutex_);
-        // If the queue is empty, wait until an element is available to be popped
-        queueEmptyCondition_.wait(lock, QueueNotEmpty<UnboundedBlockingQueue<T> >(*this));
+        if (isEmptyNoMutex() || isClosedNoMutex()) {
+            return false;
+        }
+
         value = queue_.front();
         queue_.pop_front();
-        lock.unlock();
+        return true;
     }
 
     template <typename Duration>
     bool pop(T& value, const Duration& timeout) {
         Lock lock(mutex_);
         if (!queueEmptyCondition_.wait_for(lock, timeout, QueueNotEmpty<UnboundedBlockingQueue<T> >(*this))) {
+            return false;
+        }
+
+        if (isEmptyNoMutex() || isClosedNoMutex()) {
             return false;
         }
 
@@ -133,12 +134,20 @@ class UnboundedBlockingQueue {
 
     iterator end() { return queue_.end(); }
 
+    void close() {
+        Lock lock(mutex_);
+        closed_ = true;
+        queueEmptyCondition_.notify_all();
+    }
+
    private:
     bool isEmptyNoMutex() const { return queue_.empty(); }
+    bool isClosedNoMutex() const { return closed_; }
 
     mutable std::mutex mutex_;
     std::condition_variable queueEmptyCondition_;
     Container queue_;
+    bool closed_ = false;
 
     typedef std::unique_lock<std::mutex> Lock;
     friend struct QueueNotEmpty<UnboundedBlockingQueue<T> >;

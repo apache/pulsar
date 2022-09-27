@@ -20,6 +20,13 @@
 
 set -x
 
+# TODO: remove these lines once grpcio doesn't need to compile from source on ARM64 platform
+ARCH=$(uname -m | sed -r 's/aarch64/arm64/g' |  awk '!/arm64/{$0="amd64"}1')
+if [ "${ARCH}" == "arm64" ]; then
+  apt update
+  apt -y install build-essential python3-dev
+fi
+
 PYTHON_MAJOR_MINOR=$(python3 -V | sed -E 's/.* ([[:digit:]]+)\.([[:digit:]]+).*/\1\2/')
 WHEEL_FILE=$(ls /pulsar/pulsar-client | grep "cp${PYTHON_MAJOR_MINOR}")
 pip3 install /pulsar/pulsar-client/${WHEEL_FILE}[all]

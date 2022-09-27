@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
+import org.junit.Assert;
 import org.testng.annotations.Test;
 
 public class ClientBuilderImplTest {
@@ -78,6 +79,20 @@ public class ClientBuilderImplTest {
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testClientBuilderWithIllegalLargePort() throws PulsarClientException {
         PulsarClient.builder().dnsLookupBind("localhost", 65536).build();
+    }
+
+    @Test
+    public void testConnectionMaxIdleSeconds() throws Exception {
+        // test config disabled.
+        PulsarClient.builder().connectionMaxIdleSeconds(-1);
+        // test config correct
+        PulsarClient.builder().connectionMaxIdleSeconds(60);
+        // test config not correct.
+        try {
+            PulsarClient.builder().connectionMaxIdleSeconds(30);
+            Assert.fail();
+        } catch (IllegalArgumentException e){
+        }
     }
 
 

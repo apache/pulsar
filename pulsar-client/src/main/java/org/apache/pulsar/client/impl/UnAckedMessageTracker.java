@@ -125,6 +125,10 @@ public class UnAckedMessageTracker implements Closeable {
             timeout = client.timer().newTimeout(new TimerTask() {
                 @Override
                 public void run(Timeout t) throws Exception {
+                    if (t.isCancelled()) {
+                        return;
+                    }
+
                     Set<MessageId> messageIds = TL_MESSAGE_IDS_SET.get();
                     messageIds.clear();
 
@@ -143,12 +147,16 @@ public class UnAckedMessageTracker implements Closeable {
                         headPartition.clear();
                         timePartitions.addLast(headPartition);
                     } finally {
-                        writeLock.unlock();
-                        if (messageIds.size() > 0) {
-                            consumerBase.onAckTimeoutSend(messageIds);
-                            consumerBase.redeliverUnacknowledgedMessages(messageIds);
+                        try {
+                            timeout = client.timer().newTimeout(this, tickDurationInMs, TimeUnit.MILLISECONDS);
+                        } finally {
+                            writeLock.unlock();
+
+                            if (!messageIds.isEmpty()) {
+                                consumerBase.onAckTimeoutSend(messageIds);
+                                consumerBase.redeliverUnacknowledgedMessages(messageIds);
+                            }
                         }
-                        timeout = client.timer().newTimeout(this, tickDurationInMs, TimeUnit.MILLISECONDS);
                     }
                 }
             }, this.tickDurationInMs, TimeUnit.MILLISECONDS);

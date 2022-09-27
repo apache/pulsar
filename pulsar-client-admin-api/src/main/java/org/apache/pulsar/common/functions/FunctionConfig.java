@@ -41,7 +41,8 @@ public class FunctionConfig {
     public enum ProcessingGuarantees {
         ATLEAST_ONCE,
         ATMOST_ONCE,
-        EFFECTIVELY_ONCE
+        EFFECTIVELY_ONCE,
+        MANUAL
     }
 
     /**
@@ -102,6 +103,8 @@ public class FunctionConfig {
     // SecretProviderConfigurator.getSecretObjectType() method.
     private Map<String, Object> secrets;
     private Runtime runtime;
+    // Deprecated since, see https://github.com/apache/pulsar/issues/15560
+    @Deprecated
     private Boolean autoAck;
     private Integer maxMessageRetries;
     private String deadLetterTopic;
@@ -114,6 +117,7 @@ public class FunctionConfig {
     private String jar;
     private String py;
     private String go;
+    private String functionType;
     // Whether the subscriptions the functions created/used should be deleted when the functions is deleted
     private Boolean cleanupSubscription;
     // This is an arbitrary string that can be interpreted by the function runtime

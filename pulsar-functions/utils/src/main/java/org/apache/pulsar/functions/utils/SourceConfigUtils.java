@@ -196,7 +196,7 @@ public class SourceConfigUtils {
             functionDetailsBuilder.setCustomRuntimeOptions(sourceConfig.getCustomRuntimeOptions());
         }
 
-        return functionDetailsBuilder.build();
+        return FunctionConfigUtils.validateFunctionDetails(functionDetailsBuilder.build());
     }
 
     public static SourceConfig convertFromDetails(FunctionDetails functionDetails) {

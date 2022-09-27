@@ -391,5 +391,5 @@ zip -r exclamation.zip exclamation
 Archive **exclamation.zip** can we deployed as function into a pulsar worker, the worker does not need internet connectivity to download packages as they are all included in the zip file.
 
 
-* [The Pulsar Functions API](functions-api)
-* [Deploying Pulsar Functions](functions-deploying)
+* [The Pulsar Functions API](functions-api.md)
+* [Deploying Pulsar Functions](functions-deploying.md)

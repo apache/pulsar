@@ -22,7 +22,7 @@ import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
 
 public class PulsarFunctionsPythonThreadTest extends PulsarFunctionsPythonTest {
 
-  public PulsarFunctionsPythonThreadTest() {
+    public PulsarFunctionsPythonThreadTest() {
 	super(FunctionRuntimeType.THREAD);
   }
 }

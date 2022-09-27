@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC;
 import com.google.common.base.MoreObjects;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -39,6 +40,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.ToLongFunction;
 import lombok.Getter;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
 import org.apache.commons.collections4.CollectionUtils;
@@ -51,6 +53,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyExcep
 import org.apache.pulsar.broker.service.BrokerServiceException.ProducerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ProducerFencedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedException;
+import org.apache.pulsar.broker.service.plugin.EntryFilterWithClassLoader;
 import org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
@@ -59,6 +62,7 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
+import org.apache.pulsar.common.policies.data.EntryFilters;
 import org.apache.pulsar.common.policies.data.HierarchyTopicPolicies;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -108,10 +112,9 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     protected volatile boolean isEncryptionRequired = false;
 
     protected volatile Boolean isAllowAutoUpdateSchema;
-    // schema validation enforced flag
-    protected volatile boolean schemaValidationEnforced = false;
 
     protected volatile PublishRateLimiter topicPublishRateLimiter;
+    private final Object topicPublishRateLimiterLock = new Object();
 
     protected volatile ResourceGroupPublishLimiter resourceGroupPublishLimiter;
 
@@ -141,6 +144,10 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     private volatile long usageCount = 0;
 
     private Map<String/*subscription*/, SubscriptionPolicies> subscriptionPolicies = Collections.emptyMap();
+
+    protected final LongAdder msgOutFromRemovedSubscriptions = new LongAdder();
+    protected final LongAdder bytesOutFromRemovedSubscriptions = new LongAdder();
+    protected ImmutableMap<String, EntryFilterWithClassLoader> entryFilters;
 
     public AbstractTopic(String topic, BrokerService brokerService) {
         this.topic = topic;
@@ -174,6 +181,14 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
 
     public DispatchRateImpl getDispatchRate() {
         return this.topicPolicies.getDispatchRate().get();
+    }
+
+    public EntryFilters getEntryFiltersPolicy() {
+        return this.topicPolicies.getEntryFilters().get();
+    }
+
+    public ImmutableMap<String, EntryFilterWithClassLoader> getEntryFilters() {
+        return this.entryFilters;
     }
 
     public DispatchRateImpl getReplicatorDispatchRate() {
@@ -221,7 +236,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
             DispatchRateImpl.normalize(data.getSubscriptionDispatchRate()));
         topicPolicies.getCompactionThreshold().updateTopicValue(data.getCompactionThreshold());
         topicPolicies.getDispatchRate().updateTopicValue(DispatchRateImpl.normalize(data.getDispatchRate()));
-
+        topicPolicies.getSchemaValidationEnforced().updateTopicValue(data.getSchemaValidationEnforced());
+        topicPolicies.getEntryFilters().updateTopicValue(data.getEntryFilters());
         this.subscriptionPolicies = data.getSubscriptionPolicies();
     }
 
@@ -269,6 +285,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
             brokerService.getPulsar().getConfig().getClusterName());
         updateSchemaCompatibilityStrategyNamespaceValue(namespacePolicies);
         updateNamespaceDispatchRate(namespacePolicies, brokerService.getPulsar().getConfig().getClusterName());
+        topicPolicies.getSchemaValidationEnforced().updateNamespaceValue(namespacePolicies.schema_validation_enforced);
+        topicPolicies.getEntryFilters().updateNamespaceValue(namespacePolicies.entryFilters);
     }
 
     private void updateNamespaceDispatchRate(Policies namespacePolicies, String cluster) {
@@ -362,6 +380,9 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         topicPolicies.getSchemaCompatibilityStrategy()
                 .updateBrokerValue(formatSchemaCompatibilityStrategy(schemaCompatibilityStrategy));
         topicPolicies.getDispatchRate().updateBrokerValue(dispatchRateInBroker(config));
+        topicPolicies.getSchemaValidationEnforced().updateBrokerValue(config.isSchemaValidationEnforced());
+        topicPolicies.getEntryFilters().updateBrokerValue(new EntryFilters(String.join(",",
+                config.getEntryFilterNames())));
     }
 
     private DispatchRateImpl dispatchRateInBroker(ServiceConfiguration config) {
@@ -570,7 +591,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
 
     @Override
     public boolean getSchemaValidationEnforced() {
-        return schemaValidationEnforced;
+        return topicPolicies.getSchemaValidationEnforced().get();
     }
 
     public void markBatchMessagePublished() {
@@ -889,6 +910,9 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         }
     }
 
+    public void updateDispatchRateLimiter() {
+    }
+
     @Override
     public void resetBrokerPublishCountAndEnableReadIfRequired(boolean doneBrokerReset) {
         // topic rate not exceeded, and completed broker limiter reset.
@@ -1132,11 +1156,20 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     }
 
     public long getMsgOutCounter() {
-        return getStats(false, false, false).msgOutCounter;
+        return msgOutFromRemovedSubscriptions.longValue()
+                + sumSubscriptions(AbstractSubscription::getMsgOutCounter);
     }
 
     public long getBytesOutCounter() {
-        return getStats(false, false, false).bytesOutCounter;
+        return bytesOutFromRemovedSubscriptions.longValue()
+                + sumSubscriptions(AbstractSubscription::getBytesOutCounter);
+    }
+
+    private long sumSubscriptions(ToLongFunction<AbstractSubscription> toCounter) {
+        return getSubscriptions().values().stream()
+                .map(AbstractSubscription.class::cast)
+                .mapToLong(toCounter)
+                .sum();
     }
 
     public boolean isDeleteWhileInactive() {
@@ -1192,32 +1225,36 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
      * update topic publish dispatcher for this topic.
      */
     public void updatePublishDispatcher() {
-        PublishRate publishRate = topicPolicies.getPublishRate().get();
-        if (publishRate.publishThrottlingRateInByte > 0 || publishRate.publishThrottlingRateInMsg > 0) {
-            log.info("Enabling publish rate limiting {} ", publishRate);
-            if (!preciseTopicPublishRateLimitingEnable) {
-                this.brokerService.setupTopicPublishRateLimiterMonitor();
-            }
+        synchronized (topicPublishRateLimiterLock) {
+            PublishRate publishRate = topicPolicies.getPublishRate().get();
+            if (publishRate.publishThrottlingRateInByte > 0 || publishRate.publishThrottlingRateInMsg > 0) {
+                log.info("Enabling publish rate limiting {} ", publishRate);
+                if (!preciseTopicPublishRateLimitingEnable) {
+                    this.brokerService.setupTopicPublishRateLimiterMonitor();
+                }
 
-            if (this.topicPublishRateLimiter == null
+                if (this.topicPublishRateLimiter == null
                     || this.topicPublishRateLimiter == PublishRateLimiter.DISABLED_RATE_LIMITER) {
-                // create new rateLimiter if rate-limiter is disabled
-                if (preciseTopicPublishRateLimitingEnable) {
-                    this.topicPublishRateLimiter = new PrecisPublishLimiter(publishRate,
+                    // create new rateLimiter if rate-limiter is disabled
+                    if (preciseTopicPublishRateLimitingEnable) {
+                        this.topicPublishRateLimiter = new PrecisPublishLimiter(publishRate,
                             () -> this.enableCnxAutoRead(), brokerService.pulsar().getExecutor());
+                    } else {
+                        this.topicPublishRateLimiter = new PublishRateLimiterImpl(publishRate);
+                    }
                 } else {
-                    this.topicPublishRateLimiter = new PublishRateLimiterImpl(publishRate);
+                    this.topicPublishRateLimiter.update(publishRate);
                 }
             } else {
-                this.topicPublishRateLimiter.update(publishRate);
+                if (log.isDebugEnabled()) {
+                    log.debug("Disabling publish throttling for {}", this.topic);
+                }
+                if (topicPublishRateLimiter != null) {
+                    topicPublishRateLimiter.close();
+                }
+                this.topicPublishRateLimiter = PublishRateLimiter.DISABLED_RATE_LIMITER;
+                enableProducerReadForPublishRateLimiting();
             }
-        } else {
-            log.info("Disabling publish throttling for {}", this.topic);
-            if (topicPublishRateLimiter != null) {
-                topicPublishRateLimiter.close();
-            }
-            this.topicPublishRateLimiter = PublishRateLimiter.DISABLED_RATE_LIMITER;
-            enableProducerReadForPublishRateLimiting();
         }
     }
 

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.io.jdbc;
 
+import java.util.stream.Collectors;
 import org.apache.pulsar.io.core.annotations.Connector;
 import org.apache.pulsar.io.core.annotations.IOType;
 
@@ -29,4 +30,12 @@ import org.apache.pulsar.io.core.annotations.IOType;
 )
 public class SqliteJdbcAutoSchemaSink extends BaseJdbcAutoSchemaSink {
 
+    @Override
+    public String generateUpsertQueryStatement() {
+        final String keys = tableDefinition.getKeyColumns().stream().map(JdbcUtils.ColumnId::getName)
+                .collect(Collectors.joining(","));
+        return JdbcUtils.buildInsertSql(tableDefinition)
+                + " ON CONFLICT(" + keys + ") "
+                + "DO UPDATE SET " + JdbcUtils.buildUpdateSqlSetPart(tableDefinition);
+    }
 }

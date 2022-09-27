@@ -124,6 +124,12 @@ public interface AsyncCallbacks {
         void findEntryFailed(ManagedLedgerException exception, Optional<Position> failedReadPosition, Object ctx);
     }
 
+    interface ScanCallback {
+        void scanComplete(Position position, ScanOutcome scanOutcome, Object ctx);
+
+        void scanFailed(ManagedLedgerException exception, Optional<Position> failedReadPosition, Object ctx);
+    }
+
     interface ResetCursorCallback {
         void resetComplete(Object ctx);
 

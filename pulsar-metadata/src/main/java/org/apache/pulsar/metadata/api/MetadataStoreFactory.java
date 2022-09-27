@@ -42,4 +42,8 @@ public class MetadataStoreFactory {
             throws MetadataStoreException {
         return MetadataStoreFactoryImpl.create(metadataURL, metadataStoreConfig);
     }
+
+    public static boolean isBasedOnZookeeper(String metadataURL) {
+        return MetadataStoreFactoryImpl.isBasedOnZookeeper(metadataURL);
+    }
 }

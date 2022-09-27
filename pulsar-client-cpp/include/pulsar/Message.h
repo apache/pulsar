@@ -179,7 +179,6 @@ class PULSAR_PUBLIC Message {
     Message(const MessageId& messageId, proto::MessageMetadata& metadata, SharedBuffer& payload,
             proto::SingleMessageMetadata& singleMetadata, const std::string& topicName);
     friend class PartitionedProducerImpl;
-    friend class PartitionedConsumerImpl;
     friend class MultiTopicsConsumerImpl;
     friend class MessageBuilder;
     friend class ConsumerImpl;

@@ -43,11 +43,11 @@ public class PrestoWorkerContainer extends PulsarContainer<PrestoWorkerContainer
     @Override
     protected void afterStart() {
         DockerUtils.runCommandAsyncWithLogging(this.dockerClient, this.getContainerId(),
-                "tail", "-f", "/pulsar/lib/presto/var/log/launcher.log");
+                "tail", "-f", "/pulsar/trino/var/log/launcher.log");
         DockerUtils.runCommandAsyncWithLogging(this.dockerClient, this.getContainerId(),
                 "tail", "-f", "/var/log/pulsar/presto_worker.log");
         DockerUtils.runCommandAsyncWithLogging(this.dockerClient, this.getContainerId(),
-                "tail", "-f", "/pulsar/lib/presto/var/log/server.log");
+                "tail", "-f", "/pulsar/trino/var/log/server.log");
     }
 
     @Override
@@ -57,12 +57,12 @@ public class PrestoWorkerContainer extends PulsarContainer<PrestoWorkerContainer
             DockerUtils.dumpContainerDirToTargetCompressed(
                     getDockerClient(),
                     getContainerId(),
-                    "/pulsar/lib/presto/var/log"
+                    "/pulsar/trino/var/log"
             );
         }
     }
 
     public String getUrl() {
-        return String.format("%s:%s",  getContainerIpAddress(), getMappedPort(PrestoWorkerContainer.PRESTO_HTTP_PORT));
+        return String.format("%s:%s",  getHost(), getMappedPort(PrestoWorkerContainer.PRESTO_HTTP_PORT));
     }
 }

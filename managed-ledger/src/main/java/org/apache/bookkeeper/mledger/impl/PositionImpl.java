@@ -115,6 +115,18 @@ public class PositionImpl implements Position, Comparable<PositionImpl> {
         return 0;
     }
 
+    public int compareTo(long ledgerId, long entryId) {
+        if (this.ledgerId != ledgerId) {
+            return (this.ledgerId < ledgerId ? -1 : 1);
+        }
+
+        if (this.entryId != entryId) {
+            return (this.entryId < entryId ? -1 : 1);
+        }
+
+        return 0;
+    }
+
     @Override
     public int hashCode() {
         int result = (int) (ledgerId ^ (ledgerId >>> 32));
