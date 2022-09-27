@@ -48,6 +48,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import javax.ws.rs.container.AsyncResponse;
+import javax.ws.rs.container.TimeoutHandler;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
@@ -80,12 +82,8 @@ import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.data.ACL;
 import org.mockito.Mockito;
-import org.mockito.internal.util.MockUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.ws.rs.container.AsyncResponse;
-import javax.ws.rs.container.TimeoutHandler;
 
 /**
  * Base class for all tests that need a Pulsar instance without a ZK and BK cluster.
@@ -235,7 +233,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         // an NPE in shutdown, obscuring the real error
         if (admin != null) {
             admin.close();
-            cleanupMock(admin);
+            Mockito.reset(admin);
             admin = null;
         }
         if (pulsarClient != null) {
@@ -252,6 +250,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         resetConfig();
         if (mockBookKeeper != null) {
             mockBookKeeper.reallyShutdown();
+            Mockito.reset(mockBookKeeper);
             mockBookKeeper = null;
         }
         if (mockZooKeeperGlobal != null) {
@@ -308,17 +307,10 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         // set shutdown timeout to 0 for forceful shutdown
         pulsar.getConfiguration().setBrokerShutdownTimeoutMs(0L);
         pulsar.close();
-        cleanupMock(pulsar);
+        Mockito.reset(pulsar);
         pulsar = null;
         // Simulate cleanup of ephemeral nodes
         //mockZooKeeper.delete("/loadbalance/brokers/localhost:" + pulsar.getConfiguration().getWebServicePort(), -1);
-    }
-
-    protected void cleanupMock(Object mock) {
-        if (MockUtil.isMock(mock)) {
-            Mockito.clearInvocations(mock);
-            Mockito.reset(mock);
-        }
     }
 
     protected void startBroker() throws Exception {
