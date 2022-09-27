@@ -84,6 +84,11 @@ public abstract class AbstractBatchMessageContainer implements BatchMessageConta
         return currentBatchSizeBytes;
     }
 
+    @VisibleForTesting
+    public int getMaxBatchSize() {
+        return maxBatchSize;
+    }
+
     @Override
     public List<ProducerImpl.OpSendMsg> createOpSendMsgs() throws IOException {
         throw new UnsupportedOperationException();

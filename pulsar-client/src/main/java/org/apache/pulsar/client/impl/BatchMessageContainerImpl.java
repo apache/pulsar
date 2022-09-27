@@ -98,7 +98,8 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
                 messageMetadata.setSequenceId(msg.getSequenceId());
                 lowestSequenceId = Commands.initBatchMessageMetadata(messageMetadata, msg.getMessageBuilder());
                 this.firstCallback = callback;
-                batchedMessageMetadataAndPayload = allocator.compositeBuffer();
+                batchedMessageMetadataAndPayload = allocator.buffer(
+                        Math.min(maxBatchSize, ClientCnx.getMaxMessageSize()));
                 if (msg.getMessageBuilder().hasTxnidMostBits() && currentTxnidMostBits == -1) {
                     currentTxnidMostBits = msg.getMessageBuilder().getTxnidMostBits();
                 }
@@ -167,9 +168,27 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
 
         // Update the current max batch size using the uncompressed size, which is what we need in any case to
         // accumulate the batch content
-        maxBatchSize = Math.max(maxBatchSize, uncompressedSize);
+        updateMaxBatchSize(uncompressedSize);
         maxMessagesNum = Math.max(maxMessagesNum, numMessagesInBatch);
         return compressedPayload;
+    }
+
+    @VisibleForTesting
+    public void updateMaxBatchSize(int uncompressedSize) {
+        if (uncompressedSize > maxBatchSize) {
+            maxBatchSize = uncompressedSize;
+            consecutiveShrinkTime = 0;
+        } else {
+            int shrank = maxBatchSize - (maxBatchSize >> 2);
+            if (uncompressedSize <= shrank) {
+                if (consecutiveShrinkTime <= SHRINK_COOLING_OFF_PERIOD) {
+                    consecutiveShrinkTime++;
+                } else {
+                    maxBatchSize = shrank;
+                    consecutiveShrinkTime = 0;
+                }
+            }
+        }
     }
 
     @Override
