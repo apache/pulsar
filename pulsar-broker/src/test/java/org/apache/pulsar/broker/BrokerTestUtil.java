@@ -44,4 +44,19 @@ public class BrokerTestUtil {
                 .useConstructor(args)
                 .defaultAnswer(Mockito.CALLS_REAL_METHODS));
     }
+
+    /**
+     * Create a Mockito spy that is stub-only which does not record method invocations,
+     * thus saving memory but disallowing verification of invocations.
+     *
+     * @param object to spy on
+     * @return a spy of the real object
+     * @param <T> type of object
+     */
+    public static <T> T spyWithoutRecordingInvocations(T object) {
+        return Mockito.mock((Class<T>) object.getClass(), Mockito.withSettings()
+                .spiedInstance(object)
+                .defaultAnswer(Mockito.CALLS_REAL_METHODS)
+                .stubOnly());
+    }
 }
