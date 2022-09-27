@@ -28,8 +28,6 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 public class PerfToolTest extends TopicMessagingBase {
 
