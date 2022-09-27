@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.auth;
 
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
+import static org.apache.pulsar.broker.BrokerTestUtil.spyWithoutRecordingInvocations;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
@@ -47,6 +48,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import javax.ws.rs.container.AsyncResponse;
+import javax.ws.rs.container.TimeoutHandler;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
@@ -78,11 +81,10 @@ import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.data.ACL;
+import org.mockito.Mockito;
+import org.mockito.internal.util.MockUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.ws.rs.container.AsyncResponse;
-import javax.ws.rs.container.TimeoutHandler;
 
 /**
  * Base class for all tests that need a Pulsar instance without a ZK and BK cluster.
@@ -232,6 +234,9 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         // an NPE in shutdown, obscuring the real error
         if (admin != null) {
             admin.close();
+            if (MockUtil.isMock(admin)) {
+                Mockito.reset(admin);
+            }
             admin = null;
         }
         if (pulsarClient != null) {
@@ -248,6 +253,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         resetConfig();
         if (mockBookKeeper != null) {
             mockBookKeeper.reallyShutdown();
+            Mockito.reset(mockBookKeeper);
             mockBookKeeper = null;
         }
         if (mockZooKeeperGlobal != null) {
@@ -304,6 +310,9 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         // set shutdown timeout to 0 for forceful shutdown
         pulsar.getConfiguration().setBrokerShutdownTimeoutMs(0L);
         pulsar.close();
+        if (MockUtil.isMock(pulsar)) {
+            Mockito.reset(pulsar);
+        }
         pulsar = null;
         // Simulate cleanup of ephemeral nodes
         //mockZooKeeper.delete("/loadbalance/brokers/localhost:" + pulsar.getConfiguration().getWebServicePort(), -1);
@@ -320,12 +329,15 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
 
         if (admin != null) {
             admin.close();
+            if (MockUtil.isMock(admin)) {
+                Mockito.reset(admin);
+            }
         }
         PulsarAdminBuilder pulsarAdminBuilder = PulsarAdmin.builder().serviceHttpUrl(brokerUrl != null
                 ? brokerUrl.toString()
                 : brokerUrlTls.toString());
         customizeNewPulsarAdminBuilder(pulsarAdminBuilder);
-        admin = spy(pulsarAdminBuilder.build());
+        admin = spyWithoutRecordingInvocations(pulsarAdminBuilder.build());
     }
 
     protected void customizeNewPulsarAdminBuilder(PulsarAdminBuilder pulsarAdminBuilder) {
@@ -338,7 +350,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
 
     protected PulsarService startBrokerWithoutAuthorization(ServiceConfiguration conf) throws Exception {
         conf.setBrokerShutdownTimeoutMs(0L);
-        PulsarService pulsar = spy(newPulsarService(conf));
+        PulsarService pulsar = spyWithoutRecordingInvocations(newPulsarService(conf));
         setupBrokerMocks(pulsar);
         beforePulsarStartMocks(pulsar);
         pulsar.start();

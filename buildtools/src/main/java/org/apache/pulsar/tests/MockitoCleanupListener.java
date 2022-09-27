@@ -38,11 +38,15 @@ public class MockitoCleanupListener extends BetweenTestClassesListenerAdapter {
     @Override
     protected void onBetweenTestClasses(Class<?> endedTestClass, Class<?> startedTestClass) {
         if (MOCKITO_CLEANUP_ENABLED) {
-            if (MockitoThreadLocalStateCleaner.INSTANCE.isEnabled()) {
-                LOG.info("Cleaning up Mockito's ThreadSafeMockingProgress.MOCKING_PROGRESS_PROVIDER thread local state.");
-                MockitoThreadLocalStateCleaner.INSTANCE.cleanup();
+            try {
+                if (MockitoThreadLocalStateCleaner.INSTANCE.isEnabled()) {
+                    LOG.info(
+                            "Cleaning up Mockito's ThreadSafeMockingProgress.MOCKING_PROGRESS_PROVIDER thread local state.");
+                    MockitoThreadLocalStateCleaner.INSTANCE.cleanup();
+                }
+            } finally {
+                cleanupMockitoInline();
             }
-            cleanupMockitoInline();
         }
     }
 
@@ -54,5 +58,4 @@ public class MockitoCleanupListener extends BetweenTestClassesListenerAdapter {
     private void cleanupMockitoInline() {
         Mockito.framework().clearInlineMocks();
     }
-
 }
