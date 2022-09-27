@@ -70,6 +70,7 @@ import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.compaction.Compactor;
@@ -243,8 +244,10 @@ public class PersistentSubscriptionTest {
             return null;
         }).when(cursorMock).asyncMarkDelete(any(), any(), any(AsyncCallbacks.MarkDeleteCallback.class), any());
 
+        List<CompletableFuture<?>> runningTask = new ArrayList<>();
+
         // Single ack for txn
-        persistentSubscription.transactionIndividualAcknowledge(txnID1, positionsPair);
+        runningTask.add(persistentSubscription.transactionIndividualAcknowledge(txnID1, positionsPair));
 
         // Commit txn
         persistentSubscription.endTxn(txnID1.getMostSigBits(), txnID1.getLeastSigBits(), TxnAction.COMMIT_VALUE, -1).get();
@@ -253,8 +256,9 @@ public class PersistentSubscriptionTest {
         positions.add(new PositionImpl(3, 100));
 
         // Cumulative ack for txn
-        persistentSubscription.transactionCumulativeAcknowledge(txnID1, positions);
+        runningTask.add(persistentSubscription.transactionCumulativeAcknowledge(txnID1, positions));
 
+        FutureUtil.waitForAll(runningTask).get();
         doAnswer((invocationOnMock) -> {
             assertEquals(((PositionImpl) invocationOnMock.getArguments()[0]).compareTo(new PositionImpl(3, 100)), 0);
             ((AsyncCallbacks.MarkDeleteCallback) invocationOnMock.getArguments()[2])
