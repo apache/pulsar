@@ -77,20 +77,10 @@ public class CmdGenerateDocsTest {
             cmd.run(null);
 
             String message = baoStream.toString();
-            String rightMsg = "------------\n"
+            String rightMsg = "# test\n\n"
+                    + "Options\n\n"
                     + "\n"
-                    + "# test\n"
-                    + "\n"
-                    + "### Usage\n"
-                    + "\n"
-                    + "`$test`\n"
-                    + "\n"
-                    + "------------\n"
-                    + "\n"
-                    + "Options\n"
-                    + "\n"
-                    + "\n"
-                    + "```bdocs-tab:example_shell\n"
+                    + "```shell\n"
                     + "$ pulsar test options\n"
                     + "```\n"
                     + "\n"

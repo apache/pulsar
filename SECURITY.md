@@ -11,3 +11,7 @@ It is the responsibility of the security vulnerability handling project team (Ap
 ## Security Policy details and supported versions of Apache Pulsar
 
 The security policy and supported versions are outlined on the Pulsar website under [Security > Security Policy and Supported Versions](https://pulsar.apache.org/docs/security-policy-and-supported-versions/).
+
+## Security Advisories
+
+Please visit the [Security Advisories](https://github.com/apache/pulsar/wiki/Security-advisories) page.

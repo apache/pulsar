@@ -80,6 +80,14 @@ public class BacklogQuotaManagerTest {
     private static final int TIME_TO_CHECK_BACKLOG_QUOTA = 2;
     private static final int MAX_ENTRIES_PER_LEDGER = 5;
 
+    /**
+     * see {@link BrokerTestBase#deleteNamespaceGraceFully(String, boolean, PulsarService, PulsarAdmin)}
+     */
+    protected void deleteNamespaceGraceFully(String ns, boolean force)
+            throws Exception {
+        BrokerTestBase.deleteNamespaceGraceFully(ns, force, pulsar, admin);
+    }
+
     @DataProvider(name = "backlogQuotaSizeGB")
     public Object[][] backlogQuotaSizeGB() {
         return new Object[][] { { true }, { false } };
@@ -159,10 +167,10 @@ public class BacklogQuotaManagerTest {
     }
 
     @AfterMethod(alwaysRun = true)
-    void clearNamespaces() throws PulsarAdminException {
-        admin.namespaces().deleteNamespace("prop/ns-quota", true);
-        admin.namespaces().deleteNamespace("prop/quotahold", true);
-        admin.namespaces().deleteNamespace("prop/quotaholdasync", true);
+    void clearNamespaces() throws Exception {
+        deleteNamespaceGraceFully("prop/ns-quota", true);
+        deleteNamespaceGraceFully("prop/quotahold", true);
+        deleteNamespaceGraceFully("prop/quotaholdasync", true);
     }
 
     private void rolloverStats() {

@@ -6,7 +6,7 @@ original_id: admin-api-partitioned-topics
 ---
 
 
-You can use Pulsar's [admin API](admin-api-overview) to create and manage partitioned topics.
+You can use Pulsar's [admin API](admin-api-overview.md) to create and manage partitioned topics.
 
 In all of the instructions and commands below, the topic name structure is:
 

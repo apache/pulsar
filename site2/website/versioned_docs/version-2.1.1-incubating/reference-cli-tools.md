@@ -6,7 +6,7 @@ sidebar_label: "Pulsar CLI tools"
 
 Pulsar offers several command-line tools that you can use for managing Pulsar installations, performance testing, using command-line producers and consumers, and more.
 
-All Pulsar command-line tools can be run from the `bin` directory of your [installed Pulsar package](getting-started-standalone). The following tools are currently documented:
+All Pulsar command-line tools can be run from the `bin` directory of your [installed Pulsar package](getting-started-standalone.md). The following tools are currently documented:
 
 * [`pulsar`](#pulsar)
 * [`pulsar-client`](#pulsar-client)
@@ -825,7 +825,7 @@ Options
 
 ### `transaction`
 
-Run a transaction. For more information, see [Pulsar transactions](txn-why).
+Run a transaction. For more information, see [Pulsar transactions](txn-why.md).
 
 **Usage**
 
