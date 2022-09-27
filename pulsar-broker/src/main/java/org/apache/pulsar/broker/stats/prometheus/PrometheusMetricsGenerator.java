@@ -46,6 +46,7 @@ import org.apache.bookkeeper.stats.NullStatsProvider;
 import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.stats.ThreadsCpuMetrics;
 import org.apache.pulsar.broker.stats.TimeWindow;
 import org.apache.pulsar.broker.stats.WindowWrap;
 import org.apache.pulsar.broker.stats.metrics.ManagedCursorMetrics;
@@ -69,6 +70,7 @@ public class PrometheusMetricsGenerator {
 
     static {
         DefaultExports.initialize();
+        ThreadsCpuMetrics.initialize();
 
         Gauge.build("jvm_memory_direct_bytes_used", "-").create().setChild(new Child() {
             @Override
@@ -186,6 +188,7 @@ public class PrometheusMetricsGenerator {
         try {
             SimpleTextOutputStream stream = new SimpleTextOutputStream(buf);
 
+            new ThreadsCpuMetrics().generate();
             generateSystemMetrics(stream, pulsar.getConfiguration().getClusterName());
 
             NamespaceStatsAggregator.generate(pulsar, includeTopicMetrics, includeConsumerMetrics,

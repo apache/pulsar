@@ -30,6 +30,8 @@ import com.google.common.collect.Multimap;
 import io.jsonwebtoken.SignatureAlgorithm;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadMXBean;
 import java.lang.reflect.Field;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
@@ -50,6 +52,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import javax.crypto.SecretKey;
 import javax.naming.AuthenticationException;
 import lombok.Cleanup;
@@ -1584,6 +1587,46 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
         p1.close();
         p2.close();
+    }
+
+
+    @Test
+    public void testBrokerThreadsCpuUsageMetrics() throws Exception {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, false, false, false, false, output);
+        Multimap<String, Metric> metricsMap = parseMetrics(output.toString("UTF-8"));
+        Collection<Metric> total = metricsMap.get("pulsar_broker_thread_total_cpu_usage_ns");
+        Collection<Metric> user = metricsMap.get("pulsar_broker_thread_user_cpu_usage_ns");
+        Collection<Metric> system = metricsMap.get("pulsar_broker_thread_system_cpu_usage_ns");
+
+        Map<String, Metric> threadName2User =
+                user.stream().collect(Collectors.toMap(m -> m.tags.get("thread_name"), m -> m));
+        Map<String, Metric> threadName2System =
+                system.stream().collect(Collectors.toMap(m -> m.tags.get("thread_name"), m -> m));
+
+        ThreadMXBean mxbean = ManagementFactory.getThreadMXBean();
+        if (!mxbean.isThreadCpuTimeSupported()) {
+            return;
+        }
+
+        Assert.assertNotNull(total);
+        Assert.assertTrue(total.size() > 0);
+
+        for (Metric total0 : total) {
+            String cluster = total0.tags.get("cluster");
+            Assert.assertNotNull(cluster);
+            Assert.assertEquals(cluster, "test");
+            String threadName = total0.tags.get("thread_name");
+            Assert.assertNotNull(threadName);
+            Assert.assertTrue(total0.value >= 0);
+
+            Metric user0 = threadName2User.get(threadName);
+            Metric system0 = threadName2System.get(threadName);
+            Assert.assertNotNull(user0);
+            Assert.assertNotNull(system0);
+
+            Assert.assertEquals(total0.value, user0.value + system0.value);
+        }
     }
 
     /**
