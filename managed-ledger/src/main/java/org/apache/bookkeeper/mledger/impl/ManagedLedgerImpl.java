@@ -3473,33 +3473,17 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
         return next;
     }
-
     public PositionImpl getValidPositionAfterSkippedEntries(final PositionImpl position, int skippedEntryNum) {
-        PositionImpl skippedPosition;
-        try {
-            skippedPosition = getValidPositionInternal(position, skippedEntryNum);
-        } catch (NullPointerException e) {
-            skippedPosition = lastConfirmedEntry.getNext();
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Can't find valid position : {}, fall back to the next position of the last "
-                        + "position : {}.", position, name, skippedPosition, e);
+        PositionImpl skippedPosition = position.getPositionAfterEntries(skippedEntryNum);
+        while (!isValidPosition(skippedPosition)) {
+            Long nextLedgerId = ledgers.ceilingKey(skippedPosition.getLedgerId() + 1);
+            if (nextLedgerId == null) {
+                return lastConfirmedEntry.getNext();
             }
+            skippedPosition = PositionImpl.get(nextLedgerId, 0);
         }
         return skippedPosition;
     }
-
-    public PositionImpl getValidPositionInternal(final PositionImpl position, int skippedEntryNum) {
-        PositionImpl toPosition = position.getPositionAfterEntries(skippedEntryNum);
-        while (!isValidPosition(toPosition)) {
-            Long nextLedgerId = ledgers.ceilingKey(toPosition.getLedgerId() + 1);
-            if (nextLedgerId == null) {
-                throw new NullPointerException();
-            }
-            toPosition = PositionImpl.get(nextLedgerId, 0);
-        }
-        return toPosition;
-    }
-
     public PositionImpl getNextValidPositionInternal(final PositionImpl position) {
         PositionImpl nextPosition = position.getNext();
         while (!isValidPosition(nextPosition)) {
