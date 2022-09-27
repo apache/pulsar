@@ -147,6 +147,12 @@ public class KafkaSourceConfig implements Serializable {
             "The consumer config properties to be passed to Consumer. Note that other properties specified "
                 + "in the connector config file take precedence over this config.")
     private Map<String, Object> consumerConfigProperties;
+    @FieldDoc(
+        defaultValue = "false",
+        help =
+            "If true the Kafka message headers will be copied into Pulsar message properties. Since Pulsar properties "
+                + "is a Map<String, String>, byte array values in the Kafka headers will be base64 encoded. ")
+    private boolean copyHeadersEnabled = false;
 
     public static KafkaSourceConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
