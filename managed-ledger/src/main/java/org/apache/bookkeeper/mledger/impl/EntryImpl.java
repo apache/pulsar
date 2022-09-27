@@ -67,13 +67,13 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
         return entry;
     }
 
-    public static EntryImpl create(long ledgerId, long entryId, boolean skipped) {
+    public static EntryImpl createSkippedEntry(long ledgerId, long entryId) {
         EntryImpl entry = RECYCLER.get();
         entry.timestamp = System.nanoTime();
         entry.ledgerId = ledgerId;
         entry.entryId = entryId;
-        entry.skipped = skipped;
-        entry.data = Unpooled.wrappedBuffer(new byte[0]);
+        entry.skipped = true;
+        entry.data = Unpooled.EMPTY_BUFFER;
         entry.setRefCnt(1);
         return entry;
     }

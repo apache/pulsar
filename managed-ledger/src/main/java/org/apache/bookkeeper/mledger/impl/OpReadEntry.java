@@ -120,7 +120,7 @@ class OpReadEntry implements ReadEntriesCallback {
             PositionImpl startPosition = readPosition;
             PositionImpl endPosition = (PositionImpl) nexReadPosition;
             while (startPosition.compareTo(endPosition) < 0) {
-                skippedEntries.add(EntryImpl.create(startPosition.ledgerId, startPosition.entryId, true));
+                skippedEntries.add(EntryImpl.createSkippedEntry(startPosition.ledgerId, startPosition.entryId));
                 startPosition = cursor.ledger.getNextValidPosition(startPosition);
             }
             List<Entry> filteredEntries = cursor.filterReadEntries(skippedEntries);
