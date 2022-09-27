@@ -632,7 +632,7 @@ When you use Key_Shared type, be aware that:
   * You need to specify a key or ordering key for messages.
   * You cannot use cumulative acknowledgment with Key_Shared type.
   * When the position of the newest message in a topic is `X`, a key-shared consumer that is newly attached to the same subscription and connected to the topic will **not** receive any messages until all the messages before `X` have been acknowledged. 
-
+  
 :::
 
 ### Subscription modes
