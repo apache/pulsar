@@ -257,7 +257,8 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
                     Long.parseLong(properties.getProperty(DELETION_LAG_NAME_IN_CONF_FILE)));
         }
 
-        if (properties.containsKey(DATA_READ_PRIORITY_NAME_IN_CONF_FILE)) {
+        if (!properties.containsKey("managedLedgerOffloadedReadPriority")
+                && properties.containsKey(DATA_READ_PRIORITY_NAME_IN_CONF_FILE)) {
             setManagedLedgerOffloadedReadPriority(
                     OffloadedReadPriority.fromString(properties.getProperty(DATA_READ_PRIORITY_NAME_IN_CONF_FILE)));
         }
