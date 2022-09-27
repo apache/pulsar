@@ -20,7 +20,6 @@ package org.apache.pulsar.testclient;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.testclient.PerfClientUtils.exit;
-
 import com.beust.jcommander.Parameter;
 import java.io.FileInputStream;
 import java.util.Properties;
@@ -160,7 +159,7 @@ public abstract class PerformanceBaseArguments {
             }
 
         }
-        
+
         fillArgumentsFromProperties(prop);
     }
 
