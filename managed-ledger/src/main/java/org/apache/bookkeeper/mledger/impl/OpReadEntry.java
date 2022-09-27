@@ -116,12 +116,13 @@ class OpReadEntry implements ReadEntriesCallback {
                 recycle();
                 return;
             }
+            final ManagedLedgerImpl ledger = (ManagedLedgerImpl) cursor.getManagedLedger();
             List<Entry> skippedEntries = new ArrayList<>();
             PositionImpl startPosition = readPosition;
             PositionImpl endPosition = (PositionImpl) nexReadPosition;
             while (startPosition.compareTo(endPosition) < 0) {
                 skippedEntries.add(EntryImpl.createSkippedEntry(startPosition.ledgerId, startPosition.entryId));
-                startPosition = cursor.ledger.getNextValidPosition(startPosition);
+                startPosition = ledger.getNextValidPosition(startPosition);
             }
             List<Entry> filteredEntries = cursor.filterReadEntries(skippedEntries);
             entries.addAll(filteredEntries);
