@@ -47,7 +47,7 @@ public abstract class AbstractBatchMessageContainer implements BatchMessageConta
     protected long currentTxnidLeastBits = -1L;
 
     protected static final int INITIAL_BATCH_BUFFER_SIZE = 1024;
-    protected static final int INITIAL_MESSAGES_NUM = 64;
+    protected static final int INITIAL_MESSAGES_NUM = 32;
 
     // This will be the largest size for a batch sent from this particular producer. This is used as a baseline to
     // allocate a new buffer that can hold the entire batch without needing costly reallocations
