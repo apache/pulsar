@@ -22,26 +22,41 @@ Enabling TLS encryption may impact the performance due to encryption overhead.
 
 :::
 
-To configure TLS encryption, you need two kinds of key pairs. The public key encrypts the messages and the private key decrypts the messages.
-* Certificate authority (CA)
+### TLS certificates
+
+TLS certificates include the following three types. Each certificate (key pair) contains both a public key that encrypts messages and a private key that decrypts messages.
+* Certificate Authority (CA)
   * CA private key
   * CA public key (**trust cert**)
 * Server key pairs
-  * Private key with a certificate request is generated first.
-  * Public key (the certificate) is generated after the **trust cert** signs the certificate request.
+* Client key pairs (for mutual TLS authentication only)
 
 :::tip
 
-* The generation process for server key pairs also applies to client key pairs, which are used for [client authentication](security-tls-authentication.md).
-* The clients can use the **trust cert** to verify that the server has a key pair that the CA signs when the clients are communicating to the server. A man-in-the-middle attacker does not have access to the CA, so they couldn't create a server with such a key pair.
-* For TLS authentication, the server uses the **trust cert** to verify that the client has a key pair that the certificate authority signs. The common name of the **client cert** is then used as the client's role token (see [Overview](security-overview.md)).
+* For both server and client key pairs, the private key with a certificate request is generated first, and the public key (the certificate) is generated after the **trust cert** signs the certificate request.
+* When [TLS authentication](security-tls-authentication.md) is enabled, the server uses the **trust cert** to verify that the client has a key pair that the certificate authority signs. The Common Name (CN) of a client certificate is used as the client's role token, while the Subject Alternative Name (SAN) of a server certificate is used for [Hostname verification](#hostname-verification).
 
 :::
 
-You can use either one of the following certificate formats to configure TLS encryption:
-* Privacy Enhanced Mail (PEM)
-* Java [KeyStore](https://en.wikipedia.org/wiki/Java_KeyStore) (JKS)
+### Certificate formats
 
+You can use either one of the following certificate formats to configure TLS encryption:
+* Recommended: Privacy Enhanced Mail (PEM). 
+  See [Configure TLS encryption with PEM](#configure-tls-encryption-with-pem) for detailed instructions.
+* Optional: Java [KeyStore](https://en.wikipedia.org/wiki/Java_KeyStore) (JKS). 
+  See [Configure TLS encryption with KeyStore](#configure-tls-encryption-with-keystore) for detailed instructions.
+
+### Hostname verification
+
+Hostname verification is a TLS security feature whereby a client can refuse to connect to a server if the Subject Alternative Name (SAN) does not match the hostname that the hostname is connecting to. 
+
+By default, Pulsar clients disable hostname verification, as it requires that each broker has a DNS record and a unique cert.
+
+One scenario where you may want to enable hostname verification is where you have multiple proxy nodes behind a VIP, and the VIP has a DNS record, for example, `pulsar.mycompany.com`. In this case, you can generate a TLS cert with `pulsar.mycompany.com` as the SAN, and then enable hostname verification on the client.
+
+To enable hostname verification in Pulsar, ensure that SAN exactly matches the fully qualified domain name (FQDN) of the server. The client compares the SAN with the DNS domain name to ensure that it is connecting to the desired server. See [Configure clients](security-tls-transport.md#configure-clients) for more details.
+
+Moreover, as the administrator has full control of the CA, a bad actor is unlikely to be able to pull off a man-in-the-middle attack. `allowInsecureConnection` allows the client to connect to servers whose cert has not been signed by an approved CA. The client disables `allowInsecureConnection` by default, and you should always disable `allowInsecureConnection` in production environments. As long as you disable `allowInsecureConnection`, a man-in-the-middle attack requires that the attacker has access to the CA.
 
 ## Configure TLS encryption with PEM
 
@@ -106,8 +121,7 @@ Once you have created a CA certificate, you can create certificate requests and 
 
 :::tip
 
-* The following commands ask you a few questions and then create the certificates. When you are asked for the common name, enter the hostname of the broker. You can also use a wildcard to match a group of broker hostnames, for example, `*.broker.usw.example.com`. This ensures that multiple machines can reuse the same certificate.
-* Sometimes, matching the hostname is not possible or makes no sense, such as when you create the brokers with random hostnames, or you plan to connect to the hosts via their IP. In these cases, you should configure the client to disable TLS hostname verification. For more details, see [host verification](#hostname-verification).
+When [hostname verification](#hostname-verification) is enabled, you need to enter the hostname of the broker as the Subject Alternative Name (SAN). You can also use a wildcard to match a group of broker hostnames, for example, `*.broker.usw.example.com`. This ensures that multiple machines can reuse the same certificate.
 
 :::
 
@@ -317,17 +331,6 @@ var client = PulsarClient.Builder()
 </Tabs>
 ````
 
-#### Hostname verification
-
-Hostname verification is a TLS security feature whereby a client can refuse to connect to a server if the `CommonName` does not match the hostname to which the hostname is connecting. 
-
-By default, Pulsar clients disable hostname verification, as it requires that each broker has a DNS record and a unique cert.
-
-Moreover, as the administrator has full control of the CA, a bad actor is unlikely to be able to pull off a man-in-the-middle attack. `allowInsecureConnection` allows the client to connect to servers whose cert has not been signed by an approved CA. The client disables `allowInsecureConnection` by default, and you should always disable `allowInsecureConnection` in production environments. As long as you disable `allowInsecureConnection`, a man-in-the-middle attack requires that the attacker has access to the CA.
-
-One scenario where you may want to enable hostname verification is where you have multiple proxy nodes behind a VIP, and the VIP has a DNS record, for example, `pulsar.mycompany.com`. In this case, you can generate a TLS cert with `pulsar.mycompany.com` as the `CommonName`, and then enable hostname verification on the client.
-
-
 ### Configure CLI tools
 
 [Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](reference-cli-tools.md#pulsar-admin), [`pulsar-perf`](reference-cli-tools.md#pulsar-perf), and [`pulsar-client`](reference-cli-tools.md#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
@@ -348,94 +351,36 @@ tlsEnableHostnameVerification=false
 
 By default, Pulsar uses [Conscrypt](https://github.com/google/conscrypt) for both broker service and Web service.
 
-### Generate TLS key and certificate
+### Generate JKS certificate
 
-You can use Java’s `keytool` utility to generate the key and certificate for each machine in the cluster. For example, you can generate the key into a temporary keystore initially for a broker, so that you can export and sign it later with the CA.
+You can use Java’s `keytool` utility to generate the key and certificate for each machine in the cluster. 
 
-```shell
-keytool -keystore broker.keystore.jks -alias localhost -validity {validity} -genkeypair -keyalg RSA
+```bash
+DAYS=365
+CLIENT_COMMON_PARAMS="-storetype JKS -storepass clientpw -keypass clientpw -noprompt"
+BROKER_COMMON_PARAMS="-storetype JKS -storepass brokerpw -keypass brokerpw -noprompt"
+
+# create keystore
+keytool -genkeypair -keystore broker.keystore.jks ${BROKER_COMMON_PARAMS} -keyalg RSA -keysize 2048 -alias broker -validity $DAYS \
+-dname 'CN=broker,OU=Unknown,O=Unknown,L=Unknown,ST=Unknown,C=Unknown'
+keytool -genkeypair -keystore client.keystore.jks ${CLIENT_COMMON_PARAMS} -keyalg RSA -keysize 2048 -alias client -validity $DAYS \
+-dname 'CN=client,OU=Unknown,O=Unknown,L=Unknown,ST=Unknown,C=Unknown'
+
+# export certificate 
+keytool -exportcert -keystore broker.keystore.jks ${BROKER_COMMON_PARAMS} -file broker.cer -alias broker
+keytool -exportcert -keystore client.keystore.jks ${CLIENT_COMMON_PARAMS} -file client.cer -alias client
+ 
+# generate truststore
+keytool -importcert -keystore client.truststore.jks ${CLIENT_COMMON_PARAMS} -file broker.cer -alias truststore
+keytool -importcert -keystore broker.truststore.jks ${BROKER_COMMON_PARAMS} -file client.cer -alias truststore
 ```
-
-You need to specify two parameters in the above command:
-
-1. `keystore`: the keystore file that stores the certificate. It contains the private key of the certificate and needs to be kept safely.
-2. `validity`: the valid time of the certificate in days.
-
+ 
 :::note
-
-Ensure that Common Name (CN) exactly matches the fully qualified domain name (FQDN) of the server. The client compares the CN with the DNS domain name to ensure that it is connecting to the desired server.
+ 
+To enable [hostname verification](#hostname-verification), configure the Subject Alternative Name (SAN) by appending `-ext SAN=IP:127.0.0.1,IP:192.168.20.2,DNS:broker.example.com` to `BROKER_COMMON_PARAMS`.
 
 :::
 
-### Create your own CA
-
-Now, each broker in the cluster has a public-private key pair, and a certificate to identify the machine.
-The certificate, however, is unsigned, which means that an attacker can create such a certificate to pretend to be any machine.
-
-Therefore, you need to prevent forged certificates by signing them for each machine in the cluster. The generated CA is simply a public-private key pair and certificate, and it is intended to sign other certificates.
-
-```shell
-openssl req -new -x509 -keyout ca-key -out ca-cert -days 365
-```
-
-Add the generated CA to the clients' truststore so that the clients can trust it:
-
-```shell
-keytool -keystore client.truststore.jks -alias CARoot -import -file ca-cert
-```
-
-In contrast to the keystore, which stores each machine’s own identity, the truststore of client stores all the certificates
-that the client should trust. Importing a certificate into one’s truststore also means trusting all certificates that are signed
-by that certificate. As the analogy above, trusting the government (CA) also means trusting all passports (certificates) that
-it has issued. This attribute is called the chain of trust, and it is particularly useful when deploying TLS on a large BookKeeper cluster.
-You can sign all certificates in the cluster with a single CA, and have all machines share the same truststore that trusts the CA.
-That way all machines can authenticate all other machines.
-
-:::note
-
-If you configure the brokers to require client authentication by setting `tlsRequireTrustedClientCertOnConnect` to `true` on the broker configuration, then you must also provide a truststore for the brokers and it should have all the CA certificates that clients' keys were signed by.
-
-```shell
-keytool -keystore broker.truststore.jks -alias CARoot -import -file ca-cert
-```
-
-:::
-
-
-### Sign the certificate
-
-Sign all certificates in the keystore with the CA you generated. 
-
-1. Export the certificate from the keystore:
-
-   ```shell
-   keytool -keystore broker.keystore.jks -alias localhost -certreq -file cert-file
-   keytool -keystore client.keystore.jks -alias localhost -certreq -file cert-file
-   ```
-
-2. Sign it with the CA:
-
-   ```shell
-   openssl x509 -req -CA ca-cert -CAkey ca-key -in cert-file -out cert-signed -days {validity} -CAcreateserial -passin pass:{ca-password}
-   ```
-
-3. Import both the certificate of the CA and the signed certificate into the keystore:
-
-   ```shell
-   keytool -keystore broker.keystore.jks -alias CARoot -import -file ca-cert
-   keytool -keystore broker.keystore.jks -alias localhost -import -file cert-signed
-
-   keytool -keystore client.keystore.jks -alias CARoot -import -file ca-cert
-   keytool -keystore client.keystore.jks -alias localhost -import -file cert-signed
-   ```
-
-The definitions of the parameters include:
-1. `keystore`: the location of the keystore.
-2. `ca-cert`: the certificate of the CA.
-3. `ca-key`: the private key of the CA.
-4. `ca-password`: the passphrase of the CA.
-5. `cert-file`: the exported, unsigned certificate of the broker.
-6. `cert-signed`: the signed certificate of the broker.
 
 ### Configure brokers
 
@@ -471,7 +416,7 @@ brokerClientTlsKeyStorePassword=clientpw
 To disable non-TLS ports, you need to set the values of `brokerServicePort` and `webServicePort` to empty.
 
 Optional settings:
-1. `tlsClientAuthentication=false`: Enable/Disable using TLS for authentication. This config when enabled will authenticate the other end of the communication channel. It should be enabled on both brokers and clients for mutual TLS.
+1. `tlsRequireTrustedClientCertOnConnect=true`: Enable TLS authentication on both brokers and clients for mutual TLS. When enabled, it authenticates the other end of the communication channel.
 2. `tlsCiphers=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256`: A cipher suite is a named combination of authentication, encryption, MAC and key exchange algorithm used to negotiate the security settings for a network connection using TLS network protocol. 
    By default, it is null. [OpenSSL Ciphers](https://www.openssl.org/docs/man1.0.2/apps/ciphers.html)
    [JDK Ciphers](http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#ciphersuites)
@@ -479,11 +424,39 @@ Optional settings:
 
 ### Configure proxies
 
-See [the step for PEM](#configure-proxies).
+Configuring TLS on proxies includes two directions of connections, from clients to proxies, and from proxies to brokers.
+
+```properties
+servicePortTls=6651
+webServicePortTls=8081
+ 
+tlsRequireTrustedClientCertOnConnect=true
+ 
+# keystore
+tlsKeyStoreType=JKS
+tlsKeyStore=/var/private/tls/proxy.keystore.jks
+tlsKeyStorePassword=brokerpw
+ 
+# truststore
+tlsTrustStoreType=JKS
+tlsTrustStore=/var/private/tls/proxy.truststore.jks
+tlsTrustStorePassword=brokerpw
+ 
+# internal client/admin-client config
+tlsEnabledWithKeyStore=true
+brokerClientTlsEnabled=true
+brokerClientTlsEnabledWithKeyStore=true
+brokerClientTlsTrustStoreType=JKS
+brokerClientTlsTrustStore=/var/private/tls/client.truststore.jks
+brokerClientTlsTrustStorePassword=clientpw
+brokerClientTlsKeyStoreType=JKS
+brokerClientTlsKeyStore=/var/private/tls/client.keystore.jks
+brokerClientTlsKeyStorePassword=clientpw
+```
 
 ### Configure clients
 
-Similar to [TLS encryption configurations for clients with PEM type](security-tls-transport.md#configure-clients), you need to provide the TrustStore information for a minimal configuration.
+Similar to [Configure TLS encryption with PEM](security-tls-transport.md#configure-clients), you need to provide the TrustStore information for a minimal configuration.
 
 The following is an example.
 
