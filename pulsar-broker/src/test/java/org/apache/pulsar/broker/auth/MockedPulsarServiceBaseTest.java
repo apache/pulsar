@@ -78,6 +78,8 @@ import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.data.ACL;
+import org.mockito.Mockito;
+import org.mockito.internal.util.MockUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -232,6 +234,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         // an NPE in shutdown, obscuring the real error
         if (admin != null) {
             admin.close();
+            cleanupMock(admin);
             admin = null;
         }
         if (pulsarClient != null) {
@@ -304,9 +307,17 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         // set shutdown timeout to 0 for forceful shutdown
         pulsar.getConfiguration().setBrokerShutdownTimeoutMs(0L);
         pulsar.close();
+        cleanupMock(pulsar);
         pulsar = null;
         // Simulate cleanup of ephemeral nodes
         //mockZooKeeper.delete("/loadbalance/brokers/localhost:" + pulsar.getConfiguration().getWebServicePort(), -1);
+    }
+
+    protected void cleanupMock(Object mock) {
+        if (MockUtil.isMock(mock)) {
+            Mockito.clearInvocations(mock);
+            Mockito.reset(mock);
+        }
     }
 
     protected void startBroker() throws Exception {
