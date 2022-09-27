@@ -21,6 +21,7 @@ package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.net.URI;
 import java.time.Duration;
@@ -305,6 +306,11 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
             }
         });
         return promise;
+    }
+
+    @Override
+    public CompletableFuture<Void> offload(ByteBuf buf, long ledgerId, String topicName, UUID uid) {
+        return null;
     }
 
     BlobStore blobStore;

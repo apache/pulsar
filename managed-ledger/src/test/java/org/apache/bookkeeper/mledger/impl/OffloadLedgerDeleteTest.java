@@ -20,6 +20,7 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static org.apache.bookkeeper.mledger.impl.OffloadPrefixTest.assertEventuallyTrue;
 
+import io.netty.buffer.ByteBuf;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -108,6 +109,11 @@ public class OffloadLedgerDeleteTest extends MockedBookKeeperTestCase {
                 inject.call();
             }
             return promise;
+        }
+
+        @Override
+        public CompletableFuture<Void> offload(ByteBuf buf, long ledgerId, String topicName, UUID uid) {
+            return null;
         }
 
         @Override

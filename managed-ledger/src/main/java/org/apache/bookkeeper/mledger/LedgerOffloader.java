@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger;
 
+import io.netty.buffer.ByteBuf;
 import java.util.Collections;
 import java.util.Map;
 import java.util.UUID;
@@ -137,6 +138,8 @@ public interface LedgerOffloader {
     CompletableFuture<Void> offload(ReadHandle ledger,
                                     UUID uid,
                                     Map<String, String> extraMetadata);
+
+    CompletableFuture<Void> offload(ByteBuf buf, long ledgerId, String topicName, UUID uid);
 
     /**
      * Begin offload the passed in ledgers to longterm storage, it will finish

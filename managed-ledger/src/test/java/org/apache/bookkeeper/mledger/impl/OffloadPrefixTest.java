@@ -24,6 +24,7 @@ import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import io.netty.buffer.ByteBuf;
 import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
@@ -1067,6 +1068,11 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
                 inject.call();
             }
             return promise;
+        }
+
+        @Override
+        public CompletableFuture<Void> offload(ByteBuf buf, long ledgerId, String topicName, UUID uid) {
+            return null;
         }
 
         @Override
