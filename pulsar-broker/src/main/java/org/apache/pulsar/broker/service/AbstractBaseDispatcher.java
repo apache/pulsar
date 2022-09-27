@@ -126,6 +126,8 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                         entriesToFiltered = new ArrayList<>();
                     }
                     entriesToFiltered.add(entryImpl.getPosition());
+                    entries.set(i, null);
+                    entry.release();
                     continue;
                 }
             }
