@@ -67,8 +67,8 @@ public class TransactionImpl implements Transaction , TimerTask {
     private CompletableFuture<MessageId> sendFuture;
     private CompletableFuture<Void> ackFuture;
 
-    private AtomicLong ackCount = new AtomicLong(0);
-    private AtomicLong sendCount = new AtomicLong(0);
+    private final AtomicLong ackCount = new AtomicLong(0);
+    private final AtomicLong sendCount = new AtomicLong(0);
 
     private volatile State state;
     private static final AtomicReferenceFieldUpdater<TransactionImpl, State> STATE_UPDATE =
