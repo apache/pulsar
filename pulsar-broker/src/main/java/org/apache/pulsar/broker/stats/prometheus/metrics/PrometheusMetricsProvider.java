@@ -55,9 +55,16 @@ public class PrometheusMetricsProvider implements StatsProvider, PrometheusRawMe
     /**
      * These acts a registry of the metrics defined in this provider.
      */
-    public final ConcurrentMap<ScopeContext, LongAdderCounter> counters = new ConcurrentHashMap<>();
-    public final ConcurrentMap<ScopeContext, SimpleGauge<? extends Number>> gauges = new ConcurrentHashMap<>();
+    // The outside map is used to group the same metrics name,
+    // but with different labels metrics to ensure all the metrics with same metric name are grouped.
+    // `https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/
+    // exposition_formats.md#grouping-and-sorting`
+    public final ConcurrentMap<String,
+        ConcurrentMap<ScopeContext, LongAdderCounter>> counters = new ConcurrentHashMap<>();
+    public final ConcurrentMap<String,
+        ConcurrentMap<ScopeContext, SimpleGauge<? extends Number>>> gauges = new ConcurrentHashMap<>();
     public final ConcurrentMap<ScopeContext, DataSketchesOpStatsLogger> opStats = new ConcurrentHashMap<>();
+
     final ConcurrentMap<ScopeContext, ThreadScopedDataSketchesStatsLogger> threadScopedOpStats =
         new ConcurrentHashMap<>();
     final ConcurrentMap<ScopeContext, ThreadScopedLongAdderCounter> threadScopedCounters =
@@ -122,8 +129,10 @@ public class PrometheusMetricsProvider implements StatsProvider, PrometheusRawMe
     @Override
     public void generate(SimpleTextOutputStream writer) {
         PrometheusTextFormat prometheusTextFormat = new PrometheusTextFormat();
-        gauges.forEach((sc, gauge) -> prometheusTextFormat.writeGauge(writer, sc.getScope(), gauge));
-        counters.forEach((sc, counter) -> prometheusTextFormat.writeCounter(writer, sc.getScope(), counter));
+        gauges.forEach((name, metric) ->
+            metric.forEach((sc, gauge) -> prometheusTextFormat.writeGauge(writer, sc.getScope(), gauge)));
+        counters.forEach((name, metric) ->
+            metric.forEach((sc, counter) -> prometheusTextFormat.writeCounter(writer, sc.getScope(), counter)));
         opStats.forEach((sc, opStatLogger) ->
                 prometheusTextFormat.writeOpStat(writer, sc.getScope(), opStatLogger));
     }

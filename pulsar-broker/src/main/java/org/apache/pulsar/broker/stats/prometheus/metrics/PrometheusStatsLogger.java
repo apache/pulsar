@@ -22,6 +22,7 @@ import com.google.common.base.Joiner;
 import io.prometheus.client.Collector;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.concurrent.ConcurrentHashMap;
 import lombok.Getter;
 import org.apache.bookkeeper.stats.Counter;
 import org.apache.bookkeeper.stats.Gauge;
@@ -57,7 +58,8 @@ public class PrometheusStatsLogger implements StatsLogger {
 
     @Override
     public Counter getCounter(String name) {
-        return provider.counters.computeIfAbsent(scopeContext(name), x -> new LongAdderCounter(labels));
+        return provider.counters.computeIfAbsent(name, x -> new ConcurrentHashMap<>())
+            .computeIfAbsent(scopeContext(name), x -> new LongAdderCounter(labels));
     }
 
     public Counter getThreadScopedCounter(String name) {
@@ -67,7 +69,8 @@ public class PrometheusStatsLogger implements StatsLogger {
 
     @Override
     public <T extends Number> void registerGauge(String name, Gauge<T> gauge) {
-        provider.gauges.computeIfAbsent(scopeContext(name), x -> new SimpleGauge<T>(gauge, labels));
+        provider.gauges.computeIfAbsent(name, x -> new ConcurrentHashMap<>())
+            .computeIfAbsent(scopeContext(name), x -> new SimpleGauge<T>(gauge, labels));
     }
 
     @Override

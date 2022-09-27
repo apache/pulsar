@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.stats.prometheus.metrics;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import org.apache.bookkeeper.stats.Counter;
 
 /**
@@ -87,7 +88,8 @@ public class ThreadScopedLongAdderCounter implements Counter {
 
             if (tpt == null) {
                 counters.set(defaultCounter);
-                provider.counters.put(new ScopeContext(scopeContext.getScope(), originalLabels), defaultCounter);
+                provider.counters.computeIfAbsent(scopeContext.getScope(), x -> new ConcurrentHashMap<>())
+                    .put(new ScopeContext(scopeContext.getScope(), originalLabels), defaultCounter);
                 return defaultCounter;
             } else {
                 Map<String, String> threadScopedlabels = new HashMap<>(originalLabels);
@@ -95,7 +97,8 @@ public class ThreadScopedLongAdderCounter implements Counter {
                 threadScopedlabels.put("thread", String.valueOf(tpt.getOrdinal()));
 
                 counter.initializeThread(threadScopedlabels);
-                provider.counters.put(new ScopeContext(scopeContext.getScope(), threadScopedlabels), counter);
+                provider.counters.computeIfAbsent(scopeContext.getScope(), x -> new ConcurrentHashMap<>())
+                    .put(new ScopeContext(scopeContext.getScope(), threadScopedlabels), counter);
             }
         }
 
