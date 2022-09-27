@@ -36,7 +36,6 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import java.lang.reflect.Field;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -70,7 +69,6 @@ import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.compaction.Compactor;
@@ -221,53 +219,6 @@ public class PersistentSubscriptionTest {
                 .handle().get();
         EventLoopUtil.shutdownGracefully(eventLoopGroup).get();
         store.close();
-    }
-
-    @Test
-    public void testCanAcknowledgeAndCommitForTransaction() throws ExecutionException, InterruptedException {
-        doAnswer((invocationOnMock) -> {
-            ((AsyncCallbacks.DeleteCallback) invocationOnMock.getArguments()[1])
-                    .deleteComplete(invocationOnMock.getArguments()[2]);
-            return null;
-        }).when(cursorMock).asyncDelete(any(List.class), any(AsyncCallbacks.DeleteCallback.class), any());
-
-        List<MutablePair<PositionImpl, Integer>> positionsPair = new ArrayList<>();
-        positionsPair.add(new MutablePair<>(new PositionImpl(1, 1), 0));
-        positionsPair.add(new MutablePair<>(new PositionImpl(1, 3), 0));
-        positionsPair.add(new MutablePair<>(new PositionImpl(1, 5), 0));
-
-        doAnswer((invocationOnMock) -> {
-            assertTrue(Arrays.deepEquals(((List)invocationOnMock.getArguments()[0]).toArray(),
-                    positionsPair.toArray()));
-            ((AsyncCallbacks.MarkDeleteCallback) invocationOnMock.getArguments()[2])
-                    .markDeleteComplete(invocationOnMock.getArguments()[3]);
-            return null;
-        }).when(cursorMock).asyncMarkDelete(any(), any(), any(AsyncCallbacks.MarkDeleteCallback.class), any());
-
-        List<CompletableFuture<?>> runningTask = new ArrayList<>();
-
-        // Single ack for txn
-        runningTask.add(persistentSubscription.transactionIndividualAcknowledge(txnID1, positionsPair));
-
-        // Commit txn
-        persistentSubscription.endTxn(txnID1.getMostSigBits(), txnID1.getLeastSigBits(), TxnAction.COMMIT_VALUE, -1).get();
-
-        List<PositionImpl> positions = new ArrayList<>();
-        positions.add(new PositionImpl(3, 100));
-
-        // Cumulative ack for txn
-        runningTask.add(persistentSubscription.transactionCumulativeAcknowledge(txnID1, positions));
-
-        FutureUtil.waitForAll(runningTask).get();
-        doAnswer((invocationOnMock) -> {
-            assertEquals(((PositionImpl) invocationOnMock.getArguments()[0]).compareTo(new PositionImpl(3, 100)), 0);
-            ((AsyncCallbacks.MarkDeleteCallback) invocationOnMock.getArguments()[2])
-                    .markDeleteComplete(invocationOnMock.getArguments()[3]);
-            return null;
-        }).when(cursorMock).asyncMarkDelete(any(), any(), any(AsyncCallbacks.MarkDeleteCallback.class), any());
-
-        // Commit txn
-        persistentSubscription.endTxn(txnID1.getMostSigBits(), txnID1.getLeastSigBits(), TxnAction.COMMIT_VALUE, -1).get();
     }
 
     @Test
