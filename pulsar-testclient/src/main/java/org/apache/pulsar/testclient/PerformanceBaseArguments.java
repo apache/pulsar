@@ -19,6 +19,8 @@
 package org.apache.pulsar.testclient;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.pulsar.testclient.PerfClientUtils.exit;
+
 import com.beust.jcommander.Parameter;
 import java.io.FileInputStream;
 import java.util.Properties;
@@ -146,7 +148,17 @@ public abstract class PerformanceBaseArguments {
         }
 
         if (proxyProtocol == null) {
-            proxyProtocol = ProxyProtocol.valueOf(prop.getProperty("proxyProtocol"));
+            try {
+                String proxyProtocolString = prop.getProperty("proxyProtocol");
+                if (proxyProtocolString != null) {
+                    proxyProtocol = ProxyProtocol.valueOf(prop.getProperty("proxyProtocol"));
+                }
+            } catch (IllegalArgumentException e) {
+                System.out.println("Incorrect proxyProtocol name");
+                e.printStackTrace();
+                exit(-1);
+            }
+
         }
         
         fillArgumentsFromProperties(prop);

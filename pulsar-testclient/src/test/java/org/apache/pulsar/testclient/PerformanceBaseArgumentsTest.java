@@ -53,4 +53,54 @@ public class PerformanceBaseArgumentsTest {
         Assert.assertEquals(args.proxyProtocol, SNI);
     }
 
+    @Test
+    public void testReadFromConfigFileWithoutProxyUrl() {
+
+        AtomicBoolean called = new AtomicBoolean();
+
+        final PerformanceBaseArguments args = new PerformanceBaseArguments() {
+            @Override
+            public void fillArgumentsFromProperties(Properties prop) {
+                called.set(true);
+            }
+        };
+        args.confFile = "./src/test/resources/perf_client2.conf";
+        args.fillArgumentsFromProperties();
+        Assert.assertTrue(called.get());
+        Assert.assertEquals(args.serviceURL, "https://my-pulsar:8443/");
+        Assert.assertEquals(args.authPluginClassName,
+                "org.apache.pulsar.testclient.PerfClientUtilsTest.MyAuth");
+        Assert.assertEquals(args.authParams, "myparams");
+        Assert.assertEquals(args.tlsTrustCertsFilePath, "./path");
+        Assert.assertTrue(args.tlsAllowInsecureConnection);
+        Assert.assertTrue(args.tlsHostnameVerificationEnable);
+    }
+
+    @Test
+    public void testReadFromConfigFileProxyProtocolException() {
+
+        AtomicBoolean calledVar1 = new AtomicBoolean();
+        AtomicBoolean calledVar2 = new AtomicBoolean();
+
+        final PerformanceBaseArguments args = new PerformanceBaseArguments() {
+            @Override
+            public void fillArgumentsFromProperties(Properties prop) {
+                calledVar1.set(true);
+            }
+        };
+
+        PerfClientUtils.setExitProcedure(code -> {
+            calledVar2.set(true);
+            Assert.assertNotNull(code);
+            if (code != -1) {
+                Assert.fail("Incorrect exit code");
+            }
+        });
+        
+        args.confFile = "./src/test/resources/perf_client3.conf";
+        args.fillArgumentsFromProperties();
+        Assert.assertTrue(calledVar1.get());
+        Assert.assertTrue(calledVar2.get());
+    }
+
 }
