@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.service.persistent;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isEventSystemTopic;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
-import com.google.common.base.Predicate;
 import io.netty.buffer.ByteBuf;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -34,6 +33,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
@@ -139,7 +139,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
     }
 
     public PersistentSubscription(PersistentTopic topic, String subscriptionName, ManagedCursor cursor,
-                                                         boolean replicated) {
+                                  boolean replicated) {
         this(topic, subscriptionName, cursor, replicated, Collections.emptyMap());
     }
 
@@ -165,7 +165,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
 
     public void updateLastMarkDeleteAdvancedTimestamp() {
         this.lastMarkDeleteAdvancedTimestamp =
-            Math.max(this.lastMarkDeleteAdvancedTimestamp, System.currentTimeMillis());
+                Math.max(this.lastMarkDeleteAdvancedTimestamp, System.currentTimeMillis());
     }
 
     @Override
@@ -229,9 +229,9 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                                 previousDispatcher = dispatcher;
                                 dispatcher = useStreamingDispatcher
                                         ? new PersistentStreamingDispatcherSingleActiveConsumer(
-                                                cursor, SubType.Exclusive, 0, topic, this)
+                                        cursor, SubType.Exclusive, 0, topic, this)
                                         : new PersistentDispatcherSingleActiveConsumer(
-                                                cursor, SubType.Exclusive, 0, topic, this);
+                                        cursor, SubType.Exclusive, 0, topic, this);
                             }
                             break;
                         case Shared:
@@ -239,7 +239,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                                 previousDispatcher = dispatcher;
                                 dispatcher = useStreamingDispatcher
                                         ? new PersistentStreamingDispatcherMultipleConsumers(
-                                                topic, cursor, this)
+                                        topic, cursor, this)
                                         : new PersistentDispatcherMultipleConsumers(topic, cursor, this);
                             }
                             break;
@@ -256,7 +256,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                                 previousDispatcher = dispatcher;
                                 dispatcher = useStreamingDispatcher
                                         ? new PersistentStreamingDispatcherSingleActiveConsumer(
-                                                cursor, SubType.Failover, partitionIndex, topic, this) :
+                                        cursor, SubType.Failover, partitionIndex, topic, this) :
                                         new PersistentDispatcherSingleActiveConsumer(cursor, SubType.Failover,
                                                 partitionIndex, topic, this);
                             }
@@ -265,7 +265,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                             KeySharedMeta ksm = consumer.getKeySharedMeta();
                             if (dispatcher == null || dispatcher.getType() != SubType.Key_Shared
                                     || !((PersistentStickyKeyDispatcherMultipleConsumers) dispatcher)
-                                            .hasSameKeySharedPolicy(ksm)) {
+                                    .hasSameKeySharedPolicy(ksm)) {
                                 previousDispatcher = dispatcher;
                                 dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this,
                                         topic.getBrokerService().getPulsar().getConfiguration(), ksm);
@@ -337,7 +337,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
 
                 // when topic closes: it iterates through concurrent-subscription map to close each subscription. so,
                 // topic.remove again try to access same map which creates deadlock. so, execute it in different thread.
-                topic.getBrokerService().pulsar().getExecutor().execute(() ->{
+                topic.getBrokerService().pulsar().getExecutor().execute(() -> {
                     topic.removeSubscription(subName);
                     // Also need remove the cursor here, otherwise the data deletion will not work well.
                     // Because data deletion depends on the mark delete position of all cursors.
@@ -412,7 +412,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
             this.updateLastMarkDeleteAdvancedTimestamp();
 
             // Mark delete position advance
-            ReplicatedSubscriptionSnapshotCache snapshotCache  = this.replicatedSubscriptionSnapshotCache;
+            ReplicatedSubscriptionSnapshotCache snapshotCache = this.replicatedSubscriptionSnapshotCache;
             if (snapshotCache != null) {
                 ReplicatedSubscriptionsSnapshot snapshot = snapshotCache
                         .advancedMarkDeletePosition((PositionImpl) cursor.getMarkDeletedPosition());
@@ -510,14 +510,14 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         }
 
         switch (type) {
-        case Exclusive:
-            return "Exclusive";
-        case Failover:
-            return "Failover";
-        case Shared:
-            return "Shared";
-        case Key_Shared:
-            return "Key_Shared";
+            case Exclusive:
+                return "Exclusive";
+            case Failover:
+                return "Failover";
+            case Shared:
+                return "Shared";
+            case Key_Shared:
+                return "Key_Shared";
         }
 
         return "Null";
@@ -555,54 +555,58 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         int batchSize = configuration.getDispatcherMaxReadBatchSize();
         AtomicReference<Position> firstPosition = new AtomicReference<>();
         AtomicReference<Position> lastPosition = new AtomicReference<>();
-        return cursor.scan(position, new Predicate<Entry>() {
-            @Override
-            public boolean apply(Entry entry) {
-                if (log.isDebugEnabled()) {
-                    log.debug("found {}", entry);
-                }
-                Position entryPosition = entry.getPosition();
-                firstPosition.compareAndSet(null, entryPosition);
-                lastPosition.set(entryPosition);
-                ByteBuf metadataAndPayload = entry.getDataBuffer();
-                MessageMetadata messageMetadata = Commands.peekMessageMetadata(metadataAndPayload, "", -1);
-                int numMessages = 1;
-                if (messageMetadata.hasNumMessagesInBatch()) {
-                    numMessages = messageMetadata.getNumMessagesInBatch();
-                }
-                EntryFilter.FilterResult filterResult = entryFilterSupport
-                        .runFiltersForEntry(entry, messageMetadata, null);
-
-                if (filterResult == null) {
-                    filterResult = EntryFilter.FilterResult.ACCEPT;
-                }
-                switch (filterResult) {
-                    case REJECT:
-                        rejected.incrementAndGet();
-                        rejectedMessages.addAndGet(numMessages);
-                        break;
-                    case RESCHEDULE:
-                        rescheduled.incrementAndGet();
-                        rescheduledMessages.addAndGet(numMessages);
-                        break;
-                    default:
-                        accepted.incrementAndGet();
-                        acceptedMessages.addAndGet(numMessages);
-                        break;
-                }
-                long num = entries.incrementAndGet();
-                messages.addAndGet(numMessages);
-
-                if (num % 1000 == 0) {
-                    long end = System.currentTimeMillis();
-                    log.info(
-                            "[{}][{}] scan running since {} ms - scanned {} entries",
-                            topicName, subName, end - start, num);
-                }
-
-                return true;
+        final Predicate<Entry> condition = entry -> {
+            if (log.isDebugEnabled()) {
+                log.debug("found {}", entry);
             }
-        }, batchSize, maxEntries, timeOutMs).thenApply((ScanOutcome outcome) -> {
+            Position entryPosition = entry.getPosition();
+            firstPosition.compareAndSet(null, entryPosition);
+            lastPosition.set(entryPosition);
+            ByteBuf metadataAndPayload = entry.getDataBuffer();
+            MessageMetadata messageMetadata = Commands.peekMessageMetadata(metadataAndPayload, "", -1);
+            int numMessages = 1;
+            if (messageMetadata.hasNumMessagesInBatch()) {
+                numMessages = messageMetadata.getNumMessagesInBatch();
+            }
+            EntryFilter.FilterResult filterResult = entryFilterSupport
+                    .runFiltersForEntry(entry, messageMetadata, null);
+
+            if (filterResult == null) {
+                filterResult = EntryFilter.FilterResult.ACCEPT;
+            }
+            switch (filterResult) {
+                case REJECT:
+                    rejected.incrementAndGet();
+                    rejectedMessages.addAndGet(numMessages);
+                    break;
+                case RESCHEDULE:
+                    rescheduled.incrementAndGet();
+                    rescheduledMessages.addAndGet(numMessages);
+                    break;
+                default:
+                    accepted.incrementAndGet();
+                    acceptedMessages.addAndGet(numMessages);
+                    break;
+            }
+            long num = entries.incrementAndGet();
+            messages.addAndGet(numMessages);
+
+            if (num % 1000 == 0) {
+                long end = System.currentTimeMillis();
+                log.info(
+                        "[{}][{}] scan running since {} ms - scanned {} entries",
+                        topicName, subName, end - start, num);
+            }
+
+            return true;
+        };
+        return cursor.scan(
+                position,
+                condition,
+                batchSize,
+                maxEntries,
+                timeOutMs
+        ).thenApply((ScanOutcome outcome) -> {
             long end = System.currentTimeMillis();
             AnalyzeBacklogResult result = new AnalyzeBacklogResult();
             result.setFirstPosition(firstPosition.get());
@@ -928,6 +932,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
 
     /**
      * Forcefully close all consumers and deletes the subscription.
+     *
      * @return
      */
     @Override
@@ -938,9 +943,10 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
     /**
      * Delete the subscription by closing and deleting its managed cursor. Handle unsubscribe call from admin layer.
      *
-     * @param closeIfConsumersConnected
-     *            Flag indicate whether explicitly close connected consumers before trying to delete subscription. If
-     *            any consumer is connected to it and if this flag is disable then this operation fails.
+     * @param closeIfConsumersConnected Flag indicate whether explicitly close connected consumers before trying to
+     *                                  delete subscription. If
+     *                                  any consumer is connected to it and if this flag is disable then this operation
+     *                                  fails.
      * @return CompletableFuture indicating the completion of delete operation
      */
     private CompletableFuture<Void> delete(boolean closeIfConsumersConnected) {

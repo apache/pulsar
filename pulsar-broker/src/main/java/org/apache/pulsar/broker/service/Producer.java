@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import static com.scurrilous.circe.checksum.Crc32cIntChecksum.computeChecksum;
 import static org.apache.pulsar.broker.service.AbstractReplicator.REPL_PRODUCER_NAME_DELIMITER;
 import static org.apache.pulsar.common.protocol.Commands.hasChecksum;
@@ -106,7 +105,7 @@ public class Producer {
         this.topic = topic;
         this.cnx = cnx;
         this.producerId = producerId;
-        this.producerName = checkNotNull(producerName);
+        this.producerName = Objects.requireNonNull(producerName);
         this.userProvidedProducerName = userProvidedProducerName;
         this.epoch = epoch;
         this.closeFuture = new CompletableFuture<>();

@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.service.schema;
 
-import com.google.common.collect.Maps;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
@@ -34,7 +34,7 @@ public interface SchemaRegistryService extends SchemaRegistry {
     long NO_SCHEMA_VERSION = -1L;
 
     static Map<SchemaType, SchemaCompatibilityCheck> getCheckers(Set<String> checkerClasses) throws Exception {
-        Map<SchemaType, SchemaCompatibilityCheck> checkers = Maps.newHashMap();
+        Map<SchemaType, SchemaCompatibilityCheck> checkers = new HashMap<>();
         for (String className : checkerClasses) {
             SchemaCompatibilityCheck schemaCompatibilityCheck = Reflections.createInstance(className,
                     SchemaCompatibilityCheck.class, Thread.currentThread().getContextClassLoader());

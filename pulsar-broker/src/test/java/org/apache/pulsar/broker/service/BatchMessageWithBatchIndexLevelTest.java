@@ -18,7 +18,13 @@
  */
 package org.apache.pulsar.broker.service;
 
-import com.google.common.collect.Lists;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.SneakyThrows;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
@@ -33,13 +39,6 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNull;
 
 @Test(groups = "broker")
 public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
@@ -78,7 +77,7 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
                 .enableBatching(true)
                 .create();
 
-        List<CompletableFuture<MessageId>> sendFutureList = Lists.newArrayList();
+        List<CompletableFuture<MessageId>> sendFutureList = new ArrayList<>();
         for (int i = 0; i < numMsgs; i++) {
             byte[] message = ("batch-message-" + i).getBytes();
             sendFutureList.add(producer.newMessage().value(message).sendAsync());

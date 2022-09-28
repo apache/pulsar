@@ -24,11 +24,11 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
-import com.google.common.collect.ImmutableMap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
@@ -87,7 +87,7 @@ public class AbstractBaseDispatcherTest {
         EntryFilterWithClassLoader mockFilter = mock(EntryFilterWithClassLoader.class);
         when(mockFilter.filterEntry(any(Entry.class), any(FilterContext.class))).thenReturn(
                 EntryFilter.FilterResult.REJECT);
-        ImmutableMap<String, EntryFilterWithClassLoader> entryFilters = ImmutableMap.of("key", mockFilter);
+        Map<String, EntryFilterWithClassLoader> entryFilters = Map.of("key", mockFilter);
         when(mockTopic.getEntryFilters()).thenReturn(entryFilters);
 
         this.helper = new AbstractBaseDispatcherTestHelper(this.subscriptionMock, this.svcConfig);

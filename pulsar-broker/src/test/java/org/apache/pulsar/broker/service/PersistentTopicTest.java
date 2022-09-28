@@ -44,8 +44,6 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
@@ -777,7 +775,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         consumer.close();
 
         SubType previousSubType = SubType.Exclusive;
-        for (SubType subType : Lists.newArrayList(SubType.Shared, SubType.Failover, SubType.Key_Shared,
+        for (SubType subType : List.of(SubType.Shared, SubType.Failover, SubType.Key_Shared,
                 SubType.Exclusive)) {
             Dispatcher previousDispatcher = sub.getDispatcher();
 
@@ -1875,7 +1873,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         PositionImpl position = new PositionImpl(1, 1);
         long ledgerId = 0xc0bfefeL;
         sub.acknowledgeMessage(Collections.singletonList(position), AckType.Cumulative,
-                ImmutableMap.of(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY, ledgerId));
+                Map.of(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY, ledgerId));
         verify(compactedTopic, Mockito.times(1)).newCompactedLedger(position, ledgerId);
     }
 
@@ -1883,7 +1881,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
     @Test
     public void testCompactorSubscriptionUpdatedOnInit() throws Exception {
         long ledgerId = 0xc0bfefeL;
-        Map<String, Long> properties = ImmutableMap.of(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY, ledgerId);
+        Map<String, Long> properties = Map.of(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY, ledgerId);
         PositionImpl position = new PositionImpl(1, 1);
 
         doAnswer((invokactionOnMock) -> properties).when(cursorMock).getProperties();
@@ -1935,7 +1933,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         doReturn(compactPromise).when(compactor).compact(anyString());
 
         ManagedCursor subCursor = mock(ManagedCursor.class);
-        doReturn(Lists.newArrayList(subCursor)).when(ledgerMock).getCursors();
+        doReturn(List.of(subCursor)).when(ledgerMock).getCursors();
         doReturn(Compactor.COMPACTION_SUBSCRIPTION).when(subCursor).getName();
 
         Policies policies = new Policies();

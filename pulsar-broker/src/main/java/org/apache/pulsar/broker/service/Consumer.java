@@ -22,7 +22,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
-import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.AtomicDouble;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.Promise;
@@ -994,7 +993,7 @@ public class Consumer {
 
     public void redeliverUnacknowledgedMessages(List<MessageIdData> messageIds) {
         int totalRedeliveryMessages = 0;
-        List<PositionImpl> pendingPositions = Lists.newArrayList();
+        List<PositionImpl> pendingPositions = new ArrayList<>();
         for (MessageIdData msg : messageIds) {
             PositionImpl position = PositionImpl.get(msg.getLedgerId(), msg.getEntryId());
             LongPair longPair = pendingAcks.get(position.getLedgerId(), position.getEntryId());
