@@ -3475,7 +3475,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         while (!isValidPosition(nextPosition)) {
             Long nextLedgerId = ledgers.ceilingKey(nextPosition.getLedgerId() + 1);
             if (nextLedgerId == null) {
-                throw new NullPointerException();
+                throw new NullPointerException("nextLedgerId is null. No valid next position after " + position);
             }
             nextPosition = PositionImpl.get(nextLedgerId, 0);
         }
