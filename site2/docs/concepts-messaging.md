@@ -184,7 +184,7 @@ If the consumer fails to receive all chunks of a message within a specified peri
 
 A consumer is a process that attaches to a topic via a subscription and then receives messages.
 
-![Consumer](/assets/consumer.svg
+![Consumer](/assets/consumer.svg)
 
 A consumer sends a [flow permit request](developing-binary-protocol.md#flow-control) to a broker to get messages. There is a queue at the consumer side to receive messages pushed from the broker. You can configure the queue size with the [`receiverQueueSize`](client-libraries-java.md#configure-consumer) parameter. The default size is `1000`). Each time `consumer.receive()` is called, a message is dequeued from the buffer.
 
