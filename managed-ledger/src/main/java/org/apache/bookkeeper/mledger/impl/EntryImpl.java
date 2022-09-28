@@ -188,6 +188,7 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
         timestamp = -1;
         ledgerId = -1;
         entryId = -1;
+        skipped = false;
         recyclerHandle.recycle(this);
     }
 
