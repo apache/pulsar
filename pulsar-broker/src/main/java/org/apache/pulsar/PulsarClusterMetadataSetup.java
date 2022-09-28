@@ -35,6 +35,7 @@ import org.apache.pulsar.bookie.rackawareness.BookieRackAffinityMapping;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.resources.TenantResources;
+import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
@@ -138,6 +139,16 @@ public class PulsarClusterMetadataSetup {
             description = "The metadata service URI of the existing BookKeeper cluster that you want to use",
             hidden = true)
         private String bookieMetadataServiceUri;
+
+        @Parameter(names = { "-pp",
+                "--proxy-protocol" },
+                description = "Proxy protocol to select type of routing at proxy. Possible Values: [SNI]",
+                required = false)
+        private ProxyProtocol clusterProxyProtocol;
+
+        @Parameter(names = { "-pu",
+                "--proxy-url" }, description = "Proxy-server URL to which to connect.", required = false)
+        private String clusterProxyUrl;
 
         @Parameter(names = { "-h", "--help" }, description = "Show this help message")
         private boolean help = false;
@@ -299,6 +310,8 @@ public class PulsarClusterMetadataSetup {
                 .serviceUrlTls(arguments.clusterWebServiceUrlTls)
                 .brokerServiceUrl(arguments.clusterBrokerServiceUrl)
                 .brokerServiceUrlTls(arguments.clusterBrokerServiceUrlTls)
+                .proxyServiceUrl(arguments.clusterProxyUrl)
+                .proxyProtocol(arguments.clusterProxyProtocol)
                 .build();
         if (!resources.getClusterResources().clusterExists(arguments.cluster)) {
             resources.getClusterResources().createCluster(arguments.cluster, clusterData);
