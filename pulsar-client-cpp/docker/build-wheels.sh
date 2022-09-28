@@ -34,9 +34,9 @@ while [[ "$1" == "--skip-create-images" ]]; do
 done
 
 if [ $skip_create_images -ne 1 ]; then
-  cd ./pulsar-client-cpp/docker
+  pushd ./pulsar-client-cpp/docker
   ./create-images.sh
-  pushd
+  popd
 fi
 
 source ./pulsar-client-cpp/docker/python-versions.sh
