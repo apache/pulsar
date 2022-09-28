@@ -384,6 +384,14 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 this.resourceUsageTransportManager.close();
                 this.resourceUsageTransportManager = null;
             }
+            if (this.resourceGroupServiceManager != null) {
+                try {
+                    this.resourceGroupServiceManager.close();
+                } catch (Exception e) {
+                    LOG.warn("ResourceGroupServiceManager closing failed {}", e.getMessage());
+                }
+                this.resourceGroupServiceManager = null;
+            }
 
             if (this.webService != null) {
                 try {
