@@ -24,7 +24,7 @@ import java.util.Set;
 
 public class PortManager {
 
-    private final static Set<Integer> PORTS = new HashSet<>();
+    private static final Set<Integer> PORTS = new HashSet<>();
 
     /**
      * Return a locked available port.
