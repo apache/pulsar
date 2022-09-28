@@ -36,6 +36,7 @@ import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
@@ -690,6 +691,24 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     protected void deleteNamespaceGraceFullyByMultiPulsars(String ns, boolean force, PulsarAdmin admin,
                                                            PulsarService...pulsars) throws Exception {
         BrokerTestBase.deleteNamespaceGraceFully(ns, force, admin, pulsars);
+    }
+
+    public void cleanupNamespaceByPredicate(String tenant, Predicate<String> predicate) throws Exception{
+        BrokerTestBase.cleanupNamespaceByPredicate(tenant, predicate, pulsar, admin);
+    }
+
+    /**
+     * see {@link BrokerTestBase#cleanupNamespaceByNsCollection(Collection, PulsarService, PulsarAdmin)}
+     */
+    public void cleanupNamespaceByNsArray(String...namespaces) throws Exception{
+        BrokerTestBase.cleanupNamespaceByNsCollection(Arrays.asList(namespaces), pulsar, admin);
+    }
+
+    /**
+     * see {@link BrokerTestBase#cleanupNamespaceByNsCollection(Collection, PulsarService, PulsarAdmin)}
+     */
+    public void cleanupNamespaceByNsCollection(Collection<String> namespaces) throws Exception{
+        BrokerTestBase.cleanupNamespaceByNsCollection(namespaces, pulsar, admin);
     }
 
     private static final Logger log = LoggerFactory.getLogger(MockedPulsarServiceBaseTest.class);
