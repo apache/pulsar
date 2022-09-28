@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.utils.io;
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.File;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
@@ -27,11 +28,17 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.AbstractMap;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -142,49 +149,83 @@ public class ConnectorUtils {
         Path path = Paths.get(connectorsDirectory).toAbsolutePath();
         log.info("Searching for connectors in {}", path);
 
-        TreeMap<String, Connector> connectors = new TreeMap<>();
         if (!path.toFile().exists()) {
             log.warn("Connectors archive directory not found");
-            return connectors;
+            return new TreeMap<>();
         }
 
+        List<Path> archives = new ArrayList<>();
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(path, "*.nar")) {
             for (Path archive : stream) {
-                try {
+                archives.add(archive);
+            }
+        }
 
-                    NarClassLoader ncl = NarClassLoaderBuilder.builder()
-                            .narFile(new File(archive.toString()))
-                            .extractionDirectory(narExtractionDirectory)
-                            .build();
+        if (archives.isEmpty()) {
+            log.warn("Connectors archive directory is empty");
+            return new TreeMap<>();
+        }
 
-                    Connector.ConnectorBuilder connectorBuilder = Connector.builder();
-                    ConnectorDefinition cntDef = ConnectorUtils.getConnectorDefinition(ncl);
-                    log.info("Found connector {} from {}", cntDef, archive);
+        ExecutorService oneTimeExecutor = null;
+        try {
+            int nThreads = Math.min(4, archives.size());
+            log.info("Loading {} connector definitions with a thread pool of size {}", archives.size(), nThreads);
+            oneTimeExecutor = Executors.newFixedThreadPool(nThreads,
+                    new ThreadFactoryBuilder().setNameFormat("search-connectors-executor-%d").build());
+            List<CompletableFuture<Map.Entry<String, Connector>>> futures = new ArrayList<>();
+            for (Path archive : archives) {
+                CompletableFuture future = CompletableFuture.supplyAsync(() ->
+                        getConnectorDefinitionEntry(archive, narExtractionDirectory), oneTimeExecutor);
+                futures.add(future);
+            }
 
-                    connectorBuilder.archivePath(archive);
-                    if (!StringUtils.isEmpty(cntDef.getSourceClass())) {
-                        if (!StringUtils.isEmpty(cntDef.getSourceConfigClass())) {
-                            connectorBuilder.sourceConfigFieldDefinitions(ConnectorUtils
-                                    .getConnectorConfigDefinition(ncl, cntDef.getSourceConfigClass()));
-                        }
-                    }
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()])).join();
+            return futures.stream()
+                    .map(CompletableFuture::join)
+                    .filter(entry -> entry != null)
+                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> a, TreeMap::new));
+        } finally {
+            if (oneTimeExecutor != null) {
+                oneTimeExecutor.shutdown();
+            }
+        }
+    }
 
-                    if (!StringUtils.isEmpty(cntDef.getSinkClass())) {
-                        if (!StringUtils.isEmpty(cntDef.getSinkConfigClass())) {
-                            connectorBuilder.sinkConfigFieldDefinitions(
-                                    ConnectorUtils.getConnectorConfigDefinition(ncl, cntDef.getSinkConfigClass()));
-                        }
-                    }
+    private static Map.Entry<String, Connector> getConnectorDefinitionEntry(Path archive,
+                                                                            String narExtractionDirectory) {
+        try {
 
-                    connectorBuilder.classLoader(ncl);
-                    connectorBuilder.connectorDefinition(cntDef);
-                    connectors.put(cntDef.getName(), connectorBuilder.build());
-                } catch (Throwable t) {
-                    log.warn("Failed to load connector from {}", archive, t);
+            NarClassLoader ncl = NarClassLoaderBuilder.builder()
+                    .narFile(new File(archive.toString()))
+                    .extractionDirectory(narExtractionDirectory)
+                    .build();
+
+            Connector.ConnectorBuilder connectorBuilder = Connector.builder();
+            ConnectorDefinition cntDef = ConnectorUtils.getConnectorDefinition(ncl);
+            log.info("Found connector {} from {}", cntDef, archive);
+
+            connectorBuilder.archivePath(archive);
+            if (!StringUtils.isEmpty(cntDef.getSourceClass())) {
+                if (!StringUtils.isEmpty(cntDef.getSourceConfigClass())) {
+                    connectorBuilder.sourceConfigFieldDefinitions(
+                            ConnectorUtils.getConnectorConfigDefinition(ncl,
+                                    cntDef.getSourceConfigClass()));
                 }
             }
 
-            return connectors;
+            if (!StringUtils.isEmpty(cntDef.getSinkClass())) {
+                if (!StringUtils.isEmpty(cntDef.getSinkConfigClass())) {
+                    connectorBuilder.sinkConfigFieldDefinitions(
+                            ConnectorUtils.getConnectorConfigDefinition(ncl, cntDef.getSinkConfigClass()));
+                }
+            }
+
+            connectorBuilder.classLoader(ncl);
+            connectorBuilder.connectorDefinition(cntDef);
+            return new AbstractMap.SimpleEntry(cntDef.getName(), connectorBuilder.build());
+        } catch (Throwable t) {
+            log.warn("Failed to load connector from {}", archive, t);
+            return null;
         }
     }
 }
