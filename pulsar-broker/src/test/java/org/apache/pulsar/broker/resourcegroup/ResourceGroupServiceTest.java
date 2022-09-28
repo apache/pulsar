@@ -257,6 +257,14 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(rgs.getNumResourceGroups(), 0);
     }
 
+    @Test
+    public void testClose() throws Exception {
+        ResourceGroupService service = new ResourceGroupService(pulsar, TimeUnit.MILLISECONDS, null, null);
+        service.close();
+        Assert.assertTrue(service.getAggregateLocalUsagePeriodicTask().isCancelled());
+        Assert.assertTrue(service.getCalculateQuotaPeriodicTask().isCancelled());
+    }
+
     private ResourceGroupService rgs;
     int numAnonymousQuotaCalculations;
 
