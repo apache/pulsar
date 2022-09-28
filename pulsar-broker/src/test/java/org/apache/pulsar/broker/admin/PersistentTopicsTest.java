@@ -30,7 +30,6 @@ import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import com.google.common.collect.Lists;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -212,7 +211,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         response = mock(AsyncResponse.class);
         persistentTopics.getSubscriptions(response, testTenant, testNamespace, testLocalTopicName + "-partition-0",
                 true);
-        verify(response, timeout(5000).times(1)).resume(Lists.newArrayList("test"));
+        verify(response, timeout(5000).times(1)).resume(List.of("test"));
 
         // 6) Delete the subscription
         response = mock(AsyncResponse.class);
@@ -240,7 +239,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         response = mock(AsyncResponse.class);
         persistentTopics.getSubscriptions(response, testTenant, testNamespace, testLocalTopicName + "-partition-1",
                 true);
-        verify(response, timeout(5000).times(1)).resume(Lists.newArrayList("test"));
+        verify(response, timeout(5000).times(1)).resume(List.of("test"));
         //
         response = mock(AsyncResponse.class);
         persistentTopics.getSubscriptions(response, testTenant, testNamespace, testLocalTopicName + "-partition-0",
@@ -249,7 +248,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         //
         response = mock(AsyncResponse.class);
         persistentTopics.getSubscriptions(response, testTenant, testNamespace, testLocalTopicName, true);
-        verify(response, timeout(5000).times(1)).resume(Lists.newArrayList("test"));
+        verify(response, timeout(5000).times(1)).resume(List.of("test"));
 
         // 9) Delete the partitioned topic
         response = mock(AsyncResponse.class);
@@ -603,7 +602,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
         when(pulsar.getPulsarResources().getTopicResources()
                 .listPersistentTopicsAsync(NamespaceName.get("my-tenant/my-namespace")))
-                .thenReturn(CompletableFuture.completedFuture(Lists.newArrayList(
+                .thenReturn(CompletableFuture.completedFuture(List.of(
                         "persistent://my-tenant/my-namespace/" + nonPartitionTopicName1,
                         "persistent://my-tenant/my-namespace/" + nonPartitionTopicName2
                 )));
@@ -1188,7 +1187,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         producer.newMessage()
                 .keyBytes("partition123".getBytes())
                 .orderingKey(new byte[]{0})
-                .replicationClusters(Lists.newArrayList("a", "b"))
+                .replicationClusters(List.of("a", "b"))
                 .sequenceId(112233)
                 .value("data")
                 .send();
@@ -1204,7 +1203,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals("partition123".getBytes(), message.getKeyBytes());
         Assert.assertTrue(message.hasBase64EncodedKey());
         //test arrays
-        Assert.assertEquals(Lists.newArrayList("a", "b"), message.getReplicateTo());
+        Assert.assertEquals(List.of("a", "b"), message.getReplicateTo());
         //test string
         Assert.assertEquals(producer.getProducerName(), message.getProducerName());
         //test enum

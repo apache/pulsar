@@ -19,8 +19,8 @@
 package org.apache.pulsar.broker.admin;
 
 import static org.testng.Assert.assertEquals;
-import com.google.common.collect.Lists;
 import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.BrokerTestUtil;
@@ -100,7 +100,7 @@ public class IncrementPartitionsTest extends MockedPulsarServiceBaseTest {
         assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 20);
 
         assertEquals(admin.topics().getSubscriptions(
-                TopicName.get(partitionedTopicName).getPartition(15).toString()), Lists.newArrayList("sub-1"));
+                TopicName.get(partitionedTopicName).getPartition(15).toString()), List.of("sub-1"));
 
         consumer.close();
     }

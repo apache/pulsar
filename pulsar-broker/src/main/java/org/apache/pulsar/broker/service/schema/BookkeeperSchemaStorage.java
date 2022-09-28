@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service.schema;
 
-import static com.google.common.collect.Iterables.concat;
 import static com.google.common.collect.Lists.newArrayList;
 import static com.google.protobuf.ByteString.copyFrom;
 import static java.util.Objects.isNull;
@@ -463,12 +462,15 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                 .setHash(copyFrom(hash))
                 .build();
 
+        final ArrayList<SchemaStorageFormat.IndexEntry> indexList = new ArrayList<>();
+        indexList.addAll(locator.getIndexList());
+        indexList.add(info);
         return updateSchemaLocator(getSchemaPath(schemaId),
-            SchemaStorageFormat.SchemaLocator.newBuilder()
-                .setInfo(info)
-                .addAllIndex(
-                        concat(locator.getIndexList(), newArrayList(info))
-                ).build(), locatorEntry.version
+                SchemaStorageFormat.SchemaLocator.newBuilder()
+                        .setInfo(info)
+                        .addAllIndex(indexList)
+                        .build()
+                , locatorEntry.version
         ).thenApply(ignore -> nextVersion);
     }
 
