@@ -216,8 +216,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private static final CompletableFuture<PositionImpl> NULL_OFFLOAD_PROMISE = CompletableFuture
             .completedFuture(PositionImpl.LATEST);
     protected volatile LedgerHandle currentLedger;
-    protected long currentLedgerEntries = 0;
-    protected long currentLedgerSize = 0;
+    protected volatile long currentLedgerEntries = 0;
+    protected volatile long currentLedgerSize = 0;
     protected volatile long lastLedgerCreatedTimestamp = 0;
     private volatile long lastLedgerCreationFailureTimestamp = 0;
     private long lastLedgerCreationInitiationTimestamp = 0;
