@@ -22,6 +22,7 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 import io.swagger.annotations.ApiModelProperty;
+import java.io.Serializable;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -176,7 +177,7 @@ public abstract class BaseGenerateDocumentation {
         }
     }
 
-    protected static class CategoryComparator implements Comparator<Pair<Field, FieldContextWrapper>> {
+    protected static class CategoryComparator implements Comparator<Pair<Field, FieldContextWrapper>>, Serializable {
         @Override
         public int compare(Pair<Field, FieldContextWrapper> o1, Pair<Field, FieldContextWrapper> o2) {
             FieldContextWrapper o1Context = o1.getValue();
