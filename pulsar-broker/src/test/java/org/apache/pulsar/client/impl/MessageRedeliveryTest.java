@@ -274,9 +274,9 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         String test1 = "Pulsar1";
         String test2 = "Pulsar2";
         String test3 = "Pulsar3";
-        producer.send(test1);
 
         consumer.setConsumerEpoch(1);
+        producer.send(test1);
         Message<String> message = consumer.receive(3, TimeUnit.SECONDS);
         assertNull(message);
         consumer.redeliverUnacknowledgedMessages();
@@ -332,12 +332,13 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         String test1 = "Pulsar1";
         String test2 = "Pulsar2";
         String test3 = "Pulsar3";
+
+        consumer.setConsumerEpoch(1);
         producer.send(test1);
 
         Messages<String> messages;
         Message<String> message;
 
-        consumer.setConsumerEpoch(1);
         messages = consumer.batchReceive();
         assertEquals(messages.size(), 0);
         consumer.redeliverUnacknowledgedMessages();

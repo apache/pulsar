@@ -48,6 +48,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import lombok.SneakyThrows;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
@@ -663,22 +664,20 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         return internalConsumerConfig;
     }
 
+    @SneakyThrows
     @Override
     public void redeliverUnacknowledgedMessages() {
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
         internalPinnedExecutor.execute(() -> {
-            incomingQueueLock.lock();
-            try {
-                CONSUMER_EPOCH.incrementAndGet(this);
-                consumers.values().stream().forEach(consumer -> {
-                    consumer.redeliverUnacknowledgedMessages();
-                    consumer.unAckedChunkedMessageIdSequenceMap.clear();
-                });
-                clearIncomingMessages();
-                unAckedMessageTracker.clear();
-            } finally {
-                incomingQueueLock.unlock();
-            }
+            CONSUMER_EPOCH.incrementAndGet(this);
+            consumers.values().stream().forEach(consumer -> {
+                futures.add(consumer.internalRedeliverUnacknowledgedMessages());
+                consumer.unAckedChunkedMessageIdSequenceMap.clear();
+            });
+            clearIncomingMessages();
+            unAckedMessageTracker.clear();
         });
+        FutureUtil.waitForAll(futures).get();
         resumeReceivingFromPausedConsumersIfNeeded();
     }
 
