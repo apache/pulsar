@@ -59,7 +59,7 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
     private final String localCluster;
 
     // The timestamp of when the last snapshot was initiated
-    private long lastCompletedSnapshotStartTime = 0;
+    private volatile long lastCompletedSnapshotStartTime = 0;
 
     private String lastCompletedSnapshotId;
 
