@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.impl;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
@@ -84,8 +83,7 @@ public abstract class AbstractBatchMessageContainer implements BatchMessageConta
         return currentBatchSizeBytes;
     }
 
-    @VisibleForTesting
-    public int getMaxBatchSize() {
+    int getMaxBatchSize() {
         return maxBatchSize;
     }
 

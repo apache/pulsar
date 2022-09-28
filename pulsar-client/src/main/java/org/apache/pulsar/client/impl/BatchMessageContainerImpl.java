@@ -64,6 +64,8 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
     protected SendCallback firstCallback;
 
     private final ByteBufAllocator allocator;
+    private static final int SHRINK_COOLING_OFF_PERIOD = 10;
+    private int consecutiveShrinkTime = 0;
 
     public BatchMessageContainerImpl() {
         this(PulsarByteBufAllocator.DEFAULT);
@@ -173,8 +175,7 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         return compressedPayload;
     }
 
-    @VisibleForTesting
-    public void updateMaxBatchSize(int uncompressedSize) {
+    void updateMaxBatchSize(int uncompressedSize) {
         if (uncompressedSize > maxBatchSize) {
             maxBatchSize = uncompressedSize;
             consecutiveShrinkTime = 0;
