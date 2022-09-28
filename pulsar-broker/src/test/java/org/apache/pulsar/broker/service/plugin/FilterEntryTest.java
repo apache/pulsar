@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service.plugin;
 
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
+import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgsRecordingInvocations;
 import static org.apache.pulsar.client.api.SubscriptionInitialPosition.Earliest;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -163,9 +164,9 @@ public class FilterEntryTest extends BrokerTestBase {
         field.setAccessible(true);
         NarClassLoader narClassLoader = mock(NarClassLoader.class);
         EntryFilter filter1 = new EntryFilterTest();
-        EntryFilterWithClassLoader loader1 = spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter1, narClassLoader);
+        EntryFilterWithClassLoader loader1 = spyWithClassAndConstructorArgsRecordingInvocations(EntryFilterWithClassLoader.class, filter1, narClassLoader);
         EntryFilter filter2 = new EntryFilter2Test();
-        EntryFilterWithClassLoader loader2 = spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter2, narClassLoader);
+        EntryFilterWithClassLoader loader2 = spyWithClassAndConstructorArgsRecordingInvocations(EntryFilterWithClassLoader.class, filter2, narClassLoader);
         field.set(dispatcher, List.of(loader1, loader2));
 
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)

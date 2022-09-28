@@ -16,26 +16,27 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+#pragma once
 
-package org.apache.pulsar.io.kafka;
+#include <mutex>
 
-import java.nio.charset.StandardCharsets;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.pulsar.client.api.Schema;
+template <typename T>
+class Synchronized {
+   public:
+    explicit Synchronized(const T& value) : value_(value) {}
 
-/**
- * Simple Kafka Source that just transfers the value part of the kafka records as Strings.
- */
-public class KafkaStringSource extends KafkaAbstractSource<String> {
-
-
-    @Override
-    public KafkaRecord buildRecord(ConsumerRecord<Object, Object> consumerRecord) {
-        KafkaRecord record = new KafkaRecord(consumerRecord,
-                new String((byte[]) consumerRecord.value(), StandardCharsets.UTF_8),
-                Schema.STRING,
-                copyKafkaHeaders(consumerRecord));
-        return record;
+    T get() const {
+        std::lock_guard<std::mutex> lock(mutex_);
+        return value_;
     }
 
-}
+    Synchronized& operator=(const T& value) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        value_ = value;
+        return *this;
+    }
+
+   private:
+    T value_;
+    mutable std::mutex mutex_;
+};
