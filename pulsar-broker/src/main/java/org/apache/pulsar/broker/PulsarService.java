@@ -235,6 +235,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
     private final Consumer<Integer> processTerminator;
     protected final EventLoopGroup ioEventLoopGroup;
+
+    private final EventLoopGroup brokerClientSharedIoEventLoopGroup;
     private final ExecutorProvider brokerClientSharedInternalExecutorProvider;
     private final ExecutorProvider brokerClientSharedExternalExecutorProvider;
     private final ScheduledExecutorProvider brokerClientSharedScheduledExecutorProvider;
@@ -332,6 +334,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
         this.ioEventLoopGroup = EventLoopUtil.newEventLoopGroup(config.getNumIOThreads(), config.isEnableBusyWait(),
                 new DefaultThreadFactory("pulsar-io"));
+        // A shared io event group for broker clients to avoid internal clients from occupying IO
+        // threads for a long time and affecting the throughput of the broker.
+        this.brokerClientSharedIoEventLoopGroup = EventLoopUtil.newEventLoopGroup(config.getNumIOThreads(),
+                config.isEnableBusyWait(), new DefaultThreadFactory("broker-client-shared-io"));
         // the internal executor is not used in the broker client or replication clients since this executor is
         // used for consumers and the transaction support in the client.
         // since an instance is required, a single threaded shared instance is used for all broker client instances
@@ -561,6 +567,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             brokerClientSharedScheduledExecutorProvider.shutdownNow();
             brokerClientSharedTimer.stop();
 
+            asyncCloseFutures.add(EventLoopUtil.shutdownGracefully(brokerClientSharedIoEventLoopGroup));
             asyncCloseFutures.add(EventLoopUtil.shutdownGracefully(ioEventLoopGroup));
 
 
@@ -1450,7 +1457,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             throws PulsarClientException {
         return PulsarClientImpl.builder()
                 .conf(clientConf)
-                .eventLoopGroup(ioEventLoopGroup)
+                .eventLoopGroup(brokerClientSharedIoEventLoopGroup)
                 .timer(brokerClientSharedTimer)
                 .internalExecutorProvider(brokerClientSharedInternalExecutorProvider)
                 .externalExecutorProvider(brokerClientSharedExternalExecutorProvider)
