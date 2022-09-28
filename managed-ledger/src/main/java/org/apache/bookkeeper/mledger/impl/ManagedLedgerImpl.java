@@ -458,9 +458,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             } else {
                 iterator.remove();
                 bookKeeper.asyncDeleteLedger(li.getLedgerId(), (rc, ctx) -> {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] Deleted empty ledger ledgerId={} rc={}", name, li.getLedgerId(), rc);
-                    }
+                    log.info("[{}] Deleted empty ledger ledgerId={} rc={}", name, li.getLedgerId(), rc);
                 }, null);
             }
         }
