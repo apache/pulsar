@@ -98,7 +98,8 @@ public abstract class BaseGenerateDocumentation {
 
     private Annotation getFieldContextAnnotation(Field field) {
         for (Annotation annotation : field.getAnnotations()) {
-            if (annotation.getClass().getCanonicalName().equals("org.apache.pulsar.common.configuration.FieldContext")) {
+            if (annotation.getClass().getCanonicalName()
+                    .equals("org.apache.pulsar.common.configuration.FieldContext")) {
                 return annotation;
             }
         }
@@ -148,7 +149,8 @@ public abstract class BaseGenerateDocumentation {
         }
     }
 
-    protected void writeDocListByFieldContext(List<Pair<Field, FieldContextWrapper>> fieldList, StringBuilder sb, Object obj) throws Exception {
+    protected void writeDocListByFieldContext(List<Pair<Field, FieldContextWrapper>> fieldList,
+                                              StringBuilder sb, Object obj) throws Exception {
         for (Pair<Field, FieldContextWrapper> fieldPair : fieldList) {
             FieldContextWrapper fieldContext = fieldPair.getValue();
             final Field field = fieldPair.getKey();
