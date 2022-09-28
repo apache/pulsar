@@ -173,11 +173,6 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         LedgerOffloader ledgerOffloader = Mockito.mock(LedgerOffloader.class);
         config.setLedgerOffloader(ledgerOffloader);
         Assert.assertEquals(config.getLedgerOffloader(), ledgerOffloader);
-        admin.topicPolicies().setMaxConsumers(topicName.toString(), 2);
-        Awaitility.await().pollDelay(5, TimeUnit.SECONDS).untilAsserted(() -> {
-            Assert.assertEquals(persistentTopic.getManagedLedger().getConfig().getLedgerOffloader(),
-                    NullLedgerOffloader.INSTANCE);
-        });
     }
 
     @Test
