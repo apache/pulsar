@@ -2409,7 +2409,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         //Skip the following steps if `offloadTimeThreshold` and `offloadThresholdInBytes` are null OR negative values.
         if (offloadThresholdInBytes < 0 && offloadTimeThresholdMillis < 0) {
             log.debug("[{}] Nothing to offload due to [managedLedgerOffloadAutoTriggerSizeThresholdBytes] "
-                    + "and [managedLedgerOffloadTimeThresholdInSeconds] are null OR negative values.", name);
+                    + "and [managedLedgerOffloadThresholdInSeconds] are null OR negative values.", name);
             unlockingPromise.complete(PositionImpl.LATEST);
             return;
         }
@@ -2449,7 +2449,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             // offloadLoop will complete immediately with an empty list to offload
             log.debug("[{}] Nothing to offload, total size = {}, already offloaded = {}, "
                             + "threshold = [managedLedgerOffloadThresholdInBytes:{}, "
-                            + "managedLedgerOffloadTimeThresholdInSeconds:{}]",
+                            + "managedLedgerOffloadThresholdInSeconds:{}]",
                     name, sizeSummed, alreadyOffloadedSize, offloadThresholdInBytes,
                     TimeUnit.MILLISECONDS.toSeconds(offloadTimeThresholdMillis));
             unlockingPromise.complete(PositionImpl.LATEST);

@@ -91,7 +91,7 @@ public interface OffloadPolicies {
 
         Builder managedLedgerOffloadThresholdInBytes(Long managedLedgerOffloadThresholdInBytes);
 
-        Builder managedLedgerOffloadTimeThresholdInSeconds(Long managedLedgerOffloadThresholdInSeconds);
+        Builder managedLedgerOffloadThresholdInSeconds(Long managedLedgerOffloadThresholdInSeconds);
 
         Builder managedLedgerOffloadDeletionLagInMillis(Long managedLedgerOffloadDeletionLagInMillis);
 

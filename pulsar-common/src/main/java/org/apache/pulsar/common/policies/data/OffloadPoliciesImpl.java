@@ -517,7 +517,7 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
         }
 
         @Override
-        public OffloadPoliciesImplBuilder managedLedgerOffloadTimeThresholdInSeconds(
+        public OffloadPoliciesImplBuilder managedLedgerOffloadThresholdInSeconds(
                 Long managedLedgerOffloadThresholdInSeconds) {
             impl.managedLedgerOffloadThresholdInSeconds = managedLedgerOffloadThresholdInSeconds;
             return this;
