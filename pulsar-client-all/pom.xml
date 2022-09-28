@@ -410,7 +410,7 @@
             <configuration>
               <rules>
                 <enforceBytecodeVersion>
-                  <maxJdkVersion>1.8</maxJdkVersion>
+                  <maxJdkVersion>${pulsar.client.compiler.release}</maxJdkVersion>
                 </enforceBytecodeVersion>
               </rules>
             </configuration>
@@ -420,7 +420,7 @@
           <dependency>
             <groupId>org.codehaus.mojo</groupId>
             <artifactId>extra-enforcer-rules</artifactId>
-            <version>1.6.1</version>
+            <version>${extra-enforcer-rules.version}</version>
           </dependency>
         </dependencies>
       </plugin>
