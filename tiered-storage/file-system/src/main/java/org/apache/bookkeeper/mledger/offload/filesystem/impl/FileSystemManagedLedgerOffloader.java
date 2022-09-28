@@ -23,14 +23,9 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import io.netty.util.Recycler;
 import java.io.IOException;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.*;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
@@ -151,8 +146,7 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
         CompletableFuture<Void> promise = new CompletableFuture<>();
         scheduler.chooseThread(readHandle.getId()).execute(
                 new LedgerReader(readHandle, uuid, extraMetadata, promise, storageBasePath, configuration,
-                        assignmentScheduler, offloadPolicies.getManagedLedgerOffloadPrefetchRounds(),
-                        this.offloaderStats));
+                        assignmentScheduler, this.offloaderStats));
         return promise;
     }
 
@@ -165,8 +159,7 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
         private final String storageBasePath;
         private final Configuration configuration;
         volatile Exception fileSystemWriteException = null;
-        private OrderedScheduler assignmentScheduler;
-        private int managedLedgerOffloadPrefetchRounds = 1;
+        private final OrderedScheduler assignmentScheduler;
         private final LedgerOffloaderStats offloaderStats;
 
         private LedgerReader(ReadHandle readHandle,
@@ -176,7 +169,6 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
                              String storageBasePath,
                              Configuration configuration,
                              OrderedScheduler assignmentScheduler,
-                             int managedLedgerOffloadPrefetchRounds,
                              LedgerOffloaderStats offloaderStats) {
             this.readHandle = readHandle;
             this.uuid = uuid;
@@ -185,7 +177,6 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
             this.storageBasePath = storageBasePath;
             this.configuration = configuration;
             this.assignmentScheduler = assignmentScheduler;
-            this.managedLedgerOffloadPrefetchRounds = managedLedgerOffloadPrefetchRounds;
             this.offloaderStats = offloaderStats;
         }
 
@@ -212,41 +203,77 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
                 byte[] ledgerMetadata = buildLedgerMetadataFormat(readHandle.getLedgerMetadata());
                 value.set(ledgerMetadata, 0, ledgerMetadata.length);
                 dataWriter.append(key, value);
-                AtomicLong haveOffloadEntryNumber = new AtomicLong(0);
-                long needToOffloadFirstEntryNumber = 0;
-                CountDownLatch countDownLatch;
-                //avoid prefetch too much data into memory
-                Semaphore semaphore = new Semaphore(managedLedgerOffloadPrefetchRounds);
-                do {
-                    long end = Math.min(needToOffloadFirstEntryNumber + ENTRIES_PER_READ - 1,
-                            readHandle.getLastAddConfirmed());
-                    log.debug("read ledger entries. start: {}, end: {}", needToOffloadFirstEntryNumber, end);
-                    long startReadTime = System.nanoTime();
-                    LedgerEntries ledgerEntriesOnce = readHandle.readAsync(needToOffloadFirstEntryNumber, end).get();
-                    long cost = System.nanoTime() - startReadTime;
-                    this.offloaderStats.recordReadLedgerLatency(topicName, cost, TimeUnit.NANOSECONDS);
-                    semaphore.acquire();
-                    countDownLatch = new CountDownLatch(1);
-                    assignmentScheduler.chooseThread(ledgerId)
-                            .execute(FileSystemWriter.create(ledgerEntriesOnce,
-                                    dataWriter, semaphore, countDownLatch, haveOffloadEntryNumber, this));
-                    needToOffloadFirstEntryNumber = end + 1;
-                } while (needToOffloadFirstEntryNumber - 1 != readHandle.getLastAddConfirmed()
-                        && fileSystemWriteException == null);
-                countDownLatch.await();
-                if (fileSystemWriteException != null) {
-                    throw fileSystemWriteException;
-                }
-                IOUtils.closeStream(dataWriter);
-                promise.complete(null);
+                long start = 0;
+                long end = Math.min(start + ENTRIES_PER_READ - 1, readHandle.getLastAddConfirmed());
+
+                // Submit the first LedgerPartitionedReader task.
+                Executor executor = assignmentScheduler.chooseThread(ledgerId);
+                executor.execute(new LedgerPartitionedReader(this, dataWriter, executor, start, end));
             } catch (Exception e) {
                 log.error("Exception when get CompletableFuture<LedgerEntries> : ManagerLedgerName: {}, "
                         + "LedgerId: {}, UUID: {} ", topicName, ledgerId, uuid, e);
-                if (e instanceof InterruptedException) {
-                    Thread.currentThread().interrupt();
-                }
                 this.offloaderStats.recordOffloadError(topicName);
                 promise.completeExceptionally(e);
+            }
+        }
+    }
+
+    private static final class LedgerPartitionedReader implements Runnable {
+
+        private final ReadHandle readHandle;
+        private final String topicName;
+        private final LedgerOffloaderStats stats;
+        private final MapFile.Writer dataWriter;
+        private final Executor executor;
+        private final LedgerReader ledgerReader;
+        private final CompletableFuture<Void> promise;
+
+        private final long startEntry;
+        private final long endEntry;
+
+        public LedgerPartitionedReader(LedgerReader ledgerReader, MapFile.Writer dataWriter,
+                                       Executor executor, long startEntry, long endEntry) {
+            this.ledgerReader = ledgerReader;
+            this.readHandle = ledgerReader.readHandle;
+            this.topicName = ledgerReader.extraMetadata.get(MANAGED_LEDGER_NAME);
+            this.stats = ledgerReader.offloaderStats;
+            this.dataWriter = dataWriter;
+            this.executor = executor;
+            this.promise = ledgerReader.promise;
+
+            this.startEntry = startEntry;
+            this.endEntry = endEntry;
+        }
+
+        @Override
+        public void run() {
+            log.debug("read ledger entries. start: {}, end: {}", startEntry, endEntry);
+            long startReadTime = System.nanoTime();
+
+            readHandle.readAsync(startEntry, endEntry)
+                    .thenAcceptAsync(entries -> {
+                        long cost = System.nanoTime() - startReadTime;
+                        this.stats.recordReadLedgerLatency(topicName, cost, TimeUnit.NANOSECONDS);
+                        // Execute the FileWrite task on the current thread.
+                        FileSystemWriter.create(entries, dataWriter, ledgerReader).run();
+                        currentTaskFinished();
+                    }, this.executor)
+                    .exceptionally(e -> {
+                        log.error("");
+                        return null;
+                    });
+        }
+
+        private void currentTaskFinished() {
+            if (ledgerReader.fileSystemWriteException != null) {
+                promise.completeExceptionally(ledgerReader.fileSystemWriteException);
+            }
+
+            if (this.endEntry == readHandle.getLastAddConfirmed()) {
+                IOUtils.closeStream(this.dataWriter);
+                promise.complete(null);
+            } else {
+                // TODO submit next task
             }
         }
     }
@@ -259,11 +286,8 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
         private final BytesWritable value = new BytesWritable();
 
         private MapFile.Writer dataWriter;
-        private CountDownLatch countDownLatch;
-        private AtomicLong haveOffloadEntryNumber;
         private LedgerReader ledgerReader;
-        private Semaphore semaphore;
-        private Recycler.Handle<FileSystemWriter> recyclerHandle;
+        private final Recycler.Handle<FileSystemWriter> recyclerHandle;
 
         private FileSystemWriter(Recycler.Handle<FileSystemWriter> recyclerHandle) {
             this.recyclerHandle = recyclerHandle;
@@ -278,28 +302,19 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
 
         private void recycle() {
             this.dataWriter = null;
-            this.countDownLatch = null;
-            this.haveOffloadEntryNumber = null;
             this.ledgerReader = null;
             this.ledgerEntriesOnce = null;
-            this.semaphore = null;
             recyclerHandle.recycle(this);
         }
 
 
         public static FileSystemWriter create(LedgerEntries ledgerEntriesOnce,
                                               MapFile.Writer dataWriter,
-                                              Semaphore semaphore,
-                                              CountDownLatch countDownLatch,
-                                              AtomicLong haveOffloadEntryNumber,
                                               LedgerReader ledgerReader) {
             FileSystemWriter writer = RECYCLER.get();
             writer.ledgerReader = ledgerReader;
             writer.dataWriter = dataWriter;
-            writer.countDownLatch = countDownLatch;
-            writer.haveOffloadEntryNumber = haveOffloadEntryNumber;
             writer.ledgerEntriesOnce = ledgerEntriesOnce;
-            writer.semaphore = semaphore;
             return writer;
         }
 
@@ -307,9 +322,7 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
         public void run() {
             String managedLedgerName = ledgerReader.extraMetadata.get(MANAGED_LEDGER_NAME);
             if (ledgerReader.fileSystemWriteException == null) {
-                Iterator<LedgerEntry> iterator = ledgerEntriesOnce.iterator();
-                while (iterator.hasNext()) {
-                    LedgerEntry entry = iterator.next();
+                for (LedgerEntry entry : ledgerEntriesOnce) {
                     long entryId = entry.getEntryId();
                     key.set(entryId);
                     try {
@@ -320,13 +333,10 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
                         ledgerReader.offloaderStats.recordWriteToStorageError(managedLedgerName);
                         break;
                     }
-                    haveOffloadEntryNumber.incrementAndGet();
                     ledgerReader.offloaderStats.recordOffloadBytes(managedLedgerName, entry.getLength());
                 }
             }
-            countDownLatch.countDown();
             ledgerEntriesOnce.close();
-            semaphore.release();
             this.recycle();
         }
     }
