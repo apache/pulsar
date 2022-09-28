@@ -35,25 +35,37 @@ If produced messages are consumed across application boundaries, you need to ens
 
 ## Get started
 
-## Prerequisites
+### Prerequisites
 
 * Pulsar Java/Python/C++/Node.js client 2.7.1 or later versions.
 * Pulsar Go client 0.6.0 or later versions.
 
-## Configure end-to-end encryption
+### Configure end-to-end encryption
 
 1. Create both public and private key pairs.
-   * ECDSA（for Java and Go clients)
+
+   ````mdx-code-block
+   <Tabs groupId="lang-choice"
+     defaultValue="ECDSA"
+     values={[{"label":"ECDSA (for Java and Go clients)","value":"ECDSA"},{"label":"RSA (for Python, C++ and Node.js clients)","value":"RSA"}]}>
+   <TabItem value="ECDSA">
+
      ```shell
      openssl ecparam -name secp521r1 -genkey -param_enc explicit -out test_ecdsa_privkey.pem
      openssl ec -in test_ecdsa_privkey.pem -pubout -outform pem -out test_ecdsa_pubkey.pem
      ```
 
-   * RSA (for Python, C++ and Node.js clients)
+   </TabItem>
+   <TabItem value="RSA">
+
      ```shell
      openssl genrsa -out test_rsa_privkey.pem 2048
      openssl rsa -in test_rsa_privkey.pem -pubout -outform pkcs8 -out test_rsa_pubkey.pem
      ```
+
+   </TabItem>
+   </Tabs>
+   ````
 
 2. Configure a `CryptoKeyReader` on producers, consumers or readers.
 
@@ -341,7 +353,7 @@ If produced messages are consumed across application boundaries, you need to ens
    </Tabs>
    ````
 
-## Encrypt a message with multiple keys
+### Encrypt a message with multiple keys
 
 :::note
 
