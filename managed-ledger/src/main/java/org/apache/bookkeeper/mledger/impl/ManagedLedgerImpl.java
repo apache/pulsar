@@ -215,13 +215,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private volatile LedgerHandle currentLedger;
     private long currentLedgerEntries = 0;
     private long currentLedgerSize = 0;
-    private long lastLedgerCreatedTimestamp = 0;
-    private long lastLedgerCreationFailureTimestamp = 0;
+    private volatile long lastLedgerCreatedTimestamp = 0;
+    private volatile long lastLedgerCreationFailureTimestamp = 0;
     private long lastLedgerCreationInitiationTimestamp = 0;
 
     private long lastOffloadLedgerId = 0;
-    private long lastOffloadSuccessTimestamp = 0;
-    private long lastOffloadFailureTimestamp = 0;
+    private volatile long lastOffloadSuccessTimestamp = 0;
+    private volatile long lastOffloadFailureTimestamp = 0;
 
     private int minBacklogCursorsForCaching = 0;
     private int minBacklogEntriesForCaching = 1000;

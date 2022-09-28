@@ -224,7 +224,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     protected final TransactionBuffer transactionBuffer;
 
     // Record the last time a data message (ie: not an internal Pulsar marker) is published on the topic
-    private long lastDataMessagePublishedTimestamp = 0;
+    private volatile long lastDataMessagePublishedTimestamp = 0;
 
     private static class TopicStatsHelper {
         public double averageMsgSize;
