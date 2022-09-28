@@ -279,6 +279,7 @@ flexible messaging model and an intuitive client API.</description>
     <lightproto-maven-plugin.version>0.4</lightproto-maven-plugin.version>
     <dependency-check-maven.version>7.1.0</dependency-check-maven.version>
     <roaringbitmap.version>0.9.15</roaringbitmap.version>
+    <extra-enforcer-rules.version>1.6.1</extra-enforcer-rules.version>
 
     <!-- Used to configure rename.netty.native. Libs -->
     <rename.netty.native.libs>rename-netty-native-libs.sh</rename.netty.native.libs>
