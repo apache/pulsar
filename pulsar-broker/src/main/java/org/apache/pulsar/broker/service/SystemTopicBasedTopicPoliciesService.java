@@ -101,6 +101,10 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
 
     private CompletableFuture<Void> sendTopicPolicyEvent(TopicName topicName, ActionType actionType,
                                                          TopicPolicies policies) {
+        if (NamespaceService.isHeartbeatNamespace(topicName.getNamespaceObject())) {
+            return CompletableFuture.failedFuture(
+                    new BrokerServiceException.NotAllowedException("Not allowed to send event to health check topic"));
+        }
         CompletableFuture<Void> result = new CompletableFuture<>();
         try {
             createSystemTopicFactoryIfNeeded();
