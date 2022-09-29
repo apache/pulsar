@@ -92,8 +92,6 @@ RUN pip3 install pyyaml==5.4.1
 # 4. /pulsar - hadoop writes to this directory
 RUN mkdir /pulsar && chmod g+w /pulsar
 
-ADD target/python-client/ /pulsar/pulsar-client
-
 ENV PULSAR_ROOT_LOGGER=INFO,CONSOLE
 
 COPY --from=pulsar /pulsar /pulsar
