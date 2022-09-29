@@ -55,12 +55,9 @@ import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.ConnectException;
 import org.apache.pulsar.client.api.PulsarClientException.TimeoutException;
-import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
-import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.BinaryProtoLookupService.LookupDataResult;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
-import org.apache.pulsar.common.api.proto.CommandTcClientConnectResponse;
-import org.apache.pulsar.common.tls.TlsHostnameVerifier;
+import org.apache.pulsar.client.impl.schema.SchemaInfoUtil;
 import org.apache.pulsar.client.impl.transaction.TransactionBufferHandler;
 import org.apache.pulsar.client.util.TimedCompletableFuture;
 import org.apache.pulsar.common.api.AuthData;
@@ -89,10 +86,10 @@ import org.apache.pulsar.common.api.proto.CommandReachedEndOfTopic;
 import org.apache.pulsar.common.api.proto.CommandSendError;
 import org.apache.pulsar.common.api.proto.CommandSendReceipt;
 import org.apache.pulsar.common.api.proto.CommandSuccess;
+import org.apache.pulsar.common.api.proto.CommandTcClientConnectResponse;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.PulsarHandler;
-import org.apache.pulsar.client.impl.schema.SchemaInfoUtil;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -104,7 +101,7 @@ import org.slf4j.LoggerFactory;
 public class ClientCnx extends PulsarHandler {
 
     protected final Authentication authentication;
-    private State state;
+    protected State state;
 
     @Getter
     private final ConcurrentLongHashMap<TimedCompletableFuture<? extends Object>> pendingRequests =
@@ -149,7 +146,7 @@ public class ClientCnx extends PulsarHandler {
 
     private final int maxNumberOfRejectedRequestPerConnection;
     private final int rejectedRequestResetTimeSec = 60;
-    private final int protocolVersion;
+    protected final int protocolVersion;
     private final long operationTimeoutMs;
 
     protected String proxyToTargetBrokerAddress = null;
@@ -165,7 +162,10 @@ public class ClientCnx extends PulsarHandler {
     protected AuthenticationDataProvider authenticationDataProvider;
     private TransactionBufferHandler transactionBufferHandler;
 
-    enum State {
+    @Getter
+    private long lastDisconnectedTimestamp;
+
+    protected enum State {
         None, SentConnectFrame, Ready, Failed, Connecting
     }
 
@@ -268,6 +268,7 @@ public class ClientCnx extends PulsarHandler {
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         super.channelInactive(ctx);
+        lastDisconnectedTimestamp = System.currentTimeMillis();
         log.info("{} Disconnected", ctx.channel());
         if (!connectionFuture.isDone()) {
             connectionFuture.completeExceptionally(new PulsarClientException("Connection already closed"));
@@ -1159,6 +1160,13 @@ public class ClientCnx extends PulsarHandler {
 
     public void close() {
        if (ctx != null) {
+           ctx.close();
+       }
+    }
+
+    protected void closeWithException(Throwable e) {
+       if (ctx != null) {
+           connectionFuture.completeExceptionally(e);
            ctx.close();
        }
     }
