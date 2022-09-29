@@ -41,7 +41,6 @@ jobs:
     runs-on: ubuntu-20.04
     outputs:
       docs_only: ${{ steps.check_changes.outputs.docs_only }}
-      cpp_only: ${{ steps.check_changes.outputs.cpp_only }}
       changed_tests: ${{ steps.changes.outputs.tests_files }}
     steps:
       - name: checkout
@@ -58,7 +57,7 @@ jobs:
         id: check_changes
         run: |
           echo "::set-output name=docs_only::${{ fromJSON(steps.changes.outputs.all_count) == fromJSON(steps.changes.outputs.docs_count) && fromJSON(steps.changes.outputs.docs_count) > 0 }}"
-          echo "::set-output name=cpp_only::${{ fromJSON(steps.changes.outputs.all_count) == fromJSON(steps.changes.outputs.cpp_count) && fromJSON(steps.changes.outputs.cpp_count) > 0 }}"
+
 
       - name: Check if the PR has been approved for testing
         if: ${{ steps.check_changes.outputs.docs_only != 'true' && github.repository == 'apache/pulsar' && github.event_name == 'pull_request' }}
@@ -141,7 +140,7 @@ jobs:
     runs-on: ubuntu-20.04
     timeout-minutes: ${{ matrix.timeout || 60 }}
     needs: ['changed_files_job', 'build-and-license-check']
-    if: ${{ needs.changed_files_job.outputs.docs_only != 'true' && needs.changed_files_job.outputs.cpp_only != 'true' }}
+    if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
     strategy:
       fail-fast: false
       matrix:
@@ -255,7 +254,7 @@ jobs:
     runs-on: ubuntu-20.04
     timeout-minutes: 60
     needs: ['changed_files_job', 'build-and-license-check']
-    if: ${{ needs.changed_files_job.outputs.docs_only != 'true' && needs.changed_files_job.outputs.cpp_only != 'true' }}
+    if: ${{ needs.changed_files_job.outputs.docs_only != 'true'}}
     env:
       UBUNTU_MIRROR: http://azure.archive.ubuntu.com/ubuntu/
     steps:
@@ -320,7 +319,7 @@ jobs:
     runs-on: ubuntu-20.04
     timeout-minutes: ${{ matrix.timeout || 60 }}
     needs: ['changed_files_job', 'pulsar-java-test-image']
-    if: ${{ needs.changed_files_job.outputs.docs_only != 'true' && needs.changed_files_job.outputs.cpp_only != 'true' }}
+    if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
     env:
       PULSAR_TEST_IMAGE_NAME: apachepulsar/java-test-image:latest
     strategy:
@@ -462,7 +461,7 @@ jobs:
       'changed_files_job',
       'integration-tests'
     ]
-    if: ${{ needs.changed_files_job.outputs.docs_only != 'true' && needs.changed_files_job.outputs.cpp_only != 'true' }}
+    if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
     steps:
       - name: checkout
         uses: actions/checkout@v2
@@ -476,94 +475,6 @@ jobs:
       - name: Delete docker image from GitHub Actions Artifacts
         run: |
           gh-actions-artifact-client.js delete pulsar-java-test-image.zst
-
-  cpp-tests:
-    name: CI - CPP, Python Tests
-    runs-on: ubuntu-20.04
-    timeout-minutes: 120
-    needs: [
-      'changed_files_job',
-      'integration-tests'
-    ]
-    if: always()
-    steps:
-      - name: check condition
-        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
-        run: |
-          if [[ ! ( ( \
-                "${{needs.changed_files_job.outputs.cpp_only}}" == "false" \
-                && "${{ needs.integration-tests.result }}" == "success" \
-               ) || ( \
-                "${{needs.changed_files_job.outputs.cpp_only}}" == "true" \
-               ) ) ]]; then
-            echo "Required jobs haven't been completed successfully."
-            exit 1            
-          fi
-
-      - name: checkout
-        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
-        uses: actions/checkout@v2
-
-      - name: Tune Runner VM
-        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
-        uses: ./.github/actions/tune-runner-vm
-
-      - name: Cache local Maven repository
-        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
-        uses: actions/cache@v2
-        with:
-          path: |
-            ~/.m2/repository/*/*/*
-            !~/.m2/repository/org/apache/pulsar
-          key: ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-m2-dependencies-core-modules-
-
-      - name: Set up JDK 17
-        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
-        uses: actions/setup-java@v2
-        with:
-          distribution: 'temurin'
-          java-version: 17
-
-      - name: Clean Disk
-        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
-        uses: ./.github/actions/clean-disk
-
-      - name: Install gh-actions-artifact-client.js
-        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
-        uses: apache/pulsar-test-infra/gh-actions-artifact-client/dist@master
-
-      - name: Restore maven build results from Github artifact cache
-        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
-        run: |
-          cd $HOME
-          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh restore_tar_from_github_actions_artifacts pulsar-maven-repository-binaries
-          cd $GITHUB_WORKSPACE 
-          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh restore_tar_from_github_actions_artifacts pulsar-server-distribution
-
-      - name: copy python tests
-        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
-        run: |
-          mvn -B -Pskip-all -ntp -pl pulsar-functions/instance package 
-
-      - name: build cpp artifacts
-        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
-        run: |
-          echo "Build C++ client library"
-          pulsar-client-cpp/docker-build.sh
-
-      - name: run c++ tests
-        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
-        run: pulsar-client-cpp/docker-tests.sh
-
-      - name: Upload test-logs
-        if: ${{ failure() && needs.changed_files_job.outputs.docs_only != 'true' }}
-        uses: actions/upload-artifact@v3
-        continue-on-error: true
-        with:
-          name: cpp-tests-logs
-          path: test-logs
 
   pulsar-test-latest-version-image:
     name: Build Pulsar docker image
@@ -927,7 +838,7 @@ jobs:
     runs-on: macos-11
     timeout-minutes: 120
     needs: ['changed_files_job', 'integration-tests']
-    if: ${{ needs.changed_files_job.outputs.docs_only != 'true' && needs.changed_files_job.outputs.cpp_only != 'true' }}
+    if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
     steps:
       - name: checkout
         uses: actions/checkout@v2
@@ -1033,24 +944,19 @@ jobs:
       'integration-tests',
       'system-tests',
       'flaky-system-tests',
-      'macos-build',
-      'cpp-tests'
+      'macos-build'
     ]
     steps:
       - name: Check that all required jobs were completed successfully
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
         run: |
           if [[ ! ( ( \
-                "${{needs.changed_files_job.outputs.cpp_only}}" == "false" \
-                && "${{ needs.unit-tests.result }}" == "success" \
+                   "${{ needs.unit-tests.result }}" == "success" \
                 && "${{ needs.integration-tests.result }}" == "success" \
                 && "${{ needs.system-tests.result }}" == "success" \
                 && "${{ needs.macos-build.result }}" == "success" \
-                && "${{ needs.cpp-tests.result }}" == "success" \
                ) || ( \
-                "${{needs.changed_files_job.outputs.cpp_only}}" == "true" \
-                && "${{ needs.system-tests.result }}" == "success" \
-                && "${{ needs.cpp-tests.result }}" == "success" \
+                   "${{ needs.system-tests.result }}" == "success" \
                ) ) ]]; then
             echo "Required jobs haven't been completed successfully."
             exit 1            

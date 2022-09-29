@@ -26,6 +26,9 @@ ADD ${PULSAR_TARBALL} /
 RUN mv /apache-pulsar-* /pulsar
 RUN rm -rf /pulsar/bin/*.cmd
 
+ARG PULSAR_CLIENT_PYTHON_VERSION
+ENV PULSAR_CLIENT_PYTHON_VERSION ${PULSAR_CLIENT_PYTHON_VERSION}
+
 COPY scripts/apply-config-from-env.py /pulsar/bin
 COPY scripts/apply-config-from-env-with-prefix.py /pulsar/bin
 COPY scripts/gen-yml-from-env.py /pulsar/bin
