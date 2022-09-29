@@ -21,16 +21,12 @@ package org.apache.pulsar.client.impl.transaction;
 import com.google.common.collect.Lists;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
@@ -64,11 +60,12 @@ public class TransactionImpl implements Transaction , TimerTask {
     private final Map<Pair<String, String>, CompletableFuture<Void>> registerSubscriptionMap;
     private final TransactionCoordinatorClientImpl tcClient;
 
-    private CompletableFuture<MessageId> sendFuture;
-    private CompletableFuture<Void> ackFuture;
+    private CompletableFuture<Void> opFuture;
 
-    private final AtomicLong ackCount = new AtomicLong(0);
-    private final AtomicLong sendCount = new AtomicLong(0);
+    private volatile long opCount = 0L;
+    private static final AtomicLongFieldUpdater<TransactionImpl> OP_COUNT_UPDATE =
+            AtomicLongFieldUpdater.newUpdater(TransactionImpl.class, "opCount");
+
 
     private volatile State state;
     private static final AtomicReferenceFieldUpdater<TransactionImpl, State> STATE_UPDATE =
@@ -103,9 +100,7 @@ public class TransactionImpl implements Transaction , TimerTask {
         this.registerPartitionMap = new ConcurrentHashMap<>();
         this.registerSubscriptionMap = new ConcurrentHashMap<>();
         this.tcClient = client.getTcClient();
-
-        this.sendFuture = new CompletableFuture<>();
-        this.ackFuture = new CompletableFuture<>();
+        this.opFuture = CompletableFuture.completedFuture(null);
         this.timeout = client.getTimer().newTimeout(this, transactionTimeoutMs, TimeUnit.MILLISECONDS);
 
     }
@@ -131,14 +126,21 @@ public class TransactionImpl implements Transaction , TimerTask {
     }
 
     public void registerSendOp(CompletableFuture<MessageId> newSendFuture) {
-        if (sendCount.getAndIncrement() == 0) {
-            sendFuture = new CompletableFuture<>();
+        if (OP_COUNT_UPDATE.getAndIncrement(this) == 0) {
+            opFuture = new CompletableFuture<>();
         }
+        // the opCount is always bigger than 0 if there is an exception,
+        // and then the opFuture will never be replaced.
         newSendFuture.thenRun(() -> {
-            CompletableFuture<MessageId> future = sendFuture;
-            if (sendCount.decrementAndGet() == 0) {
+            CompletableFuture<Void> future = opFuture;
+            if (OP_COUNT_UPDATE.decrementAndGet(this) == 0) {
                 future.complete(null);
             }
+        }).exceptionally(e -> {
+            log.error("The transaction [{}:{}] get an exception when send messages.",
+                    txnIdMostBits, txnIdLeastBits, e);
+            opFuture.completeExceptionally(e);
+            return null;
         });
     }
 
@@ -163,14 +165,21 @@ public class TransactionImpl implements Transaction , TimerTask {
     }
 
     public void registerAckOp(CompletableFuture<Void> newAckFuture) {
-        if (ackCount.getAndIncrement() == 0) {
-            ackFuture = new CompletableFuture<>();
+        if (OP_COUNT_UPDATE.getAndIncrement(this) == 0) {
+            opFuture = new CompletableFuture<>();
         }
+        // the opCount is always bigger than 0 if there is an exception,
+        // and then the opFuture will never be replaced.
         newAckFuture.thenRun(() -> {
-            CompletableFuture<Void> future = ackFuture;
-            if (ackCount.decrementAndGet() == 0) {
+            CompletableFuture<Void> future = opFuture;
+            if (OP_COUNT_UPDATE.decrementAndGet(this) == 0) {
                 future.complete(null);
             }
+        }).exceptionally(e -> {
+            log.error("The transaction [{}:{}] get an exception when ack messages.",
+                    txnIdMostBits, txnIdLeastBits, e);
+            opFuture.completeExceptionally(e);
+            return null;
         });
     }
 
@@ -180,7 +189,7 @@ public class TransactionImpl implements Transaction , TimerTask {
         return checkIfOpenOrCommitting().thenCompose((value) -> {
             CompletableFuture<Void> commitFuture = new CompletableFuture<>();
             this.state = State.COMMITTING;
-            allOpComplete().whenComplete((v, e) -> {
+            opFuture.whenComplete((v, e) -> {
                 if (e != null) {
                     abort().whenComplete((vx, ex) -> commitFuture.completeExceptionally(e));
                 } else {
@@ -209,7 +218,7 @@ public class TransactionImpl implements Transaction , TimerTask {
         return checkIfOpenOrAborting().thenCompose(value -> {
             CompletableFuture<Void> abortFuture = new CompletableFuture<>();
             this.state = State.ABORTING;
-            allOpComplete().whenComplete((v, e) -> {
+            opFuture.whenComplete((v, e) -> {
                 if (e != null) {
                     log.error(e.getMessage());
                 }
@@ -269,13 +278,5 @@ public class TransactionImpl implements Transaction , TimerTask {
         return FutureUtil.failedFuture(new InvalidTxnStatusException("[" + txnIdMostBits + ":"
                 + txnIdLeastBits + "] with unexpected state : "
                 + state.name() + ", expect " + State.OPEN + " state!"));
-    }
-
-
-    private CompletableFuture<Void> allOpComplete() {
-        List<CompletableFuture<?>> futureList = new ArrayList<>();
-        futureList.add(ackFuture);
-        futureList.add(sendFuture);
-        return CompletableFuture.allOf(futureList.toArray(new CompletableFuture[0]));
     }
 }
