@@ -18,7 +18,6 @@
  */
 package org.apache.bookkeeper.mledger;
 
-import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
 
