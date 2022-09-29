@@ -188,6 +188,8 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
                     maxBatchSize = shrank;
                     consecutiveShrinkTime = 0;
                 }
+            } else {
+                consecutiveShrinkTime = 0;
             }
         }
     }

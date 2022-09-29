@@ -45,6 +45,9 @@ public class BatchMessageContainerImplTest {
     public void testUpdateMaxBatchSize() {
         int SHRINK_COOLING_OFF_PERIOD = 10;
         BatchMessageContainerImpl messageContainer = new BatchMessageContainerImpl();
+        // check init state
+        assertEquals(messageContainer.getMaxBatchSize(), 1024);
+
         // test expand
         messageContainer.updateMaxBatchSize(2048);
         assertEquals(messageContainer.getMaxBatchSize(), 2048);
@@ -61,6 +64,33 @@ public class BatchMessageContainerImplTest {
             } else {
                 assertEquals(messageContainer.getMaxBatchSize(), 2048 * 0.75);
             }
+        }
+
+        messageContainer.updateMaxBatchSize(2048);
+        // test big message sudden appearance
+        for (int i = 0; i < 15; ++i) {
+            if (i == SHRINK_COOLING_OFF_PERIOD - 2) {
+                messageContainer.updateMaxBatchSize(2000);
+            } else {
+                messageContainer.updateMaxBatchSize(2);
+            }
+            assertEquals(messageContainer.getMaxBatchSize(), 2048);
+        }
+
+        // test big and small message alternating occurrence
+        for (int i = 0; i < SHRINK_COOLING_OFF_PERIOD * 3; ++i) {
+            if (i % 2 ==0) {
+                messageContainer.updateMaxBatchSize(2);
+            } else {
+                messageContainer.updateMaxBatchSize(2000);
+            }
+            assertEquals(messageContainer.getMaxBatchSize(), 2048);
+        }
+
+        // test consecutive big message
+        for (int i = 0; i < 15; ++i) {
+            messageContainer.updateMaxBatchSize(2000);
+            assertEquals(messageContainer.getMaxBatchSize(), 2048);
         }
 
         // test expand after shrink
