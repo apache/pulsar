@@ -2992,7 +2992,8 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ledger.asyncCreateLedger(bk, config, null, (rc, lh, ctx) -> {}, Collections.emptyMap());
         retryStrategically((test) -> responseException1.get() != null, 5, 1000);
         assertNotNull(responseException1.get());
-        assertEquals(responseException1.get().getMessage(), BKException.getMessage(BKException.Code.TimeoutException));
+        assertTrue(responseException1.get().getMessage()
+                .startsWith(BKException.getMessage(BKException.Code.TimeoutException)));
 
         // (2) test read-timeout for: ManagedLedger.asyncReadEntry(..)
         AtomicReference<ManagedLedgerException> responseException2 = new AtomicReference<>();
@@ -3017,13 +3018,14 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             return responseException2.get() != null;
         }, 5, 1000);
         assertNotNull(responseException2.get());
-        assertEquals(responseException2.get().getMessage(), BKException.getMessage(BKException.Code.TimeoutException));
+        assertTrue(responseException2.get().getMessage()
+                .startsWith(BKException.getMessage(BKException.Code.TimeoutException)));
 
         ledger.close();
     }
 
     /**
-     * It verifies that if bk-client doesn't complete the add-entry in given time out then broker is resilient enought
+     * It verifies that if bk-client doesn't complete the add-entry in given time out then broker is resilient enough
      * to create new ledger and add entry successfully.
      *
      *
