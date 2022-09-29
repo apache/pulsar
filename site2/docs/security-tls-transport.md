@@ -26,15 +26,16 @@ Enabling TLS encryption may impact the performance due to encryption overhead.
 
 TLS certificates include the following three types. Each certificate (key pair) contains both a public key that encrypts messages and a private key that decrypts messages.
 * Certificate Authority (CA)
-  * CA private key
-  * CA public key (**trust cert**)
+  * CA private key is distributed to all parties involved.
+  * CA public key (**trust cert**) is used for signing a certificate for either broker or clients.
 * Server key pairs
 * Client key pairs (for mutual TLS authentication only)
 
-:::tip
+For both server and client certificates, the private key with a certificate request is generated first, and the public key (the certificate) is generated after the **trust cert** signs the certificate request. When [TLS authentication](security-tls-authentication.md) is enabled, the server uses the **trust cert** to verify that the client has a key pair that the certificate authority signs. The Common Name (CN) of a client certificate is used as the client's role token, while the Subject Alternative Name (SAN) of a server certificate is used for [Hostname verification](#hostname-verification).
 
-* For both server and client key pairs, the private key with a certificate request is generated first, and the public key (the certificate) is generated after the **trust cert** signs the certificate request.
-* When [TLS authentication](security-tls-authentication.md) is enabled, the server uses the **trust cert** to verify that the client has a key pair that the certificate authority signs. The Common Name (CN) of a client certificate is used as the client's role token, while the Subject Alternative Name (SAN) of a server certificate is used for [Hostname verification](#hostname-verification).
+:::note
+
+The validity of these certificates is 365 days. It's highly recommended to use `sha256` or `sha512` as the signature algorithm, while `sha1` is not supported.
 
 :::
 
@@ -64,41 +65,22 @@ By default, Pulsar uses [netty-tcnative](https://github.com/netty/netty-tcnative
 
 ### Create TLS certificates
 
-Creating TLS certificates involves creating a [certificate authority](#create-a-certificate-authority), a [server certificate](#create-a-server-certificate), and a [client certificate](#create-a-client-certificate).
+Creating TLS certificates involves creating a [certificate authority](#create-a-certificate-authority), a [server certificate](#create-a-server-certificate), and a [client certificate](#create-a-client-certificate). 
 
 #### Create a certificate authority
 
-1. Create the certificate for the CA. You can use CA to sign both the broker and client certificates. This ensures that each party trusts the others. You should store CA in a very secure location (ideally completely disconnected from networks, air-gapped, and fully encrypted).
+You can use a certificate authority (CA) to sign both server and client certificates. This ensures that each party trusts the others. Store CA in a very secure location (ideally completely disconnected from networks, air-gapped, and fully encrypted).
 
-2. Enter the following command to create a directory for your CA, and place [this OpenSSL configuration file](https://github.com/apache/pulsar/tree/master/site2/website/static/examples/openssl.cnf) in the directory. To modify the default answers for company name and department in the configuration file, you can export the location of the CA directory to the environment variable, `CA_HOME`. The configuration file uses this environment variable to find the rest of the files and directories that the CA needs.
-
-   ```bash
-   mkdir my-ca
-   cd my-ca
-   wget https://raw.githubusercontent.com/apache/pulsar-site/main/site2/website/static/examples/openssl.cnf
-   export CA_HOME=$(pwd)
-   ```
-
-3. Enter the commands below to create the necessary directories, keys and certs.
+Use the following command to create a CA.
 
    ```bash
-   mkdir certs crl newcerts private
-   chmod 700 private/
-   touch index.txt
-   echo 1000 > serial
-   openssl genrsa -aes256 -out private/ca.key.pem 4096
-   # You need enter a password in the command above
-   chmod 400 private/ca.key.pem
-   openssl req -config openssl.cnf -key private/ca.key.pem \
-       -new -x509 -days 7300 -sha256 -extensions v3_ca \
-       -out certs/ca.cert.pem
-   # You must enter the same password in the previous openssl command
-   chmod 444 certs/ca.cert.pem
+   openssl genrsa -out ca.key.pem 2048
+   openssl req -x509 -new -nodes -key ca.key.pem -subj "/CN=CARoot" -days 365 -out ca.cert.pem
    ```
 
-   :::tip
+   :::note
 
-   The default `openssl` on macOS doesn't work for the commands above. You must upgrade the `openssl` via Homebrew:
+   The default `openssl` on macOS doesn't work for the commands above. You need to upgrade `openssl` via Homebrew:
 
    ```bash
    brew install openssl
@@ -109,80 +91,92 @@ Creating TLS certificates involves creating a [certificate authority](#create-a-
 
    :::
 
-4. After you answer the question prompts, CA-related files are stored in the `./my-ca` directory within that directory.
-   * `certs/ca.cert.pem` is the public certificate and is distributed to all parties involved.
-   * `private/ca.key.pem` is the private key. You only need it when you are signing a new certificate for either broker or clients and you must safely guard this private key.
-
-For more reference, see [this guide](https://jamielinux.com/docs/openssl-certificate-authority/index.html).
-
 #### Create a server certificate
 
-Once you have created a CA certificate, you can create certificate requests and sign them with the CA.
+Once you have created a CA, you can create certificate requests and sign them with the CA.
 
-:::tip
-
-When [hostname verification](#hostname-verification) is enabled, you need to enter the hostname of the broker as the Subject Alternative Name (SAN). You can also use a wildcard to match a group of broker hostnames, for example, `*.broker.usw.example.com`. This ensures that multiple machines can reuse the same certificate.
-
-:::
-
-1. Enter the following command to generate the key.
+1. Generate the server's private key.
 
    ```bash
    openssl genrsa -out broker.key.pem 2048
    ```
 
-   The broker expects the key to be in [PKCS 8](https://en.wikipedia.org/wiki/PKCS_8) format, so enter the following command to convert it.
+   The broker expects the key to be in [PKCS 8](https://en.wikipedia.org/wiki/PKCS_8) format. Enter the following command to convert it.
 
    ```bash
-   openssl pkcs8 -topk8 -inform PEM -outform PEM \
-      -in broker.key.pem -out broker.key-pk8.pem -nocrypt
+   openssl pkcs8 -topk8 -inform PEM -outform PEM -in broker.key.pem -out broker.key-pk8.pem -nocrypt
    ```
 
-2. Enter the following command to generate the certificate request.
+2. Create a `broker.conf` file with the following content:
+
+   ```properties
+   [ req ]
+   default_bits = 2048
+   prompt = no
+   default_md = sha256
+   distinguished_name = dn
+
+   [ v3_ext ]
+   authorityKeyIdentifier=keyid,issuer:always
+   basicConstraints=CA:FALSE
+   keyUsage=critical, digitalSignature, keyEncipherment
+   extendedKeyUsage=serverAuth
+   subjectAltName=@alt_names
+
+   [ dn ]
+   CN = broker
+
+   [ alt_names ]
+   DNS.1 = pulsar
+   DNS.2 = pulsar.default
+   IP.1 = 127.0.0.1
+   IP.2 = 192.168.1.2
+   ```
+   
+   :::tip
+
+   To configure [hostname verification](#hostname-verification), you need to enter the hostname of the broker in `alt_names` as the Subject Alternative Name (SAN). To ensure that multiple machines can reuse the same certificate, you can also use a wildcard to match a group of broker hostnames, for example, `*.broker.usw.example.com`.
+
+   :::
+
+3. Generate the certificate request.
 
    ```bash
-   openssl req -config openssl.cnf \
-      -key broker.key.pem -new -sha256 -out broker.csr.pem
+   openssl req -new -config broker.conf -key broker.key.pem -out broker.csr.pem -sha256
    ```
 
-3. Sign it with the CA by entering the command below.
+4. Sign the certificate with the CA.
 
    ```bash
-   openssl ca -config openssl.cnf -extensions server_cert \
-      -days 1000 -notext -md sha256 \
-      -in broker.csr.pem -out broker.cert.pem
+   openssl x509 -req -in broker.csr.pem -CA ca.cert.pem -CAkey ca.key.pem -CAcreateserial -out broker.cert.pem -days 365 -extensions v3_ext -extfile broker.conf -sha256
    ```
 
-At this point, you have a cert, `broker.cert.pem`, and a key, `broker.key-pk8.pem`, which you can use along with `ca.cert.pem` to configure TLS transport encryption for your broker and proxy nodes.
+At this point, you have a cert, `broker.cert.pem`, and a key, `broker.key-pk8.pem`, which you can use along with `ca.cert.pem` to configure TLS encryption for your brokers and proxies.
 
 #### Create a client certificate
 
-1. Enter the command below to generate the key.
+1. Generate the client's private key.
 
    ```bash
    openssl genrsa -out client.key.pem 2048
    ```
 
-   The client expects the key to be in [PKCS 8](https://en.wikipedia.org/wiki/PKCS_8) format, so enter the following command to convert it.
+   The client expects the key to be in [PKCS 8](https://en.wikipedia.org/wiki/PKCS_8) format. Enter the following command to convert it.
 
    ```bash
-   openssl pkcs8 -topk8 -inform PEM -outform PEM \
-      -in client.key.pem -out client.key-pk8.pem -nocrypt
+   openssl pkcs8 -topk8 -inform PEM -outform PEM -in client.key.pem -out client.key-pk8.pem -nocrypt
    ```
 
-2. Enter the following command to generate the certificate request.
+2. Generate the certificate request. Note that the value of `CN` is used as the client's role token.
 
    ```bash
-   openssl req -config openssl.cnf \
-      -key client.key.pem -new -sha256 -out client.csr.pem
+   openssl req -new -subj "/CN=client" -key client.key.pem -out client.csr.pem -sha256
    ```
 
-3. Sign it with the CA by entering the command below.
+3. Sign the certificate with the CA.
 
    ```bash
-   openssl ca -config openssl.cnf -extensions client_cert \
-      -days 1000 -notext -md sha256 \
-      -in client.csr.pem -out client.cert.pem
+   openssl x509 -req -in client.csr.pem -CA ca.cert.pem -CAkey ca.key.pem -CAcreateserial -out client.cert.pem -days 365 -sha256
    ```
 
 At this point, you have a cert `client.cert.pem` and a key `client.key-pk8.pem`, which you can use along with `ca.cert.pem` to configure TLS encryption for your clients.
@@ -377,7 +371,7 @@ keytool -importcert -keystore broker.truststore.jks ${BROKER_COMMON_PARAMS} -fil
  
 :::note
  
-To enable [hostname verification](#hostname-verification), configure the Subject Alternative Name (SAN) by appending ` -ext SAN=IP:127.0.0.1,IP:192.168.20.2,DNS:broker.example.com` to the value of `BROKER_COMMON_PARAMS`.
+To configure [hostname verification](#hostname-verification), you need to append ` -ext SAN=IP:127.0.0.1,IP:192.168.20.2,DNS:broker.example.com` to the value of `BROKER_COMMON_PARAMS` as the Subject Alternative Name (SAN).
 
 :::
 
