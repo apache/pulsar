@@ -143,27 +143,14 @@ public class ManagedLedgerException extends Exception {
     }
 
     public static class NonRecoverableLedgerException extends ManagedLedgerException {
-        private Integer bkErrorCode; // null means ledger not exists or deleted
         public NonRecoverableLedgerException(String msg) {
             super(msg);
         }
+    }
 
-        public NonRecoverableLedgerException(String msg, Integer bkErrorCode) {
+    public static class LedgerNotExistException extends NonRecoverableLedgerException {
+        public LedgerNotExistException(String msg) {
             super(msg);
-            this.bkErrorCode = bkErrorCode;
-        }
-
-        public boolean isLedgerNotExistException() {
-            if (bkErrorCode == null) {
-                return true;
-            }
-            switch (bkErrorCode) {
-                case BKException.Code.NoSuchLedgerExistsException:
-                case BKException.Code.NoSuchLedgerExistsOnMetadataServerException:
-                    return true;
-                default:
-                    return false;
-            }
         }
     }
 
