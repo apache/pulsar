@@ -7,10 +7,9 @@ sidebar_label: "Docker"
 To deploy a Pulsar cluster on Docker, you need to complete the next steps:
 1. pull the pulsar docker image
 2. create the zookeeper, bookie, broker container by the image
-3. modify the broker.conf and bookkeeper.conf
-4. create a network, and make the container connects to it.
-5. start the zookeeper, and then init the cluster metadata
-6. start the broker and bookie
+3. create a network, and make the container connects to it.
+4. start the zookeeper, and then init the cluster metadata
+5. start the broker and bookie
 
 ## Prepare
 To run Pulsar on Docker, you need to create a container for each Pulsar component: ZooKeeper, BookKeeper and broker. You can pull the images of ZooKeeper and BookKeeper separately on Docker Hub, and pull a Pulsar image for the broker. You can also pull only one Pulsar image and create three containers with this image. This tutorial takes the second option as an example.
@@ -25,48 +24,19 @@ docker pull apachepulsar/pulsar-all:latest
 * Create zookeeper container
 
 ```
-docker run -it --privileged=true -u=root --name zookeeper apachepulsar/pulsar-all:latest /bin/bash
+docker run -d --privileged=true -u=root -e PULSAR_PREFIX_metadataStoreUrl=zk:zookeeper:2181 -e PULSAR_PREFIX_cluster-name=cluster-a -e PULSAR_PREFIX_managedLedgerDefaultEnsembleSize=1 -e PULSAR_PREFIX_managedLedgerDefaultWriteQuorum=1 -e PULSAR_PREFIX_managedLedgerDefaultAckQuorum=1 --name zookeeper apachepulsar/pulsar-all:latest /bin/bash
 ```
 
 * Create broker container
 
 ```
-docker run -it --privileged=true -u=root --name broker apachepulsar/pulsar-all:latest /bin/bash
+docker run -d --privileged=true -u=root -e PULSAR_PREFIX_metadataStoreUrl=zk:zookeeper:2181 -e PULSAR_PREFIX_cluster-name=cluster-a -e PULSAR_PREFIX_managedLedgerDefaultEnsembleSize=1 -e PULSAR_PREFIX_managedLedgerDefaultWriteQuorum=1 -e PULSAR_PREFIX_managedLedgerDefaultAckQuorum=1 --name broker apachepulsar/pulsar-all:latest /bin/bash
 ```
 
 * Create bookie container
 
 ```
-docker run -it --privileged=true -u=root --name bookie apachepulsar/pulsar-all:latest /bin/bash
-```
-## Modify the configurations
-
-1. Copy the configuration of broker from docker container to local.
-
-```
-sudo docker cp broker:/pulsar/conf/broker.conf ./broker.conf
-```
-
-2. Modify the `broker.conf`
-    * metadataurl = zookeeper:2181
-    * cluster-name = cluster-a
-    * managedLedgerDefaultEnsembleSize=1
-    * managedLedgerDefaultWriteQuorum=1
-    * managedLedgerDefaultAckQuorum=1
-3. Move the broker.conf to zookeeper and broker container
-```
-sudo docker cp ./broker.conf zookeeper:/pulsar/conf/
-```
-
-```
-sudo docker cp ./broker.conf broker:/pulsar/conf/
-```
-4. Modify the `bookkeeper.conf`
-    * zkServers=zookeeper:2181
-    * metadataServiceUri=metadata-store:zk:zookeeper:2181
-5. Move the bookkeeper.conf to the bookie container
-```
-sudo docker cp ./bookkeeper.conf bookie:/pulsar/conf/
+docker run -d --privileged=true -u=root -e PULSAR_PREFIX_zkServers=zookeeper:2181 -e PULSAR_PREFIX_metadataServiceUri=metadata-store:zk:zookeeper:2181  --name bookie apachepulsar/pulsar-all:latest /bin/bash
 ```
 ## Create the network
 To deploy a Pulsar cluster on Docker, you need to create a network and connect the containers of ZooKeeper, BookKeeper and broker to this network. The following command creates the network pulsar:
