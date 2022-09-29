@@ -98,7 +98,7 @@ public abstract class BaseGenerateDocumentation {
 
     private Annotation getFieldContextAnnotation(Field field) {
         for (Annotation annotation : field.getAnnotations()) {
-            if (annotation.getClass().getCanonicalName()
+            if (annotation.annotationType().getCanonicalName()
                     .equals("org.apache.pulsar.common.configuration.FieldContext")) {
                 return annotation;
             }
@@ -126,11 +126,6 @@ public abstract class BaseGenerateDocumentation {
         @SneakyThrows
         boolean required() {
             return (boolean) MethodUtils.invokeMethod(fieldContext, "required");
-        }
-
-        @SneakyThrows
-        boolean optional() {
-            return (boolean) MethodUtils.invokeMethod(fieldContext, "optional");
         }
 
         @SneakyThrows
@@ -214,7 +209,8 @@ public abstract class BaseGenerateDocumentation {
         List<Pair<Field, FieldContextWrapper>> requiredFields =
                 fieldList.stream().filter(p -> p.getValue().required()).collect(Collectors.toList());
         List<Pair<Field, FieldContextWrapper>> optionalFields =
-                fieldList.stream().filter(p -> p.getValue().optional()).collect(Collectors.toList());
+                fieldList.stream().filter(p -> !p.getValue().required() && !p.getValue().deprecated())
+                        .collect(Collectors.toList());
         List<Pair<Field, FieldContextWrapper>> deprecatedFields =
                 fieldList.stream().filter(p -> p.getValue().deprecated()).collect(Collectors.toList());
 
