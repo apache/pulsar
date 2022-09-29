@@ -20,7 +20,6 @@ package org.apache.pulsar.proxy.server;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.mockito.Mockito.spy;
-import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -31,7 +30,6 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 import javax.crypto.SecretKey;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;

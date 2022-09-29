@@ -579,8 +579,8 @@ public class ProxyConnection extends PulsarHandler {
                                     }))
                             .whenComplete((__, ex) -> {
                                 if (ex != null) {
-                                    LOG.error("Failed to forward the auth response from the proxy to " +
-                                                    "the broker through the proxy client, proxy: {}",
+                                    LOG.error("Failed to forward the auth response from the proxy to "
+                                                    + "the broker through the proxy client, proxy: {}",
                                             ctx().channel(), ex);
                                 }
                             });
