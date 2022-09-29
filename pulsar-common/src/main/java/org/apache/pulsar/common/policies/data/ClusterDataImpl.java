@@ -25,6 +25,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.apache.pulsar.client.api.ProxyProtocol;
+import org.apache.pulsar.common.net.ServiceURI;
 
 /**
  * The configuration data for a cluster.
@@ -143,6 +144,32 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
     )
     private String listenerName;
 
+
+    public void setServiceUrl(String serviceUrl) {
+        ServiceURI.validate(serviceUrl);
+        this.serviceUrl = serviceUrl;
+    }
+
+    public void setServiceUrlTls(String serviceUrlTls) {
+        ServiceURI.validate(serviceUrlTls);
+        this.serviceUrlTls = serviceUrlTls;
+    }
+
+    public void setBrokerServiceUrl(String brokerServiceUrl) {
+        ServiceURI.validate(brokerServiceUrl);
+        this.brokerServiceUrl = brokerServiceUrl;
+    }
+
+    public void setProxyServiceUrl(String proxyServiceUrl) {
+        ServiceURI.validate(proxyServiceUrl);
+        this.proxyServiceUrl = proxyServiceUrl;
+    }
+
+    public void setBrokerServiceUrlTls(String brokerServiceUrlTls) {
+        ServiceURI.validate(brokerServiceUrlTls);
+        this.brokerServiceUrlTls = brokerServiceUrlTls;
+    }
+
     public static ClusterDataImplBuilder builder() {
         return new ClusterDataImplBuilder();
     }
@@ -193,26 +220,31 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
         }
 
         public ClusterDataImplBuilder serviceUrl(String serviceUrl) {
+            ServiceURI.validate(serviceUrl);
             this.serviceUrl = serviceUrl;
             return this;
         }
 
         public ClusterDataImplBuilder serviceUrlTls(String serviceUrlTls) {
+            ServiceURI.validate(serviceUrlTls);
             this.serviceUrlTls = serviceUrlTls;
             return this;
         }
 
         public ClusterDataImplBuilder brokerServiceUrl(String brokerServiceUrl) {
+            ServiceURI.validate(brokerServiceUrl);
             this.brokerServiceUrl = brokerServiceUrl;
             return this;
         }
 
         public ClusterDataImplBuilder brokerServiceUrlTls(String brokerServiceUrlTls) {
+            ServiceURI.validate(brokerServiceUrlTls);
             this.brokerServiceUrlTls = brokerServiceUrlTls;
             return this;
         }
 
         public ClusterDataImplBuilder proxyServiceUrl(String proxyServiceUrl) {
+            ServiceURI.validate(proxyServiceUrl);
             this.proxyServiceUrl = proxyServiceUrl;
             return this;
         }

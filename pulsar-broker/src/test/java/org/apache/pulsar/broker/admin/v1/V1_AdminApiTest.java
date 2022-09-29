@@ -48,6 +48,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import javax.ws.rs.BadRequestException;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 import lombok.Builder;
@@ -94,6 +95,7 @@ import org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy;
 import org.apache.pulsar.common.policies.data.BrokerAssignment;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
@@ -241,6 +243,37 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
             fail("should have failed");
         } catch (PulsarAdminException e) {
             assertTrue(e instanceof PreconditionFailedException);
+        }
+        // Use reflection to generate illegal cluster data.
+        final String illegalUrl = "/broker.messaging.c1.example.com:8080";
+        ClusterDataImpl illegalClusterData = new ClusterDataImpl();
+        Field serviceUrl = illegalClusterData.getClass().getDeclaredField("serviceUrl");
+        serviceUrl.setAccessible(true);
+        serviceUrl.set(illegalClusterData, illegalUrl);
+        Field serviceUrlTls = illegalClusterData.getClass().getDeclaredField("serviceUrlTls");
+        serviceUrlTls.setAccessible(true);
+        serviceUrlTls.set(illegalClusterData, illegalUrl);
+        Field brokerServiceUrl = illegalClusterData.getClass().getDeclaredField("brokerServiceUrl");
+        brokerServiceUrl.setAccessible(true);
+        brokerServiceUrl.set(illegalClusterData, illegalUrl);
+        Field brokerServiceUrlTls = illegalClusterData.getClass().getDeclaredField("brokerServiceUrlTls");
+        brokerServiceUrlTls.setAccessible(true);
+        brokerServiceUrlTls.set(illegalClusterData, illegalUrl);
+        Field proxyServiceUrl = illegalClusterData.getClass().getDeclaredField("proxyServiceUrl");
+        proxyServiceUrl.setAccessible(true);
+        proxyServiceUrl.set(illegalClusterData, illegalUrl);
+        try {
+            admin.clusters().createCluster("usw", illegalClusterData);
+            fail("should have failed");
+        } catch (Exception ex) {
+            assertTrue(ex.getCause() instanceof BadRequestException);
+        }
+
+        try {
+            admin.clusters().updateCluster("usw", illegalClusterData);
+            fail("should have failed");
+        } catch (Exception ex) {
+            assertTrue(ex.getCause() instanceof BadRequestException);
         }
     }
 

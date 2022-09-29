@@ -48,6 +48,8 @@ import org.apache.commons.lang.StringUtils;
 public class ServiceURI {
 
     private static final String BINARY_SERVICE = "pulsar";
+
+    private static final String BINARY_SSL_SERVICE = "pulsar+ssl";
     private static final String HTTP_SERVICE = "http";
     private static final String HTTPS_SERVICE = "https";
     private static final String SSL_SERVICE = "ssl";
@@ -106,7 +108,14 @@ public class ServiceURI {
 
         return create(uri);
     }
-
+    public static void validate(String urlStr) {
+        try {
+             create(urlStr);
+        } catch (Throwable ex) {
+            throw new IllegalArgumentException(
+                    String.format("Illegal url %s, the root cause is: %s", urlStr, ex.getMessage()));
+        }
+    }
     /**
      * Create a service uri instance from a {@link URI} instance.
      *

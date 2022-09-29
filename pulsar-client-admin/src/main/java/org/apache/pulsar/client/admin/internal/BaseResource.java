@@ -329,8 +329,12 @@ public abstract class BaseResource {
                 try {
                     return ObjectMapperFactory.getThreadLocal().readValue(e.getMessage(), ErrorData.class).reason;
                 } catch (Exception ex2) {
-                    // could not parse output to ErrorData class
-                    return e.getMessage();
+                    try {
+                        return e.getMessage() + ", the reason body is: " + e.getResponse().readEntity(String.class);
+                    } catch (Exception ex3) {
+                        // could not parse output to ErrorData class
+                        return e.getMessage();
+                    }
                 }
             }
         }

@@ -20,7 +20,7 @@ package org.apache.pulsar.common.policies.data;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
-
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 public class ClusterDataTest {
@@ -108,5 +108,30 @@ public class ClusterDataTest {
                         .serviceUrlTls(s3)
                         .build().hashCode());
 
+    }
+
+    @Test
+    public void illegalUrl() {
+        String illegalS1 = "/broker.messaging.c1.example.com:8080";
+        String illegalS2 = "broker.messaging.c2.example.com:8080";
+        String illegalS3 = "fdsafasfasdf";
+
+        Assert.assertThrows(IllegalArgumentException.class, () -> ClusterData.builder().serviceUrl(illegalS1));
+        Assert.assertThrows(IllegalArgumentException.class, () -> ClusterData.builder().serviceUrlTls(illegalS1));
+        Assert.assertThrows(IllegalArgumentException.class, () -> ClusterData.builder().brokerServiceUrl(illegalS1));
+        Assert.assertThrows(IllegalArgumentException.class, () -> ClusterData.builder().brokerServiceUrlTls(illegalS1));
+        Assert.assertThrows(IllegalArgumentException.class, () -> ClusterData.builder().proxyServiceUrl(illegalS1));
+
+        Assert.assertThrows(IllegalArgumentException.class, () -> ClusterData.builder().serviceUrl(illegalS2));
+        Assert.assertThrows(IllegalArgumentException.class, () -> ClusterData.builder().serviceUrlTls(illegalS2));
+        Assert.assertThrows(IllegalArgumentException.class, () -> ClusterData.builder().brokerServiceUrl(illegalS2));
+        Assert.assertThrows(IllegalArgumentException.class, () -> ClusterData.builder().brokerServiceUrlTls(illegalS2));
+        Assert.assertThrows(IllegalArgumentException.class, () -> ClusterData.builder().proxyServiceUrl(illegalS2));
+
+        Assert.assertThrows(IllegalArgumentException.class, () -> ClusterData.builder().serviceUrl(illegalS3));
+        Assert.assertThrows(IllegalArgumentException.class, () -> ClusterData.builder().serviceUrlTls(illegalS3));
+        Assert.assertThrows(IllegalArgumentException.class, () -> ClusterData.builder().brokerServiceUrl(illegalS3));
+        Assert.assertThrows(IllegalArgumentException.class, () -> ClusterData.builder().brokerServiceUrlTls(illegalS3));
+        Assert.assertThrows(IllegalArgumentException.class, () -> ClusterData.builder().proxyServiceUrl(illegalS3));
     }
 }
