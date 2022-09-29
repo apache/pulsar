@@ -26,12 +26,12 @@ Application will specify the token when creating the client instance. An alterna
 a "token supplier", that is to say a function that returns the token when the client library
 will need one.
 
-See [Token authentication admin](security-token-admin) for a reference on how to enable token
+See [Token authentication admin](security-token-admin.md) for a reference on how to enable token
 authentication on a Pulsar cluster.
 
 ### CLI tools
 
-[Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](reference-pulsar-admin), [`pulsar-perf`](reference-cli-tools.md#pulsar-perf), and [`pulsar-client`](reference-cli-tools.md#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
+[Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](reference-pulsar-admin.md), [`pulsar-perf`](reference-cli-tools.md#pulsar-perf), and [`pulsar-client`](reference-cli-tools.md#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
 
 You'll need to add the following parameters to that file to use the token authentication with
 Pulsar's CLI tools:

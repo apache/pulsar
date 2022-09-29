@@ -195,7 +195,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
 
     @ApiModelProperty(
             name = "maxNumberOfRejectedRequestPerConnection",
-            value = "Maximum number of rejected requests of a broker in a certain time frame (30 seconds) "
+            value = "Maximum number of rejected requests of a broker in a certain time frame (60 seconds) "
                     + "after the current connection is closed and the client "
                     + "creating a new connection to connect to a different broker."
     )

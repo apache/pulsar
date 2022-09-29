@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.util.HashSet;
 import java.util.List;
@@ -27,6 +26,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
@@ -395,7 +395,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                   } else {
                       Throwable cause = FutureUtil.unwrapCompletionException(ex);
                       if (cause instanceof PulsarClientException.AlreadyClosedException) {
-                          log.error("Read more topic policies exception, close the read now!", ex);
+                          log.warn("Read more topic policies exception, close the read now!", ex);
                           cleanCacheAndCloseReader(
                                   reader.getSystemTopic().getTopicName().getNamespaceObject(), false);
                       } else {
@@ -559,7 +559,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     public void registerListener(TopicName topicName, TopicPolicyListener<TopicPolicies> listener) {
         listeners.compute(topicName, (k, topicListeners) -> {
             if (topicListeners == null) {
-                topicListeners = Lists.newCopyOnWriteArrayList();
+                topicListeners = new CopyOnWriteArrayList<>();
             }
             topicListeners.add(listener);
             return topicListeners;

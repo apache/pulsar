@@ -19,26 +19,22 @@
 package org.apache.pulsar.broker.auth;
 
 import static org.testng.Assert.fail;
-
-import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
-import org.testng.annotations.AfterClass;
-
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
-
+import com.google.common.collect.Sets;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.ServerSideErrorException;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException.AuthenticationException;
 import org.apache.pulsar.client.api.PulsarClientException.AuthorizationException;
-import org.apache.pulsar.client.api.Producer;
-import com.google.common.collect.Sets;
-
+import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
 
 /**
  * This test doesn't test much in and off itself.

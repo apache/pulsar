@@ -7,7 +7,7 @@ original_id: cookbooks-partitioned
 
 By default, Pulsar topics are served by a single broker. Using only a single broker, however, limits a topic's maximum throughput. *Partitioned topics* are a special type of topic that can span multiple brokers and thus allow for much higher throughput. For an explanation of how partitioned topics work, see the [Partitioned Topics](concepts-messaging.md#partitioned-topics) concepts.
 
-You can [publish](#publishing-to-partitioned-topics) to partitioned topics using Pulsar's client libraries and you can [create and manage](#managing-partitioned-topics) partitioned topics using Pulsar's [admin API](admin-api-overview).
+You can [publish](#publishing-to-partitioned-topics) to partitioned topics using Pulsar's client libraries and you can [create and manage](#managing-partitioned-topics) partitioned topics using Pulsar's [admin API](admin-api-overview.md).
 
 ## Publishing to partitioned topics
 
@@ -83,4 +83,4 @@ producer.send("Partitioned topic message".getBytes());
 
 ## Managing partitioned topics
 
-You can use Pulsar's [admin API](admin-api-overview.md) to create and manage [partitioned topics](admin-api-partitioned-topics).
+You can use Pulsar's [admin API](admin-api-overview.md) to create and manage [partitioned topics](admin-api-partitioned-topics.md).

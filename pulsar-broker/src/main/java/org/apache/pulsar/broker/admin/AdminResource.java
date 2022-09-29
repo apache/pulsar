@@ -23,6 +23,7 @@ import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -802,7 +803,7 @@ public abstract class AdminResource extends PulsarWebResource {
 
     @CanIgnoreReturnValue
     public static <T> T checkNotNull(T reference) {
-        return com.google.common.base.Preconditions.checkNotNull(reference);
+        return Objects.requireNonNull(reference);
     }
 
     protected void checkNotNull(Object o, String errorMessage) {

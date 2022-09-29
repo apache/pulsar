@@ -47,6 +47,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.SameThreadOrderedSafeExecutor;
 import org.apache.pulsar.broker.intercept.CounterBrokerInterceptor;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -325,5 +326,13 @@ public abstract class TransactionTestBase extends TestRetrySupport {
         } catch (Exception e) {
             log.warn("Failed to clean up mocked pulsar service:", e);
         }
+    }
+
+    /**
+     * see {@link BrokerTestBase#deleteNamespaceGraceFully(String, boolean, PulsarService, PulsarAdmin)}
+     */
+    protected void deleteNamespaceGraceFully(String ns, boolean force)
+            throws Exception {
+        BrokerTestBase.deleteNamespaceGraceFully(ns, force, pulsarServiceList.get(0), admin);
     }
 }

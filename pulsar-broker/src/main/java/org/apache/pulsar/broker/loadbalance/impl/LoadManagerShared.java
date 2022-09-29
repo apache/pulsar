@@ -20,10 +20,10 @@ package org.apache.pulsar.broker.loadbalance.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.common.stats.JvmMetrics.getJvmDirectMemoryUsed;
-import com.beust.jcommander.internal.Lists;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -433,7 +433,7 @@ public class LoadManagerShared {
             }
             final String antiAffinityGroup = policies.get().namespaceAntiAffinityGroup;
             final Map<String, Integer> brokerToAntiAffinityNamespaceCount = new ConcurrentHashMap<>();
-            final List<CompletableFuture<Void>> futures = Lists.newArrayList();
+            final List<CompletableFuture<Void>> futures = new ArrayList<>();
             brokerToNamespaceToBundleRange.forEach((broker, nsToBundleRange) -> {
                 nsToBundleRange.forEach((ns, bundleRange) -> {
                     if (bundleRange.isEmpty()) {

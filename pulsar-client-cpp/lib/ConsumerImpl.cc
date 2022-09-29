@@ -38,6 +38,7 @@ DECLARE_LOG_OBJECT()
 
 ConsumerImpl::ConsumerImpl(const ClientImplPtr client, const std::string& topic,
                            const std::string& subscriptionName, const ConsumerConfiguration& conf,
+                           bool isPersistent,
                            const ExecutorServicePtr listenerExecutor /* = NULL by default */,
                            bool hasParent /* = false by default */,
                            const ConsumerTopicType consumerTopicType /* = NonPartitioned by default */,
@@ -47,6 +48,7 @@ ConsumerImpl::ConsumerImpl(const ClientImplPtr client, const std::string& topic,
       config_(conf),
       subscription_(subscriptionName),
       originalSubscriptionName_(subscriptionName),
+      isPersistent_(isPersistent),
       messageListener_(config_.getMessageListener()),
       eventListener_(config_.getConsumerEventListener()),
       hasParent_(hasParent),
@@ -169,14 +171,17 @@ void ConsumerImpl::connectionOpened(const ClientConnectionPtr& cnx) {
     // sending the subscribe request.
     cnx->registerConsumer(consumerId_, shared_from_this());
 
-    Lock lockForMessageId(mutexForMessageId_);
-    Optional<MessageId> firstMessageInQueue = clearReceiveQueue();
-    if (subscriptionMode_ == Commands::SubscriptionModeNonDurable) {
-        // Update startMessageId so that we can discard messages after delivery
-        // restarts
-        startMessageId_ = firstMessageInQueue;
+    if (duringSeek_) {
+        ackGroupingTrackerPtr_->flushAndClean();
     }
-    const auto startMessageId = startMessageId_;
+
+    Lock lockForMessageId(mutexForMessageId_);
+    // Update startMessageId so that we can discard messages after delivery restarts
+    const auto startMessageId = clearReceiveQueue();
+    const auto subscribeMessageId = (subscriptionMode_ == Commands::SubscriptionModeNonDurable)
+                                        ? startMessageId
+                                        : Optional<MessageId>::empty();
+    startMessageId_ = startMessageId;
     lockForMessageId.unlock();
 
     unAckedMessageTrackerPtr_->clear();
@@ -186,7 +191,7 @@ void ConsumerImpl::connectionOpened(const ClientConnectionPtr& cnx) {
     uint64_t requestId = client->newRequestId();
     SharedBuffer cmd = Commands::newSubscribe(
         topic_, subscription_, consumerId_, requestId, getSubType(), consumerName_, subscriptionMode_,
-        startMessageId, readCompacted_, config_.getProperties(), config_.getSubscriptionProperties(),
+        subscribeMessageId, readCompacted_, config_.getProperties(), config_.getSubscriptionProperties(),
         config_.getSchema(), getInitialPosition(), config_.isReplicateSubscriptionStateEnabled(),
         config_.getKeySharedPolicy(), config_.getPriorityLevel());
     cnx->sendRequestWithId(cmd, requestId)
@@ -397,12 +402,12 @@ void ConsumerImpl::messageReceived(const ClientConnectionPtr& cnx, const proto::
         return;
     }
 
-    const bool isMessageDecryptable =
-        metadata.encryption_keys_size() <= 0 || config_.getCryptoKeyReader().get() ||
+    const bool isMessageUndecryptable =
+        metadata.encryption_keys_size() > 0 && !config_.getCryptoKeyReader().get() &&
         config_.getCryptoFailureAction() == ConsumerCryptoFailureAction::CONSUME;
 
     const bool isChunkedMessage = metadata.num_chunks_from_msg() > 1;
-    if (isMessageDecryptable && !isChunkedMessage) {
+    if (!isMessageUndecryptable && !isChunkedMessage) {
         if (!uncompressMessageIfNeeded(cnx, msg.message_id(), metadata, payload, true)) {
             // Message was discarded on decompression error
             return;
@@ -446,6 +451,16 @@ void ConsumerImpl::messageReceived(const ClientConnectionPtr& cnx, const proto::
         Lock lock(mutex_);
         numOfMessageReceived = receiveIndividualMessagesFromBatch(cnx, m, msg.redelivery_count());
     } else {
+        const auto startMessageId = startMessageId_.get();
+        if (isPersistent_ && startMessageId.is_present() &&
+            m.getMessageId().ledgerId() == startMessageId.value().ledgerId() &&
+            m.getMessageId().entryId() == startMessageId.value().entryId() &&
+            isPriorEntryIndex(m.getMessageId().entryId())) {
+            LOG_DEBUG(getName() << " Ignoring message from before the startMessageId: "
+                                << startMessageId.value());
+            return;
+        }
+
         Lock lock(pendingReceiveMutex_);
         // if asyncReceive is waiting then notify callback without adding to incomingMessages queue
         bool asyncReceivedWaiting = !pendingReceives_.empty();
@@ -533,9 +548,7 @@ uint32_t ConsumerImpl::receiveIndividualMessagesFromBatch(const ClientConnection
     batchAcknowledgementTracker_.receivedMessage(batchedMessage);
     LOG_DEBUG("Received Batch messages of size - " << batchSize
                                                    << " -- msgId: " << batchedMessage.getMessageId());
-    Lock lock(mutexForMessageId_);
-    const auto startMessageId = startMessageId_;
-    lock.unlock();
+    const auto startMessageId = startMessageId_.get();
 
     int skippedMessages = 0;
 
@@ -550,9 +563,9 @@ uint32_t ConsumerImpl::receiveIndividualMessagesFromBatch(const ClientConnection
 
             // If we are receiving a batch message, we need to discard messages that were prior
             // to the startMessageId
-            if (msgId.ledgerId() == startMessageId.value().ledgerId() &&
+            if (isPersistent_ && msgId.ledgerId() == startMessageId.value().ledgerId() &&
                 msgId.entryId() == startMessageId.value().entryId() &&
-                msgId.batchIndex() <= startMessageId.value().batchIndex()) {
+                isPriorBatchIndex(msgId.batchIndex())) {
                 LOG_DEBUG(getName() << "Ignoring message from before the startMessageId"
                                     << msg.getMessageId());
                 ++skippedMessages;
@@ -842,6 +855,12 @@ void ConsumerImpl::messageProcessed(Message& msg, bool track) {
  * not seen by the application
  */
 Optional<MessageId> ConsumerImpl::clearReceiveQueue() {
+    bool expectedDuringSeek = true;
+    if (duringSeek_.compare_exchange_strong(expectedDuringSeek, false)) {
+        return Optional<MessageId>::of(seekMessageId_.get());
+    } else if (subscriptionMode_ == Commands::SubscriptionModeDurable) {
+        return startMessageId_.get();
+    }
     Message nextMessageInQueue;
     if (incomingMessages_.peekAndClear(nextMessageInQueue)) {
         // There was at least one message pending in the queue
@@ -862,7 +881,7 @@ Optional<MessageId> ConsumerImpl::clearReceiveQueue() {
     } else {
         // No message was received or dequeued by this consumer. Next message would still be the
         // startMessageId
-        return startMessageId_;
+        return startMessageId_.get();
     }
 }
 
@@ -1175,18 +1194,6 @@ void ConsumerImpl::brokerConsumerStatsListener(Result res, BrokerConsumerStatsIm
     }
 }
 
-void ConsumerImpl::handleSeek(Result result, ResultCallback callback) {
-    if (result == ResultOk) {
-        Lock lock(mutexForMessageId_);
-        lastDequedMessageId_ = MessageId::earliest();
-        lock.unlock();
-        LOG_INFO(getName() << "Seek successfully");
-    } else {
-        LOG_ERROR(getName() << "Failed to seek: " << strResult(result));
-    }
-    callback(result);
-}
-
 void ConsumerImpl::seekAsync(const MessageId& msgId, ResultCallback callback) {
     const auto state = state_.load();
     if (state == Closed || state == Closing) {
@@ -1197,25 +1204,13 @@ void ConsumerImpl::seekAsync(const MessageId& msgId, ResultCallback callback) {
         return;
     }
 
-    this->ackGroupingTrackerPtr_->flushAndClean();
-    ClientConnectionPtr cnx = getCnx().lock();
-    if (cnx) {
-        ClientImplPtr client = client_.lock();
-        uint64_t requestId = client->newRequestId();
-        LOG_DEBUG(getName() << " Sending seek Command for Consumer - " << getConsumerId() << ", requestId - "
-                            << requestId);
-        Future<Result, ResponseData> future =
-            cnx->sendRequestWithId(Commands::newSeek(consumerId_, requestId, msgId), requestId);
-
-        if (callback) {
-            future.addListener(
-                std::bind(&ConsumerImpl::handleSeek, shared_from_this(), std::placeholders::_1, callback));
-        }
+    ClientImplPtr client = client_.lock();
+    if (!client) {
+        LOG_ERROR(getName() << "Client is expired when seekAsync " << msgId);
         return;
     }
-
-    LOG_ERROR(getName() << " Client Connection not ready for Consumer");
-    callback(ResultNotConnected);
+    const auto requestId = client->newRequestId();
+    seekAsyncInternal(requestId, Commands::newSeek(consumerId_, requestId, msgId), msgId, 0L, callback);
 }
 
 void ConsumerImpl::seekAsync(uint64_t timestamp, ResultCallback callback) {
@@ -1228,24 +1223,14 @@ void ConsumerImpl::seekAsync(uint64_t timestamp, ResultCallback callback) {
         return;
     }
 
-    ClientConnectionPtr cnx = getCnx().lock();
-    if (cnx) {
-        ClientImplPtr client = client_.lock();
-        uint64_t requestId = client->newRequestId();
-        LOG_DEBUG(getName() << " Sending seek Command for Consumer - " << getConsumerId() << ", requestId - "
-                            << requestId);
-        Future<Result, ResponseData> future =
-            cnx->sendRequestWithId(Commands::newSeek(consumerId_, requestId, timestamp), requestId);
-
-        if (callback) {
-            future.addListener(
-                std::bind(&ConsumerImpl::handleSeek, shared_from_this(), std::placeholders::_1, callback));
-        }
+    ClientImplPtr client = client_.lock();
+    if (!client) {
+        LOG_ERROR(getName() << "Client is expired when seekAsync " << timestamp);
         return;
     }
-
-    LOG_ERROR(getName() << " Client Connection not ready for Consumer");
-    callback(ResultNotConnected);
+    const auto requestId = client->newRequestId();
+    seekAsyncInternal(requestId, Commands::newSeek(consumerId_, requestId, timestamp), MessageId::earliest(),
+                      timestamp, callback);
 }
 
 bool ConsumerImpl::isReadCompacted() { return readCompacted_; }
@@ -1255,9 +1240,10 @@ inline bool hasMoreMessages(const MessageId& lastMessageIdInBroker, const Messag
 }
 
 void ConsumerImpl::hasMessageAvailableAsync(HasMessageAvailableCallback callback) {
+    const auto startMessageId = startMessageId_.get();
     Lock lock(mutexForMessageId_);
     const auto messageId =
-        (lastDequedMessageId_ == MessageId::earliest()) ? startMessageId_.value() : lastDequedMessageId_;
+        (lastDequedMessageId_ == MessageId::earliest()) ? startMessageId.value() : lastDequedMessageId_;
 
     if (messageId == MessageId::latest()) {
         lock.unlock();
@@ -1379,5 +1365,58 @@ void ConsumerImpl::trackMessage(const MessageId& messageId) {
 bool ConsumerImpl::isConnected() const { return !getCnx().expired() && state_ == Ready; }
 
 uint64_t ConsumerImpl::getNumberOfConnectedConsumer() { return isConnected() ? 1 : 0; }
+
+void ConsumerImpl::seekAsyncInternal(long requestId, SharedBuffer seek, const MessageId& seekId,
+                                     long timestamp, ResultCallback callback) {
+    ClientConnectionPtr cnx = getCnx().lock();
+    if (!cnx) {
+        LOG_ERROR(getName() << " Client Connection not ready for Consumer");
+        callback(ResultNotConnected);
+        return;
+    }
+
+    const auto originalSeekMessageId = seekMessageId_.get();
+    seekMessageId_ = seekId;
+    duringSeek_ = true;
+    if (timestamp > 0) {
+        LOG_INFO(getName() << " Seeking subscription to " << timestamp);
+    } else {
+        LOG_INFO(getName() << " Seeking subscription to " << seekId);
+    }
+
+    std::weak_ptr<ConsumerImpl> weakSelf{shared_from_this()};
+
+    cnx->sendRequestWithId(seek, requestId)
+        .addListener([this, weakSelf, callback, originalSeekMessageId](Result result,
+                                                                       const ResponseData& responseData) {
+            auto self = weakSelf.lock();
+            if (!self) {
+                callback(result);
+                return;
+            }
+            if (result == ResultOk) {
+                LOG_INFO(getName() << "Seek successfully");
+                ackGroupingTrackerPtr_->flushAndClean();
+                Lock lock(mutexForMessageId_);
+                lastDequedMessageId_ = MessageId::earliest();
+                lock.unlock();
+            } else {
+                LOG_ERROR(getName() << "Failed to seek: " << result);
+                seekMessageId_ = originalSeekMessageId;
+                duringSeek_ = false;
+            }
+            callback(result);
+        });
+}
+
+bool ConsumerImpl::isPriorBatchIndex(int32_t idx) {
+    return config_.isStartMessageIdInclusive() ? idx < startMessageId_.get().value().batchIndex()
+                                               : idx <= startMessageId_.get().value().batchIndex();
+}
+
+bool ConsumerImpl::isPriorEntryIndex(int64_t idx) {
+    return config_.isStartMessageIdInclusive() ? idx < startMessageId_.get().value().entryId()
+                                               : idx <= startMessageId_.get().value().entryId();
+}
 
 } /* namespace pulsar */

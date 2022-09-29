@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.admin.v2;
 
 import static org.apache.pulsar.common.policies.data.PoliciesUtil.getBundles;
-import com.google.common.collect.Sets;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
@@ -2319,7 +2318,7 @@ public class Namespaces extends NamespacesBase {
     public void removeSubscriptionTypesEnabled(@PathParam("tenant") String tenant,
                                                @PathParam("namespace") String namespace) {
             validateNamespaceName(tenant, namespace);
-            internalSetSubscriptionTypesEnabled(Sets.newHashSet());
+            internalSetSubscriptionTypesEnabled(new HashSet<>());
     }
 
     @GET

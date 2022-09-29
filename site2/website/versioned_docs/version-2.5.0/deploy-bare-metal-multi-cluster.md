@@ -9,17 +9,17 @@ original_id: deploy-bare-metal-multi-cluster
 
 1. Single-cluster Pulsar installations should be sufficient for all but the most ambitious use cases. If you are interested in experimenting with
 Pulsar or using it in a startup or on a single team, you had better opt for a single cluster. For instructions on deploying a single cluster,
-see the guide [here](deploy-bare-metal).
-2. If you want to use all builtin [Pulsar IO](io-overview) connectors in your Pulsar deployment, you need to download `apache-pulsar-io-connectors`
+see the guide [here](deploy-bare-metal.md).
+2. If you want to use all builtin [Pulsar IO](io-overview.md) connectors in your Pulsar deployment, you need to download `apache-pulsar-io-connectors`
 package and install `apache-pulsar-io-connectors` under `connectors` directory in the pulsar directory on every broker node or on every function-worker node if you
-run a separate cluster of function workers for [Pulsar Functions](functions-overview).
-3. If you want to use [Tiered Storage](concepts-tiered-storage) feature in your Pulsar deployment, you need to download `apache-pulsar-offloaders`
+run a separate cluster of function workers for [Pulsar Functions](functions-overview.md).
+3. If you want to use [Tiered Storage](concepts-tiered-storage.md) feature in your Pulsar deployment, you need to download `apache-pulsar-offloaders`
 package and install `apache-pulsar-offloaders` under `offloaders` directory in the pulsar directory on every broker node. For more details of how to configure
-this feature, you can refer to the [Tiered storage cookbook](cookbooks-tiered-storage).
+this feature, you can refer to the [Tiered storage cookbook](cookbooks-tiered-storage.md).
 
 :::
 
-A Pulsar *instance* consists of multiple Pulsar clusters working in unison. You can distribute clusters across data centers or geographical regions and replicate the clusters amongst themselves using [geo-replication](administration-geo). Deploying a multi-cluster Pulsar instance involves the following basic steps:
+A Pulsar *instance* consists of multiple Pulsar clusters working in unison. You can distribute clusters across data centers or geographical regions and replicate the clusters amongst themselves using [geo-replication](administration-geo.md). Deploying a multi-cluster Pulsar instance involves the following basic steps:
 
 * Deploying two separate [ZooKeeper](#deploy-zookeeper) quorums: a [local](#deploy-local-zookeeper) quorum for each cluster in the instance and a [configuration store](#configuration-store) quorum for instance-wide tasks
 * Initializing [cluster metadata](#cluster-metadata-initialization) for each cluster
@@ -29,7 +29,7 @@ A Pulsar *instance* consists of multiple Pulsar clusters working in unison. You 
 If you want to deploy a single Pulsar cluster, see [Clusters and Brokers](getting-started-standalone.md#start-the-cluster).
 
 > #### Run Pulsar locally or on Kubernetes?
-> This guide shows you how to deploy Pulsar in production in a non-Kubernetes environment. If you want to run a standalone Pulsar cluster on a single machine for development purposes, see the [Setting up a local cluster](getting-started-standalone.md) guide. If you want to run Pulsar on [Kubernetes](https://kubernetes.io), see the [Pulsar on Kubernetes](deploy-kubernetes) guide, which includes sections on running Pulsar on Kubernetes on [Google Kubernetes Engine](deploy-kubernetes#pulsar-on-google-kubernetes-engine) and on [Amazon Web Services](deploy-kubernetes#pulsar-on-amazon-web-services).
+> This guide shows you how to deploy Pulsar in production in a non-Kubernetes environment. If you want to run a standalone Pulsar cluster on a single machine for development purposes, see the [Setting up a local cluster](getting-started-standalone.md) guide. If you want to run Pulsar on [Kubernetes](https://kubernetes.io), see the [Pulsar on Kubernetes](deploy-kubernetes.md) guide, which includes sections on running Pulsar on Kubernetes on [Google Kubernetes Engine](deploy-kubernetes#pulsar-on-google-kubernetes-engine) and on [Amazon Web Services](deploy-kubernetes#pulsar-on-amazon-web-services).
 
 ## System requirement
 Currently, Pulsar is available for 64-bit **macOS**, **Linux**, and **Windows**. To use Pulsar, you need to install 64-bit JRE/JDK 8 or later versions.
@@ -245,7 +245,7 @@ As you can see from the example above, you need to specify the following:
 * The web service URL for the cluster
 * A broker service URL enabling interaction with the [brokers](reference-terminology.md#broker) in the cluster
 
-If you use [TLS](security-tls-transport), you also need to specify a TLS web service URL for the cluster as well as a TLS broker service URL for the brokers in the cluster.
+If you use [TLS](security-tls-transport.md), you also need to specify a TLS web service URL for the cluster as well as a TLS broker service URL for the brokers in the cluster.
 
 Make sure to run `initialize-cluster-metadata` for each cluster in your instance.
 
@@ -364,17 +364,17 @@ $ bin/pulsar broker
 
 ## Service discovery
 
-[Clients](getting-started-clients) connecting to Pulsar brokers need to be able to communicate with an entire Pulsar instance using a single URL. Pulsar provides a built-in service discovery mechanism that you can set up using the instructions [immediately below](#service-discovery-setup).
+[Clients](getting-started-clients.md) connecting to Pulsar brokers need to be able to communicate with an entire Pulsar instance using a single URL. Pulsar provides a built-in service discovery mechanism that you can set up using the instructions [immediately below](#service-discovery-setup).
 
-You can also use your own service discovery system if you want. If you use your own system, you only need to satisfy just one requirement: when a client performs an HTTP request to an [endpoint](reference-configuration) for a Pulsar cluster, such as `http://pulsar.us-west.example.com:8080`, the client needs to be redirected to *some* active broker in the desired cluster, whether via DNS, an HTTP or IP redirect, or some other means.
+You can also use your own service discovery system if you want. If you use your own system, you only need to satisfy just one requirement: when a client performs an HTTP request to an [endpoint](reference-configuration.md) for a Pulsar cluster, such as `http://pulsar.us-west.example.com:8080`, the client needs to be redirected to *some* active broker in the desired cluster, whether via DNS, an HTTP or IP redirect, or some other means.
 
 > #### Service discovery already provided by many scheduling systems
-> Many large-scale deployment systems, such as [Kubernetes](deploy-kubernetes), have service discovery systems built in. If you run Pulsar on such a system, you may not need to provide your own service discovery mechanism.
+> Many large-scale deployment systems, such as [Kubernetes](deploy-kubernetes.md), have service discovery systems built in. If you run Pulsar on such a system, you may not need to provide your own service discovery mechanism.
 
 
 ### Service discovery setup
 
-The service discovery mechanism that included with Pulsar maintains a list of active brokers, which stored in ZooKeeper, and supports lookup using HTTP and also the [binary protocol](developing-binary-protocol) of Pulsar.
+The service discovery mechanism that included with Pulsar maintains a list of active brokers, which stored in ZooKeeper, and supports lookup using HTTP and also the [binary protocol](developing-binary-protocol.md) of Pulsar.
 
 To get started setting up the built-in service of discovery of Pulsar, you need to change a few parameters in the [`conf/discovery.conf`](reference-configuration.md#service-discovery) configuration file. Set the [`zookeeperServers`](reference-configuration.md#service-discovery-zookeeperServers) parameter to the ZooKeeper quorum connection string of the cluster and the [`configurationStoreServers`](reference-configuration.md#service-discovery-configurationStoreServers) setting to the [configuration
 store](reference-terminology.md#configuration-store) quorum connection string.
@@ -399,7 +399,7 @@ $ bin/pulsar-daemon start discovery
 
 ## Admin client and verification
 
-At this point your Pulsar instance should be ready to use. You can now configure client machines that can serve as [administrative clients](admin-api-overview) for each cluster. You can use the [`conf/client.conf`](reference-configuration.md#client) configuration file to configure admin clients.
+At this point your Pulsar instance should be ready to use. You can now configure client machines that can serve as [administrative clients](admin-api-overview.md) for each cluster. You can use the [`conf/client.conf`](reference-configuration.md#client) configuration file to configure admin clients.
 
 The most important thing is that you point the [`serviceUrl`](reference-configuration.md#client-serviceUrl) parameter to the correct service URL for the cluster:
 

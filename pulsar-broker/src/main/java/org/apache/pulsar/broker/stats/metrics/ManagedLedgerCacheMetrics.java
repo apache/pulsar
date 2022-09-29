@@ -18,11 +18,11 @@
  */
 package org.apache.pulsar.broker.stats.metrics;
 
-import com.google.common.collect.Lists;
 import io.netty.buffer.PoolArenaMetric;
 import io.netty.buffer.PoolChunkListMetric;
 import io.netty.buffer.PoolChunkMetric;
 import io.netty.buffer.PooledByteBufAllocator;
+import java.util.ArrayList;
 import java.util.List;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryMXBean;
 import org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheImpl;
@@ -34,7 +34,7 @@ public class ManagedLedgerCacheMetrics extends AbstractMetrics {
     private List<Metrics> metrics;
     public ManagedLedgerCacheMetrics(PulsarService pulsar) {
         super(pulsar);
-        this.metrics = Lists.newArrayList();
+        this.metrics = new ArrayList<>();
     }
 
     @Override
