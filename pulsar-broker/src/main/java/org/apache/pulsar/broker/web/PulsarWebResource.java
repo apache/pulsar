@@ -1283,7 +1283,7 @@ public abstract class PulsarWebResource {
         if (realCause instanceof WebApplicationException) {
             asyncResponse.resume(realCause);
         } else if (realCause instanceof BrokerServiceException.NotAllowedException) {
-            asyncResponse.resume(new RestException(Status.CONFLICT, realCause));
+            asyncResponse.resume(new RestException(Status.METHOD_NOT_ALLOWED, realCause));
         } else if (realCause instanceof MetadataStoreException.NotFoundException) {
             asyncResponse.resume(new RestException(Status.NOT_FOUND, realCause));
         } else if (realCause instanceof MetadataStoreException.BadVersionException) {
