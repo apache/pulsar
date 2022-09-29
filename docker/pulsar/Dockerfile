@@ -26,9 +26,6 @@ ADD ${PULSAR_TARBALL} /
 RUN mv /apache-pulsar-* /pulsar
 RUN rm -rf /pulsar/bin/*.cmd
 
-ARG PULSAR_CLIENT_PYTHON_VERSION
-ENV PULSAR_CLIENT_PYTHON_VERSION ${PULSAR_CLIENT_PYTHON_VERSION}
-
 COPY scripts/apply-config-from-env.py /pulsar/bin
 COPY scripts/apply-config-from-env-with-prefix.py /pulsar/bin
 COPY scripts/gen-yml-from-env.py /pulsar/bin
@@ -96,6 +93,9 @@ ENV PULSAR_ROOT_LOGGER=INFO,CONSOLE
 
 COPY --from=pulsar /pulsar /pulsar
 WORKDIR /pulsar
+
+ARG PULSAR_CLIENT_PYTHON_VERSION
+ENV PULSAR_CLIENT_PYTHON_VERSION ${PULSAR_CLIENT_PYTHON_VERSION}
 
 # This script is intentionally run as the root user to make the dependencies available for all UIDs.
 RUN /pulsar/bin/install-pulsar-client.sh
