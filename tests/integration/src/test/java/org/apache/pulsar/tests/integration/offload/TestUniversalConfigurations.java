@@ -72,7 +72,7 @@ public class TestUniversalConfigurations extends TestBaseOffload {
     @Override
     protected Map<String, String> getEnv() {
         Map<String, String> result = new HashMap<>();
-        result.put("managedLedgerMaxEntriesPerLedger", String.valueOf(getNumEntriesPerLedger()));
+        result.put("managedLedgerMaxEntriesPerLedger", String.valueOf(ENTRIES_PER_LEDGER));
         result.put("managedLedgerMinLedgerRolloverTimeMinutes", "0");
         result.put("managedLedgerOffloadDriver", "aws-s3");
         result.put("managedLedgerOffloadBucket", "pulsar-integtest");
