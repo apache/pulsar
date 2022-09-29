@@ -58,8 +58,8 @@ public class AutoClusterFailover implements ServiceUrlProvider {
     private final long failoverDelayNs;
     private final long switchBackDelayNs;
     private final ScheduledExecutorService executor;
-    private long recoverTimestamp;
-    private long failedTimestamp;
+    private volatile long recoverTimestamp;
+    private volatile long failedTimestamp;
     private final long intervalMs;
     private static final int TIMEOUT = 30_000;
     private final PulsarServiceNameResolver resolver;

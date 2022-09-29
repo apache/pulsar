@@ -7,7 +7,7 @@ original_id: io-quickstart
 
 This tutorial provides a hands-on look at how you can move data out of Pulsar without writing a single line of code.  
 
-It is helpful to review the [concepts](io-overview) for Pulsar I/O with running the steps in this guide to gain a deeper understanding.   
+It is helpful to review the [concepts](io-overview.md) for Pulsar I/O with running the steps in this guide to gain a deeper understanding.   
 
 At the end of this tutorial, you are able to:
 
@@ -17,7 +17,7 @@ At the end of this tutorial, you are able to:
 
 :::tip
 
-* These instructions assume you are running Pulsar in [standalone mode](getting-started-standalone). However, all
+* These instructions assume you are running Pulsar in [standalone mode](getting-started-standalone.md). However, all
 the commands used in this tutorial can be used in a multi-nodes Pulsar cluster without any changes.
 * All the instructions are assumed to run at the root directory of a Pulsar binary distribution.
 
@@ -109,7 +109,7 @@ This section demonstrates how to connector Pulsar to Cassandra.
 :::tip
 
 * Make sure you have Docker installed. If you do not have one, see [install Docker](https://docs.docker.com/docker-for-mac/install/).
-* The Cassandra sink connector reads messages from Pulsar topics and writes the messages into Cassandra tables. For more information, see [Cassandra sink connector](io-cassandra-sink).
+* The Cassandra sink connector reads messages from Pulsar topics and writes the messages into Cassandra tables. For more information, see [Cassandra sink connector](io-cassandra-sink.md).
 
 :::
 
@@ -236,11 +236,11 @@ You can create a configuration file through one of the following methods.
   
   ```
 
-For more information, see [Cassandra sink connector](io-cassandra-sink).
+For more information, see [Cassandra sink connector](io-cassandra-sink.md).
 
 ### Create a Cassandra sink
 
-You can use the [Connector Admin CLI](io-cli) 
+You can use the [Connector Admin CLI](io-cli.md) 
 to create a sink connector and perform other operations on them.
 
 Run the following command to create a Cassandra sink connector with sink type _cassandra_ and the config file _examples/cassandra-sink.yml_ created previously.
@@ -268,7 +268,7 @@ as a Pulsar Function and writes the messages produced in the topic _test_cassand
 
 ### Inspect a Cassandra sink
 
-You can use the [Connector Admin CLI](io-cli) 
+You can use the [Connector Admin CLI](io-cli.md) 
 to monitor a connector and perform other operations on it.
 
 * Get the information of a Cassandra sink. 
@@ -432,7 +432,7 @@ to monitor a connector and perform other operations on it.
 
 ### Delete a Cassandra Sink
 
-You can use the [Connector Admin CLI](io-cli) 
+You can use the [Connector Admin CLI](io-cli.md) 
 to delete a connector and perform other operations on it.
 
 ```bash
@@ -451,7 +451,7 @@ This section demonstrates how to connector Pulsar to MySQL.
 :::tip
 
 * Make sure you have Docker installed. If you do not have one, see [install Docker](https://docs.docker.com/docker-for-mac/install/).
-* The JDBC sink connector pulls messages from Pulsar topics and persists the messages to MySQL or SQlite. For more information, see [JDBC sink connector](io-jdbc-sink).
+* The JDBC sink connector pulls messages from Pulsar topics and persists the messages to MySQL or SQlite. For more information, see [JDBC sink connector](io-jdbc-sink.md).
 
 :::
 
@@ -624,7 +624,7 @@ In this section, you need to configure a JDBC sink connector.
 
 ### Create a JDBC sink
 
-You can use the [Connector Admin CLI](io-cli) 
+You can use the [Connector Admin CLI](io-cli.md) 
 to create a sink connector and perform other operations on it.
 
 This example creates a sink connector and specifies the desired information.
@@ -670,7 +670,7 @@ The sink has been created successfully if the following message appears.
 
 ### Inspect a JDBC sink
 
-You can use the [Connector Admin CLI](io-cli) 
+You can use the [Connector Admin CLI](io-cli.md) 
 to monitor a connector and perform other operations on it.
 
 * List all running JDBC sink(s).
@@ -790,7 +790,7 @@ to monitor a connector and perform other operations on it.
 
 ### Stop a JDBC sink
 
-You can use the [Connector Admin CLI](io-cli) 
+You can use the [Connector Admin CLI](io-cli.md) 
 to stop a connector and perform other operations on it.
 
 ```bash
@@ -819,7 +819,7 @@ The sink instance has been stopped successfully if the following message disappe
 
 ### Restart a JDBC sink
 
-You can use the [Connector Admin CLI](io-cli) 
+You can use the [Connector Admin CLI](io-cli.md) 
 to restart a connector and perform other operations on it.
 
 ```bash
@@ -856,7 +856,7 @@ Note that `pulsar-admin sinks localrun options` **runs a sink connector locally*
 
 ### Update a JDBC sink
 
-You can use the [Connector Admin CLI](io-cli) 
+You can use the [Connector Admin CLI](io-cli.md) 
 to update a connector and perform other operations on it.
 
 This example updates the parallelism of the _pulsar-mysql-jdbc-sink_ sink connector to 2.
@@ -924,7 +924,7 @@ The result shows that the parallelism is 2.
 
 ### Delete a JDBC sink
 
-You can use the [Connector Admin CLI](io-cli) 
+You can use the [Connector Admin CLI](io-cli.md) 
 to delete a connector and perform other operations on it.
 
 This example deletes the _pulsar-mysql-jdbc-sink_ sink connector.

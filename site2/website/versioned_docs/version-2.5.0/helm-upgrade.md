@@ -20,7 +20,7 @@ pass this file via `-f`. Thus `helm upgrade <release-name> charts/pulsar -f puls
 The following are the steps to upgrade Apache Pulsar to a newer version:
 
 1. Check the change log for the specific version you would like to upgrade to
-2. Go through [deployment documentation](helm-deploy) step by step
+2. Go through [deployment documentation](helm-deploy.md) step by step
 3. Extract your previous `--set` arguments with
 
    ```bash

@@ -46,6 +46,7 @@
 #include <lib/stats/ConsumerStatsDisabled.h>
 #include <queue>
 #include <atomic>
+#include "Synchronized.h"
 
 using namespace pulsar;
 
@@ -69,7 +70,7 @@ class ConsumerImpl : public ConsumerImplBase,
                      public std::enable_shared_from_this<ConsumerImpl> {
    public:
     ConsumerImpl(const ClientImplPtr client, const std::string& topic, const std::string& subscriptionName,
-                 const ConsumerConfiguration&,
+                 const ConsumerConfiguration&, bool isPersistent,
                  const ExecutorServicePtr listenerExecutor = ExecutorServicePtr(), bool hasParent = false,
                  const ConsumerTopicType consumerTopicType = NonPartitioned,
                  Commands::SubscriptionMode = Commands::SubscriptionModeDurable,
@@ -138,7 +139,6 @@ class ConsumerImpl : public ConsumerImplBase,
 
     virtual void redeliverMessages(const std::set<MessageId>& messageIds);
 
-    void handleSeek(Result result, ResultCallback callback);
     virtual bool isReadCompacted();
     virtual void hasMessageAvailableAsync(HasMessageAvailableCallback callback);
     virtual void getLastMessageIdAsync(BrokerGetLastMessageIdCallback callback);
@@ -169,6 +169,8 @@ class ConsumerImpl : public ConsumerImplBase,
     void drainIncomingMessageQueue(size_t count);
     uint32_t receiveIndividualMessagesFromBatch(const ClientConnectionPtr& cnx, Message& batchedMessage,
                                                 int redeliveryCount);
+    bool isPriorBatchIndex(int32_t idx);
+    bool isPriorEntryIndex(int64_t idx);
     void brokerConsumerStatsListener(Result, BrokerConsumerStatsImpl, BrokerConsumerStatsCallback);
 
     bool decryptMessageIfNeeded(const ClientConnectionPtr& cnx, const proto::CommandMessage& msg,
@@ -187,11 +189,14 @@ class ConsumerImpl : public ConsumerImplBase,
                                        BrokerGetLastMessageIdCallback callback);
 
     Optional<MessageId> clearReceiveQueue();
+    void seekAsyncInternal(long requestId, SharedBuffer seek, const MessageId& seekId, long timestamp,
+                           ResultCallback callback);
 
     std::mutex mutexForReceiveWithZeroQueueSize;
     const ConsumerConfiguration config_;
     const std::string subscription_;
     std::string originalSubscriptionName_;
+    const bool isPersistent_;
     MessageListener messageListener_;
     ConsumerEventListenerPtr eventListener_;
     ExecutorServicePtr listenerExecutor_;
@@ -220,11 +225,14 @@ class ConsumerImpl : public ConsumerImplBase,
     MessageCryptoPtr msgCrypto_;
     const bool readCompacted_;
 
-    // Make the access to `startMessageId_`, `lastDequedMessageId_` and `lastMessageIdInBroker_` thread safe
+    // Make the access to `lastDequedMessageId_` and `lastMessageIdInBroker_` thread safe
     mutable std::mutex mutexForMessageId_;
-    Optional<MessageId> startMessageId_;
     MessageId lastDequedMessageId_{MessageId::earliest()};
     MessageId lastMessageIdInBroker_{MessageId::earliest()};
+
+    std::atomic_bool duringSeek_{false};
+    Synchronized<Optional<MessageId>> startMessageId_{Optional<MessageId>::empty()};
+    Synchronized<MessageId> seekMessageId_{MessageId::earliest()};
 
     class ChunkedMessageCtx {
        public:

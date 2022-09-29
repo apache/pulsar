@@ -19,21 +19,21 @@
 package org.apache.pulsar.broker.namespace;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.String.format;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.common.naming.NamespaceName.SYSTEM_NAMESPACE;
-import com.google.common.collect.Lists;
 import com.google.common.hash.Hashing;
 import io.prometheus.client.Counter;
 import java.net.URI;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -549,7 +549,7 @@ public class NamespaceService implements AutoCloseable {
         }
 
         try {
-            checkNotNull(candidateBroker);
+            Objects.requireNonNull(candidateBroker);
 
             if (candidateBroker.equals(pulsar.getSafeWebServiceAddress())) {
                 // Load manager decided that the local broker should try to become the owner
@@ -865,8 +865,8 @@ public class NamespaceService implements AutoCloseable {
                                     return;
                                 }
 
-                                checkNotNull(splittedBundles.getLeft());
-                                checkNotNull(splittedBundles.getRight());
+                                Objects.requireNonNull(splittedBundles.getLeft());
+                                Objects.requireNonNull(splittedBundles.getRight());
                                 checkArgument(splittedBundles.getRight().size() == splitBoundaries.size() + 1,
                                         "bundle has to be split in " + (splitBoundaries.size() + 1) + " bundles");
                                 NamespaceName nsname = bundle.getNamespaceObject();
@@ -878,7 +878,7 @@ public class NamespaceService implements AutoCloseable {
                                 try {
                                     // take ownership of newly split bundles
                                     for (NamespaceBundle sBundle : splittedBundles.getRight()) {
-                                        checkNotNull(ownershipCache.tryAcquiringOwnership(sBundle));
+                                        Objects.requireNonNull(ownershipCache.tryAcquiringOwnership(sBundle));
                                     }
                                     updateNamespaceBundles(nsname, splittedBundles.getLeft())
                                             .thenRun(() -> {
@@ -968,8 +968,8 @@ public class NamespaceService implements AutoCloseable {
      * @throws Exception
      */
     private CompletableFuture<Void> updateNamespaceBundles(NamespaceName nsname, NamespaceBundles nsBundles) {
-        checkNotNull(nsname);
-        checkNotNull(nsBundles);
+        Objects.requireNonNull(nsname);
+        Objects.requireNonNull(nsBundles);
 
         LocalPolicies localPolicies = nsBundles.toLocalPolicies();
 
@@ -1088,7 +1088,7 @@ public class NamespaceService implements AutoCloseable {
     }
 
     public void addNamespaceBundleOwnershipListener(NamespaceBundleOwnershipListener... listeners) {
-        checkNotNull(listeners);
+        Objects.requireNonNull(listeners);
         for (NamespaceBundleOwnershipListener listener : listeners) {
             if (listener != null) {
                 bundleOwnershipListeners.add(listener);
@@ -1208,9 +1208,9 @@ public class NamespaceService implements AutoCloseable {
                 .listPartitionedTopicsAsync(namespaceName, topicDomain)
                 .thenCompose(topics -> {
             CompletableFuture<List<String>> result = new CompletableFuture<>();
-            List<String> resultPartitions = Collections.synchronizedList(Lists.newArrayList());
+            List<String> resultPartitions = Collections.synchronizedList(new ArrayList<>());
             if (CollectionUtils.isNotEmpty(topics)) {
-                List<CompletableFuture<List<String>>> futures = Lists.newArrayList();
+                List<CompletableFuture<List<String>>> futures = new ArrayList<>();
                 for (String topic : topics) {
                     CompletableFuture<List<String>> future = getPartitionsForTopic(TopicName.get(topic));
                     futures.add(future);
@@ -1232,7 +1232,7 @@ public class NamespaceService implements AutoCloseable {
 
     private CompletableFuture<List<String>> getPartitionsForTopic(TopicName topicName) {
         return pulsar.getBrokerService().fetchPartitionedTopicMetadataAsync(topicName).thenCompose(meta -> {
-            List<String> result = Lists.newArrayList();
+            List<String> result = new ArrayList<>();
             for (int i = 0; i < meta.partitions; i++) {
                 result.add(topicName.getPartition(i).toString());
             }
@@ -1255,7 +1255,7 @@ public class NamespaceService implements AutoCloseable {
                     } else {
                         // Non-persistent topics don't have managed ledgers so we have to retrieve them from local
                         // cache.
-                        List<String> topics = Lists.newArrayList();
+                        List<String> topics = new ArrayList<>();
                         synchronized (pulsar.getBrokerService().getMultiLayerTopicMap()) {
                             if (pulsar.getBrokerService().getMultiLayerTopicMap()
                                     .containsKey(namespaceName.toString())) {

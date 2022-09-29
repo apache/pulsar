@@ -4,21 +4,21 @@ title: Pulsar SQL REST APIs
 sidebar_label: "REST APIs"
 ---
 
-This section lists resources that make up the Presto REST API v1. 
+This section lists resources that make up the Trino REST API v1. 
 
-## Request for Presto services
+## Request for Trino services
 
-All requests for Presto services should use Presto REST API v1 version. 
+All requests for Trino services should use Trino REST API v1 version. 
 
-To request services, use the explicit URL `http://presto.service:8081/v1``. You need to update `presto.service:8081` with your real Presto address before sending requests.
+To request services, use the explicit URL `http://trino.service:8081/v1``. You need to update `trino.service:8081` with your real Trino address before sending requests.
 
-`POST` requests require the `X-Presto-User` header. If you use authentication, you must use the same `username` that is specified in the authentication configuration. If you do not use authentication, you can specify anything for `username`.
+`POST` requests require the `X-Trino-User` header. If you use authentication, you must use the same `username` that is specified in the authentication configuration. If you do not use authentication, you can specify anything for `username`.
 
-```properties
-X-Presto-User: username
+```http
+X-Trino-User: username
 ```
 
-For more information about headers, refer to [PrestoHeaders](https://github.com/trinodb/trino).
+For more information about headers, refer to [client request headers](https://trino.io/docs/363/develop/client-protocol.html#client-request-headers).
 
 ## Schema
 
@@ -26,8 +26,13 @@ You can use statement in the HTTP body. All data is received as JSON document th
 
 The following is an example of `show catalogs`. The query continues until the received JSON document does not contain a `nextUri` link. Since no `error` is displayed in `stats`, it means that the query completes successfully.
 
-```powershell
-➜  ~ curl --header "X-Presto-User: test-user" --request POST --data 'show catalogs' http://localhost:8081/v1/statement
+```bash
+curl --header "X-Trino-User: test-user" --request POST --data 'show catalogs' http://localhost:8081/v1/statement
+```
+
+Output:
+
+```json
 {
    "infoUri" : "http://localhost:8081/ui/query.html?20191113_033653_00006_dg6hb",
    "stats" : {
@@ -51,8 +56,15 @@ The following is an example of `show catalogs`. The query continues until the re
    "id" : "20191113_033653_00006_dg6hb",
    "nextUri" : "http://localhost:8081/v1/statement/20191113_033653_00006_dg6hb/1"
 }
+```
 
-➜  ~ curl http://localhost:8081/v1/statement/20191113_033653_00006_dg6hb/1
+```bash
+curl http://localhost:8081/v1/statement/20191113_033653_00006_dg6hb/1
+```
+
+Output:
+
+```json
 {
    "infoUri" : "http://localhost:8081/ui/query.html?20191113_033653_00006_dg6hb",
    "nextUri" : "http://localhost:8081/v1/statement/20191113_033653_00006_dg6hb/2",
@@ -76,8 +88,15 @@ The following is an example of `show catalogs`. The query continues until the re
       "peakMemoryBytes" : 0
    }
 }
+```
 
-➜  ~ curl http://localhost:8081/v1/statement/20191113_033653_00006_dg6hb/2
+```bash
+curl http://localhost:8081/v1/statement/20191113_033653_00006_dg6hb/2
+```
+
+Output:
+
+```json
 {
    "id" : "20191113_033653_00006_dg6hb",
    "data" : [
@@ -184,4 +203,4 @@ Since the response data is not in sync with the query state from the perspective
 
 :::
 
-For more information about Presto REST API, refer to [Presto HTTP Protocol](https://github.com/prestosql/presto/wiki/HTTP-Protocol).
+For more information about Trino REST API, refer to [Trino client REST API](https://trino.io/docs/363/develop/client-protocol.html).

@@ -393,7 +393,7 @@ The Apache Software License, Version 2.0
   * RocksDB JNI
     - rocksdbjni-6.29.4.1.jar
   * SnakeYAML
-    - snakeyaml-1.31.jar
+    - snakeyaml-1.32.jar
   * Bean Validation API
     - validation-api-2.0.1.Final.jar
   * Objectsize
@@ -505,7 +505,7 @@ MIT License
  * JCL 1.2 Implemented Over SLF4J
    - jcl-over-slf4j-1.7.32.jar
  * Checker Qual
-   - checker-qual-3.12.0.jar 
+   - checker-qual-3.12.0.jar
  * Annotations
    - animal-sniffer-annotations-1.19.jar
    - annotations-4.1.1.4.jar
