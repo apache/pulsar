@@ -1663,6 +1663,8 @@ public class BrokerService implements Closeable {
                         }
                     }
 
+                    managedLedgerConfig.setMaxAckEntryNumForAutoSkipNonRecoverableData(
+                            serviceConfig.getMaxAckEntryNumForAutoSkipNonRecoverableData());
                     managedLedgerConfig.setThrottleMarkDelete(persistencePolicies.getManagedLedgerMaxMarkDeleteRate());
                     managedLedgerConfig.setDigestType(serviceConfig.getManagedLedgerDigestType());
                     managedLedgerConfig.setPassword(serviceConfig.getManagedLedgerPassword());

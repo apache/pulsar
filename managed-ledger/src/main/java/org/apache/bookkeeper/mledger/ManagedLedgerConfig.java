@@ -86,12 +86,23 @@ public class ManagedLedgerConfig {
     private int minimumBacklogEntriesForCaching = 1000;
     private int maxBacklogBetweenCursorsForCaching = 1000;
 
+    private int maxAckEntryNumForAutoSkipNonRecoverableData = 10000;
+
     public boolean isCreateIfMissing() {
         return createIfMissing;
     }
 
     public ManagedLedgerConfig setCreateIfMissing(boolean createIfMissing) {
         this.createIfMissing = createIfMissing;
+        return this;
+    }
+
+    public int getMaxAckEntryNumForAutoSkipNonRecoverableData() {
+        return maxAckEntryNumForAutoSkipNonRecoverableData;
+    }
+
+    public ManagedLedgerConfig setMaxAckEntryNumForAutoSkipNonRecoverableData(int maxAckEntryNum) {
+        this.maxAckEntryNumForAutoSkipNonRecoverableData = maxAckEntryNum;
         return this;
     }
 

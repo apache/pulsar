@@ -2008,7 +2008,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Skip reading non-recoverable/unreadable data-ledger under managed-ledger's list.\n\n"
             + " It helps when data-ledgers gets corrupted at bookkeeper and managed-cursor is stuck at that ledger."
     )
-    private boolean autoSkipNonRecoverableData = false;
+        private boolean autoSkipNonRecoverableData = false;
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_STORAGE_ML,
+            doc = "When autoSkipNonRecoverableData=true, "
+                    + "the upper limit of the number of entries skipped by automatic ack."
+    )
+    private int maxAckEntryNumForAutoSkipNonRecoverableData = 10000;
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
         doc = "operation timeout while updating managed-ledger metadata."
