@@ -2450,7 +2450,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     void internalTrimLedgers(boolean isTruncate, CompletableFuture<?> promise) {
         if (!factory.isMetadataServiceAvailable()) {
             // Defer trimming of ledger if we cannot connect to metadata service
-            promise.completeExceptionally(new MetaStoreException("Metadata service is not available"));
+            promise.complete(null);
             return;
         }
 
@@ -2722,29 +2722,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     @Override
     public void asyncDelete(final DeleteLedgerCallback callback, final Object ctx) {
-
         // Delete the managed ledger without closing, since we are not interested in gracefully closing cursors and
         // ledgers
         setFenced();
         cancelScheduledTasks();
-
-        // Truncate to ensure the offloaded data is not orphaned.
-        // Also ensures the BK ledgers are deleted and not just scheduled for deletion
-        CompletableFuture<Void> truncateFuture = asyncTruncate();
-        truncateFuture.whenComplete((ignore, exc) -> {
-            if (exc != null) {
-                log.error("[{}] Error truncating ledger for deletion", name, exc);
-                callback.deleteLedgerFailed(exc instanceof ManagedLedgerException
-                        ? (ManagedLedgerException) exc : new ManagedLedgerException(exc),
-                        ctx);
-            } else {
-                asyncDeleteInternal(callback, ctx);
-            }
-        });
-
-    }
-
-    private void asyncDeleteInternal(final DeleteLedgerCallback callback, final Object ctx) {
 
         List<ManagedCursor> cursors = Lists.newArrayList(this.cursors);
         if (cursors.isEmpty()) {
@@ -2803,9 +2784,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         if (info.getOffloadContext().hasUidMsb()) {
             UUID uuid = new UUID(info.getOffloadContext().getUidMsb(), info.getOffloadContext().getUidLsb());
-            OffloadUtils.cleanupOffloaded(ledgerId, uuid, config,
+            cleanupOffloaded(ledgerId, uuid,
+                    OffloadUtils.getOffloadDriverName(info, config.getLedgerOffloader().getOffloadDriverName()),
                     OffloadUtils.getOffloadDriverMetadata(info, config.getLedgerOffloader().getOffloadDriverMetadata()),
-                    "Trimming", name, scheduledExecutor);
+                    "Trimming");
         }
     }
 
@@ -2860,7 +2842,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 default:
                     // Handle error
                     log.warn("[{}] Failed to delete ledger {} -- {}", name, ls.getLedgerId(),
-                            BKException.getMessage(rc) + " code " + rc);
+                            BKException.getMessage(rc));
                     int toDelete = ledgersToDelete.get();
                     if (toDelete != -1 && ledgersToDelete.compareAndSet(toDelete, -1)) {
                         // Trigger callback only once
@@ -3049,17 +3031,18 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                             // it is possible to get a BadVersion or other exception after retrying.
                                             // So we don't clean up the data if it has metadata operation exception.
                                             log.error("[{}] Failed to update offloaded metadata for the ledgerId {}, "
-                                                            + "the offloaded data will not be cleaned up",
-                                                    name, ledgerId, exception);
+                                                    + "the offloaded data will not be cleaned up",
+                                                name, ledgerId, exception);
+                                            return;
                                         } else {
                                             log.error("[{}] Failed to offload data for the ledgerId {}, "
-                                                            + "clean up the offloaded data",
-                                                    name, ledgerId, exception);
+                                                    + "clean up the offloaded data",
+                                                name, ledgerId, exception);
                                         }
-                                        OffloadUtils.cleanupOffloaded(
-                                            ledgerId, uuid, config,
-                                            driverMetadata,
-                                            "Metastore failure", name, scheduledExecutor);
+                                        cleanupOffloaded(
+                                            ledgerId, uuid,
+                                            driverName, driverMetadata,
+                                            "Metastore failure");
                                     }
                                 });
                     })
@@ -3178,15 +3161,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                                                    oldInfo.getOffloadContext().getUidLsb());
                                            log.info("[{}] Found previous offload attempt for ledger {}, uuid {}"
                                                     + ", cleaning up", name, ledgerId, uuid);
-                                           OffloadUtils.cleanupOffloaded(
+                                           cleanupOffloaded(
                                                ledgerId,
                                                oldUuid,
-                                               config,
+                                               OffloadUtils.getOffloadDriverName(oldInfo,
+                                                   config.getLedgerOffloader().getOffloadDriverName()),
                                                OffloadUtils.getOffloadDriverMetadata(oldInfo,
                                                    config.getLedgerOffloader().getOffloadDriverMetadata()),
-                                               "Previous failed offload",
-                                               name,
-                                               scheduledExecutor);
+                                               "Previous failed offload");
                                        }
                                        LedgerInfo.Builder builder = oldInfo.toBuilder();
                                        builder.getOffloadContextBuilder()
@@ -3244,6 +3226,28 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     } else {
                         log.warn("[{}] Failed to complete offload of ledger {}, uuid {}",
                                  name, ledgerId, uuid, exception);
+                    }
+                });
+    }
+
+    private void cleanupOffloaded(long ledgerId, UUID uuid, String offloadDriverName, /*
+                                                                                       * TODO: use driver name to
+                                                                                       * identify offloader
+                                                                                       */
+            Map<String, String> offloadDriverMetadata, String cleanupReason) {
+        log.info("[{}] Cleanup offload for ledgerId {} uuid {} because of the reason {}.",
+                name, ledgerId, uuid.toString(), cleanupReason);
+        Map<String, String> metadataMap = new HashMap();
+        metadataMap.putAll(offloadDriverMetadata);
+        metadataMap.put("ManagedLedgerName", name);
+
+        Retries.run(Backoff.exponentialJittered(TimeUnit.SECONDS.toMillis(1), TimeUnit.SECONDS.toHours(1)).limit(10),
+                Retries.NonFatalPredicate,
+                () -> config.getLedgerOffloader().deleteOffloaded(ledgerId, uuid, metadataMap),
+                scheduledExecutor, name).whenComplete((ignored, exception) -> {
+                    if (exception != null) {
+                        log.warn("[{}] Error cleaning up offload for {}, (cleanup reason: {})",
+                                name, ledgerId, cleanupReason, exception);
                     }
                 });
     }
@@ -3756,7 +3760,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         } else if (isBkErrorNotRecoverable(bkErrorCode)) {
             return new NonRecoverableLedgerException(BKException.getMessage(bkErrorCode));
         } else {
-            return new ManagedLedgerException(BKException.getMessage(bkErrorCode) + " error code: " + bkErrorCode);
+            return new ManagedLedgerException(BKException.getMessage(bkErrorCode));
         }
     }
 
