@@ -48,8 +48,6 @@ import org.apache.commons.lang.StringUtils;
 public class ServiceURI {
 
     private static final String BINARY_SERVICE = "pulsar";
-
-    private static final String BINARY_SSL_SERVICE = "pulsar+ssl";
     private static final String HTTP_SERVICE = "http";
     private static final String HTTPS_SERVICE = "https";
     private static final String SSL_SERVICE = "ssl";
