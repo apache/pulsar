@@ -297,7 +297,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         negativeAcksTracker.close();
     }
 
-    @Test(timeOut = 10000)
+    @Test(timeOut = 15000)
     public void testNegativeAcksWithBatchAckEnabled() throws Exception {
         cleanup();
         conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
@@ -311,7 +311,8 @@ public class NegativeAcksTest extends ProducerConsumerBase {
                 .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
                 .subscriptionType(SubscriptionType.Shared)
                 .enableBatchIndexAcknowledgment(true)
-                .ackTimeout(1000, TimeUnit.MILLISECONDS)
+                .negativeAckRedeliveryDelay(2, TimeUnit.SECONDS)
+                .ackTimeout(1, TimeUnit.SECONDS)
                 .subscribe();
 
         @Cleanup
