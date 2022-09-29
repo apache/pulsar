@@ -2008,7 +2008,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Skip reading non-recoverable/unreadable data-ledger under managed-ledger's list.\n\n"
             + " It helps when data-ledgers gets corrupted at bookkeeper and managed-cursor is stuck at that ledger."
     )
-        private boolean autoSkipNonRecoverableData = false;
+    private boolean autoSkipNonRecoverableData = false;
     @FieldContext(
             dynamic = true,
             category = CATEGORY_STORAGE_ML,
