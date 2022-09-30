@@ -78,7 +78,7 @@ public class ProxyRefreshAuthTest extends ProducerConsumerBase {
         superUserRoles.add("superUser");
         conf.setSuperUserRoles(superUserRoles);
 
-        conf.setAuthenticationProviders(Set.of(AuthenticationProviderToken.class.getName()));
+        conf.setAuthenticationProviders(Collections.singleton(AuthenticationProviderToken.class.getName()));
         Properties properties = new Properties();
         properties.setProperty("tokenSecretKey", AuthTokenUtils.encodeKeyBase64(SECRET_KEY));
         conf.setProperties(properties);
@@ -118,7 +118,7 @@ public class ProxyRefreshAuthTest extends ProducerConsumerBase {
         proxyConfig.setBrokerClientAuthenticationPlugin(AuthenticationToken.class.getName());
         proxyConfig.setBrokerClientAuthenticationParameters(
                 AuthTokenUtils.createToken(SECRET_KEY, "Proxy", Optional.empty()));
-        proxyConfig.setAuthenticationProviders(Set.of(AuthenticationProviderToken.class.getName()));
+        proxyConfig.setAuthenticationProviders(Collections.singleton(AuthenticationProviderToken.class.getName()));
         Properties properties = new Properties();
         properties.setProperty("tokenSecretKey", AuthTokenUtils.encodeKeyBase64(SECRET_KEY));
         proxyConfig.setProperties(properties);
