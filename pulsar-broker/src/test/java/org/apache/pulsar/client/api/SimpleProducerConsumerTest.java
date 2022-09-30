@@ -140,7 +140,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         for (String tenant : admin.tenants().getTenants()) {
             for (String namespace : admin.namespaces().getNamespaces(tenant)) {
-                admin.namespaces().deleteNamespace(namespace, true);
+                deleteNamespaceGraceFully(namespace, true);
             }
             admin.tenants().deleteTenant(tenant, true);
         }
@@ -2835,6 +2835,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         message = (MessageImpl<byte[]>) consumer1.receive();
         Assert.assertEquals(message.getData(), data);
         Assert.assertEquals(message.getEncryptionCtx().get().getKeys().size(), 1);
+
+        this.conf.setMaxMessageSize(Commands.DEFAULT_MAX_MESSAGE_SIZE);
     }
 
     @Test(timeOut = 100000)
