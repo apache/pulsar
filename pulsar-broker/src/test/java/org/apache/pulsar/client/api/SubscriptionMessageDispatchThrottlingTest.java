@@ -403,7 +403,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
 
         final String namespace = "my-property/throttling_ns";
         final String topicName = BrokerTestUtil.newUniqueName("persistent://" + namespace + "/throttlingAll");
-        final String subName = "my-subscriber-name-" + subscription;
+        final String subName = BrokerTestUtil.newUniqueName("my-subscriber-name-" + subscription);
 
         DispatchRate subscriptionDispatchRate = DispatchRate.builder()
                 .dispatchThrottlingRateInMsg(-1)
