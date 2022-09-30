@@ -58,7 +58,7 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
     @Setter
     private long highestSequenceId = -1L;
     private ByteBuf batchedMessageMetadataAndPayload;
-    private List<MessageImpl<?>> messages = new ArrayList<>();
+    private List<MessageImpl<?>> messages = new ArrayList<>(maxMessagesNum);
     protected SendCallback previousCallback = null;
     // keep track of callbacks for individual messages being published in a batch
     protected SendCallback firstCallback;
@@ -168,12 +168,13 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         // Update the current max batch size using the uncompressed size, which is what we need in any case to
         // accumulate the batch content
         maxBatchSize = Math.max(maxBatchSize, uncompressedSize);
+        maxMessagesNum = Math.max(maxMessagesNum, numMessagesInBatch);
         return compressedPayload;
     }
 
     @Override
     public void clear() {
-        messages = new ArrayList<>();
+        messages = new ArrayList<>(maxMessagesNum);
         firstCallback = null;
         previousCallback = null;
         messageMetadata.clear();
