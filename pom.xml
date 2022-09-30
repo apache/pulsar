@@ -254,7 +254,7 @@ flexible messaging model and an intuitive client API.</description>
     <exec-maven-plugin.version>3.0.0</exec-maven-plugin.version>
     <license-maven-plugin.version>4.0.rc2</license-maven-plugin.version>
     <directory-maven-plugin.version>1.0</directory-maven-plugin.version>
-    <maven-enforcer-plugin.version>3.0.0</maven-enforcer-plugin.version>
+    <maven-enforcer-plugin.version>3.1.0</maven-enforcer-plugin.version>
     <!-- surefire.version is defined in apache parent pom -->
     <!-- it is used for surefire, failsafe and surefire-report plugins -->
     <!-- do not upgrade surefire.version to 3.0.0-M5 since it runs slowly and breaks tests. -->
@@ -281,6 +281,7 @@ flexible messaging model and an intuitive client API.</description>
     <lightproto-maven-plugin.version>0.4</lightproto-maven-plugin.version>
     <dependency-check-maven.version>7.1.0</dependency-check-maven.version>
     <roaringbitmap.version>0.9.15</roaringbitmap.version>
+    <extra-enforcer-rules.version>1.6.1</extra-enforcer-rules.version>
 
     <!-- Used to configure rename.netty.native. Libs -->
     <rename.netty.native.libs>rename-netty-native-libs.sh</rename.netty.native.libs>
