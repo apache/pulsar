@@ -24,12 +24,18 @@ import static org.testng.Assert.assertTrue;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Cleanup;
+import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
+import lombok.ToString;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentTopicStatsImpl;
@@ -40,6 +46,7 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
+
 
 @Test(groups = "broker-admin")
 public class AdminTopicApiTest extends ProducerConsumerBase {
@@ -101,6 +108,61 @@ public class AdminTopicApiTest extends ProducerConsumerBase {
         Assert.assertEquals(new String(messages.get(3).getValue(), UTF_8), "value-3");
         Assert.assertEquals(new String(messages.get(4).getValue(), UTF_8), "value-4");
     }
+
+    @Builder
+    @AllArgsConstructor
+    @ToString
+    @NoArgsConstructor
+    @EqualsAndHashCode
+    private static class User {
+        String name;
+        int id;
+    }
+
+    @Test
+    public void testPeekMessagesAvro() throws Exception {
+        @Cleanup
+        PulsarClient newPulsarClient = PulsarClient.builder()
+                .serviceUrl(lookupUrl.toString())
+                .build();
+
+        final String topic = "persistent://my-property/my-ns/test-publish-timestamp-avro";
+
+        @Cleanup
+        Consumer<User> consumer = newPulsarClient.newConsumer(Schema.AVRO(User.class))
+                .topic(topic)
+                .subscriptionName("my-sub")
+                .subscribe();
+
+        final int numMessages = 5;
+
+        @Cleanup
+        Producer<User> producer = newPulsarClient.newProducer(Schema.AVRO(User.class))
+                .topic(topic)
+                .enableBatching(true)
+                .batchingMaxPublishDelay(3, TimeUnit.SECONDS)
+                .batchingMaxMessages(5)
+                .create();
+
+        for (int i = 0; i < numMessages; i++) {
+            producer.newMessage()
+                    .value(new User("value-" + i, i))
+                    .sendAsync();
+        }
+        producer.flush();
+
+        for (int i = 0; i < numMessages; i++) {
+            Message<User> msg = consumer.receive();
+            log.info("Received message '{}'.", msg);
+        }
+        List<Message<byte[]>> messages = admin.topics().peekMessages(topic, "my-sub", 5);
+        Assert.assertEquals(new String(messages.get(0).getValue(), UTF_8), "value-0");
+        Assert.assertEquals(new String(messages.get(1).getValue(), UTF_8), "value-1");
+        Assert.assertEquals(new String(messages.get(2).getValue(), UTF_8), "value-2");
+        Assert.assertEquals(new String(messages.get(3).getValue(), UTF_8), "value-3");
+        Assert.assertEquals(new String(messages.get(4).getValue(), UTF_8), "value-4");
+    }
+
 
     @DataProvider
     public Object[] getStatsDataProvider() {

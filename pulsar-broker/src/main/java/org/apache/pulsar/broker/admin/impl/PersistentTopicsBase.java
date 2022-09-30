@@ -21,10 +21,12 @@ package org.apache.pulsar.broker.admin.impl;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionCoordinatorAssign;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionInternalName;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.github.zafarkhaja.semver.Version;
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
@@ -48,6 +50,7 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.ResponseBuilder;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.StreamingOutput;
+import org.apache.avro.generic.GenericData;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ManagedLedgerInfoCallback;
 import org.apache.bookkeeper.mledger.Entry;
@@ -77,6 +80,7 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.service.schema.SchemaRegistry;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
@@ -87,8 +91,11 @@ import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedExc
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
@@ -134,6 +141,9 @@ import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.policies.data.stats.PartitionedTopicStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.protocol.schema.SchemaVersion;
+import org.apache.pulsar.common.schema.LongSchemaVersion;
+import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.stats.AnalyzeSubscriptionBacklogResult;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -2926,7 +2936,6 @@ public class PersistentTopicsBase extends AdminResource {
                 });
             });
     }
-
     protected CompletableFuture<Response> internalPeekNthMessageAsync(String subName, int messagePosition,
                                                                       boolean authoritative) {
         CompletableFuture<Void> ret;
@@ -3053,8 +3062,36 @@ public class PersistentTopicsBase extends AdminResource {
                     }
                 });
     }
-
     private Response generateResponseWithEntry(Entry entry) throws IOException {
+        return generateResponseWithEntry(entry, Optional.empty());
+    }
+
+
+    private String getSchemaId() {
+        if (topicName.isPartitioned()) {
+            return TopicName.get(topicName.getPartitionedTopicName()).getSchemaName();
+        } else {
+            return topicName.getSchemaName();
+        }
+    }
+
+    private SchemaRegistry.SchemaAndMetadata getSchemaSync(boolean authoritative) {
+        return pulsar().getSchemaRegistryService().getSchema(getSchemaId()).join();
+    }
+    private SchemaRegistry.SchemaAndMetadata getSchemaSync(boolean authoritative,
+                                                          SchemaVersion schemaVersion) {
+        return pulsar().getSchemaRegistryService().getSchema(getSchemaId(), schemaVersion).join();
+    }
+
+    private long longFromBytes(byte[] bytes) {
+        ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
+        buffer.put(bytes);
+        buffer.flip();
+        return buffer.getLong();
+    }
+
+    private Response generateResponseWithEntry(Entry entry, Optional<SchemaInfo> schemaInfoOptional)
+            throws IOException {
         checkNotNull(entry);
         PositionImpl pos = (PositionImpl) entry.getPosition();
         ByteBuf metadataAndPayload = entry.getDataBuffer();
@@ -3171,6 +3208,29 @@ public class PersistentTopicsBase extends AdminResource {
             responseBuilder.header("X-Pulsar-null-partition-key", metadata.isNullPartitionKey());
         }
 
+        AutoConsumeSchema schema = new AutoConsumeSchema();
+
+        schema.setSchemaInfoProvider(new SchemaInfoProvider() {
+            @Override
+            public CompletableFuture<SchemaInfo> getSchemaByVersion(byte[] schemaVersion) {
+                SchemaInfo schemaInfo = getSchemaSync(false,
+                        new LongSchemaVersion(longFromBytes(metadata.getSchemaVersion()))).schema.toSchemaInfo();
+                return CompletableFuture.completedFuture(schemaInfo);
+            }
+
+            @Override
+            public CompletableFuture<SchemaInfo> getLatestSchema() {
+                SchemaInfo schemaInfo = getSchemaSync(false,
+                        SchemaVersion.Latest).schema.toSchemaInfo();
+                return CompletableFuture.completedFuture(schemaInfo);
+            }
+
+            @Override
+            public String getTopicName() {
+                return topicName.toString();
+            }
+        });
+
         // Decode if needed
         CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(metadata.getCompression());
         ByteBuf uncompressedPayload = codec.decode(metadataAndPayload, metadata.getUncompressedSize());
@@ -3181,12 +3241,73 @@ public class PersistentTopicsBase extends AdminResource {
         data.writeBytes(uncompressedPayload);
         uncompressedPayload.release();
 
-        StreamingOutput stream = output -> {
-            output.write(data.array(), data.arrayOffset(), data.readableBytes());
-            data.release();
-        };
+        byte[] arrayData = new byte[data.readableBytes()];
+        log.info("Read data length={}, readIndex={}, offset={}, readable={}",
+                data.array().length, data.readerIndex(), data.arrayOffset(), data.readableBytes());
 
-        return responseBuilder.entity(stream).build();
+        //data.getBytes(data.arrayOffset(), arrayData, 0, arrayData.length);
+        data.getBytes(data.readerIndex(), arrayData, 0, arrayData.length);
+
+
+        try {
+            //GenericRecord record = schema.decode(data.array(), metadata.getSchemaVersion());
+
+            GenericRecord record = schema.decode(arrayData, metadata.getSchemaVersion());
+            Object nativeObject = record.getNativeObject();
+            String messageStr;
+            switch(record.getSchemaType()) {
+                case BYTES:
+                    messageStr = Base64.getEncoder().encodeToString((byte[]) nativeObject);
+                    break;
+                case JSON:
+                    messageStr = ((JsonNode) nativeObject).asText();
+                    break;
+                case AVRO: {
+                    GenericData.Record recordData = (GenericData.Record) nativeObject;
+                    messageStr = recordData.toString();
+                    break;
+                }
+                case INT8:
+                case INT16:
+                    messageStr = Short.toString((short) nativeObject);
+                    break;
+                case INT32:
+                    messageStr = Integer.toString((int) nativeObject);
+                    break;
+                case INT64:
+                    messageStr = Long.toString((long) nativeObject);
+                    break;
+                case BOOLEAN:
+                    messageStr = Boolean.toString((boolean) nativeObject);
+                    break;
+                case FLOAT:
+                    messageStr = Float.toString((float) nativeObject);
+                    break;
+                case DOUBLE:
+                    messageStr = Double.toString((double) nativeObject);
+                    break;
+                case STRING:
+                    messageStr = String.valueOf(nativeObject);
+                    break;
+                default:
+                    throw new UnsupportedOperationException(String.format("[REST] Schema [%s] is not supported yet.",
+                            record.getSchemaType()));
+            }
+            //log.info("full data is [{}]", Base64.getEncoder().encodeToString(data.array()));
+            log.info("Found data is [{}]", Base64.getEncoder().encodeToString(arrayData));
+            data.release();
+            return responseBuilder.entity(messageStr).build();
+        } catch (Exception e){
+            log.error("Failure to discover schema for topic {}. Returning message in raw form.", topicName.toString());
+            StreamingOutput stream = output -> {
+                output.write(data.array(), data.arrayOffset(), data.readableBytes());
+                data.release();
+            };
+
+            return responseBuilder.entity(stream).build();
+        }
+
+
     }
 
     protected CompletableFuture<PersistentOfflineTopicStats> internalGetBacklogAsync(boolean authoritative) {

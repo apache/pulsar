@@ -147,6 +147,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                 });
     }
 
+
     @GET
     @Path("/{tenant}/{namespace}/{topic}/permissions")
     @ApiOperation(value = "Get permissions on a topic.",
@@ -622,7 +623,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
             @ApiParam(value = "inactive topic policies for the specified topic")
-            InactiveTopicPolicies inactiveTopicPolicies) {
+                                         InactiveTopicPolicies inactiveTopicPolicies) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
             .thenCompose(__ -> internalSetInactiveTopicPolicies(inactiveTopicPolicies, isGlobal))
@@ -768,7 +769,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "Delayed delivery policies for the specified topic")
-                    DelayedDeliveryPolicies deliveryPolicies) {
+            DelayedDeliveryPolicies deliveryPolicies) {
         validateTopicName(tenant, namespace, encodedTopic);
         validatePoliciesReadOnlyAccess();
         validateTopicPolicyOperation(topicName, PolicyName.DELAYED_DELIVERY, PolicyOperation.WRITE);
@@ -2528,7 +2529,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
             @ApiParam(value = "Bookkeeper persistence policies for specified topic")
-            PersistencePolicies persistencePolicies) {
+                               PersistencePolicies persistencePolicies) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
             .thenCompose(__ -> internalSetPersistence(persistencePolicies, isGlobal))
@@ -4195,7 +4196,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "Strategy used to check the compatibility of new schema")
-                    SchemaCompatibilityStrategy strategy) {
+            SchemaCompatibilityStrategy strategy) {
         validateTopicName(tenant, namespace, encodedTopic);
 
         preValidation(authoritative)
@@ -4353,7 +4354,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                                                     + "call to this broker. For internal use.")
                                             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
                                             @ApiParam(value = "Entry filters for the specified topic")
-                                        EntryFilters entryFilters) {
+                                EntryFilters entryFilters) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
                 .thenCompose(__ -> internalSetEntryFilters(entryFilters, isGlobal))
