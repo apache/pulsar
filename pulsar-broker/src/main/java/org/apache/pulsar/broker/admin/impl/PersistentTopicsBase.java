@@ -508,25 +508,28 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected void internalCreateMissedPartitions(AsyncResponse asyncResponse) {
-        getPartitionedTopicMetadataAsync(topicName, false, false).thenAccept(metadata -> {
-            if (metadata != null) {
-                tryCreatePartitionsAsync(metadata.partitions).thenAccept(v -> {
+        getPartitionedTopicMetadataAsync(topicName, false, false)
+                .thenApply(metadata -> {
+                    if (metadata == null) {
+                        throw new RestException(Status.NOT_FOUND, String.format(
+                                "Partitioned Topic not found: %s ,has no metadata", topicName.toString()));
+                    }
+                    return metadata;
+                })
+                .thenCompose(metadata ->
+                        tryCreatePartitionsAsync(metadata.partitions).thenApply(ignore -> metadata.partitions))
+                .thenCompose(numPartitions -> createMissedSubscriptionsAsync(topicName, numPartitions))
+                .thenAccept(v -> {
                     asyncResponse.resume(Response.noContent().build());
-                }).exceptionally(e -> {
-                    log.error("[{}] Failed to create partitions for topic {}", clientAppId(), topicName);
-                    resumeAsyncResponseExceptionally(asyncResponse, e);
+                }).exceptionally(ex -> {
+                    // If the exception is not redirect exception we need to log it.
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to create partitions for topic {}",
+                        clientAppId(), topicName);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
-            }
-        }).exceptionally(ex -> {
-            // If the exception is not redirect exception we need to log it.
-            if (!isRedirectException(ex)) {
-                log.error("[{}] Failed to create partitions for topic {}",
-                        clientAppId(), topicName);
-            }
-            resumeAsyncResponseExceptionally(asyncResponse, ex);
-            return null;
-        });
     }
 
     protected CompletableFuture<Void> internalSetDelayedDeliveryPolicies(DelayedDeliveryPolicies deliveryPolicies,
@@ -4559,6 +4562,75 @@ public class PersistentTopicsBase extends AdminResource {
             log.warn("[{}] Failed to get partition metadata for {}",
                     clientAppId(), topicName.toString());
             result.completeExceptionally(ex);
+            return null;
+        });
+        return result;
+    }
+
+    /**
+     * It creates subscriptions for new partitions of existing partitioned-topics.
+     *
+     * @param topicName     : topic-name: persistent://prop/cluster/ns/topic
+     * @param numPartitions : number partitions for the topics
+     *
+     */
+    private CompletableFuture<Void> createMissedSubscriptionsAsync(TopicName topicName, int numPartitions) {
+        CompletableFuture<Void> result = new CompletableFuture<>();
+        PulsarAdmin admin;
+        try {
+            admin = pulsar().getAdminClient();
+        } catch (PulsarServerException e1) {
+            result.completeExceptionally(e1);
+            return result;
+        }
+        admin.topics().getStatsAsync(topicName.getPartition(0).toString()).thenAccept(stats -> {
+            List<CompletableFuture<Void>> subscriptionFutures = new ArrayList<>();
+
+            stats.getSubscriptions().entrySet().forEach(e -> {
+                String subscription = e.getKey();
+                SubscriptionStats ss = e.getValue();
+                if (!ss.isDurable()) {
+                    // We must not re-create non-durable subscriptions on the new partitions
+                    return;
+                }
+
+                for (int i = 0; i < numPartitions; i++) {
+                    final String topicNamePartition = topicName.getPartition(i).toString();
+                    CompletableFuture<Void> future = new CompletableFuture<>();
+                    admin.topics().createSubscriptionAsync(topicNamePartition,
+                            subscription, MessageId.latest).whenComplete((__, ex) -> {
+                        if (ex == null) {
+                            future.complete(null);
+                        } else {
+                            if (ex instanceof PulsarAdminException.ConflictException) {
+                                future.complete(null);
+                            } else {
+                                future.completeExceptionally(ex);
+                            }
+                        }
+                    });
+                    subscriptionFutures.add(future);
+                }
+            });
+
+            FutureUtil.waitForAll(subscriptionFutures).thenRun(() -> {
+                log.info("[{}] Successfully created subscriptions on new partitions {}", clientAppId(), topicName);
+                result.complete(null);
+            }).exceptionally(ex -> {
+                log.warn("[{}] Failed to create subscriptions on new partitions for {}",
+                        clientAppId(), topicName, ex);
+                result.completeExceptionally(ex);
+                return null;
+            });
+        }).exceptionally(ex -> {
+            if (ex.getCause() instanceof PulsarAdminException.NotFoundException) {
+                // The first partition doesn't exist, so there are currently to subscriptions to recreate
+                result.complete(null);
+            } else {
+                log.warn("[{}] Failed to get list of subscriptions of {}",
+                        clientAppId(), topicName.getPartition(0), ex);
+                result.completeExceptionally(ex);
+            }
             return null;
         });
         return result;
