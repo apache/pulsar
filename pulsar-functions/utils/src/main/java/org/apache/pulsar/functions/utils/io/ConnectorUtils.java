@@ -160,15 +160,13 @@ public class ConnectorUtils {
                 archives.add(archive);
             }
         }
-
         if (archives.isEmpty()) {
-            log.warn("Connectors archive directory is empty");
             return new TreeMap<>();
         }
 
         ExecutorService oneTimeExecutor = null;
         try {
-            int nThreads = Math.min(4, archives.size());
+            int nThreads = Math.min(Runtime.getRuntime().availableProcessors(), archives.size());
             log.info("Loading {} connector definitions with a thread pool of size {}", archives.size(), nThreads);
             oneTimeExecutor = Executors.newFixedThreadPool(nThreads,
                     new ThreadFactoryBuilder().setNameFormat("search-connectors-executor-%d").build());
