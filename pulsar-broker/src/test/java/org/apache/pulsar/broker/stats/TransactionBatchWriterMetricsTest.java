@@ -129,12 +129,12 @@ public class TransactionBatchWriterMetricsTest extends MockedPulsarServiceBaseTe
         Assert.assertTrue(response.getStatus() / 200 == 1);
         List<String> metricsLines = parseResponseEntityToList(response);
 
-        metricsLines = metricsLines.stream().filter(s -> s.contains("bufferedwriter")).collect(
+        metricsLines = metricsLines.stream().filter(s -> !s.startsWith("#") && s.contains("bufferedwriter")).collect(
                 Collectors.toList());
 
         // verify tc.
         String metrics_key_txn_tc_record_count_sum =
-                "pulsar_txn_tc_bufferedwriter_batch_record_sum{cluster=\"%s\",broker=\"%s\"} ";
+                "pulsar_txn_tc_bufferedwriter_batch_records_sum{cluster=\"%s\",broker=\"%s\"} ";
         Assert.assertTrue(searchMetricsValue(metricsLines,
                 String.format(metrics_key_txn_tc_record_count_sum, metricsLabelCluster, metricsLabelBroker))
                 > 0);
@@ -150,7 +150,7 @@ public class TransactionBatchWriterMetricsTest extends MockedPulsarServiceBaseTe
                 > 0);
         // verify pending ack.
         String metrics_key_txn_pending_ack_record_count_sum =
-                "pulsar_txn_pending_ack_store_bufferedwriter_batch_record_sum{cluster=\"%s\",broker=\"%s\"} ";
+                "pulsar_txn_pending_ack_store_bufferedwriter_batch_records_sum{cluster=\"%s\",broker=\"%s\"} ";
         Assert.assertTrue(searchMetricsValue(metricsLines,
                 String.format(metrics_key_txn_pending_ack_record_count_sum, metricsLabelCluster, metricsLabelBroker))
                 > 0);

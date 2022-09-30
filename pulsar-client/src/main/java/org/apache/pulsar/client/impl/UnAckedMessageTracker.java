@@ -24,7 +24,6 @@ import io.netty.util.TimerTask;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.io.Closeable;
 import java.util.ArrayDeque;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
