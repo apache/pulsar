@@ -311,8 +311,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
                 .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
                 .subscriptionType(SubscriptionType.Shared)
                 .enableBatchIndexAcknowledgment(true)
-                .negativeAckRedeliveryDelay(2, TimeUnit.SECONDS)
-                .ackTimeout(1, TimeUnit.SECONDS)
+                .negativeAckRedeliveryDelay(1, TimeUnit.SECONDS)
                 .subscribe();
 
         @Cleanup
