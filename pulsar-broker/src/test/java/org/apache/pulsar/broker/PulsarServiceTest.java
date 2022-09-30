@@ -28,6 +28,7 @@ import java.util.Optional;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.testng.annotations.AfterMethod;
@@ -84,22 +85,70 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
      */
     @Test
     public void testGetWorkerServiceException() throws Exception {
+        init();
         ServiceConfiguration configuration = new ServiceConfiguration();
         configuration.setMetadataStoreUrl("zk:localhost");
         configuration.setClusterName("clusterName");
         configuration.setFunctionsWorkerEnabled(false);
         configuration.setBrokerShutdownTimeoutMs(0L);
         configuration.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
-        @Cleanup
-        PulsarService pulsarService = new PulsarService(configuration, new WorkerConfig(),
-                Optional.empty(), (exitCode) -> {});
+        configuration.setBrokerServicePort(Optional.of(0));
+        configuration.setBrokerServicePortTls(Optional.of(0));
+        configuration.setWebServicePort(Optional.of(0));
+        configuration.setWebServicePortTls(Optional.of(0));
+        startBroker(configuration);
 
         String errorMessage = "Pulsar Function Worker is not enabled, probably functionsWorkerEnabled is set to false";
+
+        int thrownCnt = 0;
         try {
-            pulsarService.getWorkerService();
+            pulsar.getWorkerService();
         } catch (UnsupportedOperationException e) {
+            thrownCnt++;
             assertEquals(e.getMessage(), errorMessage);
         }
+
+        try {
+            admin.sources().listSources("my", "test");
+        } catch (PulsarAdminException e) {
+            thrownCnt++;
+            assertEquals(e.getStatusCode(), 409);
+            assertEquals(e.getMessage(), errorMessage);
+        }
+
+        try {
+            admin.sinks().getSinkStatus("my", "test", "test");
+        } catch (PulsarAdminException e) {
+            thrownCnt++;
+            assertEquals(e.getStatusCode(), 409);
+            assertEquals(e.getMessage(), errorMessage);
+        }
+
+        try {
+            admin.functions().getFunction("my", "test", "test");
+        } catch (PulsarAdminException e) {
+            thrownCnt++;
+            assertEquals(e.getStatusCode(), 409);
+            assertEquals(e.getMessage(), errorMessage);
+        }
+
+        try {
+            admin.worker().getClusterLeader();
+        } catch (PulsarAdminException e) {
+            thrownCnt++;
+            assertEquals(e.getStatusCode(), 409);
+            assertEquals(e.getMessage(), errorMessage);
+        }
+
+        try {
+            admin.worker().getFunctionsStats();
+        } catch (PulsarAdminException e) {
+            thrownCnt++;
+            assertEquals(e.getStatusCode(), 409);
+            assertEquals(e.getMessage(), errorMessage);
+        }
+
+        assertEquals(thrownCnt, 6);
     }
 
     @Test
