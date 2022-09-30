@@ -1012,10 +1012,6 @@ public class NamespaceService implements AutoCloseable {
         return ownershipCache;
     }
 
-    public int getTotalServiceUnitsLoaded() {
-        return ownershipCache.getOwnedBundles().size() - this.uncountedNamespaces;
-    }
-
     public Set<NamespaceBundle> getOwnedServiceUnits() {
         return ownershipCache.getOwnedBundles().values().stream().map(OwnedBundle::getNamespaceBundle)
                 .collect(Collectors.toSet());
