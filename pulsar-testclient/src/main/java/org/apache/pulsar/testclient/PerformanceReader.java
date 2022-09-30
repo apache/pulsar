@@ -154,16 +154,17 @@ public class PerformanceReader {
                     PerfClientUtils.exit(0);
                 }
             }
-            if (arguments.numMessages > 0 && totalMessagesReceived.sum() >= arguments.numMessages) {
-                log.info("------------- DONE (reached the maximum number: [{}] of consumption) --------------",
-                        arguments.numMessages);
-                PerfClientUtils.exit(0);
-            }
             messagesReceived.increment();
             bytesReceived.add(msg.getData().length);
 
             totalMessagesReceived.increment();
             totalBytesReceived.add(msg.getData().length);
+
+            if (arguments.numMessages > 0 && totalMessagesReceived.sum() >= arguments.numMessages) {
+                log.info("------------- DONE (reached the maximum number: [{}] of consumption) --------------",
+                        arguments.numMessages);
+                PerfClientUtils.exit(0);
+            }
 
             if (limiter != null) {
                 limiter.acquire();

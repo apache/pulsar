@@ -32,6 +32,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
+import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -108,7 +109,9 @@ public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
         } catch (Exception ex) {
             // OK
         }
-        Assert.assertEquals(ConnectionController.DefaultConnectionController.getTotalConnectionNum(), 4);
+        Awaitility.await().untilAsserted(() ->{
+            Assert.assertEquals(ConnectionController.DefaultConnectionController.getTotalConnectionNum(), 4);
+        });
         Assert.assertEquals(ConnectionController.DefaultConnectionController.getConnections().size(), 1);
         Set<String> keys = ConnectionController.DefaultConnectionController.getConnections().keySet();
         for (String key : keys) {
@@ -119,7 +122,9 @@ public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
 
         client1.close();
 
-        Assert.assertEquals(ConnectionController.DefaultConnectionController.getTotalConnectionNum(), 2);
+        Awaitility.await().untilAsserted(() ->{
+            Assert.assertEquals(ConnectionController.DefaultConnectionController.getTotalConnectionNum(), 2);
+        });
         Assert.assertEquals(ConnectionController.DefaultConnectionController.getConnections().size(), 1);
         keys = ConnectionController.DefaultConnectionController.getConnections().keySet();
         for (String key : keys) {
@@ -129,8 +134,9 @@ public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(ProxyService.ACTIVE_CONNECTIONS.get(), 2.0d);
 
         client2.close();
-
-        Assert.assertEquals(ConnectionController.DefaultConnectionController.getTotalConnectionNum(), 0);
+        Awaitility.await().untilAsserted(() ->{
+            Assert.assertEquals(ConnectionController.DefaultConnectionController.getTotalConnectionNum(), 0);
+        });
         Assert.assertEquals(ConnectionController.DefaultConnectionController.getConnections().size(), 0);
         Assert.assertEquals(ProxyService.ACTIVE_CONNECTIONS.get(), 0.0d);
     }

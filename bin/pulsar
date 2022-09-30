@@ -348,9 +348,13 @@ ZK_OPTS=" -Dzookeeper.4lw.commands.whitelist=* -Dzookeeper.snapshot.trust.empty=
 
 LOG4J2_SHUTDOWN_HOOK_DISABLED="-Dlog4j.shutdownHookEnabled=false"
 
-# Adding pulsar metadata as a recognized provider
-BK_METADATA_OPTIONS="-Dbookkeeper.metadata.bookie.drivers=org.apache.pulsar.metadata.bookkeeper.PulsarMetadataBookieDriver -Dbookkeeper.metadata.client.drivers=org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver"
-OPTS="$OPTS $BK_METADATA_OPTIONS"
+# By default, Pulsar Metadata driver will be used for Bookkeeper client and server metadata operations
+# This can be disabled by setting BK_METADATA_OPTIONS=none
+if [[ "$BK_METADATA_OPTIONS" != "none" ]]; then
+  # Adding pulsar metadata as a recognized provider
+  BK_METADATA_OPTIONS="${BK_METADATA_OPTIONS:-"-Dbookkeeper.metadata.bookie.drivers=org.apache.pulsar.metadata.bookkeeper.PulsarMetadataBookieDriver -Dbookkeeper.metadata.client.drivers=org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver"}"
+  OPTS="$OPTS $BK_METADATA_OPTIONS"
+fi
 
 #Change to PULSAR_HOME to support relative paths
 cd "$PULSAR_HOME"

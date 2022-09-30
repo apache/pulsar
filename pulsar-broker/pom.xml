@@ -437,10 +437,6 @@
           <failOnViolations>true</failOnViolations>
           <javaVersion>17</javaVersion>
           <ignorePackages>
-            <ignorePackage>org.apache.pulsar.broker.admin</ignorePackage>
-            <ignorePackage>org.apache.pulsar.broker.namespace</ignorePackage>
-            <ignorePackage>org.apache.pulsar.broker.service</ignorePackage>
-            <ignorePackage>org.apache.pulsar.broker.stats</ignorePackage>
             <ignorePackage>org.apache.pulsar.client</ignorePackage>
           </ignorePackages>
           <exclusionPatterns>

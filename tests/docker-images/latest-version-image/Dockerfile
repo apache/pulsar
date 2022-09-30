@@ -70,7 +70,7 @@ RUN mkdir -p /var/log/pulsar && mkdir -p /var/run/supervisor/ && mkdir -p /pulsa
 
 COPY conf/supervisord.conf /etc/supervisord.conf
 COPY conf/global-zk.conf conf/local-zk.conf conf/bookie.conf conf/broker.conf conf/functions_worker.conf \
-     conf/proxy.conf conf/presto_worker.conf /etc/supervisord/conf.d/
+     conf/proxy.conf conf/presto_worker.conf conf/websocket.conf /etc/supervisord/conf.d/
 
 COPY ssl/ca.cert.pem ssl/broker.key-pk8.pem ssl/broker.cert.pem \
      ssl/admin.key-pk8.pem ssl/admin.cert.pem \
@@ -81,7 +81,7 @@ COPY ssl/ca.cert.pem ssl/broker.key-pk8.pem ssl/broker.cert.pem \
 
 COPY scripts/init-cluster.sh scripts/run-global-zk.sh scripts/run-local-zk.sh \
      scripts/run-bookie.sh scripts/run-broker.sh scripts/run-functions-worker.sh scripts/run-proxy.sh scripts/run-presto-worker.sh \
-     scripts/run-standalone.sh \
+     scripts/run-standalone.sh scripts/run-websocket.sh \
      /pulsar/bin/
 
 COPY conf/presto/jvm.config /pulsar/trino/conf

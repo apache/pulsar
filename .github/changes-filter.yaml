@@ -10,8 +10,6 @@ docs:
   - '**/*.md'
 tests:
   - added|modified: '**/src/test/java/**/*.java'
-cpp:
-  - 'pulsar-client-cpp/**'
 need_owasp:
   - 'pom.xml'
   - '**/pom.xml'

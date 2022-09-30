@@ -184,7 +184,7 @@ public abstract class BookKeeperClusterTestCase {
         return "";
     }
 
-    @AfterTest
+    @AfterTest(alwaysRun = true)
     public void tearDown() throws Exception {
         boolean failed = false;
         for (Throwable e : asyncExceptions) {

@@ -198,7 +198,7 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testConsumeTxnMessage() throws Exception {
-        String argString = "%s -r 10 -u %s -txn -ss %s -st %s -sp %s -ntxn %d";
+        String argString = "%s -r 10 -u %s -txn -ss %s -st %s -sp %s -ntxn %d -tto 5";
         String subName = "sub";
         String topic = testTopic + UUID.randomUUID();
         String args = String.format(argString, topic, pulsar.getBrokerServiceUrl(), subName,
@@ -222,7 +222,7 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
             } catch (Exception e) {
                 e.printStackTrace();
             }
-        });
+        }, "Performance_Consumer_Task");
         thread.start();
         thread.join();
 
@@ -240,6 +240,7 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
         for (int i = 0; i < 5; i++) {
             Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
             Assert.assertNotNull(message);
+            consumer.acknowledge(message);
         }
         Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
         Assert.assertNull(message);

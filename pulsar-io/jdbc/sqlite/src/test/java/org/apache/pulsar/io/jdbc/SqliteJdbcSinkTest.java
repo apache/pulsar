@@ -110,16 +110,14 @@ public class SqliteJdbcSinkTest {
 
         jdbcSink = new SqliteJdbcAutoSchemaSink();
 
-        // open should success
+        // open should succeed
         jdbcSink.open(conf, null);
-
-
     }
 
     @AfterMethod(alwaysRun = true)
     public void tearDown() throws Exception {
-        sqliteUtils.tearDown();
         jdbcSink.close();
+        sqliteUtils.tearDown();
     }
 
     private void testOpenAndWriteSinkNullValue(Map<String, String> actionProperties) throws Exception {
