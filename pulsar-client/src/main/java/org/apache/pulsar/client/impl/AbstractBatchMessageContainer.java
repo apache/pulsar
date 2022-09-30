@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
@@ -46,10 +47,12 @@ public abstract class AbstractBatchMessageContainer implements BatchMessageConta
     protected long currentTxnidLeastBits = -1L;
 
     protected static final int INITIAL_BATCH_BUFFER_SIZE = 1024;
+    protected static final int INITIAL_MESSAGES_NUM = 32;
 
     // This will be the largest size for a batch sent from this particular producer. This is used as a baseline to
     // allocate a new buffer that can hold the entire batch without needing costly reallocations
     protected int maxBatchSize = INITIAL_BATCH_BUFFER_SIZE;
+    protected int maxMessagesNum = INITIAL_MESSAGES_NUM;
 
     @Override
     public boolean haveEnoughSpace(MessageImpl<?> msg) {
@@ -69,6 +72,11 @@ public abstract class AbstractBatchMessageContainer implements BatchMessageConta
     @Override
     public int getNumMessagesInBatch() {
         return numMessagesInBatch;
+    }
+
+    @VisibleForTesting
+    public int getMaxMessagesNum() {
+        return maxMessagesNum;
     }
 
     @Override
