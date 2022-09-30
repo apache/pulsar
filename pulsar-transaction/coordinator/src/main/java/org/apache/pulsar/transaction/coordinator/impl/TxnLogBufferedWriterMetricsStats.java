@@ -103,7 +103,7 @@ public class TxnLogBufferedWriterMetricsStats implements Closeable {
         this.labelValues = labelValues.clone();
 
         String recordsPerBatchMetricName =
-                String.format("%s_bufferedwriter_batch_record_count", metricsPrefix);
+                String.format("%s_bufferedwriter_batch_record", metricsPrefix);
         recordsPerBatchMetric = new Histogram.Builder()
                         .name(recordsPerBatchMetricName)
                         .labelNames(this.labelNames)

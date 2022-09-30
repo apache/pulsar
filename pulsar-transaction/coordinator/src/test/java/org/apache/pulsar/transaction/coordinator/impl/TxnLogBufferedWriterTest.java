@@ -997,7 +997,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
     private void verifyTheHistogramMetrics(int batchFlushCount, int totalRecordsCount, int totalSize){
         // Total flush count.
         assertEquals(
-                getHistogramCount(String.format("%s_bufferedwriter_batch_record_count", metricsPrefix)),
+                getHistogramCount(String.format("%s_bufferedwriter_batch_record", metricsPrefix)),
                 batchFlushCount);
         assertEquals(
                 getHistogramCount(String.format("%s_bufferedwriter_batch_size_bytes", metricsPrefix)),
@@ -1007,7 +1007,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
                 batchFlushCount);
         // Total records count.
         assertEquals(
-                getHistogramSum(String.format("%s_bufferedwriter_batch_record_count", metricsPrefix)),
+                getHistogramSum(String.format("%s_bufferedwriter_batch_record", metricsPrefix)),
                 totalRecordsCount);
         // Total data size.
         assertEquals(
