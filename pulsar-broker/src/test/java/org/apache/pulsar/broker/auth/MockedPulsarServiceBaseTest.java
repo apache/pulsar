@@ -219,7 +219,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     protected final void init() throws Exception {
         doInitConf();
         sameThreadOrderedSafeExecutor = new SameThreadOrderedSafeExecutor();
-        bkExecutor = OrderedExecutor.newBuilder().numThreads(1).name("mock-pulsar-bk").build();
+        bkExecutor = OrderedExecutor.newBuilder().numThreads(5).name("mock-pulsar-bk").build();
 
         mockZooKeeper = createMockZooKeeper();
         mockZooKeeperGlobal = createMockZooKeeperGlobal();
@@ -548,7 +548,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         configuration.setWebServicePort(Optional.of(0));
         configuration.setWebServicePortTls(Optional.of(0));
         configuration.setBookkeeperClientExposeStatsToPrometheus(true);
-        configuration.setNumExecutorThreadPoolSize(5);
+        configuration.setNumExecutorThreadPoolSize(20);
         configuration.setBrokerMaxConnections(0);
         configuration.setBrokerMaxConnectionsPerIp(0);
         return configuration;

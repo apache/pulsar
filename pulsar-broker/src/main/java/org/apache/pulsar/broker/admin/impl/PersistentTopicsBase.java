@@ -21,10 +21,12 @@ package org.apache.pulsar.broker.admin.impl;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionCoordinatorAssign;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionInternalName;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.github.zafarkhaja.semver.Version;
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
@@ -48,6 +50,7 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.ResponseBuilder;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.StreamingOutput;
+import org.apache.avro.generic.GenericData;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ManagedLedgerInfoCallback;
 import org.apache.bookkeeper.mledger.Entry;
@@ -77,6 +80,7 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.service.schema.SchemaRegistry;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
@@ -87,8 +91,11 @@ import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedExc
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
@@ -134,6 +141,9 @@ import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.policies.data.stats.PartitionedTopicStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.protocol.schema.SchemaVersion;
+import org.apache.pulsar.common.schema.LongSchemaVersion;
+import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.stats.AnalyzeSubscriptionBacklogResult;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -2926,9 +2936,13 @@ public class PersistentTopicsBase extends AdminResource {
                 });
             });
     }
-
     protected CompletableFuture<Response> internalPeekNthMessageAsync(String subName, int messagePosition,
                                                                       boolean authoritative) {
+        return internalPeekNthMessageAsync(subName, messagePosition, authoritative, false);
+    }
+
+    protected CompletableFuture<Response> internalPeekNthMessageAsync(String subName, int messagePosition,
+                                                                      boolean authoritative, boolean asString) {
         CompletableFuture<Void> ret;
         // If the topic name is a partition name, no need to get partition topic metadata again
         if (!topicName.isPartitioned()) {
@@ -2966,7 +2980,7 @@ public class PersistentTopicsBase extends AdminResource {
                     return entry;
                 }).thenCompose(entry -> {
                     try {
-                        Response response = generateResponseWithEntry(entry);
+                        Response response = generateResponseWithEntry(entry, asString);
                         return CompletableFuture.completedFuture(response);
                     } catch (NullPointerException npe) {
                         throw new RestException(Status.NOT_FOUND, "Message not found");
@@ -3054,7 +3068,20 @@ public class PersistentTopicsBase extends AdminResource {
                 });
     }
 
+
+    private long longFromBytes(byte[] bytes) {
+        ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
+        buffer.put(bytes);
+        buffer.flip();
+        return buffer.getLong();
+    }
+
     private Response generateResponseWithEntry(Entry entry) throws IOException {
+       return generateResponseWithEntry(entry, false);
+    }
+
+    private Response generateResponseWithEntry(Entry entry, boolean returnString)
+            throws IOException {
         checkNotNull(entry);
         PositionImpl pos = (PositionImpl) entry.getPosition();
         ByteBuf metadataAndPayload = entry.getDataBuffer();
@@ -3181,12 +3208,116 @@ public class PersistentTopicsBase extends AdminResource {
         data.writeBytes(uncompressedPayload);
         uncompressedPayload.release();
 
-        StreamingOutput stream = output -> {
-            output.write(data.array(), data.arrayOffset(), data.readableBytes());
-            data.release();
-        };
+        if (returnString) {
 
-        return responseBuilder.entity(stream).build();
+            AutoConsumeSchema schema = new AutoConsumeSchema();
+
+            schema.setSchemaInfoProvider(new SchemaInfoProvider() {
+                private String getSchemaId() {
+                    if (topicName.isPartitioned()) {
+                        return TopicName.get(topicName.getPartitionedTopicName()).getSchemaName();
+                    } else {
+                        return topicName.getSchemaName();
+                    }
+                }
+
+                private CompletableFuture<SchemaRegistry.SchemaAndMetadata> getSchema(SchemaVersion schemaVersion) {
+                    return pulsar().getSchemaRegistryService().getSchema(getSchemaId(), schemaVersion);
+                }
+
+                @Override
+                public CompletableFuture<SchemaInfo> getSchemaByVersion(byte[] schemaVersion) {
+                    return getSchema(new LongSchemaVersion(longFromBytes(metadata.getSchemaVersion())))
+                            .thenCompose(schemaAndMetadata ->
+                                    CompletableFuture.completedFuture(schemaAndMetadata.schema.toSchemaInfo()));
+                }
+
+                @Override
+                public CompletableFuture<SchemaInfo> getLatestSchema() {
+                    return getSchema(SchemaVersion.Latest)
+                            .thenCompose(schemaAndMetadata ->
+                                    CompletableFuture.completedFuture(schemaAndMetadata.schema.toSchemaInfo()));
+                }
+
+                @Override
+                public String getTopicName() {
+                    return topicName.toString();
+                }
+            });
+
+
+            byte[] arrayData = new byte[data.readableBytes()];
+            log.info("Read data length={}, readIndex={}, offset={}, readable={}",
+                    data.array().length, data.readerIndex(), data.arrayOffset(), data.readableBytes());
+
+            //data.getBytes(data.arrayOffset(), arrayData, 0, arrayData.length);
+            data.getBytes(data.readerIndex(), arrayData, 0, arrayData.length);
+
+
+            try {
+
+                GenericRecord record = schema.decode(arrayData, metadata.getSchemaVersion());
+                Object nativeObject = record.getNativeObject();
+                String messageStr;
+                switch (record.getSchemaType()) {
+                    case BYTES:
+                        messageStr = Base64.getEncoder().encodeToString((byte[]) nativeObject);
+                        break;
+                    case JSON:
+                        messageStr = ((JsonNode) nativeObject).toString();
+                        break;
+                    case AVRO: {
+                        GenericData.Record recordData = (GenericData.Record) nativeObject;
+                        messageStr = recordData.toString();
+                        break;
+                    }
+                    case INT8:
+                    case INT16:
+                        messageStr = Short.toString((short) nativeObject);
+                        break;
+                    case INT32:
+                        messageStr = Integer.toString((int) nativeObject);
+                        break;
+                    case INT64:
+                        messageStr = Long.toString((long) nativeObject);
+                        break;
+                    case BOOLEAN:
+                        messageStr = Boolean.toString((boolean) nativeObject);
+                        break;
+                    case FLOAT:
+                        messageStr = Float.toString((float) nativeObject);
+                        break;
+                    case DOUBLE:
+                        messageStr = Double.toString((double) nativeObject);
+                        break;
+                    case STRING:
+                        messageStr = String.valueOf(nativeObject);
+                        break;
+                    default:
+                        throw new UnsupportedOperationException(
+                                String.format("[REST] Schema [%s] is not supported yet.",
+                                        record.getSchemaType()));
+                }
+                data.release();
+                return responseBuilder.entity(messageStr).build();
+            } catch (Exception e) {
+                log.error("Failure to discover schema for topic {}. Returning message in raw form.",
+                        topicName.toString());
+                StreamingOutput stream = output -> {
+                    output.write(data.array(), data.arrayOffset(), data.readableBytes());
+                    data.release();
+                };
+
+                return responseBuilder.entity(stream).build();
+            }
+        } else {
+            StreamingOutput stream = output -> {
+                output.write(data.array(), data.arrayOffset(), data.readableBytes());
+                data.release();
+            };
+
+            return responseBuilder.entity(stream).build();
+        }
     }
 
     protected CompletableFuture<PersistentOfflineTopicStats> internalGetBacklogAsync(boolean authoritative) {
