@@ -82,7 +82,6 @@ import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.bookkeeper.test.TmpDirs;
 import org.apache.bookkeeper.test.ZooKeeperCluster;
 import org.apache.bookkeeper.test.ZooKeeperClusterUtil;
-import org.apache.bookkeeper.test.ZooKeeperUtil;
 import org.apache.bookkeeper.util.DiskChecker;
 import org.apache.bookkeeper.util.PortManager;
 import org.apache.zookeeper.KeeperException;
@@ -191,7 +190,7 @@ public abstract class BookKeeperClusterTestCase {
         return zkUtil.getMetadataServiceUri(ledgersRootPath);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void tearDown() throws Exception {
         boolean failed = false;
         for (Throwable e : asyncExceptions) {

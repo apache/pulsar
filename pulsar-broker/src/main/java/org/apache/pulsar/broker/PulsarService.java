@@ -112,6 +112,7 @@ import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientImpl;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
+import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStoreProvider;
 import org.apache.pulsar.broker.validator.MultipleListenerValidator;
 import org.apache.pulsar.broker.validator.TransactionBatchedWriteValidator;
 import org.apache.pulsar.broker.web.WebService;
@@ -168,6 +169,7 @@ import org.apache.pulsar.packages.management.core.impl.DefaultPackagesStorageCon
 import org.apache.pulsar.packages.management.core.impl.PackagesManagementImpl;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreProvider;
+import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStoreProvider;
 import org.apache.pulsar.websocket.WebSocketConsumerServlet;
 import org.apache.pulsar.websocket.WebSocketPingPongServlet;
 import org.apache.pulsar.websocket.WebSocketProducerServlet;
@@ -830,6 +832,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             // Register pulsar system namespaces and start transaction meta store service
             if (config.isTransactionCoordinatorEnabled()) {
+                MLTransactionMetadataStoreProvider.initBufferedWriterMetrics(getAdvertisedAddress());
+                MLPendingAckStoreProvider.initBufferedWriterMetrics(getAdvertisedAddress());
+
                 this.transactionBufferSnapshotService = new SystemTopicBaseTxnBufferSnapshotService(getClient());
                 this.transactionTimer =
                         new HashedWheelTimer(new DefaultThreadFactory("pulsar-transaction-timer"));
