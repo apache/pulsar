@@ -351,6 +351,10 @@
     {
       "type": "category",
       "label": "Development",
+      "link": {
+        "type": "doc",
+        "id": "developers-landing"
+      },
       "items": [
         "develop-tools",
         "developing-binary-protocol",

@@ -26,11 +26,12 @@ import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertNotNull;
 import static org.testng.AssertJUnit.assertNull;
 import static org.testng.AssertJUnit.assertTrue;
-import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -281,7 +282,7 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
     private void prepareData() throws PulsarAdminException {
         admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
         admin.tenants().createTenant("system-topic",
-                new TenantInfoImpl(Sets.newHashSet(), Sets.newHashSet("test")));
+                new TenantInfoImpl(new HashSet<>(), Set.of("test")));
         admin.namespaces().createNamespace(NAMESPACE1);
         admin.namespaces().createNamespace(NAMESPACE2);
         admin.namespaces().createNamespace(NAMESPACE3);

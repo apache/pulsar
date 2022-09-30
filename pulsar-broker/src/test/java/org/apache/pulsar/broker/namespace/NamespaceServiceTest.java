@@ -31,11 +31,14 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
+import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
+import com.google.common.hash.Hashing;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -45,7 +48,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.commons.collections4.CollectionUtils;
@@ -64,13 +66,12 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.PulsarClient;
-
-import org.apache.pulsar.common.naming.ServiceUnitId;
-import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
-import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundle;
+import org.apache.pulsar.common.naming.NamespaceBundleFactory;
+import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
 import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
@@ -82,10 +83,10 @@ import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
+import org.apache.pulsar.policies.data.loadbalancer.BundleData;
 import org.apache.pulsar.policies.data.loadbalancer.LoadReport;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
-import org.apache.pulsar.policies.data.loadbalancer.BundleData;
 import org.awaitility.Awaitility;
 import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
@@ -94,11 +95,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.hash.Hashing;
 
 @Test(groups = "flaky")
 public class NamespaceServiceTest extends BrokerTestBase {
@@ -186,7 +182,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         OwnershipCache MockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
 
         ManagedLedger ledger = mock(ManagedLedger.class);
-        when(ledger.getCursors()).thenReturn(Lists.newArrayList());
+        when(ledger.getCursors()).thenReturn(new ArrayList<>());
 
         doReturn(CompletableFuture.completedFuture(null)).when(MockOwnershipCache).disableOwnership(any(NamespaceBundle.class));
         Field ownership = NamespaceService.class.getDeclaredField("ownershipCache");
@@ -240,7 +236,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         OwnershipCache MockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
 
         ManagedLedger ledger = mock(ManagedLedger.class);
-        when(ledger.getCursors()).thenReturn(Lists.newArrayList());
+        when(ledger.getCursors()).thenReturn(new ArrayList<>());
 
         doReturn(CompletableFuture.completedFuture(null)).when(MockOwnershipCache).disableOwnership(any(NamespaceBundle.class));
         Field ownership = NamespaceService.class.getDeclaredField("ownershipCache");
@@ -263,7 +259,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         OwnershipCache ownershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
 
         ManagedLedger ledger = mock(ManagedLedger.class);
-        when(ledger.getCursors()).thenReturn(Lists.newArrayList());
+        when(ledger.getCursors()).thenReturn(new ArrayList<>());
 
         doReturn(CompletableFuture.completedFuture(null)).when(ownershipCache).disableOwnership(any(NamespaceBundle.class));
         Field ownership = NamespaceService.class.getDeclaredField("ownershipCache");
@@ -386,7 +382,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         final String listenerUrl = "pulsar://localhost:7000";
         final String listenerUrlTls = "pulsar://localhost:8000";
         final String listener = "listenerName";
-        Map<String, AdvertisedListener> advertisedListeners = Maps.newHashMap();
+        Map<String, AdvertisedListener> advertisedListeners = new HashMap<>();
         advertisedListeners.put(listener, AdvertisedListener.builder().brokerServiceUrl(new URI(listenerUrl)).brokerServiceUrlTls(new URI(listenerUrlTls)).build());
         LocalBrokerData ld = new LocalBrokerData(null, null, candidateBroker, null, advertisedListeners);
         URI uri = new URI(candidateBroker);
@@ -570,7 +566,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         NamespaceName nsname = NamespaceName.get(namespace);
         NamespaceBundles bundles = namespaceService.getNamespaceBundleFactory().getBundles(nsname);
 
-        Map<String, Integer> topicCount = Maps.newHashMap();
+        Map<String, Integer> topicCount = new HashMap<>();
         int maxTopics = 0;
         String maxBundle = null;
         for (int i = 0; i < totalTopics; i++) {

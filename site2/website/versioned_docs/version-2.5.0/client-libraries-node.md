@@ -42,7 +42,7 @@ Also, this library works only in Node.js 10.x or later because it uses the [`nod
 :::
 
 ## Connection URLs
-To connect to Pulsar using client libraries, you need to specify a [Pulsar protocol](developing-binary-protocol) URL.
+To connect to Pulsar using client libraries, you need to specify a [Pulsar protocol](developing-binary-protocol.md) URL.
 
 Pulsar protocol URLs are assigned to specific clusters, use the `pulsar` scheme and have a default port of 6650. Here is an example for `localhost`:
 
@@ -60,7 +60,7 @@ pulsar://pulsar.us-west.example.com:6650
 
 ```
 
-If you are using [TLS encryption](security-tls-transport.md) or [TLS Authentication](security-tls-authentication), the URL will look like something like this:
+If you are using [TLS encryption](security-tls-transport.md) or [TLS Authentication](security-tls-authentication.md), the URL will look like something like this:
 
 ```http
 
@@ -95,7 +95,7 @@ The following configurable parameters are available for Pulsar clients:
 | Parameter | Description | Default |
 | :-------- | :---------- | :------ |
 | `serviceUrl` | The connection URL for the Pulsar cluster. See [above](#connection-urls) for more info. |  |
-| `authentication` | Configure the authentication provider. (default: no authentication). See [TLS Authentication](security-tls-authentication) for more info. | |
+| `authentication` | Configure the authentication provider. (default: no authentication). See [TLS Authentication](security-tls-authentication.md) for more info. | |
 | `operationTimeoutSeconds` | The timeout for Node.js client operations (creating producers, subscribing to and unsubscribing from [topics](reference-terminology.md#topic)). Retries will occur until this threshold is reached, at which point the operation will fail. | 30 |
 | `ioThreads` | The number of threads to use for handling connections to Pulsar [brokers](reference-terminology.md#broker). | 1 |
 | `messageListenerThreads` | The number of threads used by message listeners ([consumers](#consumers) and [readers](#readers)). | 1 |
@@ -145,7 +145,7 @@ Pulsar Node.js producers have the following methods available:
 | :-------- | :---------- | :------ |
 | `topic` | The Pulsar [topic](reference-terminology.md#topic) to which the producer publishes messages. The topic format is `<topic-name>` or `<tenant-name>/<namespace-name>/<topic-name>`. For example, `sample/ns1/my-topic`. | |
 | `producerName` | A name for the producer. If you do not explicitly assign a name, Pulsar will automatically generate a globally unique name.  If you choose to explicitly assign a name, it will need to be unique across *all* Pulsar clusters, otherwise the creation operation will throw an error. | |
-| `sendTimeoutMs` | When publishing a message to a topic, the producer will wait for an acknowledgment from the responsible Pulsar [broker](reference-terminology.md#broker). If a message is not acknowledged within the threshold set by this parameter, an error will be thrown. If you set `sendTimeoutMs` to -1, the timeout will be set to infinity (and thus removed). Removing the send timeout is recommended when using Pulsar's [message de-duplication](cookbooks-deduplication) feature. | 30000 |
+| `sendTimeoutMs` | When publishing a message to a topic, the producer will wait for an acknowledgment from the responsible Pulsar [broker](reference-terminology.md#broker). If a message is not acknowledged within the threshold set by this parameter, an error will be thrown. If you set `sendTimeoutMs` to -1, the timeout will be set to infinity (and thus removed). Removing the send timeout is recommended when using Pulsar's [message de-duplication](cookbooks-deduplication.md) feature. | 30000 |
 | `initialSequenceId` | The initial sequence ID of the message. When producer send message, add sequence ID to message. The ID is increased each time to send. | |
 | `maxPendingMessages` | The maximum size of the queue holding pending messages (i.e. messages waiting to receive an acknowledgment from the [broker](reference-terminology.md#broker)). By default, when the queue is full all calls to the `send` method will fail *unless* `blockIfQueueFull` is set to `true`. | 1000 |
 | `maxPendingMessagesAcrossPartitions` | The maximum size of the sum of partition's  pending queue. | 50000 |

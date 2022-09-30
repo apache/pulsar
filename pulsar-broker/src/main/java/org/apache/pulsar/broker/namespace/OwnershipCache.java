@@ -21,8 +21,8 @@ package org.apache.pulsar.broker.namespace;
 import com.github.benmanes.caffeine.cache.AsyncCacheLoader;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.MoreExecutors;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -84,11 +84,6 @@ public class OwnershipCache {
     private final AsyncLoadingCache<NamespaceBundle, OwnedBundle> ownedBundlesCache;
 
     /**
-     * The <code>NamespaceBundleFactory</code> to construct <code>NamespaceBundles</code>.
-     */
-    private final NamespaceBundleFactory bundleFactory;
-
-    /**
      * The <code>NamespaceService</code> which using <code>OwnershipCache</code>.
      */
     private final NamespaceService namespaceService;
@@ -131,7 +126,6 @@ public class OwnershipCache {
         this.selfOwnerInfoDisabled = new NamespaceEphemeralData(ownerBrokerUrl, ownerBrokerUrlTls,
                 pulsar.getSafeWebServiceAddress(), pulsar.getWebServiceAddressTls(),
                 true, pulsar.getAdvertisedListeners());
-        this.bundleFactory = bundleFactory;
         this.lockManager = pulsar.getCoordinationService().getLockManager(NamespaceEphemeralData.class);
         this.locallyAcquiredLocks = new ConcurrentHashMap<>();
         // ownedBundlesCache contains all namespaces that are owned by the local broker
@@ -229,7 +223,7 @@ public class OwnershipCache {
      *            <code>NamespaceBundles</code> to remove from ownership cache
      */
     public CompletableFuture<Void> removeOwnership(NamespaceBundles bundles) {
-        List<CompletableFuture<Void>> allFutures = Lists.newArrayList();
+        List<CompletableFuture<Void>> allFutures = new ArrayList<>();
         for (NamespaceBundle bundle : bundles.getBundles()) {
             if (getOwnedBundle(bundle) == null) {
                 // continue

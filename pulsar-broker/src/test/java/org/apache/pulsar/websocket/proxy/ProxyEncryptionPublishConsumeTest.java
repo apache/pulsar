@@ -87,7 +87,6 @@ public class ProxyEncryptionPublishConsumeTest extends ProducerConsumerBase {
 
     @AfterMethod(alwaysRun = true)
     protected void cleanup() throws Exception {
-        super.resetConfig();
         super.internalCleanup();
         if (service != null) {
             service.close();

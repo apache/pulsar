@@ -103,7 +103,6 @@ public class AdminRestTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
-        resetConfig();
         super.internalSetup();
         // Create tenant, namespace, topic
         admin.clusters().createCluster(clusterName, ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
@@ -118,7 +117,7 @@ public class AdminRestTest extends MockedPulsarServiceBaseTest {
     protected void cleanup() throws Exception {
         // cleanup.
         admin.topics().delete(topicName);
-        admin.namespaces().deleteNamespace(namespaceName);
+        deleteNamespaceGraceFully(namespaceName, false);
         admin.tenants().deleteTenant(tenantName);
         admin.clusters().deleteCluster(clusterName);
         // super cleanup.

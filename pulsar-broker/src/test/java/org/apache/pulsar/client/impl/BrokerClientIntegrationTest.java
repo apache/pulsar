@@ -20,7 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.UUID.randomUUID;
-import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
+import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgsRecordingInvocations;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
@@ -819,8 +819,10 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         final String topicName = "persistent://my-property/my-ns/my-topic1";
         ObjectMapper mapper = new ObjectMapper();
         SchemaReader<TestMessageObject> reader =
-                spyWithClassAndConstructorArgs(JacksonJsonReader.class, mapper, TestMessageObject.class);
-        SchemaWriter<TestMessageObject> writer = spyWithClassAndConstructorArgs(JacksonJsonWriter.class, mapper);
+                spyWithClassAndConstructorArgsRecordingInvocations(JacksonJsonReader.class, mapper,
+                        TestMessageObject.class);
+        SchemaWriter<TestMessageObject> writer =
+                spyWithClassAndConstructorArgsRecordingInvocations(JacksonJsonWriter.class, mapper);
 
         SchemaDefinition<TestMessageObject> schemaDefinition = new SchemaDefinitionBuilderImpl<TestMessageObject>()
                 .withPojo(TestMessageObject.class)

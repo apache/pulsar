@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service.plugin;
 
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
+import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgsRecordingInvocations;
 import static org.apache.pulsar.client.api.SubscriptionInitialPosition.Earliest;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -27,16 +28,14 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertNotNull;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import java.lang.reflect.Field;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -93,7 +92,7 @@ public class FilterEntryTest extends BrokerTestBase {
         EntryFilterWithClassLoader mockFilter = mock(EntryFilterWithClassLoader.class);
         when(mockFilter.filterEntry(any(Entry.class), any(FilterContext.class))).thenReturn(
                 EntryFilter.FilterResult.REJECT);
-        ImmutableMap<String, EntryFilterWithClassLoader> entryFilters = ImmutableMap.of("key", mockFilter);
+        Map<String, EntryFilterWithClassLoader> entryFilters = Map.of("key", mockFilter);
 
         Field field = topicRef.getClass().getSuperclass().getDeclaredField("entryFilters");
         field.setAccessible(true);
@@ -102,7 +101,7 @@ public class FilterEntryTest extends BrokerTestBase {
         EntryFilterWithClassLoader mockFilter1 = mock(EntryFilterWithClassLoader.class);
         when(mockFilter1.filterEntry(any(Entry.class), any(FilterContext.class))).thenReturn(
                 EntryFilter.FilterResult.ACCEPT);
-        ImmutableMap<String, EntryFilterWithClassLoader> entryFilters1 = ImmutableMap.of("key2", mockFilter1);
+        Map<String, EntryFilterWithClassLoader> entryFilters1 = Map.of("key2", mockFilter1);
         Field field2 = pulsar.getBrokerService().getClass().getDeclaredField("entryFilters");
         field2.setAccessible(true);
         field2.set(pulsar.getBrokerService(), entryFilters1);
@@ -165,10 +164,10 @@ public class FilterEntryTest extends BrokerTestBase {
         field.setAccessible(true);
         NarClassLoader narClassLoader = mock(NarClassLoader.class);
         EntryFilter filter1 = new EntryFilterTest();
-        EntryFilterWithClassLoader loader1 = spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter1, narClassLoader);
+        EntryFilterWithClassLoader loader1 = spyWithClassAndConstructorArgsRecordingInvocations(EntryFilterWithClassLoader.class, filter1, narClassLoader);
         EntryFilter filter2 = new EntryFilter2Test();
-        EntryFilterWithClassLoader loader2 = spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter2, narClassLoader);
-        field.set(dispatcher, ImmutableList.of(loader1, loader2));
+        EntryFilterWithClassLoader loader2 = spyWithClassAndConstructorArgsRecordingInvocations(EntryFilterWithClassLoader.class, filter2, narClassLoader);
+        field.set(dispatcher, List.of(loader1, loader2));
 
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                 .enableBatching(false).topic(topic).create();
@@ -263,7 +262,7 @@ public class FilterEntryTest extends BrokerTestBase {
                 .getTopicReference(topic).get();
         Field field1 = topicRef.getClass().getSuperclass().getDeclaredField("entryFilters");
         field1.setAccessible(true);
-        field1.set(topicRef, ImmutableMap.of("1", loader1, "2", loader2));
+        field1.set(topicRef, Map.of("1", loader1, "2", loader2));
 
         cleanup();
         verify(loader1, times(1)).close();
@@ -293,7 +292,7 @@ public class FilterEntryTest extends BrokerTestBase {
             EntryFilterWithClassLoader loader1 = spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter1, narClassLoader);
             EntryFilter filter2 = new EntryFilter2Test();
             EntryFilterWithClassLoader loader2 = spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter2, narClassLoader);
-            field.set(dispatcher, ImmutableList.of(loader1, loader2));
+            field.set(dispatcher, List.of(loader1, loader2));
 
             for (int i = 0; i < 10; i++) {
                 producer.send("test");
@@ -368,7 +367,7 @@ public class FilterEntryTest extends BrokerTestBase {
             EntryFilter filter2 = new EntryFilterTest();
             EntryFilterWithClassLoader loader2 =
                     spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter2, narClassLoader);
-            field.set(dispatcher, ImmutableList.of(loader1, loader2));
+            field.set(dispatcher, List.of(loader1, loader2));
 
             for (int i = 0; i < numMessages; i++) {
                 if (i % 2 == 0) {

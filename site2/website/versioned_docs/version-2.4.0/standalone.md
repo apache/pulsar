@@ -8,7 +8,7 @@ original_id: standalone
 For local development and testing, you can run Pulsar in standalone mode on your machine. The standalone mode includes a Pulsar broker, the necessary ZooKeeper and BookKeeper components running inside of a single Java Virtual Machine (JVM) process.
 
 > #### Pulsar in production? 
-> If you're looking to run a full production Pulsar installation, see the [Deploying a Pulsar instance](deploy-bare-metal) guide.
+> If you're looking to run a full production Pulsar installation, see the [Deploying a Pulsar instance](deploy-bare-metal.md) guide.
 
 ## Install Pulsar standalone
 
@@ -51,9 +51,9 @@ The Pulsar binary package initially contains the following directories:
 
 Directory | Contains
 :---------|:--------
-`bin` | Pulsar's command-line tools, such as [`pulsar`](reference-cli-tools.md#pulsar) and [`pulsar-admin`](reference-pulsar-admin).
+`bin` | Pulsar's command-line tools, such as [`pulsar`](reference-cli-tools.md#pulsar) and [`pulsar-admin`](reference-pulsar-admin.md).
 `conf` | Configuration files for Pulsar, including [broker configuration](reference-configuration.md#broker), [ZooKeeper configuration](reference-configuration.md#zookeeper), and more.
-`examples` | A Java JAR file containing [Pulsar Functions](functions-overview) example.
+`examples` | A Java JAR file containing [Pulsar Functions](functions-overview.md) example.
 `lib` | The [JAR](https://en.wikipedia.org/wiki/JAR_(file_format)) files used by Pulsar.
 `licenses` | License files, in the`.txt` form, for various components of the Pulsar [codebase](https://github.com/apache/pulsar).
 
@@ -62,7 +62,7 @@ These directories are created once you begin running Pulsar.
 Directory | Contains
 :---------|:--------
 `data` | The data storage directory used by ZooKeeper and BookKeeper.
-`instances` | Artifacts created for [Pulsar Functions](functions-overview).
+`instances` | Artifacts created for [Pulsar Functions](functions-overview.md).
 `logs` | Logs created by the installation.
 
 :::tip
@@ -111,7 +111,7 @@ pulsar-io-aerospike-@pulsar:version@.nar
 
 * If you are running Pulsar in a bare metal cluster, make sure `connectors` tarball is unzipped in every pulsar directory of the broker
 (or in every pulsar directory of function-worker if you are running a separate worker cluster for Pulsar Functions).
-* If you are [running Pulsar in Docker](getting-started-docker.md) or deploying Pulsar using a docker image (e.g. [K8S](deploy-kubernetes) or [DC/OS](https://dcos.io/)),
+* If you are [running Pulsar in Docker](getting-started-docker.md) or deploying Pulsar using a docker image (e.g. [K8S](deploy-kubernetes.md) or [DC/OS](https://dcos.io/)),
 you can use the `apachepulsar/pulsar-all` image instead of the `apachepulsar/pulsar` image. `apachepulsar/pulsar-all` image has already bundled [all builtin connectors](io-overview.md#working-with-connectors).
 
 :::
@@ -125,7 +125,7 @@ To enable tiered storage feature, follow the instructions below; otherwise skip 
 
 :::
 
-To get started with [tiered storage offloaders](concepts-tiered-storage), you need to download the offloaders tarball release on every broker node in one of the following ways:
+To get started with [tiered storage offloaders](concepts-tiered-storage.md), you need to download the offloaders tarball release on every broker node in one of the following ways:
 
 * download from the Apache mirror <a href="pulsar:offloader_release_url" download>Pulsar Tiered Storage Offloaders @pulsar:version@ release</a>
 
@@ -158,12 +158,12 @@ tiered-storage-jcloud-@pulsar:version@.nar
 
 ```
 
-For more information on how to configure tiered storage, see [Tiered storage cookbook](cookbooks-tiered-storage).
+For more information on how to configure tiered storage, see [Tiered storage cookbook](cookbooks-tiered-storage.md).
 
 :::note
 
 * If you are running Pulsar in a bare metal cluster, make sure that `offloaders` tarball is unzipped in every broker's pulsar directory.
-* If you are [running Pulsar in Docker](getting-started-docker.md) or deploying Pulsar using a docker image (e.g. [K8S](deploy-kubernetes) or [DC/OS](https://dcos.io/)),
+* If you are [running Pulsar in Docker](getting-started-docker.md) or deploying Pulsar using a docker image (e.g. [K8S](deploy-kubernetes.md) or [DC/OS](https://dcos.io/)),
 you can use the `apachepulsar/pulsar-all` image instead of the `apachepulsar/pulsar` image. `apachepulsar/pulsar-all` image has already bundled tiered storage offloaders.
 
 :::

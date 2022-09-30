@@ -5,7 +5,7 @@ sidebar_label: "Java"
 original_id: client-libraries-java
 ---
 
-You can use Pulsar Java client to create Java [producer](#producer), [consumer](#consumer), and [readers](#reader-interface) of messages and to perform [administrative tasks](admin-api-overview). The current version of the Java client is **@pulsar:version@**.
+You can use Pulsar Java client to create Java [producer](#producer), [consumer](#consumer), and [readers](#reader-interface) of messages and to perform [administrative tasks](admin-api-overview.md). The current version of the Java client is **@pulsar:version@**.
 
 All the methods in [producer](#producer), [consumer](#consumer), and [reader](#reader) of a Java client are thread-safe.
 
@@ -14,10 +14,10 @@ Javadoc for the Pulsar client is divided into two domains by package as follows.
 Package | Description | Maven Artifact
 :-------|:------------|:--------------
 [`org.apache.pulsar.client.api`](/api/client) | The producer and consumer API | [org.apache.pulsar:pulsar-client:@pulsar:version@](http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7C@pulsar:version@%7Cjar)
-[`org.apache.pulsar.client.admin`](/api/admin) | The Java [admin API](admin-api-overview) | [org.apache.pulsar:pulsar-client-admin:@pulsar:version@](http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client-admin%7C@pulsar:version@%7Cjar)
+[`org.apache.pulsar.client.admin`](/api/admin) | The Java [admin API](admin-api-overview.md) | [org.apache.pulsar:pulsar-client-admin:@pulsar:version@](http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client-admin%7C@pulsar:version@%7Cjar)
 `org.apache.pulsar.client.all` |Includes both `pulsar-client` and `pulsar-client-admin`<br /><br /> Both `pulsar-client` and `pulsar-client-admin` are shaded packages and they shade dependencies independently. Consequently, the applications using both `pulsar-client` and `pulsar-client-admin` have redundant shaded classes. It would be troublesome if you introduce new dependencies but forget to update shading rules. <br /><br /> In this case, you can use `pulsar-client-all`, which shades dependencies only one time and reduces the size of dependencies.  |[org.apache.pulsar:pulsar-client-all:@pulsar:version@](http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client-all%7C@pulsar:version@%7Cjar)
 
-This document focuses only on the client API for producing and consuming messages on Pulsar topics. For how to use the Java admin client, see [Pulsar admin interface](admin-api-overview).
+This document focuses only on the client API for producing and consuming messages on Pulsar topics. For how to use the Java admin client, see [Pulsar admin interface](admin-api-overview.md).
 
 ## Installation
 
@@ -57,7 +57,7 @@ dependencies {
 
 ## Connection URLs
 
-To connect to Pulsar using client libraries, you need to specify a [Pulsar protocol](developing-binary-protocol) URL.
+To connect to Pulsar using client libraries, you need to specify a [Pulsar protocol](developing-binary-protocol.md) URL.
 
 You can assign Pulsar protocol URLs to specific clusters and use the `pulsar` scheme. The default port is `6650`. The following is an example of `localhost`.
 
@@ -83,7 +83,7 @@ pulsar://pulsar.us-west.example.com:6650
 
 ```
 
-If you use [TLS](security-tls-authentication) authentication, the URL is as follows. 
+If you use [TLS](security-tls-authentication.md) authentication, the URL is as follows. 
 
 ```http
 
@@ -114,7 +114,7 @@ PulsarClient client = PulsarClient.builder()
 ```
 
 > ### Default broker URLs for standalone clusters
-> If you run a cluster in [standalone mode](getting-started-standalone), the broker is available at the `pulsar://localhost:6650` URL by default.
+> If you run a cluster in [standalone mode](getting-started-standalone.md), the broker is available at the `pulsar://localhost:6650` URL by default.
 
 If you create a client, you can use the `loadConf` configuration. The following parameters are available in `loadConf`.
 
@@ -237,7 +237,7 @@ Producer<byte[]> producer = client.newProducer()
 
 ### Message routing
 
-When using partitioned topics, you can specify the routing mode whenever you publish messages using a producer. For more information on specifying a routing mode using the Java client, see the [Partitioned Topics](cookbooks-partitioned) cookbook.
+When using partitioned topics, you can specify the routing mode whenever you publish messages using a producer. For more information on specifying a routing mode using the Java client, see the [Partitioned Topics](cookbooks-partitioned.md) cookbook.
 
 ### Async send
 
@@ -782,7 +782,7 @@ Total hash range size is 65536, so the max end of the range should be less than 
 
 ## Schema
 
-In Pulsar, all message data consists of byte arrays "under the hood." [Message schemas](schema-get-started) enable you to use other types of data when constructing and handling messages (from simple types like strings to more complex, application-specific types). If you construct, say, a [producer](#producers) without specifying a schema, then the producer can only produce messages of type `byte[]`. The following is an example.
+In Pulsar, all message data consists of byte arrays "under the hood." [Message schemas](schema-get-started.md) enable you to use other types of data when constructing and handling messages (from simple types like strings to more complex, application-specific types.md). If you construct, say, a [producer](#producers) without specifying a schema, then the producer can only produce messages of type `byte[]`. The following is an example.
 
 ```java
 
@@ -896,7 +896,7 @@ The following schema formats are currently available for Java:
 
 ## Authentication
 
-Pulsar currently supports three authentication schemes: [TLS](security-tls-authentication.md), [Athenz](security-athenz.md), and [Oauth2](security-oauth2). You can use the Pulsar Java client with all of them.
+Pulsar currently supports three authentication schemes: [TLS](security-tls-authentication.md), [Athenz](security-athenz.md), and [Oauth2](security-oauth2.md). You can use the Pulsar Java client with all of them.
 
 ### TLS Authentication
 
@@ -923,7 +923,7 @@ PulsarClient client = PulsarClient.builder()
 
 ### Athenz
 
-To use [Athenz](security-athenz) as an authentication provider, you need to [use TLS](#tls-authentication) and provide values for four parameters in a hash:
+To use [Athenz](security-athenz.md) as an authentication provider, you need to [use TLS](#tls-authentication) and provide values for four parameters in a hash:
 
 * `tenantDomain`
 * `tenantService`
@@ -960,7 +960,7 @@ PulsarClient client = PulsarClient.builder()
 
 ### Oauth2
 
-The following example shows how to use [Oauth2](security-oauth2) as an authentication provider for the Pulsar Java client.
+The following example shows how to use [Oauth2](security-oauth2.md) as an authentication provider for the Pulsar Java client.
 
 You can use the factory method to configure authentication for Pulsar Java client.
 

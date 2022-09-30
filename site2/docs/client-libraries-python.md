@@ -9,29 +9,21 @@ import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 ````
 
+You can use a Pulsar Python client to create producers, consumers, and readers.
 
-Pulsar Python client library is a wrapper over the existing [C++ client library](client-libraries-cpp.md) and exposes all of the [same features](/api/cpp). You can find the code in the [Python directory](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/python) of the C++ client code.
+All the methods in producer, consumer, and reader of a Python client are thread-safe. You can read the [API docs](/api/python) for the Python client.
 
-All the methods in producer, consumer, and reader of a Python client are thread-safe.
+## Installation
 
-pdoc-generated API docs for the Python client are available [here](/api/python).
+Use [pip](https://pip.pypa.io/) to install the latest version:
 
-## Install
-
-You can install the [`pulsar-client`](https://pypi.python.org/pypi/pulsar-client) library either via [PyPi](https://pypi.python.org/pypi), using [pip](#installation-using-pip), or by building the library from [source](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp).
-
-### Install using pip
-
-To install the `pulsar-client` library as a pre-built package using the [pip](https://pip.pypa.io/en/stable/) package manager:
-
-```shell
-pip install pulsar-client==@pulsar:version_number@
+```bash
+pip install 'pulsar-client==@pulsar:version_number@'
 ```
 
-### Optional dependencies
-If you install the client libraries on Linux to support services like Pulsar functions or Avro serialization, you can install optional components alongside the `pulsar-client` library.
+You can install optional components alongside the client library:
 
-```shell
+```bash
 # avro serialization
 pip install 'pulsar-client[avro]==@pulsar:version_number@'
 
@@ -44,23 +36,10 @@ pip install 'pulsar-client[all]==@pulsar:version_number@'
 
 Installation via PyPi is available for the following Python versions:
 
-Platform | Supported Python versions
-:--------|:-------------------------
-MacOS >= 11.0 | 3.7, 3.8, 3.9 and 3.10
-Linux (including Alpine Linux) | 3.7, 3.8, 3.9 and 3.10
-
-
-### Install from source
-
-To install the `pulsar-client` library by building from source, follow [instructions](client-libraries-cpp.md#compilation) and compile the Pulsar C++ client library. That builds the Python binding for the library.
-
-To install the built Python bindings:
-
-```shell
-git clone https://github.com/apache/pulsar
-cd pulsar/pulsar-client-cpp/python
-sudo python setup.py install
-```
+| Platform                       | Supported Python versions |
+|:-------------------------------|:--------------------------|
+| macOS (>= 11.0)                | 3.7, 3.8, 3.9 and 3.10    |
+| Linux (including Alpine Linux) | 3.7, 3.8, 3.9 and 3.10    |
 
 ## Connection URLs
 

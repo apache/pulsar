@@ -987,7 +987,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         producer.newMessage(Schema.BYTES).value("test".getBytes(StandardCharsets.UTF_8)).send();
         producer.newMessage(Schema.BYTES).value("test".getBytes(StandardCharsets.UTF_8)).send();
         producer.newMessage(Schema.BOOL).value(true).send();
-        
+
         Schema<Schemas.PersonThree> personThreeSchema = Schema.AVRO(Schemas.PersonThree.class);
         byte[] personThreeSchemaBytes = personThreeSchema.getSchemaInfo().getSchema();
         org.apache.avro.Schema personThreeSchemaAvroNative = new Parser().parse(new ByteArrayInputStream(personThreeSchemaBytes));
@@ -1216,7 +1216,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testAvroSchemaWithHttpLookup() throws Exception {
-        stopBroker();
+        cleanup();
         isTcpLookup = false;
         setup();
         testIncompatibleSchema();
@@ -1224,7 +1224,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testAvroSchemaWithTcpLookup() throws Exception {
-        stopBroker();
+        cleanup();
         isTcpLookup = true;
         setup();
         testIncompatibleSchema();

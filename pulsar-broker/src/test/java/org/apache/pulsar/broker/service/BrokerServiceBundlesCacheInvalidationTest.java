@@ -59,7 +59,7 @@ public class BrokerServiceBundlesCacheInvalidationTest extends BrokerTestBase {
 
         // Delete and recreate with 32 bundles
         admin.topics().delete(topic);
-        admin.namespaces().deleteNamespace(namespace, false);
+        deleteNamespaceGraceFully(namespace, false);
         admin.namespaces().createNamespace(namespace, 32);
 
         BundlesData bundlesData = admin.namespaces().getBundles(namespace);

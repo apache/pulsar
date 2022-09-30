@@ -18,7 +18,7 @@ You can currently interact with the admin interface via:
 - Making HTTP calls against the admin {@inject: rest:REST:/} API provided by Pulsar [brokers](reference-terminology.md#broker). For some restful apis, they might be redirected to topic owner brokers for serving
    with [`307 Temporary Redirect`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/307), hence the HTTP callers should handle `307 Temporary Redirect`. If you are using `curl`, you should specify `-L`
    to handle redirections.
-- The `pulsar-admin` CLI tool, which is available in the `bin` folder of your [Pulsar installation](getting-started-standalone):
+- The `pulsar-admin` CLI tool, which is available in the `bin` folder of your [Pulsar installation](getting-started-standalone.md):
 
   ```shell
   
@@ -37,7 +37,7 @@ In this document, examples from each of the three available interfaces will be s
 
 ## Admin setup
 
-Each of Pulsar's three admin interfaces---the [`pulsar-admin`](reference-pulsar-admin) CLI tool, the [Java admin API](/api/admin), and the {@inject: rest:REST:/} API ---requires some special setup if you have [authentication](security-overview.md#authentication-providers) enabled in your Pulsar [instance](reference-terminology.md#instance).
+Each of Pulsar's three admin interfaces---the [`pulsar-admin`](reference-pulsar-admin.md) CLI tool, the [Java admin API](/api/admin), and the {@inject: rest:REST:/} API ---requires some special setup if you have [authentication](security-overview.md#authentication-providers) enabled in your Pulsar [instance](reference-terminology.md#instance).
 
 ````mdx-code-block
 <Tabs 
@@ -45,7 +45,7 @@ Each of Pulsar's three admin interfaces---the [`pulsar-admin`](reference-pulsar-
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
-If you have [authentication](security-overview.md#authentication-providers) enabled, you will need to provide an auth configuration to use the [`pulsar-admin`](reference-pulsar-admin) tool. By default, the configuration for the `pulsar-admin` tool is found in the [`conf/client.conf`](reference-configuration.md#client) file. Here are the available parameters:
+If you have [authentication](security-overview.md#authentication-providers) enabled, you will need to provide an auth configuration to use the [`pulsar-admin`](reference-pulsar-admin.md) tool. By default, the configuration for the `pulsar-admin` tool is found in the [`conf/client.conf`](reference-configuration.md#client) file. Here are the available parameters:
 
 |Name|Description|Default|
 |----|-----------|-------|

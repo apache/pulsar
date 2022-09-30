@@ -22,7 +22,6 @@ package org.apache.pulsar.broker.admin.impl;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.common.policies.data.PoliciesUtil.defaultBundle;
 import static org.apache.pulsar.common.policies.data.PoliciesUtil.getBundles;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
 import java.net.MalformedURLException;
@@ -176,7 +175,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected CompletableFuture<List<String>> internalGetNonPersistentTopics(Policies policies) {
-        final List<CompletableFuture<List<String>>> futures = Lists.newArrayList();
+        final List<CompletableFuture<List<String>>> futures = new ArrayList<>();
         final List<String> boundaries = policies.bundles.getBoundaries();
         for (int i = 0; i < boundaries.size() - 1; i++) {
             final String bundle = String.format("%s_%s", boundaries.get(i), boundaries.get(i + 1));
@@ -189,7 +188,7 @@ public abstract class NamespacesBase extends AdminResource {
         }
         return FutureUtil.waitForAll(futures)
                 .thenApply(__ -> {
-                    final List<String> topics = Lists.newArrayList();
+                    final List<String> topics = new ArrayList<>();
                     for (int i = 0; i < futures.size(); i++) {
                         List<String> topicList = futures.get(i).join();
                         if (topicList != null) {
@@ -341,7 +340,7 @@ public abstract class NamespacesBase extends AdminResource {
                             if (replicationClusters.size() == 1
                                     && !policies.replication_clusters.contains(config().getClusterName())) {
                                 // the only replication cluster is other cluster, redirect
-                                String replCluster = Lists.newArrayList(policies.replication_clusters).get(0);
+                                String replCluster = new ArrayList<>(policies.replication_clusters).get(0);
                                 return clusterResources().getClusterAsync(replCluster)
                                         .thenCompose(replClusterDataOpt -> {
                                             ClusterData replClusterData = replClusterDataOpt
@@ -423,7 +422,7 @@ public abstract class NamespacesBase extends AdminResource {
                         if (policies.replication_clusters.size() == 1
                                 && !policies.replication_clusters.contains(config().getClusterName())) {
                             // the only replication cluster is other cluster, redirect
-                            String replCluster = Lists.newArrayList(policies.replication_clusters).get(0);
+                            String replCluster = new ArrayList<>(policies.replication_clusters).get(0);
                             future = clusterResources().getClusterAsync(replCluster)
                                     .thenCompose(clusterData -> {
                                         if (clusterData.isEmpty()) {
@@ -768,7 +767,7 @@ public abstract class NamespacesBase extends AdminResource {
 
         Policies policies = getNamespacePolicies(namespaceName);
 
-        final List<CompletableFuture<Void>> futures = Lists.newArrayList();
+        final List<CompletableFuture<Void>> futures = new ArrayList<>();
         List<String> boundaries = policies.bundles.getBoundaries();
         for (int i = 0; i < boundaries.size() - 1; i++) {
             String bundle = String.format("%s_%s", boundaries.get(i), boundaries.get(i + 1));
@@ -814,7 +813,7 @@ public abstract class NamespacesBase extends AdminResource {
                 })
                 .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
                 .thenCompose(policies -> {
-                    final List<CompletableFuture<Void>> futures = Lists.newArrayList();
+                    final List<CompletableFuture<Void>> futures = new ArrayList<>();
                     List<String> boundaries = policies.bundles.getBoundaries();
                     for (int i = 0; i < boundaries.size() - 1; i++) {
                         String bundle = String.format("%s_%s", boundaries.get(i), boundaries.get(i + 1));
@@ -1148,25 +1147,6 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     @SuppressWarnings("deprecation")
-    protected void internalSetTopicDispatchRate(DispatchRateImpl dispatchRate) {
-        validateSuperUserAccess();
-        log.info("[{}] Set namespace dispatch-rate {}/{}", clientAppId(), namespaceName, dispatchRate);
-        try {
-            updatePolicies(namespaceName, policies -> {
-                policies.topicDispatchRate.put(pulsar().getConfiguration().getClusterName(), dispatchRate);
-                policies.clusterDispatchRate.put(pulsar().getConfiguration().getClusterName(), dispatchRate);
-                return policies;
-            });
-            log.info("[{}] Successfully updated the dispatchRate for cluster on namespace {}", clientAppId(),
-                    namespaceName);
-        } catch (Exception e) {
-            log.error("[{}] Failed to update the dispatchRate for cluster on namespace {}", clientAppId(),
-                    namespaceName, e);
-            throw new RestException(e);
-        }
-    }
-
-    @SuppressWarnings("deprecation")
     protected CompletableFuture<Void> internalSetTopicDispatchRateAsync(DispatchRateImpl dispatchRate) {
         log.info("[{}] Set namespace dispatch-rate {}/{}", clientAppId(), namespaceName, dispatchRate);
         return validateSuperUserAccessAsync().thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
@@ -1361,7 +1341,7 @@ public abstract class NamespacesBase extends AdminResource {
     protected void internalClearNamespaceBacklog(AsyncResponse asyncResponse, boolean authoritative) {
         validateNamespaceOperation(namespaceName, NamespaceOperation.CLEAR_BACKLOG);
 
-        final List<CompletableFuture<Void>> futures = Lists.newArrayList();
+        final List<CompletableFuture<Void>> futures = new ArrayList<>();
         try {
             NamespaceBundles bundles = pulsar().getNamespaceService().getNamespaceBundleFactory()
                     .getBundles(namespaceName);
@@ -1426,7 +1406,7 @@ public abstract class NamespacesBase extends AdminResource {
         validateNamespaceOperation(namespaceName, NamespaceOperation.CLEAR_BACKLOG);
         checkNotNull(subscription, "Subscription should not be null");
 
-        final List<CompletableFuture<Void>> futures = Lists.newArrayList();
+        final List<CompletableFuture<Void>> futures = new ArrayList<>();
         try {
             NamespaceBundles bundles = pulsar().getNamespaceService().getNamespaceBundleFactory()
                     .getBundles(namespaceName);
@@ -1493,7 +1473,7 @@ public abstract class NamespacesBase extends AdminResource {
         validateNamespaceOperation(namespaceName, NamespaceOperation.UNSUBSCRIBE);
         checkNotNull(subscription, "Subscription should not be null");
 
-        final List<CompletableFuture<Void>> futures = Lists.newArrayList();
+        final List<CompletableFuture<Void>> futures = new ArrayList<>();
         try {
             NamespaceBundles bundles = pulsar().getNamespaceService().getNamespaceBundleFactory()
                     .getBundles(namespaceName);
@@ -1740,7 +1720,7 @@ public abstract class NamespacesBase extends AdminResource {
             List<Topic> topicList = pulsar().getBrokerService().getAllTopicsFromNamespaceBundle(nsName.toString(),
                     nsName.toString() + "/" + bundleRange);
 
-            List<CompletableFuture<Void>> futures = Lists.newArrayList();
+            List<CompletableFuture<Void>> futures = new ArrayList<>();
             if (subscription != null) {
                 if (subscription.startsWith(pulsar().getConfiguration().getReplicatorPrefix())) {
                     subscription = PersistentReplicator.getRemoteCluster(subscription);
@@ -1772,7 +1752,7 @@ public abstract class NamespacesBase extends AdminResource {
         try {
             List<Topic> topicList = pulsar().getBrokerService().getAllTopicsFromNamespaceBundle(nsName.toString(),
                     nsName.toString() + "/" + bundleRange);
-            List<CompletableFuture<Void>> futures = Lists.newArrayList();
+            List<CompletableFuture<Void>> futures = new ArrayList<>();
             if (subscription.startsWith(pulsar().getConfiguration().getReplicatorPrefix())) {
                 throw new RestException(Status.PRECONDITION_FAILED, "Cannot unsubscribe a replication cursor");
             } else {
@@ -1813,45 +1793,12 @@ public abstract class NamespacesBase extends AdminResource {
             throw new RestException(Status.BAD_REQUEST, "Input bundles do not cover the whole hash range. first:"
                     + partitions.first() + ", last:" + partitions.last());
         }
-        List<String> bundles = Lists.newArrayList();
+        List<String> bundles = new ArrayList<>();
         bundles.addAll(partitions);
         return BundlesData.builder()
                 .boundaries(bundles)
                 .numBundles(bundles.size() - 1)
                 .build();
-    }
-
-    private void validatePolicies(NamespaceName ns, Policies policies) {
-        if (ns.isV2() && policies.replication_clusters.isEmpty()) {
-            // Default to local cluster
-            policies.replication_clusters = Collections.singleton(config().getClusterName());
-        }
-
-        // Validate cluster names and permissions
-        policies.replication_clusters.forEach(cluster -> validateClusterForTenant(ns.getTenant(), cluster));
-
-        if (policies.message_ttl_in_seconds != null && policies.message_ttl_in_seconds < 0) {
-            throw new RestException(Status.PRECONDITION_FAILED, "Invalid value for message TTL");
-        }
-
-        if (policies.bundles != null && policies.bundles.getNumBundles() > 0) {
-            if (policies.bundles.getBoundaries() == null || policies.bundles.getBoundaries().size() == 0) {
-                policies.bundles = getBundles(policies.bundles.getNumBundles());
-            } else {
-                policies.bundles = validateBundlesData(policies.bundles);
-            }
-        } else {
-            int defaultNumberOfBundles = config().getDefaultNumberOfNamespaceBundles();
-            policies.bundles = getBundles(defaultNumberOfBundles);
-        }
-
-        if (policies.persistence != null) {
-            validatePersistencePolicies(policies.persistence);
-        }
-
-        if (policies.retention_policies != null) {
-            validateRetentionPolicies(policies.retention_policies);
-        }
     }
 
     private CompletableFuture<Void> validatePoliciesAsync(NamespaceName ns, Policies policies) {
