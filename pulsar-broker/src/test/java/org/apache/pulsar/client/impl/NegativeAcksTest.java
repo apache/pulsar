@@ -297,7 +297,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         negativeAcksTracker.close();
     }
 
-    @Test(timeOut = 15000)
+    @Test(timeOut = 10000)
     public void testNegativeAcksWithBatchAckEnabled() throws Exception {
         cleanup();
         conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
