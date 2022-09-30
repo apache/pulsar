@@ -44,7 +44,7 @@ public class LinuxInfoUtils {
     private static final String CGROUPS_CPU_USAGE_PATH = "/sys/fs/cgroup/cpu/cpuacct.usage";
     private static final String CGROUPS_CPU_LIMIT_QUOTA_PATH = "/sys/fs/cgroup/cpu/cpu.cfs_quota_us";
     private static final String CGROUPS_CPU_LIMIT_PERIOD_PATH = "/sys/fs/cgroup/cpu/cpu.cfs_period_us";
-    private static final String CGROUPS_CPU_USAGE_PER_CPU_PATH = "/sys/fs/cgroup/cpu/cpuacct.usage_percpu";
+    private static final String CGROUPS_CPU_CPUSET_CPUS = "/sys/fs/cgroup/cpuset/cpuset.cpus";
     // proc states
     private static final String PROC_STAT_PATH = "/proc/stat";
     private static final String NIC_PATH = "/sys/class/net/";
@@ -74,6 +74,31 @@ public class LinuxInfoUtils {
     }
 
     /**
+     *  Get total cpu count.
+     * @return Total cpu count
+     */
+    public static int getTotalCpuCount() {
+        int totalCpuCount=0;
+        try {
+            String[] ranges = readTrimStringFromFile(Paths.get(CGROUPS_CPU_CPUSET_CPUS)).split(",");
+            for (String range : ranges) {
+                if (!range.contains("-")) {
+                    totalCpuCount++;
+                } else {
+                    int dashIndex = range.indexOf('-');
+                    int left = Integer.valueOf(range.substring(0, dashIndex));
+                    int right = Integer.valueOf(range.substring(dashIndex + 1));
+                    totalCpuCount += right - left + 1;
+                }
+            }
+        } catch (IOException e) {
+            log.warn("[LinuxInfo] Failed to read CPU counts from cgroups", e);
+            // Fallback to availableProcessors
+        }
+        return totalCpuCount;
+    }
+
+    /**
      * Get total cpu limit.
      * @param isCGroupsEnabled Whether CGroup is enabled
      * @return Total cpu limit
@@ -86,8 +111,7 @@ public class LinuxInfoUtils {
                 if (quota > 0) {
                     return 100.0 * quota / period;
                 }
-                int cpuCount = readTrimStringFromFile(Paths.get(CGROUPS_CPU_USAGE_PER_CPU_PATH)).split(" ").length;
-                return cpuCount * 100;
+                return getTotalCpuCount() * 100;
             } catch (IOException e) {
                 log.warn("[LinuxInfo] Failed to read CPU quotas from cgroups", e);
                 // Fallback to availableProcessors
