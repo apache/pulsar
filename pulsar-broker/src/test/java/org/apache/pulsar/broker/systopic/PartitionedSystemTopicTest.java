@@ -196,7 +196,7 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
             pulsar.getBrokerService()
                     .getTopic(topicName.getPartition(partition).toString(), true).join();
         }
-        Assert.assertThrows(PulsarAdminException.NotAllowedException.class, () -> {
+        Assert.assertThrows(PulsarAdminException.ConflictException.class, () -> {
             admin.topicPolicies().setMaxConsumers(topicName.toString(), 2);
         });
     }
