@@ -29,7 +29,7 @@ TLS certificates include the following three types. Each certificate (key pair) 
   * CA private key is distributed to all parties involved.
   * CA public key (**trust cert**) is used for signing a certificate for either broker or clients.
 * Server key pairs
-* Client key pairs (for mutual TLS authentication only)
+* Client key pairs (for mutual TLS)
 
 For both server and client certificates, the private key with a certificate request is generated first, and the public key (the certificate) is generated after the **trust cert** signs the certificate request. When [TLS authentication](security-tls-authentication.md) is enabled, the server uses the **trust cert** to verify that the client has a key pair that the certificate authority signs. The Common Name (CN) of a client certificate is used as the client's role token, while the Subject Alternative Name (SAN) of a server certificate is used for [Hostname verification](#hostname-verification).
 
@@ -212,6 +212,9 @@ tlsProtocols=TLSv1.3,TLSv1.2
 tlsCiphers=TLS_DH_RSA_WITH_AES_256_GCM_SHA384,TLS_DH_RSA_WITH_AES_256_CBC_SHA
 ```
 
+* `tlsProtocols=TLSv1.3,TLSv1.2`: List out the TLS protocols that you are going to accept from clients. By default, it is not set.
+* `tlsCiphers=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256`: A cipher suite is a named combination of authentication, encryption, MAC and key exchange algorithm used to negotiate the security settings for a network connection using TLS network protocol. By default, it is null. See [OpenSSL Ciphers](https://www.openssl.org/docs/man1.0.2/apps/ciphers.html) and [JDK Ciphers](http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#ciphersuites) for more details.
+
 For JDK 11, you can obtain a list of supported values from the documentation:
 - [TLS protocol](https://docs.oracle.com/en/java/javase/11/security/oracle-providers.html#GUID-7093246A-31A3-4304-AC5F-5FB6400405E2__SUNJSSEPROVIDERPROTOCOLPARAMETERS-BBF75009)
 - [Ciphers](https://docs.oracle.com/en/java/javase/11/security/oracle-providers.html#GUID-7093246A-31A3-4304-AC5F-5FB6400405E2__SUNJSSE_CIPHER_SUITES)
@@ -384,8 +387,13 @@ Configure the following parameters in the `conf/broker.conf` file and restrict a
 brokerServicePortTls=6651
 webServicePortTls=8081
 
+# Trusted client certificates are required to connect TLS
+# Reject the Connection if the Client Certificate is not trusted.
+# In effect, this requires that all connecting clients perform TLS client
+# authentication.
 tlsRequireTrustedClientCertOnConnect=true
 tlsEnabledWithKeyStore=true
+
 # key store
 tlsKeyStoreType=JKS
 tlsKeyStore=/var/private/tls/broker.keystore.jks
@@ -409,10 +417,11 @@ brokerClientTlsKeyStorePassword=clientpw
 
 To disable non-TLS ports, you need to set the values of `brokerServicePort` and `webServicePort` to empty.
 
-Optional settings:
-1. `tlsRequireTrustedClientCertOnConnect=true`: Enable TLS authentication on both brokers and clients for mutual TLS. When enabled, it authenticates the other end of the communication channel.
-2. `tlsCiphers=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256`: A cipher suite is a named combination of authentication, encryption, MAC and key exchange algorithm used to negotiate the security settings for a network connection using TLS network protocol. By default, it is null. See [OpenSSL Ciphers](https://www.openssl.org/docs/man1.0.2/apps/ciphers.html) and [JDK Ciphers](http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#ciphersuites) for more details.
-3. `tlsProtocols=TLSv1.3,TLSv1.2`: List out the TLS protocols that you are going to accept from clients. By default, it is not set.
+:::note
+
+The default value of `tlsRequireTrustedClientCertOnConnect` is `false`. When it's enabled for mutual TLS, brokers/proxies require trusted client certificates; otherwise, brokers/proxies reject connection requests from clients.
+
+:::
 
 ### Configure proxies
 
