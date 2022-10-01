@@ -77,23 +77,18 @@ public class LinuxInfoUtils {
      *  Get total cpu count.
      * @return Total cpu count
      */
-    public static int getTotalCpuCount() {
+    public static int getTotalCpuCount() throws IOException {
         int totalCpuCount=0;
-        try {
-            String[] ranges = readTrimStringFromFile(Paths.get(CGROUPS_CPU_CPUSET_CPUS)).split(",");
-            for (String range : ranges) {
-                if (!range.contains("-")) {
-                    totalCpuCount++;
-                } else {
-                    int dashIndex = range.indexOf('-');
-                    int left = Integer.valueOf(range.substring(0, dashIndex));
-                    int right = Integer.valueOf(range.substring(dashIndex + 1));
-                    totalCpuCount += right - left + 1;
-                }
+        String[] ranges = readTrimStringFromFile(Paths.get(CGROUPS_CPU_CPUSET_CPUS)).split(",");
+        for (String range : ranges) {
+            if (!range.contains("-")) {
+                totalCpuCount++;
+            } else {
+                int dashIndex = range.indexOf('-');
+                int left = Integer.valueOf(range.substring(0, dashIndex));
+                int right = Integer.valueOf(range.substring(dashIndex + 1));
+                totalCpuCount += right - left + 1;
             }
-        } catch (IOException e) {
-            log.warn("[LinuxInfo] Failed to read CPU counts from cgroups", e);
-            // Fallback to availableProcessors
         }
         return totalCpuCount;
     }
