@@ -169,7 +169,7 @@ public class ConnectorUtils {
             int nThreads = Math.min(Runtime.getRuntime().availableProcessors(), archives.size());
             log.info("Loading {} connector definitions with a thread pool of size {}", archives.size(), nThreads);
             oneTimeExecutor = Executors.newFixedThreadPool(nThreads,
-                    new ThreadFactoryBuilder().setNameFormat("search-connectors-executor-%d").build());
+                    new ThreadFactoryBuilder().setNameFormat("connector-extraction-executor-%d").build());
             List<CompletableFuture<Map.Entry<String, Connector>>> futures = new ArrayList<>();
             for (Path archive : archives) {
                 CompletableFuture future = CompletableFuture.supplyAsync(() ->
