@@ -59,7 +59,7 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
     // always going to be in FIFO order, then we can avoid pulling all the messages in
     // tracker. Instead, we use the lookahead for detection and pause the read from
     // the cursor if the delays are fixed.
-    public static final long DETECT_FIXED_DELAY_LOOKAHEAD_MESSAGES = 50_000;
+    private final long fixedDelayDetectionLookahead;
 
     // This is the timestamp of the message with the highest delivery time
     // If new added messages are lower than this, it means the delivery is requested
@@ -70,17 +70,22 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
     private boolean messagesHaveFixedDelay = true;
 
     InMemoryDelayedDeliveryTracker(PersistentDispatcherMultipleConsumers dispatcher, Timer timer, long tickTimeMillis,
-                                   boolean isDelayedDeliveryDeliverAtTimeStrict) {
-        this(dispatcher, timer, tickTimeMillis, Clock.systemUTC(), isDelayedDeliveryDeliverAtTimeStrict);
+                                   boolean isDelayedDeliveryDeliverAtTimeStrict,
+                                   long fixedDelayDetectionLookahead) {
+        this(dispatcher, timer, tickTimeMillis, Clock.systemUTC(), isDelayedDeliveryDeliverAtTimeStrict,
+                fixedDelayDetectionLookahead);
     }
 
     InMemoryDelayedDeliveryTracker(PersistentDispatcherMultipleConsumers dispatcher, Timer timer,
-                                   long tickTimeMillis, Clock clock, boolean isDelayedDeliveryDeliverAtTimeStrict) {
+                                   long tickTimeMillis, Clock clock,
+                                   boolean isDelayedDeliveryDeliverAtTimeStrict,
+                                   long fixedDelayDetectionLookahead) {
         this.dispatcher = dispatcher;
         this.timer = timer;
         this.tickTimeMillis = tickTimeMillis;
         this.clock = clock;
         this.isDelayedDeliveryDeliverAtTimeStrict = isDelayedDeliveryDeliverAtTimeStrict;
+        this.fixedDelayDetectionLookahead = fixedDelayDetectionLookahead;
     }
 
     /**
@@ -278,8 +283,9 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
     @Override
     public boolean shouldPauseAllDeliveries() {
         // Pause deliveries if we know all delays are fixed within the lookahead window
-        return messagesHaveFixedDelay
-                && priorityQueue.size() >= DETECT_FIXED_DELAY_LOOKAHEAD_MESSAGES
+        return fixedDelayDetectionLookahead > 0
+                && messagesHaveFixedDelay
+                && priorityQueue.size() >= fixedDelayDetectionLookahead
                 && !hasMessageAvailable();
     }
 }
