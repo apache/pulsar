@@ -98,7 +98,7 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                     .sessionTimeoutMs(metadataStoreConfig.getSessionTimeoutMillis())
                     .watchers(Collections.singleton(event -> {
                         if (sessionWatcher != null) {
-                            sessionWatcher.ifPresent(sw -> sw.process(event));
+                            sessionWatcher.ifPresent(sw -> executor.execute(() -> sw.process(event)));
                         }
                     }))
                     .build();
