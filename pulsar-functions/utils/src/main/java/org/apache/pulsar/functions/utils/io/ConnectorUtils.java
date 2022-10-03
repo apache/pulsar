@@ -46,6 +46,7 @@ import org.apache.pulsar.common.io.ConfigFieldDefinition;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.nar.NarClassLoaderBuilder;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.utils.Exceptions;
@@ -172,12 +173,12 @@ public class ConnectorUtils {
                     new ThreadFactoryBuilder().setNameFormat("connector-extraction-executor-%d").build());
             List<CompletableFuture<Map.Entry<String, Connector>>> futures = new ArrayList<>();
             for (Path archive : archives) {
-                CompletableFuture future = CompletableFuture.supplyAsync(() ->
+                CompletableFuture<Map.Entry<String, Connector>> future = CompletableFuture.supplyAsync(() ->
                         getConnectorDefinitionEntry(archive, narExtractionDirectory), oneTimeExecutor);
                 futures.add(future);
             }
 
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()])).join();
+            FutureUtil.waitForAll(futures).join();
             return futures.stream()
                     .map(CompletableFuture::join)
                     .filter(entry -> entry != null)
