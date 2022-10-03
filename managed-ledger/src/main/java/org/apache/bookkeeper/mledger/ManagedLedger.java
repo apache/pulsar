@@ -20,6 +20,7 @@ package org.apache.bookkeeper.mledger;
 
 import io.netty.buffer.ByteBuf;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
@@ -647,6 +648,12 @@ public interface ManagedLedger {
      * will got null if corresponding ledger not exists.
      */
     CompletableFuture<LedgerInfo> getLedgerInfo(long ledgerId);
+
+    /**
+     * Get basic ledger summary.
+     * will get {@link Optional#empty()} if corresponding ledger not exists.
+     */
+    Optional<LedgerInfo> getOptionalLedgerInfo(long ledgerId);
 
     /**
      * Truncate ledgers
