@@ -141,7 +141,7 @@ public class PerformanceBaseArgumentsTest {
             FileOutputStream out = new FileOutputStream(tempConfigFile);
             props.store(out, "properties file");
             out.close();
-            args.confFile = "./src/test/resources/performance_client2.conf";
+            args.confFile = "./src/test/resources/performance_client3.conf";
             PerfClientUtils.setExitProcedure(code -> {
                 calledVar2.set(true);
                 Assert.assertNotNull(code);
@@ -150,7 +150,7 @@ public class PerformanceBaseArgumentsTest {
                 }
             });
 
-            args.confFile = "./src/test/resources/perf_client3.conf";
+            args.confFile = "./src/test/resources/performance_client3.conf";
             args.fillArgumentsFromProperties();
             Assert.assertTrue(calledVar1.get());
             Assert.assertTrue(calledVar2.get());
