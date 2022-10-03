@@ -1220,51 +1220,40 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                             unfenceTopicToResume();
                                             deleteFuture.completeExceptionally(e);
                                         } else {
-                                            // Truncate to ensure the offloaded data is not orphaned.
-                                            // Also ensures the BK ledgers are deleted and not just
-                                            // scheduled for deletion
-                                            CompletableFuture<Void> truncateFuture = ledger.asyncTruncate();
-                                            truncateFuture.whenComplete((ignore, exc) -> {
-                                                if (e != null) {
-                                                    log.error("[{}] Error truncating topic", topic, e);
-                                                    unfenceTopicToResume();
-                                                    deleteFuture.completeExceptionally(e);
-                                                } else {
-                                                    ledger.asyncDelete(new AsyncCallbacks.DeleteLedgerCallback() {
-                                                        @Override
-                                                        public void deleteLedgerComplete(Object ctx) {
-                                                            brokerService.removeTopicFromCache(PersistentTopic.this);
+                                            ledger.asyncDelete(new AsyncCallbacks.DeleteLedgerCallback() {
+                                                @Override
+                                                public void deleteLedgerComplete(Object ctx) {
+                                                    brokerService.removeTopicFromCache(PersistentTopic.this);
 
-                                                            dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
+                                                    dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
 
-                                                            subscribeRateLimiter.ifPresent(SubscribeRateLimiter::close);
+                                                    subscribeRateLimiter.ifPresent(SubscribeRateLimiter::close);
 
-                                                            unregisterTopicPolicyListener();
+                                                    unregisterTopicPolicyListener();
 
-                                                            log.info("[{}] Topic deleted", topic);
-                                                            deleteFuture.complete(null);
-                                                        }
-
-                                                        @Override
-                                                        public void
-                                                        deleteLedgerFailed(ManagedLedgerException exception,
-                                                                           Object ctx) {
-                                                            if (exception.getCause()
-                                                                instanceof MetadataStoreException.NotFoundException) {
-                                                                log.info("[{}] Topic is already deleted {}",
-                                                                        topic, exception.getMessage());
-                                                                deleteLedgerComplete(ctx);
-                                                            } else {
-                                                                unfenceTopicToResume();
-                                                                log.error("[{}] Error deleting topic",
-                                                                        topic, exception);
-                                                                deleteFuture.completeExceptionally(
-                                                                        new PersistenceException(exception));
-                                                            }
-                                                        }
-                                                    }, null);
+                                                    log.info("[{}] Topic deleted", topic);
+                                                    deleteFuture.complete(null);
                                                 }
-                                            });
+
+                                                @Override
+                                                public void
+                                                deleteLedgerFailed(ManagedLedgerException exception,
+                                                                   Object ctx) {
+                                                    if (exception.getCause()
+                                                        instanceof MetadataStoreException.NotFoundException) {
+                                                        log.info("[{}] Topic is already deleted {}",
+                                                                topic, exception.getMessage());
+                                                        deleteLedgerComplete(ctx);
+                                                    } else {
+                                                        unfenceTopicToResume();
+                                                        log.error("[{}] Error deleting topic",
+                                                                topic, exception);
+                                                        deleteFuture.completeExceptionally(
+                                                                new PersistenceException(exception));
+                                                    }
+                                                }
+                                            }, null);
+
                                         }
                                     });
                                 }

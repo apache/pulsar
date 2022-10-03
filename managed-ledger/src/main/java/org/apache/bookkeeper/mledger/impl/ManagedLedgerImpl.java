@@ -252,14 +252,31 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                       // operation
         CreatingLedger, // Creating a new ledger
         Closed, // ManagedLedger has been closed
-        Fenced, // A managed ledger is fenced when there is some concurrent
+        Fenced {
+            @Override
+            public boolean isFenced() {
+                return true;
+            }
+        }, // A managed ledger is fenced when there is some concurrent
                 // access from a different session/machine. In this state the
                 // managed ledger will throw exception for all operations, since
                 // the new instance will take over
+        FencedForDeletion {
+            @Override
+            public boolean isFenced() {
+                return true;
+            }
+        }, // A managed ledger is fenced for deletion
+        // which allows truncate/delete operation to proceed but the rest
+        // of teh rules from the Fenced state apply.
         Terminated, // Managed ledger was terminated and no more entries
                     // are allowed to be added. Reads are allowed
-        WriteFailed // The state that is transitioned to when a BK write failure happens
+        WriteFailed; // The state that is transitioned to when a BK write failure happens
                     // After handling the BK write failure, managed ledger will get signalled to create a new ledger
+
+        public boolean isFenced() {
+            return false;
+        }
     }
 
     // define boundaries for position based seeks and searches
@@ -778,7 +795,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return;
         }
         final State state = STATE_UPDATER.get(this);
-        if (state == State.Fenced) {
+        if (state.isFenced()) {
             addOperation.failed(new ManagedLedgerFencedException());
             return;
         } else if (state == State.Terminated) {
@@ -1297,7 +1314,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     @Override
     public synchronized void asyncTerminate(TerminateCallback callback, Object ctx) {
-        if (state == State.Fenced) {
+        if (state.isFenced()) {
             callback.terminateFailed(new ManagedLedgerFencedException(), ctx);
             return;
         } else if (state == State.Terminated) {
@@ -1427,7 +1444,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     @Override
     public synchronized void asyncClose(final CloseCallback callback, final Object ctx) {
         State state = STATE_UPDATER.get(this);
-        if (state == State.Fenced) {
+        if (state.isFenced()) {
             cancelScheduledTasks();
             factory.close(this);
             callback.closeFailed(new ManagedLedgerFencedException(), ctx);
@@ -1812,7 +1829,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     void asyncReadEntries(OpReadEntry opReadEntry) {
         final State state = STATE_UPDATER.get(this);
-        if (state == State.Fenced || state == State.Closed) {
+        if (state.isFenced() || state == State.Closed) {
             opReadEntry.readEntriesFailed(new ManagedLedgerFencedException(), opReadEntry.ctx);
             return;
         }
@@ -2513,6 +2530,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 promise.completeExceptionally(new ManagedLedgerAlreadyClosedException("Can't trim closed ledger"));
                 return;
             }
+            // Allow for FencedForDeletion
             if (currentState == State.Fenced) {
                 log.debug("[{}] Ignoring trimming request since the managed ledger was already fenced", name);
                 trimmerMutex.unlock();
@@ -2771,7 +2789,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         // Delete the managed ledger without closing, since we are not interested in gracefully closing cursors and
         // ledgers
-        setFenced();
+        setFencedForDeletion();
         cancelScheduledTasks();
 
         // Truncate to ensure the offloaded data is not orphaned.
@@ -3057,7 +3075,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     String.format("managed ledger [%s] has already closed", name)));
             return;
         }
-        if (currentState == State.Fenced) {
+        if (currentState.isFenced()) {
             promise.completeExceptionally(new ManagedLedgerFencedException(
                     String.format("managed ledger [%s] is fenced", name)));
             return;
@@ -3684,7 +3702,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      * @throws ManagedLedgerException
      */
     private void checkFenced() throws ManagedLedgerException {
-        if (STATE_UPDATER.get(this) == State.Fenced) {
+        if (STATE_UPDATER.get(this).isFenced()) {
             log.error("[{}] Attempted to use a fenced managed ledger", name);
             throw new ManagedLedgerFencedException();
         }
@@ -3699,6 +3717,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     synchronized void setFenced() {
         log.info("{} Moving to Fenced state", name);
         STATE_UPDATER.set(this, State.Fenced);
+    }
+
+    synchronized void setFencedForDeletion() {
+        log.info("{} Moving to FencedForDeletion state", name);
+        STATE_UPDATER.set(this, State.FencedForDeletion);
     }
 
     MetaStore getStore() {
@@ -3924,7 +3947,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private void checkTimeouts() {
         final State state = STATE_UPDATER.get(this);
         if (state == State.Closed
-                || state == State.Fenced) {
+                || state.isFenced()) {
             return;
         }
         checkAddTimeout();
