@@ -60,6 +60,7 @@ import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
+import static org.apache.pulsar.transaction.coordinator.impl.DisabledTxnLogBufferedWriterMetricsStats.DISABLED_BUFFERED_WRITER_METRICS;
 import static org.testng.Assert.*;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -189,7 +190,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         TxnLogBufferedWriter txnLogBufferedWriter =  new TxnLogBufferedWriter<Integer>(
                     managedLedger, orderedExecutor, transactionTimer,
                     dataSerializer, batchedWriteMaxRecords, batchedWriteMaxSize,
-                    batchedWriteMaxDelayInMillis, batchEnabled);
+                    batchedWriteMaxDelayInMillis, batchEnabled, DISABLED_BUFFERED_WRITER_METRICS);
         // Store the param-context, param-position, param-exception of callback function and complete-count for verify.
         List<Integer> contextArrayOfCallback = Collections.synchronizedList(new ArrayList<>());
         List<ManagedLedgerException> exceptionArrayOfCallback = Collections.synchronizedList(new ArrayList<>());
@@ -394,7 +395,8 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         }).when(managedLedger).asyncAddEntry(Mockito.any(ByteBuf.class), Mockito.any(), Mockito.any());
         // Test threshold: writeMaxDelayInMillis (use timer).
         TxnLogBufferedWriter txnLogBufferedWriter1 = new TxnLogBufferedWriter<>(managedLedger, orderedExecutor,
-                transactionTimer, dataSerializer, 32, 1024 * 4, 100, true);
+                transactionTimer, dataSerializer, 32, 1024 * 4,
+                100, true, DISABLED_BUFFERED_WRITER_METRICS);
         TxnLogBufferedWriter.AddDataCallback callback = Mockito.mock(TxnLogBufferedWriter.AddDataCallback.class);
         txnLogBufferedWriter1.asyncAddData(100, callback, 100);
         Thread.sleep(90);
@@ -406,7 +408,8 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
 
         // Test threshold: batchedWriteMaxRecords.
         TxnLogBufferedWriter txnLogBufferedWriter2 = new TxnLogBufferedWriter<>(managedLedger, orderedExecutor,
-                transactionTimer, dataSerializer, 32, 1024 * 4, 10000, true);
+                transactionTimer, dataSerializer, 32, 1024 * 4,
+                10000, true, DISABLED_BUFFERED_WRITER_METRICS);
         for (int i = 0; i < 32; i++){
             txnLogBufferedWriter2.asyncAddData(1, callback, 1);
         }
@@ -416,7 +419,8 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
 
         // Test threshold: batchedWriteMaxSize.
         TxnLogBufferedWriter txnLogBufferedWriter3 = new TxnLogBufferedWriter<>(managedLedger, orderedExecutor,
-                transactionTimer, dataSerializer, 1024, 64 * 4, 10000, true);
+                transactionTimer, dataSerializer, 1024, 64 * 4,
+                10000, true, DISABLED_BUFFERED_WRITER_METRICS);
         for (int i = 0; i < 64; i++){
             txnLogBufferedWriter3.asyncAddData(1, callback, 1);
         }
@@ -444,7 +448,8 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         // Create components.
         OrderedExecutor orderedExecutor =  Mockito.mock(OrderedExecutor.class);
         ArrayBlockingQueue<Runnable> workQueue = new ArrayBlockingQueue<>(65536 * 2);
-        ThreadPoolExecutor threadPoolExecutor = new ThreadPoolExecutor(1, 1, 5, TimeUnit.SECONDS, workQueue);
+        ThreadPoolExecutor threadPoolExecutor = new ThreadPoolExecutor(1, 1, 5,
+                TimeUnit.SECONDS, workQueue);
         Mockito.when(orderedExecutor.chooseThread(Mockito.anyString())).thenReturn(threadPoolExecutor);
         HashedWheelTimer transactionTimer = new HashedWheelTimer(new DefaultThreadFactory("transaction-timer"),
                 1, TimeUnit.MILLISECONDS);
@@ -452,8 +457,9 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         // Mock managed ledger and write counter.
         MockedManagedLedger mockedManagedLedger = mockManagedLedgerWithWriteCounter(mlName);
         // Start tests.
-        TxnLogBufferedWriter txnLogBufferedWriter = new TxnLogBufferedWriter<>(mockedManagedLedger.managedLedger, orderedExecutor,
-                    transactionTimer, dataSerializer, 2, 1024 * 4, 1, true);
+        TxnLogBufferedWriter txnLogBufferedWriter = new TxnLogBufferedWriter<>(mockedManagedLedger.managedLedger,
+                orderedExecutor, transactionTimer, dataSerializer, 2, 1024 * 4,
+                1, true, DISABLED_BUFFERED_WRITER_METRICS);
         TxnLogBufferedWriter.AddDataCallback callback = Mockito.mock(TxnLogBufferedWriter.AddDataCallback.class);
         // Append heavier tasks to the Ledger thread.
         final ExecutorService executorService = orderedExecutor.chooseThread(mlName);

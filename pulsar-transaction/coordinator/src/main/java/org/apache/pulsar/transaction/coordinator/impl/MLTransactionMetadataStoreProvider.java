@@ -19,6 +19,7 @@
 package org.apache.pulsar.transaction.coordinator.impl;
 
 import io.netty.util.Timer;
+import io.prometheus.client.CollectorRegistry;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
@@ -33,6 +34,22 @@ import org.apache.pulsar.transaction.coordinator.TransactionTimeoutTracker;
  */
 public class MLTransactionMetadataStoreProvider implements TransactionMetadataStoreProvider {
 
+
+    private static volatile TxnLogBufferedWriterMetricsStats bufferedWriterMetrics =
+            DisabledTxnLogBufferedWriterMetricsStats.DISABLED_BUFFERED_WRITER_METRICS;
+
+    public static void initBufferedWriterMetrics(String brokerAdvertisedAddress){
+        if (bufferedWriterMetrics != DisabledTxnLogBufferedWriterMetricsStats.DISABLED_BUFFERED_WRITER_METRICS){
+            return;
+        }
+        synchronized (MLTransactionMetadataStoreProvider.class){
+            if (bufferedWriterMetrics != DisabledTxnLogBufferedWriterMetricsStats.DISABLED_BUFFERED_WRITER_METRICS){
+                return;
+            }
+            bufferedWriterMetrics = new MLTransactionMetadataStoreBufferedWriterMetrics(brokerAdvertisedAddress);
+        }
+    }
+
     @Override
     public CompletableFuture<TransactionMetadataStore> openStore(TransactionCoordinatorID transactionCoordinatorId,
                                                                  ManagedLedgerFactory managedLedgerFactory,
@@ -45,11 +62,21 @@ public class MLTransactionMetadataStoreProvider implements TransactionMetadataSt
         MLTransactionSequenceIdGenerator mlTransactionSequenceIdGenerator = new MLTransactionSequenceIdGenerator();
         managedLedgerConfig.setManagedLedgerInterceptor(mlTransactionSequenceIdGenerator);
         MLTransactionLogImpl txnLog = new MLTransactionLogImpl(transactionCoordinatorId,
-                managedLedgerFactory, managedLedgerConfig, txnLogBufferedWriterConfig, timer);
+                managedLedgerFactory, managedLedgerConfig, txnLogBufferedWriterConfig, timer, bufferedWriterMetrics);
 
         // MLTransactionLogInterceptor will init sequenceId and update the sequenceId to managedLedger properties.
         return txnLog.initialize().thenCompose(__ ->
                 new MLTransactionMetadataStore(transactionCoordinatorId, txnLog, timeoutTracker,
                         mlTransactionSequenceIdGenerator, maxActiveTransactionsPerCoordinator).init(recoverTracker));
+    }
+
+    private static class MLTransactionMetadataStoreBufferedWriterMetrics extends TxnLogBufferedWriterMetricsStats {
+
+        private MLTransactionMetadataStoreBufferedWriterMetrics(String brokerAdvertisedAddress) {
+            super("pulsar_txn_tc",
+                    new String[]{"broker"},
+                    new String[]{brokerAdvertisedAddress},
+                    CollectorRegistry.defaultRegistry);
+        }
     }
 }

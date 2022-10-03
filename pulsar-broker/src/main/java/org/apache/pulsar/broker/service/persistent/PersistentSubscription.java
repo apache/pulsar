@@ -107,9 +107,9 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
     private volatile int isFenced = FALSE;
     private PersistentMessageExpiryMonitor expiryMonitor;
 
-    private long lastExpireTimestamp = 0L;
-    private long lastConsumedFlowTimestamp = 0L;
-    private long lastMarkDeleteAdvancedTimestamp = 0L;
+    private volatile long lastExpireTimestamp = 0L;
+    private volatile long lastConsumedFlowTimestamp = 0L;
+    private volatile long lastMarkDeleteAdvancedTimestamp = 0L;
 
     // for connected subscriptions, message expiry will be checked if the backlog is greater than this threshold
     private static final int MINIMUM_BACKLOG_FOR_EXPIRY_CHECK = 1000;

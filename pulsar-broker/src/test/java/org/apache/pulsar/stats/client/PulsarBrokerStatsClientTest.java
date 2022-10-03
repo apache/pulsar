@@ -135,6 +135,7 @@ public class PulsarBrokerStatsClientTest extends ProducerConsumerBase {
                 && (cursor.totalNonContiguousDeletedMessagesRange) < numberOfMsgs / 2);
         assertFalse(cursor.subscriptionHavePendingRead);
         assertFalse(cursor.subscriptionHavePendingReplayRead);
+        assertTrue(cursor.active);
         producer.close();
         consumer.close();
         log.info("-- Exiting {} test --", methodName);

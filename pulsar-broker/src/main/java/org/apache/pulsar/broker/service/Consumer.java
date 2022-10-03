@@ -86,9 +86,9 @@ public class Consumer {
     private final LongAdder bytesOutCounter;
     private final Rate messageAckRate;
 
-    private long lastConsumedTimestamp;
-    private long lastAckedTimestamp;
-    private long lastConsumedFlowTimestamp;
+    private volatile long lastConsumedTimestamp;
+    private volatile long lastAckedTimestamp;
+    private volatile long lastConsumedFlowTimestamp;
     private Rate chunkedMessageRate;
 
     // Represents how many messages we can safely send to the consumer without
