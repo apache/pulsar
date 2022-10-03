@@ -2583,6 +2583,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 advanceCursorsIfNecessary(ledgersToDelete);
             } catch (ManagedLedgerNotFoundException e) {
                 log.info("First non deleted Ledger is not found, stop trimming");
+                metadataMutex.unlock();
                 trimmerMutex.unlock();
                 return;
             }
@@ -2658,7 +2659,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      * This is to make sure that the `consumedEntries` counter is correctly updated with the number of skipped
      * entries and the stats are reported correctly.
      */
-    private void advanceCursorsIfNecessary(List<LedgerInfo> ledgersToDelete) throws ManagedLedgerNotFoundException {
+    @VisibleForTesting
+    void advanceCursorsIfNecessary(List<LedgerInfo> ledgersToDelete) throws ManagedLedgerNotFoundException {
         if (ledgersToDelete.isEmpty()) {
             return;
         }
