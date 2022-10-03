@@ -201,6 +201,8 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         doReturn(mlFactoryMock).when(pulsar).getManagedLedgerFactory();
         doReturn(mock(PulsarClientImpl.class)).when(pulsar).getClient();
 
+        doAnswer(invocationOnMock -> CompletableFuture.completedFuture(null))
+                .when(mlFactoryMock).getManagedLedgerPropertiesAsync(any());
         doAnswer(invocation -> {
             DeleteLedgerCallback deleteLedgerCallback = invocation.getArgument(1);
             deleteLedgerCallback.deleteLedgerComplete(null);
