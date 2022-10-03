@@ -745,6 +745,7 @@ class Client:
         conf = _pulsar.ConsumerConfiguration()
         conf.consumer_type(consumer_type)
         conf.read_compacted(is_read_compacted)
+        conf.pattern_auto_discovery_period(pattern_auto_discovery_period)
         if message_listener:
             conf.message_listener(_listener_wrapper(message_listener, schema))
         conf.receiver_queue_size(receiver_queue_size)

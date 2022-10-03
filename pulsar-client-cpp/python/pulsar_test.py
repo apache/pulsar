@@ -18,7 +18,9 @@
 # under the License.
 #
 
-
+import re
+import logging
+import random
 from unittest import TestCase, main
 import time
 import os
@@ -52,6 +54,8 @@ except ImportError:
     from urllib2 import urlopen, Request
 
 TM = 10000  # Do not wait forever in tests
+
+logging.basicConfig(level=os.getenv("LOG_LEVEL", logging.INFO))
 
 
 def doHttpPost(url, data):
@@ -249,6 +253,32 @@ class PulsarTest(TestCase):
         # Message should be published in the next 500ms
         msg = consumer.receive(TM)
         self.assertTrue(msg)
+        self.assertEqual(msg.data(), b"hello")
+        consumer.unsubscribe()
+        producer.close()
+        client.close()
+
+    def test_pattern_auto_discovery_period(self):
+        # use random topic to make it likely we're not using existing topics
+        topic_prefix = f"persistent://public/default/testing{random.randint(0, 99999)}"
+        client = Client(self.serviceUrl, logger=logging.getLogger("pulsar"))
+        consumer = client.subscribe(
+            re.compile(f"{topic_prefix}-.*"),
+            f"sub_auto_discovery",
+            consumer_type=ConsumerType.Shared,
+            pattern_auto_discovery_period=1,
+        )
+
+        # create the producer *after* the consumer to ensure use of topic discovery
+        producer = client.create_producer(f"{topic_prefix}-pattern1")
+        # wait *before* message sent, otherwise it's not picked up by consumer
+        time.sleep(1.5)
+        producer.send(b"hello")
+
+        # Message should be available now
+        msg = consumer.receive(100)
+
+        self.assertIsNotNone(msg)
         self.assertEqual(msg.data(), b"hello")
         consumer.unsubscribe()
         producer.close()
@@ -997,8 +1027,6 @@ class PulsarTest(TestCase):
         client.close()
 
     def test_topics_pattern_consumer(self):
-        import re
-
         client = Client(self.serviceUrl)
 
         topics_pattern = "persistent://public/default/my-python-pattern-consumer.*"
@@ -1024,11 +1052,7 @@ class PulsarTest(TestCase):
             "my-pattern-consumer-sub",
             consumer_type=ConsumerType.Shared,
             receiver_queue_size=10,
-            pattern_auto_discovery_period=1,
         )
-
-        # wait enough time to trigger auto discovery
-        time.sleep(2)
 
         for i in range(100):
             producer1.send(b"hello-1-%d" % i)
