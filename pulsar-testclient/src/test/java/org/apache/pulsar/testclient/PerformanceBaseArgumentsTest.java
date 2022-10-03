@@ -74,7 +74,10 @@ public class PerformanceBaseArgumentsTest {
             }
         };
 
-        File file = new File("./src/test/resources/performance_client2.conf");
+        File tempConfigFile = new File("./src/test/resources/performance_client2.conf");
+        if (tempConfigFile.exists()) {
+            tempConfigFile.delete();
+        }
         try {
             Properties props = new Properties();
             
@@ -86,7 +89,7 @@ public class PerformanceBaseArgumentsTest {
             "tlsEnableHostnameVerification", "true"
             );
             props.putAll(configs);
-            FileOutputStream out = new FileOutputStream(file);
+            FileOutputStream out = new FileOutputStream(tempConfigFile);
             props.store(out, "properties file");
             out.close();
             args.confFile = "./src/test/resources/performance_client2.conf";
@@ -105,7 +108,7 @@ public class PerformanceBaseArgumentsTest {
             e.printStackTrace();
             fail("Error while updating/reading config file");
         } finally {
-            file.delete();
+            tempConfigFile.delete();
         }
     }
 
@@ -121,7 +124,10 @@ public class PerformanceBaseArgumentsTest {
                 calledVar1.set(true);
             }
         };
-        File file = new File("./src/test/resources/performance_client3.conf");;
+        File tempConfigFile = new File("./src/test/resources/performance_client3.conf");
+        if (tempConfigFile.exists()) {
+            tempConfigFile.delete();
+        }
         try {
             Properties props = new Properties();
 
@@ -135,7 +141,7 @@ public class PerformanceBaseArgumentsTest {
                     "proxyProtocol", "TEST"
             );
             props.putAll(configs);
-            FileOutputStream out = new FileOutputStream(file);
+            FileOutputStream out = new FileOutputStream(tempConfigFile);
             props.store(out, "properties file");
             out.close();
             args.confFile = "./src/test/resources/performance_client2.conf";
@@ -155,7 +161,7 @@ public class PerformanceBaseArgumentsTest {
             e.printStackTrace();
             fail("Error while updating/reading config file");
         } finally {
-            file.delete();
+            tempConfigFile.delete();
         }
     }
 
