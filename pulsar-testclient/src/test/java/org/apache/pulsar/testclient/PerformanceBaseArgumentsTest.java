@@ -18,12 +18,21 @@
  */
 package org.apache.pulsar.testclient;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import junit.framework.AssertionFailedError;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import static org.apache.pulsar.client.api.ProxyProtocol.SNI;
+import static org.testng.Assert.fail;
 
 
 public class PerformanceBaseArgumentsTest {
@@ -64,16 +73,40 @@ public class PerformanceBaseArgumentsTest {
                 called.set(true);
             }
         };
-        args.confFile = "./src/test/resources/perf_client2.conf";
-        args.fillArgumentsFromProperties();
-        Assert.assertTrue(called.get());
-        Assert.assertEquals(args.serviceURL, "https://my-pulsar:8443/");
-        Assert.assertEquals(args.authPluginClassName,
-                "org.apache.pulsar.testclient.PerfClientUtilsTest.MyAuth");
-        Assert.assertEquals(args.authParams, "myparams");
-        Assert.assertEquals(args.tlsTrustCertsFilePath, "./path");
-        Assert.assertTrue(args.tlsAllowInsecureConnection);
-        Assert.assertTrue(args.tlsHostnameVerificationEnable);
+
+        File file = new File("./src/test/resources/performance_client2.conf");
+        try {
+            Properties props = new Properties();
+            
+            Map<String, String> configs = Map.of("brokerServiceUrl","https://my-pulsar:8443/",
+            "authPlugin","org.apache.pulsar.testclient.PerfClientUtilsTest.MyAuth",
+            "authParams", "myparams",
+            "tlsTrustCertsFilePath", "./path",
+                    "tlsAllowInsecureConnection","true",
+            "tlsEnableHostnameVerification", "true"
+            );
+            props.putAll(configs);
+            FileOutputStream out = new FileOutputStream(file);
+            props.store(out, "properties file");
+            out.close();
+            args.confFile = "./src/test/resources/performance_client2.conf";
+
+            args.fillArgumentsFromProperties();
+            Assert.assertTrue(called.get());
+            Assert.assertEquals(args.serviceURL, "https://my-pulsar:8443/");
+            Assert.assertEquals(args.authPluginClassName,
+                    "org.apache.pulsar.testclient.PerfClientUtilsTest.MyAuth");
+            Assert.assertEquals(args.authParams, "myparams");
+            Assert.assertEquals(args.tlsTrustCertsFilePath, "./path");
+            Assert.assertTrue(args.tlsAllowInsecureConnection);
+            Assert.assertTrue(args.tlsHostnameVerificationEnable);
+            
+        } catch (IOException e) {
+            e.printStackTrace();
+            fail("Error while updating/reading config file");
+        } finally {
+            file.delete();
+        }
     }
 
     @Test
@@ -88,19 +121,42 @@ public class PerformanceBaseArgumentsTest {
                 calledVar1.set(true);
             }
         };
+        File file = new File("./src/test/resources/performance_client3.conf");;
+        try {
+            Properties props = new Properties();
 
-        PerfClientUtils.setExitProcedure(code -> {
-            calledVar2.set(true);
-            Assert.assertNotNull(code);
-            if (code != -1) {
-                Assert.fail("Incorrect exit code");
-            }
-        });
-        
-        args.confFile = "./src/test/resources/perf_client3.conf";
-        args.fillArgumentsFromProperties();
-        Assert.assertTrue(calledVar1.get());
-        Assert.assertTrue(calledVar2.get());
+            Map<String, String> configs = Map.of("brokerServiceUrl","https://my-pulsar:8443/",
+                    "authPlugin","org.apache.pulsar.testclient.PerfClientUtilsTest.MyAuth",
+                    "authParams", "myparams",
+                    "tlsTrustCertsFilePath", "./path",
+                    "tlsAllowInsecureConnection","true",
+                    "tlsEnableHostnameVerification", "true",
+                    "proxyServiceURL", "https://my-proxy-pulsar:4443/",
+                    "proxyProtocol", "TEST"
+            );
+            props.putAll(configs);
+            FileOutputStream out = new FileOutputStream(file);
+            props.store(out, "properties file");
+            out.close();
+            args.confFile = "./src/test/resources/performance_client2.conf";
+            PerfClientUtils.setExitProcedure(code -> {
+                calledVar2.set(true);
+                Assert.assertNotNull(code);
+                if (code != -1) {
+                    fail("Incorrect exit code");
+                }
+            });
+
+            args.confFile = "./src/test/resources/perf_client3.conf";
+            args.fillArgumentsFromProperties();
+            Assert.assertTrue(calledVar1.get());
+            Assert.assertTrue(calledVar2.get());
+        } catch (IOException e) {
+            e.printStackTrace();
+            fail("Error while updating/reading config file");
+        } finally {
+            file.delete();
+        }
     }
 
 }
