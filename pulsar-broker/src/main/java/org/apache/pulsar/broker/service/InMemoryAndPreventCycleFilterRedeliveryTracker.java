@@ -22,7 +22,8 @@ import static org.apache.bookkeeper.mledger.PositionComparators.COMPARE_WITH_LED
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
-import lombok.Getter;
+import java.util.function.Supplier;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 
 /***
@@ -43,10 +44,10 @@ import org.apache.bookkeeper.mledger.Position;
  * consumer is paused for 1 second. Since tracking the consumption of all the messages cost memory too much, we trace
  * only the messages with the smallest position.
  */
+@Slf4j
 public class InMemoryAndPreventCycleFilterRedeliveryTracker extends InMemoryRedeliveryTracker {
 
     /** The first redelivery record. **/
-    @Getter
     private volatile Position redeliveryStartAt;
     /**
      * key: The consumer calls redelivery at {@link #redeliveryStartAt}.
@@ -122,6 +123,23 @@ public class InMemoryAndPreventCycleFilterRedeliveryTracker extends InMemoryRede
     public void clear() {
         super.clear();
         cleanEarliestInformation();
+    }
+
+    @Override
+    public Consumer cherryNextConsumer(Supplier<Consumer> nextConsumerFunc, int consumerCount){
+        if (pausedConsumerCount() != consumerCount) {
+            for (int i = 0; i < consumerCount; i++) {
+                Consumer nextConsumer = nextConsumerFunc.get();
+                if (!isConsumerPaused(nextConsumer)) {
+                    return nextConsumer;
+                }
+            }
+        }
+        if (log.isDebugEnabled()) {
+            log.debug("No consumers are currently able to consume the first redelivery entry {}",
+                    redeliveryStartAt);
+        }
+        return nextConsumerFunc.get();
     }
 
     public boolean isConsumerPaused(Consumer consumer) {

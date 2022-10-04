@@ -713,29 +713,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         if (!redeliveryTracker.hasRedeliveredEntry(entries)){
             return super.getNextConsumer();
         }
-        if (redeliveryTracker instanceof InMemoryAndPreventCycleFilterRedeliveryTracker tracker){
-            if (tracker.pausedConsumerCount() == consumerSet.size()){
-                if (log.isDebugEnabled()) {
-                    log.debug("No consumers are currently able to consume the first redelivery entry {}",
-                            tracker.getRedeliveryStartAt());
-                }
-                return super.getNextConsumer();
-            } else {
-                for (int i = 0; i < consumerSet.size(); i++){
-                    Consumer nextConsumer = super.getNextConsumer();
-                    if (!tracker.isConsumerPaused(nextConsumer)){
-                        return nextConsumer;
-                    }
-                }
-                if (log.isDebugEnabled()) {
-                    log.debug("No consumers are currently able to consume the first redelivery entry {}",
-                            tracker.getRedeliveryStartAt());
-                }
-                return super.getNextConsumer();
-            }
-        } else {
-            return super.getNextConsumer();
-        }
+        return redeliveryTracker.cherryNextConsumer(() -> super.getNextConsumer(), consumerSet.size());
     }
 
     private boolean sendChunkedMessagesToConsumers(ReadType readType,

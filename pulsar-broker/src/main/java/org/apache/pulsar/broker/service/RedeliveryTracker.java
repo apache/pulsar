@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import java.util.List;
+import java.util.function.Supplier;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 
@@ -46,5 +47,9 @@ public interface RedeliveryTracker {
             }
         }
         return false;
+    }
+
+    default Consumer cherryNextConsumer(Supplier<Consumer> nextConsumerFunc, int consumerCount){
+        return nextConsumerFunc.get();
     }
 }
