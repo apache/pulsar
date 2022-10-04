@@ -26,6 +26,8 @@ public interface RedeliveryTracker {
 
     int incrementAndGetRedeliveryCount(Position position, Consumer consumer);
 
+    default void noticeConsumerClosed(Consumer consumer){}
+
     int getRedeliveryCount(Position position);
 
     void remove(Position position, Position markDeletedPosition);

@@ -211,6 +211,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 consumer.getPendingAcks().forEach((ledgerId, entryId, batchSize, stickyKeyHash) -> {
                     addMessageToReplay(ledgerId, entryId, stickyKeyHash);
                 });
+                redeliveryTracker.noticeConsumerClosed(consumer);
                 totalAvailablePermits -= consumer.getAvailablePermits();
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Decreased totalAvailablePermits by {} in PersistentDispatcherMultipleConsumers. "

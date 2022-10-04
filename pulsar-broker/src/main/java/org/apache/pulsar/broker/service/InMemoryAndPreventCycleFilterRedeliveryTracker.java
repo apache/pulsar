@@ -112,6 +112,12 @@ public class InMemoryAndPreventCycleFilterRedeliveryTracker extends InMemoryRede
     }
 
     @Override
+    public void noticeConsumerClosed(Consumer consumer){
+        pausedConsumers.remove(consumer);
+        earliestEntryRedeliveryCountMapping.remove(consumer);
+    }
+
+    @Override
     public void clear() {
         super.clear();
         cleanEarliestInformation();
