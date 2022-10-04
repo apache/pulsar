@@ -59,6 +59,15 @@ public class InMemoryAndPreventCycleFilterRedeliveryTracker extends InMemoryRede
      */
     private final ConcurrentHashMap<Consumer, PauseConsumerInformation> pausedConsumers = new ConcurrentHashMap<>();
 
+    /**
+     * The max seconds a consumer will be paused because the current message cannot be consumed by EntryFilter.
+     */
+    private final int rescheduledMessageDelaySeconds;
+
+    public InMemoryAndPreventCycleFilterRedeliveryTracker(int rescheduledMessageDelaySeconds){
+        this.rescheduledMessageDelaySeconds = rescheduledMessageDelaySeconds;
+    }
+
     @Override
     public int incrementAndGetRedeliveryCount(Position position, Consumer consumer) {
         int newCount = super.incrementAndGetRedeliveryCount(position, consumer);
@@ -86,7 +95,8 @@ public class InMemoryAndPreventCycleFilterRedeliveryTracker extends InMemoryRede
         int redeliveryCount = earliestEntryRedeliveryCountMapping.computeIfAbsent(consumer, c -> new AtomicInteger())
                 .incrementAndGet();
         if (redeliveryCount >= 3) {
-            pausedConsumers.put(consumer, new PauseConsumerInformation(actualEarliestPosition));
+            pausedConsumers.put(consumer,
+                    new PauseConsumerInformation(actualEarliestPosition, rescheduledMessageDelaySeconds));
         } else {
         }
         return newCount;
@@ -149,11 +159,14 @@ public class InMemoryAndPreventCycleFilterRedeliveryTracker extends InMemoryRede
 
         private final Position cantConsumedPosition;
 
-        private final long pauseTime;
+        private final long pauseStartTime;
 
-        private PauseConsumerInformation(Position cantConsumedPosition) {
+        private final long pauseEndTime;
+
+        private PauseConsumerInformation(Position cantConsumedPosition, int maxPauseSeconds) {
             this.cantConsumedPosition = cantConsumedPosition;
-            this.pauseTime = System.currentTimeMillis();
+            this.pauseStartTime = System.currentTimeMillis();
+            this.pauseEndTime = pauseStartTime + 1000 * maxPauseSeconds;
         }
 
         /**
@@ -166,8 +179,7 @@ public class InMemoryAndPreventCycleFilterRedeliveryTracker extends InMemoryRede
             if (cantConsumedPosition != currentRedeliveryStartAt) {
                 return false;
             }
-            // Automatically becomes invalid after 1s, because users may use time to filter the Entry.
-            return System.currentTimeMillis() - pauseTime < 1000;
+            return System.currentTimeMillis() < pauseEndTime;
         }
     }
 }

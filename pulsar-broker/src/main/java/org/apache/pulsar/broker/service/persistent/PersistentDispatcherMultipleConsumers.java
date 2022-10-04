@@ -138,7 +138,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         this.dispatchMessagesThread = topic.getBrokerService().getTopicOrderedExecutor().chooseThread();
         this.redeliveryMessages = new MessageRedeliveryController(allowOutOfOrderDelivery);
         if (this.serviceConfig.isSubscriptionRedeliveryTrackerEnabled() && CollectionUtils.isEmpty(entryFilters)){
-            this.redeliveryTracker = new InMemoryAndPreventCycleFilterRedeliveryTracker();
+            this.redeliveryTracker = new InMemoryAndPreventCycleFilterRedeliveryTracker(
+                    this.serviceConfig.getDispatcherEntryFilterRescheduledMessageDelaySeconds());
         } else if (this.serviceConfig.isSubscriptionRedeliveryTrackerEnabled()){
             this.redeliveryTracker = new InMemoryRedeliveryTracker();
         } else {
@@ -713,18 +714,23 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         }
         if (redeliveryTracker instanceof InMemoryAndPreventCycleFilterRedeliveryTracker tracker){
             if (tracker.pausedConsumerCount() == consumerSet.size()){
-                log.warn("No consumers are currently able to consume the first redelivery entry {}",
-                        tracker.getRedeliveryStartAt());
+                if (log.isDebugEnabled()) {
+                    log.debug("No consumers are currently able to consume the first redelivery entry {}",
+                            tracker.getRedeliveryStartAt());
+                }
                 return super.getNextConsumer();
             } else {
-                Consumer nextConsumer = null;
-                while (true){
-                    nextConsumer = super.getNextConsumer();
+                for (int i = 0; i < consumerSet.size(); i++){
+                    Consumer nextConsumer = super.getNextConsumer();
                     if (!tracker.isConsumerPaused(nextConsumer)){
-                        break;
+                        return nextConsumer;
                     }
                 }
-                return nextConsumer;
+                if (log.isDebugEnabled()) {
+                    log.debug("No consumers are currently able to consume the first redelivery entry {}",
+                            tracker.getRedeliveryStartAt());
+                }
+                return super.getNextConsumer();
             }
         } else {
             return super.getNextConsumer();
