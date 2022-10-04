@@ -19,10 +19,12 @@
 package org.apache.pulsar.testclient;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.pulsar.testclient.PerfClientUtils.exit;
 import com.beust.jcommander.Parameter;
 import java.io.FileInputStream;
 import java.util.Properties;
 import lombok.SneakyThrows;
+import org.apache.pulsar.client.api.ProxyProtocol;
 
 
 public abstract class PerformanceBaseArguments {
@@ -85,6 +87,12 @@ public abstract class PerformanceBaseArguments {
             + "on each broker connection to prevent overloading a broker")
     public int maxLookupRequest = 50000;
 
+    @Parameter(names = { "--proxy-url" }, description = "Proxy-server URL to which to connect.")
+    String proxyServiceURL = null;
+
+    @Parameter(names = { "--proxy-protocol" }, description = "Proxy protocol to select type of routing at proxy.")
+    ProxyProtocol proxyProtocol = null;
+
     public abstract void fillArgumentsFromProperties(Properties prop);
 
     @SneakyThrows
@@ -133,6 +141,25 @@ public abstract class PerformanceBaseArguments {
                     .getProperty("tlsEnableHostnameVerification", ""));
 
         }
+
+        if (proxyServiceURL == null) {
+            proxyServiceURL = prop.getProperty("proxyServiceURL");
+        }
+
+        if (proxyProtocol == null) {
+            try {
+                String proxyProtocolString = prop.getProperty("proxyProtocol");
+                if (proxyProtocolString != null) {
+                    proxyProtocol = ProxyProtocol.valueOf(prop.getProperty("proxyProtocol"));
+                }
+            } catch (IllegalArgumentException e) {
+                System.out.println("Incorrect proxyProtocol name");
+                e.printStackTrace();
+                exit(-1);
+            }
+
+        }
+
         fillArgumentsFromProperties(prop);
     }
 
