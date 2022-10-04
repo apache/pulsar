@@ -85,10 +85,13 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
     @Override
     protected CompletableFuture<Message<T>> internalReceiveAsync() {
         CompletableFuture<Message<T>> future = super.internalReceiveAsync();
+        waitingOnReceiveForZeroQueueSize = true;
         if (!future.isDone()) {
-            // We expect the message to be not in the queue yet
             increaseAvailablePermits(cnx());
         }
+        future.whenComplete((message, ex) -> {
+            waitingOnReceiveForZeroQueueSize = false;
+        });
 
         return future;
     }
