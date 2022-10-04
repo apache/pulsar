@@ -23,6 +23,8 @@ import java.lang.reflect.InvocationTargetException;
 import org.apache.commons.lang3.ClassUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.reflect.MethodUtils;
+import org.mockito.internal.stubbing.InvocationContainerImpl;
+import org.mockito.internal.util.MockUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -72,14 +74,31 @@ public final class MockitoThreadLocalStateCleaner {
                         LOG.warn("Invalid usage of Mockito detected on thread {}."
                                         + " There is ongoing stubbing on mock of class={} instance={}",
                                 thread, mock.getClass().getName(), mock);
+                        try {
+                            clearInvocations(thread, mock);
+                        } catch (Exception e) {
+                            LOG.warn("Clearing invocations failed", e);
+                        }
                     }
                 }
             } catch (NoSuchMethodException | IllegalAccessException e) {
                 LOG.debug("Cannot call validateState on existing Mockito ProgressProvider");
             } catch (InvocationTargetException e) {
                 LOG.warn("Invalid usage of Mockito detected on thread {}", thread, e.getCause());
+            } catch (Exception e) {
+                LOG.warn("Removing {} instance from thread {} failed", mockingProgress.getClass().getName(), thread, e);
             }
         });
+    }
+
+    private static void clearInvocations(Thread thread, Object mock) {
+        InvocationContainerImpl invocationContainer = MockUtil.getInvocationContainer(mock);
+        if (invocationContainer.hasInvocationForPotentialStubbing()) {
+            LOG.warn("Mock contains registered invocations that should be cleared. thread {} class={} "
+                            + "instance={}",
+                    thread, mock.getClass().getName(), mock);
+            invocationContainer.clearInvocations();
+        }
     }
 
     public boolean isEnabled() {

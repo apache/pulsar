@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.stats;
 
+import static org.apache.pulsar.transaction.coordinator.impl.DisabledTxnLogBufferedWriterMetricsStats.DISABLED_BUFFERED_WRITER_METRICS;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.List;
@@ -109,7 +110,7 @@ public class ManagedLedgerMetricsTest extends BrokerTestBase {
         managedLedgerConfig.setMaxEntriesPerLedger(2);
         MLTransactionLogImpl mlTransactionLog = new MLTransactionLogImpl(TransactionCoordinatorID.get(0),
                 pulsar.getManagedLedgerFactory(), managedLedgerConfig, txnLogBufferedWriterConfig,
-                transactionTimer);
+                transactionTimer, DISABLED_BUFFERED_WRITER_METRICS);
         mlTransactionLog.initialize().get(2, TimeUnit.SECONDS);
         ManagedLedgerMetrics metrics = new ManagedLedgerMetrics(pulsar);
         metrics.generate();

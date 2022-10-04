@@ -44,7 +44,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
@@ -141,7 +140,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         namespaces.setServletContext(new MockServletContext());
         namespaces.setPulsar(pulsar);
         doReturn("test").when(namespaces).clientAppId();
-        doReturn(new TreeSet<>(Lists.newArrayList("use", "usw", "usc", "global"))).when(namespaces).clusters();
+        doReturn(Set.of("use", "usw", "usc", "global")).when(namespaces).clusters();
         doNothing().when(namespaces).validateAdminAccessForTenant("my-tenant");
         doNothing().when(namespaces).validateAdminAccessForTenant("other-tenant");
         doNothing().when(namespaces).validateAdminAccessForTenant("new-property");
@@ -159,7 +158,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         persistentTopics.setPulsar(pulsar);
         doReturn("test").when(persistentTopics).clientAppId();
         doReturn("persistent").when(persistentTopics).domain();
-        doReturn(new TreeSet<>(Lists.newArrayList("use", "usw", "usc"))).when(persistentTopics).clusters();
+        doReturn(Set.of("use", "usw", "usc")).when(persistentTopics).clusters();
         doNothing().when(persistentTopics).validateAdminAccessForTenant("my-tenant");
         doNothing().when(persistentTopics).validateAdminAccessForTenant("other-tenant");
         doNothing().when(persistentTopics).validateAdminAccessForTenant("prop-xyz");
@@ -481,7 +480,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         verify(properties, times(2)).validateSuperUserAccessAsync();
 
         response = asyncRequests(ctx -> properties.getTenants(ctx));
-        assertEquals(response, Lists.newArrayList("test-property"));
+        assertEquals(response, List.of("test-property"));
         verify(properties, times(3)).validateSuperUserAccessAsync();
 
         response = asyncRequests(ctx -> properties.getTenantAdmin(ctx, "test-property"));

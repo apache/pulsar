@@ -37,7 +37,6 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-import com.google.common.collect.Maps;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandler;
@@ -52,6 +51,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -123,8 +123,8 @@ import org.apache.pulsar.common.protocol.Commands.ChecksumType;
 import org.apache.pulsar.common.protocol.PulsarHandler;
 import org.apache.pulsar.common.topics.TopicList;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
+import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
@@ -1422,17 +1422,17 @@ public class ServerCnxTest {
         // Set encryption_required to true
         Policies policies = mock(Policies.class);
         policies.encryption_required = true;
-        policies.topicDispatchRate = Maps.newHashMap();
-        policies.clusterSubscribeRate = Maps.newHashMap();
+        policies.topicDispatchRate = new HashMap<>();
+        policies.clusterSubscribeRate = new HashMap<>();
         // add `clusterDispatchRate` otherwise there will be a NPE
         // `org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.getPoliciesDispatchRate`
-        policies.clusterDispatchRate = Maps.newHashMap();
+        policies.clusterDispatchRate = new HashMap<>();
         // add `clusterDispatchRate` otherwise there will be a NPE
         // `org.apache.pulsar.broker.service.AbstractTopic.updateNamespaceSubscriptionDispatchRate`
-        policies.subscriptionDispatchRate = Maps.newHashMap();
+        policies.subscriptionDispatchRate = new HashMap<>();
         // add `clusterDispatchRate` otherwise there will be a NPE
         // `org.apache.pulsar.broker.service.AbstractTopic.updateNamespaceReplicatorDispatchRate`
-        policies.replicatorDispatchRate = Maps.newHashMap();
+        policies.replicatorDispatchRate = new HashMap<>();
         doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(namespaceResources)
                 .getPoliciesAsync(TopicName.get(encryptionRequiredTopicName).getNamespaceObject());
 
@@ -1458,17 +1458,17 @@ public class ServerCnxTest {
         // Set encryption_required to true
         Policies policies = mock(Policies.class);
         policies.encryption_required = true;
-        policies.topicDispatchRate = Maps.newHashMap();
-        policies.clusterSubscribeRate = Maps.newHashMap();
+        policies.topicDispatchRate = new HashMap<>();
+        policies.clusterSubscribeRate = new HashMap<>();
         // add `clusterDispatchRate` otherwise there will be a NPE
         // `org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.getPoliciesDispatchRate`
-        policies.clusterDispatchRate = Maps.newHashMap();
+        policies.clusterDispatchRate = new HashMap<>();
         // add `clusterDispatchRate` otherwise there will be a NPE
         // `org.apache.pulsar.broker.service.AbstractTopic.updateNamespaceSubscriptionDispatchRate`
-        policies.subscriptionDispatchRate = Maps.newHashMap();
+        policies.subscriptionDispatchRate = new HashMap<>();
         // add `clusterDispatchRate` otherwise there will be a NPE
         // `org.apache.pulsar.broker.service.AbstractTopic.updateNamespaceReplicatorDispatchRate`
-        policies.replicatorDispatchRate = Maps.newHashMap();
+        policies.replicatorDispatchRate = new HashMap<>();
         doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(namespaceResources)
                 .getPoliciesAsync(TopicName.get(encryptionRequiredTopicName).getNamespaceObject());
 
@@ -1499,16 +1499,16 @@ public class ServerCnxTest {
         Policies policies = mock(Policies.class);
         // Namespace policy doesn't require encryption
         policies.encryption_required = false;
-        policies.topicDispatchRate = Maps.newHashMap();
-        policies.clusterSubscribeRate = Maps.newHashMap();
+        policies.topicDispatchRate = new HashMap<>();
+        policies.clusterSubscribeRate = new HashMap<>();
         // add `clusterDispatchRate` otherwise there will be a NPE
-        policies.clusterDispatchRate = Maps.newHashMap();
+        policies.clusterDispatchRate = new HashMap<>();
         // add `clusterDispatchRate` otherwise there will be a NPE
         // `org.apache.pulsar.broker.service.AbstractTopic.updateNamespaceSubscriptionDispatchRate`
-        policies.subscriptionDispatchRate = Maps.newHashMap();
+        policies.subscriptionDispatchRate = new HashMap<>();
         // add `clusterDispatchRate` otherwise there will be a NPE
         // `org.apache.pulsar.broker.service.AbstractTopic.updateNamespaceReplicatorDispatchRate`
-        policies.replicatorDispatchRate = Maps.newHashMap();
+        policies.replicatorDispatchRate = new HashMap<>();
         doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(namespaceResources)
                 .getPoliciesAsync(TopicName.get(encryptionRequiredTopicName).getNamespaceObject());
 
@@ -1536,17 +1536,17 @@ public class ServerCnxTest {
         // Set encryption_required to true
         Policies policies = mock(Policies.class);
         policies.encryption_required = true;
-        policies.topicDispatchRate = Maps.newHashMap();
-        policies.clusterSubscribeRate = Maps.newHashMap();
+        policies.topicDispatchRate = new HashMap<>();
+        policies.clusterSubscribeRate = new HashMap<>();
         // add `clusterDispatchRate` otherwise there will be a NPE
         // `org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.getPoliciesDispatchRate`
-        policies.clusterDispatchRate = Maps.newHashMap();
+        policies.clusterDispatchRate = new HashMap<>();
         // add `clusterDispatchRate` otherwise there will be a NPE
         // `org.apache.pulsar.broker.service.AbstractTopic.updateNamespaceSubscriptionDispatchRate`
-        policies.subscriptionDispatchRate = Maps.newHashMap();
+        policies.subscriptionDispatchRate = new HashMap<>();
         // add `clusterDispatchRate` otherwise there will be a NPE
         // `org.apache.pulsar.broker.service.AbstractTopic.updateNamespaceReplicatorDispatchRate`
-        policies.replicatorDispatchRate = Maps.newHashMap();
+        policies.replicatorDispatchRate = new HashMap<>();
         doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(namespaceResources)
                 .getPoliciesAsync(TopicName.get(encryptionRequiredTopicName).getNamespaceObject());
 
@@ -1580,17 +1580,17 @@ public class ServerCnxTest {
         // Set encryption_required to true
         Policies policies = mock(Policies.class);
         policies.encryption_required = true;
-        policies.topicDispatchRate = Maps.newHashMap();
-        policies.clusterSubscribeRate = Maps.newHashMap();
+        policies.topicDispatchRate = new HashMap<>();
+        policies.clusterSubscribeRate = new HashMap<>();
         // add `clusterDispatchRate` otherwise there will be a NPE
         // `org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.getPoliciesDispatchRate`
-        policies.clusterDispatchRate = Maps.newHashMap();
+        policies.clusterDispatchRate = new HashMap<>();
         // add `clusterDispatchRate` otherwise there will be a NPE
         // `org.apache.pulsar.broker.service.AbstractTopic.updateNamespaceSubscriptionDispatchRate`
-        policies.subscriptionDispatchRate = Maps.newHashMap();
+        policies.subscriptionDispatchRate = new HashMap<>();
         // add `clusterDispatchRate` otherwise there will be a NPE
         // `org.apache.pulsar.broker.service.AbstractTopic.updateNamespaceReplicatorDispatchRate`
-        policies.replicatorDispatchRate = Maps.newHashMap();
+        policies.replicatorDispatchRate = new HashMap<>();
         doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(namespaceResources)
                 .getPoliciesAsync(TopicName.get(encryptionRequiredTopicName).getNamespaceObject());
 

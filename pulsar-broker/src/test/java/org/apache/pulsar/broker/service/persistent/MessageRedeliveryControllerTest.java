@@ -24,8 +24,6 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-
-import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
 import java.util.Set;
 import java.util.TreeSet;
@@ -165,18 +163,18 @@ public class MessageRedeliveryControllerTest {
         controller.add(2, 1, 104);
 
         if (allowOutOfOrderDelivery) {
-            assertFalse(controller.containsStickyKeyHashes(Sets.newHashSet(100)));
-            assertFalse(controller.containsStickyKeyHashes(Sets.newHashSet(101, 102, 103)));
-            assertFalse(controller.containsStickyKeyHashes(Sets.newHashSet(104, 105)));
+            assertFalse(controller.containsStickyKeyHashes(Set.of(100)));
+            assertFalse(controller.containsStickyKeyHashes(Set.of(101, 102, 103)));
+            assertFalse(controller.containsStickyKeyHashes(Set.of(104, 105)));
         } else {
-            assertTrue(controller.containsStickyKeyHashes(Sets.newHashSet(100)));
-            assertTrue(controller.containsStickyKeyHashes(Sets.newHashSet(101, 102, 103)));
-            assertTrue(controller.containsStickyKeyHashes(Sets.newHashSet(104, 105)));
+            assertTrue(controller.containsStickyKeyHashes(Set.of(100)));
+            assertTrue(controller.containsStickyKeyHashes(Set.of(101, 102, 103)));
+            assertTrue(controller.containsStickyKeyHashes(Set.of(104, 105)));
         }
 
-        assertFalse(controller.containsStickyKeyHashes(Sets.newHashSet()));
-        assertFalse(controller.containsStickyKeyHashes(Sets.newHashSet(99)));
-        assertFalse(controller.containsStickyKeyHashes(Sets.newHashSet(105, 106)));
+        assertFalse(controller.containsStickyKeyHashes(Set.of()));
+        assertFalse(controller.containsStickyKeyHashes(Set.of(99)));
+        assertFalse(controller.containsStickyKeyHashes(Set.of(105, 106)));
     }
 
     @Test(dataProvider = "allowOutOfOrderDelivery", timeOut = 10000)

@@ -123,7 +123,7 @@ components in the Pulsar ecosystem, including connectors, adapters, and other la
 
 ## Build Pulsar
 
-Requirements:
+### Requirements
 
 - JDK
 
@@ -139,6 +139,7 @@ Requirements:
 > Note: this project includes a [Maven Wrapper](https://maven.apache.org/wrapper/) that can be used instead of a system installed Maven.
 > Use it by replacing `mvn` by `./mvnw` on Linux and `mvnw.cmd` on Windows in the commands below.
 
+### Build
 Compile and install:
 
 ```bash
@@ -151,7 +152,7 @@ Compile and install individual module
 $ mvn -pl module-name (e.g: pulsar-broker) install -DskipTests
 ```
 
-## Minimal build (This skips most of external connectors and tiered storage handlers)
+### Minimal build (This skips most of external connectors and tiered storage handlers)
 
 ```
 mvn install -Pcore-modules,-main -DskipTests

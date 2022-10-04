@@ -21,8 +21,6 @@ package org.apache.pulsar.broker.service;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC;
 import com.google.common.base.MoreObjects;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -147,7 +145,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
 
     protected final LongAdder msgOutFromRemovedSubscriptions = new LongAdder();
     protected final LongAdder bytesOutFromRemovedSubscriptions = new LongAdder();
-    protected ImmutableMap<String, EntryFilterWithClassLoader> entryFilters;
+    protected Map<String, EntryFilterWithClassLoader> entryFilters;
 
     public AbstractTopic(String topic, BrokerService brokerService) {
         this.topic = topic;
@@ -187,7 +185,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         return this.topicPolicies.getEntryFilters().get();
     }
 
-    public ImmutableMap<String, EntryFilterWithClassLoader> getEntryFilters() {
+    public Map<String, EntryFilterWithClassLoader> getEntryFilters() {
         return this.entryFilters;
     }
 
@@ -251,7 +249,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         topicPolicies.getRetentionPolicies().updateNamespaceValue(namespacePolicies.retention_policies);
         topicPolicies.getCompactionThreshold().updateNamespaceValue(namespacePolicies.compaction_threshold);
         topicPolicies.getReplicationClusters().updateNamespaceValue(
-                Lists.newArrayList(CollectionUtils.emptyIfNull(namespacePolicies.replication_clusters)));
+                new ArrayList<>(CollectionUtils.emptyIfNull(namespacePolicies.replication_clusters)));
         topicPolicies.getMaxUnackedMessagesOnConsumer()
                 .updateNamespaceValue(namespacePolicies.max_unacked_messages_per_consumer);
         topicPolicies.getMaxUnackedMessagesOnSubscription()
