@@ -27,8 +27,6 @@ public interface RedeliveryTracker {
 
     int incrementAndGetRedeliveryCount(Position position, Consumer consumer);
 
-    default void noticeConsumerClosed(Consumer consumer){}
-
     int getRedeliveryCount(Position position);
 
     void remove(Position position, Position markDeletedPosition);
@@ -37,19 +35,9 @@ public interface RedeliveryTracker {
 
     void clear();
 
-    default boolean hasRedeliveredEntry(List<Entry> entries) {
-        for (Entry entry : entries) {
-            if (entry == null || entry.getPosition() == null || entry.getLedgerId() < 0 || entry.getEntryId() < 0) {
-                continue;
-            }
-            if (getRedeliveryCount(entry.getPosition()) > 0) {
-                return true;
-            }
-        }
-        return false;
-    }
+    default void noticeConsumerClosed(Consumer consumer){}
 
-    default Consumer cherryNextConsumer(Supplier<Consumer> nextConsumerFunc, int consumerCount){
+    default Consumer cherryNextConsumer(List<Entry> entries, Supplier<Consumer> nextConsumerFunc, int consumerCount){
         return nextConsumerFunc.get();
     }
 }

@@ -24,6 +24,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 
 /***
@@ -126,7 +127,10 @@ public class InMemoryAndPreventCycleFilterRedeliveryTracker extends InMemoryRede
     }
 
     @Override
-    public Consumer cherryNextConsumer(Supplier<Consumer> nextConsumerFunc, int consumerCount){
+    public Consumer cherryNextConsumer(List<Entry> entries, Supplier<Consumer> nextConsumerFunc, int consumerCount){
+        if (!hasRedeliveredEntry(entries)){
+            return nextConsumerFunc.get();
+        }
         if (pausedConsumerCount() != consumerCount) {
             for (int i = 0; i < consumerCount; i++) {
                 Consumer nextConsumer = nextConsumerFunc.get();
@@ -142,7 +146,19 @@ public class InMemoryAndPreventCycleFilterRedeliveryTracker extends InMemoryRede
         return nextConsumerFunc.get();
     }
 
-    public boolean isConsumerPaused(Consumer consumer) {
+    private boolean hasRedeliveredEntry(List<Entry> entries) {
+        for (Entry entry : entries) {
+            if (entry == null || entry.getPosition() == null || entry.getLedgerId() < 0 || entry.getEntryId() < 0) {
+                continue;
+            }
+            if (getRedeliveryCount(entry.getPosition()) > 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isConsumerPaused(Consumer consumer) {
         if (consumer == null) {
             return false;
         }

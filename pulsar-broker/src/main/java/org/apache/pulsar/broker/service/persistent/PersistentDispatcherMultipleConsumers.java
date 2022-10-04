@@ -710,10 +710,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     public Consumer getNextConsumer(List<Entry> entries) {
-        if (!redeliveryTracker.hasRedeliveredEntry(entries)){
-            return super.getNextConsumer();
-        }
-        return redeliveryTracker.cherryNextConsumer(() -> super.getNextConsumer(), consumerSet.size());
+        return redeliveryTracker.cherryNextConsumer(entries, () -> super.getNextConsumer(), consumerSet.size());
     }
 
     private boolean sendChunkedMessagesToConsumers(ReadType readType,
