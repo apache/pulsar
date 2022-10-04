@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service;
 
-import static org.apache.bookkeeper.mledger.PositionComparators.*;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -26,6 +25,7 @@ import java.util.function.Supplier;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionComparators;
 
 /***
  * When there are two consumers, users can specify the consumption behavior of each consumer by `Entry filter`:
@@ -84,7 +84,7 @@ public class InMemoryAndPreventCycleFilterRedeliveryTracker extends InMemoryRede
             cleanEarliestInformation();
             actualEarliestPosition = position;
         } else {
-            int isEarlier = compareLedgerIdAndEntryId(originalEarliestPosition, position);
+            int isEarlier = PositionComparators.compareLedgerIdAndEntryId(originalEarliestPosition, position);
             if (isEarlier < 0) {
                 return newCount;
             } else if (isEarlier > 0) {
@@ -108,8 +108,8 @@ public class InMemoryAndPreventCycleFilterRedeliveryTracker extends InMemoryRede
     @Override
     public void remove(Position position, Position markDeletedPosition) {
         super.remove(position, markDeletedPosition);
-        if (redeliveryStartAt == null || compareLedgerIdAndEntryId(redeliveryStartAt, position) == 0
-                || compareLedgerIdAndEntryId(redeliveryStartAt, markDeletedPosition) >= 0) {
+        if (redeliveryStartAt == null || PositionComparators.compareLedgerIdAndEntryId(redeliveryStartAt, position) == 0
+                || PositionComparators.compareLedgerIdAndEntryId(redeliveryStartAt, markDeletedPosition) >= 0) {
             cleanEarliestInformation();
         }
     }
