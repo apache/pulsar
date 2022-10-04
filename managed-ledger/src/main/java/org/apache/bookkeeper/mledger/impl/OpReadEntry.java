@@ -100,9 +100,15 @@ class OpReadEntry implements ReadEntriesCallback {
         } else if (cursor.config.isAutoSkipNonRecoverableData() && exception instanceof NonRecoverableLedgerException) {
             log.warn("[{}][{}] read failed from ledger at position:{} : {}", cursor.ledger.getName(), cursor.getName(),
                     readPosition, exception.getMessage());
-            // Skip this read operation
             final ManagedLedgerImpl ledger = (ManagedLedgerImpl) cursor.getManagedLedger();
-            final PositionImpl nexReadPosition = ledger.getValidPositionAfterSkippedEntries(readPosition, count);
+            Position nexReadPosition;
+            if (exception instanceof ManagedLedgerException.LedgerNotExistException) {
+                // try to find and move to next valid ledger
+                nexReadPosition = cursor.getNextLedgerPosition(readPosition.getLedgerId());
+            } else {
+                // Skip this read operation
+                nexReadPosition = ledger.getValidPositionAfterSkippedEntries(readPosition, count);
+            }
             // fail callback if it couldn't find next valid ledger
             if (nexReadPosition == null) {
                 callback.readEntriesFailed(exception, ctx);
