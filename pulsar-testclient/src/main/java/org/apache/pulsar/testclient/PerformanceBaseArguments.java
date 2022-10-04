@@ -24,6 +24,7 @@ import com.beust.jcommander.Parameter;
 import java.io.FileInputStream;
 import java.util.Properties;
 import lombok.SneakyThrows;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.ProxyProtocol;
 
 
@@ -143,17 +144,18 @@ public abstract class PerformanceBaseArguments {
         }
 
         if (proxyServiceURL == null) {
-            proxyServiceURL = prop.getProperty("proxyServiceURL");
+            proxyServiceURL = StringUtils.trimToNull(prop.getProperty("proxyServiceUrl"));
         }
 
         if (proxyProtocol == null) {
+            String proxyProtocolString = null;
             try {
-                String proxyProtocolString = prop.getProperty("proxyProtocol");
+                proxyProtocolString = StringUtils.trimToNull(prop.getProperty("proxyProtocol"));
                 if (proxyProtocolString != null) {
-                    proxyProtocol = ProxyProtocol.valueOf(prop.getProperty("proxyProtocol"));
+                    proxyProtocol = ProxyProtocol.valueOf(proxyProtocolString.toUpperCase());
                 }
             } catch (IllegalArgumentException e) {
-                System.out.println("Incorrect proxyProtocol name");
+                System.out.println("Incorrect proxyProtocol name '" + proxyProtocolString + "'");
                 e.printStackTrace();
                 exit(-1);
             }
