@@ -18,19 +18,14 @@
  */
 package org.apache.bookkeeper.mledger;
 
-import java.util.Comparator;
 
 public class PositionComparators {
 
-    public static final Comparator<Position> COMPARE_WITH_LEDGER_AND_ENTRY_ID = new Comparator<Position> (){
-
-        @Override
-        public int compare(Position pos1, Position pos2) {
-            int ledgerCompare = Long.compare(pos1.getLedgerId(), pos2.getLedgerId());
-            if (ledgerCompare != 0) {
-                return ledgerCompare;
-            }
-            return Long.compare(pos1.getEntryId(), pos2.getEntryId());
+    public static int compareLedgerIdAndEntryId(Position pos1, Position pos2) {
+        int ledgerCompare = Long.compare(pos1.getLedgerId(), pos2.getLedgerId());
+        if (ledgerCompare != 0) {
+            return ledgerCompare;
         }
-    };
+        return Long.compare(pos1.getEntryId(), pos2.getEntryId());
+    }
 }

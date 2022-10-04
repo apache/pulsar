@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
-import static org.apache.bookkeeper.mledger.PositionComparators.COMPARE_WITH_LEDGER_AND_ENTRY_ID;
+import static org.apache.bookkeeper.mledger.PositionComparators.*;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -84,7 +84,7 @@ public class InMemoryAndPreventCycleFilterRedeliveryTracker extends InMemoryRede
             cleanEarliestInformation();
             actualEarliestPosition = position;
         } else {
-            int isEarlier = COMPARE_WITH_LEDGER_AND_ENTRY_ID.compare(originalEarliestPosition, position);
+            int isEarlier = compareLedgerIdAndEntryId(originalEarliestPosition, position);
             if (isEarlier < 0) {
                 return newCount;
             } else if (isEarlier > 0) {
@@ -108,8 +108,8 @@ public class InMemoryAndPreventCycleFilterRedeliveryTracker extends InMemoryRede
     @Override
     public void remove(Position position, Position markDeletedPosition) {
         super.remove(position, markDeletedPosition);
-        if (redeliveryStartAt == null || COMPARE_WITH_LEDGER_AND_ENTRY_ID.compare(redeliveryStartAt, position) == 0
-                || COMPARE_WITH_LEDGER_AND_ENTRY_ID.compare(redeliveryStartAt, markDeletedPosition) >= 0) {
+        if (redeliveryStartAt == null || compareLedgerIdAndEntryId(redeliveryStartAt, position) == 0
+                || compareLedgerIdAndEntryId(redeliveryStartAt, markDeletedPosition) >= 0) {
             cleanEarliestInformation();
         }
     }
