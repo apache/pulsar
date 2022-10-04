@@ -149,6 +149,9 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
             rm.registerBookie(address, readOnly, info);
         }
 
+        // trigger loading the BookieServiceInfo in the local cache
+        rc.getAllBookies().join();
+
         int i = 0;
         for (BookieId address : addresses) {
             BookieServiceInfo bookieServiceInfo = rc.getBookieServiceInfo(address).get().getValue();
