@@ -1529,7 +1529,6 @@ flexible messaging model and an intuitive client API.</description>
                 <exclude>logs/**</exclude>
                 <exclude>**/circe/**</exclude>
                 <exclude>pulsar-broker/src/test/resources/authentication/basic/.htpasswd</exclude>
-                <exclude>**/CMakeFiles/**</exclude>
                 <exclude>**/django/stats/migrations/*.py</exclude>
                 <exclude>site2/**</exclude>
                 <exclude>generated-site/**</exclude>
@@ -1673,13 +1672,6 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>**/.project</exclude>
             <exclude>**/.settings</exclude>
             <exclude>**/target/**</exclude>
-            <exclude>**/CMakeFiles/**</exclude>
-            <exclude>**/CMakeCache.txt</exclude>
-            <exclude>**/cmake_install.cmake</exclude>
-            <exclude>**/python/dist/**</exclude>
-            <exclude>**/python/wheelhouse/**</exclude>
-            <exclude>**/python/MANIFEST</exclude>
-            <exclude>**/*.egg-info/**</exclude>
             <exclude>**/*.log</exclude>
             <exclude>**/build/**</exclude>
             <exclude>**/file:/**</exclude>
