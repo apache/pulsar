@@ -551,7 +551,6 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 | dispatchThrottlingOnNonBacklogConsumerEnabled | Enable dispatch-throttling for both caught up consumers as well as consumers who have backlogs. | true |
 |dispatcherMaxReadBatchSize|The maximum number of entries to read from BookKeeper. By default, it is 100 entries.|100|
 |dispatcherMaxReadSizeBytes|The maximum size in bytes of entries to read from BookKeeper. By default, it is 5MB.|5242880|
-|dispatcherEntryFilterRescheduledMessageDelaySeconds|The max seconds a consumer will be paused because the current message cannot be consumed by a consumer. By default, it is 1.|1|
 |dispatcherMinReadBatchSize|The minimum number of entries to read from BookKeeper. By default, it is 1 entry. When there is an error occurred on reading entries from bookkeeper, the broker will backoff the batch size to this minimum number.|1|
 |dispatcherMaxRoundRobinBatchSize|The maximum number of entries to dispatch for a shared subscription. By default, it is 20 entries.|20|
 | preciseDispatcherFlowControl | Precise dispathcer flow control according to history message number of each entry. | false |
