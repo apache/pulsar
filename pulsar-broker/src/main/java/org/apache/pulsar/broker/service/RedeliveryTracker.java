@@ -37,7 +37,7 @@ public interface RedeliveryTracker {
 
     default void noticeConsumerClosed(Consumer consumer){}
 
-    default Consumer cherryNextConsumer(List<Entry> entries, Supplier<Consumer> nextConsumerFunc, int consumerCount){
+    default Consumer pickNextConsumer(List<Entry> entries, Supplier<Consumer> nextConsumerFunc, int consumerCount){
         return nextConsumerFunc.get();
     }
 }

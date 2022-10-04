@@ -127,7 +127,7 @@ public class InMemoryAndPreventCycleFilterRedeliveryTracker extends InMemoryRede
     }
 
     @Override
-    public Consumer cherryNextConsumer(List<Entry> entries, Supplier<Consumer> nextConsumerFunc, int consumerCount){
+    public Consumer pickNextConsumer(List<Entry> entries, Supplier<Consumer> nextConsumerFunc, int consumerCount){
         if (!hasRedeliveredEntry(entries)){
             return nextConsumerFunc.get();
         }
@@ -186,14 +186,6 @@ public class InMemoryAndPreventCycleFilterRedeliveryTracker extends InMemoryRede
         // Just reset counter to 0, because value will be removed if consumer is closed.
         earliestEntryRedeliveryCountMapping.values().forEach(i -> i.set(0));
         pausedConsumers.clear();
-    }
-
-    private static int comparePosition(Position pos1, Position pos2) {
-        int ledgerCompare = Long.compare(pos1.getLedgerId(), pos2.getLedgerId());
-        if (ledgerCompare != 0) {
-            return ledgerCompare;
-        }
-        return Long.compare(pos1.getEntryId(), pos2.getEntryId());
     }
 
     private static class PauseConsumerInformation {
