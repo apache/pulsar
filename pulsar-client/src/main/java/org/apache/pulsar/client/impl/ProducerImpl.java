@@ -1202,7 +1202,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         semaphoreRelease(isBatchMessagingEnabled() ? op.numMessagesInBatch : 1);
 
-        client.getMemoryLimitController().releaseMemory(op.uncompressedSize);
+        client.getMemoryLimitController().releaseMemory(op.uncompressedSize + op.extraCapacity);
     }
 
     private void completeCallbackAndReleaseSemaphore(long payloadSize, SendCallback callback, Exception exception) {
@@ -1383,6 +1383,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         long highestSequenceId;
         int totalChunks = 0;
         int chunkId = -1;
+        int extraCapacity;
 
         void initialize() {
             msg = null;
@@ -1402,6 +1403,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             batchSizeByte = 0;
             numMessagesInBatch = 1;
             chunkedMessageCtx = null;
+            extraCapacity = 0;
         }
 
         static OpSendMsg create(MessageImpl<?> msg, ByteBufPair cmd, long sequenceId, SendCallback callback) {
@@ -1416,7 +1418,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             return op;
         }
 
-        static OpSendMsg create(List<MessageImpl<?>> msgs, ByteBufPair cmd, long sequenceId, SendCallback callback) {
+        static OpSendMsg create(List<MessageImpl<?>> msgs, ByteBufPair cmd, long sequenceId, SendCallback callback,
+                                int extraCapacity) {
             OpSendMsg op = RECYCLER.get();
             op.initialize();
             op.msgs = msgs;
@@ -1428,11 +1431,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             for (int i = 0; i < msgs.size(); i++) {
                 op.uncompressedSize += msgs.get(i).getUncompressedSize();
             }
+            op.extraCapacity = extraCapacity;
             return op;
         }
 
         static OpSendMsg create(List<MessageImpl<?>> msgs, ByteBufPair cmd, long lowestSequenceId,
-                                long highestSequenceId,  SendCallback callback) {
+                                long highestSequenceId,  SendCallback callback, int extraCapacity) {
             OpSendMsg op = RECYCLER.get();
             op.initialize();
             op.msgs = msgs;
@@ -1445,6 +1449,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             for (int i = 0; i < msgs.size(); i++) {
                 op.uncompressedSize += msgs.get(i).getUncompressedSize();
             }
+            op.extraCapacity = extraCapacity;
             return op;
         }
 
