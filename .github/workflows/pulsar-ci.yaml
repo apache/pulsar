@@ -950,14 +950,12 @@ jobs:
       - name: Check that all required jobs were completed successfully
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
         run: |
-          if [[ ! ( ( \
+          if [[ ! ( \
                    "${{ needs.unit-tests.result }}" == "success" \
                 && "${{ needs.integration-tests.result }}" == "success" \
                 && "${{ needs.system-tests.result }}" == "success" \
                 && "${{ needs.macos-build.result }}" == "success" \
-               ) || ( \
-                   "${{ needs.system-tests.result }}" == "success" \
-               ) ) ]]; then
+               ) ]]; then
             echo "Required jobs haven't been completed successfully."
             exit 1            
           fi
