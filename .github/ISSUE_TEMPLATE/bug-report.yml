@@ -26,7 +26,7 @@ body:
         Thank you very much for your feedback!
 
         For suggestions or help, please consider:
-        1. [Dev Mail List](mailto:dev@pulsar.apache.org) ([subscribe](mailto:dev-subscribe@pulsar.apache.org)): This will be your FASTEST way to get help!
+        1. [User Mail List](mailto:users@pulsar.apache.org) ([subscribe](mailto:users-subscribe@pulsar.apache.org));
         2. [Github Discussion](https://github.com/apache/pulsar/discussions).
   - type: checkboxes
     attributes:
