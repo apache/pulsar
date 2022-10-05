@@ -44,7 +44,7 @@
         <dependency>
             <groupId>org.apache.pulsar</groupId>
             <artifactId>pulsar-client</artifactId>
-            <version>2.6.0</version>
+            <version>2.7.5</version>
             <scope>test</scope>
         </dependency>
 
