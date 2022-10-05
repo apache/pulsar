@@ -3062,11 +3062,6 @@ public class PersistentTopicsBase extends AdminResource {
                     }
                 });
     }
-    private Response generateResponseWithEntry(Entry entry) throws IOException {
-        return generateResponseWithEntry(entry, Optional.empty());
-    }
-
-
     private String getSchemaId() {
         if (topicName.isPartitioned()) {
             return TopicName.get(topicName.getPartitionedTopicName()).getSchemaName();
@@ -3075,12 +3070,18 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
-    private SchemaRegistry.SchemaAndMetadata getSchemaSync(boolean authoritative) {
-        return pulsar().getSchemaRegistryService().getSchema(getSchemaId()).join();
+    /*
+    private SchemaRegistry.SchemaAndMetadata getSchemaSync(SchemaVersion schemaVersion) {
+        var registryService = pulsar().getSchemaRegistryService();
+        var future = registryService.getSchema(getSchemaId(), schemaVersion);
+        return future.join();
+
+//        return pulsar().getSchemaRegistryService().getSchema(getSchemaId(), schemaVersion).join();
     }
-    private SchemaRegistry.SchemaAndMetadata getSchemaSync(boolean authoritative,
-                                                          SchemaVersion schemaVersion) {
-        return pulsar().getSchemaRegistryService().getSchema(getSchemaId(), schemaVersion).join();
+     */
+
+    private CompletableFuture<SchemaRegistry.SchemaAndMetadata> getSchema(SchemaVersion schemaVersion) {
+        return pulsar().getSchemaRegistryService().getSchema(getSchemaId(), schemaVersion);
     }
 
     private long longFromBytes(byte[] bytes) {
@@ -3090,7 +3091,7 @@ public class PersistentTopicsBase extends AdminResource {
         return buffer.getLong();
     }
 
-    private Response generateResponseWithEntry(Entry entry, Optional<SchemaInfo> schemaInfoOptional)
+    private Response generateResponseWithEntry(Entry entry)
             throws IOException {
         checkNotNull(entry);
         PositionImpl pos = (PositionImpl) entry.getPosition();
@@ -3213,16 +3214,28 @@ public class PersistentTopicsBase extends AdminResource {
         schema.setSchemaInfoProvider(new SchemaInfoProvider() {
             @Override
             public CompletableFuture<SchemaInfo> getSchemaByVersion(byte[] schemaVersion) {
-                SchemaInfo schemaInfo = getSchemaSync(false,
+                return getSchema(new LongSchemaVersion(longFromBytes(metadata.getSchemaVersion())))
+                        .thenCompose(schemaAndMetadata ->
+                                CompletableFuture.completedFuture(schemaAndMetadata.schema.toSchemaInfo()));
+                /*
+                SchemaInfo schemaInfo = getSchemaSync(
                         new LongSchemaVersion(longFromBytes(metadata.getSchemaVersion()))).schema.toSchemaInfo();
                 return CompletableFuture.completedFuture(schemaInfo);
+
+                 */
             }
 
             @Override
             public CompletableFuture<SchemaInfo> getLatestSchema() {
-                SchemaInfo schemaInfo = getSchemaSync(false,
+                return getSchema(SchemaVersion.Latest)
+                        .thenCompose(schemaAndMetadata ->
+                                CompletableFuture.completedFuture(schemaAndMetadata.schema.toSchemaInfo()));
+                /*
+                SchemaInfo schemaInfo = getSchemaSync(
                         SchemaVersion.Latest).schema.toSchemaInfo();
                 return CompletableFuture.completedFuture(schemaInfo);
+
+                 */
             }
 
             @Override
@@ -3250,7 +3263,6 @@ public class PersistentTopicsBase extends AdminResource {
 
 
         try {
-            //GenericRecord record = schema.decode(data.array(), metadata.getSchemaVersion());
 
             GenericRecord record = schema.decode(arrayData, metadata.getSchemaVersion());
             Object nativeObject = record.getNativeObject();
