@@ -156,6 +156,7 @@ public class AdminTopicApiTest extends ProducerConsumerBase {
             log.info("Received message '{}'.", msg);
         }
         List<Message<byte[]>> messages = admin.topics().peekMessages(topic, "my-sub", 5);
+
         Assert.assertEquals(new String(messages.get(0).getValue(), UTF_8), "value-0");
         Assert.assertEquals(new String(messages.get(1).getValue(), UTF_8), "value-1");
         Assert.assertEquals(new String(messages.get(2).getValue(), UTF_8), "value-2");
