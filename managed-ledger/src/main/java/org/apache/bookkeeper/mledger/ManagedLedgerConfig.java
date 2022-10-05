@@ -393,7 +393,7 @@ public class ManagedLedgerConfig {
      * Set the retention time for the ManagedLedger.
      * <p>
      * Retention time and retention size ({@link #setRetentionSizeInMB(long)}) are together used to retain the
-     * ledger data when when there are no cursors or when all the cursors have marked the data for deletion.
+     * ledger data when there are no cursors or when all the cursors have marked the data for deletion.
      * Data will be deleted in this case when both retention time and retention size settings don't prevent deleting
      * the data marked for deletion.
      * <p>
@@ -423,7 +423,7 @@ public class ManagedLedgerConfig {
      * The retention size is used to set a maximum retention size quota on the ManagedLedger.
      * <p>
      * Retention size and retention time ({@link #setRetentionTime(int, TimeUnit)}) are together used to retain the
-     * ledger data when when there are no cursors or when all the cursors have marked the data for deletion.
+     * ledger data when there are no cursors or when all the cursors have marked the data for deletion.
      * Data will be deleted in this case when both retention time and retention size settings don't prevent deleting
      * the data marked for deletion.
      * <p>
