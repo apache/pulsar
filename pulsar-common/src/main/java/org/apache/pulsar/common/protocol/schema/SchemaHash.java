@@ -18,11 +18,15 @@
  */
 package org.apache.pulsar.common.protocol.schema;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import java.util.Optional;
 import lombok.EqualsAndHashCode;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -31,13 +35,17 @@ import org.apache.pulsar.common.schema.SchemaType;
  * Schema hash wrapper with a HashCode inner type.
  */
 @EqualsAndHashCode
+@Slf4j
 public class SchemaHash {
 
-    private static HashFunction hashFunction = Hashing.sha256();
+    private static final HashFunction hashFunction = Hashing.sha256();
 
     private final HashCode hash;
 
     private final SchemaType schemaType;
+
+    private static final Cache<Pair<byte[], SchemaType>, SchemaHash> cache = Caffeine.newBuilder()
+            .maximumSize(10000).build();
 
     private SchemaHash(HashCode hash, SchemaType schemaType) {
         this.hash = hash;
@@ -60,7 +68,8 @@ public class SchemaHash {
     }
 
     public static SchemaHash of(byte[] schemaBytes, SchemaType schemaType) {
-        return new SchemaHash(hashFunction.hashBytes(schemaBytes), schemaType);
+        return cache.get(Pair.of(schemaBytes, schemaType),
+                schemaTypePair -> new SchemaHash(hashFunction.hashBytes(schemaBytes), schemaType));
     }
 
     public byte[] asBytes() {
