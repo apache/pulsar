@@ -78,15 +78,15 @@ public class LinuxInfoUtils {
      * @return Total cpu count
      */
     public static int getTotalCpuCount() throws IOException {
-        int totalCpuCount=0;
+        int totalCpuCount = 0;
         String[] ranges = readTrimStringFromFile(Paths.get(CGROUPS_CPU_CPUSET_CPUS)).split(",");
         for (String range : ranges) {
             if (!range.contains("-")) {
                 totalCpuCount++;
             } else {
                 int dashIndex = range.indexOf('-');
-                int left = Integer.valueOf(range.substring(0, dashIndex));
-                int right = Integer.valueOf(range.substring(dashIndex + 1));
+                int left = Integer.parseInt(range.substring(0, dashIndex));
+                int right = Integer.parseInt(range.substring(dashIndex + 1));
                 totalCpuCount += right - left + 1;
             }
         }
@@ -106,7 +106,10 @@ public class LinuxInfoUtils {
                 if (quota > 0) {
                     return 100.0 * quota / period;
                 }
-                return getTotalCpuCount() * 100;
+                int totalCpuCount = getTotalCpuCount();
+                if (totalCpuCount > 0) {
+                    return 100 * totalCpuCount;
+                }
             } catch (IOException e) {
                 log.warn("[LinuxInfo] Failed to read CPU quotas from cgroups", e);
                 // Fallback to availableProcessors
@@ -252,11 +255,11 @@ public class LinuxInfoUtils {
         return Paths.get(String.format(template, nic));
     }
 
-    private static String readTrimStringFromFile(Path path) throws IOException {
+    public static String readTrimStringFromFile(Path path) throws IOException {
         return new String(Files.readAllBytes(path), StandardCharsets.UTF_8).trim();
     }
 
-    private static long readLongFromFile(Path path) throws IOException {
+    public static long readLongFromFile(Path path) throws IOException {
         return Long.parseLong(readTrimStringFromFile(path));
     }
 
