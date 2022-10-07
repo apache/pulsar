@@ -25,7 +25,6 @@ import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import java.util.Optional;
 import lombok.EqualsAndHashCode;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -35,7 +34,6 @@ import org.apache.pulsar.common.schema.SchemaType;
  * Schema hash wrapper with a HashCode inner type.
  */
 @EqualsAndHashCode
-@Slf4j
 public class SchemaHash {
 
     private static final HashFunction hashFunction = Hashing.sha256();
