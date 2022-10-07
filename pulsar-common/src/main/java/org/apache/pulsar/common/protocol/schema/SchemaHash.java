@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.common.protocol.schema;
 
-import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
@@ -44,8 +44,13 @@ public class SchemaHash {
 
     private final SchemaType schemaType;
 
-    private static final Cache<Pair<byte[], SchemaType>, SchemaHash> cache = Caffeine.newBuilder()
-            .maximumSize(10000).build();
+    private static final LoadingCache<Pair<byte[], SchemaType>, SchemaHash> cache = Caffeine.newBuilder()
+            .maximumSize(10000)
+            .build(key ->
+                    new SchemaHash(
+                            hashFunction.hashBytes(key.getLeft() == null ? new byte[0] : key.getLeft()),
+                            key.getRight())
+            );
 
     private SchemaHash(HashCode hash, SchemaType schemaType) {
         this.hash = hash;
@@ -54,7 +59,7 @@ public class SchemaHash {
 
     public static SchemaHash of(Schema schema) {
         Optional<SchemaInfo> schemaInfo = Optional.ofNullable(schema).map(Schema::getSchemaInfo);
-        return of(schemaInfo.map(SchemaInfo::getSchema).orElseGet(() -> new byte[0]),
+        return of(schemaInfo.map(SchemaInfo::getSchema).orElse(null),
                 schemaInfo.map(SchemaInfo::getType).orElse(null));
     }
 
@@ -63,13 +68,12 @@ public class SchemaHash {
     }
 
     public static SchemaHash of(SchemaInfo schemaInfo) {
-        return of(schemaInfo == null ? new byte[0] : schemaInfo.getSchema(),
+        return of(schemaInfo == null ? null : schemaInfo.getSchema(),
                 schemaInfo == null ? null : schemaInfo.getType());
     }
 
     public static SchemaHash of(byte[] schemaBytes, SchemaType schemaType) {
-        return cache.get(Pair.of(schemaBytes, schemaType),
-                schemaTypePair -> new SchemaHash(hashFunction.hashBytes(schemaBytes), schemaType));
+        return cache.get(Pair.of(schemaBytes, schemaType));
     }
 
     public byte[] asBytes() {
