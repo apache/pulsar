@@ -111,7 +111,7 @@ public class BacklogQuotaManagerTest {
             config.setBrokerServicePort(Optional.of(0));
             config.setAuthorizationEnabled(false);
             config.setAuthenticationEnabled(false);
-            config.setBacklogQuotaCheckIntervalInSeconds(TIME_TO_CHECK_BACKLOG_QUOTA / 2);
+            config.setBacklogQuotaCheckIntervalInSeconds(TIME_TO_CHECK_BACKLOG_QUOTA);
             config.setManagedLedgerMaxEntriesPerLedger(MAX_ENTRIES_PER_LEDGER);
             config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
             config.setAllowAutoTopicCreationType("non-partitioned");
@@ -528,7 +528,7 @@ public class BacklogQuotaManagerTest {
     }
 
     @Test(timeOut = 60000)
-    public void testConsumerBacklogEvictionTimeQuotaWithoutEviction() throws Exception {
+    public void testConsumerBacklogEvictionTimeQuotaWithPartEviction() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/ns-quota"),
                 new HashMap<>());
         admin.namespaces().setBacklogQuota("prop/ns-quota",
@@ -559,7 +559,7 @@ public class BacklogQuotaManagerTest {
         assertEquals(stats.getSubscriptions().get(subName2).getMsgBacklog(), 5);
 
         // Sleep 5000 mills for first 5 messages.
-        Thread.sleep(5000l);
+        Thread.sleep(5000L);
         numMsgs = 9;
         for (int i = 0; i < numMsgs; i++) {
             producer.send(content);
@@ -568,7 +568,7 @@ public class BacklogQuotaManagerTest {
         }
 
         // The first 5 messages are expired after sleeping 2000 more mills.
-        Thread.sleep(2000l);
+        Thread.sleep(2000L);
         rolloverStats();
 
         TopicStats stats2 = getTopicStats(topic1);
