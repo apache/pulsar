@@ -1551,30 +1551,24 @@ public class TransactionTest extends TransactionTestBase {
         }
 
         CountDownLatch countDownLatch = new CountDownLatch(threadSize);
-        new Thread(() -> {
-            for (int i = 0; i < threadSize; i++) {
-                executorService.submit(() -> {
-                    try {
-                        for (int j = 0; j < totalMessage; j++) {
-                            producer.newMessage(transaction).sendAsync();
-                            Message<byte[]> message = consumer.receive();
-                            consumer.acknowledgeAsync(message.getMessageId(),
-                                    transaction);
-                        }
-                        countDownLatch.countDown();
-                    } catch (Exception e) {
-                        log.error("Failed to send/ack messages with transaction.", e);
+        for (int i = 0; i < threadSize; i++) {
+            executorService.submit(() -> {
+                try {
+                    for (int j = 0; j < totalMessage; j++) {
+                        producer.newMessage(transaction).sendAsync();
+                        Message<byte[]> message = consumer.receive();
+                        consumer.acknowledgeAsync(message.getMessageId(),
+                                transaction);
                     }
-                });
-            }
-        }).start();
-        //wait the all send/ack op is excuted and store its futures in the arraylist.
+                } catch (Exception e) {
+                    log.error("Failed to send/ack messages with transaction.", e);
+                } finally {
+                    countDownLatch.countDown();
+                }
+            });
+        }
+        //wait the all send/ack op is executed and store its futures in the arraylist.
         countDownLatch.await(10, TimeUnit.SECONDS);
         transaction.commit().get();
-
-        for (int i = 0; i < threadSize * totalMessage; i++) {
-            consumer.receive();
-        }
-
     }
 }
