@@ -166,11 +166,6 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         int uncompressedSize = batchedMessageMetadataAndPayload.readableBytes();
         ByteBuf compressedPayload = compressor.encode(batchedMessageMetadataAndPayload);
         batchedMessageMetadataAndPayload.release();
-
-        int delta = compressedPayload.capacity() - extraCapacity;
-        extraCapacity = compressedPayload.capacity();
-        producer.client.getMemoryLimitController().forceReserveMemory(delta);
-
         if (compressionType != CompressionType.NONE) {
             messageMetadata.setCompression(compressionType);
             messageMetadata.setUncompressedSize(uncompressedSize);
@@ -252,6 +247,7 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
             messageMetadata.clear();
             messageMetadata.copyFrom(messages.get(0).getMessageBuilder());
             ByteBuf encryptedPayload = producer.encryptMessage(messageMetadata, getCompressedBatchMetadataAndPayload());
+            updateExtraCapacity(encryptedPayload.capacity());
             ByteBufPair cmd = producer.sendMessage(producer.producerId, messageMetadata.getSequenceId(),
                 1, null, messageMetadata, encryptedPayload);
             final OpSendMsg op;
@@ -280,8 +276,8 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
             lowestSequenceId = -1L;
             return op;
         }
-
         ByteBuf encryptedPayload = producer.encryptMessage(messageMetadata, getCompressedBatchMetadataAndPayload());
+        updateExtraCapacity(encryptedPayload.capacity());
         if (encryptedPayload.readableBytes() > ClientCnx.getMaxMessageSize()) {
             producer.semaphoreRelease(messages.size());
             messages.forEach(msg -> producer.client.getMemoryLimitController()
@@ -310,6 +306,12 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         op.setBatchSizeByte(currentBatchSizeBytes);
         lowestSequenceId = -1L;
         return op;
+    }
+
+    private void updateExtraCapacity(int encryptedCapacity) {
+        int delta = encryptedCapacity - extraCapacity;
+        extraCapacity = encryptedCapacity;
+        producer.client.getMemoryLimitController().forceReserveMemory(delta);
     }
 
     @Override
