@@ -54,7 +54,6 @@ public class ServiceURI {
     private static final String HTTPS_SERVICE = "https";
     private static final String SSL_SERVICE = "ssl";
 
-
     private static final int BINARY_PORT = 6650;
     private static final int BINARY_TLS_PORT = 6651;
     private static final int HTTP_PORT = 80;
