@@ -18,11 +18,13 @@
  */
 package org.apache.pulsar.client.api;
 
+import javax.ws.rs.core.Response;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -121,6 +123,8 @@ public class PartitionCreationTest extends ProducerConsumerBase {
     public void testCreateMissedPartitions(boolean useRestApi) throws PulsarAdminException, PulsarClientException, MetadataStoreException {
         conf.setAllowAutoTopicCreation(false);
         final String topic = "testCreateMissedPartitions-useRestApi-" + useRestApi;
+        final String group = "cg_testCreateMissedPartitions";
+        final TopicName topicName = TopicName.get(topic);
         int numPartitions = 3;
         // simulate partitioned topic without partitions
         pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
@@ -136,7 +140,6 @@ public class PartitionCreationTest extends ProducerConsumerBase {
         if (useRestApi) {
             admin.topics().createMissedPartitions(topic);
         } else {
-            final TopicName topicName = TopicName.get(topic);
             for (int i = 0; i < numPartitions; i++) {
                 admin.topics().createNonPartitionedTopic(topicName.getPartition(i).toString());
             }
@@ -144,7 +147,42 @@ public class PartitionCreationTest extends ProducerConsumerBase {
         consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub-1").subscribe();
         Assert.assertNotNull(consumer);
         Assert.assertTrue(consumer instanceof MultiTopicsConsumerImpl);
-        Assert.assertEquals(((MultiTopicsConsumerImpl)consumer).getConsumers().size(), 3);
+        Assert.assertEquals(((MultiTopicsConsumerImpl)consumer).getConsumers().size(), numPartitions);
+
+
+        admin.topics().createSubscription(topic, group, MessageId.latest);
+        int newNumPartitions = 5;
+        pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
+                .updatePartitionedTopicAsync(TopicName.get(topic),p ->
+                        new PartitionedTopicMetadata(newNumPartitions, p.properties));
+
+        TopicStatsImpl topicStats;
+        for (int i = 0; i < newNumPartitions; i++) {
+            try {
+                topicStats = (TopicStatsImpl) admin.topics().getStats(topicName.getPartition(i).toString());
+                Assert.assertTrue(i < numPartitions);
+                Assert.assertTrue(topicStats.getSubscriptions().containsKey(group));
+            } catch (PulsarAdminException ex) {
+                Assert.assertTrue(numPartitions <= i);
+                Assert.assertEquals(ex.getStatusCode(), Response.Status.NOT_FOUND.getStatusCode());
+            }
+        }
+
+        if (useRestApi) {
+            admin.topics().createMissedPartitions(topic);
+        } else {
+            for (int i = numPartitions; i < newNumPartitions; i++) {
+                admin.topics().createNonPartitionedTopic(topicName.getPartition(i).toString());
+            }
+        }
+
+        for (int i = numPartitions; i < newNumPartitions; i++) {
+            topicStats = (TopicStatsImpl) admin.topics().getStats(topicName.getPartition(i).toString());
+            Assert.assertNotNull(topicStats);
+            if (useRestApi) {
+                Assert.assertTrue(topicStats.getSubscriptions().containsKey(group));
+            }
+        }
     }
 
 }
