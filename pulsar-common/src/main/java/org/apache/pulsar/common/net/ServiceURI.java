@@ -33,7 +33,9 @@ import java.util.stream.Collectors;
 import lombok.AccessLevel;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 
 /**
@@ -51,6 +53,7 @@ public class ServiceURI {
     private static final String HTTP_SERVICE = "http";
     private static final String HTTPS_SERVICE = "https";
     private static final String SSL_SERVICE = "ssl";
+
 
     private static final int BINARY_PORT = 6650;
     private static final int BINARY_TLS_PORT = 6651;
@@ -106,12 +109,52 @@ public class ServiceURI {
 
         return create(uri);
     }
-    public static void validate(String urlStr) {
+
+    /**
+     * Verify if the url is a valid url and check the service name.
+     * @param urlStr URL
+     * @param serviceNameTypes service URI name types
+     * @throws IllegalArgumentException If the URL is illegal, it will throw this exception.
+     */
+    public static void validate(@NonNull String urlStr, @NonNull ServiceNameType... serviceNameTypes) {
+        final ServiceURI serviceURI;
         try {
-             create(urlStr);
+             serviceURI = create(urlStr);
         } catch (Throwable ex) {
             throw new IllegalArgumentException(
                     String.format("Illegal url %s, the root cause is: %s", urlStr, ex.getMessage()));
+        }
+        String svName = serviceURI.getServiceName();
+        if (svName == null) {
+            throw new IllegalArgumentException(
+                    String.format("Service name can not be null. %s", serviceURI));
+        }
+        boolean passCheck = Arrays.stream(serviceNameTypes).anyMatch(type -> {
+            switch (type) {
+                case NONE:
+                    return true;
+                case WEB_SERVICE:
+                    return svName.equals(HTTP_SERVICE);
+                case SECURE_WEB_SERVICE:
+                    return svName.equals(HTTPS_SERVICE);
+                case BINARY_SERVICE:
+                    return svName.equals(BINARY_SERVICE) && ArrayUtils.isEmpty(serviceURI.getServiceInfos());
+                case SECURE_BINARY_SERVICE:
+                    String[] infos = serviceURI.getServiceInfos();
+                    if (ArrayUtils.isEmpty(infos)) {
+                        return false;
+                    }
+                    return svName.equals(BINARY_SERVICE) && infos[0].equalsIgnoreCase(SSL_SERVICE);
+                default:
+                    return false;
+            }
+        });
+        if (!passCheck) {
+            String expectServiceNames = Arrays.stream(serviceNameTypes)
+                    .map(Enum::name).collect(Collectors.joining(","));
+            throw new IllegalArgumentException(
+                    String.format("Illegal URL format, expect %s format but got %s service name", expectServiceNames,
+                            svName));
         }
     }
     /**
@@ -265,5 +308,13 @@ public class ServiceURI {
         int hostIndex = ThreadLocalRandom.current().nextInt(serviceHosts.length);
         sb.append(serviceHosts[hostIndex]);
         return sb.append(servicePath).toString();
+    }
+
+    public enum ServiceNameType {
+        NONE,
+        WEB_SERVICE,
+        SECURE_WEB_SERVICE,
+        BINARY_SERVICE,
+        SECURE_BINARY_SERVICE
     }
 }

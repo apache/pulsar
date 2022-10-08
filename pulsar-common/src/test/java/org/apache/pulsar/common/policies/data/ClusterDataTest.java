@@ -115,6 +115,10 @@ public class ClusterDataTest {
         String illegalS1 = "/broker.messaging.c1.example.com:8080";
         String illegalS2 = "broker.messaging.c2.example.com:8080";
         String illegalS3 = "fdsafasfasdf";
+        String illegalS4 = "pulsar://broker.messaging.c2.example.com:8080";
+        String illegalS5 = "pulsar+ssl://broker.messaging.c2.example.com:8080";
+        String illegalS6 = "http://broker.messaging.c2.example.com:8080";
+        String illegalS7 = "https://broker.messaging.c2.example.com:8080";
 
         Assert.assertThrows(IllegalArgumentException.class, () -> ClusterData.builder().serviceUrl(illegalS1));
         Assert.assertThrows(IllegalArgumentException.class, () -> ClusterData.builder().serviceUrlTls(illegalS1));
@@ -133,5 +137,29 @@ public class ClusterDataTest {
         Assert.assertThrows(IllegalArgumentException.class, () -> ClusterData.builder().brokerServiceUrl(illegalS3));
         Assert.assertThrows(IllegalArgumentException.class, () -> ClusterData.builder().brokerServiceUrlTls(illegalS3));
         Assert.assertThrows(IllegalArgumentException.class, () -> ClusterData.builder().proxyServiceUrl(illegalS3));
+
+        Assert.assertThrows(IllegalArgumentException.class, () -> ClusterData.builder().serviceUrl(illegalS4));
+        Assert.assertThrows(IllegalArgumentException.class, () -> ClusterData.builder().serviceUrlTls(illegalS4));
+        ClusterData.builder().brokerServiceUrl(illegalS4);
+        Assert.assertThrows(IllegalArgumentException.class, () -> ClusterData.builder().brokerServiceUrlTls(illegalS4));
+        ClusterData.builder().proxyServiceUrl(illegalS4);
+
+        Assert.assertThrows(IllegalArgumentException.class, () -> ClusterData.builder().serviceUrl(illegalS5));
+        Assert.assertThrows(IllegalArgumentException.class, () -> ClusterData.builder().serviceUrlTls(illegalS5));
+        Assert.assertThrows(IllegalArgumentException.class, () -> ClusterData.builder().brokerServiceUrl(illegalS5));
+        ClusterData.builder().brokerServiceUrlTls(illegalS5);
+        ClusterData.builder().proxyServiceUrl(illegalS5);
+
+        ClusterData.builder().serviceUrl(illegalS6);
+        Assert.assertThrows(IllegalArgumentException.class, () -> ClusterData.builder().serviceUrlTls(illegalS6));
+        Assert.assertThrows(IllegalArgumentException.class, () -> ClusterData.builder().brokerServiceUrl(illegalS6));
+        Assert.assertThrows(IllegalArgumentException.class, () -> ClusterData.builder().brokerServiceUrlTls(illegalS6));
+        Assert.assertThrows(IllegalArgumentException.class, () -> ClusterData.builder().proxyServiceUrl(illegalS6));
+
+        Assert.assertThrows(IllegalArgumentException.class, () -> ClusterData.builder().serviceUrl(illegalS7));
+        ClusterData.builder().serviceUrlTls(illegalS7);
+        Assert.assertThrows(IllegalArgumentException.class, () -> ClusterData.builder().brokerServiceUrl(illegalS7));
+        Assert.assertThrows(IllegalArgumentException.class, () -> ClusterData.builder().brokerServiceUrlTls(illegalS7));
+        Assert.assertThrows(IllegalArgumentException.class, () -> ClusterData.builder().proxyServiceUrl(illegalS7));
     }
 }

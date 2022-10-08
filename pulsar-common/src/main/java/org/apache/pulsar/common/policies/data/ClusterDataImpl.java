@@ -24,6 +24,7 @@ import java.util.LinkedHashSet;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.NonNull;
 import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.common.net.ServiceURI;
 
@@ -145,28 +146,29 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
     private String listenerName;
 
 
-    public void setServiceUrl(String serviceUrl) {
-        ServiceURI.validate(serviceUrl);
+    public void setServiceUrl(@NonNull String serviceUrl) {
+        ServiceURI.validate(serviceUrl, ServiceURI.ServiceNameType.WEB_SERVICE);
         this.serviceUrl = serviceUrl;
     }
 
-    public void setServiceUrlTls(String serviceUrlTls) {
-        ServiceURI.validate(serviceUrlTls);
+    public void setServiceUrlTls(@NonNull String serviceUrlTls) {
+        ServiceURI.validate(serviceUrlTls, ServiceURI.ServiceNameType.SECURE_WEB_SERVICE);
         this.serviceUrlTls = serviceUrlTls;
     }
 
-    public void setBrokerServiceUrl(String brokerServiceUrl) {
-        ServiceURI.validate(brokerServiceUrl);
+    public void setBrokerServiceUrl(@NonNull String brokerServiceUrl) {
+        ServiceURI.validate(brokerServiceUrl, ServiceURI.ServiceNameType.BINARY_SERVICE);
         this.brokerServiceUrl = brokerServiceUrl;
     }
 
-    public void setProxyServiceUrl(String proxyServiceUrl) {
-        ServiceURI.validate(proxyServiceUrl);
+    public void setProxyServiceUrl(@NonNull String proxyServiceUrl) {
+        ServiceURI.validate(proxyServiceUrl, ServiceURI.ServiceNameType.BINARY_SERVICE,
+                ServiceURI.ServiceNameType.SECURE_BINARY_SERVICE);
         this.proxyServiceUrl = proxyServiceUrl;
     }
 
-    public void setBrokerServiceUrlTls(String brokerServiceUrlTls) {
-        ServiceURI.validate(brokerServiceUrlTls);
+    public void setBrokerServiceUrlTls(@NonNull String brokerServiceUrlTls) {
+        ServiceURI.validate(brokerServiceUrlTls, ServiceURI.ServiceNameType.SECURE_BINARY_SERVICE);
         this.brokerServiceUrlTls = brokerServiceUrlTls;
     }
 
@@ -220,31 +222,32 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
         }
 
         public ClusterDataImplBuilder serviceUrl(String serviceUrl) {
-            ServiceURI.validate(serviceUrl);
+            ServiceURI.validate(serviceUrl, ServiceURI.ServiceNameType.WEB_SERVICE);
             this.serviceUrl = serviceUrl;
             return this;
         }
 
         public ClusterDataImplBuilder serviceUrlTls(String serviceUrlTls) {
-            ServiceURI.validate(serviceUrlTls);
+            ServiceURI.validate(serviceUrlTls, ServiceURI.ServiceNameType.SECURE_WEB_SERVICE);
             this.serviceUrlTls = serviceUrlTls;
             return this;
         }
 
         public ClusterDataImplBuilder brokerServiceUrl(String brokerServiceUrl) {
-            ServiceURI.validate(brokerServiceUrl);
+            ServiceURI.validate(brokerServiceUrl, ServiceURI.ServiceNameType.BINARY_SERVICE);
             this.brokerServiceUrl = brokerServiceUrl;
             return this;
         }
 
         public ClusterDataImplBuilder brokerServiceUrlTls(String brokerServiceUrlTls) {
-            ServiceURI.validate(brokerServiceUrlTls);
+            ServiceURI.validate(brokerServiceUrlTls, ServiceURI.ServiceNameType.SECURE_BINARY_SERVICE);
             this.brokerServiceUrlTls = brokerServiceUrlTls;
             return this;
         }
 
         public ClusterDataImplBuilder proxyServiceUrl(String proxyServiceUrl) {
-            ServiceURI.validate(proxyServiceUrl);
+            ServiceURI.validate(proxyServiceUrl, ServiceURI.ServiceNameType.BINARY_SERVICE,
+                    ServiceURI.ServiceNameType.SECURE_BINARY_SERVICE);
             this.proxyServiceUrl = proxyServiceUrl;
             return this;
         }
