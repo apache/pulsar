@@ -344,7 +344,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         String topic = "persistent://" + namespace + "1/topic1";
         // this will cause NPE and it should throw 500
         mockZooKeeperGlobal.setAlwaysFail(Code.SESSIONEXPIRED);
-        pulsar.getConfiguration().setSuperUserRoles(Sets.newHashSet());
+        pulsar.getConfiguration().setSuperUserRoles(new HashSet<>());
         try {
             admin.topics().getPartitionedTopicMetadata(topic);
         } catch (PulsarAdminException e) {
@@ -449,7 +449,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         internalSetup(new AuthenticationToken(ADMIN_TOKEN));
         admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
         admin.tenants().createTenant("my-property",
-                new TenantInfoImpl(Sets.newHashSet(), Sets.newHashSet("test")));
+                new TenantInfoImpl(new HashSet<>(), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
 
         @Cleanup
