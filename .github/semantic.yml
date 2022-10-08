@@ -31,7 +31,7 @@ titleOnly: true
 
 types:
   - cleanup
-  - feat
+  - feat     # feature
   - fix
   - improve
   - refactor
@@ -42,23 +42,23 @@ scopes:
   - broker
   - build
   - ci
-  - cli
+  - cli      # command line interface
+  - client
   - doc
-  - fn
-  - io
-  - java
+  - fn       # Pulasr Functions
+  - io       # Pulsar Connectors
   - meta
   - misc
   - monitor
-  - offload
+  - offload  # tiered storage
   - proxy
   - schema
-  - sec
+  - sec      # security
   - site
-  - sql
+  - sql      # Pulsar Trino Plugin
   - storage
   - test
-  - txn
-  - ws
+  - txn      # transaction
+  - ws       # websocket
 
 targetUrl: https://github.com/apache/pulsar/blob/master/.github/semantic.yml
