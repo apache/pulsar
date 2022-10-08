@@ -2581,7 +2581,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
             try {
                 advanceCursorsIfNecessary(ledgersToDelete);
-            } catch (ManagedLedgerNotFoundException e) {
+            } catch (ManagedLedgerException.LedgerNotExistException e) {
                 log.info("First non deleted Ledger is not found, stop trimming");
                 metadataMutex.unlock();
                 trimmerMutex.unlock();
@@ -2660,7 +2660,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      * entries and the stats are reported correctly.
      */
     @VisibleForTesting
-    void advanceCursorsIfNecessary(List<LedgerInfo> ledgersToDelete) throws ManagedLedgerNotFoundException {
+    void advanceCursorsIfNecessary(List<LedgerInfo> ledgersToDelete) throws
+            ManagedLedgerException.LedgerNotExistException {
         if (ledgersToDelete.isEmpty()) {
             return;
         }
@@ -2670,7 +2671,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         // incorrect results
         Long firstNonDeletedLedger = ledgers.higherKey(ledgersToDelete.get(ledgersToDelete.size() - 1).getLedgerId());
         if (firstNonDeletedLedger == null) {
-            throw new ManagedLedgerNotFoundException("First non deleted Ledger is not found");
+            throw new ManagedLedgerException.LedgerNotExistException("First non deleted Ledger is not found");
         }
         PositionImpl highestPositionToDelete = new PositionImpl(firstNonDeletedLedger, -1);
 
