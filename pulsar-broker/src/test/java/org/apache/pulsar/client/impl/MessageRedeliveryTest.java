@@ -314,6 +314,39 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "enableBatch")
+    public void testRedeliveryAddEpochAndPermits(boolean enableBatch) throws Exception {
+        final String topic = "testRedeliveryAddEpochAndPermits";
+        final String subName = "my-sub";
+        // set receive queue size is 4, and first send 4 messages,
+        // then call redeliver messages, assert receive msg num.
+        int receiveQueueSize = 4;
+        ConsumerImpl<String> consumer = ((ConsumerImpl<String>) pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .receiverQueueSize(receiveQueueSize)
+                .autoScaledReceiverQueueSizeEnabled(false)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Failover)
+                .subscribe());
+
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .enableBatching(enableBatch)
+                .create();
+
+        consumer.setConsumerEpoch(1);
+        for (int i = 0; i < receiveQueueSize; i++) {
+            producer.send("pulsar" + i);
+        }
+        assertNull(consumer.receive(1, TimeUnit.SECONDS));
+
+        consumer.redeliverUnacknowledgedMessages();
+        for (int i = 0; i < receiveQueueSize; i++) {
+            Message<String> msg = consumer.receive();
+            assertEquals("pulsar" + i, msg.getValue());
+        }
+    }
+
+    @Test(dataProvider = "enableBatch")
     public void testBatchReceiveRedeliveryAddEpoch(boolean enableBatch) throws Exception{
         final String topic = "testBatchReceiveRedeliveryAddEpoch";
         final String subName = "my-sub";

@@ -462,7 +462,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     boolean isValidConsumerEpoch(Message<T> message) {
-        return isValidConsumerEpoch((MessageImpl<T>) message);
+        if (!isValidConsumerEpoch((MessageImpl<T>) message)) {
+            increaseAvailablePermits(cnx());
+            return false;
+        }
+        return true;
     }
 
     @Override
