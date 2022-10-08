@@ -46,7 +46,7 @@ public class SchemaHash {
     }
 
     public static SchemaHash of(Schema schema) {
-        if (schema == null) {
+        if (schema == null || schema.getSchemaInfo() == null) {
             return EMPTY_SCHEMA_HASH;
         }
         return ((SchemaInfoImpl) schema.getSchemaInfo()).getSchemaHash();
@@ -67,6 +67,7 @@ public class SchemaHash {
         return EMPTY_SCHEMA_HASH;
     }
 
+    // Shouldn't call this method directly
     public static SchemaHash of(byte[] schemaBytes, SchemaType schemaType) {
         return new SchemaHash(hashFunction.hashBytes(schemaBytes == null ? new byte[0] : schemaBytes), schemaType);
     }
