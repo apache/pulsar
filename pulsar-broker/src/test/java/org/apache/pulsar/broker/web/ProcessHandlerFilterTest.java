@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.web;
 
 import java.io.IOException;
+import java.util.HashSet;
 import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
@@ -58,7 +59,7 @@ public class ProcessHandlerFilterTest {
         FilterChain spyFilterChain = Mockito.spy(FilterChain.class);
         Mockito.doReturn(spyInterceptor).when(mockPulsarService).getBrokerInterceptor();
         Mockito.doReturn(mockConfig).when(mockPulsarService).getConfig();
-        Mockito.doReturn(Sets.newHashSet()).when(mockConfig).getBrokerInterceptors();
+        Mockito.doReturn(new HashSet<>()).when(mockConfig).getBrokerInterceptors();
         // empty interceptor list
         HttpServletRequest mockHttpServletRequest = Mockito.mock(HttpServletRequest.class);
         ProcessHandlerFilter processHandlerFilter = new ProcessHandlerFilter(mockPulsarService);
