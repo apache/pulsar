@@ -30,7 +30,7 @@ body:
         Based on the discussion and feedback, some changes might be applied by the author(s) to the text of the proposal.
 
         Once some consensus is reached, there will be a vote to formally approve the proposal. The vote will be held on the dev@pulsar.apache.org mailing list. Everyone is welcome to vote on the proposal, though it will considered to be binding only the vote of PMC members. It will be required to have a lazy majority of at least 3 binding +1s votes. The vote should stay open for at least 48 hours.
-        
+
         When the vote is closed, if the outcome is positive, the state of the proposal is updated and the Pull Requests associated with this proposal can start to get merged into the master branch.
   - type: textarea
     attributes:

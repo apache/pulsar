@@ -8,6 +8,8 @@ docs:
   - '.asf.yaml'
   - '*.md'
   - '**/*.md'
+  - '.github/changes-filter.yaml'
+  - '.github/ISSUE_TEMPLATE/**'
 tests:
   - added|modified: '**/src/test/java/**/*.java'
 need_owasp:

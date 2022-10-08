@@ -12,6 +12,8 @@ import TabItem from '@theme/TabItem';
 
 Pulsar is built on the [publish-subscribe](https://en.wikipedia.org/wiki/Publish%E2%80%93subscribe_pattern) pattern (often abbreviated to pub-sub). In this pattern, [producers](#producers) publish messages to [topics](#topics); [consumers](#consumers) [subscribe](#subscription-types) to those topics, process incoming messages, and send [acknowledgments](#acknowledgment) to the broker when processing is finished.
 
+![Pub-Sub](/assets/pub-sub-border.svg)
+
 When a subscription is created, Pulsar [retains](concepts-architecture-overview.md#persistent-storage) all messages, even if the consumer is disconnected. The retained messages are discarded only when a consumer acknowledges that all these messages are processed successfully.
 
 If the consumption of a message fails and you want this message to be consumed again, you can enable [message redelivery mechanism](#message-redelivery) to request the broker to resend this message.
@@ -87,16 +89,28 @@ You can set producer access mode through Java Client API. For more information, 
 
 ### Compression
 
-You can compress messages published by producers during transportation. Pulsar currently supports the following types of compression:
-
+Message compression can reduce message size by paying some CPU overhead. The Pulsar client supports the following compression types:
 * [LZ4](https://github.com/lz4/lz4)
 * [ZLIB](https://zlib.net/)
 * [ZSTD](https://facebook.github.io/zstd/)
-* [SNAPPY](https://google.github.io/snappy/)
+* [SNAPPY](https://google.github.io/snappy/). 
+ 
+Compression types are stored in the message metadata, so consumers can adopt different compression types automatically, as needed.
+
+The sample code below shows how to enable compression type for a producer:
+
+```
+client.newProducer()
+    .topic(“topic-name”) 
+    .compressionType(CompressionType.LZ4) 
+    .create();
+```
 
 ### Batching
 
 When batching is enabled, the producer accumulates and sends a batch of messages in a single request. The batch size is defined by the maximum number of messages and the maximum publish latency. Therefore, the backlog size represents the total number of batches instead of the total number of messages.
+
+![Batching](/assets/batching.svg)
 
 In Pulsar, batches are tracked and stored as single units rather than as individual messages. Consumers unbundle a batch into individual messages. However, scheduled messages (configured through the `deliverAt` or the `deliverAfter` parameter) are always sent as individual messages even when batching is enabled.
 
@@ -169,6 +183,8 @@ If the consumer fails to receive all chunks of a message within a specified peri
 ## Consumers
 
 A consumer is a process that attaches to a topic via a subscription and then receives messages.
+
+![Consumer](/assets/consumer.svg)
 
 A consumer sends a [flow permit request](developing-binary-protocol.md#flow-control) to a broker to get messages. There is a queue at the consumer side to receive messages pushed from the broker. You can configure the queue size with the [`receiverQueueSize`](client-libraries-java.md#configure-consumer) parameter. The default size is `1000`). Each time `consumer.receive()` is called, a message is dequeued from the buffer.
 
@@ -421,7 +437,8 @@ consumer.reconsumeLater(msg, customProperties, 3, TimeUnit.SECONDS);
 :::note
 
 *  Currently, retry letter topic is enabled in Shared subscription types.
-*  Compared with negative acknowledgment, retry letter topic is more suitable for messages that require a large number of retries with a configurable retry interval. Because messages in the retry letter topic are persisted to BookKeeper, while messages that need to be retried due to negative acknowledgment are cached on the client side.
+*  Compared with negativ![pub-sub-border](https://user-images.githubusercontent.com/94193423/192618897-460a10de-db92-4d43-b38c-59faffaa8044.svg)
+e acknowledgment, retry letter topic is more suitable for messages that require a large number of retries with a configurable retry interval. Because messages in the retry letter topic are persisted to BookKeeper, while messages that need to be retried due to negative acknowledgment are cached on the client side.
 
 :::
 
@@ -914,11 +931,10 @@ All message retention and expiry are managed at the [namespace](#namespaces) lev
 
 :::
 
-The diagram below illustrates both concepts:
+![Message retention and expiry](/assets/retention-expiry.svg)
 
-![Message retention and expiry](/assets/retention-expiry.png)
-
-With message retention, shown at the top, a <span style={{color: " #89b557"}}>retention policy</span> applied to all topics in a namespace dictates that some messages are durably stored in Pulsar even though they've already been acknowledged. Acknowledged messages that are not covered by the retention policy are <span style={{color: " #bb3b3e"}}>deleted</span>. Without a retention policy, *all* of the <span style={{color: " #19967d"}}>acknowledged messages</span> would be deleted.
+With message retention, shown at the top, a <span style={{color: " #89b557"}}>retention policy</span> applied to all topics in a namespace dictates that some messages are durably stored in Pulsar even thoug![batching](https://user-images.githubusercontent.com/94193423/192618946-306d7d9c-a88f-45bd-8106-c5f2ca602ca6.svg)
+h they've already been acknowledged. Acknowledged messages that are not covered by the retention policy are <span style={{color: " #bb3b3e"}}>deleted</span>. Without a retention policy, *all* of the <span style={{color: " #19967d"}}>acknowledged messages</span> would be deleted.
 
 With message expiry, shown at the bottom, some messages are <span style={{color: " #bb3b3e"}}>deleted</span>, even though they <span style={{color: " #337db6"}}>haven't been acknowledged</span>, because they've expired according to the <span style={{color: " #e39441"}}>TTL applied to the namespace</span> (for example because a TTL of 5 minutes has been applied and the messages haven't been acknowledged but are 10 minutes old).
 
@@ -928,7 +944,7 @@ Message duplication occurs when a message is [persisted](concepts-architecture-o
 
 The following diagram illustrates what happens when message deduplication is disabled vs. enabled:
 
-![Pulsar message deduplication](/assets/message-deduplication.png)
+![Pulsar message deduplication](/assets/message-deduplication.svg)
 
 
 Message deduplication is disabled in the scenario shown at the top. Here, a producer publishes message 1 on a topic; the message reaches a Pulsar broker and is [persisted](concepts-architecture-overview.md#persistent-storage) to BookKeeper. The producer then sends message 1 again (in this case due to some retry logic), and the message is received by the broker and stored in BookKeeper again, which means that duplication has occurred.
@@ -990,3 +1006,7 @@ The following is an example of delayed message delivery for a producer in Java:
 producer.newMessage().deliverAfter(3L, TimeUnit.Minute).value("Hello Pulsar!").send();
 ```
 
+![consumer](https://user-images.githubusercontent.com/94193423/192619010-cb1a5772-f0b8-4d40-b9f9-1df1c5d8ce68.svg)
+![retention-expiry](https://user-images.githubusercontent.com/94193423/192619038-5dca1524-6c10-4879-be1d-a2504f1f9003.svg)
+![message-deduplication](https://user-images.githubusercontent.com/94193423/192619054-de1226d9-2186-4961-92da-e26c79bae996.svg)
+![delayed-delivery](https://user-images.githubusercontent.com/94193423/192619073-206f0f8c-ab95-4d5e-b83f-f04338d62cea.svg)
