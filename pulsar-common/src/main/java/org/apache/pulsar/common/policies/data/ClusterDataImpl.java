@@ -146,29 +146,39 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
     private String listenerName;
 
 
-    public void setServiceUrl(@NonNull String serviceUrl) {
-        ServiceURI.validate(serviceUrl, ServiceURI.ServiceNameType.WEB_SERVICE);
+    public void setServiceUrl(String serviceUrl) {
+        if (serviceUrl != null) {
+            ServiceURI.validate(serviceUrl, ServiceURI.ServiceNameType.WEB_SERVICE);
+        }
         this.serviceUrl = serviceUrl;
     }
 
-    public void setServiceUrlTls(@NonNull String serviceUrlTls) {
-        ServiceURI.validate(serviceUrlTls, ServiceURI.ServiceNameType.SECURE_WEB_SERVICE);
+    public void setServiceUrlTls(String serviceUrlTls) {
+        if (serviceUrlTls != null) {
+            ServiceURI.validate(serviceUrlTls, ServiceURI.ServiceNameType.SECURE_WEB_SERVICE);
+        }
         this.serviceUrlTls = serviceUrlTls;
     }
 
-    public void setBrokerServiceUrl(@NonNull String brokerServiceUrl) {
-        ServiceURI.validate(brokerServiceUrl, ServiceURI.ServiceNameType.BINARY_SERVICE);
+    public void setBrokerServiceUrl(String brokerServiceUrl) {
+        if (brokerServiceUrl != null) {
+            ServiceURI.validate(brokerServiceUrl, ServiceURI.ServiceNameType.BINARY_SERVICE);
+        }
         this.brokerServiceUrl = brokerServiceUrl;
     }
 
-    public void setProxyServiceUrl(@NonNull String proxyServiceUrl) {
-        ServiceURI.validate(proxyServiceUrl, ServiceURI.ServiceNameType.BINARY_SERVICE,
-                ServiceURI.ServiceNameType.SECURE_BINARY_SERVICE);
+    public void setProxyServiceUrl(String proxyServiceUrl) {
+        if (proxyServiceUrl != null) {
+            ServiceURI.validate(proxyServiceUrl, ServiceURI.ServiceNameType.BINARY_SERVICE,
+                    ServiceURI.ServiceNameType.SECURE_BINARY_SERVICE);
+        }
         this.proxyServiceUrl = proxyServiceUrl;
     }
 
-    public void setBrokerServiceUrlTls(@NonNull String brokerServiceUrlTls) {
-        ServiceURI.validate(brokerServiceUrlTls, ServiceURI.ServiceNameType.SECURE_BINARY_SERVICE);
+    public void setBrokerServiceUrlTls(String brokerServiceUrlTls) {
+        if (brokerServiceUrlTls != null) {
+            ServiceURI.validate(brokerServiceUrlTls, ServiceURI.ServiceNameType.SECURE_BINARY_SERVICE);
+        }
         this.brokerServiceUrlTls = brokerServiceUrlTls;
     }
 
@@ -222,32 +232,42 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
         }
 
         public ClusterDataImplBuilder serviceUrl(String serviceUrl) {
-            ServiceURI.validate(serviceUrl, ServiceURI.ServiceNameType.WEB_SERVICE);
+            if (serviceUrl != null) {
+                ServiceURI.validate(serviceUrl, ServiceURI.ServiceNameType.WEB_SERVICE);
+            }
             this.serviceUrl = serviceUrl;
             return this;
         }
 
         public ClusterDataImplBuilder serviceUrlTls(String serviceUrlTls) {
-            ServiceURI.validate(serviceUrlTls, ServiceURI.ServiceNameType.SECURE_WEB_SERVICE);
+            if (serviceUrlTls != null) {
+                ServiceURI.validate(serviceUrlTls, ServiceURI.ServiceNameType.SECURE_WEB_SERVICE);
+            }
             this.serviceUrlTls = serviceUrlTls;
             return this;
         }
 
         public ClusterDataImplBuilder brokerServiceUrl(String brokerServiceUrl) {
-            ServiceURI.validate(brokerServiceUrl, ServiceURI.ServiceNameType.BINARY_SERVICE);
+            if (brokerServiceUrl != null) {
+                ServiceURI.validate(brokerServiceUrl, ServiceURI.ServiceNameType.BINARY_SERVICE);
+            }
             this.brokerServiceUrl = brokerServiceUrl;
             return this;
         }
 
         public ClusterDataImplBuilder brokerServiceUrlTls(String brokerServiceUrlTls) {
-            ServiceURI.validate(brokerServiceUrlTls, ServiceURI.ServiceNameType.SECURE_BINARY_SERVICE);
+            if (brokerServiceUrlTls != null) {
+                ServiceURI.validate(brokerServiceUrlTls, ServiceURI.ServiceNameType.SECURE_BINARY_SERVICE);
+            }
             this.brokerServiceUrlTls = brokerServiceUrlTls;
             return this;
         }
 
         public ClusterDataImplBuilder proxyServiceUrl(String proxyServiceUrl) {
-            ServiceURI.validate(proxyServiceUrl, ServiceURI.ServiceNameType.BINARY_SERVICE,
-                    ServiceURI.ServiceNameType.SECURE_BINARY_SERVICE);
+            if (proxyServiceUrl != null) {
+                ServiceURI.validate(proxyServiceUrl, ServiceURI.ServiceNameType.BINARY_SERVICE,
+                        ServiceURI.ServiceNameType.SECURE_BINARY_SERVICE);
+            }
             this.proxyServiceUrl = proxyServiceUrl;
             return this;
         }
