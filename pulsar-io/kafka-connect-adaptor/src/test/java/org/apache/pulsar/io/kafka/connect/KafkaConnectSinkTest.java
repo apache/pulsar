@@ -748,11 +748,12 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
     public void kafkaLogicalTypesDecimalTest() {
         Map<String, String> props = new HashMap<>();
         props.put("scale", "10");
-        Schema schema = new TestSchema(new SchemaInfoImpl()
-                .setName(Decimal.LOGICAL_NAME)
-                .setType(SchemaType.BYTES)
-                .setProperties(props)
-                .setSchema(new byte[0]));
+        Schema schema = new TestSchema(SchemaInfoImpl.builder()
+                .name(Decimal.LOGICAL_NAME)
+                .type(SchemaType.BYTES)
+                .properties(props)
+                .schema(new byte[0])
+                .build());
 
         org.apache.kafka.connect.data.Schema kafkaSchema = PulsarSchemaToKafkaSchema
                 .getKafkaConnectSchema(schema);

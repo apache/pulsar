@@ -48,12 +48,12 @@ public class SchemaInfoImpl implements SchemaInfo {
     /**
      * The schema data in AVRO JSON format.
      */
-    private volatile byte[] schema;
+    private final byte[] schema;
 
     /**
      * The type of schema (AVRO, JSON, PROTOBUF, etc..).
      */
-    private volatile SchemaType type;
+    private final SchemaType type;
 
     /**
      * The created time of schema.
@@ -63,13 +63,9 @@ public class SchemaInfoImpl implements SchemaInfo {
     /**
      * Additional properties of the schema definition (implementation defined).
      */
-    @Builder.Default
     private Map<String, String> properties = Collections.emptyMap();
 
-    private SchemaHash schemaHash;
-
-    private SchemaInfoImpl() {
-    }
+    private final SchemaHash schemaHash;
 
     @Builder
     public SchemaInfoImpl(String name, byte[] schema, SchemaType type, long timestamp,
@@ -78,8 +74,8 @@ public class SchemaInfoImpl implements SchemaInfo {
         this.schema = schema;
         this.type = type;
         this.timestamp = timestamp;
-        this.properties = properties;
-        this.schemaHash = SchemaHash.of(this.schema, type);
+        this.properties = properties == null ? Collections.emptyMap() : properties;
+        this.schemaHash = SchemaHash.of(this.schema, this.type);
     }
 
     public String getSchemaDefinition() {
