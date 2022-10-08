@@ -4624,7 +4624,7 @@ public class PersistentTopicsBase extends AdminResource {
             });
         }).exceptionally(ex -> {
             if (ex.getCause() instanceof PulsarAdminException.NotFoundException) {
-                // The first partition doesn't exist, so there are currently to subscriptions to recreate
+                // The first partition doesn't exist, so there are currently to subscriptions no recreate
                 result.complete(null);
             } else {
                 log.warn("[{}] Failed to get list of subscriptions of {}",
