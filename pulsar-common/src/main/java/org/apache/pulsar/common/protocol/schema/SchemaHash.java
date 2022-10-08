@@ -86,7 +86,7 @@ public class SchemaHash {
                 schemaInfo == null ? null : schemaInfo.getType());
     }
 
-    public static SchemaHash of() {
+    public static SchemaHash empty() {
         return of(null, null);
     }
 
@@ -95,6 +95,9 @@ public class SchemaHash {
         if (schemaBytes == null || schemaBytes.length == 0) {
             result = EmptySchemaHashFactory.get(schemaType);
             if (result == null) {
+                log.warn("Could not get schemaHash from EmptySchemaHashFactory, will create by hashFunction. Might bring"
+                                + " performance regression. schemaBytes:{}, schemaType:{}",
+                        schemaBytes == null ? "null" : "0", schemaType);
                 result = new SchemaHash(
                         hashFunction.hashBytes(schemaBytes == null ? new byte[0] : schemaBytes), schemaType);
             }
