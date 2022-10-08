@@ -22,14 +22,13 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.Map;
-import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
+import org.apache.pulsar.common.protocol.schema.SchemaHash;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -40,10 +39,7 @@ import org.apache.pulsar.common.schema.SchemaType;
 @InterfaceAudience.Public
 @InterfaceStability.Stable
 @Data
-@AllArgsConstructor
-@NoArgsConstructor
 @Accessors(chain = true)
-@Builder
 public class SchemaInfoImpl implements SchemaInfo {
 
     @EqualsAndHashCode.Exclude
@@ -52,12 +48,12 @@ public class SchemaInfoImpl implements SchemaInfo {
     /**
      * The schema data in AVRO JSON format.
      */
-    private byte[] schema;
+    private volatile byte[] schema;
 
     /**
      * The type of schema (AVRO, JSON, PROTOBUF, etc..).
      */
-    private SchemaType type;
+    private volatile SchemaType type;
 
     /**
      * The created time of schema.
@@ -69,6 +65,22 @@ public class SchemaInfoImpl implements SchemaInfo {
      */
     @Builder.Default
     private Map<String, String> properties = Collections.emptyMap();
+
+    private SchemaHash schemaHash;
+
+    private SchemaInfoImpl() {
+    }
+
+    @Builder
+    public SchemaInfoImpl(String name, byte[] schema, SchemaType type, long timestamp,
+                          Map<String, String> properties) {
+        this.name = name;
+        this.schema = schema;
+        this.type = type;
+        this.timestamp = timestamp;
+        this.properties = properties;
+        this.schemaHash = SchemaHash.of(this.schema, type);
+    }
 
     public String getSchemaDefinition() {
         if (null == schema) {
@@ -87,6 +99,10 @@ public class SchemaInfoImpl implements SchemaInfo {
             default:
                 return Base64.getEncoder().encodeToString(schema);
         }
+    }
+
+    public SchemaHash getSchemaHash() {
+        return schemaHash;
     }
 
     @Override

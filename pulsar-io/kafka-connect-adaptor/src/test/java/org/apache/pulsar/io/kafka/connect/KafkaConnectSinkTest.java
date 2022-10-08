@@ -692,10 +692,11 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
 
     @Test
     public void kafkaLogicalTypesTimestampTest() {
-        Schema schema = new TestSchema(new SchemaInfoImpl()
-                .setName(Timestamp.LOGICAL_NAME)
-                .setType(SchemaType.INT64)
-                .setSchema(new byte[0]));
+        Schema schema = new TestSchema(SchemaInfoImpl.builder()
+                .name(Timestamp.LOGICAL_NAME)
+                .type(SchemaType.INT64)
+                .schema(new byte[0])
+                .build());
 
         org.apache.kafka.connect.data.Schema kafkaSchema = PulsarSchemaToKafkaSchema
                 .getKafkaConnectSchema(schema);
@@ -709,10 +710,11 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
 
     @Test
     public void kafkaLogicalTypesTimeTest() {
-        Schema schema = new TestSchema(new SchemaInfoImpl()
-                .setName(Time.LOGICAL_NAME)
-                .setType(SchemaType.INT32)
-                .setSchema(new byte[0]));
+        Schema schema = new TestSchema(SchemaInfoImpl.builder()
+                .name(Time.LOGICAL_NAME)
+                .type(SchemaType.INT32)
+                .schema(new byte[0])
+                .build());
 
         org.apache.kafka.connect.data.Schema kafkaSchema = PulsarSchemaToKafkaSchema
                 .getKafkaConnectSchema(schema);
@@ -726,10 +728,11 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
 
     @Test
     public void kafkaLogicalTypesDateTest() {
-        Schema schema = new TestSchema(new SchemaInfoImpl()
-                .setName(Date.LOGICAL_NAME)
-                .setType(SchemaType.INT32)
-                .setSchema(new byte[0]));
+        Schema schema = new TestSchema(SchemaInfoImpl.builder()
+                .name(Date.LOGICAL_NAME)
+                .type(SchemaType.INT32)
+                .schema(new byte[0])
+                .build());
 
         org.apache.kafka.connect.data.Schema kafkaSchema = PulsarSchemaToKafkaSchema
                 .getKafkaConnectSchema(schema);
