@@ -18,14 +18,11 @@
  */
 package org.apache.pulsar.common.protocol.schema;
 
-import com.github.benmanes.caffeine.cache.Caffeine;
-import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import java.util.Optional;
 import lombok.EqualsAndHashCode;
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -38,17 +35,11 @@ public class SchemaHash {
 
     private static final HashFunction hashFunction = Hashing.sha256();
 
+    private static final HashCode EMPTY_HASH = hashFunction.hashBytes(new byte[0]);
+
     private final HashCode hash;
 
     private final SchemaType schemaType;
-
-    private static final LoadingCache<Pair<byte[], SchemaType>, SchemaHash> cache = Caffeine.newBuilder()
-            .maximumSize(10000)
-            .build(key ->
-                    new SchemaHash(
-                            hashFunction.hashBytes(key.getLeft() == null ? new byte[0] : key.getLeft()),
-                            key.getRight())
-            );
 
     private SchemaHash(HashCode hash, SchemaType schemaType) {
         this.hash = hash;
@@ -71,7 +62,10 @@ public class SchemaHash {
     }
 
     public static SchemaHash of(byte[] schemaBytes, SchemaType schemaType) {
-        return cache.get(Pair.of(schemaBytes, schemaType));
+        if (schemaBytes == null || schemaBytes.length == 0) {
+            return new SchemaHash(EMPTY_HASH, schemaType);
+        }
+        return new SchemaHash(hashFunction.hashBytes(schemaBytes), schemaType);
     }
 
     public byte[] asBytes() {
