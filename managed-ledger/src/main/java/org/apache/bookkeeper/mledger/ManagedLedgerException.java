@@ -111,12 +111,6 @@ public class ManagedLedgerException extends Exception {
         }
     }
 
-    public static class LedgerNotExistException extends ManagedLedgerException {
-        public LedgerNotExistException(String msg) {
-            super(msg);
-        }
-    }
-
     public static class InvalidCursorPositionException extends ManagedLedgerException {
         public InvalidCursorPositionException(String msg) {
             super(msg);
