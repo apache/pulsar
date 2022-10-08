@@ -113,6 +113,8 @@ public class SchemaHash {
 
     private static class EmptySchemaHashFactory {
         private static final HashCode EMPTY_HASH = hashFunction.hashBytes(new byte[0]);
+
+        private static final SchemaHash NULL_SCHEMA_HASH = new SchemaHash(EMPTY_HASH, null);
         private static final SchemaHash NONE_SCHEMA_HASH = new SchemaHash(EMPTY_HASH, NONE);
         private static final SchemaHash STRING_SCHEMA_HASH = new SchemaHash(EMPTY_HASH, STRING);
         private static final SchemaHash JSON_SCHEMA_HASH = new SchemaHash(EMPTY_HASH, JSON);
@@ -140,6 +142,9 @@ public class SchemaHash {
         private static final SchemaHash AUTO_PUBLISH_SCHEMA_HASH = new SchemaHash(EMPTY_HASH, AUTO_PUBLISH);
 
         public static SchemaHash get(SchemaType schemaType) {
+            if (schemaType == null) {
+                return NULL_SCHEMA_HASH;
+            }
             switch (schemaType) {
                 case NONE:
                     return NONE_SCHEMA_HASH;
