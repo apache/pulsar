@@ -103,7 +103,7 @@ public class PositionImpl implements Position, Comparable<PositionImpl> {
             return this;
         }
         if (entryId < 0) {
-            return PositionImpl.get(ledgerId, entryNum);
+            return PositionImpl.get(ledgerId, entryNum - 1);
         } else {
             return PositionImpl.get(ledgerId, entryId + entryNum);
         }
