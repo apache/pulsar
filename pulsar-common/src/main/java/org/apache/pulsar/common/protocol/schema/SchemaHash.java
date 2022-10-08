@@ -91,18 +91,15 @@ public class SchemaHash {
     }
 
     private static SchemaHash of(byte[] schemaBytes, SchemaType schemaType) {
-        SchemaHash result = null;
+        SchemaHash result;
         if (schemaBytes == null || schemaBytes.length == 0) {
             result = EmptySchemaHashFactory.get(schemaType);
-        }
-
-        // This should not be a common occurrence if everything goes well.
-        if (result == null) {
-            log.warn("Could not get schemaHash from EmptySchemaHashFactory, will create by hashFunction. Might bring"
-                            + " performance regression. schemaBytes length:{}, schemaType:{}",
-                    schemaBytes == null ? "null" : schemaBytes.length, schemaType);
-            result = new SchemaHash(
-                    hashFunction.hashBytes(schemaBytes == null ? new byte[0] : schemaBytes), schemaType);
+            if (result == null) {
+                result = new SchemaHash(
+                        hashFunction.hashBytes(schemaBytes == null ? new byte[0] : schemaBytes), schemaType);
+            }
+        } else {
+            result = new SchemaHash(hashFunction.hashBytes(schemaBytes), schemaType);
         }
         return result;
     }
