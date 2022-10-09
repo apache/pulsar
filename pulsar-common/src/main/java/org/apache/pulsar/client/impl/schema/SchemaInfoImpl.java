@@ -19,12 +19,14 @@
 package org.apache.pulsar.client.impl.schema;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.Map;
 import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
@@ -39,6 +41,7 @@ import org.apache.pulsar.common.schema.SchemaType;
 @InterfaceAudience.Public
 @InterfaceStability.Stable
 @Data
+@NoArgsConstructor
 @Accessors(chain = true)
 public class SchemaInfoImpl implements SchemaInfo {
 
@@ -48,12 +51,12 @@ public class SchemaInfoImpl implements SchemaInfo {
     /**
      * The schema data in AVRO JSON format.
      */
-    private final byte[] schema;
+    private byte[] schema;
 
     /**
      * The type of schema (AVRO, JSON, PROTOBUF, etc..).
      */
-    private final SchemaType type;
+    private SchemaType type;
 
     /**
      * The created time of schema.
@@ -65,7 +68,9 @@ public class SchemaInfoImpl implements SchemaInfo {
      */
     private Map<String, String> properties = Collections.emptyMap();
 
-    private final SchemaHash schemaHash;
+    @EqualsAndHashCode.Exclude
+    @JsonIgnore
+    private transient SchemaHash schemaHash;
 
     @Builder
     public SchemaInfoImpl(String name, byte[] schema, SchemaType type, long timestamp,
