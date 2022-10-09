@@ -38,6 +38,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import lombok.AllArgsConstructor;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.api.ReadHandle;
@@ -173,67 +174,152 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
      * Creating indexBlocks for each corresponding DataBlock that is uploaded.
      */
     @Override
+    @SuppressWarnings("UnstableApiUsage")
     public CompletableFuture<Void> offload(ReadHandle readHandle,
                                            UUID uuid,
                                            Map<String, String> extraMetadata) {
+        final CompletableFuture<Void> promise = new CompletableFuture<>();
+        if (null == extraMetadata) {
+            promise.completeExceptionally(new IllegalArgumentException("Argument [extraMetadata] can't be null."));
+            return promise;
+        }
+
+        final long ledgerId = readHandle.getId();
+        final String bucket = config.getBucket();
         final String topicName = extraMetadata.get(MANAGED_LEDGER_NAME);
         final BlobStore writeBlobStore = blobStores.get(config.getBlobStoreLocation());
-        log.info("offload {} uuid {} extraMetadata {} to {} {}", readHandle.getId(), uuid, extraMetadata,
+        log.info("offload {} uuid {} extraMetadata {} to {} {}", ledgerId, uuid, extraMetadata,
                 config.getBlobStoreLocation(), writeBlobStore);
-        CompletableFuture<Void> promise = new CompletableFuture<>();
-        scheduler.chooseThread(readHandle.getId()).execute(() -> {
-            if (readHandle.getLength() == 0 || !readHandle.isClosed() || readHandle.getLastAddConfirmed() < 0) {
-                promise.completeExceptionally(
-                        new IllegalArgumentException("An empty or open ledger should never be offloaded"));
-                return;
-            }
-            OffloadIndexBlockBuilder indexBuilder = OffloadIndexBlockBuilder.create()
+
+        if (readHandle.getLength() == 0 || !readHandle.isClosed() || readHandle.getLastAddConfirmed() < 0) {
+            promise.completeExceptionally(
+                    new IllegalArgumentException("An empty or open ledger should never be offloaded"));
+            return promise;
+        }
+        OffloadIndexBlockBuilder indexBuilder = OffloadIndexBlockBuilder.create()
                 .withLedgerMetadata(readHandle.getLedgerMetadata())
                 .withDataBlockHeaderLength(BlockAwareSegmentInputStreamImpl.getHeaderSize());
-            String dataBlockKey = DataBlockUtils.dataBlockOffloadKey(readHandle.getId(), uuid);
-            String indexBlockKey = DataBlockUtils.indexBlockOffloadKey(readHandle.getId(), uuid);
-            log.info("ledger {} dataBlockKey {} indexBlockKey {}", readHandle.getId(), dataBlockKey, indexBlockKey);
+        String dataBlockKey = DataBlockUtils.dataBlockOffloadKey(ledgerId, uuid);
+        String indexBlockKey = DataBlockUtils.indexBlockOffloadKey(ledgerId, uuid);
+        log.info("ledger {} dataBlockKey {} indexBlockKey {}", ledgerId, dataBlockKey, indexBlockKey);
 
-            MultipartUpload mpu = null;
-            List<MultipartPart> parts = Lists.newArrayList();
+        MultipartUpload mpu;
+        List<MultipartPart> parts = Lists.newArrayList();
 
-            // init multi part upload for data block.
-            try {
-                BlobBuilder blobBuilder = writeBlobStore.blobBuilder(dataBlockKey);
+        // init multi part upload for data block.
+        try {
+            BlobBuilder blobBuilder = writeBlobStore.blobBuilder(dataBlockKey);
+            Map<String, String> objectMetadata = new HashMap<>(userMetadata);
+            objectMetadata.put("role", "data");
+            objectMetadata.putAll(extraMetadata);
+
+            DataBlockUtils.addVersionInfo(blobBuilder, objectMetadata);
+            Blob blob = blobBuilder.build();
+            log.info("initiateMultipartUpload bucket {}, metadata {} ", bucket, blob.getMetadata());
+            mpu = writeBlobStore.initiateMultipartUpload(bucket, blob.getMetadata(), new PutOptions());
+        } catch (Throwable t) {
+            promise.completeExceptionally(t);
+            return promise;
+        }
+
+        final AtomicLong dataLen = new AtomicLong(0);
+        final CompletableFuture<Void> f = new CompletableFuture<>();
+        // Execute the first block task.
+        final int maxBlockSize = config.getMaxBlockSizeInBytes();
+        Runnable firstTask = new BlobStorePartitionedReader(0, maxBlockSize, readHandle, writeBlobStore, mpu,
+                parts, indexBuilder, f, offloaderStats, topicName, bucket, dataBlockKey, dataLen);
+        scheduler.chooseThread(ledgerId).execute(firstTask);
+
+        f.thenAccept(__ -> {
+            // upload index block
+            try (OffloadIndexBlock index = indexBuilder.withDataObjectLength(dataLen.get()).build();
+                 IndexInputStream indexStream = index.toStream()) {
+                // write the index block
+                BlobBuilder blobBuilder = writeBlobStore.blobBuilder(indexBlockKey);
                 Map<String, String> objectMetadata = new HashMap<>(userMetadata);
-                objectMetadata.put("role", "data");
-                if (extraMetadata != null) {
-                   objectMetadata.putAll(extraMetadata);
-                }
-                DataBlockUtils.addVersionInfo(blobBuilder, objectMetadata);
-                Blob blob = blobBuilder.build();
-                log.info("initiateMultipartUpload bucket {}, metadata {} ", config.getBucket(), blob.getMetadata());
-                mpu = writeBlobStore.initiateMultipartUpload(config.getBucket(), blob.getMetadata(), new PutOptions());
-            } catch (Throwable t) {
-                promise.completeExceptionally(t);
-                return;
-            }
+                objectMetadata.put("role", "index");
+                objectMetadata.putAll(extraMetadata);
 
-            long dataObjectLength = 0;
+                DataBlockUtils.addVersionInfo(blobBuilder, objectMetadata);
+                Payload indexPayload = Payloads.newInputStreamPayload(indexStream);
+                indexPayload.getContentMetadata().setContentLength((long) indexStream.getStreamSize());
+                indexPayload.getContentMetadata().setContentType("application/octet-stream");
+
+                Blob blob = blobBuilder
+                        .payload(indexPayload)
+                        .contentLength(indexStream.getStreamSize())
+                        .build();
+                writeBlobStore.putBlob(bucket, blob);
+                promise.complete(null);
+            } catch (Throwable t) {
+                try {
+                    writeBlobStore.removeBlob(bucket, dataBlockKey);
+                } catch (Throwable throwable) {
+                    log.error("Failed deleteObject in bucket - {} with key - {}.", bucket, dataBlockKey, throwable);
+                }
+
+                this.offloaderStats.recordWriteToStorageError(topicName);
+                this.offloaderStats.recordOffloadError(topicName);
+                promise.completeExceptionally(t);
+            }
+        }).exceptionally(e -> {
+            try {
+                blobStore.abortMultipartUpload(mpu);
+            } catch (Throwable throwable) {
+                log.error("Failed abortMultipartUpload in bucket - {} with key - {}, uploadId - {}.",
+                        bucket, dataBlockKey, mpu.id(), throwable);
+            }
+            this.offloaderStats.recordWriteToStorageError(topicName);
+            this.offloaderStats.recordOffloadError(topicName);
+            promise.completeExceptionally(e);
+            return null;
+        });
+
+        return promise;
+    }
+
+
+    @AllArgsConstructor
+    @SuppressWarnings("UnstableApiUsage")
+    private static final class BlobStorePartitionedReader implements Runnable {
+
+        private long written;
+        private long startEntry;
+        private final int maxBlockSize;
+        private final ReadHandle handle;
+        private final BlobStore blobStore;
+        private final MultipartUpload mp;
+        private final List<MultipartPart> parts;
+        private final OffloadIndexBlockBuilder indexBuilder;
+        private final CompletableFuture<Void> f;
+        private final LedgerOffloaderStats stats;
+        private final String topicName;
+        private final String bucket;
+        private final String dataBlockKey;
+        private final AtomicLong dataLen;
+
+        @Override
+        public void run() {
             // start multi part upload for data block.
+            int partId = this.parts.size() + 1;
+
             try {
                 long startEntry = 0;
-                int partId = 1;
-                long start = System.nanoTime();
+                int partId = this.parts.size() + 1;
                 long entryBytesWritten = 0;
-                while (startEntry <= readHandle.getLastAddConfirmed()) {
+                while (startEntry <= handle.getLastAddConfirmed()) {
                     int blockSize = BlockAwareSegmentInputStreamImpl
-                        .calculateBlockSize(config.getMaxBlockSizeInBytes(), readHandle, startEntry, entryBytesWritten);
+                            .calculateBlockSize(maxBlockSize, handle, startEntry, entryBytesWritten);
 
                     try (BlockAwareSegmentInputStream blockStream = new BlockAwareSegmentInputStreamImpl(
-                            readHandle, startEntry, blockSize, this.offloaderStats, topicName)) {
+                            handle, startEntry, blockSize, this.stats, topicName)) {
 
                         Payload partPayload = Payloads.newInputStreamPayload(blockStream);
                         partPayload.getContentMetadata().setContentLength((long) blockSize);
                         partPayload.getContentMetadata().setContentType("application/octet-stream");
-                        parts.add(writeBlobStore.uploadMultipartPart(mpu, partId, partPayload));
+                        parts.add(blobStore.uploadMultipartPart(mp, partId, partPayload));
                         log.debug("UploadMultipartPart. container: {}, blobName: {}, partId: {}, mpu: {}",
-                                config.getBucket(), dataBlockKey, partId, mpu.id());
+                                bucket, dataBlockKey, partId, mp.id());
 
                         indexBuilder.addBlock(startEntry, partId, blockSize);
 
@@ -244,67 +330,32 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                             break;
                         }
                         entryBytesWritten += blockStream.getBlockEntryBytesCount();
-                        partId++;
-                        this.offloaderStats.recordOffloadBytes(topicName, blockStream.getBlockEntryBytesCount());
+                        this.stats.recordOffloadBytes(topicName, blockStream.getBlockEntryBytesCount());
                     }
 
-                    dataObjectLength += blockSize;
+                    this.dataLen.addAndGet(blockSize);
                 }
 
-                String etag = writeBlobStore.completeMultipartUpload(mpu, parts);
-                log.info("Ledger {}, upload finished, etag {}", readHandle.getId(), etag);
-                mpu = null;
+                String etag = blobStore.completeMultipartUpload(mp, parts);
+                log.info("Ledger {}, upload finished, etag {}", handle.getId(), etag);
             } catch (Throwable t) {
                 try {
-                    if (mpu != null) {
-                        writeBlobStore.abortMultipartUpload(mpu);
+                    if (mp != null) {
+                        blobStore.abortMultipartUpload(mp);
                     }
                 } catch (Throwable throwable) {
                     log.error("Failed abortMultipartUpload in bucket - {} with key - {}, uploadId - {}.",
-                            config.getBucket(), dataBlockKey, mpu.id(), throwable);
+                            bucket, dataBlockKey, mp.id(), throwable);
                 }
-                this.offloaderStats.recordWriteToStorageError(topicName);
-                this.offloaderStats.recordOffloadError(topicName);
-                promise.completeExceptionally(t);
-                return;
+                this.stats.recordWriteToStorageError(topicName);
+                this.stats.recordOffloadError(topicName);
+                f.completeExceptionally(t);
             }
+        }
 
-            // upload index block
-            try (OffloadIndexBlock index = indexBuilder.withDataObjectLength(dataObjectLength).build();
-                 IndexInputStream indexStream = index.toStream()) {
-                // write the index block
-                BlobBuilder blobBuilder = writeBlobStore.blobBuilder(indexBlockKey);
-                Map<String, String> objectMetadata = new HashMap<>(userMetadata);
-                objectMetadata.put("role", "index");
-                if (extraMetadata != null) {
-                    objectMetadata.putAll(extraMetadata);
-                }
-                DataBlockUtils.addVersionInfo(blobBuilder, objectMetadata);
-                Payload indexPayload = Payloads.newInputStreamPayload(indexStream);
-                indexPayload.getContentMetadata().setContentLength((long) indexStream.getStreamSize());
-                indexPayload.getContentMetadata().setContentType("application/octet-stream");
+        private void processAfterTaskFinished() {
 
-                Blob blob = blobBuilder
-                        .payload(indexPayload)
-                        .contentLength((long) indexStream.getStreamSize())
-                    .build();
-                writeBlobStore.putBlob(config.getBucket(), blob);
-                promise.complete(null);
-            } catch (Throwable t) {
-                try {
-                    writeBlobStore.removeBlob(config.getBucket(), dataBlockKey);
-                } catch (Throwable throwable) {
-                    log.error("Failed deleteObject in bucket - {} with key - {}.",
-                            config.getBucket(), dataBlockKey, throwable);
-                }
-
-                this.offloaderStats.recordWriteToStorageError(topicName);
-                this.offloaderStats.recordOffloadError(topicName);
-                promise.completeExceptionally(t);
-                return;
-            }
-        });
-        return promise;
+        }
     }
 
     BlobStore blobStore;

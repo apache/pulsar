@@ -207,8 +207,8 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
                 long end = Math.min(start + ENTRIES_PER_READ - 1, readHandle.getLastAddConfirmed());
 
                 // Submit the first LedgerPartitionedReader task.
-                Executor executor = assignmentScheduler.chooseThread(ledgerId);
-                executor.execute(new LedgerPartitionedReader(this, dataWriter, executor, start, end));
+                assignmentScheduler.chooseThread(ledgerId)
+                        .execute(new LedgerPartitionedReader(this, dataWriter, assignmentScheduler, start, end));
             } catch (Exception e) {
                 log.error("Exception when get CompletableFuture<LedgerEntries> : ManagerLedgerName: {}, "
                         + "LedgerId: {}, UUID: {} ", topicName, ledgerId, uuid, e);
@@ -224,23 +224,35 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
         private final String topicName;
         private final LedgerOffloaderStats stats;
         private final MapFile.Writer dataWriter;
-        private final Executor executor;
+        private final OrderedScheduler scheduler;
         private final LedgerReader ledgerReader;
         private final CompletableFuture<Void> promise;
 
         private final long startEntry;
         private final long endEntry;
 
-        public LedgerPartitionedReader(LedgerReader ledgerReader, MapFile.Writer dataWriter,
-                                       Executor executor, long startEntry, long endEntry) {
+        LedgerPartitionedReader(LedgerReader ledgerReader, MapFile.Writer dataWriter,
+                                       OrderedScheduler scheduler, long startEntry, long endEntry) {
             this.ledgerReader = ledgerReader;
             this.readHandle = ledgerReader.readHandle;
             this.topicName = ledgerReader.extraMetadata.get(MANAGED_LEDGER_NAME);
             this.stats = ledgerReader.offloaderStats;
             this.dataWriter = dataWriter;
-            this.executor = executor;
+            this.scheduler = scheduler;
             this.promise = ledgerReader.promise;
 
+            this.startEntry = startEntry;
+            this.endEntry = endEntry;
+        }
+
+        LedgerPartitionedReader(LedgerPartitionedReader reader, long startEntry, long endEntry) {
+            this.readHandle = reader.readHandle;
+            this.topicName = reader.topicName;
+            this.stats = reader.stats;
+            this.dataWriter = reader.dataWriter;
+            this.scheduler = reader.scheduler;
+            this.ledgerReader = reader.ledgerReader;
+            this.promise = reader.promise;
             this.startEntry = startEntry;
             this.endEntry = endEntry;
         }
@@ -256,24 +268,33 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
                         this.stats.recordReadLedgerLatency(topicName, cost, TimeUnit.NANOSECONDS);
                         // Execute the FileWrite task on the current thread.
                         FileSystemWriter.create(entries, dataWriter, ledgerReader).run();
-                        currentTaskFinished();
-                    }, this.executor)
+                        // Do the post process.
+                        this.processAfterTaskFinished();
+                    }, this.scheduler.chooseThread(readHandle.getId()))
                     .exceptionally(e -> {
-                        log.error("");
+                        log.error("Read ledger failed. Ledger name {}, ledgerId {}, startEntry:{}, endEntry:{}.",
+                                topicName, readHandle.getId(), startEntry, endEntry, e);
+                        promise.completeExceptionally(e);
                         return null;
                     });
         }
 
-        private void currentTaskFinished() {
+        private void processAfterTaskFinished() {
             if (ledgerReader.fileSystemWriteException != null) {
                 promise.completeExceptionally(ledgerReader.fileSystemWriteException);
+                return;
             }
 
+            // If no more entries to offload, close the file and complete the promise.
             if (this.endEntry == readHandle.getLastAddConfirmed()) {
                 IOUtils.closeStream(this.dataWriter);
                 promise.complete(null);
             } else {
-                // TODO submit next task
+                // Submit the next task.
+                long startEntry = endEntry + 1;
+                long endEntry = Math.min(startEntry + ENTRIES_PER_READ - 1, readHandle.getLastAddConfirmed());
+                this.scheduler.chooseThread(readHandle.getId())
+                        .execute(new LedgerPartitionedReader(this, startEntry, endEntry));
             }
         }
     }
