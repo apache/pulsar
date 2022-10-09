@@ -881,22 +881,13 @@ public class NamespaceService implements AutoCloseable {
                                     for (NamespaceBundle sBundle : splittedBundles.getRight()) {
                                         Objects.requireNonNull(ownershipCache.tryAcquiringOwnership(sBundle));
                                     }
-                                    updateNamespaceBundles(nsname, splittedBundles.getLeft()).thenRun(() -> {
-                                        updateNamespaceBundlesForPolicies(nsname, splittedBundles.getLeft())
-                                                .thenRun(() -> {
-                                                    bundleFactory.invalidateBundleCache(bundle.getNamespaceObject());
-                                                    updateFuture.complete(splittedBundles.getRight());
-                                                }).exceptionally(e -> {
-                                                    String msg = format("failed to update namespace policies [%s], "
-                                                                    + "NamespaceBundle: %s due to %s",
-                                                            nsname.toString(), bundle.getBundleRange(), e.getMessage());
-                                                    LOG.warn(msg);
-                                                    updateFuture.completeExceptionally(
-                                                            new ServiceUnitNotReadyException(msg, e.getCause()));
-                                                    return null;
-                                                });
+                                    updateNamespaceBundles(nsname, splittedBundles.getLeft()).thenCompose(__ -> {
+                                        return updateNamespaceBundlesForPolicies(nsname, splittedBundles.getLeft());
+                                    }).thenRun(() -> {
+                                        bundleFactory.invalidateBundleCache(bundle.getNamespaceObject());
+                                        updateFuture.complete(splittedBundles.getRight());
                                     }).exceptionally(ex1 -> {
-                                        String msg = format("failed to update namespace local policies [%s], "
+                                        String msg = format("failed to update namespace policies [%s], "
                                                         + "NamespaceBundle: %s due to %s",
                                                 nsname.toString(), bundle.getBundleRange(), ex1.getMessage());
                                         LOG.warn(msg);
@@ -990,6 +981,7 @@ public class NamespaceService implements AutoCloseable {
                     return oldPolicies;
                 });
             } else {
+                LOG.error("Policies of namespace {} is not exist!", nsname);
                 Policies newPolicies = new Policies();
                 newPolicies.bundles = nsBundles.getBundlesData();
                 return pulsar.getPulsarResources().getNamespaceResources().createPoliciesAsync(nsname, newPolicies);
