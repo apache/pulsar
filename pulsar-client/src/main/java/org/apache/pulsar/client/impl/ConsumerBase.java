@@ -839,7 +839,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     protected boolean enqueueMessageAndCheckBatchReceive(Message<T> message) {
         int messageSize = message.size();
-        if (isValidConsumerEpoch(message) && canEnqueueMessage(message) && incomingMessages.offer(message)) {
+        if (canEnqueueMessage(message) && incomingMessages.offer(message)) {
             // After we have enqueued the messages on `incomingMessages` queue, we cannot touch the message instance
             // anymore, since for pooled messages, this instance was possibly already been released and recycled.
             INCOMING_MESSAGES_SIZE_UPDATER.addAndGet(this, messageSize);
@@ -955,8 +955,6 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         }
         completePendingBatchReceive(batchReceiveFuture, messages);
     }
-
-    abstract boolean isValidConsumerEpoch(Message<T> message);
 
     protected void completePendingBatchReceive(CompletableFuture<Messages<T>> future, Messages<T> messages) {
         if (!future.complete(messages)) {
@@ -1183,7 +1181,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                 || getSubType() == CommandSubscribe.SubType.Exclusive)
                 && message.getConsumerEpoch() != DEFAULT_CONSUMER_EPOCH
                 && message.getConsumerEpoch() < CONSUMER_EPOCH.get(this)) {
-            log.warn("Consumer filter old epoch message, topic : [{}], messageId : [{}], messageConsumerEpoch : [{}], "
+            log.info("Consumer filter old epoch message, topic : [{}], messageId : [{}], messageConsumerEpoch : [{}], "
                     + "consumerEpoch : [{}]", topic, message.getMessageId(), message.getConsumerEpoch(), consumerEpoch);
             message.release();
             message.recycle();

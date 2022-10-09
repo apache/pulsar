@@ -461,14 +461,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
     }
 
-    boolean isValidConsumerEpoch(Message<T> message) {
-        if (!isValidConsumerEpoch((MessageImpl<T>) message)) {
-            increaseAvailablePermits(cnx());
-            return false;
-        }
-        return true;
-    }
-
     @Override
     protected CompletableFuture<Message<T>> internalReceiveAsync() {
         CompletableFutureCancellationHandler cancellationHandler = new CompletableFutureCancellationHandler();
@@ -1197,6 +1189,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         // if the conf.getReceiverQueueSize() is 0 then discard message if no one is waiting for it.
         // if asyncReceive is waiting then notify callback without adding to incomingMessages queue
         internalPinnedExecutor.execute(() -> {
+            if (!isValidConsumerEpoch(message)) {
+                increaseAvailablePermits(cnx());
+                return;
+            }
             if (hasNextPendingReceive()) {
                 notifyPendingReceivedCallback(message, null);
             } else if (enqueueMessageAndCheckBatchReceive(message) && hasPendingBatchReceive()) {

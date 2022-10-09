@@ -335,14 +335,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         }
     }
 
-    // If message consumer epoch is smaller than consumer epoch present that
-    // it has been sent to the client before the user calls redeliverUnacknowledgedMessages, this message is invalid.
-    // so we should release this message and receive again
-    boolean isValidConsumerEpoch(Message<T> message) {
-        return isValidConsumerEpoch(((MessageImpl<T>) (((TopicMessageImpl<T>) message))
-                .getMessage()));
-    }
-
     @Override
     public int minReceiverQueueSize() {
         int size = Math.min(INITIAL_RECEIVER_QUEUE_SIZE, maxReceiverQueueSize);
