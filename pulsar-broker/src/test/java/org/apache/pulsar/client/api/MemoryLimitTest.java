@@ -40,9 +40,9 @@ public class MemoryLimitTest extends ProducerConsumerBase {
     @DataProvider(name = "batchingAndMemoryLimit")
     public Object[][] provider() {
         return new Object[][] {
-                // "Batching"
-//                { false, 100 },
-                { true, 200 }
+                // "Batching, memoryLimit in kilo bytes"
+                {false, 100},
+                {true, 201} // batching need n(batches)*1024(allocated size) capacity, that is 100+101*1024 bytes
         };
     }
 
@@ -75,6 +75,9 @@ public class MemoryLimitTest extends ProducerConsumerBase {
         ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) client.newProducer()
                 .topic(topic)
                 .enableBatching(batching)
+                .batchingMaxMessages(1)
+                .batchingMaxPublishDelay(1, TimeUnit.HOURS)
+                .batchingMaxBytes(Integer.MAX_VALUE)
                 .blockIfQueueFull(false)
                 .sendTimeout(5, TimeUnit.SECONDS)
                 .create();
@@ -88,12 +91,13 @@ public class MemoryLimitTest extends ProducerConsumerBase {
         }
         Awaitility.await()
                 .atMost(Duration.ofSeconds(5))
-                .until(() -> {
-                            System.out.println(producer.getPendingQueueSize());
-                            return producer.getPendingQueueSize() == n;
-                        }
-                        );
-        assertEquals(client.getMemoryLimitController().currentUsage(), n * 1024);
+                .until(() -> producer.getPendingQueueSize() == n);
+        if (batching) {
+            // BatchMessageContainerImpl allocated buffer size is 1024, so we need add n(batches)*1024
+            assertEquals(client.getMemoryLimitController().currentUsage(), n * 1024 + n * 1024);
+        } else {
+            assertEquals(client.getMemoryLimitController().currentUsage(), n * 1024);
+        }
 
         try {
             producer.send(new byte[1024]);
@@ -128,6 +132,9 @@ public class MemoryLimitTest extends ProducerConsumerBase {
         ProducerImpl<byte[]> p1 = (ProducerImpl<byte[]>) client.newProducer()
                 .topic(t1)
                 .enableBatching(batching)
+                .batchingMaxMessages(1)
+                .batchingMaxPublishDelay(1, TimeUnit.HOURS)
+                .batchingMaxBytes(Integer.MAX_VALUE)
                 .blockIfQueueFull(false)
                 .sendTimeout(5, TimeUnit.SECONDS)
                 .create();
@@ -135,7 +142,10 @@ public class MemoryLimitTest extends ProducerConsumerBase {
         @Cleanup
         ProducerImpl<byte[]> p2 = (ProducerImpl<byte[]>) client.newProducer()
                 .topic(t2)
-                .enableBatching(false)
+                .enableBatching(batching)
+                .batchingMaxMessages(1)
+                .batchingMaxPublishDelay(1, TimeUnit.HOURS)
+                .batchingMaxBytes(Integer.MAX_VALUE)
                 .blockIfQueueFull(false)
                 .sendTimeout(5, TimeUnit.SECONDS)
                 .create();
@@ -153,7 +163,12 @@ public class MemoryLimitTest extends ProducerConsumerBase {
         Awaitility.await()
                 .atMost(Duration.ofSeconds(5))
                 .until(() -> (p1.getPendingQueueSize() + p2.getPendingQueueSize()) == n);
-        assertEquals(client.getMemoryLimitController().currentUsage(), n * 1024);
+        if (batching) {
+            // BatchMessageContainerImpl allocated buffer size is 1024, so we need add n(batches)*1024
+            assertEquals(client.getMemoryLimitController().currentUsage(), n * 1024 + n * 1024);
+        } else {
+            assertEquals(client.getMemoryLimitController().currentUsage(), n * 1024);
+        }
 
         try {
             p1.send(new byte[1024]);
