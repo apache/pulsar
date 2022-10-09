@@ -158,4 +158,13 @@ public interface MetaStore {
      *         if the operation succeeds.
      */
     CompletableFuture<Boolean> asyncExists(String ledgerName);
+
+
+    /**
+     * Get managed ledger properties from meta store.
+     *
+     * @param name ledgerName
+     * @return a future represents the result of the operation.
+     */
+    CompletableFuture<Map<String, String>> getManagedLedgerPropertiesAsync(String name);
 }

@@ -100,6 +100,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.BadVersionException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorNotFoundException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.InvalidCursorPositionException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.LedgerNotExistException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerAlreadyClosedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerFencedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerInterceptException;
@@ -1835,6 +1836,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return result;
     }
 
+    @Override
+    public Optional<LedgerInfo> getOptionalLedgerInfo(long ledgerId) {
+        return Optional.ofNullable(ledgers.get(ledgerId));
+    }
+
     CompletableFuture<ReadHandle> getLedgerHandle(long ledgerId) {
         CompletableFuture<ReadHandle> ledgerHandle = ledgerCache.get(ledgerId);
         if (ledgerHandle != null) {
@@ -1941,7 +1947,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         } else {
             log.error("[{}] Failed to get message with ledger {}:{} the ledgerId does not belong to this topic "
                     + "or has been deleted.", name, position.getLedgerId(), position.getEntryId());
-            callback.readEntryFailed(new ManagedLedgerException.NonRecoverableLedgerException("Message not found, "
+            callback.readEntryFailed(new LedgerNotExistException("Message not found, "
                     + "the ledgerId does not belong to this topic or has been deleted"), ctx);
         }
 
@@ -3455,19 +3461,19 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     public PositionImpl getNextValidPosition(final PositionImpl position) {
-        PositionImpl next;
-        try {
-            next = getNextValidPositionInternal(position);
-        } catch (NullPointerException e) {
-            next = lastConfirmedEntry.getNext();
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Can't find next valid position : {}, fall back to the next position of the last "
-                        + "position : {}.", position, name, next, e);
-            }
-        }
-        return next;
+        return getValidPositionAfterSkippedEntries(position, 1);
     }
-
+    public PositionImpl getValidPositionAfterSkippedEntries(final PositionImpl position, int skippedEntryNum) {
+        PositionImpl skippedPosition = position.getPositionAfterEntries(skippedEntryNum);
+        while (!isValidPosition(skippedPosition)) {
+            Long nextLedgerId = ledgers.ceilingKey(skippedPosition.getLedgerId() + 1);
+            if (nextLedgerId == null) {
+                return lastConfirmedEntry.getNext();
+            }
+            skippedPosition = PositionImpl.get(nextLedgerId, 0);
+        }
+        return skippedPosition;
+    }
     public PositionImpl getNextValidPositionInternal(final PositionImpl position) {
         PositionImpl nextPosition = position.getNext();
         while (!isValidPosition(nextPosition)) {
@@ -3754,11 +3760,26 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
+    private static boolean isLedgerNotExistException(int rc) {
+        switch (rc) {
+            case Code.NoSuchLedgerExistsException:
+            case Code.NoSuchLedgerExistsOnMetadataServerException:
+                return true;
+
+            default:
+                return false;
+        }
+    }
+
     public static ManagedLedgerException createManagedLedgerException(int bkErrorCode) {
         if (bkErrorCode == BKException.Code.TooManyRequestsException) {
             return new TooManyRequestsException("Too many request error from bookies");
         } else if (isBkErrorNotRecoverable(bkErrorCode)) {
-            return new NonRecoverableLedgerException(BKException.getMessage(bkErrorCode));
+            if (isLedgerNotExistException(bkErrorCode)) {
+                return new LedgerNotExistException(BKException.getMessage(bkErrorCode));
+            } else {
+                return new NonRecoverableLedgerException(BKException.getMessage(bkErrorCode));
+            }
         } else {
             return new ManagedLedgerException(BKException.getMessage(bkErrorCode));
         }
@@ -4116,6 +4137,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             cs.individuallyDeletedMessages = cursor.getIndividuallyDeletedMessages();
             cs.lastLedgerSwitchTimestamp = DateFormatter.format(cursor.getLastLedgerSwitchTimestamp());
             cs.state = cursor.getState();
+            cs.active = cursor.isActive();
             cs.numberOfEntriesSinceFirstNotAckedMessage = cursor.getNumberOfEntriesSinceFirstNotAckedMessage();
             cs.totalNonContiguousDeletedMessagesRange = cursor.getTotalNonContiguousDeletedMessagesRange();
             cs.properties = cursor.getProperties();

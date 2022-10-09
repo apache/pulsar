@@ -14,11 +14,11 @@
 
 <!-- Either this PR fixes an issue, -->
 
-Fixes #<xyz>
+Fixes #xyz
 
 <!-- or this PR is one task of an issue -->
 
-Master Issue: #<xyz>
+Master Issue: #xyz
 
 ### Motivation
 
@@ -65,22 +65,16 @@ This change added tests and can be verified as follows:
 
 <!-- DO NOT REMOVE THIS SECTION. CHECK THE PROPER BOX ONLY. -->
 
-- [ ] `doc-required` 
-(Your PR needs to update docs and you will update later)
-
-- [ ] `doc-not-needed` 
-(Please explain why)
-
-- [ ] `doc` 
-(Your PR contains doc changes)
-
-- [ ] `doc-complete`
-(Docs have been already added)
+- [ ] `doc` <!-- Your PR contains doc changes -->
+- [ ] `doc-required` <!-- Your PR changes impact docs and you will update later -->
+- [ ] `doc-not-needed` <!-- Your PR changes do not impact docs -->
+- [ ] `doc-complete` <!-- Docs have been already added -->
 
 ### Matching PR in forked repository
 
-PR in forked repository: <!-- ENTER URL HERE 
+PR in forked repository: <!-- ENTER URL HERE -->
 
+<!--
 After opening this PR, the build in apache/pulsar will fail and instructions will
 be provided for opening a PR in the PR author's forked repository.
 
@@ -91,5 +85,4 @@ a forked repository.
 
 The tests will be run in the forked repository until all PR review comments have
 been handled, the tests pass and the PR is approved by a reviewer.
-
 -->

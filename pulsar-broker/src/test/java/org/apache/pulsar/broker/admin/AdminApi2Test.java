@@ -158,13 +158,6 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         resetConfig();
     }
 
-    private void setupClusters() throws PulsarAdminException {
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-        TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
-        admin.tenants().createTenant("prop-xyz", tenantInfo);
-        admin.namespaces().createNamespace("prop-xyz/ns1", Set.of("test"));
-    }
-
     @AfterMethod(alwaysRun = true)
     public void resetClusters() throws Exception {
         pulsar.getConfiguration().setForceDeleteTenantAllowed(true);
@@ -180,8 +173,15 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
             admin.clusters().deleteCluster(cluster);
         }
 
-        setupClusters();
         resetConfig();
+        setupClusters();
+    }
+
+    private void setupClusters() throws PulsarAdminException {
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
+        admin.tenants().createTenant("prop-xyz", tenantInfo);
+        admin.namespaces().createNamespace("prop-xyz/ns1", Set.of("test"));
     }
 
     @DataProvider(name = "topicType")
@@ -1893,10 +1893,6 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testForceDeleteNamespaceWithAutomaticTopicCreation() throws Exception {
-        testForceDeleteNamespace();
-
-        resetClusters();
-
         conf.setForceDeleteNamespaceAllowed(true);
         final String namespaceName = "prop-xyz2/ns1";
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
