@@ -102,10 +102,6 @@ public class SchemaInfoImpl implements SchemaInfo {
         }
     }
 
-    public SchemaHash getSchemaHash() {
-        return schemaHash;
-    }
-
     @Override
     public String toString() {
         return SchemaUtils.jsonifySchemaInfo(this);
