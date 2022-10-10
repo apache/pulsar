@@ -20,19 +20,16 @@ package org.apache.pulsar.broker.delayed;
 
 import static org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTracker.DELAYED_BUCKET_KEY_PREFIX;
 import static org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTracker.DELIMITER;
-import com.google.protobuf.ByteString;
 import java.util.BitSet;
-import java.util.List;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import lombok.AllArgsConstructor;
 import lombok.Data;
-import org.apache.commons.lang3.mutable.MutableLong;
-import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.SnapshotSegmentMetadata;
 
 @Data
 @AllArgsConstructor
-public class Bucket {
+public class BucketState {
 
     long startLedgerId;
     long endLedgerId;
@@ -47,39 +44,17 @@ public class Bucket {
 
     long snapshotLength;
 
+    long bucketId;
+
     boolean active;
 
     volatile CompletableFuture<Long> snapshotCreateFuture;
 
-    Bucket(long startLedgerId, long endLedgerId, Map<Long, BitSet> delayedIndexBitMap) {
-        this(startLedgerId, endLedgerId, delayedIndexBitMap, -1, -1, 0, 0, true, null);
-    }
-
-    long covertDelayIndexMapAndCount(int startSnapshotIndex, List<SnapshotSegmentMetadata> segmentMetadata) {
-        delayedIndexBitMap.clear();
-        MutableLong numberMessages = new MutableLong(0);
-        for (int i = startSnapshotIndex; i < segmentMetadata.size(); i++) {
-            Map<Long, ByteString> bitByteStringMap = segmentMetadata.get(i).getDelayedIndexBitMapMap();
-            bitByteStringMap.forEach((k, v) -> {
-                boolean exist = delayedIndexBitMap.containsKey(k);
-                byte[] bytes = v.toByteArray();
-                BitSet bitSet = BitSet.valueOf(bytes);
-                numberMessages.add(bitSet.cardinality());
-                if (!exist) {
-                    delayedIndexBitMap.put(k, bitSet);
-                } else {
-                    delayedIndexBitMap.get(k).or(bitSet);
-                }
-            });
-        }
-        return numberMessages.longValue();
+    BucketState(long startLedgerId, long endLedgerId) {
+        this(startLedgerId, endLedgerId, new HashMap<>(), -1, -1, 0, 0, -1, true, null);
     }
 
     boolean containsMessage(long ledgerId, int entryId) {
-        if (delayedIndexBitMap == null) {
-            return false;
-        }
-
         BitSet bitSet = delayedIndexBitMap.get(ledgerId);
         if (bitSet == null) {
             return false;
@@ -88,16 +63,10 @@ public class Bucket {
     }
 
     void putIndexBit(long ledgerId, long entryId) {
-        if (entryId < Integer.MAX_VALUE) {
-            delayedIndexBitMap.compute(ledgerId, (k, v) -> new BitSet()).set((int) entryId);
-        }
+        delayedIndexBitMap.computeIfAbsent(ledgerId, k -> new BitSet()).set((int) entryId);
     }
 
     boolean removeIndexBit(long ledgerId, int entryId) {
-        if (delayedIndexBitMap == null) {
-            return false;
-        }
-
         boolean contained = false;
         BitSet bitSet = delayedIndexBitMap.get(ledgerId);
         if (bitSet != null && bitSet.get(entryId)) {
