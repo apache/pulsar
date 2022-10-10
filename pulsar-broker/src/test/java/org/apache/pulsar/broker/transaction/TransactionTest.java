@@ -1542,7 +1542,7 @@ public class TransactionTest extends TransactionTestBase {
 
         //send and ack messages with transaction
         Transaction transaction = pulsarClient.newTransaction()
-                .withTransactionTimeout(10, TimeUnit.SECONDS)
+                .withTransactionTimeout(5, TimeUnit.SECONDS)
                 .build()
                 .get();
 
@@ -1568,7 +1568,7 @@ public class TransactionTest extends TransactionTestBase {
             });
         }
         //wait the all send/ack op is executed and store its futures in the arraylist.
-        countDownLatch.await(10, TimeUnit.SECONDS);
+        countDownLatch.await(5, TimeUnit.SECONDS);
         transaction.commit().get();
     }
 }
