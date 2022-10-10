@@ -560,7 +560,7 @@ Exclusive is the default subscription type.
 
 :::
 
-![Exclusive subscriptions](/assets/pulsar-exclusive-subscriptions.png)
+![Exclusive subscriptions](/assets/pulsar-exclusive-subscription.svg)
 
 #### Failover
 
@@ -573,7 +573,7 @@ For example, a partitioned topic has 3 partitions, and 15 consumers. Each partit
 
 In the diagram below, **Consumer-B-0** is the master consumer while **Consumer-B-1** would be the next consumer in line to receive messages if **Consumer-B-0** is disconnected.
 
-![Failover subscriptions](/assets/pulsar-failover-subscriptions.png)
+![Failover subscriptions](/assets/pulsar-failover-subscriptions.svg)
 
 #### Shared
 
@@ -590,13 +590,13 @@ In the diagram below, **Consumer-C-1** and **Consumer-C-2** are able to subscrib
  
 :::
 
-![Shared subscriptions](/assets/pulsar-shared-subscriptions.png)
+![Shared subscriptions](/assets/pulsar-shared-subscriptions.svg)
 
 #### Key_Shared
 
 In the *Key_Shared* type, multiple consumers can attach to the same subscription. Messages are delivered in distribution across consumers and messages with the same key or same ordering key are delivered to only one consumer. No matter how many times the message is re-delivered, it is delivered to the same consumer. When a consumer connects or disconnects, it causes the served consumer to change some message keys.
 
-![Key_Shared subscriptions](/assets/pulsar-key-shared-subscriptions.png)
+![Key_Shared subscriptions](/assets/pulsar-key-shared-subscriptions.svg)
 
 Note that when the consumers are using the Key_Shared subscription type, you need to **disable batching** or **use key-based batching** for the producers. There are two reasons why the key-based batching is necessary for the Key_Shared subscription type:
 1. The broker dispatches messages according to the keys of the messages, but the default batching approach might fail to pack the messages with the same key to the same batch. 
@@ -970,7 +970,7 @@ Delayed message delivery only works in the Shared subscription type. In the Excl
 
 The diagram below illustrates the concept of delayed message delivery:
 
-![Delayed Message Delivery](/assets/message_delay.png)
+![Delayed Message Delivery](/assets/message_delay.svg)
 
 A broker saves a message without any check. When a consumer consumes a message, if the message is set to delay, then the message is added to `DelayedDeliveryTracker`. A subscription checks and gets timeout messages from `DelayedDeliveryTracker`.
 
@@ -1005,8 +1005,3 @@ The following is an example of delayed message delivery for a producer in Java:
 // message to be delivered at the configured delay interval
 producer.newMessage().deliverAfter(3L, TimeUnit.Minute).value("Hello Pulsar!").send();
 ```
-
-![consumer](https://user-images.githubusercontent.com/94193423/192619010-cb1a5772-f0b8-4d40-b9f9-1df1c5d8ce68.svg)
-![retention-expiry](https://user-images.githubusercontent.com/94193423/192619038-5dca1524-6c10-4879-be1d-a2504f1f9003.svg)
-![message-deduplication](https://user-images.githubusercontent.com/94193423/192619054-de1226d9-2186-4961-92da-e26c79bae996.svg)
-![delayed-delivery](https://user-images.githubusercontent.com/94193423/192619073-206f0f8c-ab95-4d5e-b83f-f04338d62cea.svg)
