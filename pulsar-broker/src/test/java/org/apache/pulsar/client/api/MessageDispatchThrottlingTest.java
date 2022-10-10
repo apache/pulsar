@@ -25,12 +25,7 @@ import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
-import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-
-import lombok.Cleanup;
-
 import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -42,7 +37,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-
+import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.cache.PendingReadsManager;
@@ -158,7 +153,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         Assert.assertTrue(isDispatchRateUpdate);
         Assert.assertEquals(admin.namespaces().getDispatchRate(namespace), dispatchRate);
         Policies policies = admin.namespaces().getPolicies(namespace);
-        Map<String, DispatchRate> dispatchRateMap = Maps.newHashMap();
+        Map<String, DispatchRate> dispatchRateMap = new HashMap<>();
         dispatchRateMap.put("test", dispatchRate);
         Assert.assertEquals(policies.clusterDispatchRate, dispatchRateMap);
         Assert.assertEquals(policies.topicDispatchRate, dispatchRateMap);
