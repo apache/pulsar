@@ -271,7 +271,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         assertTrue(consumer instanceof MultiTopicsConsumerImpl);
 
         // Asynchronously produce messages
-        List<Future<MessageId>> futures = Lists.newArrayList();
+        List<Future<MessageId>> futures = new ArrayList<>();
         for (int i = 0; i < totalMessages / 3; i++) {
             futures.add(producer1.sendAsync((messagePredicate + "producer1-" + i).getBytes()));
             futures.add(producer2.sendAsync((messagePredicate + "producer2-" + i).getBytes()));
@@ -697,7 +697,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
 
         try {
             pulsarClient.newConsumer()
-                .topics(Lists.newArrayList())
+                .topics(new ArrayList<>())
                 .subscriptionName(subscriptionName)
                 .subscriptionType(SubscriptionType.Shared)
                 .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)

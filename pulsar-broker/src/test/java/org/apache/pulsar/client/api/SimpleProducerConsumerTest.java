@@ -36,7 +36,6 @@ import static org.testng.Assert.fail;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -50,6 +49,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -336,7 +336,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
 
         Message<byte[]> msg = null;
-        Set<String> messageSet = Sets.newHashSet();
+        Set<String> messageSet = new HashSet<>();
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
@@ -366,7 +366,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             producerBuilder.batchingMaxMessages(5);
         }
         Producer<byte[]> producer = producerBuilder.create();
-        List<Future<MessageId>> futures = Lists.newArrayList();
+        List<Future<MessageId>> futures = new ArrayList<>();
 
         // Asynchronously produce messages
         for (int i = 0; i < 10; i++) {
@@ -381,7 +381,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
 
         Message<byte[]> msg = null;
-        Set<String> messageSet = Sets.newHashSet();
+        Set<String> messageSet = new HashSet<>();
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
@@ -423,7 +423,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             producerBuilder.batchingMaxMessages(5);
         }
         Producer<byte[]> producer = producerBuilder.create();
-        List<Future<MessageId>> futures = Lists.newArrayList();
+        List<Future<MessageId>> futures = new ArrayList<>();
 
         // Asynchronously produce messages
         for (int i = 0; i < numMessages; i++) {
@@ -1206,7 +1206,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         Thread.sleep(100);
 
         // 5. verify: active subscribers
-        Set<String> activeSubscriber = Sets.newHashSet();
+        Set<String> activeSubscriber = new HashSet<>();
         ledger.getActiveCursors().forEach(c -> activeSubscriber.add(c.getName()));
         assertTrue(activeSubscriber.contains(sub1));
         assertFalse(activeSubscriber.contains(sub2));
@@ -1231,8 +1231,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Starting {} test --", methodName);
 
         final int totalMsg = 100;
-        final Set<String> produceMsgs = Sets.newHashSet();
-        final Set<String> consumeMsgs = Sets.newHashSet();
+        final Set<String> produceMsgs = new HashSet<>();
+        final Set<String> consumeMsgs = new HashSet<>();
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic1")
                 .subscriptionName("my-subscriber-name").subscribe();
@@ -1271,8 +1271,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Starting {} test --", methodName);
 
         final int totalMsg = 100;
-        final Set<String> produceMsgs = Sets.newHashSet();
-        final Set<String> consumeMsgs = Sets.newHashSet();
+        final Set<String> produceMsgs = new HashSet<>();
+        final Set<String> consumeMsgs = new HashSet<>();
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic1")
                 .subscriptionName("my-subscriber-name").subscribe();
 
@@ -1399,8 +1399,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
 
         Message<byte[]> msg;
-        Set<Message<byte[]>> consumerMsgSet1 = Sets.newHashSet();
-        Set<Message<byte[]>> consumerMsgSet2 = Sets.newHashSet();
+        Set<Message<byte[]>> consumerMsgSet1 = new HashSet<>();
+        Set<Message<byte[]>> consumerMsgSet2 = new HashSet<>();
         for (int i = 0; i < 5; i++) {
             msg = consumer1.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             consumerMsgSet1.add(msg);
@@ -1504,7 +1504,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
             // (2) try to consume messages: but will be able to consume number of messages = unAckedMessagesBufferSize
             Message<byte[]> msg;
-            List<Message<byte[]>> messages = Lists.newArrayList();
+            List<Message<byte[]>> messages = new ArrayList<>();
             for (int i = 0; i < totalProducedMsgs; i++) {
                 msg = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
                 if (msg != null) {
@@ -1583,7 +1583,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             for (int j = 0; j < totalReceiveIteration; j++) {
 
                 Message<byte[]> msg;
-                List<Message<byte[]>> messages = Lists.newArrayList();
+                List<Message<byte[]>> messages = new ArrayList<>();
                 for (int i = 0; i < totalProducedMsgs; i++) {
                     msg = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
                     if (msg != null) {
@@ -1701,7 +1701,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             // (2) Consumer1: consume without ack:
             // try to consume messages: but will be able to consume number of messages = maxUnackedMessages
             Message<byte[]> msg;
-            List<Message<byte[]>> messages = Lists.newArrayList();
+            List<Message<byte[]>> messages = new ArrayList<>();
             for (int i = 0; i < totalProducedMsgs; i++) {
                 msg = consumer1.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
                 if (msg != null) {
@@ -1848,7 +1848,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
             // (2) try to consume messages: but will be able to consume number of messages = unAckedMessagesBufferSize
             Message<byte[]> msg;
-            List<Message<byte[]>> messages = Lists.newArrayList();
+            List<Message<byte[]>> messages = new ArrayList<>();
             for (int i = 0; i < totalProducedMsgs; i++) {
                 msg = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
                 if (msg != null) {
@@ -1918,7 +1918,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
             Producer<byte[]> producer = producerBuidler.create();
 
-            List<CompletableFuture<MessageId>> futures = Lists.newArrayList();
+            List<CompletableFuture<MessageId>> futures = new ArrayList<>();
             // (1) Produced Messages
             for (int i = 0; i < totalProducedMsgs; i++) {
                 String message = "my-message-" + i;
@@ -1930,7 +1930,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             // (2) Consumer1: consume without ack:
             // try to consume messages: but will be able to consume number of messages = maxUnackedMessages
             Message<byte[]> msg;
-            List<Message<byte[]>> messages = Lists.newArrayList();
+            List<Message<byte[]>> messages = new ArrayList<>();
             for (int i = 0; i < totalProducedMsgs; i++) {
                 msg = consumer1.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
                 if (msg != null) {
@@ -2012,7 +2012,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             // (2) Consumer1: consume without ack:
             // try to consume messages: but will be able to consume number of messages = maxUnackedMessages
             Message<byte[]> msg;
-            List<Message<byte[]>> messages = Lists.newArrayList();
+            List<Message<byte[]>> messages = new ArrayList<>();
             for (int i = 0; i < totalProducedMsgs; i++) {
                 msg = consumer1.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
                 if (msg != null) {
@@ -2091,7 +2091,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
 
         Message<byte[]> msg = null;
-        Set<String> messageSet = Sets.newHashSet();
+        Set<String> messageSet = new HashSet<>();
         for (int i = 0; i < totalMsg; i++) {
             msg = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
@@ -2139,7 +2139,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
             // (2) try to consume messages: but will be able to consume number of messages = unAckedMessagesBufferSize
             Message<byte[]> msg;
-            List<Message<byte[]>> messages1 = Lists.newArrayList();
+            List<Message<byte[]>> messages1 = new ArrayList<>();
             for (int i = 0; i < totalProducedMsgs; i++) {
                 msg = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
                 if (msg != null) {
@@ -2159,7 +2159,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             consumer.redeliverUnacknowledgedMessages(Sets.newHashSet(redeliveryMessages));
             Thread.sleep(1000);
 
-            Set<MessageIdImpl> messages2 = Sets.newHashSet();
+            Set<MessageIdImpl> messages2 = new HashSet<>();
             for (int i = 0; i < totalProducedMsgs; i++) {
                 msg = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
                 if (msg != null) {
@@ -2226,7 +2226,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
             // (2) try to consume messages: but will be able to consume number of messages = unAckedMessagesBufferSize
             Message<byte[]> msg;
-            List<Message<byte[]>> messages1 = Lists.newArrayList();
+            List<Message<byte[]>> messages1 = new ArrayList<>();
             for (int i = 0; i < totalProducedMsgs; i++) {
                 msg = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
                 if (msg != null) {
@@ -2245,7 +2245,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             consumer.redeliverUnacknowledgedMessages(Sets.newHashSet(redeliveryMessages));
             Thread.sleep(1000);
 
-            Set<MessageIdImpl> messages2 = Sets.newHashSet();
+            Set<MessageIdImpl> messages2 = new HashSet<>();
             for (int i = 0; i < totalProducedMsgs; i++) {
                 msg = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
                 if (msg != null) {
@@ -2297,7 +2297,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic2")
                 .create();
-        List<Future<MessageId>> futures = Lists.newArrayList();
+        List<Future<MessageId>> futures = new ArrayList<>();
 
         // Asynchronously produce messages
         for (int i = 0; i < 15; i++) {
@@ -2375,7 +2375,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 .topic("persistent://my-property/my-ns/my-topic2").subscriptionName("my-subscriber-name")
                 .subscriptionType(SubscriptionType.Shared).receiverQueueSize(queueSize)
                 .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
-        List<Future<MessageId>> futures = Lists.newArrayList();
+        List<Future<MessageId>> futures = new ArrayList<>();
 
         // Asynchronously produce messages
         final int totalPublishMessages = 500;
@@ -2390,7 +2390,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             future.get();
         }
 
-        List<Message<byte[]>> messages = Lists.newArrayList();
+        List<Message<byte[]>> messages = new ArrayList<>();
 
         // let consumer1 and consumer2 consume messages up to the queue will be full
         for (int i = 0; i < totalPublishMessages; i++) {
@@ -2503,7 +2503,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         producer.flush();
         // (1.a) consume first consumeMsgInParts msgs and trigger redeliver
         Message<byte[]> msg;
-        List<Message<byte[]>> messages1 = Lists.newArrayList();
+        List<Message<byte[]>> messages1 = new ArrayList<>();
         for (int i = 0; i < consumeMsgInParts; i++) {
             //There is some detailed info about this case.
             //https://github.com/apache/pulsar/pull/15088#issuecomment-1113521990
@@ -2635,7 +2635,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         final int totalMsg = 10;
 
-        Set<String> messageSet = Sets.newHashSet();
+        Set<String> messageSet = new HashSet<>();
 
         Consumer<byte[]> cryptoConsumer = pulsarClient.newConsumer()
                 .topic(topicName).subscriptionName("my-subscriber-name")
@@ -2717,7 +2717,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         final int totalMsg = 10;
 
-        Set<String> messageSet = Sets.newHashSet();
+        Set<String> messageSet = new HashSet<>();
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/myrsa-topic1")
                 .subscriptionName("my-subscriber-name").cryptoKeyReader(new EncKeyReader()).subscribe();
         Consumer<byte[]> normalConsumer = pulsarClient.newConsumer()
@@ -2805,10 +2805,10 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         final String rsaPrivateKeyData = "data:application/x-pem-file;base64,LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFb3dJQkFBS0NBUUVBdEtXd2dxZG5UWXJPQ3YrajFNa1RXZlNIMHdDc0haWmNhOXdBVzNxUDR1dWhsQnZuCmIxMEpjRmY1Wmp6UDlCU1hLK3RIbUk4dW9OMzY4dkV2NnloVVJITTR5dVhxekN4enVBd2tRU28zOXJ6WDhQR0MKN3FkakNON0xESjNNbnFpQklyVXNTYUVQMXdyTnNCMWtJK285RVIxZTVPL3VFUEFvdFA5MzNoSFEwSjJoTUVlawpIcUw3c0JsSjk4aDZObXNpY0VhVWthcmRrMFRPWHJsa2pDK2NNZDhaYkdTY1BxSTlNMzhibW4zT0x4RlRuMXZ0Cmhwdm5YTHZDbUc0TSs2eHRZdEQrbnBjVlBadzFpMVI5MGZNczdwcFpuUmJ2OEhjL0RGZE9LVlFJZ2FtNkNEZG4KTktnVzdjN0lCTXJQMEFFbTM3SFR1MExTT2pQMk9IWGx2dmxRR1FJREFRQUJBb0lCQUFhSkZBaTJDN3UzY05yZgpBc3RZOXZWRExvTEl2SEZabGtCa3RqS1pEWW1WSXNSYitoU0NWaXdWVXJXTEw2N1I2K0l2NGVnNERlVE9BeDAwCjhwbmNYS2daVHcyd0liMS9RalIvWS9SamxhQzhsa2RtUldsaTd1ZE1RQ1pWc3lodVNqVzZQajd2cjhZRTR3b2oKRmhOaWp4RUdjZjl3V3JtTUpyemRuVFdRaVhCeW8rZVR2VVE5QlBnUEdyUmpzTVptVGtMeUFWSmZmMkRmeE81YgpJV0ZEWURKY3lZQU1DSU1RdTd2eXMvSTUwb3U2aWxiMUNPNlFNNlo3S3BQZU9vVkZQd3R6Ymg4Y2Y5eE04VU5TCmo2Si9KbWRXaGdJMzRHUzNOQTY4eFRRNlBWN3pqbmhDYytpY2NtM0pLeXpHWHdhQXBBWitFb2NlLzlqNFdLbXUKNUI0emlSMENnWUVBM2wvOU9IYmwxem15VityUnhXT0lqL2kyclR2SHp3Qm5iblBKeXVlbUw1Vk1GZHBHb2RRMwp2d0h2eVFtY0VDUlZSeG1Yb2pRNFF1UFBIczNxcDZ3RUVGUENXeENoTFNUeGxVYzg1U09GSFdVMk85OWpWN3pJCjcrSk9wREsvTXN0c3g5bkhnWGR1SkYrZ2xURnRBM0xIOE9xeWx6dTJhRlBzcHJ3S3VaZjk0UThDZ1lFQXovWngKYWtFRytQRU10UDVZUzI4Y1g1WGZqc0lYL1YyNkZzNi9zSDE2UWpVSUVkZEU1VDRmQ3Vva3hDalNpd1VjV2htbApwSEVKNVM1eHAzVllSZklTVzNqUlczcXN0SUgxdHBaaXBCNitTMHpUdUptTEpiQTNJaVdFZzJydE10N1gxdUp2CkEvYllPcWUwaE9QVHVYdVpkdFZaMG5NVEtrN0dHOE82VmtCSTdGY0NnWUVBa0RmQ21zY0pnczdKYWhsQldIbVgKekg5cHdlbStTUEtqSWMvNE5CNk4rZGdpa3gyUHAwNWhwUC9WaWhVd1lJdWZ2cy9MTm9nVllOUXJ0SGVwVW5yTgoyK1RtYkhiWmdOU3YxTGR4dDgyVWZCN3kwRnV0S3U2bGhtWEh5TmVjaG8zRmk4c2loMFYwYWlTV21ZdUhmckFICkdhaXNrRVpLbzFpaVp2UVhKSXg5TzJNQ2dZQVRCZjByOWhUWU10eXh0YzZIMy9zZGQwMUM5dGhROGdEeTB5alAKMFRxYzBkTVNKcm9EcW1JV2tvS1lldzkvYmhGQTRMVzVUQ25Xa0NBUGJIbU50RzRmZGZiWXdta0gvaGRuQTJ5MApqS2RscGZwOEdYZVVGQUdIR3gxN0ZBM3NxRnZnS1VoMGVXRWdSSFVMN3ZkUU1WRkJnSlM5M283elFNOTRmTGdQCjZjT0I4d0tCZ0ZjR1Y0R2pJMld3OWNpbGxhQzU1NE12b1NqZjhCLyswNGtYekRPaDhpWUlJek85RVVpbDFqaksKSnZ4cDRobkx6VEtXYnV4M01FV3F1ckxrWWFzNkdwS0JqdytpTk9DYXI2WWRxV0dWcU0zUlV4N1BUVWFad2tLeApVZFA2M0lmWTdpWkNJVC9RYnlIUXZJVWUyTWFpVm5IK3VseGRrSzZZNWU3Z3hjYmNrSUg0Ci0tLS0tRU5EIFJTQSBQUklWQVRFIEtFWS0tLS0tCg==";
         final int numMsg = 10;
 
-        Map<String, String> privateKeyFileMap = Maps.newHashMap();
+        Map<String, String> privateKeyFileMap = new HashMap<>();
         privateKeyFileMap.put("client-ecdsa.pem", ecdsaPrivateKeyFile);
         privateKeyFileMap.put("client-rsa.pem", rsaPrivateKeyFile);
-        Map<String, String> privateKeyDataMap = Maps.newHashMap();
+        Map<String, String> privateKeyDataMap = new HashMap<>();
         privateKeyDataMap.put("client-ecdsa.pem", ecdsaPrivateKeyData);
         privateKeyDataMap.put("client-rsa.pem", rsaPrivateKeyData);
 
@@ -2894,7 +2894,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         final String encryptionKeyName = "client-rsa.pem";
         final String encryptionKeyVersion = "1.0";
-        Map<String, String> metadata = Maps.newHashMap();
+        Map<String, String> metadata = new HashMap<>();
         metadata.put("version", encryptionKeyVersion);
         class EncKeyReader implements CryptoKeyReader {
             final EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
@@ -3073,7 +3073,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         final int totalMsg = 10;
 
         MessageImpl<byte[]> msg;
-        Set<String> messageSet = Sets.newHashSet();
+        Set<String> messageSet = new HashSet<>();
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic("persistent://my-property/use/myenc-ns/myenc-topic1").subscriptionName("my-subscriber-name")
                 .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
@@ -3166,7 +3166,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         final String encryptionKeyName = "client-rsa.pem";
         final String encryptionKeyVersion = "1.0";
-        Map<String, String> metadata = Maps.newHashMap();
+        Map<String, String> metadata = new HashMap<>();
         metadata.put("version", encryptionKeyVersion);
         class EncKeyReader implements CryptoKeyReader {
             final EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
@@ -3505,7 +3505,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
 
         Message<byte[]> msg = null;
-        Set<String> messageSet = Sets.newHashSet();
+        Set<String> messageSet = new HashSet<>();
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
@@ -3541,7 +3541,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
 
         Message<byte[]> msg = null;
-        Set<String> messageSet = Sets.newHashSet();
+        Set<String> messageSet = new HashSet<>();
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
@@ -3651,7 +3651,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         Integer evenDistributionCount = noOfPartitions / 3;
         retryStrategically((test) -> {
             try {
-                Map<String, Integer> subsCount = Maps.newHashMap();
+                Map<String, Integer> subsCount = new HashMap<>();
                 admin.topics().getPartitionedStats(topicName, true).getPartitions().forEach((p, stats) -> {
                     String activeConsumerName = stats.getSubscriptions().entrySet().iterator().next()
                             .getValue().getActiveConsumerName();
@@ -3667,7 +3667,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             return false;
         }, 5, 100);
 
-        Map<String, Integer> subsCount = Maps.newHashMap();
+        Map<String, Integer> subsCount = new HashMap<>();
         admin.topics().getPartitionedStats(topicName, true).getPartitions().forEach((p, stats) -> {
             String activeConsumerName = stats.getSubscriptions().entrySet().iterator().next().getValue().getActiveConsumerName();
             subsCount.compute(activeConsumerName, (k, v) -> v != null ? v + 1 : 1);
@@ -3810,7 +3810,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         Consumer<byte[]> consumer = consumerBuilder.subscriptionName("my-subscriber-name").subscribe();
         consumer.seek(resetPos.get());
         log.info("reset cursor to {}", resetPos.get());
-        Set<String> messageSet = Sets.newHashSet();
+        Set<String> messageSet = new HashSet<>();
         for (int i = firstMessage; i < numOfMessages; i++) {
             Message<byte[]> message = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             String receivedMessage = new String(message.getData());
@@ -3843,7 +3843,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 .topic("persistent://my-property/my-ns/my-topic2");
 
         Producer<byte[]> producer = producerBuilder.create();
-        List<Future<MessageId>> futures = Lists.newArrayList();
+        List<Future<MessageId>> futures = new ArrayList<>();
 
         // Asynchronously produce messages
         byte[] message = new byte[ClientCnx.getMaxMessageSize() + 1];

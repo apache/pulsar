@@ -24,7 +24,6 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -32,6 +31,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -1320,7 +1320,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                         .compareTo(lastMessageForKey.get(key).getValue()) > 0);
                 }
                 lastMessageForKey.put(key, message);
-                consumerKeys.putIfAbsent(check.getKey(), Sets.newHashSet());
+                consumerKeys.putIfAbsent(check.getKey(), new HashSet<>());
                 consumerKeys.get(check.getKey()).add(key);
                 received++;
             }
@@ -1353,7 +1353,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
             Assert.assertNull(noMessages, "redeliver too many messages.");
             Assert.assertEquals((check.getValue() + redeliveryCount), received);
         }
-        Set<String> allKeys = Sets.newHashSet();
+        Set<String> allKeys = new HashSet<>();
         consumerKeys.forEach((k, v) -> v.forEach(key -> {
             assertTrue(allKeys.add(key),
                 "Key "+ key +  "is distributed to multiple consumers." );
