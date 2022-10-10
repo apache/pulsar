@@ -30,9 +30,11 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.bookie.BookieImpl;
+import org.apache.bookkeeper.bookie.SortedLedgerStorage;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.common.allocator.PoolingPolicy;
 import org.apache.bookkeeper.common.component.ComponentStarter;
@@ -77,6 +79,7 @@ public class BKCluster implements AutoCloseable {
         private int bkPort = 0;
 
         private boolean clearOldData;
+        private Optional<ServerConfiguration> bkServerConf = Optional.empty();
 
         public BKClusterConf metadataServiceUri(String metadataServiceUri) {
             this.metadataServiceUri = metadataServiceUri;
@@ -100,6 +103,11 @@ public class BKCluster implements AutoCloseable {
 
         public BKClusterConf clearOldData(boolean clearOldData) {
             this.clearOldData = clearOldData;
+            return this;
+        }
+
+        public BKClusterConf bkClusterConf(ServerConfiguration bkServerConf) {
+            this.bkServerConf = Optional.of(bkServerConf);
             return this;
         }
 
@@ -319,7 +327,8 @@ public class BKCluster implements AutoCloseable {
     }
 
     private ServerConfiguration newBaseServerConfiguration() {
-        ServerConfiguration confReturn = new ServerConfiguration();
+        ServerConfiguration confReturn =
+                new ServerConfiguration(this.clusterConf.bkServerConf.orElse(new ServerConfiguration()));
         confReturn.setTLSEnabledProtocols("TLSv1.2,TLSv1.1");
         confReturn.setJournalFlushWhenQueueEmpty(true);
         confReturn.setJournalFormatVersionToWrite(5);
@@ -333,6 +342,7 @@ public class BKCluster implements AutoCloseable {
         confReturn.setAllocatorPoolingPolicy(PoolingPolicy.UnpooledHeap);
         confReturn.setProperty("dbStorage_writeCacheMaxSizeMb", 4);
         confReturn.setProperty("dbStorage_readAheadCacheMaxSizeMb", 4);
+        confReturn.setLedgerStorageClass(SortedLedgerStorage.class.getName());
         setLoopbackInterfaceAndAllowLoopback(confReturn);
         return confReturn;
     }
