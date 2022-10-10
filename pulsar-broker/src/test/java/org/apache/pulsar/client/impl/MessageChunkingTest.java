@@ -578,6 +578,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
     public void testBlockIfQueueFUllWhenChunking() throws Exception {
         this.conf.setMaxMessageSize(50);
 
+        @Cleanup
         final Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                 .topic("my-property/my-ns/test-chunk-size")
                 .enableChunking(true)
