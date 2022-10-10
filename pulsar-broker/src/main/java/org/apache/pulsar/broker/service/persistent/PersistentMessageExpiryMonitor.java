@@ -215,6 +215,7 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback {
             } else {
                 findEntryComplete(failedReadPosition.get(), ctx);
             }
+            return;
         }
         expirationCheckInProgress = FALSE;
         updateRates();
