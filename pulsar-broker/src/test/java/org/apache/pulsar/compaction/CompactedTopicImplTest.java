@@ -40,47 +40,47 @@ public class CompactedTopicImplTest {
 
     // Sparse ledger makes multi entry has same data, this is used to construct complex environments to verify that the
     // smallest position with the correct data is found.
-    private static final TreeMap<Long,Long> ORIGIN_SPARSE_LEDGER = new TreeMap<>();
+    private static final TreeMap<Long, Long> ORIGIN_SPARSE_LEDGER = new TreeMap<>();
 
     static {
-        ORIGIN_SPARSE_LEDGER.put(0L,0L);
-        ORIGIN_SPARSE_LEDGER.put(1L,1L);
-        ORIGIN_SPARSE_LEDGER.put(2L,1001L);
-        ORIGIN_SPARSE_LEDGER.put(3L,1002L);
-        ORIGIN_SPARSE_LEDGER.put(4L,1003L);
-        ORIGIN_SPARSE_LEDGER.put(10L,1010L);
-        ORIGIN_SPARSE_LEDGER.put(20L,1020L);
-        ORIGIN_SPARSE_LEDGER.put(50L,1050L);
-        ORIGIN_SPARSE_LEDGER.put(Long.MAX_VALUE,Long.MAX_VALUE);
+        ORIGIN_SPARSE_LEDGER.put(0L, 0L);
+        ORIGIN_SPARSE_LEDGER.put(1L, 1L);
+        ORIGIN_SPARSE_LEDGER.put(2L, 1001L);
+        ORIGIN_SPARSE_LEDGER.put(3L, 1002L);
+        ORIGIN_SPARSE_LEDGER.put(4L, 1003L);
+        ORIGIN_SPARSE_LEDGER.put(10L, 1010L);
+        ORIGIN_SPARSE_LEDGER.put(20L, 1020L);
+        ORIGIN_SPARSE_LEDGER.put(50L, 1050L);
+        ORIGIN_SPARSE_LEDGER.put(Long.MAX_VALUE, Long.MAX_VALUE);
     }
 
     @DataProvider(name = "argsForFindStartPointLoop")
-    public Object[][] argsForFindStartPointLoop(){
+    public Object[][] argsForFindStartPointLoop() {
         return new Object[][]{
-            {0, 100, 0},// first value.
-            {0, 100, 1},// second value.
-            {0, 100, 1003},// not first value.
-            {0, 100, 1015},// value not exists.
-            {3, 40, 50},// less than first value & find in a range.
-            {3, 40, 1002},// first value & find in a range.
-            {3, 40, 1003},// second value & find in a range.
-            {3, 40, 1010},// not first value & find in a range.
-            {3, 40, 1015}// value not exists & find in a range.
+                {0, 100, 0},// first value.
+                {0, 100, 1},// second value.
+                {0, 100, 1003},// not first value.
+                {0, 100, 1015},// value not exists.
+                {3, 40, 50},// less than first value & find in a range.
+                {3, 40, 1002},// first value & find in a range.
+                {3, 40, 1003},// second value & find in a range.
+                {3, 40, 1010},// not first value & find in a range.
+                {3, 40, 1015}// value not exists & find in a range.
         };
     }
 
     private static CacheLoader<Long, MessageIdData> mockCacheLoader(long start, long end, final long targetMessageId,
-                                                                    AtomicLong bingoMarker){
+                                                                    AtomicLong bingoMarker) {
         // Mock ledger.
-        final TreeMap<Long,Long> sparseLedger = new TreeMap<>();
+        final TreeMap<Long, Long> sparseLedger = new TreeMap<>();
         sparseLedger.putAll(ORIGIN_SPARSE_LEDGER.subMap(start, end + 1));
-        sparseLedger.put(Long.MAX_VALUE,Long.MAX_VALUE);
+        sparseLedger.put(Long.MAX_VALUE, Long.MAX_VALUE);
 
-        Function<Long,Long> findMessageIdFunc = entryId -> sparseLedger.ceilingEntry(entryId).getValue();
+        Function<Long, Long> findMessageIdFunc = entryId -> sparseLedger.ceilingEntry(entryId).getValue();
 
         // Calculate the correct position.
-        for (long i = start; i <= end; i++){
-            if (findMessageIdFunc.apply(i) >= targetMessageId){
+        for (long i = start; i <= end; i++) {
+            if (findMessageIdFunc.apply(i) >= targetMessageId) {
                 bingoMarker.set(i);
                 break;
             }
