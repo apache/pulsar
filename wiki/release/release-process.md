@@ -26,7 +26,7 @@ This page contains instructions for Pulsar committers on how to perform a releas
 > **NOTE**: The term `major/minor releases` used throughout this document is defined as follows:
 >
 > * Major releases refer to feature releases, such as 2.10.0, 2.11.0, and so on.
-> 
+>
 > * Minor releases refer to bug-fix releases, such as 2.10.1, 2.10.2, and so on.
 
 
@@ -485,7 +485,7 @@ After you run this command, a new folder `version-<release-version>` is added in
 
   ```shell
   versioned_docs/version-<release-version>
-  versioned_sidebars/version-<release-version>-sidebars.json 
+  versioned_sidebars/version-<release-version>-sidebars.json
   ```
 
 > **NOTE**: You can move the latest version under the old version in the `versions.json` file. Make sure the Algolia index works before moving 2.X.0 as the current stable.
@@ -496,7 +496,7 @@ After you run this command, a new folder `version-<release-version>` is added in
 
    After your PR is approved and merged to master, the website is published automatically after the new website is built. The website is built every 6 hours.
 
-6. Check the new website after the website is built.  
+6. Check the new website after the website is built.
    Open https://pulsar.apache.org in your browsers to verify all the changes are alive. If the website build succeeds but the website is not updated, you can try to sync the git repository. Navigate to https://selfserve.apache.org/ and click the "Synchronize Git Repositories" and then select apache/pulsar.
 
 7. Publish the release on GitHub, and copy the same release notes: https://github.com/apache/pulsar/releases.

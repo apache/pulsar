@@ -155,11 +155,16 @@ public class NamespaceServiceTest extends BrokerTestBase {
         splitBundleSet.removeAll(bundleList);
         assertTrue(splitBundleSet.isEmpty());
 
-        // (2) validate LocalZookeeper policies updated with newly created split
+        // (2) validate localPolicies and policies  updated with newly created split
         // bundles
-        LocalPolicies policies = pulsar.getPulsarResources().getLocalPolicies().getLocalPolicies(nsname).get();
-        NamespaceBundles localZkBundles = bundleFactory.getBundles(nsname, policies.bundles);
+        LocalPolicies localPolicies = pulsar.getPulsarResources().getLocalPolicies().getLocalPolicies(nsname).get();
+        NamespaceBundles localZkBundles = bundleFactory.getBundles(nsname, localPolicies.bundles);
         assertEquals(localZkBundles, updatedNsBundles);
+        log.info("LocalPolicies: {}", localPolicies);
+
+        Policies policies = pulsar.getPulsarResources().getNamespaceResources().getPolicies(nsname).get();
+        NamespaceBundles zkBundles = bundleFactory.getBundles(nsname, policies.bundles);
+        assertEquals(zkBundles, updatedNsBundles);
         log.info("Policies: {}", policies);
 
         // (3) validate ownership of new split bundles by local owner

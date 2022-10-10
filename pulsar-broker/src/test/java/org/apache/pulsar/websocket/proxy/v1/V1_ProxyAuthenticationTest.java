@@ -44,6 +44,7 @@ import org.apache.pulsar.websocket.proxy.SimpleProducerSocket;
 import org.apache.pulsar.websocket.service.ProxyServer;
 import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
 import org.apache.pulsar.websocket.service.WebSocketServiceStarter;
+import org.awaitility.Awaitility;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
@@ -142,11 +143,10 @@ public class V1_ProxyAuthenticationTest extends V1_ProducerConsumerBase {
         Future<Session> producerFuture = produceClient.connect(produceSocket, produceUri, produceRequest);
         Assert.assertTrue(consumerFuture.get().isOpen());
         Assert.assertTrue(producerFuture.get().isOpen());
-
-        consumeSocket.awaitClose(1, TimeUnit.SECONDS);
-        produceSocket.awaitClose(1, TimeUnit.SECONDS);
-        Assert.assertTrue(produceSocket.getBuffer().size() > 0);
-        Assert.assertEquals(produceSocket.getBuffer(), consumeSocket.getBuffer());
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertTrue(produceSocket.getBuffer().size() > 0);
+            Assert.assertEquals(produceSocket.getBuffer(), consumeSocket.getBuffer());
+        });
     }
 
     @Test(timeOut = 10000)
