@@ -659,7 +659,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     @SneakyThrows
     @Override
     public void redeliverUnacknowledgedMessages() {
-        List<CompletableFuture<Void>> futures = new ArrayList<>();
+        List<CompletableFuture<Void>> futures = new ArrayList<>(consumers.size());
         internalPinnedExecutor.execute(() -> {
             CONSUMER_EPOCH.incrementAndGet(this);
             consumers.values().stream().forEach(consumer -> {
@@ -669,7 +669,11 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             clearIncomingMessages();
             unAckedMessageTracker.clear();
         });
-        FutureUtil.waitForAll(futures).get();
+        try {
+            FutureUtil.waitForAll(futures).get();
+        } catch (ExecutionException e) {
+            throw e.getCause();
+        }
         resumeReceivingFromPausedConsumersIfNeeded();
     }
 

@@ -197,12 +197,13 @@ public class MultiTopicsConsumerTest extends ProducerConsumerBase {
 
     @Test
     public void testBatchReceiveAckTimeout()
-            throws PulsarAdminException, PulsarClientException, InterruptedException {
+            throws PulsarAdminException, PulsarClientException {
         String topicName = newTopicName();
         int numPartitions = 2;
         int numMessages = 100000;
         admin.topics().createPartitionedTopic(topicName, numPartitions);
 
+        @Cleanup
         Producer<Long> producer = pulsarClient.newProducer(Schema.INT64)
                 .topic(topicName)
                 .enableBatching(false)
@@ -223,7 +224,6 @@ public class MultiTopicsConsumerTest extends ProducerConsumerBase {
         producer.newMessage()
                 .value(1l)
                 .send();
-        Thread.sleep(300);
 
         // first batch receive
         Assert.assertEquals(consumer.batchReceive().size(), 1);

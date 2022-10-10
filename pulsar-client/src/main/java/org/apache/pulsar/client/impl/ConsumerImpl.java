@@ -1913,7 +1913,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     @SneakyThrows
     @Override
     public void redeliverUnacknowledgedMessages() {
-        internalRedeliverUnacknowledgedMessages().get();
+        try {
+            internalRedeliverUnacknowledgedMessages().get();
+        } catch (ExecutionException e) {
+            throw e.getCause();
+        }
     }
 
     @Override
