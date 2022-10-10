@@ -141,6 +141,7 @@ public class CompactedTopicImplTest {
         CompletableFuture<Long> promise = new CompletableFuture<>();
         CompactedTopicImpl.findStartPointLoop(targetPosition, start, end, promise, cacheWithCounter);
         // Do verify.
+        promise.join();
         assertEquals(loopCounter.get().intValue(), 2);
     }
 }
