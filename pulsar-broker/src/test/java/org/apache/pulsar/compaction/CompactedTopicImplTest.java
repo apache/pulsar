@@ -18,18 +18,21 @@
  */
 package org.apache.pulsar.compaction;
 
+import static org.mockito.Mockito.*;
+import static org.testng.Assert.*;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.CacheLoader;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -108,6 +111,36 @@ public class CompactedTopicImplTest {
         CompletableFuture<Long> promise = new CompletableFuture<>();
         CompactedTopicImpl.findStartPointLoop(targetPosition, start, end, promise, cache);
         long result = promise.join();
-        Assert.assertEquals(result, bingoMarker.get());
+        assertEquals(result, bingoMarker.get());
+    }
+
+    /**
+     * Why should we check the recursion number of "findStartPointLoop", see: #17976
+     */
+    @Test
+    public void testRecursionNumberOfFindStartPointLoop() throws Exception {
+        AtomicLong bingoMarker = new AtomicLong();
+        long start = 0;
+        long end = 100;
+        long targetMessageId = 1;
+        // Mock cache.
+        AsyncLoadingCache<Long, MessageIdData> cache = Caffeine.newBuilder()
+                .buildAsync(mockCacheLoader(start, end, targetMessageId, bingoMarker));
+        AtomicInteger invokeCounterOfCacheGet = new AtomicInteger();
+        AsyncLoadingCache<Long, MessageIdData> cacheWithCounter = spy(cache);
+        doAnswer(invocation -> {
+            invokeCounterOfCacheGet.incrementAndGet();
+            return cache.get((Long) invocation.getArguments()[0]);
+        }).when(cacheWithCounter).get(anyLong());
+        // Because when "findStartPointLoop(...)" is executed, will trigger "cache.get()" three times, including
+        // "cache.get(start)", "cache.get(mid)" and "cache.get(end)". Therefore, we can calculate the count of
+        // executed "findStartPointLoop".
+        Supplier<Integer> loopCounter = () -> invokeCounterOfCacheGet.get() / 3;
+        // Do test.
+        PositionImpl targetPosition = PositionImpl.get(DEFAULT_LEDGER_ID, targetMessageId);
+        CompletableFuture<Long> promise = new CompletableFuture<>();
+        CompactedTopicImpl.findStartPointLoop(targetPosition, start, end, promise, cacheWithCounter);
+        // Do verify.
+        assertEquals(loopCounter.get().intValue(), 2);
     }
 }
