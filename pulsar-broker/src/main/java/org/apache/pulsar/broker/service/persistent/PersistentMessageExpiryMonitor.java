@@ -191,6 +191,7 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback {
             log.warn("[{}][{}] read failed from ledger at position:{} : {}", topicName, subName, failedReadPosition,
                     exception.getMessage());
             findEntryComplete(failedReadPosition.get(), ctx);
+            return;
         }
         expirationCheckInProgress = FALSE;
         updateRates();
