@@ -968,7 +968,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             Awaitility.await().untilAsserted(() ->
                     assertEquals(consumeSocket.getReceivedMessagesCount(), messages));
 
-            for (JsonObject msg : consumeSocket.messages) {
+            for (JsonObject msg : consumeSocket.getMessages()) {
                 assertTrue(msg.has("encryptionContext"));
                 JsonObject encryptionCtx = msg.getAsJsonObject("encryptionContext");
                 JsonObject keys = encryptionCtx.getAsJsonObject("keys");

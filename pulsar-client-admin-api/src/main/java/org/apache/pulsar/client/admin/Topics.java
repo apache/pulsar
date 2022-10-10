@@ -4397,4 +4397,58 @@ public interface Topics {
      * @param sourceTopic source topic name
      */
     CompletableFuture<List<String>> getShadowTopicsAsync(String sourceTopic);
+
+    /**
+     * Get the shadow source topic name of the given shadow topic.
+     * @param shadowTopic shadow topic name.
+     * @return The topic name of the source of the shadow topic.
+     */
+    String getShadowSource(String shadowTopic) throws PulsarAdminException;
+
+    /**
+     * Get the shadow source topic name of the given shadow topic asynchronously.
+     * @param shadowTopic shadow topic name.
+     * @return The topic name of the source of the shadow topic.
+     */
+    CompletableFuture<String> getShadowSourceAsync(String shadowTopic);
+
+    /**
+     * Create a new shadow topic as the shadow of the source topic.
+     * The source topic must exist before call this method.
+     * <p>
+     *     For partitioned source topic, the partition number of shadow topic follows the source topic at creation. If
+     *     the partition number of the source topic changes, the shadow topic needs to update its partition number
+     *     manually.
+     *     For non-partitioned source topic, the shadow topic will be created as non-partitioned topic.
+     * </p>
+     *
+     * NOTE: This is still WIP until <a href="https://github.com/apache/pulsar/issues/16153">PIP-180</a> is finished.
+     *
+     * @param shadowTopic shadow topic name, and it must be a persistent topic name.
+     * @param sourceTopic source topic name, and it must be a persistent topic name.
+     * @param properties properties to be created with in the shadow topic.
+     * @throws PulsarAdminException
+     */
+    void createShadowTopic(String shadowTopic, String sourceTopic, Map<String, String> properties)
+            throws PulsarAdminException;
+
+    /**
+     * Create a new shadow topic, see #{@link #createShadowTopic(String, String, Map)} for details.
+     */
+    CompletableFuture<Void> createShadowTopicAsync(String shadowTopic, String sourceTopic,
+                                                   Map<String, String> properties);
+
+    /**
+     * Create a new shadow topic, see #{@link #createShadowTopic(String, String, Map)} for details.
+     */
+    default void createShadowTopic(String shadowTopic, String sourceTopic) throws PulsarAdminException {
+        createShadowTopic(shadowTopic, sourceTopic, null);
+    }
+
+    /**
+     * Create a new shadow topic, see #{@link #createShadowTopic(String, String, Map)} for details.
+     */
+    default CompletableFuture<Void> createShadowTopicAsync(String shadowTopic, String sourceTopic) {
+        return createShadowTopicAsync(shadowTopic, sourceTopic, null);
+    }
 }

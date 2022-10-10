@@ -95,6 +95,21 @@ public class PositionImpl implements Position, Comparable<PositionImpl> {
     }
 
     /**
+     * Position after moving entryNum messages,
+     * if entryNum < 1, then return the current position.
+     * */
+    public PositionImpl getPositionAfterEntries(int entryNum) {
+        if (entryNum < 1) {
+            return this;
+        }
+        if (entryId < 0) {
+            return PositionImpl.get(ledgerId, entryNum - 1);
+        } else {
+            return PositionImpl.get(ledgerId, entryId + entryNum);
+        }
+    }
+
+    /**
      * String representation of virtual cursor - LedgerId:EntryId.
      */
     @Override

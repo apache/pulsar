@@ -24,7 +24,7 @@ SerDe works in the following ways for Java functions.
 - If the input or output topics do not exist, Pulsar Functions adopt the following rules to determine SerDe:
   - If the schema type is specified, Pulsar Functions use the specified schema type.
   - If SerDe is specified, Pulsar Functions use the specified SerDe, and the schema type for input and output topics is `byte`.
-  - If neither the schema type nor SerDe is specified, Pulsar Functions use the built-in SerDe. For non-primitive schema types, the built-in SerDe serializes and deserializes objects in the `JSON` format. 
+  - If neither the schema type nor SerDe is specified, Pulsar Functions use the built-in SerDe. For non-primitive schema types, the built-in SerDe serializes and deserializes objects in the `JSON` format.
 
 For example, imagine that you're writing a function that processes tweet objects. You can refer to the following example of the `Tweet` class in Java.
 
@@ -87,7 +87,7 @@ Custom SerDe classes must be packaged with your function JARs.
 
 In Python, the default SerDe is an identity, meaning that the type is serialized as whatever type the function returns.
 
-For example, you can specify the SerDe as follows when deploying a function in [cluster mode](functions-deploy-cluster.md). 
+For example, you can specify the SerDe as follows when deploying a function in [cluster mode](functions-deploy-cluster.md).
 
 ```bash
 bin/pulsar-admin functions create \
@@ -101,7 +101,7 @@ bin/pulsar-admin functions create \
   --output output-topic-1
 ```
 
-This case contains two input topics: `input-topic-1` and `input-topic-2`, each of which is mapped to a different SerDe class (the mapping must be specified as a JSON string). The output topic `output-topic-1` uses the `Serde3` class for SerDe. 
+This case contains two input topics: `input-topic-1` and `input-topic-2`, each of which is mapped to a different SerDe class (the mapping must be specified as a JSON string). The output topic `output-topic-1` uses the `Serde3` class for SerDe.
 
 :::note
 
@@ -111,11 +111,11 @@ All function-related logic, including processing and SerDe classes, must be cont
 
 The table outlines three SerDe options for Python functions.
 
-| SerDe option | Description | Use case| 
-| ------------|-----------|-----------| 
-| `IdentitySerde` (default) | Use the [`IdentitySerde`](https://github.com/apache/pulsar/blob/master/pulsar-client-cpp/python/pulsar/functions/serde.py#L70), which leaves the data unchanged. Creating or running a function without explicitly specifying SerDe means that this option is used. | When you work with simple types like strings, booleans, integers.| 
-| `PickleSerDe` | Use the [`PickleSerDe`](https://github.com/apache/pulsar/blob/master/pulsar-client-cpp/python/pulsar/functions/serde.py#L62), which uses Python [`pickle`](https://docs.python.org/3/library/pickle.html) for SerDe. | When you work with complex, application-specific types and are comfortable with the "best-effort" approach of `pickle`.| 
-| `Custom SerDe` | Create a custom SerDe class by implementing the baseline [`SerDe`](https://github.com/apache/pulsar/blob/master/pulsar-client-cpp/python/pulsar/functions/serde.py#L50) class, which has just two methods:<br />* [`serialize`](https://github.com/apache/pulsar/blob/master/pulsar-client-cpp/python/pulsar/functions/serde.py#L53) for converting the object into bytes.<br />* [`deserialize`](https://github.com/apache/pulsar/blob/master/pulsar-client-cpp/python/pulsar/functions/serde.py#L58) for converting bytes into an object of the required application-specific type. | When you require explicit control over SerDe, potentially for performance or data compatibility purposes.| 
+| SerDe option | Description | Use case|
+| ------------|-----------|-----------|
+| `IdentitySerde` (default) | Use the `IdentitySerde`, which leaves the data unchanged. Creating or running a function without explicitly specifying SerDe means that this option is used. | When you work with simple types like strings, booleans, integers.|
+| `PickleSerDe` | Use the `PickleSerDe`, which uses Python [`pickle`](https://docs.python.org/3/library/pickle.html) for SerDe. | When you work with complex, application-specific types and are comfortable with the "best-effort" approach of `pickle`.|
+| `Custom SerDe` | Create a custom SerDe class by implementing the baseline `SerDe` class, which has just two methods:<br />* `serialize` for converting the object into bytes.<br />* `deserialize` for converting bytes into an object of the required application-specific type. | When you require explicit control over SerDe, potentially for performance or data compatibility purposes.|
 
 For example, imagine that you are writing a function that processes tweet objects. You can refer to the following example of the `Tweet` class in Python.
 
