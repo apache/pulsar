@@ -158,6 +158,10 @@ public abstract class AbstractTopic implements Topic {
         this.preciseTopicPublishRateLimitingEnable =
                 brokerService.pulsar().getConfiguration().isPreciseTopicPublishRateLimiterEnable();
         updatePublishDispatcher(Optional.empty());
+        if (isSystemTopic()) {
+            schemaCompatibilityStrategy =
+                    brokerService.pulsar().getConfig().getSystemTopicSchemaCompatibilityStrategy();
+        }
     }
 
     protected boolean isProducersExceeded() {
