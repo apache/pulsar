@@ -1555,6 +1555,7 @@ public class TransactionTest extends TransactionTestBase {
             executorService.submit(() -> {
                 try {
                     for (int j = 0; j < totalMessage; j++) {
+                        //The message will be sent with out-of-order sequence ID.
                         producer.newMessage(transaction).sendAsync();
                         Message<byte[]> message = consumer.receive();
                         consumer.acknowledgeAsync(message.getMessageId(),
@@ -1569,6 +1570,7 @@ public class TransactionTest extends TransactionTestBase {
         }
         //wait the all send/ack op is executed and store its futures in the arraylist.
         countDownLatch.await(5, TimeUnit.SECONDS);
+        //The transaction will be failed due to timeout.
         transaction.commit().get();
     }
 }
