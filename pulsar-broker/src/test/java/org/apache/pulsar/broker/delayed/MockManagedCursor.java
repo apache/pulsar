@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.delayed;
 
-import com.google.common.base.Predicate;
 import com.google.common.collect.Range;
 import java.util.List;
 import java.util.Map;
@@ -259,18 +258,20 @@ public class MockManagedCursor implements ManagedCursor {
     }
 
     @Override
-    public Position findNewestMatching(Predicate<Entry> condition) throws InterruptedException, ManagedLedgerException {
-        return null;
-    }
-
-    @Override
-    public Position findNewestMatching(FindPositionConstraint constraint, Predicate<Entry> condition)
+    public Position findNewestMatching(java.util.function.Predicate<Entry> condition)
             throws InterruptedException, ManagedLedgerException {
         return null;
     }
 
     @Override
-    public void asyncFindNewestMatching(FindPositionConstraint constraint, Predicate<Entry> condition,
+    public Position findNewestMatching(FindPositionConstraint constraint, java.util.function.Predicate<Entry> condition)
+            throws InterruptedException, ManagedLedgerException {
+        return null;
+    }
+
+    @Override
+    public void asyncFindNewestMatching(FindPositionConstraint constraint,
+                                        java.util.function.Predicate<Entry> condition,
                                         AsyncCallbacks.FindEntryCallback callback, Object ctx) {
 
     }

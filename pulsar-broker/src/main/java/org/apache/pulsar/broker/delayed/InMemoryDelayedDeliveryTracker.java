@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.delayed;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import io.netty.util.TimerTask;
@@ -25,6 +26,7 @@ import java.time.Clock;
 import java.util.NavigableSet;
 import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
@@ -59,6 +61,8 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
     // always going to be in FIFO order, then we can avoid pulling all the messages in
     // tracker. Instead, we use the lookahead for detection and pause the read from
     // the cursor if the delays are fixed.
+    @Getter
+    @VisibleForTesting
     private final long fixedDelayDetectionLookahead;
 
     // This is the timestamp of the message with the highest delivery time

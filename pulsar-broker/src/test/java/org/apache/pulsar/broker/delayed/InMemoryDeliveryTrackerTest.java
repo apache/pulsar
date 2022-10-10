@@ -319,7 +319,7 @@ public class InMemoryDeliveryTrackerTest {
     }
 
     @Test(dataProvider = "delayedTracker")
-    public void testWithFixedDelays(DelayedDeliveryTracker tracker) throws Exception {
+    public void testWithFixedDelays(InMemoryDelayedDeliveryTracker tracker) throws Exception {
         assertFalse(tracker.hasMessageAvailable());
 
         assertTrue(tracker.addMessage(1, 1, 10));
@@ -332,13 +332,13 @@ public class InMemoryDeliveryTrackerTest {
         assertEquals(tracker.getNumberOfDelayedMessages(), 5);
         assertFalse(tracker.shouldPauseAllDeliveries());
 
-        for (int i = 6; i <= fixedDelayLookahead; i++) {
+        for (int i = 6; i <= tracker.getFixedDelayDetectionLookahead(); i++) {
             assertTrue(tracker.addMessage(i, i, i * 10));
         }
 
         assertTrue(tracker.shouldPauseAllDeliveries());
 
-        clockTime.set(fixedDelayLookahead * 10);
+        clockTime.set(tracker.getFixedDelayDetectionLookahead() * 10);
 
         tracker.getScheduledMessages(100);
 
@@ -356,7 +356,7 @@ public class InMemoryDeliveryTrackerTest {
     }
 
     @Test(dataProvider = "delayedTracker")
-    public void testWithMixedDelays(DelayedDeliveryTracker tracker) throws Exception {
+    public void testWithMixedDelays(InMemoryDelayedDeliveryTracker tracker) throws Exception {
         assertFalse(tracker.hasMessageAvailable());
 
         assertTrue(tracker.addMessage(1, 1, 10));
@@ -367,7 +367,7 @@ public class InMemoryDeliveryTrackerTest {
 
         assertFalse(tracker.shouldPauseAllDeliveries());
 
-        for (int i = 6; i <= fixedDelayLookahead; i++) {
+        for (int i = 6; i <= tracker.getFixedDelayDetectionLookahead(); i++) {
             assertTrue(tracker.addMessage(i, i, i * 10));
         }
 
@@ -382,7 +382,7 @@ public class InMemoryDeliveryTrackerTest {
     }
 
     @Test(dataProvider = "delayedTracker")
-    public void testWithNoDelays(DelayedDeliveryTracker tracker) throws Exception {
+    public void testWithNoDelays(InMemoryDelayedDeliveryTracker tracker) throws Exception {
         assertFalse(tracker.hasMessageAvailable());
 
         assertTrue(tracker.addMessage(1, 1, 10));
@@ -393,7 +393,7 @@ public class InMemoryDeliveryTrackerTest {
 
         assertFalse(tracker.shouldPauseAllDeliveries());
 
-        for (int i = 6; i <= fixedDelayLookahead; i++) {
+        for (int i = 6; i <= tracker.getFixedDelayDetectionLookahead(); i++) {
             assertTrue(tracker.addMessage(i, i, i * 10));
         }
 

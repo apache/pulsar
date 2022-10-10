@@ -48,13 +48,11 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang.StringUtils;
-import org.apache.commons.lang3.mutable.MutableLong;
 import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.DelayedIndex;
 import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.SnapshotMetadata;
 import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment;
 import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.SnapshotSegmentMetadata;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
-import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.TripleLongPriorityQueue;
 
 @Slf4j
@@ -88,20 +86,24 @@ public class BucketDelayedDeliveryTracker extends InMemoryDelayedDeliveryTracker
     BucketDelayedDeliveryTracker(PersistentDispatcherMultipleConsumers dispatcher,
                                  Timer timer, long tickTimeMillis,
                                  boolean isDelayedDeliveryDeliverAtTimeStrict,
+                                 long fixedDelayDetectionLookahead,
                                  BucketSnapshotStorage bucketSnapshotStorage,
                                  long minIndexCountPerBucket, long timeStepPerBucketSnapshotSegment,
                                  int maxNumBuckets) {
         this(dispatcher, timer, tickTimeMillis, Clock.systemUTC(), isDelayedDeliveryDeliverAtTimeStrict,
+                fixedDelayDetectionLookahead,
                 bucketSnapshotStorage, minIndexCountPerBucket, timeStepPerBucketSnapshotSegment, maxNumBuckets);
     }
 
     BucketDelayedDeliveryTracker(PersistentDispatcherMultipleConsumers dispatcher,
                                  Timer timer, long tickTimeMillis, Clock clock,
                                  boolean isDelayedDeliveryDeliverAtTimeStrict,
+                                 long fixedDelayDetectionLookahead,
                                  BucketSnapshotStorage bucketSnapshotStorage,
                                  long minIndexCountPerBucket, long timeStepPerBucketSnapshotSegment,
                                  int maxNumBuckets) {
-        super(dispatcher, timer, tickTimeMillis, clock, isDelayedDeliveryDeliverAtTimeStrict);
+        super(dispatcher, timer, tickTimeMillis, clock, isDelayedDeliveryDeliverAtTimeStrict,
+                fixedDelayDetectionLookahead);
         this.minIndexCountPerBucket = minIndexCountPerBucket;
         this.timeStepPerBucketSnapshotSegment = timeStepPerBucketSnapshotSegment;
         this.maxNumBuckets = maxNumBuckets;
@@ -112,38 +114,9 @@ public class BucketDelayedDeliveryTracker extends InMemoryDelayedDeliveryTracker
 
         this.bucketSnapshotStorage = bucketSnapshotStorage;
 
-        numberDelayedMessages = recoverBucketSnapshot();
+        numberDelayedMessages = 0L;
 
         this.lastMutableBucket = new Bucket(-1L, -1L, new HashMap<>());
-    }
-
-    @SneakyThrows
-    private long recoverBucketSnapshot() {
-        List<CompletableFuture<Void>> completableFutures = new ArrayList<>();
-        this.cursor.getCursorProperties().keySet().forEach(key -> {
-            if (key.startsWith(DELAYED_BUCKET_KEY_PREFIX)) {
-                String[] keys = key.split(DELIMITER);
-                checkArgument(keys.length == 3);
-                Bucket bucket = createImmutableBucket(Long.parseLong(keys[1]), Long.parseLong(keys[2]));
-                completableFutures.add(asyncLoadNextBucketSnapshotEntry(bucket, true));
-            }
-        });
-
-        if (completableFutures.isEmpty()) {
-            return 0;
-        }
-
-        FutureUtil.waitForAll(completableFutures).get();
-
-        MutableLong numberDelayedMessages = new MutableLong(0);
-        immutableBuckets.asMapOfRanges().values().forEach(bucket -> {
-            numberDelayedMessages.add(bucket.numberBucketDelayedMessages);
-        });
-
-        log.info("[{}] Recover delayed message index bucket snapshot finish, buckets: {}, numberDelayedMessages: {}",
-                dispatcher.getName(), immutableBuckets.asMapOfRanges().size(), numberDelayedMessages.getValue());
-
-        return numberDelayedMessages.getValue();
     }
 
     private void moveScheduledMessageToSharedQueue(long cutoffTime) {
@@ -318,7 +291,7 @@ public class BucketDelayedDeliveryTracker extends InMemoryDelayedDeliveryTracker
 
 
     @SneakyThrows
-    private CompletableFuture<Void> asyncLoadNextBucketSnapshotEntry(Bucket bucket, boolean isRebuild) {
+    private CompletableFuture<Void> asyncLoadNextBucketSnapshotEntry(Bucket bucket, boolean isRecover) {
         if (log.isDebugEnabled()) {
             log.debug("[{}] Load next bucket snapshot data, bucket: {}", dispatcher.getName(), bucket);
         }
@@ -337,28 +310,8 @@ public class BucketDelayedDeliveryTracker extends InMemoryDelayedDeliveryTracker
         Objects.requireNonNull(bucketId);
 
         CompletableFuture<Integer> loadMetaDataFuture = new CompletableFuture<>();
-        if (isRebuild) {
-            final long cutoffTime = getCutoffTime();
-            // Load Metadata of bucket snapshot
-            bucketSnapshotStorage.getBucketSnapshotMetadata(bucketId).thenAccept(snapshotMetadata -> {
-                List<SnapshotSegmentMetadata> metadataList = snapshotMetadata.getMetadataListList();
-
-                // Skip all already reach schedule time snapshot segments
-                int nextSnapshotEntryIndex = 0;
-                while (nextSnapshotEntryIndex < metadataList.size()
-                        && metadataList.get(nextSnapshotEntryIndex).getMaxScheduleTimestamp() <= cutoffTime) {
-                    nextSnapshotEntryIndex++;
-                }
-
-                final int lastSegmentEntryId = metadataList.size();
-
-                long numberMessages = bucket.covertDelayIndexMapAndCount(nextSnapshotEntryIndex, metadataList);
-                bucket.setNumberBucketDelayedMessages(numberMessages);
-                bucket.setLastSegmentEntryId(lastSegmentEntryId);
-
-                int nextSegmentEntryId = nextSnapshotEntryIndex + 1;
-                loadMetaDataFuture.complete(nextSegmentEntryId);
-            });
+        if (isRecover) {
+            // TODO Recover bucket snapshot
         } else {
             loadMetaDataFuture.complete(bucket.currentSegmentEntryId + 1);
         }
@@ -379,28 +332,12 @@ public class BucketDelayedDeliveryTracker extends InMemoryDelayedDeliveryTracker
                         List<DelayedIndex> indexList = snapshotSegment.getIndexesList();
                         DelayedIndex lastDelayedIndex = indexList.get(indexList.size() - 1);
 
-                        // Rebuild delayed message index bucket load data in parallel, so should be use synchronized
-                        // to ensure data consistency
-                        if (isRebuild) {
-                            synchronized (snapshotSegmentLastIndexTable) {
-                                this.snapshotSegmentLastIndexTable.put(lastDelayedIndex.getLedgerId(),
-                                        lastDelayedIndex.getEntryId(), bucket);
-                            }
+                        this.snapshotSegmentLastIndexTable.put(lastDelayedIndex.getLedgerId(),
+                                lastDelayedIndex.getEntryId(), bucket);
 
-                            synchronized (sharedBucketPriorityQueue) {
-                                for (DelayedIndex index : indexList) {
-                                    sharedBucketPriorityQueue.add(index.getTimestamp(), index.getLedgerId(),
-                                            index.getEntryId());
-                                }
-                            }
-                        } else {
-                            this.snapshotSegmentLastIndexTable.put(lastDelayedIndex.getLedgerId(),
-                                    lastDelayedIndex.getEntryId(), bucket);
-
-                            for (DelayedIndex index : indexList) {
-                                sharedBucketPriorityQueue.add(index.getTimestamp(), index.getLedgerId(),
-                                        index.getEntryId());
-                            }
+                        for (DelayedIndex index : indexList) {
+                            sharedBucketPriorityQueue.add(index.getTimestamp(), index.getLedgerId(),
+                                    index.getEntryId());
                         }
 
                         bucket.setCurrentSegmentEntryId(nextSegmentEntryId);

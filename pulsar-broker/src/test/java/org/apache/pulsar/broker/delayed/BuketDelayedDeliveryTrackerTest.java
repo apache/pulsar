@@ -24,7 +24,6 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timeout;
@@ -76,7 +75,7 @@ public class BuketDelayedDeliveryTrackerTest extends InMemoryDeliveryTrackerTest
         return switch (methodName) {
             case "test" -> new Object[][]{{
                     new BucketDelayedDeliveryTracker(dispatcher, timer, 1, clock,
-                            false, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), 50)
+                            false, 0, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), 50)
             }};
             case "testWithTimer" -> {
                 Timer timer = mock(Timer.class);
@@ -104,33 +103,39 @@ public class BuketDelayedDeliveryTrackerTest extends InMemoryDeliveryTrackerTest
 
                 yield new Object[][]{{
                         new BucketDelayedDeliveryTracker(dispatcher, timer, 1, clock,
-                                false, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), 50),
+                                false, 0, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), 50),
                         tasks
                 }};
             }
             case "testAddWithinTickTime" -> new Object[][]{{
                     new BucketDelayedDeliveryTracker(dispatcher, timer, 100, clock,
-                            false, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), 50)
+                            false, 0, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), 50)
             }};
             case "testAddMessageWithStrictDelay" -> new Object[][]{{
                     new BucketDelayedDeliveryTracker(dispatcher, timer, 100, clock,
-                            true, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), 50)
+                            true, 0, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), 50)
             }};
             case "testAddMessageWithDeliverAtTimeAfterNowBeforeTickTimeFrequencyWithStrict" -> new Object[][]{{
                     new BucketDelayedDeliveryTracker(dispatcher, timer, 1000, clock,
-                            true, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), 50)
+                            true, 0, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), 50)
             }};
-            case "testAddMessageWithDeliverAtTimeAfterNowAfterTickTimeFrequencyWithStrict", "testRecoverSnapshot" -> new Object[][]{{
-                    new BucketDelayedDeliveryTracker(dispatcher, timer, 100000, clock,
-                            true, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), 50)
-            }};
-            case "testAddMessageWithDeliverAtTimeAfterFullTickTimeWithStrict", "testExistDelayedMessage" -> new Object[][]{{
+            case "testAddMessageWithDeliverAtTimeAfterNowAfterTickTimeFrequencyWithStrict", "testRecoverSnapshot" ->
+                    new Object[][]{{
+                            new BucketDelayedDeliveryTracker(dispatcher, timer, 100000, clock,
+                                    true, 0, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), 50)
+                    }};
+            case "testAddMessageWithDeliverAtTimeAfterFullTickTimeWithStrict", "testExistDelayedMessage" ->
+                    new Object[][]{{
+                            new BucketDelayedDeliveryTracker(dispatcher, timer, 500, clock,
+                                    true, 0, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), 50)
+                    }};
+            case "testWithFixedDelays", "testWithMixedDelays", "testWithNoDelays" -> new Object[][]{{
                     new BucketDelayedDeliveryTracker(dispatcher, timer, 500, clock,
-                            true, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), 50)
+                            true, 100, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), 50)
             }};
             default -> new Object[][]{{
                     new BucketDelayedDeliveryTracker(dispatcher, timer, 1, clock,
-                            true, bucketSnapshotStorage, 1000, TimeUnit.MILLISECONDS.toMillis(100), 50)
+                            true, 0, bucketSnapshotStorage, 1000, TimeUnit.MILLISECONDS.toMillis(100), 50)
             }};
         };
     }
@@ -156,42 +161,6 @@ public class BuketDelayedDeliveryTrackerTest extends InMemoryDeliveryTrackerTest
 
         assertTrue(tracker.containsMessage(3, 3));
 
-        tracker.close();
-    }
-
-    @Test(dataProvider = "delayedTracker")
-    public void testRecoverSnapshot(DelayedDeliveryTracker tracker) throws Exception {
-        for (int i = 1; i <= 100; i++) {
-            tracker.addMessage(i, i, i * 10);
-        }
-
-        assertEquals(tracker.getNumberOfDelayedMessages(), 100);
-
-        clockTime.set(1 * 10);
-
-        assertTrue(tracker.hasMessageAvailable());
-        Set<PositionImpl> scheduledMessages = tracker.getScheduledMessages(100);
-
-        assertEquals(scheduledMessages.size(), 1);
-
-        tracker.addMessage(101, 101, 101 * 10);
-
-        tracker.close();
-
-        clockTime.set(30 * 10);
-
-        tracker = new BucketDelayedDeliveryTracker(dispatcher, timer, 1000, clock,
-                true, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), 50);
-
-        assertFalse(tracker.containsMessage(101, 101));
-        assertEquals(tracker.getNumberOfDelayedMessages(), 70);
-
-        clockTime.set(100 * 10);
-
-        assertTrue(tracker.hasMessageAvailable());
-        scheduledMessages = tracker.getScheduledMessages(70);
-
-        assertEquals(scheduledMessages.size(), 70);
         tracker.close();
     }
 }
