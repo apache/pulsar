@@ -491,15 +491,21 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
 
         MyClass value1 = new MyClass("a", 1);
         objCache1.create(key1, value1).join();
-        objCache1.get(key1).join();
+        assertEquals(objCache1.get(key1).join().get().b, 1);
 
-        objCache2.readModifyUpdate(key1, v -> {
+        CompletableFuture<MyClass> future1 = objCache1.readModifyUpdate(key1, v -> {
             return new MyClass(v.a, v.b + 1);
-        }).join();
+        });
 
-        objCache1.readModifyUpdate(key1, v -> {
+        CompletableFuture<MyClass> future2 = objCache2.readModifyUpdate(key1, v -> {
             return new MyClass(v.a, v.b + 1);
-        }).join();
+        });
+
+        MyClass myClass1 = future1.join();
+        assertEquals(myClass1.b, 2);
+
+        MyClass myClass2 = future2.join();
+        assertEquals(myClass2.b, 3);
     }
 
     @Test(dataProvider = "impl")

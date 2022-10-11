@@ -294,12 +294,12 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
 
     private CompletableFuture<T> executeWithRetry(Supplier<CompletableFuture<T>> op, String key) {
         CompletableFuture<T> result = new CompletableFuture<>();
-        op.get().thenAccept(r -> result.complete(r)).exceptionally((ex) -> {
+        op.get().thenAccept(result::complete).exceptionally((ex) -> {
             if (ex.getCause() instanceof BadVersionException) {
                 // if resource is updated by other than metadata-cache then metadata-cache will get bad-version
                 // exception. so, try to invalidate the cache and try one more time.
                 objCache.synchronous().invalidate(key);
-                op.get().thenAccept((c) -> result.complete(null)).exceptionally((ex1) -> {
+                op.get().thenAccept(result::complete).exceptionally((ex1) -> {
                     result.completeExceptionally(ex1.getCause());
                     return null;
                 });
