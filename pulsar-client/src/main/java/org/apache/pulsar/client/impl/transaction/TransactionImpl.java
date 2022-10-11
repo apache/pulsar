@@ -31,6 +31,7 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException.InvalidTxnStatusException;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException.TransactionNotFoundException;
@@ -71,7 +72,7 @@ public class TransactionImpl implements Transaction , TimerTask {
     private static final AtomicReferenceFieldUpdater<TransactionImpl, State> STATE_UPDATE =
         AtomicReferenceFieldUpdater.newUpdater(TransactionImpl.class, State.class, "state");
 
-    private volatile Throwable opException = null;
+    private volatile boolean hasOpsFailed = false;
     private final Timeout timeout;
 
     @Override
@@ -137,8 +138,8 @@ public class TransactionImpl implements Transaction , TimerTask {
             if (e != null) {
                 log.error("The transaction [{}:{}] get an exception when send messages.",
                         txnIdMostBits, txnIdLeastBits, e);
-                if (opException == null) {
-                    opException = e;
+                if (!hasOpsFailed) {
+                    hasOpsFailed = true;
                 }
             }
             CompletableFuture<Void> future = opFuture;
@@ -178,8 +179,8 @@ public class TransactionImpl implements Transaction , TimerTask {
             if (e != null) {
                 log.error("The transaction [{}:{}] get an exception when ack messages.",
                         txnIdMostBits, txnIdLeastBits, e);
-                if (opException == null) {
-                    opException = e;
+                if (!hasOpsFailed) {
+                    hasOpsFailed = true;
                 }
             }
             CompletableFuture<Void> future = opFuture;
@@ -196,8 +197,9 @@ public class TransactionImpl implements Transaction , TimerTask {
             CompletableFuture<Void> commitFuture = new CompletableFuture<>();
             this.state = State.COMMITTING;
             opFuture.whenComplete((v, e) -> {
-                if (opException != null) {
-                    abort().whenComplete((vx, ex) -> commitFuture.completeExceptionally(opException));
+                if (hasOpsFailed) {
+                    abort().whenComplete((vx, ex) -> commitFuture.completeExceptionally(new PulsarClientException
+                            .TransactionHasOperationFailedException()));
                 } else {
                     tcClient.commitAsync(new TxnID(txnIdMostBits, txnIdLeastBits))
                             .whenComplete((vx, ex) -> {
@@ -225,9 +227,6 @@ public class TransactionImpl implements Transaction , TimerTask {
             CompletableFuture<Void> abortFuture = new CompletableFuture<>();
             this.state = State.ABORTING;
             opFuture.whenComplete((v, e) -> {
-                if (opException != null) {
-                    log.error(opException.getMessage());
-                }
                 tcClient.abortAsync(new TxnID(txnIdMostBits, txnIdLeastBits)).whenComplete((vx, ex) -> {
 
                     if (ex != null) {
