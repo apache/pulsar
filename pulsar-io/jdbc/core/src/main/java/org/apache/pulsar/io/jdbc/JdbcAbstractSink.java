@@ -89,8 +89,6 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
             properties.setProperty("password", password);
         }
 
-
-        Class.forName(JdbcUtils.getDriverClassName(jdbcSinkConfig.getJdbcUrl()));
         connection = DriverManager.getConnection(jdbcSinkConfig.getJdbcUrl(), properties);
         connection.setAutoCommit(!jdbcSinkConfig.isUseTransactions());
         log.info("Opened jdbc connection: {}, autoCommit: {}", jdbcUrl, connection.getAutoCommit());

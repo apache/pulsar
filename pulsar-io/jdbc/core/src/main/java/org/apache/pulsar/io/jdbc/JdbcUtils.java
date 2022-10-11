@@ -228,14 +228,4 @@ public class JdbcUtils {
     public static PreparedStatement buildDeleteStatement(Connection connection, String deleteSQL) throws SQLException {
         return connection.prepareStatement(deleteSQL);
     }
-
-    public static String getDriverClassName(String jdbcUrl) throws Exception {
-        for (JdbcDriverType type : JdbcDriverType.values()) {
-            if (type.matches(jdbcUrl)) {
-                return type.getDriverClass();
-            }
-        }
-        throw new Exception("Provided JDBC connection string contains unknown driver: " + jdbcUrl);
-    }
-
 }
