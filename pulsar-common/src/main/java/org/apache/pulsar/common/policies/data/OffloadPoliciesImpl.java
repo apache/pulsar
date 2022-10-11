@@ -69,7 +69,7 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
             .of("S3", "aws-s3", "google-cloud-storage", "filesystem", "azureblob", "aliyun-oss");
     public static final String DEFAULT_OFFLOADER_DIRECTORY = "./offloaders";
     public static final Long DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES = null;
-    public static final Long DEFAULT_OFFLOAD_TIME_THRESHOLD = null;
+    public static final Long DEFAULT_OFFLOAD_THRESHOLD_IN_SECONDS = null;
     public static final Long DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS = null;
 
     public static final String OFFLOAD_THRESHOLD_NAME_IN_CONF_FILE =
@@ -93,7 +93,7 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
     private Integer managedLedgerOffloadPrefetchRounds = DEFAULT_OFFLOAD_MAX_PREFETCH_ROUNDS;
     @Configuration
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
-    private Long managedLedgerOffloadThresholdInSeconds = DEFAULT_OFFLOAD_TIME_THRESHOLD;
+    private Long managedLedgerOffloadThresholdInSeconds = DEFAULT_OFFLOAD_THRESHOLD_IN_SECONDS;
     @Configuration
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private Long managedLedgerOffloadThresholdInBytes = DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES;
@@ -183,7 +183,6 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
                                              String credentialId, String credentialSecret,
                                              Integer maxBlockSizeInBytes, Integer readBufferSizeInBytes,
                                              Long offloadThresholdInBytes,
-                                             //Long offloadTimeThreshold, //TODO
                                              Long offloadDeletionLagInMillis,
                                              OffloadedReadPriority readPriority) {
         OffloadPoliciesImplBuilder builder = builder()

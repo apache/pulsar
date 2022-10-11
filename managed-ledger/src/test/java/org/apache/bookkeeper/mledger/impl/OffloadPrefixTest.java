@@ -817,7 +817,6 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
 
         // Ledger will roll twice, offload will run on first ledger after second closed
         for (int i = 0; i < 25; i++) {
-            Thread.sleep(10);
             ledger.addEntry(buildEntry(10, "entry-" + i));
         }
 
@@ -887,9 +886,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         for (int i = 0; i < 25; i++) {
             ledger.addEntry(buildEntry(10, "entry-" + i));
         }
-        System.out.println("before");
         offloadRunning.await();
-        System.out.println("after");
 
         for (int i = 0; i < 20; i++) {
             ledger.addEntry(buildEntry(10, "entry-" + i));

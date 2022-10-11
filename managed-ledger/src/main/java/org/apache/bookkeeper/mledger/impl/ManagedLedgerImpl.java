@@ -2389,8 +2389,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         if (config.getLedgerOffloader() == null || config.getLedgerOffloader() == NullLedgerOffloader.INSTANCE
                 || config.getLedgerOffloader().getOffloadPolicies() == null) {
-            log.debug("[{}] Nothing to offload due to offloader or offloadPolicies is NULL", name);
-            finalPromise.complete(PositionImpl.LATEST);
+            String msg = String.format("[%s] Nothing to offload due to offloader or offloadPolicies is NULL", name);
+            finalPromise.completeExceptionally(new IllegalArgumentException(msg));
             return;
         }
 
@@ -2406,7 +2406,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 Optional.ofNullable(policies.getManagedLedgerOffloadThresholdInSeconds()).filter(v -> v >= 0)
                         .map(TimeUnit.SECONDS::toMillis).orElse(-1L);
 
-        //Skip the following steps if `offloadTimeThreshold` and `offloadThresholdInBytes` are null OR negative values.
         if (offloadThresholdInBytes < 0 && offloadTimeThresholdMillis < 0) {
             log.debug("[{}] Nothing to offload due to [managedLedgerOffloadAutoTriggerSizeThresholdBytes] "
                     + "and [managedLedgerOffloadThresholdInSeconds] are null OR negative values.", name);
