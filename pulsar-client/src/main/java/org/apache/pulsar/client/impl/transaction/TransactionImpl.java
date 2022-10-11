@@ -70,6 +70,8 @@ public class TransactionImpl implements Transaction , TimerTask {
     private volatile State state;
     private static final AtomicReferenceFieldUpdater<TransactionImpl, State> STATE_UPDATE =
         AtomicReferenceFieldUpdater.newUpdater(TransactionImpl.class, State.class, "state");
+
+    private volatile Throwable opException = null;
     private final Timeout timeout;
 
     @Override
@@ -131,16 +133,18 @@ public class TransactionImpl implements Transaction , TimerTask {
         }
         // the opCount is always bigger than 0 if there is an exception,
         // and then the opFuture will never be replaced.
-        newSendFuture.thenRun(() -> {
+        newSendFuture.whenComplete((messageId, e) -> {
+            if (e != null) {
+                log.error("The transaction [{}:{}] get an exception when send messages.",
+                        txnIdMostBits, txnIdLeastBits, e);
+                if (opException == null) {
+                    opException = e;
+                }
+            }
             CompletableFuture<Void> future = opFuture;
             if (OP_COUNT_UPDATE.decrementAndGet(this) == 0) {
                 future.complete(null);
             }
-        }).exceptionally(e -> {
-            log.error("The transaction [{}:{}] get an exception when send messages.",
-                    txnIdMostBits, txnIdLeastBits, e);
-            opFuture.completeExceptionally(e);
-            return null;
         });
     }
 
@@ -170,16 +174,18 @@ public class TransactionImpl implements Transaction , TimerTask {
         }
         // the opCount is always bigger than 0 if there is an exception,
         // and then the opFuture will never be replaced.
-        newAckFuture.thenRun(() -> {
+        newAckFuture.whenComplete((ignore, e) -> {
+            if (e != null) {
+                log.error("The transaction [{}:{}] get an exception when ack messages.",
+                        txnIdMostBits, txnIdLeastBits, e);
+                if (opException == null) {
+                    opException = e;
+                }
+            }
             CompletableFuture<Void> future = opFuture;
             if (OP_COUNT_UPDATE.decrementAndGet(this) == 0) {
                 future.complete(null);
             }
-        }).exceptionally(e -> {
-            log.error("The transaction [{}:{}] get an exception when ack messages.",
-                    txnIdMostBits, txnIdLeastBits, e);
-            opFuture.completeExceptionally(e);
-            return null;
         });
     }
 
@@ -190,8 +196,8 @@ public class TransactionImpl implements Transaction , TimerTask {
             CompletableFuture<Void> commitFuture = new CompletableFuture<>();
             this.state = State.COMMITTING;
             opFuture.whenComplete((v, e) -> {
-                if (e != null) {
-                    abort().whenComplete((vx, ex) -> commitFuture.completeExceptionally(e));
+                if (opException != null) {
+                    abort().whenComplete((vx, ex) -> commitFuture.completeExceptionally(opException));
                 } else {
                     tcClient.commitAsync(new TxnID(txnIdMostBits, txnIdLeastBits))
                             .whenComplete((vx, ex) -> {
@@ -219,8 +225,8 @@ public class TransactionImpl implements Transaction , TimerTask {
             CompletableFuture<Void> abortFuture = new CompletableFuture<>();
             this.state = State.ABORTING;
             opFuture.whenComplete((v, e) -> {
-                if (e != null) {
-                    log.error(e.getMessage());
+                if (opException != null) {
+                    log.error(opException.getMessage());
                 }
                 tcClient.abortAsync(new TxnID(txnIdMostBits, txnIdLeastBits)).whenComplete((vx, ex) -> {
 
