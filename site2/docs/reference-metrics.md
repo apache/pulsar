@@ -401,7 +401,7 @@ All the bundleUnloading metrics are labeled with the following labels:
 
 | Name                          | Type    | Description                                                |
 |-------------------------------|---------|------------------------------------------------------------|
-| pulsar_lb_bundles_split_total | Counter | bundle split count in this bundle splitting check interval |
+| pulsar_lb_bundles_split_total | Counter | The total count of bundle split in this leader broker |
 
 #### Bundle metrics
 All the bundle metrics are labeled with the following labels:
