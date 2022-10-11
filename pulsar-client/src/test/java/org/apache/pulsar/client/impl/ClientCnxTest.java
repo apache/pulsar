@@ -34,6 +34,7 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.lang.reflect.Field;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ThreadFactory;
 import java.util.function.Consumer;
@@ -50,6 +51,7 @@ import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.PulsarHandler;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
+import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
 public class ClientCnxTest {
@@ -77,6 +79,72 @@ public class ClientCnxTest {
             assertTrue(e.getCause() instanceof PulsarClientException.TimeoutException);
         }
 
+        eventLoop.shutdownGracefully();
+    }
+
+    @Test
+    public void testPendingLookupRequestSemaphore() throws Exception {
+        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, new DefaultThreadFactory("testClientCnxTimeout"));
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setOperationTimeoutMs(10_000);
+        conf.setKeepAliveIntervalSeconds(0);
+        ClientCnx cnx = new ClientCnx(conf, eventLoop);
+
+        ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
+        Channel channel = mock(Channel.class);
+        when(ctx.channel()).thenReturn(channel);
+        ChannelFuture listenerFuture = mock(ChannelFuture.class);
+        when(listenerFuture.addListener(any())).thenReturn(listenerFuture);
+        when(ctx.writeAndFlush(any())).thenReturn(listenerFuture);
+        cnx.channelActive(ctx);
+        CountDownLatch countDownLatch1 = new CountDownLatch(1);
+        CountDownLatch countDownLatch2 = new CountDownLatch(1);
+        new Thread(() -> {
+            try {
+                Thread.sleep(5_000);
+                CompletableFuture<BinaryProtoLookupService.LookupDataResult> future =
+                        cnx.newLookup(null, 123);
+                countDownLatch1.countDown();
+                future.get();
+            } catch (Exception e) {
+                // ignore exception
+            } finally {
+                countDownLatch2.countDown();
+            }
+        }).start();
+        countDownLatch1.await();
+        cnx.channelInactive(ctx);
+        countDownLatch2.await();
+        // wait for subsequent calls over
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(cnx.getPendingLookupRequestSemaphore().availablePermits(), conf.getConcurrentLookupRequest());
+        });
+        eventLoop.shutdownGracefully();
+    }
+
+    @Test
+    public void testPendingWaitingLookupRequestSemaphore() throws Exception {
+        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, new DefaultThreadFactory("testClientCnxTimeout"));
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setOperationTimeoutMs(10_000);
+        conf.setKeepAliveIntervalSeconds(0);
+        ClientCnx cnx = new ClientCnx(conf, eventLoop);
+
+        ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
+        Channel channel = mock(Channel.class);
+        when(ctx.channel()).thenReturn(channel);
+        ChannelFuture listenerFuture = mock(ChannelFuture.class);
+        when(listenerFuture.addListener(any())).thenReturn(listenerFuture);
+        when(ctx.writeAndFlush(any())).thenReturn(listenerFuture);
+        cnx.channelActive(ctx);
+        for (int i = 0; i < 5001; i++) {
+            cnx.newLookup(null, i);
+        }
+        cnx.channelInactive(ctx);
+        // wait for subsequent calls over
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(cnx.getPendingLookupRequestSemaphore().availablePermits(), conf.getConcurrentLookupRequest());
+        });
         eventLoop.shutdownGracefully();
     }
 
