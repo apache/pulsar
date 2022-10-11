@@ -93,16 +93,16 @@ Message compression can reduce message size by paying some CPU overhead. The Pul
 * [LZ4](https://github.com/lz4/lz4)
 * [ZLIB](https://zlib.net/)
 * [ZSTD](https://facebook.github.io/zstd/)
-* [SNAPPY](https://google.github.io/snappy/). 
- 
+* [SNAPPY](https://google.github.io/snappy/).
+
 Compression types are stored in the message metadata, so consumers can adopt different compression types automatically, as needed.
 
 The sample code below shows how to enable compression type for a producer:
 
 ```
 client.newProducer()
-    .topic(“topic-name”) 
-    .compressionType(CompressionType.LZ4) 
+    .topic(“topic-name”)
+    .compressionType(CompressionType.LZ4)
     .create();
 ```
 
@@ -139,7 +139,7 @@ Consumer<byte[]> consumer = pulsarClient.newConsumer()
 Message chunking enables Pulsar to process large payload messages by splitting the message into chunks at the producer side and aggregating chunked messages at the consumer side.
 
 With message chunking enabled, when the size of a message exceeds the allowed maximum payload size (the `maxMessageSize` parameter of broker), the workflow of messaging is as follows:
-1. The producer splits the original message into chunked messages and publishes them with chunked metadata to the broker separately and in order. 
+1. The producer splits the original message into chunked messages and publishes them with chunked metadata to the broker separately and in order.
 2. The broker stores the chunked messages in one managed ledger in the same way as that of ordinary messages, and it uses the `chunkedMessageRate` parameter to record chunked message rate on the topic.
 3. The consumer buffers the chunked messages and aggregates them into the receiver queue when it receives all the chunks of a message.
 4. The client consumes the aggregated message from the receiver queue.
@@ -494,7 +494,7 @@ Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
                 .subscribe();
 ```
 
-Dead letter topic serves message redelivery, which is triggered by [acknowledgment timeout](#acknowledgment-timeout) or [negative acknowledgment](#negative-acknowledgment) or [retry letter topic](#retry-letter-topic). 
+Dead letter topic serves message redelivery, which is triggered by [acknowledgment timeout](#acknowledgment-timeout) or [negative acknowledgment](#negative-acknowledgment) or [retry letter topic](#retry-letter-topic).
 
 :::note
 
@@ -536,7 +536,7 @@ A subscription is a named configuration rule that determines how messages are de
 
 :::tip
 
-**Pub-Sub or Queuing**  
+**Pub-Sub or Queuing**
   In Pulsar, you can use different subscriptions flexibly.
   * If you want to achieve traditional "fan-out pub-sub messaging" among consumers, specify a unique subscription name for each consumer. It is an exclusive subscription type.
   * If you want to achieve "message queuing" among consumers, share the same subscription name among multiple consumers(shared, failover, key_shared).
@@ -560,7 +560,7 @@ Exclusive is the default subscription type.
 
 :::
 
-![Exclusive subscriptions](/assets/pulsar-exclusive-subscriptions.png)
+![Exclusive subscriptions](/assets/pulsar-exclusive-subscriptions.svg)
 
 #### Failover
 
@@ -573,7 +573,7 @@ For example, a partitioned topic has 3 partitions, and 15 consumers. Each partit
 
 In the diagram below, **Consumer-B-0** is the master consumer while **Consumer-B-1** would be the next consumer in line to receive messages if **Consumer-B-0** is disconnected.
 
-![Failover subscriptions](/assets/pulsar-failover-subscriptions.png)
+![Failover subscriptions](/assets/pulsar-failover-subscriptions.svg)
 
 #### Shared
 
@@ -583,24 +583,24 @@ In the diagram below, **Consumer-C-1** and **Consumer-C-2** are able to subscrib
 
 :::note
 
-**Limitations of Shared type**  
+**Limitations of Shared type**
  When using Shared type, be aware that:
  * Message ordering is not guaranteed.
  * You cannot use cumulative acknowledgment with Shared type.
- 
+
 :::
 
-![Shared subscriptions](/assets/pulsar-shared-subscriptions.png)
+![Shared subscriptions](/assets/pulsar-shared-subscriptions.svg)
 
 #### Key_Shared
 
 In the *Key_Shared* type, multiple consumers can attach to the same subscription. Messages are delivered in distribution across consumers and messages with the same key or same ordering key are delivered to only one consumer. No matter how many times the message is re-delivered, it is delivered to the same consumer. When a consumer connects or disconnects, it causes the served consumer to change some message keys.
 
-![Key_Shared subscriptions](/assets/pulsar-key-shared-subscriptions.png)
+![Key_Shared subscriptions](/assets/pulsar-key-shared-subscriptions.svg)
 
 Note that when the consumers are using the Key_Shared subscription type, you need to **disable batching** or **use key-based batching** for the producers. There are two reasons why the key-based batching is necessary for the Key_Shared subscription type:
-1. The broker dispatches messages according to the keys of the messages, but the default batching approach might fail to pack the messages with the same key to the same batch. 
-2. Since it is the consumers instead of the broker who dispatch the messages from the batches, the key of the first message in one batch is considered as the key to all messages in this batch, thereby leading to context errors. 
+1. The broker dispatches messages according to the keys of the messages, but the default batching approach might fail to pack the messages with the same key to the same batch.
+2. Since it is the consumers instead of the broker who dispatch the messages from the batches, the key of the first message in one batch is considered as the key to all messages in this batch, thereby leading to context errors.
 
 The key-based batching aims at resolving the above-mentioned issues. This batching method ensures that the producers pack the messages with the same key to the same batch. The messages without a key are packed into one batch and this batch has no key. When the broker dispatches messages from this batch, it uses `NON_KEY` as the key. In addition, each consumer is associated with **only one** key and should receive **only one message batch** for the connected key. By default, you can limit batching by configuring the number of messages that producers are allowed to send.
 
@@ -643,13 +643,13 @@ producer = client.create_producer(topic='my-topic', batching_type=pulsar.Batchin
 
 :::note
 
-**Limitations of Key_Shared type** 
+**Limitations of Key_Shared type**
 
 When you use Key_Shared type, be aware that:
   * You need to specify a key or ordering key for messages.
   * You cannot use cumulative acknowledgment with Key_Shared type.
-  * When the position of the newest message in a topic is `X`, a key-shared consumer that is newly attached to the same subscription and connected to the topic will **not** receive any messages until all the messages before `X` have been acknowledged. 
-  
+  * When the position of the newest message in a topic is `X`, a key-shared consumer that is newly attached to the same subscription and connected to the topic will **not** receive any messages until all the messages before `X` have been acknowledged.
+
 :::
 
 ### Subscription modes
@@ -727,7 +727,7 @@ When subscribing to multiple topics, the Pulsar client automatically makes a cal
 
 :::note
 
- **No ordering guarantees across multiple topics**  
+ **No ordering guarantees across multiple topics**
  When a producer sends messages to a single topic, all messages are guaranteed to be read from that topic in the same order. However, these guarantees do not hold across multiple topics. So when a producer sends messages to multiple topics, the order in which messages are read from those topics is not guaranteed to be the same.
 
 :::
@@ -806,7 +806,7 @@ Per-producer       | All the messages from the same producer will be in order. |
 
 {@inject: javadoc:HashingScheme:/client/org/apache/pulsar/client/api/HashingScheme} is an enum that represents sets of standard hashing functions available when choosing the partition to use for a particular message.
 
-There are 2 types of standard hashing functions available: `JavaStringHash` and `Murmur3_32Hash`. 
+There are 2 types of standard hashing functions available: `JavaStringHash` and `Murmur3_32Hash`.
 The default hashing function for producers is `JavaStringHash`.
 Please pay attention that `JavaStringHash` is not useful when producers can be from different multiple language clients, under this use case, it is recommended to use `Murmur3_32Hash`.
 
@@ -946,7 +946,6 @@ The following diagram illustrates what happens when message deduplication is dis
 
 ![Pulsar message deduplication](/assets/message-deduplication.svg)
 
-
 Message deduplication is disabled in the scenario shown at the top. Here, a producer publishes message 1 on a topic; the message reaches a Pulsar broker and is [persisted](concepts-architecture-overview.md#persistent-storage) to BookKeeper. The producer then sends message 1 again (in this case due to some retry logic), and the message is received by the broker and stored in BookKeeper again, which means that duplication has occurred.
 
 In the second scenario at the bottom, the producer publishes message 1, which is received by the broker and persisted, as in the first scenario. When the producer attempts to publish the message again, however, the broker knows that it has already seen message 1 and thus does not persist the message.
@@ -970,7 +969,7 @@ Delayed message delivery only works in the Shared subscription type. In the Excl
 
 The diagram below illustrates the concept of delayed message delivery:
 
-![Delayed Message Delivery](/assets/message_delay.png)
+![Delayed Message Delivery](/assets/message-delay.svg)
 
 A broker saves a message without any check. When a consumer consumes a message, if the message is set to delay, then the message is added to `DelayedDeliveryTracker`. A subscription checks and gets timeout messages from `DelayedDeliveryTracker`.
 
@@ -1005,8 +1004,3 @@ The following is an example of delayed message delivery for a producer in Java:
 // message to be delivered at the configured delay interval
 producer.newMessage().deliverAfter(3L, TimeUnit.Minute).value("Hello Pulsar!").send();
 ```
-
-![consumer](https://user-images.githubusercontent.com/94193423/192619010-cb1a5772-f0b8-4d40-b9f9-1df1c5d8ce68.svg)
-![retention-expiry](https://user-images.githubusercontent.com/94193423/192619038-5dca1524-6c10-4879-be1d-a2504f1f9003.svg)
-![message-deduplication](https://user-images.githubusercontent.com/94193423/192619054-de1226d9-2186-4961-92da-e26c79bae996.svg)
-![delayed-delivery](https://user-images.githubusercontent.com/94193423/192619073-206f0f8c-ab95-4d5e-b83f-f04338d62cea.svg)
