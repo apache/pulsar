@@ -266,11 +266,8 @@
         {
           "type": "category",
           "label": "Encryption",
-          "link": {
-            "type": "doc",
-            "id": "security-encryption"
-          },
           "items": [
+            "security-encryption",
             "security-tls-transport",
             "security-bouncy-castle"
           ]
@@ -347,7 +344,6 @@
         "cookbooks-deduplication",
         "cookbooks-non-persistent",
         "cookbooks-retention-expiry",
-        "cookbooks-encryption",
         "cookbooks-message-queue",
         "cookbooks-bookkeepermetadata"
       ]

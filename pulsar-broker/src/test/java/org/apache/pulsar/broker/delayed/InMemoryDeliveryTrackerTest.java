@@ -74,7 +74,7 @@ public class InMemoryDeliveryTrackerTest {
 
         @Cleanup
         InMemoryDelayedDeliveryTracker tracker = new InMemoryDelayedDeliveryTracker(dispatcher, timer, 1, clock,
-                false);
+                false, 0);
 
         assertFalse(tracker.hasMessageAvailable());
 
@@ -146,7 +146,7 @@ public class InMemoryDeliveryTrackerTest {
 
         @Cleanup
         InMemoryDelayedDeliveryTracker tracker = new InMemoryDelayedDeliveryTracker(dispatcher, timer, 1, clock,
-                false);
+                false, 0);
 
         assertTrue(tasks.isEmpty());
         assertTrue(tracker.addMessage(2, 2, 20));
@@ -187,7 +187,7 @@ public class InMemoryDeliveryTrackerTest {
 
         @Cleanup
         InMemoryDelayedDeliveryTracker tracker = new InMemoryDelayedDeliveryTracker(dispatcher, timer, 100, clock,
-                false);
+                false, 0);
 
         clockTime.set(0);
 
@@ -209,7 +209,7 @@ public class InMemoryDeliveryTrackerTest {
 
         @Cleanup
         InMemoryDelayedDeliveryTracker tracker = new InMemoryDelayedDeliveryTracker(dispatcher, timer, 100, clock,
-                true);
+                true, 0);
 
         clockTime.set(10);
 
@@ -236,7 +236,7 @@ public class InMemoryDeliveryTrackerTest {
         // Use a short tick time to show that the timer task is run based on the deliverAt time in this scenario.
         @Cleanup
         InMemoryDelayedDeliveryTracker tracker = new InMemoryDelayedDeliveryTracker(dispatcher, timer,
-                1000, clock, true);
+                1000, clock, true, 0);
 
         // Set clock time, then run tracker to inherit clock time as the last tick time.
         clockTime.set(10000);
@@ -274,7 +274,7 @@ public class InMemoryDeliveryTrackerTest {
         // a previous tick run.
         @Cleanup
         InMemoryDelayedDeliveryTracker tracker = new InMemoryDelayedDeliveryTracker(dispatcher, timer,
-                100000, clock, true);
+                100000, clock, true, 0);
 
         clockTime.set(500000);
 
@@ -299,7 +299,7 @@ public class InMemoryDeliveryTrackerTest {
         // Use a short tick time to show that the timer task is run based on the deliverAt time in this scenario.
         @Cleanup
         InMemoryDelayedDeliveryTracker tracker = new InMemoryDelayedDeliveryTracker(dispatcher, timer,
-                500, clock, true);
+                500, clock, true, 0);
 
         clockTime.set(0);
 
@@ -323,9 +323,11 @@ public class InMemoryDeliveryTrackerTest {
         Clock clock = mock(Clock.class);
         when(clock.millis()).then(x -> clockTime.get());
 
+        final long fixedDelayLookahead = 100;
+
         @Cleanup
         InMemoryDelayedDeliveryTracker tracker = new InMemoryDelayedDeliveryTracker(dispatcher, timer, 1, clock,
-                true);
+                true, fixedDelayLookahead);
 
         assertFalse(tracker.hasMessageAvailable());
 
@@ -339,13 +341,13 @@ public class InMemoryDeliveryTrackerTest {
         assertEquals(tracker.getNumberOfDelayedMessages(), 5);
         assertFalse(tracker.shouldPauseAllDeliveries());
 
-        for (int i = 6; i <= InMemoryDelayedDeliveryTracker.DETECT_FIXED_DELAY_LOOKAHEAD_MESSAGES; i++) {
+        for (int i = 6; i <= fixedDelayLookahead; i++) {
             assertTrue(tracker.addMessage(i, i, i * 10));
         }
 
         assertTrue(tracker.shouldPauseAllDeliveries());
 
-        clockTime.set(InMemoryDelayedDeliveryTracker.DETECT_FIXED_DELAY_LOOKAHEAD_MESSAGES * 10);
+        clockTime.set(fixedDelayLookahead * 10);
 
         tracker.getScheduledMessages(100);
         assertFalse(tracker.shouldPauseAllDeliveries());
@@ -367,9 +369,11 @@ public class InMemoryDeliveryTrackerTest {
         Clock clock = mock(Clock.class);
         when(clock.millis()).then(x -> clockTime.get());
 
+        long fixedDelayLookahead = 100;
+
         @Cleanup
         InMemoryDelayedDeliveryTracker tracker = new InMemoryDelayedDeliveryTracker(dispatcher, timer, 1, clock,
-                true);
+                true, fixedDelayLookahead);
 
         assertFalse(tracker.hasMessageAvailable());
 
@@ -381,7 +385,7 @@ public class InMemoryDeliveryTrackerTest {
 
         assertFalse(tracker.shouldPauseAllDeliveries());
 
-        for (int i = 6; i <= InMemoryDelayedDeliveryTracker.DETECT_FIXED_DELAY_LOOKAHEAD_MESSAGES; i++) {
+        for (int i = 6; i <= fixedDelayLookahead; i++) {
             assertTrue(tracker.addMessage(i, i, i * 10));
         }
 
@@ -401,9 +405,11 @@ public class InMemoryDeliveryTrackerTest {
         Clock clock = mock(Clock.class);
         when(clock.millis()).then(x -> clockTime.get());
 
+        long fixedDelayLookahead = 100;
+
         @Cleanup
         InMemoryDelayedDeliveryTracker tracker = new InMemoryDelayedDeliveryTracker(dispatcher, timer, 1, clock,
-                true);
+                true, fixedDelayLookahead);
 
         assertFalse(tracker.hasMessageAvailable());
 
@@ -415,7 +421,7 @@ public class InMemoryDeliveryTrackerTest {
 
         assertFalse(tracker.shouldPauseAllDeliveries());
 
-        for (int i = 6; i <= InMemoryDelayedDeliveryTracker.DETECT_FIXED_DELAY_LOOKAHEAD_MESSAGES; i++) {
+        for (int i = 6; i <= fixedDelayLookahead; i++) {
             assertTrue(tracker.addMessage(i, i, i * 10));
         }
 

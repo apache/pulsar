@@ -494,4 +494,4 @@ consumer = client.subscribe(
 
 ## End-to-end encryption
 
-Pulsar encryption allows applications to encrypt messages at producers and decrypt messages at consumers. See [cookbook](cookbooks-encryption.md) for more details.
+Pulsar encryption allows applications to encrypt messages at producers and decrypt messages at consumers. See [Get started](security-encryption.md#get-started) for more details.

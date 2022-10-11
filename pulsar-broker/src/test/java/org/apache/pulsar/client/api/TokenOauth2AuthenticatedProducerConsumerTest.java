@@ -132,7 +132,7 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
         }
 
         Message<byte[]> msg = null;
-        Set<String> messageSet = Sets.newHashSet();
+        Set<String> messageSet = new HashSet<>();
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
@@ -184,7 +184,7 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
         }
 
         Message<byte[]> msg = null;
-        Set<String> messageSet = Sets.newHashSet();
+        Set<String> messageSet = new HashSet<>();
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
@@ -221,7 +221,7 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
         }
 
         msg = null;
-        messageSet = Sets.newHashSet();
+        messageSet = new HashSet<>();
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
