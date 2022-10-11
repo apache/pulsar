@@ -454,7 +454,7 @@ Send out a PR request for review.
 
 ## Write release notes
 
-See [Pulsar Release Notes Guide](../release-note-guide.md).
+See [Pulsar Release Notes Guide](../release/release-note-guide.md).
 
 ## Update the site
 
