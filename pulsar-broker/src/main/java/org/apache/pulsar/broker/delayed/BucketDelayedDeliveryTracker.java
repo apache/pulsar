@@ -476,7 +476,7 @@ public class BucketDelayedDeliveryTracker extends InMemoryDelayedDeliveryTracker
             removeIndexBit(ledgerId, entryId);
 
             BucketState bucketState = snapshotSegmentLastIndexTable.remove(ledgerId, entryId);
-            if (bucketState != null && bucketState.active) {
+            if (bucketState != null) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Load next snapshot segment, bucketState: {}", dispatcher.getName(), bucketState);
                 }

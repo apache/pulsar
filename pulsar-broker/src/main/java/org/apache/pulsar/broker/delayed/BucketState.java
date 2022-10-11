@@ -46,12 +46,10 @@ public class BucketState {
 
     long bucketId;
 
-    boolean active;
-
     volatile CompletableFuture<Long> snapshotCreateFuture;
 
     BucketState(long startLedgerId, long endLedgerId) {
-        this(startLedgerId, endLedgerId, new HashMap<>(), -1, -1, 0, 0, -1, true, null);
+        this(startLedgerId, endLedgerId, new HashMap<>(), -1, -1, 0, 0, -1, null);
     }
 
     boolean containsMessage(long ledgerId, int entryId) {
