@@ -49,11 +49,11 @@ Follow the steps below to submit release notes for Pulsar and clients.
       </tr>
       <tr>
         <td rowspan="2">Pulsar clients</td>
-        <td>Java<br><br>WebSocket<br><br>C++<br><br>Python</td>
+        <td> - Java<br><br> - WebSocket<br><br> - C++<br><br> - Python</td>
         <td>Add separate release notes for them, that is, create independent sections in the release note.<br><br>Example<br><br><img title="Java client release note example" alt="Java client release note example" src="../assets/release-note-guide-1.png"></td>
       </tr>
       <tr>
-        <td>Go<br><br>Node.js<br><br>C#</td>
+        <td> - Go<br><br> - Node.js<br><br> - C#</td>
         <td>No action is needed. You do not need to take care of them since their release notes are synced from their repos to the <a href="https://pulsar.apache.org/release-notes/">Pulsar Release Note page</a>.</td>
       </tr>
     </tbody>
