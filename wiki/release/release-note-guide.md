@@ -33,17 +33,35 @@ Follow the steps below to submit release notes for Pulsar and clients.
 
 1. On the [Pulsar Releases Page - GitHub](https://github.com/apache/pulsar/releases), add a release note for the new release.
 
-    Component | Step 
-    ---|---
-    Pulsar core| Add a release note for it.
-    Pulsar clients: <br> - Java <br> - WebSocket <br> - C++ <br> - Python | Add separate release notes for them.  <br> Example see the image below. <img title="a title" alt="Alt text" src="/../assets/release-note-guide-1.png">
-    Pulsar clients  <br>- Go <br> - Node.js <br> - C#** | No action is needed. You do not need to take care of them since their release notes are synced from their repos to the Pulsar site .
+    <table>
+    <thead>
+      <tr>
+        <th colspan="2">Component</th>
+        <th>Step</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td colspan="2">Pulsar core</td>
+        <td>Add a release note for it.</td>
+      </tr>
+      <tr>
+        <td rowspan="2">Pulsar clients</td>
+        <td>Java<br><br>WebSocket<br><br>C++<br><br>Python</td>
+        <td>Add separate release notes for them.<br><br>Example<br><br><img title="Java client release note example" alt="Java client release note example" src="../assets/release-note-guide-1.png"></td>
+      </tr>
+      <tr>
+        <td>Go<br><br>Node.js<br><br>C#**</td>
+        <td>No action is needed. You do not need to take care of them since their release notes are synced from their repos to the Pulsar site .</td>
+      </tr>
+    </tbody>
+    </table>
 
     After the new release is published, all the information about the release is automatically added to the [Pulsar Release Note page](https://pulsar.apache.org/release-notes/).
 
     ![Java client release note example](../assets/release-note-guide-1.png)
 
-2. After the website is updated and built successfully, check whether the release information is shown on the [Pulsar Release Note page](https://pulsar.apache.org/release-notes/). 
+2. Check whether the release information is shown on the [Pulsar Release Note page](https://pulsar.apache.org/release-notes/) after the website is updated and built successfully.
 
 
 
