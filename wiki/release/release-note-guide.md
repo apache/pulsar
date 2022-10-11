@@ -1,10 +1,20 @@
+# Pulsar Release Note Guide
+
 This guide explains everything about Pulsar release notes.
 
-# Intro to release notes
+<!-- TOC -->
+- [Intro to release notes](#intro-to-release-notes)
+  - [Basic info](#basic-info)
+  - [Maintenance info](#maintenance-info)
+- [Submit release notes](#submit-release-notes)
+
+<!-- /TOC -->
+
+## Intro to release notes
 
 This chapter gives an overview of Pulsar release notes.
 
-## Basic info
+### Basic info
 
 [Pulsar release notes](https://pulsar.apache.org/release-notes/) consist of the following parts.
 
@@ -13,7 +23,7 @@ Release note | Component
 [Pulsar core](https://pulsar.apache.org/release-notes/#pulsar-release-notes)| Pulsar
 [Pulsar clients](../../site2/docs/client-libraries.md) |- Java <br><br> - WebSocket <br><br> - C++ <br><br> - Python <br><br> - Go <br><br> - NodeJs <br><br> - C#
 
-## Maintenance info
+### Maintenance info
 
 For the [Pulsar Release Note page](https://pulsar.apache.org/release-notes/):
 
@@ -29,7 +39,7 @@ For the [Pulsar Release Note page](https://pulsar.apache.org/release-notes/):
   
   - A [Pulsar site sync job](https://github.com/apache/pulsar-site/actions/workflows/ci-pulsar-website-docs-sync.yaml) is performed (every 6 hours).
 
-# Submit release notes
+## Submit release notes
 
 Follow the steps below to submit release notes for Pulsar and clients.
 
@@ -62,8 +72,3 @@ Follow the steps below to submit release notes for Pulsar and clients.
     After the new release is published, all the information about the release is automatically added to the [Pulsar Release Note page](https://pulsar.apache.org/release-notes/).
 
 2. Check whether the release information is shown on the [Pulsar Release Note page](https://pulsar.apache.org/release-notes/) after the website is updated and built successfully.
-
-
-
-
-
