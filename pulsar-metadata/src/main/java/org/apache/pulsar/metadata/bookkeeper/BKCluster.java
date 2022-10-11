@@ -328,7 +328,7 @@ public class BKCluster implements AutoCloseable {
 
     private ServerConfiguration newBaseServerConfiguration() {
         ServerConfiguration confReturn =
-                new ServerConfiguration(this.clusterConf.bkServerConf.orElse(new ServerConfiguration()));
+                new ServerConfiguration(this.clusterConf.bkServerConf.orElseGet(ServerConfiguration::new));
         confReturn.setTLSEnabledProtocols("TLSv1.2,TLSv1.1");
         confReturn.setJournalFlushWhenQueueEmpty(true);
         confReturn.setJournalFormatVersionToWrite(5);
