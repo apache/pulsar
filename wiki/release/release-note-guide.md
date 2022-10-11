@@ -11,17 +11,19 @@ This chapter gives an overview of Pulsar release notes.
 Release note | Component
 ---|---
 [Pulsar core](https://pulsar.apache.org/release-notes/#pulsar-release-notes)| Pulsar
-[Pulsar clients](../../site2/docs/client-libraries.md) |- Java <br> - WebSocket <br> - C++ <br> - Python <br> - Go <br> - NodeJs <br> - C#
+[Pulsar clients](../../site2/docs/client-libraries.md) |- Java <br><br> - WebSocket <br><br> - C++ <br><br> - Python <br><br> - Go <br><br> - NodeJs <br><br> - C#
 
 ## Maintenance info
 
-- The [Pulsar Release Note page](https://pulsar.apache.org/release-notes/) is generated automatically using [release-json-gen.sh](http://release-json-gen.sh).
+For the [Pulsar Release Note page](https://pulsar.apache.org/release-notes/):
+
+- It is generated automatically using [release-json-gen.sh](https://github.com/apache/pulsar-site/blob/main/site2/tools/release-json-gen.sh).
   
   For implementation details, see [PIP 112: Generate Release Notes Automatically](https://github.com/apache/pulsar/wiki/PIP-112:-Generate-Release-Notes-Automatically).
 
-- The [Pulsar Release Note page](https://pulsar.apache.org/release-notes/) info is fetched from the [Pulsar GitHub Releases Page](https://github.com/apache/pulsar/releases).
+- The info is fetched from the [Pulsar Releases Page - GitHub](https://github.com/apache/pulsar/releases).
   
-- The [Pulsar Release Note page](https://pulsar.apache.org/release-notes/) is updated when one of the following conditions is met:
+- It is updated when one of the following conditions is met:
 
   - A commit is pushed to the [pulsar-site repo](https://github.com/apache/pulsar-site). 
   
@@ -48,7 +50,7 @@ Follow the steps below to submit release notes for Pulsar and clients.
       <tr>
         <td rowspan="2">Pulsar clients</td>
         <td>Java<br><br>WebSocket<br><br>C++<br><br>Python</td>
-        <td>Add separate release notes for them.<br><br>Example<br><br><alt="Java client release note example" src="../assets/release-note-guide-1.png">/td>
+        <td>Add separate release notes for them, that is, create independent sections in the release note.<br><br>Example<br><br><img title="Java client release note example" alt="Java client release note example" src="../assets/release-note-guide-1.png"></td>
       </tr>
       <tr>
         <td>Go<br><br>Node.js<br><br>C#</td>
