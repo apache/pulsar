@@ -24,7 +24,6 @@ on:
       - opened
       - reopened
       - edited
-      - synchronize
 
 jobs:
   main:
