@@ -102,6 +102,19 @@ public class SchemaInfoImpl implements SchemaInfo {
         }
     }
 
+    /**
+     * Calculate the SchemaHash for compatible with `@NoArgsConstructor`.
+     * If SchemaInfoImpl is created by no-args-constructor from users, the schemaHash will be null.
+     * Note: We should remove this method as long as `@NoArgsConstructor` removed at major release to avoid null-check
+     * overhead.
+     */
+    public SchemaHash getSchemaHash() {
+        if (schemaHash == null) {
+            schemaHash = SchemaHash.of(this.schema, this.type);
+        }
+        return schemaHash;
+    }
+
     @Override
     public String toString() {
         return SchemaUtils.jsonifySchemaInfo(this);

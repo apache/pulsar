@@ -67,7 +67,7 @@ public class SchemaHash {
         return EMPTY_SCHEMA_HASH;
     }
 
-    // Shouldn't call this method directly
+    // Shouldn't call this method frequently, otherwise will bring performance regression
     public static SchemaHash of(byte[] schemaBytes, SchemaType schemaType) {
         return new SchemaHash(hashFunction.hashBytes(schemaBytes == null ? new byte[0] : schemaBytes), schemaType);
     }
