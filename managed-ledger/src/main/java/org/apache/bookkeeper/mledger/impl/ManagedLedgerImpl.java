@@ -3324,10 +3324,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      * @return the new position that is n entries ahead
      */
     public PositionImpl getPositionAfterN(final PositionImpl startPosition, long n, PositionBound startRange) {
-        final PositionImpl nextValidPosition = getNextValidPosition(startPosition);
-        if (startPosition.compareTo(nextValidPosition) >= 0) {
-            return nextValidPosition;
-        }
         final LedgerHandle curLedger = currentLedger;
         long entriesToSkip = n;
         long currentLedgerId;
@@ -3336,6 +3332,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             currentLedgerId = startPosition.getLedgerId();
             currentEntryId = startPosition.getEntryId();
         } else {
+            PositionImpl nextValidPosition = getNextValidPosition(startPosition);
             currentLedgerId = nextValidPosition.getLedgerId();
             currentEntryId = nextValidPosition.getEntryId();
         }
