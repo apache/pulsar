@@ -23,6 +23,7 @@ import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import com.google.common.collect.Lists;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.lang.reflect.Field;
@@ -575,7 +576,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
     }
 
     @Test
-    public void testBlockIfQueueFUllWhenChunking() throws Exception {
+    public void testBlockIfQueueFullWhenChunking() throws Exception {
         this.conf.setMaxMessageSize(50);
 
         @Cleanup
