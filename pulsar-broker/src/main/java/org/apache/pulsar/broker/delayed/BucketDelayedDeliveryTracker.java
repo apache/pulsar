@@ -218,7 +218,7 @@ public class BucketDelayedDeliveryTracker extends InMemoryDelayedDeliveryTracker
 
             checkArgument(ledgerId >= startLedgerId && ledgerId <= endLedgerId);
 
-            // Move first segment of bucketState snapshot to sharedBucketPriorityQueue
+            // Move first segment of bucket snapshot to sharedBucketPriorityQueue
             if (segmentMetadataList.size() == 0) {
                 sharedBucketPriorityQueue.add(timestamp, ledgerId, entryId);
             }
@@ -273,7 +273,7 @@ public class BucketDelayedDeliveryTracker extends InMemoryDelayedDeliveryTracker
         snapshotSegmentLastIndexTable.put(delayedIndex.getLedgerId(), delayedIndex.getEntryId(), bucketState);
 
         if (log.isDebugEnabled()) {
-            log.debug("[{}] Create bucketState snapshot, bucketState: {}", dispatcher.getName(), bucketState);
+            log.debug("[{}] Create bucket snapshot, bucketState: {}", dispatcher.getName(), bucketState);
         }
 
         CompletableFuture<Long> future = asyncSaveBucketSnapshot(bucketState,
@@ -294,7 +294,7 @@ public class BucketDelayedDeliveryTracker extends InMemoryDelayedDeliveryTracker
 
     private CompletableFuture<Void> asyncLoadNextBucketSnapshotEntry(BucketState bucketState, boolean isRecover) {
         if (log.isDebugEnabled()) {
-            log.debug("[{}] Load next bucketState snapshot data, bucketState: {}", dispatcher.getName(), bucketState);
+            log.debug("[{}] Load next bucket snapshot data, bucketState: {}", dispatcher.getName(), bucketState);
         }
         if (bucketState == null) {
             return CompletableFuture.completedFuture(null);
@@ -302,7 +302,7 @@ public class BucketDelayedDeliveryTracker extends InMemoryDelayedDeliveryTracker
 
         CompletableFuture<Long> createFuture;
         if (bucketState.snapshotCreateFuture != null) {
-            // Wait bucketState snapshot create finish
+            // Wait bucket snapshot create finish
             createFuture = bucketState.snapshotCreateFuture;
         } else {
             createFuture = CompletableFuture.completedFuture(null);
@@ -320,14 +320,14 @@ public class BucketDelayedDeliveryTracker extends InMemoryDelayedDeliveryTracker
 
             CompletableFuture<Integer> loadMetaDataFuture = new CompletableFuture<>();
             if (isRecover) {
-                // TODO Recover bucketState snapshot
+                // TODO Recover bucket snapshot
             } else {
                 loadMetaDataFuture.complete(bucketState.currentSegmentEntryId + 1);
             }
 
             return loadMetaDataFuture.thenCompose(nextSegmentEntryId -> {
                 if (nextSegmentEntryId > bucketState.lastSegmentEntryId) {
-                    // TODO Delete bucketState snapshot
+                    // TODO Delete bucket snapshot
                     return CompletableFuture.completedFuture(null);
                 }
 
@@ -535,7 +535,7 @@ public class BucketDelayedDeliveryTracker extends InMemoryDelayedDeliveryTracker
                 if (snapshotGenerateFuture != null) {
                     if (delete) {
                         snapshotGenerateFuture.cancel(true);
-                        // TODO delete bucketState snapshot
+                        // TODO delete bucket snapshot
                     } else {
                         try {
                             snapshotGenerateFuture.get(AsyncOperationTimeoutSeconds, TimeUnit.SECONDS);
