@@ -51,15 +51,15 @@ public class JdbcUtilsTest {
         sqliteUtils.tearDown();
     }
 
-    @DataProvider(name = "excludeNonListedColumns")
-    public Object[] excludeNonListedColumns() {
+    @DataProvider(name = "excludeNonDeclaredFields")
+    public Object[] excludeNonDeclaredFields() {
         return new Object[]{
                 false, true
         };
     }
 
-    @Test(dataProvider = "excludeNonListedColumns")
-    public void testGetTableId(boolean excludeNonListedColumns) throws Exception {
+    @Test(dataProvider = "excludeNonDeclaredFields")
+    public void testGetTableId(boolean excludeNonDeclaredFields) throws Exception {
         String tableName = "TestGetTableId";
 
         sqliteUtils.createTable(
@@ -93,8 +93,8 @@ public class JdbcUtilsTest {
             nonKeyList.add("age");
             nonKeyList.add("long");
             TableDefinition table = JdbcUtils.getTableDefinition(connection, id, keyList, nonKeyList,
-                    excludeNonListedColumns);
-            if (!excludeNonListedColumns) {
+                    excludeNonDeclaredFields);
+            if (!excludeNonDeclaredFields) {
                 Assert.assertEquals(table.getColumns().size(), 10);
                 Assert.assertEquals(table.getColumns().get(0).getName(), "firstName");
                 Assert.assertEquals(table.getColumns().get(0).getTypeName(), "TEXT");

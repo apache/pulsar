@@ -123,7 +123,7 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
         }
 
         tableDefinition = JdbcUtils.getTableDefinition(connection, tableId,
-                keyList, nonKeyList, jdbcSinkConfig.isExcludeNonListedFields());
+                keyList, nonKeyList, jdbcSinkConfig.isExcludeNonDeclaredFields());
         insertStatement = JdbcUtils.buildInsertStatement(connection, generateInsertQueryStatement());
         if (jdbcSinkConfig.getInsertMode() == JdbcSinkConfig.InsertMode.UPSERT) {
             upsertStatement = JdbcUtils.buildInsertStatement(connection, generateUpsertQueryStatement());

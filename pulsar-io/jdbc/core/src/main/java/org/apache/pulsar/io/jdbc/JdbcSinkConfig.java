@@ -83,7 +83,7 @@ public class JdbcSinkConfig implements Serializable {
                     + "In order to leverage of fields defaults during insertion, "
                     + "it is suggested to set this value to false."
     )
-    private boolean excludeNonListedFields = false;
+    private boolean excludeNonDeclaredFields = false;
 
     @FieldDoc(
         required = false,

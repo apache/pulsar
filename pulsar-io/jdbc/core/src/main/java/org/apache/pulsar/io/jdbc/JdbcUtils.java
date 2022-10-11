@@ -119,7 +119,7 @@ public class JdbcUtils {
             Connection connection, TableId tableId,
             List<String> keyList,
             List<String> nonKeyList,
-            boolean excludeNonListedColumns) throws Exception {
+            boolean excludeNonDeclaredFields) throws Exception {
         TableDefinition table = TableDefinition.of(
                 tableId, Lists.newArrayList(), Lists.newArrayList(), Lists.newArrayList());
 
@@ -151,7 +151,7 @@ public class JdbcUtils {
                 } else if (nonKeyList.contains(columnName)) {
                     table.nonKeyColumns.add(columnId);
                     table.columns.add(columnId);
-                } else if (!excludeNonListedColumns) {
+                } else if (!excludeNonDeclaredFields) {
                     table.columns.add(columnId);
                 }
             }
