@@ -1758,7 +1758,7 @@ public class ManagedCursorImpl implements ManagedCursor {
      * @return the previous acknowledged position
      */
     PositionImpl setAcknowledgedPosition(PositionImpl newMarkDeletePosition) {
-        if (newMarkDeletePosition.compareTo(markDeletePosition) < 0) {
+        if (newMarkDeletePosition.compareTo(markDeletePosition) <= 0) {
             throw new MarkDeletingMarkedPosition(
                     "Mark deleting an already mark-deleted position. Current mark-delete: " + markDeletePosition
                             + " -- attempted mark delete: " + newMarkDeletePosition);
