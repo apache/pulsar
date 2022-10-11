@@ -44,7 +44,7 @@ jobs:
       changed_tests: ${{ steps.changes.outputs.tests_files }}
     steps:
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Detect changed files
         id:   changes
@@ -75,7 +75,7 @@ jobs:
     if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
     steps:
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -165,7 +165,7 @@ jobs:
 
     steps:
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -259,7 +259,7 @@ jobs:
       UBUNTU_MIRROR: http://azure.archive.ubuntu.com/ubuntu/
     steps:
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -357,7 +357,7 @@ jobs:
 
     steps:
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -464,7 +464,7 @@ jobs:
     if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
     steps:
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -486,7 +486,7 @@ jobs:
       UBUNTU_MIRROR: http://azure.archive.ubuntu.com/ubuntu/
     steps:
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -608,7 +608,7 @@ jobs:
 
     steps:
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -719,7 +719,7 @@ jobs:
 
     steps:
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -821,7 +821,7 @@ jobs:
     if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
     steps:
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -841,7 +841,7 @@ jobs:
     if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
     steps:
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -873,7 +873,7 @@ jobs:
     if: ${{ needs.changed_files_job.outputs.need_owasp == 'true' }}
     steps:
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -962,7 +962,7 @@ jobs:
 
       - name: checkout
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Tune Runner VM
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}

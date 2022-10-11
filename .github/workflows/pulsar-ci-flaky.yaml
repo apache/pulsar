@@ -44,7 +44,7 @@ jobs:
       changed_tests: ${{ steps.changes.outputs.tests_files }}
     steps:
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Detect changed files
         id:   changes
@@ -74,7 +74,7 @@ jobs:
     if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
     steps:
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
