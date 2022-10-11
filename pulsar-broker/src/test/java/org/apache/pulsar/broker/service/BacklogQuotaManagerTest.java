@@ -36,6 +36,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -512,18 +513,22 @@ public class BacklogQuotaManagerTest {
         assertEquals(stats.getSubscriptions().get(subName1).getMsgBacklog(), 14);
         assertEquals(stats.getSubscriptions().get(subName2).getMsgBacklog(), 14);
 
+        PersistentTopic topic1Reference = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic1).get();
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) topic1Reference.getManagedLedger();
+        assertEquals(ml.getSlowestConsumer().getReadPosition(), PositionImpl.get(2,4));
+
         Thread.sleep((TIME_TO_CHECK_BACKLOG_QUOTA * 2) * 1000);
         rolloverStats();
 
         TopicStats stats2 = getTopicStats(topic1);
-        PersistentTopic topic1Reference = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic1).get();
-        ManagedLedgerImpl ml = (ManagedLedgerImpl) topic1Reference.getManagedLedger();
         // Messages on first 2 ledgers should be expired, backlog is number of
         // message in current ledger.
         Awaitility.await().untilAsserted(() -> {
             assertEquals(stats2.getSubscriptions().get(subName1).getMsgBacklog(), ml.getCurrentLedgerEntries());
             assertEquals(stats2.getSubscriptions().get(subName2).getMsgBacklog(), ml.getCurrentLedgerEntries());
         });
+
+        assertEquals(ml.getSlowestConsumer().getReadPosition(), PositionImpl.get(2,4));
         client.close();
     }
 

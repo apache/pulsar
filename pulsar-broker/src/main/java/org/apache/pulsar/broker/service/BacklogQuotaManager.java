@@ -22,9 +22,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedCursor.IndividualDeletedEntries;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -211,21 +214,67 @@ public class BacklogQuotaManager {
             ManagedLedgerImpl mLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
             try {
                 for (;;) {
+                    CountDownLatch countDownLatch = new CountDownLatch(1);
                     ManagedCursor slowestConsumer = mLedger.getSlowestConsumer();
                     Position oldestPosition = slowestConsumer.getMarkDeletedPosition();
+                    Position oldestReadPosition = slowestConsumer.getReadPosition();
+                    if(log.isInfoEnabled()) {
+                        log.info("[{}] slowest consumer mark delete position is [{}], read position is [{}]",
+                                slowestConsumer.getName(), oldestPosition.toString(), oldestReadPosition.toString());
+                    }
                     ManagedLedgerInfo.LedgerInfo ledgerInfo = mLedger.getLedgerInfo(oldestPosition.getLedgerId()).get();
                     if (ledgerInfo == null) {
-                        slowestConsumer.resetCursor(mLedger.getNextValidPosition((PositionImpl) oldestPosition));
+                        PositionImpl nextPosition =
+                                PositionImpl.get(mLedger.getNextValidLedger(oldestPosition.getLedgerId()), -1);
+                        slowestConsumer.asyncMarkDelete(nextPosition, new AsyncCallbacks.MarkDeleteCallback() {
+                            @Override
+                            public void markDeleteComplete(Object ctx) {
+                                if (log.isInfoEnabled()) {
+                                    log.info("[{}] subscription mark deleted messages at position [{}]",
+                                            slowestConsumer.getName(), nextPosition);
+                                }
+                                countDownLatch.countDown();
+                            }
+
+                            @Override
+                            public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
+                                if (log.isWarnEnabled()) {
+                                    log.warn("[{}] subscription failed to mark delete for position [{}]",
+                                            slowestConsumer.getName(), nextPosition, exception);
+                                }
+                                countDownLatch.countDown();
+                            }
+                        }, null);
+                        countDownLatch.await();
                         continue;
                     }
                     // Timestamp only > 0 if ledger has been closed
                     if (ledgerInfo.getTimestamp() > 0
                             && currentMillis - ledgerInfo.getTimestamp() > quota.getLimitTime() * 1000) {
                         // skip whole ledger for the slowest cursor
-                        PositionImpl nextPosition = mLedger.getNextValidPosition(
-                                PositionImpl.get(ledgerInfo.getLedgerId(), ledgerInfo.getEntries() - 1));
+                        PositionImpl nextPosition =
+                                PositionImpl.get(mLedger.getNextValidLedger(ledgerInfo.getLedgerId()), -1);
                         if (!nextPosition.equals(oldestPosition)) {
-                            slowestConsumer.resetCursor(nextPosition);
+                            slowestConsumer.asyncMarkDelete(nextPosition, new AsyncCallbacks.MarkDeleteCallback() {
+                                @Override
+                                public void markDeleteComplete(Object ctx) {
+                                    if (log.isInfoEnabled()) {
+                                        log.info("[{}] subscription mark deleted messages at position [{}]",
+                                                slowestConsumer.getName(), nextPosition);
+                                    }
+                                    countDownLatch.countDown();
+                                }
+
+                                @Override
+                                public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
+                                    if (log.isWarnEnabled()) {
+                                        log.warn("[{}] subscription failed to mark delete for position [{}]",
+                                                slowestConsumer.getName(), nextPosition, exception);
+                                    }
+                                    countDownLatch.countDown();
+                                }
+                            }, null);
+                            countDownLatch.await();
                             continue;
                         }
                     }
