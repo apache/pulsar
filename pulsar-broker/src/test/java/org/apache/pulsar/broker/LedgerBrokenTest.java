@@ -266,36 +266,6 @@ public class LedgerBrokenTest {
     }
 
     @Test(timeOut = 30000)
-    public void testSchemaLedgerLost() throws Exception {
-        String topicSimpleName = UUID.randomUUID().toString().replaceAll("-", "");
-        String subName = UUID.randomUUID().toString().replaceAll("-", "");
-        String topicName = String.format("persistent://%s/%s", DEFAULT_NAMESPACE, topicSimpleName);
-
-        log.info("===> ensure producer & consumer works first time");
-        ensureProducerAndConsumerWork(topicName, subName, false);
-
-        log.info("===> send many messages");
-        List<MessageIdImpl> messageIds = new ArrayList<>();
-        messageIds.addAll(sendManyMessages(topicName, 5));
-
-        log.info("===> stop pulsar service and delete schema ledgers");
-        PersistentTopicInternalStats topicInternalStats = pulsarAdmin.topics().getInternalStats(topicName);
-        stopPulsar();
-        for (ManagedLedgerInternalStats.LedgerInfo ledgerInfo : topicInternalStats.schemaLedgers){
-            bookKeeperClient.deleteLedger(ledgerInfo.ledgerId);
-        }
-
-        log.info("===> restart broker.");
-        startPulsar();
-
-        log.info("===> verify producer and consumer works.");
-        ensureProducerAndConsumerWork(topicName, subName, false);
-
-        // cleanup
-        pulsarAdmin.topics().delete(topicName);
-    }
-
-    @Test(timeOut = 30000)
     public void testCompactionLedgerLost() throws Exception {
         String topicSimpleName = UUID.randomUUID().toString().replaceAll("-", "");
         String subName = UUID.randomUUID().toString().replaceAll("-", "");
