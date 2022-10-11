@@ -118,7 +118,7 @@ public class CompactedTopicImplTest {
      * Why should we check the recursion number of "findStartPointLoop", see: #17976
      */
     @Test
-    public void testRecursionNumberOfFindStartPointLoop() throws Exception {
+    public void testRecursionNumberOfFindStartPointLoop() {
         AtomicLong bingoMarker = new AtomicLong();
         long start = 0;
         long end = 100;
