@@ -49,7 +49,11 @@ public class SchemaHash {
         if (schema == null || schema.getSchemaInfo() == null) {
             return EMPTY_SCHEMA_HASH;
         }
-        return ((SchemaInfoImpl) schema.getSchemaInfo()).getSchemaHash();
+        SchemaHash schemaHash = ((SchemaInfoImpl) schema.getSchemaInfo()).getSchemaHash();
+        if (schemaHash == null) {
+            schemaHash = compatibleNoArgsConstructorSchemaInfoImpl(schema.getSchemaInfo());
+        }
+        return schemaHash;
     }
 
     public static SchemaHash of(SchemaData schemaData) {
@@ -60,16 +64,32 @@ public class SchemaHash {
         if (schemaInfo == null) {
             return EMPTY_SCHEMA_HASH;
         }
-        return ((SchemaInfoImpl) schemaInfo).getSchemaHash();
+        SchemaHash schemaHash = ((SchemaInfoImpl) schemaInfo).getSchemaHash();
+        if (schemaHash == null) {
+            schemaHash = compatibleNoArgsConstructorSchemaInfoImpl(schemaInfo);
+        }
+        return schemaHash;
     }
 
     public static SchemaHash empty() {
         return EMPTY_SCHEMA_HASH;
     }
 
-    // Shouldn't call this method directly
+    // Shouldn't call this method frequent, otherwise will bring performance regression
     public static SchemaHash of(byte[] schemaBytes, SchemaType schemaType) {
         return new SchemaHash(hashFunction.hashBytes(schemaBytes == null ? new byte[0] : schemaBytes), schemaType);
+    }
+
+    /**
+     *  If {@link SchemaInfoImpl} is created by no-args-constructor from users, the `SchemaInfoImpl#getSchemaHash` will
+     *  be null. If so, calculate the SchemaHash
+     *
+     *  We should remove this method when `@NoArgsConstructor` of {@link SchemaInfoImpl} removed
+     * @param schemaInfo
+     * @return The calculated SchemaHash
+     */
+    private static SchemaHash compatibleNoArgsConstructorSchemaInfoImpl(SchemaInfo schemaInfo) {
+        return of(schemaInfo.getSchema(), schemaInfo.getType());
     }
 
     public byte[] asBytes() {
