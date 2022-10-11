@@ -38,7 +38,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
-import lombok.AllArgsConstructor;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.api.ReadHandle;
@@ -226,8 +225,8 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         final CompletableFuture<Void> f = new CompletableFuture<>();
         // Execute the first block task.
         final int maxBlockSize = config.getMaxBlockSizeInBytes();
-        Runnable firstTask = new BlobStorePartitionedReader(0, maxBlockSize, readHandle, writeBlobStore, mpu,
-                parts, indexBuilder, f, offloaderStats, topicName, bucket, dataBlockKey, dataLen);
+        Runnable firstTask = new BlobStorePartitionedReader(maxBlockSize, readHandle, writeBlobStore, mpu,
+                parts, indexBuilder, f, offloaderStats, topicName, bucket, dataBlockKey, dataLen, scheduler);
         scheduler.chooseThread(ledgerId).execute(firstTask);
 
         f.thenAccept(__ -> {
@@ -279,7 +278,6 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
     }
 
 
-    @AllArgsConstructor
     @SuppressWarnings("UnstableApiUsage")
     private static final class BlobStorePartitionedReader implements Runnable {
 
@@ -297,64 +295,91 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         private final String bucket;
         private final String dataBlockKey;
         private final AtomicLong dataLen;
+        private final OrderedScheduler scheduler;
+
+        BlobStorePartitionedReader(int maxBlockSize, ReadHandle handle, BlobStore blobStore, MultipartUpload mp,
+                                          List<MultipartPart> parts, OffloadIndexBlockBuilder indexBuilder,
+                                          CompletableFuture<Void> f, LedgerOffloaderStats stats, String topicName,
+                                          String bucket, String dataBlockKey, AtomicLong dataLen,
+                                          OrderedScheduler scheduler) {
+            this.startEntry = 0;
+            this.written = 0;
+            this.maxBlockSize = maxBlockSize;
+            this.handle = handle;
+            this.blobStore = blobStore;
+            this.mp = mp;
+            this.parts = parts;
+            this.indexBuilder = indexBuilder;
+            this.f = f;
+            this.stats = stats;
+            this.topicName = topicName;
+            this.bucket = bucket;
+            this.dataBlockKey = dataBlockKey;
+            this.dataLen = dataLen;
+            this.scheduler = scheduler;
+        }
+
+        BlobStorePartitionedReader(BlobStorePartitionedReader r) {
+            this.startEntry = r.startEntry;
+            this.written = r.written;
+            this.maxBlockSize = r.maxBlockSize;
+            this.handle = r.handle;
+            this.blobStore = r.blobStore;
+            this.mp = r.mp;
+            this.parts = r.parts;
+            this.indexBuilder = r.indexBuilder;
+            this.f = r.f;
+            this.stats = r.stats;
+            this.topicName = r.topicName;
+            this.bucket = r.bucket;
+            this.dataBlockKey = r.dataBlockKey;
+            this.dataLen = r.dataLen;
+            this.scheduler = r.scheduler;
+        }
 
         @Override
         public void run() {
             // start multi part upload for data block.
             int partId = this.parts.size() + 1;
-
             try {
-                long startEntry = 0;
-                int partId = this.parts.size() + 1;
-                long entryBytesWritten = 0;
-                while (startEntry <= handle.getLastAddConfirmed()) {
-                    int blockSize = BlockAwareSegmentInputStreamImpl
-                            .calculateBlockSize(maxBlockSize, handle, startEntry, entryBytesWritten);
+                int blockSize = BlockAwareSegmentInputStreamImpl
+                        .calculateBlockSize(maxBlockSize, handle, startEntry, written);
 
-                    try (BlockAwareSegmentInputStream blockStream = new BlockAwareSegmentInputStreamImpl(
-                            handle, startEntry, blockSize, this.stats, topicName)) {
+                try (BlockAwareSegmentInputStream blockStream = new BlockAwareSegmentInputStreamImpl(
+                        handle, startEntry, blockSize, this.stats, topicName)) {
 
-                        Payload partPayload = Payloads.newInputStreamPayload(blockStream);
-                        partPayload.getContentMetadata().setContentLength((long) blockSize);
-                        partPayload.getContentMetadata().setContentType("application/octet-stream");
-                        parts.add(blobStore.uploadMultipartPart(mp, partId, partPayload));
-                        log.debug("UploadMultipartPart. container: {}, blobName: {}, partId: {}, mpu: {}",
-                                bucket, dataBlockKey, partId, mp.id());
+                    Payload partPayload = Payloads.newInputStreamPayload(blockStream);
+                    partPayload.getContentMetadata().setContentLength((long) blockSize);
+                    partPayload.getContentMetadata().setContentType("application/octet-stream");
+                    parts.add(blobStore.uploadMultipartPart(mp, partId, partPayload));
+                    log.debug("UploadMultipartPart. container: {}, blobName: {}, partId: {}, mpu: {}",
+                            bucket, dataBlockKey, partId, mp.id());
 
-                        indexBuilder.addBlock(startEntry, partId, blockSize);
+                    indexBuilder.addBlock(startEntry, partId, blockSize);
 
-                        if (blockStream.getEndEntryId() != -1) {
-                            startEntry = blockStream.getEndEntryId() + 1;
-                        } else {
-                            // could not read entry from ledger.
-                            break;
-                        }
-                        entryBytesWritten += blockStream.getBlockEntryBytesCount();
+                    if (blockStream.getEndEntryId() != -1) {
+                        startEntry = blockStream.getEndEntryId() + 1;
+                        written += blockStream.getBlockEntryBytesCount();
                         this.stats.recordOffloadBytes(topicName, blockStream.getBlockEntryBytesCount());
+                        this.dataLen.addAndGet(blockSize);
                     }
-
-                    this.dataLen.addAndGet(blockSize);
                 }
-
-                String etag = blobStore.completeMultipartUpload(mp, parts);
-                log.info("Ledger {}, upload finished, etag {}", handle.getId(), etag);
+                this.processAfterTaskFinished();
             } catch (Throwable t) {
-                try {
-                    if (mp != null) {
-                        blobStore.abortMultipartUpload(mp);
-                    }
-                } catch (Throwable throwable) {
-                    log.error("Failed abortMultipartUpload in bucket - {} with key - {}, uploadId - {}.",
-                            bucket, dataBlockKey, mp.id(), throwable);
-                }
-                this.stats.recordWriteToStorageError(topicName);
-                this.stats.recordOffloadError(topicName);
+                log.error("Blob store offload failed. LedgerId {}, LedgerName {}, PartId {}, StartEntry {}.",
+                        handle.getId(), topicName, partId, startEntry, t);
                 f.completeExceptionally(t);
             }
         }
 
         private void processAfterTaskFinished() {
-
+            if (!(startEntry <= handle.getLastAddConfirmed())) {
+                String etag = blobStore.completeMultipartUpload(mp, parts);
+                log.info("Ledger {}, upload finished, etag {}", handle.getId(), etag);
+                f.complete(null);
+            } else {
+                scheduler.chooseThread(handle.getId()).execute(new BlobStorePartitionedReader(this));
+            }
         }
     }
 

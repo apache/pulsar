@@ -2990,12 +2990,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             Map<String, String> extraMetadata = Map.of("ManagedLedgerName", name);
 
             String driverName = config.getLedgerOffloader().getOffloadDriverName();
-            final long flowPermits = config.getGlobalOffloadingPermitBytesPerSecond();
             Map<String, String> driverMetadata = config.getLedgerOffloader().getOffloadDriverMetadata();
 
             prepareLedgerInfoForOffloaded(ledgerId, uuid, driverName, driverMetadata)
                     .thenCompose((ignore) -> getLedgerHandle(ledgerId))
-                    .thenCompose(handle -> OffloadReadHandle.create(handle, flowPermits))
+                    .thenCompose(handle -> OffloadReadHandle.create(handle, name, config, scheduledExecutor))
                     .thenCompose(readHandle -> config.getLedgerOffloader().offload(readHandle, uuid, extraMetadata))
                     .thenCompose((ignore) -> {
                         return Retries.run(Backoff.exponentialJittered(TimeUnit.SECONDS.toMillis(1),

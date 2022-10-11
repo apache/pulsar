@@ -18,13 +18,13 @@
  */
 package org.apache.bookkeeper.mledger;
 
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.locks.LockSupport;
 import org.apache.bookkeeper.client.api.LastConfirmedAndEntry;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
@@ -32,45 +32,80 @@ import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.util.TimeWindow;
 import org.apache.bookkeeper.mledger.util.WindowWrap;
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.common.naming.TopicName;
 
 public class OffloadReadHandle implements ReadHandle {
     private static final AtomicBoolean INITIALIZED = new AtomicBoolean(false);
-    private static volatile long permittedBytes0;
-    private static volatile TimeWindow<AtomicLong> window0;
-    private static final int MAX_PROCESSING_CMDS = 1024;
-    private static final AtomicInteger PROCESSING_CMDS = new AtomicInteger(0);
+    private static volatile Long brokerFlowPermit;
+    private static volatile Map<String, Long> namespaceFlowPermit;
+    private static volatile Map<String, Long> topicFlowPermit;
+    private static volatile TimeWindow<AtomicLong> brokerFlowPermit0;
+    private static volatile Map<String, TimeWindow<AtomicLong>> namespaceFlowPermit0;
+    private static volatile Map<String, TimeWindow<AtomicLong>> topicFlowPermit0;
 
+
+    private final String ledgerName;
+    private final String namespace;
     private final ReadHandle delegator;
     private final OrderedScheduler scheduler;
+    private final long ledgerFlowPermit;
+    private final TimeWindow<AtomicLong> window;
 
-    private OffloadReadHandle(ReadHandle handle, long permittedBytes, OrderedScheduler scheduler) {
+    private OffloadReadHandle(ReadHandle handle, String ledgerName, ManagedLedgerConfig config,
+                              OrderedScheduler scheduler) {
+        initialize(config);
         this.delegator = handle;
-        if (INITIALIZED.compareAndSet(false, true)) {
-            permittedBytes0 = permittedBytes;
-            window0 = new TimeWindow<>(2, Long.valueOf(TimeUnit.SECONDS.toMillis(1)).intValue());
-        }
-
+        this.ledgerName = ledgerName;
+        this.namespace = TopicName.get(ledgerName).getNamespace();
         this.scheduler = Objects.requireNonNull(scheduler);
+
+        Pair<Long, TimeWindow<AtomicLong>> pair = getFlowPermitAndController(ledgerName, namespace);
+        this.ledgerFlowPermit = pair.getLeft();
+        this.window = pair.getRight();
     }
 
-    public static CompletableFuture<ReadHandle> create(ReadHandle handle, long permitBytes, OrderedScheduler scheduler) {
-        return CompletableFuture.completedFuture(new OffloadReadHandle(handle, permitBytes, scheduler));
+    private static void initialize(ManagedLedgerConfig config) {
+        if (INITIALIZED.compareAndSet(false, true)) {
+            brokerFlowPermit = config.getManagedLedgerOffloadBrokerFlowPermit();
+            namespaceFlowPermit = config.getManagedLedgerOffloadNamespaceFlowPermit();
+            topicFlowPermit = config.getManagedLedgerOffloadTopicFlowPermit();
+
+            brokerFlowPermit0 = new TimeWindow<>(2, 1000);
+            namespaceFlowPermit0 = new ConcurrentHashMap<>();
+            topicFlowPermit0 = new ConcurrentHashMap<>();
+        }
+    }
+
+    private static Pair<Long, TimeWindow<AtomicLong>> getFlowPermitAndController(String ledgerName, String namespace) {
+        if (null != topicFlowPermit.get(ledgerName)) {
+            long permit = topicFlowPermit.get(ledgerName);
+            TimeWindow<AtomicLong> window =
+                    topicFlowPermit0.computeIfAbsent(ledgerName, __ -> new TimeWindow<>(2, 1000));
+            return Pair.of(permit, window);
+        } else if (null != namespaceFlowPermit.get(namespace)) {
+            long permit = namespaceFlowPermit.get(namespace);
+            TimeWindow<AtomicLong> window =
+                    namespaceFlowPermit0.computeIfAbsent(namespace, __ -> new TimeWindow<>(2, 1000));
+            return Pair.of(permit, window);
+        } else {
+            return Pair.of(brokerFlowPermit, brokerFlowPermit0);
+        }
+    }
+
+    public static CompletableFuture<ReadHandle> create(ReadHandle handle, String ledgerName,
+                                                       ManagedLedgerConfig config, OrderedScheduler scheduler) {
+        return CompletableFuture.completedFuture(new OffloadReadHandle(handle, ledgerName, config, scheduler));
     }
 
     @Override
     public CompletableFuture<LedgerEntries> readAsync(long firstEntry, long lastEntry) {
         final long delayMills = calculateDelayMillis();
         if (delayMills > 0) {
-            if (PROCESSING_CMDS.get() > MAX_PROCESSING_CMDS) {
-                LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(delayMills));
-                return readAsync(firstEntry, lastEntry);
-            } else {
-                CompletableFuture<LedgerEntries> f = new CompletableFuture<>();
-                Runnable cmd = new ReadAsyncCommand(firstEntry, lastEntry, f);
-                scheduler.schedule(cmd, delayMills, TimeUnit.MILLISECONDS);
-                PROCESSING_CMDS.incrementAndGet();
-                return f;
-            }
+            CompletableFuture<LedgerEntries> f = new CompletableFuture<>();
+            Runnable cmd = new ReadAsyncCommand(firstEntry, lastEntry, f);
+            scheduler.schedule(cmd, delayMills, TimeUnit.MILLISECONDS);
+            return f;
         }
 
         return this.delegator
@@ -134,18 +169,18 @@ public class OffloadReadHandle implements ReadHandle {
     }
 
 
-    private static long calculateDelayMillis() {
-        if (permittedBytes0 <= 0) {
+    private long calculateDelayMillis() {
+        if (ledgerFlowPermit <= 0) {
             return 0;
         }
 
-        WindowWrap<AtomicLong> wrap = window0.current(__ -> new AtomicLong(0));
+        WindowWrap<AtomicLong> wrap = window.current(__ -> new AtomicLong(0));
         if (wrap == null) {
             // it should never goes here
             return 0;
         }
 
-        if (wrap.value().get() >= permittedBytes0) {
+        if (wrap.value().get() >= ledgerFlowPermit) {
             // park until next window start
             long end = wrap.start() + wrap.interval();
             return end - System.currentTimeMillis();
@@ -154,8 +189,8 @@ public class OffloadReadHandle implements ReadHandle {
         return 0;
     }
 
-    private static void recordReadBytes(LedgerEntries entries) {
-        if (permittedBytes0 <= 0) {
+    private void recordReadBytes(LedgerEntries entries) {
+        if (ledgerFlowPermit <= 0) {
             return;
         }
 
@@ -166,7 +201,7 @@ public class OffloadReadHandle implements ReadHandle {
         AtomicLong num = new AtomicLong(0);
         entries.forEach(en -> num.addAndGet(en.getLength()));
 
-        WindowWrap<AtomicLong> wrap = window0.current(__ -> new AtomicLong(0));
+        WindowWrap<AtomicLong> wrap = window.current(__ -> new AtomicLong(0));
         if (wrap == null) {
             // it should never goes here
             return;
