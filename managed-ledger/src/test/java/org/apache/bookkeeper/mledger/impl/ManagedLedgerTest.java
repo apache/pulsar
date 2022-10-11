@@ -22,9 +22,11 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -3516,6 +3518,38 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         cursor.close();
         cursor2.close();
+        ledger.close();
+    }
+
+    @Test
+    public void testLockReleaseWhenTrimLedger() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(1);
+
+        ManagedLedgerImpl ledger = spy((ManagedLedgerImpl)factory.open("testLockReleaseWhenTrimLedger", config));
+        doThrow(new ManagedLedgerException.LedgerNotExistException("First non deleted Ledger is not found"))
+                .when(ledger).advanceCursorsIfNecessary(any());
+        final int entries = 10;
+        ManagedCursor cursor = ledger.openCursor("test-cursor" + UUID.randomUUID());
+        for (int i = 0; i < entries; i++) {
+            ledger.addEntry(String.valueOf(i).getBytes(Encoding));
+        }
+        List<Entry> entryList = cursor.readEntries(entries);
+        assertEquals(entryList.size(), entries);
+        assertEquals(ledger.ledgers.size(), entries);
+        assertEquals(ledger.ledgerCache.size(), entries - 1);
+        cursor.clearBacklog();
+        ledger.trimConsumedLedgersInBackground(Futures.NULL_PROMISE);
+        ledger.trimConsumedLedgersInBackground(Futures.NULL_PROMISE);
+        // Cleanup fails because ManagedLedgerNotFoundException is thrown
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(ledger.ledgers.size(), entries);
+            assertEquals(ledger.ledgerCache.size(), entries - 1);
+        });
+        // The lock is released even if an ManagedLedgerNotFoundException occurs, so it can be called repeatedly
+        Awaitility.await().untilAsserted(() ->
+                verify(ledger, atLeast(2)).advanceCursorsIfNecessary(any()));
+        cursor.close();
         ledger.close();
     }
 

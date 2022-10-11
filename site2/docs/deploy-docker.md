@@ -2,7 +2,7 @@
 id: deploy-docker
 title: Deploy a cluster on Docker
 sidebar_label: "Docker"
-—
+---
 
 You can use two kinds of methods to deploy a Pulsar cluster on Docker.
 The first uses Docker commands, while the second uses a `docker-compose.yaml` file.
