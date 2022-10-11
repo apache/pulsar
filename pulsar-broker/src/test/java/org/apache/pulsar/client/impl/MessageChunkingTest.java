@@ -23,7 +23,6 @@ import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import com.google.common.collect.Lists;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.lang.reflect.Field;
@@ -606,7 +605,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
 
         // Test sending multiple large messages (For every message, totalChunks < maxPendingMessages) concurrently
         // should not cause the deadlock.
-        List<CompletableFuture<Void>> sendMsgFutures = Lists.newArrayList();
+        List<CompletableFuture<Void>> sendMsgFutures = new ArrayList<>();
         for (int i = 0; i < 3; i++) {
             sendMsgFutures.add(CompletableFuture.runAsync(() -> {
                 try {
