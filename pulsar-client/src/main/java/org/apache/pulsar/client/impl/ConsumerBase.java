@@ -913,7 +913,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
         reentrantLock.lock();
         try {
-            notifyPendingBatchReceivedCallBack(opBatchReceive);
+            notifyPendingBatchReceivedCallBack(opBatchReceive.future);
         } finally {
             reentrantLock.unlock();
         }
@@ -941,7 +941,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         return opBatchReceive;
     }
 
-    protected final void notifyPendingBatchReceivedCallBack(OpBatchReceive<T> opBatchReceive) {
+    protected final void notifyPendingBatchReceivedCallBack(CompletableFuture<Messages<T>> batchReceiveFuture) {
         MessagesImpl<T> messages = getNewMessagesImpl();
         Message<T> msgPeeked = incomingMessages.peek();
         while (msgPeeked != null && messages.canAdd(msgPeeked)) {
@@ -953,8 +953,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             }
             msgPeeked = incomingMessages.peek();
         }
-
-        completePendingBatchReceive(opBatchReceive.future, messages);
+        completePendingBatchReceive(batchReceiveFuture, messages);
     }
 
     protected void completePendingBatchReceive(CompletableFuture<Messages<T>> future, Messages<T> messages) {
@@ -1182,7 +1181,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                 || getSubType() == CommandSubscribe.SubType.Exclusive)
                 && message.getConsumerEpoch() != DEFAULT_CONSUMER_EPOCH
                 && message.getConsumerEpoch() < CONSUMER_EPOCH.get(this)) {
-            log.warn("Consumer filter old epoch message, topic : [{}], messageId : [{}], messageConsumerEpoch : [{}], "
+            log.info("Consumer filter old epoch message, topic : [{}], messageId : [{}], messageConsumerEpoch : [{}], "
                     + "consumerEpoch : [{}]", topic, message.getMessageId(), message.getConsumerEpoch(), consumerEpoch);
             message.release();
             message.recycle();

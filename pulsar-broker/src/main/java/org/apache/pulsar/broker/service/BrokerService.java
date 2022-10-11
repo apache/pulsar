@@ -1405,7 +1405,8 @@ public class BrokerService implements Closeable {
         return topicFuture;
     }
 
-    CompletableFuture<Map<String, String>> fetchTopicPropertiesAsync(TopicName topicName) {
+    @VisibleForTesting
+    protected CompletableFuture<Map<String, String>> fetchTopicPropertiesAsync(TopicName topicName) {
         if (!topicName.isPartitioned()) {
             return managedLedgerFactory.getManagedLedgerPropertiesAsync(topicName.getPersistenceNamingEncoding());
         } else {

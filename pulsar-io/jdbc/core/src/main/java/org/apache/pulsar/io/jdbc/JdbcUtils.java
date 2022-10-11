@@ -217,14 +217,4 @@ public class JdbcUtils {
             + table.tableId.getTableName()
             + combationWhere(table.keyColumns);
     }
-
-    public static String getDriverClassName(String jdbcUrl) throws Exception {
-        for (JdbcDriverType type : JdbcDriverType.values()) {
-            if (type.matches(jdbcUrl)) {
-                return type.getDriverClass();
-            }
-        }
-        throw new Exception("Provided JDBC connection string contains unknown driver: " + jdbcUrl);
-    }
-
 }

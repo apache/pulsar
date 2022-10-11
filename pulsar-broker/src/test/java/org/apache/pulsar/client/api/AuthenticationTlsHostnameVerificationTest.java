@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.api;
 
-import com.google.common.collect.Sets;
 import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -206,7 +205,7 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
         }
 
         Message<byte[]> msg = null;
-        Set<String> messageSet = Sets.newHashSet();
+        Set<String> messageSet = new HashSet<>();
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
