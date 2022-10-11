@@ -1924,7 +1924,9 @@ flexible messaging model and an intuitive client API.</description>
                   <goal>report</goal>
                 </goals>
                 <configuration>
-                  <outputDirectory>target/report</outputDirectory>
+                  <excludes>
+                    <exclude>META-INF/**</exclude>
+                  </excludes>
                 </configuration>
               </execution>
             </executions>
