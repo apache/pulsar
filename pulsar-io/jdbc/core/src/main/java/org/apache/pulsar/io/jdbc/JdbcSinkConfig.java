@@ -73,6 +73,18 @@ public class JdbcSinkConfig implements Serializable {
             help = "Fields used in where condition of update and delete Events. A comma-separated list."
     )
     private String key;
+
+    @FieldDoc(
+            required = false,
+            defaultValue = "false",
+            help = "All the table fields are discovered automatically. This fields indicate if the fields "
+                    + "not explicitly listed in 'nonKey' and 'key' must be included in the query."
+                    + "By default all the fields of the table are included."
+                    + "In order to leverage of fields defaults during insertion, "
+                    + "it is suggested to set this value to false."
+    )
+    private boolean excludeNonListedFields = false;
+
     @FieldDoc(
         required = false,
         defaultValue = "500",

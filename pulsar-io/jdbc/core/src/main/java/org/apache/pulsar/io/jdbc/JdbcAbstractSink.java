@@ -122,7 +122,8 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
             nonKeyList = Arrays.asList(nonKey.split(","));
         }
 
-        tableDefinition = JdbcUtils.getTableDefinition(connection, tableId, keyList, nonKeyList);
+        tableDefinition = JdbcUtils.getTableDefinition(connection, tableId,
+                keyList, nonKeyList, jdbcSinkConfig.isExcludeNonListedFields());
         insertStatement = JdbcUtils.buildInsertStatement(connection, generateInsertQueryStatement());
         if (jdbcSinkConfig.getInsertMode() == JdbcSinkConfig.InsertMode.UPSERT) {
             upsertStatement = JdbcUtils.buildInsertStatement(connection, generateUpsertQueryStatement());
