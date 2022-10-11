@@ -82,6 +82,8 @@ flexible messaging model and an intuitive client API.</description>
     <pulsar.broker.compiler.release>${maven.compiler.target}</pulsar.broker.compiler.release>
     <pulsar.client.compiler.release>8</pulsar.client.compiler.release>
 
+    <pulsar.client.python.version>2.10.1</pulsar.client.python.version>
+
     <!--config keys to configure test selection -->
     <include>**/Test*.java,**/*Test.java,**/*Tests.java,**/*TestCase.java</include>
     <exclude/>
@@ -175,7 +177,6 @@ flexible messaging model and an intuitive client API.</description>
     <elasticsearch-java.version>8.1.0</elasticsearch-java.version>
     <trino.version>363</trino.version>
     <scala.binary.version>2.13</scala.binary.version>
-    <scala-library.version>2.13.6</scala-library.version>
     <debezium.version>1.9.5.Final</debezium.version>
     <debezium.postgresql.version>42.5.0</debezium.postgresql.version>
     <debezium.mysql.version>8.0.30</debezium.mysql.version>
@@ -225,7 +226,7 @@ flexible messaging model and an intuitive client API.</description>
     <apache-http-client.version>4.5.13</apache-http-client.version>
     <apache-httpcomponents.version>4.4.15</apache-httpcomponents.version>
     <jetcd.version>0.5.11</jetcd.version>
-    <snakeyaml.version>1.31</snakeyaml.version>
+    <snakeyaml.version>1.32</snakeyaml.version>
     <ant.version>1.10.12</ant.version>
     <seancfoley.ipaddress.version>5.3.3</seancfoley.ipaddress.version>
     <disruptor.version>3.4.3</disruptor.version>
@@ -252,7 +253,7 @@ flexible messaging model and an intuitive client API.</description>
     <exec-maven-plugin.version>3.0.0</exec-maven-plugin.version>
     <license-maven-plugin.version>4.0.rc2</license-maven-plugin.version>
     <directory-maven-plugin.version>1.0</directory-maven-plugin.version>
-    <maven-enforcer-plugin.version>3.0.0</maven-enforcer-plugin.version>
+    <maven-enforcer-plugin.version>3.1.0</maven-enforcer-plugin.version>
     <!-- surefire.version is defined in apache parent pom -->
     <!-- it is used for surefire, failsafe and surefire-report plugins -->
     <!-- do not upgrade surefire.version to 3.0.0-M5 since it runs slowly and breaks tests. -->
@@ -278,6 +279,8 @@ flexible messaging model and an intuitive client API.</description>
     <j2objc-annotations.version>1.3</j2objc-annotations.version>
     <lightproto-maven-plugin.version>0.4</lightproto-maven-plugin.version>
     <dependency-check-maven.version>7.1.0</dependency-check-maven.version>
+    <roaringbitmap.version>0.9.15</roaringbitmap.version>
+    <extra-enforcer-rules.version>1.6.1</extra-enforcer-rules.version>
 
     <!-- Used to configure rename.netty.native. Libs -->
     <rename.netty.native.libs>rename-netty-native-libs.sh</rename.netty.native.libs>
@@ -1294,6 +1297,13 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>reload4j</artifactId>
         <version>${reload4j.version}</version>
       </dependency>
+
+      <dependency>
+        <groupId>org.roaringbitmap</groupId>
+        <artifactId>RoaringBitmap</artifactId>
+        <version>${roaringbitmap.version}</version>
+      </dependency>
+
     </dependencies>
   </dependencyManagement>
 
@@ -1518,17 +1528,6 @@ flexible messaging model and an intuitive client API.</description>
                 <exclude>logs/**</exclude>
                 <exclude>**/circe/**</exclude>
                 <exclude>pulsar-broker/src/test/resources/authentication/basic/.htpasswd</exclude>
-                <exclude>pulsar-client-cpp/lib/checksum/int_types.h</exclude>
-                <exclude>pulsar-client-cpp/lib/checksum/gf2.hpp</exclude>
-                <exclude>pulsar-client-cpp/lib/checksum/crc32c_sse42.cc</exclude>
-                <exclude>pulsar-client-cpp/lib/checksum/crc32c_sse42.h</exclude>
-                <exclude>pulsar-client-cpp/lib/checksum/crc32c_sw.cc</exclude>
-                <exclude>pulsar-client-cpp/lib/lz4/lz4.*</exclude>
-                <exclude>pulsar-client-cpp/lib/PulsarApi.pb.*</exclude>
-                <exclude>pulsar-client-cpp/CMakeFiles/**</exclude>
-                <exclude>pulsar-client-cpp/**/Makefile</exclude>
-                <exclude>pulsar-client-cpp/**/cmake_install.cmake</exclude>
-                <exclude>**/CMakeFiles/**</exclude>
                 <exclude>**/django/stats/migrations/*.py</exclude>
                 <exclude>site2/**</exclude>
                 <exclude>generated-site/**</exclude>
@@ -1583,7 +1582,6 @@ flexible messaging model and an intuitive client API.</description>
           <excludes>
             <!-- Other license files -->
             <exclude>licenses/LICENSE-*.txt</exclude>
-            <exclude>pulsar-client-cpp/pkg/licenses/LICENSE-*.txt</exclude>
             <exclude>src/assemble/README.bin.txt</exclude>
             <exclude>src/assemble/LICENSE.bin.txt</exclude>
             <exclude>src/assemble/NOTICE.bin.txt</exclude>
@@ -1614,9 +1612,6 @@ flexible messaging model and an intuitive client API.</description>
             <!-- This is generated during maven build -->
             <exclude>dependency-reduced-pom.xml</exclude>
 
-            <!-- LZ4 code is under BSD 2-clause  -->
-            <exclude>pulsar-client-cpp/lib/lz4/lz4.*</exclude>
-
             <!-- These files is go module configs -->
             <exclude>pulsar-client-go/go.mod</exclude>
             <exclude>pulsar-client-go/go.sum</exclude>
@@ -1625,11 +1620,6 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>pulsar-function-go/examples/go.mod</exclude>
             <exclude>pulsar-function-go/examples/go.sum</exclude>
 
-            <!-- This file is using ZLib license -->
-            <exclude>pulsar-client-cpp/lib/checksum/crc32c_sw.cc</exclude>
-
-            <!-- This file is generated by c++ client -->
-            <exclude>pulsar-client-cpp/generated/**</exclude>
             <!-- This is a text property file that contains just a class name -->
             <exclude>**/META-INF/services/com.scurrilous.circe.HashProvider</exclude>
             <exclude>**/META-INF/services/io.trino.spi.Plugin</exclude>
@@ -1681,24 +1671,6 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>**/.project</exclude>
             <exclude>**/.settings</exclude>
             <exclude>**/target/**</exclude>
-            <exclude>**/CMakeFiles/**</exclude>
-            <exclude>**/CMakeCache.txt</exclude>
-            <exclude>**/cmake_install.cmake</exclude>
-            <exclude>pulsar-client-cpp/**/Makefile</exclude>
-            <exclude>pulsar-client-cpp/tests/main</exclude>
-            <exclude>pulsar-client-cpp/examples/SampleAsyncProducer</exclude>
-            <exclude>pulsar-client-cpp/examples/SampleConsumer</exclude>
-            <exclude>pulsar-client-cpp/examples/SampleConsumerListener</exclude>
-            <exclude>pulsar-client-cpp/examples/SampleProducer</exclude>
-            <exclude>pulsar-client-cpp/perf/perfProducer</exclude>
-            <exclude>pulsar-client-cpp/perf/perfConsumer</exclude>
-            <exclude>**/python/dist/**</exclude>
-            <exclude>**/pulsar-client-cpp/pkg/rpm/RPMS/**</exclude>
-            <exclude>**/pulsar-client-cpp/pkg/rpm/SOURCES/**</exclude>
-            <exclude>**/pulsar-client-cpp/pkg/deb/BUILD/**</exclude>
-            <exclude>**/python/wheelhouse/**</exclude>
-            <exclude>**/python/MANIFEST</exclude>
-            <exclude>**/*.egg-info/**</exclude>
             <exclude>**/*.log</exclude>
             <exclude>**/build/**</exclude>
             <exclude>**/file:/**</exclude>

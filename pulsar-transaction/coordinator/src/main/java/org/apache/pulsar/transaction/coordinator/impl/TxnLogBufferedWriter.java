@@ -128,14 +128,6 @@ public class TxnLogBufferedWriter<T> {
         trigFlushByTimingTask();
     };
 
-    public TxnLogBufferedWriter(ManagedLedger managedLedger, OrderedExecutor orderedExecutor, Timer timer,
-                                DataSerializer<T> dataSerializer,
-                                int batchedWriteMaxRecords, int batchedWriteMaxSize, int batchedWriteMaxDelayInMillis,
-                                boolean batchEnabled){
-        this(managedLedger, orderedExecutor, timer, dataSerializer, batchedWriteMaxRecords, batchedWriteMaxSize,
-                batchedWriteMaxDelayInMillis, batchEnabled, null);
-    }
-
     /**
      * Constructor.
      * @param dataSerializer The serializer for the object which called by {@link #asyncAddData}.
@@ -174,6 +166,9 @@ public class TxnLogBufferedWriter<T> {
         this.flushContext = FlushContext.newInstance();
         this.dataArray = new ArrayList<>();
         STATE_UPDATER.set(this, State.OPEN);
+        if (metrics == null){
+            throw new IllegalArgumentException("Build TxnLogBufferedWriter error: param metrics can not be null");
+        }
         this.metrics = metrics;
         this.timer = timer;
         // scheduler task.
@@ -284,10 +279,8 @@ public class TxnLogBufferedWriter<T> {
                 if (flushContext.asyncAddArgsList.isEmpty()) {
                     return;
                 }
-                if (metrics != null) {
-                    metrics.triggerFlushByByMaxDelay(flushContext.asyncAddArgsList.size(), bytesSize,
-                            System.currentTimeMillis() - flushContext.asyncAddArgsList.get(0).addedTime);
-                }
+                metrics.triggerFlushByByMaxDelay(flushContext.asyncAddArgsList.size(), bytesSize,
+                        System.currentTimeMillis() - flushContext.asyncAddArgsList.get(0).addedTime);
                 doFlush();
             } catch (Exception e){
                 log.error("Trig flush by timing task fail.", e);
@@ -303,18 +296,14 @@ public class TxnLogBufferedWriter<T> {
      */
     private void trigFlushIfReachMaxRecordsOrMaxSize(){
         if (flushContext.asyncAddArgsList.size() >= batchedWriteMaxRecords) {
-            if (metrics != null) {
-                metrics.triggerFlushByRecordsCount(flushContext.asyncAddArgsList.size(), bytesSize,
-                        System.currentTimeMillis() - flushContext.asyncAddArgsList.get(0).addedTime);
-            }
+            metrics.triggerFlushByRecordsCount(flushContext.asyncAddArgsList.size(), bytesSize,
+                    System.currentTimeMillis() - flushContext.asyncAddArgsList.get(0).addedTime);
             doFlush();
             return;
         }
         if (bytesSize >= batchedWriteMaxSize) {
-            if (metrics != null) {
-                metrics.triggerFlushByBytesSize(flushContext.asyncAddArgsList.size(), bytesSize,
-                        System.currentTimeMillis() - flushContext.asyncAddArgsList.get(0).addedTime);
-            }
+            metrics.triggerFlushByBytesSize(flushContext.asyncAddArgsList.size(), bytesSize,
+                    System.currentTimeMillis() - flushContext.asyncAddArgsList.get(0).addedTime);
             doFlush();
         }
     }
@@ -323,10 +312,8 @@ public class TxnLogBufferedWriter<T> {
         if (flushContext.asyncAddArgsList.isEmpty()) {
             return;
         }
-        if (metrics != null) {
-            metrics.triggerFlushByLargeSingleData(this.flushContext.asyncAddArgsList.size(), this.bytesSize,
-                    System.currentTimeMillis() - flushContext.asyncAddArgsList.get(0).addedTime);
-        }
+        metrics.triggerFlushByLargeSingleData(this.flushContext.asyncAddArgsList.size(), this.bytesSize,
+                System.currentTimeMillis() - flushContext.asyncAddArgsList.get(0).addedTime);
         doFlush();
     }
 

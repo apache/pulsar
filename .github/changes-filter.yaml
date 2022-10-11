@@ -8,10 +8,10 @@ docs:
   - '.asf.yaml'
   - '*.md'
   - '**/*.md'
+  - '.github/changes-filter.yaml'
+  - '.github/ISSUE_TEMPLATE/**'
 tests:
   - added|modified: '**/src/test/java/**/*.java'
-cpp:
-  - 'pulsar-client-cpp/**'
 need_owasp:
   - 'pom.xml'
   - '**/pom.xml'

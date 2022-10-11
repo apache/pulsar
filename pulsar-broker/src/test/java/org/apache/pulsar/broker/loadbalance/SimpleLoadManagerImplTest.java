@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.loadbalance;
 
-import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
+import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgsRecordingInvocations;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -335,7 +335,7 @@ public class SimpleLoadManagerImplTest {
 
     @Test(enabled = true)
     public void testDoLoadShedding() throws Exception {
-        SimpleLoadManagerImpl loadManager = spyWithClassAndConstructorArgs(SimpleLoadManagerImpl.class, pulsar1);
+        SimpleLoadManagerImpl loadManager = spyWithClassAndConstructorArgsRecordingInvocations(SimpleLoadManagerImpl.class, pulsar1);
         PulsarResourceDescription rd = new PulsarResourceDescription();
         rd.put("memory", new ResourceUsage(1024, 4096));
         rd.put("cpu", new ResourceUsage(10, 100));

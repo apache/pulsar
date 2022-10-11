@@ -17,7 +17,7 @@ Both approaches are available in Pulsar, and you're free to adopt one or the oth
 
 #### Note
 >
-> Currently, the Pulsar schema registry is only available for the [Java client](client-libraries-java.md), [CGo client](client-libraries-go.md), [Python client](client-libraries-python.md), and [C++ client](client-libraries-cpp).
+> Currently, the Pulsar schema registry is only available for the [Java client](client-libraries-java.md), [CGo client](client-libraries-go.md), [Python client](client-libraries-python.md), and [C++ client](client-libraries-cpp.md).
 
 ## Basic architecture
 
@@ -39,7 +39,7 @@ Pulsar schemas are fairly simple data structures that consist of:
 
 ## Schema versions
 
-In order to illustrate how schema versioning works, let's walk through an example. Imagine that the Pulsar [Java client](client-libraries-java) created using the code below attempts to connect to Pulsar and begin sending messages:
+In order to illustrate how schema versioning works, let's walk through an example. Imagine that the Pulsar [Java client](client-libraries-java.md) created using the code below attempts to connect to Pulsar and begin sending messages:
 
 ```java
 

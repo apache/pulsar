@@ -147,7 +147,7 @@ If you create a client, you can use the `loadConf` configuration. The following 
 `tlsHostnameVerificationEnable` |boolean |  Whether to enable TLS hostname verification|false
 `concurrentLookupRequest`|int|The number of concurrent lookup requests allowed to send on each broker connection to prevent overload on broker|5000
 `maxLookupRequest`|int|The maximum number of lookup requests allowed on each broker connection to prevent overload on broker | 50000
-`maxNumberOfRejectedRequestPerConnection`|int|The maximum number of rejected requests of a broker in a certain time frame (30 seconds) after the current connection is closed and the client creates a new connection to connect to a different broker|50
+`maxNumberOfRejectedRequestPerConnection`|int|The maximum number of rejected requests of a broker in a certain time frame (60 seconds) after the current connection is closed and the client creates a new connection to connect to a different broker|50
 `keepAliveIntervalSeconds`|int|Seconds of keeping alive interval for each client broker connection|30
 `connectionTimeoutMs`|int|Duration of waiting for a connection to a broker to be established <br /><br />If the duration passes without a response from a broker, the connection attempt is dropped|10000
 `requestTimeoutMs`|int|Maximum duration for completing a request |60000

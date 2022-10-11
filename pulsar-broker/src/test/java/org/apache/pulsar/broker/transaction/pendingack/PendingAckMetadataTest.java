@@ -41,6 +41,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.State.WriteFailed;
+import static org.apache.pulsar.transaction.coordinator.impl.DisabledTxnLogBufferedWriterMetricsStats.DISABLED_BUFFERED_WRITER_METRICS;
 import static org.testng.Assert.assertTrue;
 import static org.testng.AssertJUnit.fail;
 
@@ -81,7 +82,7 @@ public class PendingAckMetadataTest extends MockedBookKeeperTestCase {
         ManagedCursor subCursor = completableFuture.get().openCursor("test");
         MLPendingAckStore pendingAckStore =
                 new MLPendingAckStore(completableFuture.get(), cursor, subCursor, 500,
-                        bufferedWriterConfig, transactionTimer);
+                        bufferedWriterConfig, transactionTimer, DISABLED_BUFFERED_WRITER_METRICS);
 
         Field field = MLPendingAckStore.class.getDeclaredField("managedLedger");
         field.setAccessible(true);

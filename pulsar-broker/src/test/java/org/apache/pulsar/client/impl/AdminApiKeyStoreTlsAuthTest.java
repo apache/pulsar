@@ -20,7 +20,6 @@ package org.apache.pulsar.client.impl;
 
 import static org.apache.pulsar.client.impl.auth.AuthenticationKeyStoreTls.mapToString;
 import static org.testng.AssertJUnit.fail;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import io.jsonwebtoken.SignatureAlgorithm;
 import java.util.HashMap;
@@ -172,9 +171,9 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
         try (PulsarAdmin admin = buildAdminClient()) {
             admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
             admin.tenants().createTenant("tenant1",
-                                         new TenantInfoImpl(ImmutableSet.of("foobar"),
-                                                        ImmutableSet.of("test")));
-            Assert.assertEquals(ImmutableSet.of("tenant1"), admin.tenants().getTenants());
+                                         new TenantInfoImpl(Set.of("foobar"),
+                                                        Set.of("test")));
+            Assert.assertEquals(Set.of("tenant1"), admin.tenants().getTenants());
         }
     }
 
@@ -183,8 +182,8 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
         try (PulsarAdmin admin = buildAdminClient()) {
             admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
             admin.tenants().createTenant("tenant1",
-                                         new TenantInfoImpl(ImmutableSet.of("proxy"),
-                                                        ImmutableSet.of("test")));
+                                         new TenantInfoImpl(Set.of("proxy"),
+                                                        Set.of("test")));
             admin.namespaces().createNamespace("tenant1/ns1");
             Assert.assertTrue(admin.namespaces().getNamespaces("tenant1").contains("tenant1/ns1"));
         }
@@ -195,12 +194,12 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
         try (PulsarAdmin admin = buildAdminClient()) {
             admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
             admin.tenants().createTenant("tenant1",
-                                         new TenantInfoImpl(ImmutableSet.of("proxy", "user1"),
-                                                        ImmutableSet.of("test")));
+                                         new TenantInfoImpl(Set.of("proxy", "user1"),
+                                                        Set.of("test")));
             admin.namespaces().createNamespace("tenant1/ns1");
         }
         WebTarget root = buildWebClient();
-        Assert.assertEquals(ImmutableSet.of("tenant1/ns1"),
+        Assert.assertEquals(Set.of("tenant1/ns1"),
                             root.path("/admin/v2/namespaces").path("tenant1")
                             .request(MediaType.APPLICATION_JSON)
                             .header("X-Original-Principal", "user1")
@@ -214,9 +213,9 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
         try (PulsarAdmin admin = buildAdminClient()) {
             admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
             admin.tenants().createTenant("tenant1",
-                    new TenantInfoImpl(ImmutableSet.of("foobar"),
-                            ImmutableSet.of("test")));
-            Assert.assertEquals(ImmutableSet.of("tenant1"), admin.tenants().getTenants());
+                    new TenantInfoImpl(Set.of("foobar"),
+                            Set.of("test")));
+            Assert.assertEquals(Set.of("tenant1"), admin.tenants().getTenants());
 
             admin.namespaces().createNamespace("tenant1/ns1");
 
@@ -259,7 +258,7 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
 
         admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
         admin.tenants().createTenant("tenant1",
-                new TenantInfoImpl(ImmutableSet.of("foobar"),
-                        ImmutableSet.of("test")));
+                new TenantInfoImpl(Set.of("foobar"),
+                        Set.of("test")));
     }
 }

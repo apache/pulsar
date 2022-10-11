@@ -23,8 +23,6 @@ import static org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheManagerImp
 import static org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import com.carrotsearch.hppc.ObjectObjectHashMap;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.util.ArrayList;
@@ -34,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -394,7 +393,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
 
             CompletableFuture<Void> closeClientFuture = new CompletableFuture<>();
             if (closeIfClientsConnected) {
-                List<CompletableFuture<Void>> futures = Lists.newArrayList();
+                List<CompletableFuture<Void>> futures = new ArrayList<>();
                 replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
                 producers.values().forEach(producer -> futures.add(producer.disconnect()));
                 subscriptions.forEach((s, sub) -> futures.add(sub.disconnect()));
@@ -415,7 +414,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                 if (currentUsageCount() == 0) {
                     isFenced = true;
 
-                    List<CompletableFuture<Void>> futures = Lists.newArrayList();
+                    List<CompletableFuture<Void>> futures = new ArrayList<>();
 
                     if (failIfHasSubscriptions) {
                         if (!subscriptions.isEmpty()) {
@@ -485,7 +484,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
             lock.writeLock().unlock();
         }
 
-        List<CompletableFuture<Void>> futures = Lists.newArrayList();
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
 
         replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
         producers.values().forEach(producer -> futures.add(producer.disconnect()));
@@ -531,7 +530,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
     }
 
     public CompletableFuture<Void> stopReplProducers() {
-        List<CompletableFuture<Void>> closeFutures = Lists.newArrayList();
+        List<CompletableFuture<Void>> closeFutures = new ArrayList<>();
         replicators.forEach((region, replicator) -> closeFutures.add(replicator.disconnect()));
         return FutureUtil.waitForAll(closeFutures);
     }
@@ -551,7 +550,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
 
         String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
 
-        List<CompletableFuture<Void>> futures = Lists.newArrayList();
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
 
         // Check for missing replicators
         for (String cluster : configuredClusters) {
@@ -911,7 +910,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
         PersistentTopicInternalStats stats = new PersistentTopicInternalStats();
         stats.entriesAddedCounter = ENTRIES_ADDED_COUNTER_UPDATER.get(this);
 
-        stats.cursors = Maps.newTreeMap();
+        stats.cursors = new TreeMap<>();
         subscriptions.forEach((name, subs) -> stats.cursors.put(name, new CursorStats()));
         replicators.forEach((name, subs) -> stats.cursors.put(name, new CursorStats()));
 

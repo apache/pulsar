@@ -21,7 +21,7 @@ package org.apache.pulsar.client.impl.conf;
 import com.beust.jcommander.Parameters;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.BaseGenerateDocumentation;
+import org.apache.pulsar.common.util.BaseGenerateDocumentation;
 
 @Data
 @Parameters(commandDescription = "Generate documentation automatically.")

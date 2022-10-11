@@ -73,7 +73,7 @@ The default port for bookie is `8000` (instead of `8080`). You can change the po
 
 You can use Prometheus to collect and store the metrics data. For details, refer to [Prometheus guide](https://prometheus.io/docs/introduction/getting_started/).
 
-When you run Pulsar on bare metal, you can provide the list of nodes that needs to be probed. When you deploy Pulsar in a Kubernetes cluster, the monitoring is automatically setup with the [provided](deploy-kubernetes) instructions.
+When you run Pulsar on bare metal, you can provide the list of nodes that needs to be probed. When you deploy Pulsar in a Kubernetes cluster, the monitoring is automatically setup with the [provided](deploy-kubernetes.md) instructions.
 
 ## Dashboards
 
@@ -83,7 +83,7 @@ For that reason you only need to collect time series of metrics aggregated at th
 
 ### Pulsar per-topic dashboard
 
-The per-topic dashboard instructions are available at [Dashboard](administration-dashboard).
+The per-topic dashboard instructions are available at [Dashboard](administration-dashboard.md).
 
 ### Grafana
 

@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.transaction;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.pulsar.common.naming.SystemTopicNames.PENDING_ACK_STORE_SUFFIX;
 import static org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl.TRANSACTION_LOG_PREFIX;
+import static org.apache.pulsar.transaction.coordinator.impl.DisabledTxnLogBufferedWriterMetricsStats.DISABLED_BUFFERED_WRITER_METRICS;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doAnswer;
@@ -691,7 +692,8 @@ public class TransactionTest extends TransactionTestBase {
         TransactionPendingAckStoreProvider pendingAckStoreProvider = mock(TransactionPendingAckStoreProvider.class);
         doReturn(CompletableFuture.completedFuture(
                 new MLPendingAckStore(persistentTopic.getManagedLedger(), managedCursor, null,
-                        500, bufferedWriterConfig, transactionTimer)))
+                        500, bufferedWriterConfig, transactionTimer,
+                        DISABLED_BUFFERED_WRITER_METRICS)))
                 .when(pendingAckStoreProvider).newPendingAckStore(any());
         doReturn(CompletableFuture.completedFuture(true)).when(pendingAckStoreProvider).checkInitializedBefore(any());
 
@@ -757,7 +759,7 @@ public class TransactionTest extends TransactionTestBase {
         MLTransactionLogImpl mlTransactionLog =
                 new MLTransactionLogImpl(new TransactionCoordinatorID(1), null,
                         persistentTopic.getManagedLedger().getConfig(), new TxnLogBufferedWriterConfig(),
-                        transactionTimer);
+                        transactionTimer, DISABLED_BUFFERED_WRITER_METRICS);
         Class<MLTransactionLogImpl> mlTransactionLogClass = MLTransactionLogImpl.class;
         Field field = mlTransactionLogClass.getDeclaredField("cursor");
         field.setAccessible(true);
@@ -1468,5 +1470,53 @@ public class TransactionTest extends TransactionTestBase {
             Throwable t = executionException.getCause();
             Assert.assertTrue(t instanceof BrokerServiceException.ServiceUnitNotReadyException);
         }
+    }
+
+    @Test
+    public void testGetTxnState() throws Exception {
+        Transaction transaction = pulsarClient.newTransaction().withTransactionTimeout(1, TimeUnit.SECONDS)
+                .build().get();
+
+        // test OPEN and TIMEOUT
+        assertEquals(transaction.getState(), Transaction.State.OPEN);
+        Transaction timeoutTxn = transaction;
+        Awaitility.await().until(() -> timeoutTxn.getState() == Transaction.State.TIME_OUT);
+
+        // test abort
+        transaction = pulsarClient.newTransaction().withTransactionTimeout(3, TimeUnit.SECONDS)
+                .build().get();
+        transaction.abort().get();
+        assertEquals(transaction.getState(), Transaction.State.ABORTED);
+
+        // test commit
+        transaction = pulsarClient.newTransaction().withTransactionTimeout(3, TimeUnit.SECONDS)
+                .build().get();
+        transaction.commit().get();
+        assertEquals(transaction.getState(), Transaction.State.COMMITTED);
+
+        // test error
+        transaction = pulsarClient.newTransaction().withTransactionTimeout(1, TimeUnit.SECONDS)
+                .build().get();
+        pulsarServiceList.get(0).getTransactionMetadataStoreService()
+                .endTransaction(transaction.getTxnID(), 0, false);
+        transaction.commit();
+        Transaction errorTxn = transaction;
+        Awaitility.await().until(() -> errorTxn.getState() == Transaction.State.ERROR);
+
+        // test committing
+        transaction = pulsarClient.newTransaction().withTransactionTimeout(3, TimeUnit.SECONDS)
+                .build().get();
+        ((TransactionImpl) transaction).registerSendOp(new CompletableFuture<>());
+        transaction.commit();
+        Transaction committingTxn = transaction;
+        Awaitility.await().until(() -> committingTxn.getState() == Transaction.State.COMMITTING);
+
+        // test aborting
+        transaction = pulsarClient.newTransaction().withTransactionTimeout(3, TimeUnit.SECONDS)
+                .build().get();
+        ((TransactionImpl) transaction).registerSendOp(new CompletableFuture<>());
+        transaction.abort();
+        Transaction abortingTxn = transaction;
+        Awaitility.await().until(() -> abortingTxn.getState() == Transaction.State.ABORTING);
     }
 }

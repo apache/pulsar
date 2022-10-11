@@ -7,7 +7,7 @@ original_id: deploy-kubernetes
 
 :::tip
 
-If you want to enable all builtin [Pulsar IO](io-overview) connectors in your Pulsar deployment, you can choose to use `apachepulsar/pulsar-all` image instead of
+If you want to enable all builtin [Pulsar IO](io-overview.md) connectors in your Pulsar deployment, you can choose to use `apachepulsar/pulsar-all` image instead of
 `apachepulsar/pulsar` image. `apachepulsar/pulsar-all` image has already bundled [all builtin connectors](io-overview.md#working-with-connectors).
 
 :::
@@ -20,7 +20,7 @@ The deployment method shown in this guide relies on [YAML](http://yaml.org/) def
 * A three-node ZooKeeper cluster
 * A three-broker Pulsar cluster
 * A [monitoring stack](#) consisting of [Prometheus](https://prometheus.io/), [Grafana](https://grafana.com), and the [Pulsar dashboard](administration-dashboard.md)
-* A [pod](https://kubernetes.io/docs/concepts/workloads/pods/pod/) from which you can run administrative commands using the [`pulsar-admin`](reference-pulsar-admin) CLI tool
+* A [pod](https://kubernetes.io/docs/concepts/workloads/pods/pod/) from which you can run administrative commands using the [`pulsar-admin`](reference-pulsar-admin.md) CLI tool
 
 ## Setup
 
@@ -252,7 +252,7 @@ $ bin/pulsar initialize-cluster-metadata \
 
 ### Deploy the rest of the components
 
-Once cluster metadata has been successfully initialized, you can then deploy the bookies, brokers, monitoring stack ([Prometheus](https://prometheus.io), [Grafana](https://grafana.com), and the [Pulsar dashboard](administration-dashboard)), and Pulsar cluster proxy:
+Once cluster metadata has been successfully initialized, you can then deploy the bookies, brokers, monitoring stack ([Prometheus](https://prometheus.io), [Grafana](https://grafana.com), and the [Pulsar dashboard](administration-dashboard.md)), and Pulsar cluster proxy:
 
 ```bash
 
@@ -276,9 +276,9 @@ $ kubectl get pods -w -l app=pulsar
 
 Once all of the components are up and running, you'll need to create at least one Pulsar tenant and at least one namespace.
 
-> This step is not strictly required if Pulsar [authentication and authorization](security-overview.md) is turned on, though it allows you to change [policies](admin-api-namespaces) for each of the namespaces later.
+> This step is not strictly required if Pulsar [authentication and authorization](security-overview.md) is turned on, though it allows you to change [policies](admin-api-namespaces.md) for each of the namespaces later.
 
-You can create properties and namespaces (and perform any other administrative tasks) using the `pulsar-admin` pod that is already configured to act as an admin client for your newly created Pulsar cluster. One easy way to perform administrative tasks is to create an alias for the [`pulsar-admin`](reference-pulsar-admin) tool installed on the admin pod.
+You can create properties and namespaces (and perform any other administrative tasks) using the `pulsar-admin` pod that is already configured to act as an admin client for your newly created Pulsar cluster. One easy way to perform administrative tasks is to create an alias for the [`pulsar-admin`](reference-pulsar-admin.md) tool installed on the admin pod.
 
 ```bash
 
@@ -349,7 +349,7 @@ $ pulsar-perf consume persistent://public/default/my-topic \
 
 ```
 
-You can also view [stats](administration-stats) for the topic using the [`pulsar-admin`](reference-pulsar-admin.md#persistent-stats) tool:
+You can also view [stats](administration-stats.md) for the topic using the [`pulsar-admin`](reference-pulsar-admin.md#persistent-stats) tool:
 
 ```bash
 
@@ -359,7 +359,7 @@ $ pulsar-admin persistent stats persistent://public/default/my-topic
 
 ### Monitoring
 
-The default monitoring stack for Pulsar on Kubernetes has consists of [Prometheus](#prometheus), [Grafana](#grafana), and the [Pulsar dashboard](administration-dashboard).
+The default monitoring stack for Pulsar on Kubernetes has consists of [Prometheus](#prometheus), [Grafana](#grafana), and the [Pulsar dashboard](administration-dashboard.md).
 
 > If you deployed the cluster to Minikube, the following monitoring ports are mapped at the minikube VM:
 >
@@ -389,7 +389,7 @@ You can then access the dashboard in your web browser at [localhost:3000](http:/
 
 #### Pulsar dashboard
 
-While Grafana and Prometheus are used to provide graphs with historical data, [Pulsar dashboard](administration-dashboard) reports more detailed current data for individual [topics](reference-terminology.md#topic).
+While Grafana and Prometheus are used to provide graphs with historical data, [Pulsar dashboard](administration-dashboard.md) reports more detailed current data for individual [topics](reference-terminology.md#topic).
 
 For example, you can have sortable tables showing all namespaces, topics, and broker stats, with details on the IP address for consumers, how long they've been connected, and much more.
 

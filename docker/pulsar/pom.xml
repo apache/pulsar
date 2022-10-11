@@ -30,12 +30,6 @@
   <name>Apache Pulsar :: Docker Images :: Pulsar Latest Version</name>
   <packaging>pom</packaging>
 
-  <properties>
-    <pythonClientBuildArch>x86_64</pythonClientBuildArch>
-    <skipBuildPythonClient>false</skipBuildPythonClient>
-    <skipCopyPythonClients>false</skipCopyPythonClients>
-  </properties>
-
   <dependencies>
     <dependency>
       <groupId>${project.groupId}</groupId>
@@ -58,55 +52,11 @@
       <id>docker</id>
       <properties>
         <docker.buildArg.PULSAR_TARBALL>target/pulsar-server-distribution-${project.version}-bin.tar.gz</docker.buildArg.PULSAR_TARBALL>
+        <docker.buildArg.PULSAR_CLIENT_PYTHON_VERSION>${pulsar.client.python.version}</docker.buildArg.PULSAR_CLIENT_PYTHON_VERSION>
         <docker.buildArg.UBUNTU_MIRROR>${env.UBUNTU_MIRROR}</docker.buildArg.UBUNTU_MIRROR>
       </properties>
       <build>
         <plugins>
-          <!-- build Python client, copy the wheel file and then build docker image -->
-          <plugin>
-            <groupId>org.codehaus.mojo</groupId>
-            <artifactId>exec-maven-plugin</artifactId>
-            <version>${exec-maven-plugin.version}</version>
-            <executions>
-              <execution>
-                <id>build-pulsar-clients-python-35</id>
-                <phase>compile</phase>
-                <goals>
-                  <goal>exec</goal>
-                </goals>
-                <configuration>
-                  <skip>${skipBuildPythonClient}</skip>
-                  <workingDirectory>${project.basedir}/target</workingDirectory>
-                  <executable>${project.basedir}/../../pulsar-client-cpp/docker/build-wheels.sh</executable>
-                  <arguments>
-                    <!-- build python 3.8 -->
-                    <argument>3.8 cp38-cp38 manylinux2014 ${pythonClientBuildArch}</argument>
-                  </arguments>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-antrun-plugin</artifactId>
-            <executions>
-              <execution>
-                <id>copy-pulsar-clients-python</id>
-                <phase>compile</phase>
-                <goals>
-                  <goal>run</goal>
-                </goals>
-                <configuration>
-                  <skip>${skipCopyPythonClients}</skip>
-                  <target>
-                    <echo>copy python wheel file</echo>
-                    <mkdir dir="${basedir}/target/python-client"/>
-                    <copydir src="${basedir}/../../pulsar-client-cpp/python/wheelhouse" dest="${basedir}/target/python-client"/>
-                  </target>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
           <plugin>
             <groupId>io.fabric8</groupId>
             <artifactId>docker-maven-plugin</artifactId>

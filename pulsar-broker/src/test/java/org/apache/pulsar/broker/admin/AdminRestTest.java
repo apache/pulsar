@@ -117,7 +117,7 @@ public class AdminRestTest extends MockedPulsarServiceBaseTest {
     protected void cleanup() throws Exception {
         // cleanup.
         admin.topics().delete(topicName);
-        admin.namespaces().deleteNamespace(namespaceName);
+        deleteNamespaceGraceFully(namespaceName, false);
         admin.tenants().deleteTenant(tenantName);
         admin.clusters().deleteCluster(clusterName);
         // super cleanup.

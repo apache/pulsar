@@ -23,7 +23,6 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -61,6 +60,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
+import org.testng.AssertJUnit;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -258,7 +258,7 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
         Reader<byte[]> reader = pulsarClient.newReader().topic(topic)
                 .startMessageFromRollbackDuration(2, TimeUnit.HOURS).create();
 
-        List<MessageId> receivedMessageIds = Lists.newArrayList();
+        List<MessageId> receivedMessageIds = new ArrayList<>();
 
         while (reader.hasMessageAvailable()) {
             Message<byte[]> msg = reader.readNext(1, TimeUnit.SECONDS);
@@ -624,6 +624,29 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
         }
 
     }
+
+    @Test
+    void shouldSupportCancellingReadNextAsync() throws Exception {
+        String topic = "persistent://my-property/my-ns/my-reader-topic" + UUID.randomUUID();
+        admin.topics().createPartitionedTopic(topic, 3);
+        MultiTopicsReaderImpl<byte[]> reader = (MultiTopicsReaderImpl<byte[]>) pulsarClient.newReader()
+                .topic(topic)
+                .startMessageId(MessageId.earliest)
+                .readerName(subscription)
+                .create();
+        // given
+        CompletableFuture<Message<byte[]>> future = reader.readNextAsync();
+        Awaitility.await().untilAsserted(() -> {
+            AssertJUnit.assertTrue(reader.getMultiTopicsConsumer().hasNextPendingReceive());
+        });
+
+        // when
+        future.cancel(false);
+
+        // then
+        AssertJUnit.assertFalse(reader.getMultiTopicsConsumer().hasNextPendingReceive());
+    }
+
 
     private void testReadMessages(String topic, boolean enableBatch) throws Exception {
         int numKeys = 9;

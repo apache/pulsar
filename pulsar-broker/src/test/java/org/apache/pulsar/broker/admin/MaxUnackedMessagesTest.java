@@ -47,7 +47,6 @@ import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-import org.testng.collections.Lists;
 
 @Test(groups = "broker-admin")
 public class MaxUnackedMessagesTest extends ProducerConsumerBase {
@@ -103,7 +102,7 @@ public class MaxUnackedMessagesTest extends ProducerConsumerBase {
         Consumer<byte[]> consumer1 = consumerBuilder.subscribe();
         Consumer<byte[]> consumer2 = consumerBuilder.subscribe();
         Consumer<byte[]> consumer3 = consumerBuilder.subscribe();
-        List<Consumer<?>> consumers = Lists.newArrayList(consumer1, consumer2, consumer3);
+        List<Consumer<?>> consumers = List.of(consumer1, consumer2, consumer3);
         waitCacheInit(topicName);
         admin.topics().setMaxUnackedMessagesOnSubscription(topicName, unackMsgAllowed);
         Awaitility.await().untilAsserted(()

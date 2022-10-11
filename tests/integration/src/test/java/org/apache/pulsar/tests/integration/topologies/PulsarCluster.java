@@ -95,6 +95,7 @@ public class PulsarCluster {
     @Getter
     private Map<String, PrestoWorkerContainer> sqlFollowWorkerContainers;
     private Map<String, GenericContainer<?>> externalServices = Collections.emptyMap();
+    private Map<String, Map<String, String>> externalServiceEnvs;
     private final boolean enablePrestoWorker;
 
     private PulsarCluster(PulsarClusterSpec spec, CSContainer csContainer, boolean sharedCsContainer) {
@@ -280,14 +281,19 @@ public class PulsarCluster {
 
         // start external services
         this.externalServices = spec.externalServices;
+        this.externalServiceEnvs = spec.externalServiceEnvs;
         if (null != externalServices) {
             externalServices.entrySet().parallelStream().forEach(service -> {
                 GenericContainer<?> serviceContainer = service.getValue();
                 serviceContainer.withNetwork(network);
                 serviceContainer.withNetworkAliases(service.getKey());
+                if (null != externalServiceEnvs && null != externalServiceEnvs.get(service.getKey())) {
+                    Map<String, String> env = externalServiceEnvs.getOrDefault(service.getKey(), Collections.emptyMap());
+                    serviceContainer.withEnv(env);
+                }
                 PulsarContainer.configureLeaveContainerRunning(serviceContainer);
                 serviceContainer.start();
-                log.info("Successfully start external service {}.", service.getKey());
+                log.info("Successfully started external service {}.", service.getKey());
             });
         }
     }

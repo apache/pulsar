@@ -113,6 +113,12 @@ public class PulsarClusterSpec {
     Map<String, GenericContainer<?>> externalServices;
 
     /**
+     * Specify envs for external services.
+     */
+    @Singular
+    Map<String, Map<String, String>> externalServiceEnvs;
+
+    /**
      * Returns the flag whether to enable/disable container log.
      *
      * @return the flag whether to enable/disable container log.

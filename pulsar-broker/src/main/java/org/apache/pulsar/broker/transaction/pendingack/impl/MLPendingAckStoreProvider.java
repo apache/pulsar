@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.transaction.pendingack.impl;
 
 import io.netty.util.Timer;
+import io.prometheus.client.CollectorRegistry;
 import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -34,7 +35,9 @@ import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.transaction.coordinator.impl.DisabledTxnLogBufferedWriterMetricsStats;
 import org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriterConfig;
+import org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriterMetricsStats;
 
 
 /**
@@ -42,6 +45,21 @@ import org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriterConfig
  */
 @Slf4j
 public class MLPendingAckStoreProvider implements TransactionPendingAckStoreProvider {
+
+    private static volatile TxnLogBufferedWriterMetricsStats bufferedWriterMetrics =
+            DisabledTxnLogBufferedWriterMetricsStats.DISABLED_BUFFERED_WRITER_METRICS;
+
+    public static void initBufferedWriterMetrics(String brokerAdvertisedAddress){
+        if (bufferedWriterMetrics != DisabledTxnLogBufferedWriterMetricsStats.DISABLED_BUFFERED_WRITER_METRICS){
+            return;
+        }
+        synchronized (MLPendingAckStoreProvider.class){
+            if (bufferedWriterMetrics != DisabledTxnLogBufferedWriterMetricsStats.DISABLED_BUFFERED_WRITER_METRICS){
+                return;
+            }
+            bufferedWriterMetrics = new MLTxnPendingAckLogBufferedWriterMetrics(brokerAdvertisedAddress);
+        }
+    }
 
     @Override
     public CompletableFuture<PendingAckStore> newPendingAckStore(PersistentSubscription subscription) {
@@ -105,7 +123,7 @@ public class MLPendingAckStoreProvider implements TransactionPendingAckStoreProv
                                                                         .getConfiguration()
                                                                         .getTransactionPendingAckLogIndexMinLag(),
                                                                 txnLogBufferedWriterConfig,
-                                                                brokerClientSharedTimer));
+                                                                brokerClientSharedTimer, bufferedWriterMetrics));
                                                         if (log.isDebugEnabled()) {
                                                             log.debug("{},{} open MLPendingAckStore cursor success",
                                                                     originPersistentTopic.getName(),
@@ -150,5 +168,15 @@ public class MLPendingAckStoreProvider implements TransactionPendingAckStoreProv
                 .getTransactionPendingAckStoreSuffix(originPersistentTopic.getName(), subscription.getName());
         return originPersistentTopic.getBrokerService().getManagedLedgerFactory()
                 .asyncExists(TopicName.get(pendingAckTopicName).getPersistenceNamingEncoding());
+    }
+
+    private static class MLTxnPendingAckLogBufferedWriterMetrics extends TxnLogBufferedWriterMetricsStats{
+
+        private MLTxnPendingAckLogBufferedWriterMetrics(String brokerAdvertisedAddress) {
+            super("pulsar_txn_pending_ack_store",
+                    new String[]{"broker"},
+                    new String[]{brokerAdvertisedAddress},
+                    CollectorRegistry.defaultRegistry);
+        }
     }
 }
